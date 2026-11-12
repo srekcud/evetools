@@ -300,6 +300,32 @@ final class ProductionCostCalculatorTest extends TestCase
         $this->assertFalse($productionCost->costPerUnit->isKnown());
     }
 
+    #[Group('issue-780')]
+    public function testStructureWithoutFacilityTaxMakesTheInstallCostUnknownNeverZero(): void
+    {
+        $raitaruWithoutFacilityTax = ProductionStructures::raitaruWithFacilityTax(
+            'raitaru-nullsec',
+            SecurityClass::NullSec,
+            self::RAITARU_SYSTEM_ID,
+            null,
+            ProductionStructures::manufacturingRig(2.4, 'ammunition'),
+        );
+
+        $productionCost = self::hailLCalculator()->costOf(self::hailLRequest(CostMode::MarginalCost, [$raitaruWithoutFacilityTax]));
+
+        $this->assertKnownCost(4564546.93, $productionCost->materialCost);
+        $rootJob = self::jobOf($productionCost, self::HAIL_L);
+        $this->assertKnownCost(201275.0, $rootJob->installCost->systemCost);
+        $this->assertKnownCost(166000.0, $rootJob->installCost->sccSurcharge);
+        $this->assertFalse($rootJob->installCost->facilityTax->isKnown());
+        $this->assertEquals([MissingData::facilityTax()], $rootJob->installCost->total->missingData);
+        $this->assertFalse($productionCost->installCost->isKnown());
+        $this->assertEquals([MissingData::facilityTax()], $productionCost->installCost->missingData);
+        $this->assertFalse($productionCost->totalCost->isKnown());
+        $this->assertEquals([MissingData::facilityTax()], $productionCost->totalCost->missingData);
+        $this->assertFalse($productionCost->costPerUnit->isKnown());
+    }
+
     public function testStructureWithoutKnownSystemAndNoFavoriteSystemGivesAnUnknownCostIndex(): void
     {
         // Only imported structures know their system; the favorite system replaces it. Without either, no index.

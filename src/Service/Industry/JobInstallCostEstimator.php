@@ -52,6 +52,10 @@ final readonly class JobInstallCostEstimator
             return ['cost' => null, 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
         }
 
+        if ($facilityTaxPercent === null) {
+            return ['cost' => null, 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_FACILITY_TAX, 'missingAdjustedPriceTypeIds' => []];
+        }
+
         $estimatedItemValue = EstimatedItemValue::of(
             new Runs($runs),
             array_map(
@@ -68,7 +72,7 @@ final readonly class JobInstallCostEstimator
             $estimatedItemValue,
             $costIndex,
             null === $structure ? Multiplier::one() : $structure->installCostMultiplierFor($activityKind),
-            ($facilityTaxPercent ?? 0.0) / self::PERCENT,
+            $facilityTaxPercent / self::PERCENT,
             false,
         );
 

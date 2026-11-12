@@ -421,6 +421,45 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertSame([self::TRITANIUM_TYPE_ID], $result[0]['missingPriceTypeIds']);
     }
 
+    #[Group('issue-780')]
+    public function testStructureWithoutFacilityTaxKeepsTheProductWithUnknownMarginAndKnownMaterialCost(): void
+    {
+        $this->givenModuleSoldAt(5701, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru-tax-unset', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, null),
+        ]];
+
+        $result = $this->scan(user: $this->userWithCharacterSkills([]));
+
+        $this->assertCount(1, $result);
+        $this->assertSame(5701, $result[0]['typeId']);
+        $this->assertNull($result[0]['marginPercent']);
+        $this->assertNull($result[0]['profitPerUnit']);
+        $this->assertNull($result[0]['iskPerDay']);
+        $this->assertSame('missing_facility_tax', $result[0]['unknownReason']);
+        $this->assertSame(45.0, $result[0]['materialCost']);
+        $this->assertSame([], $result[0]['missingPriceTypeIds']);
+    }
+
+    #[Group('issue-780')]
+    public function testStructureWithFacilityTaxSetToZeroKeepsAKnownMargin(): void
+    {
+        $this->givenModuleSoldAt(5702, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru-tax-zero', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.0),
+        ]];
+
+        $result = $this->scan(user: $this->userWithCharacterSkills([]));
+
+        $this->assertCount(1, $result);
+        $this->assertNull($result[0]['unknownReason']);
+        $this->assertIsFloat($result[0]['profitPerUnit']);
+    }
+
     public function testMinimumMarginExcludesAProductOfASystemWithoutCostIndex(): void
     {
         $this->givenModuleSoldAt(5601, 100.0, 10.0);

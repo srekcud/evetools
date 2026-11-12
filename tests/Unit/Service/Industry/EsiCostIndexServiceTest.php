@@ -9,6 +9,7 @@ use App\Service\ESI\TokenManager;
 use App\Service\Industry\EsiCostIndexService;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
@@ -395,25 +396,26 @@ class EsiCostIndexServiceTest extends TestCase
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
     }
 
-    public function testEstimateJobInstallCostMultipliesTheBaseByRunsAndReadsNullFacilityTaxAsZeroWithSccSurcharge(): void
+    public function testEstimateJobInstallCostMultipliesTheBaseByRunsWithAZeroFacilityTaxAndTheSccSurcharge(): void
     {
         $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
 
-        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 3, self::JITA, 'manufacturing', null);
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 3, self::JITA, 'manufacturing', 0.0);
 
         $this->assertEqualsWithDelta(4598.41968, $estimate['cost'], 1e-6);
         $this->assertNull($estimate['unknownReason']);
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
     }
 
-    public function testEstimateJobInstallCostOfNitrogenFuelBlockWithNullFacilityTaxStillAddsSccSurcharge(): void
+    #[Group('issue-780')]
+    public function testEstimateJobInstallCostOfNitrogenFuelBlockWithUnsetFacilityTaxIsUnknownNeverZero(): void
     {
         $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
 
         $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'manufacturing', null);
 
-        $this->assertEqualsWithDelta(1532.80656, $estimate['cost'], 1e-6);
-        $this->assertNull($estimate['unknownReason']);
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_facility_tax', $estimate['unknownReason']);
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
     }
 
@@ -428,7 +430,7 @@ class EsiCostIndexServiceTest extends TestCase
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
     }
 
-    public function testEstimateJobInstallCostTreatsAnExplicitZeroFacilityTaxAsNull(): void
+    public function testEstimateJobInstallCostOfAFacilityTaxSetToZeroIsKnownAndAddsTheSccSurcharge(): void
     {
         $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
 
@@ -519,11 +521,11 @@ class EsiCostIndexServiceTest extends TestCase
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
     }
 
-    public function testEstimateJobInstallCostOfNitrogenFuelBlockInventionReadsNullFacilityTaxAsZeroWithSccSurcharge(): void
+    public function testEstimateJobInstallCostOfNitrogenFuelBlockInventionWithAZeroFacilityTaxStillAddsSccSurcharge(): void
     {
         $service = $this->createServiceWithSyncedNitrogenFuelBlockInputs();
 
-        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'invention', null);
+        $estimate = $service->estimateJobInstallCost($this->nitrogenFuelBlockMaterials(), 1, self::JITA, 'invention', 0.0);
 
         $this->assertEqualsWithDelta(40.8748416, $estimate['cost'], 1e-6);
         $this->assertNull($estimate['unknownReason']);

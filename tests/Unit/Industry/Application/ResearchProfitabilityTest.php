@@ -229,6 +229,27 @@ final class ResearchProfitabilityTest extends TestCase
         );
     }
 
+    #[Group('issue-780')]
+    public function testConfiguredStructureWithoutFacilityTaxMakesTheResearchCostAndTheNetUnknownButKeepsTheSaving(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(me0: 1_000_000.0, me1: 980_000.0),
+            $this->planOf($this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0)),
+            [self::HOBGOBLIN_II => $this->owned(me: 0)],
+            structures: [$this->structure(costRoleBonus: 0.9, facilityTaxRate: null)],
+            costIndices: new InMemorySystemCostIndices([
+                self::STRUCTURE_SYSTEM_ID => [ActivityKind::ResearchMaterial->name => self::STRUCTURE_SYSTEM_RESEARCH_COST_INDEX],
+            ]),
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertSame(
+            [self::HOBGOBLIN_II, 0, 1, 10, 20_000.0, null, null, ResearchVerdict::Unknown],
+            $this->rowOf($suggestions[0]),
+        );
+        self::assertEquals([MissingData::facilityTax()], $suggestions[0]->missingData);
+    }
+
     #[Group('issue-526')]
     public function testLaboratoryRigLowersTheSystemShareOfTheResearchCostOnly(): void
     {
@@ -432,7 +453,7 @@ final class ResearchProfitabilityTest extends TestCase
     /**
      * @param list<StructureRig> $rigs
      */
-    private function structure(float $costRoleBonus, float $facilityTaxRate, array $rigs = [], array $scienceRigs = []): ProductionStructure
+    private function structure(float $costRoleBonus, ?float $facilityTaxRate, array $rigs = [], array $scienceRigs = []): ProductionStructure
     {
         return new ProductionStructure(
             'workshop',

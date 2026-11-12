@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Industry\Domain;
 
 use App\Industry\Domain\MissingData;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(MissingData::class)]
@@ -42,5 +43,13 @@ final class MissingDataTest extends TestCase
         );
 
         $this->assertSame([['copy_skills', null], ['copy_structure_not_planned', null], ['no_copy_structure', null], ['planned_structure_deleted', null]], $reasons);
+    }
+
+    #[Group('issue-780')]
+    public function testFacilityTaxBelongsToNoType(): void
+    {
+        $missingData = MissingData::facilityTax();
+
+        $this->assertSame(['facility_tax', null], [$missingData->reason, $missingData->typeId]);
     }
 }

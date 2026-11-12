@@ -731,6 +731,13 @@ watch(
               class="w-full sm:w-48 px-3 py-2 bg-slate-900 border rounded-lg text-slate-200 text-sm focus:outline-hidden"
               :class="isFacilityTaxRateOutOfRange ? 'border-red-500 focus:border-red-400' : 'border-slate-600 focus:border-cyan-500'"
             />
+            <p
+              v-if="enteredFacilityTaxRate === null"
+              data-testid="facility-tax-unknown-help"
+              class="mt-1 text-body text-amber-400"
+            >
+              {{ t('industry.structures.facilityTaxUnknownHelp') }}
+            </p>
             <p v-if="isFacilityTaxRateOutOfRange" class="mt-1 text-body text-red-400">
               {{ t('industry.structures.facilityTaxOutOfRange', { min: MIN_FACILITY_TAX_RATE, max: MAX_FACILITY_TAX_RATE }) }}
             </p>
@@ -902,6 +909,11 @@ watch(
             <p class="text-xs text-slate-500 mt-1">
               {{ t('industry.structures.facilityTax') }}
               <span v-if="structure.facilityTaxRate != null" class="text-slate-300">{{ formatFacilityTaxRate(structure.facilityTaxRate) }}</span>
+              <span
+                v-else-if="structure.structureType !== 'station'"
+                :data-testid="`facility-tax-warning-${structure.id}`"
+                class="font-medium text-amber-400"
+              >{{ t('industry.structures.facilityTaxNotSet') }}</span>
               <span v-else class="italic">{{ t('industry.structures.facilityTaxNotSet') }}</span>
             </p>
             <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">

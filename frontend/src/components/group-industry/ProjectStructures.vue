@@ -267,7 +267,11 @@ watch(
                 <td :data-testid="rowTestId(group, row, 'installation')" class="px-4 py-3 text-right font-mono tabular-nums text-slate-300">
                   <UnknownContributionValue v-if="row.installationCost === null" />
                   <template v-else>{{ formatIsk(row.installationCost) }}</template>
-                  <div class="mt-0.5 text-xs font-sans text-slate-500">{{ t('groupIndustry.structures.taxDetail', { percent: `${formatNumber(row.facilityTaxPercent)} %` }) }}</div>
+                  <div
+                    v-if="row.facilityTaxPercent === null"
+                    class="mt-0.5 text-xs font-sans text-amber-400"
+                  >{{ t('groupIndustry.structures.taxNotSet') }}</div>
+                  <div v-else class="mt-0.5 text-xs font-sans text-slate-500">{{ t('groupIndustry.structures.taxDetail', { percent: `${formatNumber(row.facilityTaxPercent)} %` }) }}</div>
                 </td>
 
                 <td :data-testid="rowTestId(group, row, 'transport')" class="px-4 py-3 text-right font-mono tabular-nums text-slate-300">

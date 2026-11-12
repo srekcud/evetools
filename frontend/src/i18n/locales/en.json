@@ -692,6 +692,7 @@
     "inventionUnknown": {
       "label": "Unknown",
       "missing_adjusted_price": "ESI adjusted price unknown",
+      "missing_facility_tax": "Facility tax not set on the structure: install cost unknown.",
       "missing_cost_index": "System cost index unknown",
       "missing_invention_probability": "Invention success probability missing from the static data (SDE): the invention cost is unknown.",
       "missing_market_price": "Unknown market price for a datacore or the decryptor: the invention cost is unknown.",
@@ -1337,6 +1338,7 @@
       "facilityTaxLabel": "Facility tax (%)",
       "facilityTaxValue": "{rate}%",
       "facilityTaxNotSet": "not set",
+      "facilityTaxUnknownHelp": "Facility tax of the structure not entered: the install cost stays unknown until you enter it. Enter 0 if the structure really charges nothing.",
       "facilityTaxNpcFixed": "{rate} (set by the game)",
       "facilityTaxOutOfRange": "Facility tax must be between {min} and {max}%",
       "noStructures": "No structures configured",
@@ -2849,6 +2851,7 @@
         "market_price": "Jita price",
         "structure_price": "structure price",
         "cost_index": "system cost index",
+        "facility_tax": "facility tax",
         "item_volume": "item volume",
         "jump_route": "jump route",
         "research_skill": "research skill",
@@ -2959,6 +2962,7 @@
       "jumps": "{count} jump | {count} jumps",
       "retained": "Structure retained by the plan",
       "taxDetail": "tax {percent}",
+      "taxNotSet": "tax not set",
       "transportDetail": "{volume} m³ × {jumps}",
       "switch": {
         "allow": "Allow for this project",

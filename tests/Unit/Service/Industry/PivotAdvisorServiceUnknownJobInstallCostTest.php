@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\Sde\IndustryActivityProduct;
+use App\Industry\Domain\SecurityClass;
 use App\Repository\CachedAssetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -18,6 +19,7 @@ use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -31,6 +33,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
 {
     use CreatesUserWithId;
     private const int SOLAR_SYSTEM_ID = 30002510;
+    private const string USER_ID = '0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f90';
     private const float BROKER_FEE_RATE = 0.036;
     private const float SALES_TAX_RATE = 0.036;
     private const int RUNS = 3;
@@ -243,6 +246,58 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         ], array_map($this->withoutPriceSources(...), $result['candidates']));
     }
 
+    #[Group('issue-780')]
+    public function testCandidatesBuiltInAStructureWithoutFacilityTaxHaveAnUnknownCostWithTheMissingFacilityTaxReasonAndAFiguredCoverage(): void
+    {
+        $result = $this->analyzePivot(
+            sourceMaterials: self::SOURCE_MATERIALS,
+            candidates: [
+                self::CANDIDATE_X => [self::MANUFACTURING_ACTIVITY_ID, self::CANDIDATE_X_MATERIALS],
+                self::CANDIDATE_W => [self::MANUFACTURING_ACTIVITY_ID, self::CANDIDATE_W_MATERIALS],
+            ],
+            costIndexByActivity: ['manufacturing' => self::MANUFACTURING_COST_INDEX, 'reaction' => self::REACTION_COST_INDEX],
+            userStructures: [ProductionStructures::raitaruWithFacilityTax('raitaru-tax-unset', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, null)],
+        );
+
+        $this->assertSame([
+            [
+                ...self::CANDIDATE_X_FIGURED,
+                'marginPercent' => null,
+                'profitPerUnit' => null,
+                'estimatedProfit' => null,
+                'score' => null,
+                'unknownReason' => 'missing_facility_tax',
+            ],
+            [
+                ...self::CANDIDATE_W_FIGURED,
+                'marginPercent' => null,
+                'profitPerUnit' => null,
+                'estimatedProfit' => null,
+                'score' => null,
+                'unknownReason' => 'missing_facility_tax',
+            ],
+        ], array_map($this->withoutPriceSources(...), $result['candidates']));
+        $this->assertNull($result['sourceProduct']['marginPercent']);
+        $this->assertSame('missing_facility_tax', $result['sourceProduct']['unknownReason']);
+    }
+
+    #[Group('issue-780')]
+    public function testCandidatesBuiltInAStructureWithFacilityTaxSetToZeroAreFigured(): void
+    {
+        $result = $this->analyzePivot(
+            sourceMaterials: self::SOURCE_MATERIALS,
+            candidates: [
+                self::CANDIDATE_X => [self::MANUFACTURING_ACTIVITY_ID, self::CANDIDATE_X_MATERIALS],
+            ],
+            costIndexByActivity: ['manufacturing' => self::MANUFACTURING_COST_INDEX, 'reaction' => self::REACTION_COST_INDEX],
+            userStructures: [ProductionStructures::raitaruWithFacilityTax('raitaru-tax-zero', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.0)],
+        );
+
+        $this->assertNull($this->candidateOf(self::CANDIDATE_X, $result)['unknownReason']);
+        $this->assertIsFloat($this->candidateOf(self::CANDIDATE_X, $result)['marginPercent']);
+        $this->assertNull($result['sourceProduct']['unknownReason']);
+    }
+
     public function testSourceProductInASystemWithoutManufacturingCostIndexHasAnUnknownMarginWithTheMissingCostIndexReason(): void
     {
         $result = $this->analyzePivot(
@@ -442,6 +497,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         array $costIndexByActivity,
         array $jitaPrices = self::JITA_PRICES,
         ?SalesFees $salesFees = new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE),
+        array $userStructures = [],
     ): array {
         $sourceBlueprint = $this->blueprintProducing(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT);
         $componentTwoBlueprint = $this->blueprintProducing(self::COMPONENT_TWO_BLUEPRINT, self::COMPONENT_TWO);
@@ -484,6 +540,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
                 $materials,
                 $runs,
                 $solarSystemId === self::SOLAR_SYSTEM_ID ? ($costIndexByActivity[$activity] ?? null) : null,
+                $facilityTaxPercent,
             ),
         );
 
@@ -511,7 +568,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             $typeNameResolver,
             $entityManager,
             $inventionService,
-            new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures([self::USER_ID => $userStructures]), InMemorySystemCostIndices::none()),
         );
 
         return $service->analyze(
@@ -519,12 +576,12 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             self::RUNS,
             self::SOLAR_SYSTEM_ID,
             $salesFees,
-            $this->userWithId(),
+            $this->userWithId(self::USER_ID),
             self::SOLAR_SYSTEM_ID,
         );
     }
 
-    private static function estimatedJobInstallCost(array $materials, int $runs, ?float $costIndex): array
+    private static function estimatedJobInstallCost(array $materials, int $runs, ?float $costIndex, ?float $facilityTaxPercent): array
     {
         $missingAdjustedPriceTypeIds = array_values(array_unique(array_diff(
             array_column($materials, 'materialTypeId'),
@@ -538,6 +595,10 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
 
         if ($missingAdjustedPriceTypeIds !== []) {
             return ['cost' => null, 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
+        }
+
+        if ($facilityTaxPercent === null) {
+            return ['cost' => null, 'unknownReason' => 'missing_facility_tax', 'missingAdjustedPriceTypeIds' => []];
         }
 
         $estimatedItemValue = 0.0;

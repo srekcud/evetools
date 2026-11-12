@@ -12,6 +12,7 @@ use App\Industry\Domain\MissingData;
 use App\Industry\Domain\Multiplier;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -181,6 +182,57 @@ final class InstallCostTest extends TestCase
             [MissingData::adjustedPrice(35), MissingData::costIndex()],
             $installCost->total->missingData,
         );
+    }
+
+    #[Group('issue-780')]
+    public function testUnsetFacilityTaxMakesTheFacilityTaxAndTheTotalUnknownWhileTheOtherPartsStayKnown(): void
+    {
+        $installCost = InstallCost::forJob(ActivityKind::Manufacturing, Cost::known(new Isk(1_000_000.0)), 0.05, Multiplier::one(), null, false);
+
+        $this->assertKnownCost(50000, $installCost->systemCost, 'system cost');
+        $this->assertKnownCost(40000, $installCost->sccSurcharge, 'SCC surcharge');
+        $this->assertKnownCost(0, $installCost->alphaCloneTax, 'alpha clone tax');
+        $this->assertFalse($installCost->facilityTax->isKnown());
+        $this->assertEquals([MissingData::facilityTax()], $installCost->facilityTax->missingData);
+        $this->assertFalse($installCost->total->isKnown());
+        $this->assertEquals([MissingData::facilityTax()], $installCost->total->missingData);
+    }
+
+    #[Group('issue-780')]
+    public function testFacilityTaxSetToZeroIsARealZeroPercentAndTheTotalStaysKnown(): void
+    {
+        $installCost = InstallCost::forJob(ActivityKind::Manufacturing, Cost::known(new Isk(1_000_000.0)), 0.05, Multiplier::one(), 0.0, false);
+
+        $this->assertKnownCost(0, $installCost->facilityTax, 'facility tax');
+        $this->assertKnownCost(90000, $installCost->total, 'total');
+    }
+
+    #[Group('issue-780')]
+    public function testMissingCostIndexAndUnsetFacilityTaxAreBothListedCostIndexFirst(): void
+    {
+        $installCost = InstallCost::forJob(ActivityKind::Manufacturing, Cost::known(new Isk(1_000_000.0)), null, Multiplier::one(), null, false);
+
+        $this->assertFalse($installCost->total->isKnown());
+        $this->assertEquals([MissingData::costIndex(), MissingData::facilityTax()], $installCost->total->missingData);
+    }
+
+    #[Group('issue-780')]
+    public function testUnsetFacilityTaxMakesAResearchInstallCostUnknown(): void
+    {
+        $installCost = InstallCost::forResearch(ActivityKind::ResearchMaterial, Cost::known(new Isk(1_000_000.0)), 1, 0.05, Multiplier::one(), null, false);
+
+        $this->assertFalse($installCost->total->isKnown());
+        $this->assertEquals([MissingData::facilityTax()], $installCost->total->missingData);
+        $this->assertKnownCost(400, $installCost->sccSurcharge, 'SCC surcharge');
+    }
+
+    #[Group('issue-780')]
+    public function testUnsetFacilityTaxIsListedOnceInTheSumOfSeveralInstallCosts(): void
+    {
+        $first = InstallCost::forJob(ActivityKind::Manufacturing, Cost::known(new Isk(1_000_000.0)), 0.05, Multiplier::one(), null, false);
+        $second = InstallCost::forJob(ActivityKind::Manufacturing, Cost::known(new Isk(2_000_000.0)), 0.05, Multiplier::one(), null, false);
+
+        $this->assertEquals([MissingData::facilityTax()], $first->total->plus($second->total)->missingData);
     }
 
     public function testZeroCostIndexIsAKnownIndexNotAMissingOne(): void

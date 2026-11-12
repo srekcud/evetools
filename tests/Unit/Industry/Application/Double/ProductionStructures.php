@@ -61,7 +61,7 @@ final class ProductionStructures
         string $id,
         SecurityClass $security,
         ?int $solarSystemId,
-        float $facilityTaxRate,
+        ?float $facilityTaxRate,
         StructureRig ...$rigs,
     ): ProductionStructure {
         return new ProductionStructure(
@@ -81,7 +81,7 @@ final class ProductionStructures
         string $id,
         SecurityClass $security,
         ?int $solarSystemId,
-        float $facilityTaxRate,
+        ?float $facilityTaxRate,
         ScienceRig ...$scienceRigs,
     ): ProductionStructure {
         return new ProductionStructure(
@@ -98,12 +98,12 @@ final class ProductionStructures
         );
     }
 
-    public static function raitaruConfiguredWithFacilityTax(string $id, ?int $solarSystemId, string $configuredAt, float $facilityTaxRate): ProductionStructure
+    public static function raitaruConfiguredWithFacilityTax(string $id, ?int $solarSystemId, string $configuredAt, ?float $facilityTaxRate): ProductionStructure
     {
         return self::engineeringComplexConfiguredWithFacilityTax($id, $solarSystemId, $configuredAt, self::RAITARU_COST_ROLE_BONUS, $facilityTaxRate);
     }
 
-    public static function sotiyoConfiguredWithFacilityTax(string $id, ?int $solarSystemId, string $configuredAt, float $facilityTaxRate): ProductionStructure
+    public static function sotiyoConfiguredWithFacilityTax(string $id, ?int $solarSystemId, string $configuredAt, ?float $facilityTaxRate): ProductionStructure
     {
         return self::engineeringComplexConfiguredWithFacilityTax($id, $solarSystemId, $configuredAt, self::SOTIYO_COST_ROLE_BONUS, $facilityTaxRate);
     }
@@ -113,7 +113,7 @@ final class ProductionStructures
         ?int $solarSystemId,
         string $configuredAt,
         float $costRoleBonus,
-        float $facilityTaxRate,
+        ?float $facilityTaxRate,
     ): ProductionStructure {
         return new ProductionStructure(
             $id,
@@ -153,7 +153,7 @@ final class ProductionStructures
         string $id,
         SecurityClass $security,
         ?int $solarSystemId,
-        float $facilityTaxRate,
+        ?float $facilityTaxRate,
     ): ProductionStructure {
         return new ProductionStructure(
             $id,

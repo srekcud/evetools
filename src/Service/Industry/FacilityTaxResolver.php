@@ -21,7 +21,7 @@ final readonly class FacilityTaxResolver
     {
     }
 
-    public function percentFor(?User $user, int $solarSystemId, ActivityKind $activity): float
+    public function percentFor(?User $user, int $solarSystemId, ActivityKind $activity): ?float
     {
         return self::percentOf($this->structureFor($user, $solarSystemId, $activity));
     }
@@ -33,11 +33,11 @@ final readonly class FacilityTaxResolver
         return (new StructureSelector($structures, new FavoriteSystems($solarSystemId, $solarSystemId), $this->costIndices))->select($activity, null)->structure;
     }
 
-    public static function percentOf(?ProductionStructure $structure): float
+    public static function percentOf(?ProductionStructure $structure): ?float
     {
         $facilityTaxRate = null === $structure ? ProductionCostCalculator::NPC_STATION_FACILITY_TAX_RATE : $structure->facilityTaxRate;
 
-        return $facilityTaxRate * self::PERCENT_PER_FRACTION;
+        return null === $facilityTaxRate ? null : $facilityTaxRate * self::PERCENT_PER_FRACTION;
     }
 
     private static function idOf(User $user): string

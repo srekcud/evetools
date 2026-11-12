@@ -737,6 +737,48 @@ final class StructureSelectorTest extends TestCase
         $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
     }
 
+    #[Group('issue-780')]
+    public function testUnsetFacilityTaxRanksAfterEveryKnownInstallRate(): void
+    {
+        $selector = new StructureSelector([
+            ProductionStructures::raitaruConfiguredWithFacilityTax('tax-unset-september', self::SECOND_OTHER_SYSTEM_ID, '2026-09-01 00:00:00', null),
+            ProductionStructures::raitaruConfiguredWithFacilityTax('tax-1-percent-january', self::OTHER_SYSTEM_ID, '2026-01-01 00:00:00', 0.01),
+        ], FavoriteSystems::none(), self::installCostIndices([self::SECOND_OTHER_SYSTEM_ID => 0.01, self::OTHER_SYSTEM_ID => 0.05]));
+
+        $choice = $selector->select(ActivityKind::Copying, null);
+
+        $this->assertSame('tax-1-percent-january', $choice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
+    }
+
+    #[Group('issue-780')]
+    public function testFacilityTaxSetToZeroIsAKnownInstallRateThatCanWin(): void
+    {
+        $selector = new StructureSelector([
+            ProductionStructures::raitaruConfiguredWithFacilityTax('tax-unset-september', self::SECOND_OTHER_SYSTEM_ID, '2026-09-01 00:00:00', null),
+            ProductionStructures::raitaruConfiguredWithFacilityTax('tax-0-january', self::OTHER_SYSTEM_ID, '2026-01-01 00:00:00', 0.0),
+        ], FavoriteSystems::none(), self::installCostIndices([self::SECOND_OTHER_SYSTEM_ID => 0.01, self::OTHER_SYSTEM_ID => 0.05]));
+
+        $choice = $selector->select(ActivityKind::Copying, null);
+
+        $this->assertSame('tax-0-january', $choice->structure?->id);
+    }
+
+    #[Group('issue-780')]
+    public function testEveryFacilityTaxUnsetFallsBackToTheMostRecentStructureThenTheSmallestId(): void
+    {
+        $selector = new StructureSelector([
+            ProductionStructures::raitaruConfiguredWithFacilityTax('bbb', self::OTHER_SYSTEM_ID, '2026-09-01 00:00:00', null),
+            ProductionStructures::sotiyoConfiguredWithFacilityTax('ccc', self::SECOND_OTHER_SYSTEM_ID, '2026-01-01 00:00:00', null),
+            ProductionStructures::raitaruConfiguredWithFacilityTax('aaa', self::SECOND_OTHER_SYSTEM_ID, '2026-09-01 00:00:00', null),
+        ], FavoriteSystems::none(), self::installCostIndices([self::OTHER_SYSTEM_ID => 0.05, self::SECOND_OTHER_SYSTEM_ID => 0.01]));
+
+        $choice = $selector->select(ActivityKind::Copying, null);
+
+        $this->assertSame('aaa', $choice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
+    }
+
     #[DataProvider('copyingAndInventionProvider')]
     public function testStructureWithoutKnownSystemAndNoFavoriteSystemRanksAfterEveryKnownInstallRate(ActivityKind $activity): void
     {

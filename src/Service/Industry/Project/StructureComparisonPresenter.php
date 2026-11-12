@@ -67,7 +67,7 @@ final class StructureComparisonPresenter
             'inFavoriteSystem' => $row->inFavoriteSystem,
             'jumps' => $breakdown->jumps,
             'materialBonusPercent' => round((1.0 - $row->materialMultiplier->value) * self::PERCENT, self::DISPLAYED_DECIMALS),
-            'facilityTaxPercent' => round($structure->facilityTaxRate * self::PERCENT, self::DISPLAYED_TAX_DECIMALS),
+            'facilityTaxPercent' => null === $structure->facilityTaxRate ? null : round($structure->facilityTaxRate * self::PERCENT, self::DISPLAYED_TAX_DECIMALS),
             'materialsCost' => self::amountOf($breakdown->materials),
             'installationCost' => self::amountOf($breakdown->installation),
             'transportCost' => self::amountOf($breakdown->transport),

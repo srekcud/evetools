@@ -9,6 +9,7 @@ use App\Industry\Domain\Isk;
 use App\Industry\Domain\MissingData;
 use App\Service\Industry\MissingDataPresenter;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(MissingDataPresenter::class)]
@@ -47,6 +48,20 @@ final class MissingDataPresenterTest extends TestCase
             [
                 ['reason' => 'market_price', 'typeId' => self::TRITANIUM],
                 ['reason' => 'invention_probability', 'typeId' => self::HAIL_L_T1_BLUEPRINT],
+            ],
+            MissingDataPresenter::of($cost),
+        );
+    }
+
+    #[Group('issue-780')]
+    public function testFacilityTaxIsGivenAsItIsWithANullTypeId(): void
+    {
+        $cost = Cost::unknown(MissingData::costIndex(), MissingData::facilityTax());
+
+        $this->assertSame(
+            [
+                ['reason' => 'cost_index', 'typeId' => null],
+                ['reason' => 'facility_tax', 'typeId' => null],
             ],
             MissingDataPresenter::of($cost),
         );

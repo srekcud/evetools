@@ -15,6 +15,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemoryMarketPrices;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\StructureTotalCostExample as Example;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(StructureTotalCostComparator::class)]
@@ -114,6 +115,23 @@ final class StructureTotalCostComparatorTest extends TestCase
 
         $this->assertFalse($totalCost->isKnown());
         $this->assertContainsEquals(MissingData::costIndex(), $totalCost->missingData);
+    }
+
+    #[Group('issue-780')]
+    public function testStructureWithoutFacilityTaxHasAnUnknownTotalCostWithTheFacilityTaxAsOnlyCause(): void
+    {
+        $totalCost = $this->totalCostOf(Example::unriggedStructure('tax-unset', Example::WORKSHOP_SYSTEM_ID, null));
+
+        $this->assertFalse($totalCost->isKnown());
+        $this->assertEquals([MissingData::facilityTax()], $totalCost->missingData);
+    }
+
+    #[Group('issue-780')]
+    public function testStructureWithFacilityTaxSetToZeroKeepsAKnownTotalCost(): void
+    {
+        $totalCost = $this->totalCostOf(Example::unriggedStructure('tax-zero', Example::WORKSHOP_SYSTEM_ID, 0.0));
+
+        $this->assertKnownCost(10_800_000.0, $totalCost);
     }
 
     private function totalCostOf(ProductionStructure $structure, ?StructureTotalCostComparator $comparator = null): Cost
