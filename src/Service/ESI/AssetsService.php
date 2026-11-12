@@ -18,6 +18,8 @@ use Psr\Log\LoggerInterface;
 class AssetsService
 {
     private const int FIRST_STRUCTURE_ID = 1000000000000;
+    private const int NAMES_CHUNK_SIZE = 1000;
+    private const string OFFICE_LOCATION_FLAG = 'OfficeFolder';
 
     /** @var array<int, array{name: string, solar_system_id: ?int, owner_id?: ?int, type_id?: ?int}> */
     private array $structureCache = [];
@@ -88,7 +90,11 @@ class AssetsService
         // Collect unique type IDs and location IDs with their types
         $typeIds = array_unique(array_column($rawAssets, 'type_id'));
         $nameableItemIds = array_column(
-            array_filter($rawAssets, static fn (array $raw): bool => $raw['is_singleton'] === true),
+            array_filter(
+                $rawAssets,
+                static fn (array $raw): bool => $raw['is_singleton'] === true
+                    && ($raw['location_flag'] ?? null) !== self::OFFICE_LOCATION_FLAG,
+            ),
             'item_id',
         );
         $rawAssetsByItemId = array_column($rawAssets, null, 'item_id');
@@ -261,26 +267,51 @@ class AssetsService
             : "/corporations/{$corporationId}/assets/names/";
 
         // ESI accepts up to 1000 IDs per request
-        foreach (array_chunk($itemIds, 1000) as $chunk) {
-            try {
-                $data = $this->esiClient->post($endpoint, $chunk, $token);
-                foreach ($data as $item) {
-                    // Only store non-empty names (items with custom names)
-                    if (!empty($item['name']) && $item['name'] !== 'None') {
-                        $names[$item['item_id']] = $item['name'];
-                    }
-                }
-            } catch (\Throwable $e) {
+        foreach (array_chunk($itemIds, self::NAMES_CHUNK_SIZE) as $chunk) {
+            $fetched = $this->fetchItemNames($endpoint, $chunk, $token);
+            $names += $fetched['names'];
+            if ($fetched['rejected']) {
                 ++$this->nameBatchFailures;
-                $this->logger->warning('Item names batch rejected by ESI', [
-                    'endpoint' => $endpoint,
-                    'batchSize' => count($chunk),
-                    'error' => $e->getMessage(),
-                ]);
             }
         }
 
         return $names;
+    }
+
+    /**
+     * @param non-empty-array<int> $itemIds
+     * @return array{names: array<int, string>, rejected: bool}
+     */
+    private function fetchItemNames(string $endpoint, array $itemIds, mixed $token): array
+    {
+        try {
+            $data = $this->esiClient->post($endpoint, $itemIds, $token);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Item names batch rejected by ESI', [
+                'endpoint' => $endpoint,
+                'batchSize' => count($itemIds),
+                'error' => $e->getMessage(),
+            ]);
+
+            $names = [];
+            if (count($itemIds) > 1) {
+                foreach (array_chunk($itemIds, max(1, intdiv(count($itemIds) + 1, 2))) as $half) {
+                    $names += $this->fetchItemNames($endpoint, $half, $token)['names'];
+                }
+            }
+
+            return ['names' => $names, 'rejected' => true];
+        }
+
+        $names = [];
+        foreach ($data as $item) {
+            // Only store non-empty names (items with custom names)
+            if (!empty($item['name']) && $item['name'] !== 'None') {
+                $names[$item['item_id']] = $item['name'];
+            }
+        }
+
+        return ['names' => $names, 'rejected' => false];
     }
 
     /**
