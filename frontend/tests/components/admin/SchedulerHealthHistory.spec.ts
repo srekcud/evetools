@@ -90,6 +90,23 @@ describe('SchedulerHealthTable run history', () => {
     expect(mountTable(entryWith({ successRate24h: null })).find(SUCCESS_RATE).text()).toBe('--')
   })
 
+  it('shows -- when the API omits the rate of a type', () => {
+    const entry = entryWith()
+    delete entry.successRate24h
+
+    expect(mountTable(entry).find(SUCCESS_RATE).text()).toBe('--')
+  })
+
+  it('reads a run whose end and message are omitted by the API as still running without a message', () => {
+    const omitted: SchedulerHealthRun = { startedAt: '2026-11-12T08:00:00+00:00', status: 'running', stuck: false }
+
+    const title = mountTable(entryWith({ runs: [omitted] })).find(RUN_SQUARE).attributes('title') ?? ''
+
+    expect(title).toContain('--')
+    expect(title).not.toContain('undefined')
+    expect(title).not.toContain('NaN')
+  })
+
   it.each(TEST_LOCALES)('titles the history column in %s', (locale) => {
     const headers = mountTable(entryWith(), locale).findAll('th').map(header => header.text())
 
