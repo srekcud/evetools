@@ -15,7 +15,14 @@ export type ContributionType = 'material' | 'job_install' | 'bpc' | 'line_rental
 
 export type ContributionStatus = 'pending' | 'approved' | 'rejected'
 
-export type ContainerVerificationStatus = 'verified' | 'partial' | 'missing' | 'container_not_found' | 'unknown'
+export type ContainerVerificationStatus =
+  | 'verified'
+  | 'partial'
+  | 'missing'
+  | 'container_not_found'
+  | 'container_in_hidden_division'
+  | 'corporation_assets_stale'
+  | 'unknown'
 
 export type ContainerCheckUnknownReason = 'owner_without_corporation' | 'corporation_assets_not_synced' | 'no_visible_division' | 'no_director'
 
@@ -393,6 +400,12 @@ export type ContainerVerification = {
   containerQuantity: number | null
   status: ContainerVerificationStatus
   unknownReason: ContainerCheckUnknownReason | null
+  assetsSyncedAt: string | null
+}
+
+export type CorporationAssetsRefresh = {
+  status: 'pending' | 'completed' | 'error'
+  error?: string
 }
 
 // --- Line Rental Rates ---

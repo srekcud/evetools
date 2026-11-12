@@ -5,6 +5,7 @@ import type {
   GroupProject,
   BomItem,
   ContainerVerification,
+  CorporationAssetsRefresh,
   CreateGroupProjectInput,
   CharacterMatchFailure,
   MatchJobsResult,
@@ -102,6 +103,13 @@ export const useGroupProjectStore = defineStore('group-project', () => {
       containerVerificationFailed.value = true
       error.value = e instanceof Error ? e.message : 'Failed to verify container'
     }
+  }
+
+  async function refreshCorporationAssets(): Promise<CorporationAssetsRefresh> {
+    return apiRequest<CorporationAssetsRefresh>('/me/corporation/assets/refresh', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
   }
 
   async function createProject(input: CreateGroupProjectInput): Promise<GroupProject> {
@@ -253,6 +261,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     fetchBom,
     fetchCockpit,
     fetchContainerVerification,
+    refreshCorporationAssets,
     createProject,
     updateProject,
     deleteProject,

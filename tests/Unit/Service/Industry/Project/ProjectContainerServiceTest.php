@@ -27,6 +27,7 @@ use Symfony\Component\Uid\Uuid;
 #[Group('issue-358')]
 #[Group('issue-319')]
 #[Group('issue-707')]
+#[Group('issue-800')]
 final class ProjectContainerServiceTest extends TestCase
 {
     use BuildsCorporationDirectorAccess;
@@ -81,6 +82,13 @@ final class ProjectContainerServiceTest extends TestCase
         $this->cachedAssetRepository = $this->createStub(CachedAssetRepository::class);
         $this->cachedAssetRepository->method('hasCorporationAssets')->willReturnCallback(
             fn (int $corporationId): bool => $this->cachedAssetsOf($corporationId) !== [],
+        );
+        $this->cachedAssetRepository->method('lastCachedAtOfCorporationAssets')->willReturnCallback(
+            function (int $corporationId): ?\DateTimeImmutable {
+                $cachedAtDates = array_map(static fn (CachedAsset $asset): \DateTimeImmutable => $asset->getCachedAt(), $this->cachedAssetsOf($corporationId));
+
+                return $cachedAtDates === [] ? null : max($cachedAtDates);
+            },
         );
         $this->cachedAssetRepository->method('findByCorporationAndDivisions')->willReturnCallback(
             fn (int $corporationId, array $divisionNumbers): array => array_values(array_filter(
@@ -465,18 +473,138 @@ final class ProjectContainerServiceTest extends TestCase
         );
     }
 
-    public function testContainerInADivisionThatIsNotVisibleIsNotFound(): void
+    #[Group('issue-800')]
+    public function testContainerInADivisionThatIsNotVisibleGivesADedicatedStatusWhileAnotherDivisionIsVisible(): void
     {
-        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG2'), self::TRITANIUM, 1_000);
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG3'), self::TRITANIUM, 1_000);
         $this->allowDivisions(1);
 
         self::assertSame(
             [
-                [self::TRITANIUM, 500, null, 'container_not_found', null],
-                [self::PYERITE, 800, null, 'container_not_found', null],
+                [self::TRITANIUM, 500, null, 'container_in_hidden_division', null],
+                [self::PYERITE, 800, null, 'container_in_hidden_division', null],
             ],
             $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
         );
+    }
+
+    #[Group('issue-800')]
+    public function testContainerNestedInAHiddenDivisionGivesTheHiddenDivisionStatus(): void
+    {
+        $hangarContainer = $this->containerInHangar('Outer', 'CorpSAG3');
+        $this->containerInside($hangarContainer, self::CONTAINER_NAME);
+        $this->allowDivisions(1);
+
+        self::assertSame('container_in_hidden_division', $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME))[0][3]);
+    }
+
+    #[Group('issue-800')]
+    public function testContainerVisibleInOneDivisionAndHiddenInAnotherIsStillFound(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG1'), self::TRITANIUM, 1_000);
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG3'), self::PYERITE, 1_000);
+        $this->allowDivisions(1);
+
+        self::assertSame(
+            [
+                [self::TRITANIUM, 500, 1_000, 'verified', null],
+                [self::PYERITE, 800, 0, 'missing', null],
+            ],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    #[Group('issue-800')]
+    public function testNameFoundNowhereInAFreshSyncStaysContainerNotFound(): void
+    {
+        $this->storeInside($this->containerInHangar('Spare', 'CorpSAG3'), self::TRITANIUM, 1_000);
+        $this->allowDivisions(1);
+
+        self::assertSame('container_not_found', $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME))[0][3]);
+    }
+
+    #[Group('issue-800')]
+    public function testNameFoundNowhereInAStaleSyncGivesTheStaleAssetsStatus(): void
+    {
+        $this->storeInside($this->containerInHangar('Spare', 'CorpSAG1'), self::TRITANIUM, 1_000);
+        $this->allowDivisions(1);
+        $this->syncedAssetsSince(new \DateInterval('PT49H'));
+
+        self::assertSame(
+            [
+                [self::TRITANIUM, 500, null, 'corporation_assets_stale', null],
+                [self::PYERITE, 800, null, 'corporation_assets_stale', null],
+            ],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    #[Group('issue-800')]
+    public function testNameFoundNowhereJustInsideTheFreshnessWindowStaysContainerNotFound(): void
+    {
+        $this->storeInside($this->containerInHangar('Spare', 'CorpSAG1'), self::TRITANIUM, 1_000);
+        $this->allowDivisions(1);
+        $this->syncedAssetsSince(new \DateInterval('PT47H'));
+
+        self::assertSame('container_not_found', $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME))[0][3]);
+    }
+
+    #[Group('issue-800')]
+    public function testContainerFoundInAStaleSyncIsStillVerified(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG1'), self::TRITANIUM, 1_000);
+        $this->allowDivisions(1);
+        $this->syncedAssetsSince(new \DateInterval('PT49H'));
+
+        self::assertSame('verified', $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME))[0][3]);
+    }
+
+    #[Group('issue-800')]
+    public function testHiddenDivisionStatusComesBeforeTheStaleAssetsStatus(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG3'), self::TRITANIUM, 1_000);
+        $this->allowDivisions(1);
+        $this->syncedAssetsSince(new \DateInterval('PT49H'));
+
+        self::assertSame('container_in_hidden_division', $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME))[0][3]);
+    }
+
+    #[Group('issue-800')]
+    public function testEveryLineCarriesTheLastSyncDateOfTheCorporationAssets(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG1'), self::TRITANIUM, 1_000);
+        $this->allowDivisions(1);
+        $syncedAt = new \DateTimeImmutable('2026-11-10T08:15:00+00:00');
+        foreach ($this->cachedAssets as $asset) {
+            $asset->setCachedAt($syncedAt);
+        }
+
+        $lines = $this->service->verifyContainer($this->projectUsingContainer(self::CONTAINER_NAME));
+
+        self::assertCount(2, $lines);
+        foreach ($lines as $line) {
+            self::assertEquals($syncedAt, $line->assetsSyncedAt);
+        }
+    }
+
+    #[Group('issue-800')]
+    public function testLineHasNoSyncDateWhenTheCorporationAssetsWereNeverSynced(): void
+    {
+        $this->allowDivisions(1);
+
+        $lines = $this->service->verifyContainer($this->projectUsingContainer(self::CONTAINER_NAME));
+
+        self::assertSame('corporation_assets_not_synced', $lines[0]->unknownReason);
+        self::assertNull($lines[0]->assetsSyncedAt);
+    }
+
+    #[Group('issue-800')]
+    public function testStoredNameWithSurroundingSpacesFindsTheContainer(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG1'), self::TRITANIUM, 1_000);
+        $this->allowDivisions(1);
+
+        self::assertSame('verified', $this->verificationOf($this->projectUsingContainer('  '.self::CONTAINER_NAME.' '))[0][3]);
     }
 
     public function testContainerInTheDeliveriesHangarIsNotFoundEvenWithEveryDivisionVisible(): void
@@ -891,6 +1019,14 @@ final class ProjectContainerServiceTest extends TestCase
             ->setIsCorporationAsset(true);
 
         return $itemId;
+    }
+
+    private function syncedAssetsSince(\DateInterval $age): void
+    {
+        $syncedAt = (new \DateTimeImmutable())->sub($age);
+        foreach ($this->cachedAssets as $asset) {
+            $asset->setCachedAt($syncedAt);
+        }
     }
 
     private function cachedAssetsOf(int $corporationId): array

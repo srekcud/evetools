@@ -3453,6 +3453,8 @@
         "partial": "Partial",
         "missing": "Missing from container",
         "container_not_found": "Container not found",
+        "container_in_hidden_division": "A container with this name exists in a division hidden from the project owner",
+        "corporation_assets_stale": "No container with this name in the synced assets, the corporation assets may be out of date",
         "unknown": "Cannot be checked"
       },
       "unknownReasons": {
@@ -3461,6 +3463,10 @@
         "no_director": "No Director is connected",
         "owner_without_corporation": "The owner has no corporation"
       },
+      "assetsSyncedAt": "Corporation assets synced {date}",
+      "refreshAssets": "Refresh corp assets",
+      "refreshingAssets": "Refreshing...",
+      "refreshFailed": "Could not refresh the corporation assets",
       "verifyFailed": "Verification failed",
       "approvedGapTitle": "Approved contributions missing from the container, check again before the jobs",
       "approvedGapLine": "{name}: {container} / {approved} in the container, {approved} approved"

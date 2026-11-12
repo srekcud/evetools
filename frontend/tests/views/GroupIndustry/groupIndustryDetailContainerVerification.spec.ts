@@ -63,6 +63,7 @@ const TRITANIUM_VERIFICATION: ContainerVerification = {
   containerQuantity: 7_000,
   status: 'partial',
   unknownReason: null,
+  assetsSyncedAt: null,
 }
 
 function i18n() {

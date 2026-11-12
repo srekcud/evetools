@@ -70,6 +70,7 @@ function verification(
     containerQuantity,
     status,
     unknownReason: status === 'unknown' ? 'corporation_assets_not_synced' : null,
+    assetsSyncedAt: null,
   }
 }
 

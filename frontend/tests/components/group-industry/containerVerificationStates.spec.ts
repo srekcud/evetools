@@ -69,6 +69,7 @@ function verification(
     containerQuantity,
     status,
     unknownReason,
+    assetsSyncedAt: null,
   }
 }
 

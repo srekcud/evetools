@@ -52,7 +52,7 @@ final class ProjectContainerServiceTest extends IntegrationTestCase
         self::getContainer()->set(EsiClient::class, $esiClient);
     }
 
-    public function testContainerOutsideTheAllowedDivisionsIsNotFound(): void
+    public function testContainerOutsideTheAllowedDivisionsIsReportedInAHiddenDivision(): void
     {
         $this->storeBuildContainerInHangar('CorpSAG2', 'Division 2');
         $this->allowDivisions([1]);
@@ -62,8 +62,8 @@ final class ProjectContainerServiceTest extends IntegrationTestCase
 
         self::assertSame(
             [
-                self::TRITANIUM => [null, 'container_not_found', null],
-                self::PYERITE => [null, 'container_not_found', null],
+                self::TRITANIUM => [null, 'container_in_hidden_division', null],
+                self::PYERITE => [null, 'container_in_hidden_division', null],
             ],
             $verification,
         );

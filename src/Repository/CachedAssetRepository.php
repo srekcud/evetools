@@ -153,6 +153,19 @@ class CachedAssetRepository extends ServiceEntityRepository
             ->getOneOrNullResult() !== null;
     }
 
+    public function lastCachedAtOfCorporationAssets(int $corporationId): ?\DateTimeImmutable
+    {
+        $lastCachedAt = $this->createQueryBuilder('a')
+            ->select('MAX(a.cachedAt)')
+            ->where('a.corporationId = :corporationId')
+            ->andWhere('a.isCorporationAsset = true')
+            ->setParameter('corporationId', $corporationId)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $lastCachedAt === null ? null : new \DateTimeImmutable((string) $lastCachedAt);
+    }
+
     public function hasCorporationAssets(int $corporationId): bool
     {
         return $this->createQueryBuilder('a')
