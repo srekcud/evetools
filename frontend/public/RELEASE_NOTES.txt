@@ -3,6 +3,27 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.19 (2026-11-12)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Quoi produire : les produits vendus a perte ne sont plus listes, et le
+  classement couvre de nouveau tous les produits (volumes Jita quotidiens)
+- Structure sans taxe renseignee : le cout d'installation est affiche comme
+  inconnu au lieu de 0 %, avec un avertissement "non renseignee" a corriger
+  dans la liste des structures
+
+### Assets
+- Bouton pour recuperer le nom personnalise d'un conteneur ou d'un vaisseau
+  sans nom, directement depuis sa ligne
+- Assets de corporation : les noms des conteneurs ne disparaissent plus quand
+  un seul objet du lot est refuse par le jeu
+
+### Synchronisation
+- Apres une coupure de connexion, les pages ouvertes se rechargent seules et
+  une synchro ne reste plus affichee "en cours" indefiniment
+
+--------------------------------------------------------------------------------
 Version 0.18 (2026-11-12)
 --------------------------------------------------------------------------------
 
