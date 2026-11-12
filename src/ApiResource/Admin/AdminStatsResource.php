@@ -57,6 +57,9 @@ class AdminStatsResource
     /** @var SchedulerHealthEntryDto[] */
     public array $schedulerHealth = [];
 
+    /** @var ModuleActiveUsersDto[] */
+    public array $moduleActiveUsers = [];
+
     public EsiErrorBudgetDto $esiErrorBudget;
 
     public MercureCookieDto $mercureCookie;
@@ -177,6 +180,16 @@ class MarketStatsDto
     public int $alertsActive = 0;
     public int $alertsTriggered = 0;
     public int $favorites = 0;
+}
+
+class ModuleActiveUsersDto
+{
+    public function __construct(
+        public string $module = '',
+        public ?int $activeLast7Days = null,
+        public ?int $activeLast30Days = null,
+    ) {
+    }
 }
 
 class SchedulerHealthEntryDto

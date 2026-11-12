@@ -32,6 +32,7 @@ class AdminService
             'pve' => $this->getPveStats(),
             'notifications' => $this->getNotificationStats(),
             'market' => $this->getMarketStats(),
+            'moduleActiveUsers' => $this->getModuleActiveUsersSkeleton(),
             'schedulerHealth' => $this->syncTracker->getAll(),
         ];
     }
@@ -348,6 +349,18 @@ class AdminService
             'pushSubscriptions' => $pushSubscriptions,
             'preferences' => $preferences,
         ];
+    }
+
+    /** @return list<array{module: string, activeLast7Days: ?int, activeLast30Days: ?int}> */
+    private function getModuleActiveUsersSkeleton(): array
+    {
+        $rows = [];
+        foreach (['industry', 'groupIndustry', 'mining', 'planetary', 'market', 'pve'] as $module) {
+            $rows[] = ['module' => $module, 'activeLast7Days' => 0, 'activeLast30Days' => 0];
+        }
+        $rows[] = ['module' => 'contracts', 'activeLast7Days' => null, 'activeLast30Days' => null];
+
+        return $rows;
     }
 
     /** @return array<string, int> */
