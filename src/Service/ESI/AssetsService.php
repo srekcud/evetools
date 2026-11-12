@@ -383,20 +383,17 @@ class AssetsService
             return [];
         }
 
-        $names = [];
+        $names = $this->typeNameResolver->findNames($typeIds);
+
+        $missingTypeIds = array_values(array_diff($typeIds, array_keys($names)));
 
         // ESI universe/names endpoint accepts up to 1000 IDs
-        foreach (array_chunk($typeIds, 1000) as $chunk) {
+        foreach (array_chunk($missingTypeIds, 1000) as $chunk) {
             $data = $this->esiClient->post('/universe/names/', $chunk);
 
             foreach ($data as $item) {
                 $names[$item['id']] = $item['name'];
             }
-        }
-
-        $missingTypeIds = array_values(array_diff($typeIds, array_keys($names)));
-        if ($missingTypeIds !== []) {
-            $names += $this->typeNameResolver->findNames($missingTypeIds);
         }
 
         return $names;
