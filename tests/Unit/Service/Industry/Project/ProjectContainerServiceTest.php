@@ -6,18 +6,17 @@ namespace App\Tests\Unit\Service\Industry\Project;
 
 use App\ApiResource\Industry\Project\ProjectContainerVerificationResource;
 use App\Entity\CachedAsset;
-use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
-use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\Service\Industry\Project\ProjectContainerScope;
 use App\Service\Industry\Project\ProjectContainerService;
+use App\Tests\Unit\Service\ESI\BuildsCorporationDirectorAccess;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -30,6 +29,8 @@ use Symfony\Component\Uid\Uuid;
 #[Group('issue-707')]
 final class ProjectContainerServiceTest extends TestCase
 {
+    use BuildsCorporationDirectorAccess;
+
     private const int CORPORATION_ID = 98_000_001;
     private const int OTHER_CORPORATION_ID = 98_000_002;
     private const string CONTAINER_NAME = 'Build';
@@ -63,14 +64,11 @@ final class ProjectContainerServiceTest extends TestCase
 
     private array $componentLines = [];
 
-    private ?Character $directorCharacter = null;
-
     private int $nextItemId = 1_050_000_001_000;
 
     private CachedAssetRepository $cachedAssetRepository;
     private CorpAssetVisibilityRepository $visibilityRepository;
     private IndustryProjectBomLineRepository $bomItemRepository;
-    private CharacterRepository $characterRepository;
     private ProjectContainerService $service;
 
     protected function setUp(): void
@@ -107,11 +105,7 @@ final class ProjectContainerServiceTest extends TestCase
         $this->bomItemRepository->method('findMaterialsByProject')->willReturnCallback(fn (): array => $this->materialLines);
         $this->bomItemRepository->method('findComponentJobsByProject')->willReturnCallback(fn (): array => $this->componentLines);
 
-        $this->directorCharacter = $this->createStub(Character::class);
-        $this->characterRepository = $this->createStub(CharacterRepository::class);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturnCallback(
-            fn (int $corporationId): ?Character => $corporationId === self::CORPORATION_ID ? $this->directorCharacter : null,
-        );
+        $this->corporationMember(self::CORPORATION_ID, ['Director']);
 
         $this->service = $this->serviceReading($this->cachedAssetRepository);
     }
@@ -619,7 +613,7 @@ final class ProjectContainerServiceTest extends TestCase
 
     public function testCheckIsUnknownWithoutDirectorConnectedEvenWithCorporationAssetsInCacheAndBeforeTheNeverSyncedCheck(): void
     {
-        $this->directorCharacter = null;
+        $this->membersByCorporationId = [];
         $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::TRITANIUM, 1_000);
         $this->allowDivisions(2);
         $expected = [
@@ -710,10 +704,28 @@ final class ProjectContainerServiceTest extends TestCase
         self::assertSame('no_visible_division', $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME))->unknownReason);
 
         $this->allowDivisions(2);
-        $this->directorCharacter = null;
+        $this->membersByCorporationId = [];
         self::assertSame('no_director', $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME))->unknownReason);
 
         self::assertSame('owner_without_corporation', $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME, $this->ownerOfCorporation(null)))->unknownReason);
+    }
+
+    #[Group('issue-733')]
+    public function testCheckIsUnknownWhenTheCharactersOfTheCorporationHoldNoDirectorRole(): void
+    {
+        $this->membersByCorporationId = [];
+        $this->corporationMember(self::CORPORATION_ID, []);
+        $this->corporationMember(self::CORPORATION_ID, ['Accountant']);
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::TRITANIUM, 1_000);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [
+                [self::TRITANIUM, 500, null, 'unknown', 'no_director'],
+                [self::PYERITE, 800, null, 'unknown', 'no_director'],
+            ],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
     }
 
     public function testScopeIsUnknownWhenTheProjectHasNoContainerName(): void
@@ -749,7 +761,7 @@ final class ProjectContainerServiceTest extends TestCase
             $this->bomItemRepository,
             $cachedAssetRepository,
             $this->visibilityRepository,
-            $this->characterRepository,
+            $this->corporationDirectorAccess(),
         );
     }
 

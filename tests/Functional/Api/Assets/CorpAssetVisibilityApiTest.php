@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 final class CorpAssetVisibilityApiTest extends WebTestCase
 {
     private const string CORPORATION_ASSETS_SCOPE = 'esi-assets.read_corporation_assets.v1';
+    private const string CORPORATION_ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
     private const int CORPORATION_ID = 98_358_301;
     private const string VISIBILITY_PATH = '/api/me/corporation/assets/visibility';
 
@@ -85,7 +86,7 @@ final class CorpAssetVisibilityApiTest extends WebTestCase
             ->setAccessToken('access-'.$name)
             ->setRefreshTokenEncrypted('refresh-'.$name)
             ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
-            ->setScopes([self::CORPORATION_ASSETS_SCOPE]);
+            ->setScopes([self::CORPORATION_ASSETS_SCOPE, self::CORPORATION_ROLES_SCOPE]);
         $character->setEveToken($token);
         $user = new User();
         $user->addCharacter($character);

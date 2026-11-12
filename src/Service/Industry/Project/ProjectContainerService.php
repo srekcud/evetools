@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace App\Service\Industry\Project;
 
 use App\ApiResource\Industry\Project\ProjectContainerVerificationResource;
+use App\Constant\EveConstants;
 use App\Entity\CachedAsset;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
-use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
+use App\Service\ESI\CorporationDirectorAccess;
 
 class ProjectContainerService
 {
@@ -34,7 +35,7 @@ class ProjectContainerService
         private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
-        private readonly CharacterRepository $characterRepository,
+        private readonly CorporationDirectorAccess $directorAccess,
     ) {
     }
 
@@ -160,7 +161,7 @@ class ProjectContainerService
 
     private function unavailabilityReason(int $corporationId, User $owner): ?string
     {
-        if ($this->characterRepository->findWithCorpAssetsAccess($corporationId) === null) {
+        if (!$this->directorAccess->isConnected($corporationId, [EveConstants::CORPORATION_ASSETS_SCOPE])) {
             return self::REASON_NO_DIRECTOR;
         }
 

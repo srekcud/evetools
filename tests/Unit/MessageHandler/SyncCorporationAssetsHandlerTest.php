@@ -7,6 +7,7 @@ namespace App\Tests\Unit\MessageHandler;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\User;
+use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Message\SyncCorporationAssets;
 use App\MessageHandler\SyncCorporationAssetsHandler;
@@ -16,9 +17,11 @@ use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\AssetsSyncService;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
@@ -109,6 +112,38 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
             self::assertSame('error', $entry['status']);
             self::assertSame('ESI server error', $entry['message']);
         }
+    }
+
+    #[Group('issue-728')]
+    public function testForbiddenCorporationAssetsReadIsNotRetriedAndAsksForAConnectedDirector(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+        $assetsSyncService->method('syncCorporationAssets')->willThrowException(EsiApiException::forbidden());
+
+        try {
+            $this->handle($this->characterWithUser(), $assetsSyncService);
+            self::fail('the handler must give up without a Messenger retry');
+        } catch (UnrecoverableMessageHandlingException $exception) {
+            self::assertStringContainsString('Director', $exception->getMessage());
+        }
+
+        $entry = $this->trackedAssetsEntry();
+        self::assertSame('error', $entry['status']);
+        self::assertStringContainsString('Director', $entry['message']);
+        self::assertStringNotContainsString('Access forbidden', $entry['message']);
+    }
+
+    #[Group('issue-728')]
+    public function testNonForbiddenEsiFailureStaysRetryable(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+        $assetsSyncService->method('syncCorporationAssets')->willThrowException(EsiApiException::fromResponse(502, 'Bad Gateway'));
+
+        $this->expectException(EsiApiException::class);
+
+        $this->handle($this->characterWithUser(), $assetsSyncService);
     }
 
     public function testSuccessfulSyncPublishesNoErrorAndRecordsNoFailure(): void

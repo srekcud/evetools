@@ -7,6 +7,7 @@ namespace App\Tests\Functional\Api\Industry\Project;
 use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\EveToken;
+use App\Service\ESI\EsiClient;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -338,9 +339,12 @@ final class GroupProjectReadApiTest extends WebTestCase
             ->setAccessToken('access-token')
             ->setRefreshTokenEncrypted('encrypted-refresh-token')
             ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
-            ->setScopes(['esi-assets.read_corporation_assets.v1']);
+            ->setScopes(['esi-assets.read_corporation_assets.v1', 'esi-characters.read_corporation_roles.v1']);
         $this->owner->getMainCharacter()?->setEveToken($token);
         $this->em->persist($token);
+        $esiClient = $this->createStub(EsiClient::class);
+        $esiClient->method('get')->willReturn(['roles' => ['Director']]);
+        self::getContainer()->set(EsiClient::class, $esiClient);
     }
 
     private function persistIshtarContainerInTheFirstDivision(): void

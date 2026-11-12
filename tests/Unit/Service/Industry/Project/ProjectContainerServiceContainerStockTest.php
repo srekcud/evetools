@@ -5,16 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry\Project;
 
 use App\Entity\CachedAsset;
-use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
-use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\Service\Industry\Project\ProjectContainerService;
+use App\Tests\Unit\Service\ESI\BuildsCorporationDirectorAccess;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -23,6 +22,8 @@ use PHPUnit\Framework\TestCase;
 #[Group('issue-708')]
 final class ProjectContainerServiceContainerStockTest extends TestCase
 {
+    use BuildsCorporationDirectorAccess;
+
     private const int CORPORATION_ID = 98_000_708;
     private const string CONTAINER_NAME = 'Build 708';
     private const int OFFICE_ITEM_ID = 1_070_800_000_001;
@@ -57,15 +58,14 @@ final class ProjectContainerServiceContainerStockTest extends TestCase
             (new CorpAssetVisibility())->setCorporationId(self::CORPORATION_ID)->setVisibleDivisions([2]),
         );
 
-        $characterRepository = $this->createStub(CharacterRepository::class);
-        $characterRepository->method('findWithCorpAssetsAccess')->willReturn($this->createStub(Character::class));
+        $this->corporationMember(self::CORPORATION_ID, ['Director']);
 
         $this->service = new ProjectContainerService(
             new VisibleCorporationAssetsFinder($cachedAssetRepository, $visibilityRepository),
             $this->createStub(IndustryProjectBomLineRepository::class),
             $cachedAssetRepository,
             $visibilityRepository,
-            $characterRepository,
+            $this->corporationDirectorAccess(),
         );
     }
 

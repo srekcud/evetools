@@ -7,10 +7,10 @@ namespace App\Tests\Unit\Service\Industry\Blueprint;
 use App\Entity\Character;
 use App\Entity\OwnedBlueprint;
 use App\Entity\User;
-use App\Repository\CharacterRepository;
 use App\Service\Industry\Blueprint\BlueprintLibraryReader;
 use App\Service\Industry\Blueprint\BlueprintLibraryRow;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Service\ESI\BuildsCorporationDirectorAccess;
 use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -21,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 final class BlueprintLibraryReaderRunningJobTest extends TestCase
 {
     use BuildsBlueprintLibrary;
+    use BuildsCorporationDirectorAccess;
     use ResolvesTypeNamesFromSde;
 
     private const int DRAKE_ITEM_ID = 7_101;
@@ -79,13 +80,12 @@ final class BlueprintLibraryReaderRunningJobTest extends TestCase
      */
     private function readerWithJobsInProgressOn(array $itemIdsWithJobInProgress, array $blueprints): BlueprintLibraryReader
     {
-        $characterRepository = $this->createStub(CharacterRepository::class);
-        $characterRepository->method('findWithCorpBlueprintsAccess')->willReturn($this->main);
+        $this->corporationMember(self::MAIN_CORPORATION_ID, ['Director']);
 
         return new BlueprintLibraryReader(
             $this->repositoryHolding($blueprints),
             $this->visibilityOf([self::MAIN_CORPORATION_ID => [3]]),
-            $characterRepository,
+            $this->corporationDirectorAccess(),
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
             $this->jobsInProgressOn($itemIdsWithJobInProgress),
             $this->divisionsNamed(),

@@ -8,12 +8,12 @@ use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\OwnedBlueprint;
 use App\Entity\User;
-use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Service\Industry\Blueprint\BlueprintLibrary;
 use App\Service\Industry\Blueprint\BlueprintLibraryReader;
 use App\Service\Industry\Blueprint\BlueprintLibraryRow;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Service\ESI\BuildsCorporationDirectorAccess;
 use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -26,6 +26,7 @@ use PHPUnit\Framework\TestCase;
 final class BlueprintLibraryReaderTest extends TestCase
 {
     use BuildsBlueprintLibrary;
+    use BuildsCorporationDirectorAccess;
     use ResolvesTypeNamesFromSde;
 
     private const int DRAKE_LOCATION_ID = 60_003_760;
@@ -79,6 +80,24 @@ final class BlueprintLibraryReaderTest extends TestCase
         ));
     }
 
+    #[Group('issue-733')]
+    public function testCorporationStateIsNoDirectorWhenTheCharactersWithTheScopeHoldNoDirectorRole(): void
+    {
+        $this->corporationMember(self::MAIN_CORPORATION_ID, []);
+        $this->corporationMember(self::MAIN_CORPORATION_ID, ['Accountant']);
+        $blueprints = [
+            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_031, self::HAMMERHEAD_II_BLUEPRINT, -2, 50, 2, 4, 3),
+            $this->personalBlueprint($this->main, 7_032, self::DRAKE_BLUEPRINT, -1, -1, 10, 20),
+        ];
+
+        $library = $this->reader($blueprints, visibleDivisions: [3], corporationReader: null)->readFor($this->user);
+
+        self::assertSame(
+            ['no_director', [self::DRAKE_BLUEPRINT]],
+            [$library->corporationState, array_map(static fn (BlueprintLibraryRow $row): int => $row->typeId, $library->rows)],
+        );
+    }
+
     public function testCorporationStateIsNoDirectorWithoutAnyCharacterWithTheScopeNoVisibilityWhenNoDivisionIsVisibleAndBlueprintsOfHiddenDivisionsAreNotSharedAndKnownOtherwise(): void
     {
         $corporationBlueprint = $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_021, self::HAMMERHEAD_II_BLUEPRINT, -2, 50, 2, 4, 3);
@@ -86,6 +105,7 @@ final class BlueprintLibraryReaderTest extends TestCase
         $blueprints = [$corporationBlueprint, $personalBlueprint];
 
         $known = $this->reader($blueprints, visibleDivisions: [3], corporationReader: $this->main)->readFor($this->user);
+        $this->membersByCorporationId = [];
         $noDirector = $this->reader($blueprints, visibleDivisions: [3], corporationReader: null)->readFor($this->user);
         $noVisibilitySetting = $this->reader($blueprints, visibleDivisions: null, corporationReader: $this->main)->readFor($this->user);
         $noVisibleDivision = $this->reader($blueprints, visibleDivisions: [], corporationReader: $this->main)->readFor($this->user);
@@ -314,15 +334,14 @@ final class BlueprintLibraryReaderTest extends TestCase
             $visibleDivisionsByCorporationId[self::OTHER_CORPORATION_ID] = $visibleDivisionsOfOtherCorporation;
         }
 
-        $characterRepository = $this->createStub(CharacterRepository::class);
-        $characterRepository->method('findWithCorpBlueprintsAccess')->willReturnCallback(
-            static fn (int $corporationId): ?Character => $corporationId === self::MAIN_CORPORATION_ID ? $corporationReader : null,
-        );
+        if ($corporationReader !== null) {
+            $this->corporationMember(self::MAIN_CORPORATION_ID, ['Director']);
+        }
 
         return new BlueprintLibraryReader(
             $this->repositoryHolding($blueprints),
             $this->visibilityOf($visibleDivisionsByCorporationId, $sharesBlueprintsOfHiddenDivisions),
-            $characterRepository,
+            $this->corporationDirectorAccess(),
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
             $this->jobsInProgressOn([]),
             $this->divisionsNamed($divisionNamesByCorporationId),
@@ -339,13 +358,12 @@ final class BlueprintLibraryReaderTest extends TestCase
             ->setShareBlueprintsOfHiddenDivisions(false);
         $visibilityRepository = $this->createStub(CorpAssetVisibilityRepository::class);
         $visibilityRepository->method('findByCorporationId')->willReturn($visibility);
-        $characterRepository = $this->createStub(CharacterRepository::class);
-        $characterRepository->method('findWithCorpBlueprintsAccess')->willReturn($this->main);
+        $this->corporationMember(self::MAIN_CORPORATION_ID, ['Director']);
 
         return new BlueprintLibraryReader(
             $this->repositoryHolding($blueprints),
             $visibilityRepository,
-            $characterRepository,
+            $this->corporationDirectorAccess(),
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
             $this->jobsInProgressOn([]),
             $this->divisionsNamed(),
