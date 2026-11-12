@@ -3215,6 +3215,7 @@
       "notes": "Notes",
       "notesPlaceholder": "Note optionnelle sur cette contribution...",
       "optional": "optionnel",
+      "valueRequired": "Saisissez une valeur supérieure à 0 ISK pour envoyer cette contribution.",
       "submit": "Soumettre la contribution",
       "pendingNote": "Votre contribution sera examinee par un admin du projet.",
       "depositDayPrice": "Prix Jita du jour d'apport (percentile 5 %)",

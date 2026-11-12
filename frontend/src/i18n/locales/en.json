@@ -3215,6 +3215,7 @@
       "notes": "Notes",
       "notesPlaceholder": "Optional note about this contribution...",
       "optional": "optional",
+      "valueRequired": "Enter a value above 0 ISK to submit this contribution.",
       "submit": "Submit Contribution",
       "pendingNote": "Your contribution will be reviewed by a project admin.",
       "depositDayPrice": "Jita price of the deposit day (5th percentile)",

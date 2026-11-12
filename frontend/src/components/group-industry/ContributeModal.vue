@@ -14,6 +14,9 @@ import type {
   SubmitContributionInput,
 } from '@/stores/group-industry/types'
 
+const BPC_ACTIVITIES = ['invention', 'copy']
+const INTERMEDIATE_ACTIVITIES = ['manufacturing', 'reaction']
+
 const LINE_RENTAL_CATEGORY_LABEL_KEYS: Record<LineRentalCategory, string> = {
   component_t1: 'componentT1',
   module_t1: 'moduleT1',
@@ -55,6 +58,15 @@ const isSuggestionLoadFailed = ref(false)
 const note = ref('')
 const isSubmitting = ref(false)
 
+function contributionTypeOf(line: BomItem): ContributionType {
+  if (!line.isJob) return 'material'
+  return line.activityType !== null && BPC_ACTIVITIES.includes(line.activityType) ? 'bpc' : 'job_install'
+}
+
+function isIntermediateLine(line: BomItem): boolean {
+  return line.isJob && line.jobGroup === 'component' && line.activityType !== null && INTERMEDIATE_ACTIVITIES.includes(line.activityType)
+}
+
 // Reset form when modal opens
 watch(() => props.show, (visible) => {
   if (visible) {
@@ -63,7 +75,7 @@ watch(() => props.show, (visible) => {
     note.value = ''
     isSubmitting.value = false
     if (props.prefilledBomItem) {
-      selectedType.value = props.prefilledBomItem.isJob ? 'job_install' : 'material'
+      selectedType.value = contributionTypeOf(props.prefilledBomItem)
       selectedBomItemId.value = props.prefilledBomItem.id
       quantity.value = props.prefilledBomItem.reservations.find(reservation => reservation.isMine)?.quantity ?? props.prefilledBomItem.remainingQuantity
       estimatedValue.value = 0
@@ -77,9 +89,14 @@ watch(() => props.show, (visible) => {
 })
 
 // BOM items for dropdown, filtered by type
+const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
+
 const availableBomItems = computed(() => {
   if (selectedType.value === 'material') {
-    return projectStore.materials.filter(m => !m.isFulfilled)
+    const ownedIntermediates = isSoloProject.value
+      ? projectStore.jobs.filter(job => !job.isFulfilled && isIntermediateLine(job))
+      : []
+    return [...projectStore.materials.filter(m => !m.isFulfilled), ...ownedIntermediates]
   }
   // For job_install, bpc, line_rental: show jobs
   return projectStore.jobs.filter(j => !j.isFulfilled)
@@ -94,6 +111,10 @@ const requiresEnteredValue = computed(() =>
 )
 
 const enteredValue = computed(() => typeof estimatedValue.value === 'number' ? estimatedValue.value : 0)
+
+const isEnteredValueMissing = computed(() =>
+  (selectedType.value === 'job_install' || selectedType.value === 'bpc') && enteredValue.value <= 0
+)
 
 const isFormValid = computed(() => {
   if (!selectedBomItemId.value) return false
@@ -159,8 +180,10 @@ const contributionTypeOptions: { key: ContributionType; icon: string; label: str
 function selectType(type: ContributionType): void {
   selectedType.value = type
   // Reset BOM selection when type changes
-  selectedBomItemId.value = ''
-  quantity.value = 0
+  if (!availableBomItems.value.some(item => item.id === selectedBomItemId.value)) {
+    selectedBomItemId.value = ''
+    quantity.value = 0
+  }
   estimatedValue.value = 0
 }
 
@@ -338,6 +361,9 @@ async function submit(): Promise<void> {
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none transition-colors"
             style="font-variant-numeric: tabular-nums;"
           />
+          <p v-if="isEnteredValueMissing" data-testid="contribute-value-required" class="mt-1.5 text-xs text-amber-400">
+            {{ t('groupIndustry.contribute.valueRequired') }}
+          </p>
         </div>
 
         <div
