@@ -10,6 +10,7 @@ use Doctrine\DBAL\Connection;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Service for syncing and caching Jita (The Forge) market prices.
@@ -17,7 +18,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *
  * Stores an order book (top N orders) per type to support weighted price calculations.
  */
-class JitaMarketService
+class JitaMarketService implements ResetInterface
 {
     public const float CHEAPEST_PERCENTILE = 0.05;
 
@@ -38,6 +39,9 @@ class JitaMarketService
     private const VOLUME_HISTORY_DAYS = 30;
     private const ON_DEMAND_CACHE_PREFIX = 'jita_ondemand_';
     private const ON_DEMAND_CACHE_TTL = 300; // 5 minutes
+
+    /** @var array<string, array<int, list<array{price: float, volume: int}>>> */
+    private array $orderBooks = [];
 
     public function __construct(
         private readonly EsiClient $esiClient,
@@ -80,6 +84,7 @@ class JitaMarketService
             $buyItem->set($allPrices['buy']);
             $buyItem->expiresAfter(self::CACHE_TTL);
             $this->cache->save($buyItem);
+            $this->reset();
 
             // Cache metadata
             $metaItem = $this->cache->getItem(self::CACHE_META_KEY);
@@ -137,6 +142,8 @@ class JitaMarketService
 
             $freshBooks = $this->fetchPricesInBatches($typeIds);
 
+            $this->reset();
+
             // Merge fresh data into existing sell cache
             $existingSell = $this->getOrderBook(self::CACHE_KEY) ?? [];
             foreach ($freshBooks['sell'] as $typeId => $orders) {
@@ -156,6 +163,7 @@ class JitaMarketService
             $buyItem->set($existingBuy);
             $buyItem->expiresAfter(self::CACHE_TTL);
             $this->cache->save($buyItem);
+            $this->reset();
 
             $duration = round(microtime(true) - $startTime, 2);
 
@@ -925,6 +933,10 @@ class JitaMarketService
      */
     public function getOrderBook(string $cacheKey): ?array
     {
+        if (isset($this->orderBooks[$cacheKey])) {
+            return $this->orderBooks[$cacheKey];
+        }
+
         $cacheItem = $this->cache->getItem($cacheKey);
 
         if (!$cacheItem->isHit()) {
@@ -934,7 +946,12 @@ class JitaMarketService
         /** @var array<int, list<array{price: float, volume: int}>> $data */
         $data = $cacheItem->get();
 
-        return $data;
+        return $this->orderBooks[$cacheKey] = $data;
+    }
+
+    public function reset(): void
+    {
+        $this->orderBooks = [];
     }
 
     /**
