@@ -35,6 +35,9 @@ class CachedStructure
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $typeId = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $lastResolutionAttemptAt = null;
+
     public function getId(): ?Uuid
     {
         return $this->id;
@@ -92,6 +95,17 @@ class CachedStructure
     public function setTypeId(?int $typeId): static
     {
         $this->typeId = $typeId;
+        return $this;
+    }
+
+    public function getLastResolutionAttemptAt(): ?\DateTimeImmutable
+    {
+        return $this->lastResolutionAttemptAt;
+    }
+
+    public function setLastResolutionAttemptAt(?\DateTimeImmutable $lastResolutionAttemptAt): static
+    {
+        $this->lastResolutionAttemptAt = $lastResolutionAttemptAt;
         return $this;
     }
 

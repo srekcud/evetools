@@ -22,6 +22,7 @@ class AssetsService
     private const int FIRST_STRUCTURE_ID = 1000000000000;
     private const int NAMES_CHUNK_SIZE = 1000;
     private const string NO_CUSTOM_NAME = 'None';
+    private const string UNRESOLVED_STRUCTURE_RETRY_DELAY = '6 hours';
 
     /** @var array<int, array{name: string, solar_system_id: ?int, owner_id?: ?int, type_id?: ?int}> */
     private array $structureCache = [];
@@ -569,6 +570,18 @@ class AssetsService
             ];
         }
 
+        $unresolvedData = [
+            'name' => "Structure #{$structureId}",
+            'solar_system_id' => null,
+            'solar_system_name' => null,
+            'owner_id' => null,
+            'type_id' => null,
+        ];
+
+        if ($dbCached !== null && !$this->isResolutionRetryDue($dbCached)) {
+            return $unresolvedData;
+        }
+
         // Try with primary token
         $result = $this->tryResolveStructureWithToken($structureId, $primaryToken);
         if ($result !== null) {
@@ -581,24 +594,22 @@ class AssetsService
             'structureId' => $structureId,
         ]);
 
-        $unresolvedData = [
-            'name' => "Structure #{$structureId}",
-            'solar_system_id' => null,
-            'owner_id' => null,
-            'type_id' => null,
-        ];
-
-        if ($dbCached === null) {
-            $this->cacheStructure($structureId, $unresolvedData);
+        $unresolved = $this->cacheStructure($structureId, $unresolvedData);
+        if ($primaryToken instanceof EveToken) {
+            $unresolved->setLastResolutionAttemptAt(new \DateTimeImmutable());
         }
 
-        return [
-            'name' => "Structure #{$structureId}",
-            'solar_system_id' => null,
-            'solar_system_name' => null,
-            'owner_id' => null,
-            'type_id' => null,
-        ];
+        return $unresolvedData;
+    }
+
+    private function isResolutionRetryDue(CachedStructure $unresolved): bool
+    {
+        $lastAttemptAt = $unresolved->getLastResolutionAttemptAt();
+        if ($lastAttemptAt === null) {
+            return true;
+        }
+
+        return $lastAttemptAt->modify('+' . self::UNRESOLVED_STRUCTURE_RETRY_DELAY) <= new \DateTimeImmutable();
     }
 
     /**
@@ -606,7 +617,7 @@ class AssetsService
      *
      * @param array{name: string, solar_system_id: ?int, owner_id: ?int, type_id: ?int} $data
      */
-    private function cacheStructure(int $structureId, array $data): void
+    private function cacheStructure(int $structureId, array $data): CachedStructure
     {
         // Memory cache
         $this->structureCache[$structureId] = $data;
@@ -624,7 +635,7 @@ class AssetsService
                 $existing->setOwnerCorporationId($data['owner_id'] ?? null);
                 $existing->setTypeId($data['type_id'] ?? null);
             }
-            return;
+            return $existing;
         }
 
         // Database cache (persist for future requests/users)
@@ -637,6 +648,8 @@ class AssetsService
 
         $this->entityManager->persist($cached);
         // Note: flush will be called at the end of the sync process
+
+        return $cached;
     }
 
     /**
