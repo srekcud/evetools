@@ -56,6 +56,30 @@ final class PublicContractListingTest extends TestCase
         $this->assertNotSame($first->getItemsSignature(), $other->getItemsSignature());
     }
 
+    #[Group('issue-805')]
+    public function testSignatureOfAContractWithManyDistinctTypesStaysAFixedLengthHash(): void
+    {
+        $items = array_map(static fn (int $typeId): array => ['typeId' => 1_000 + $typeId, 'quantity' => 1_000_000 + $typeId], range(1, 200));
+
+        $signature = $this->listing($items)->getItemsSignature();
+
+        $this->assertSame(64, strlen($signature));
+        $this->assertSame(1, preg_match('/^[0-9a-f]{64}$/', $signature));
+    }
+
+    #[Group('issue-805')]
+    public function testSignatureIsTheSha256OfTheCanonicalItemListWhateverTheInputOrder(): void
+    {
+        $golden = '7d11f23a0c81d76e36aaa79f4b02c9743d72a5161e75bb5ab91bbf5227289244';
+        $ordered = $this->listing([['typeId' => self::TRITANIUM, 'quantity' => 100], ['typeId' => self::PYERITE, 'quantity' => 50]]);
+        $reversed = $this->listing([['typeId' => self::PYERITE, 'quantity' => 50], ['typeId' => self::TRITANIUM, 'quantity' => 100]]);
+        $otherQuantity = $this->listing([['typeId' => self::TRITANIUM, 'quantity' => 100], ['typeId' => self::PYERITE, 'quantity' => 51]]);
+
+        $this->assertSame($golden, $ordered->getItemsSignature());
+        $this->assertSame($golden, $reversed->getItemsSignature());
+        $this->assertNotSame($golden, $otherQuantity->getItemsSignature());
+    }
+
     public function testNewListingHasBeenSeenOnceAndMissedNever(): void
     {
         $listing = $this->listing([['typeId' => self::TRITANIUM, 'quantity' => 1]]);
