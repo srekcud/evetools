@@ -93,6 +93,33 @@ final class ProjectContainerServiceTest extends IntegrationTestCase
         );
     }
 
+    public function testOnlyTheComponentJobLinesOfTheProjectAreCheckedBesideItsMaterials(): void
+    {
+        $this->storeBuildContainerInHangar('CorpSAG2', 'Division 2');
+        $this->allowDivisions([2]);
+        $project = $this->createProjectUsingBuildContainer();
+        $this->addJobLine($project, self::PYERITE, 'Pyerite component', 'component', 'manufacturing', 300);
+        $this->addJobLine($project, self::TRITANIUM, 'Tritanium final', 'final', 'manufacturing', 10);
+        $this->addJobLine($project, self::TRITANIUM, 'Tritanium copy', 'blueprint', 'copy', 4);
+        $this->flushAndClear();
+        $reloadedProject = $this->em->find(IndustryProject::class, $project->getId());
+        \assert($reloadedProject instanceof IndustryProject);
+
+        $lines = [];
+        foreach (self::getContainer()->get(ProjectContainerService::class)->verifyContainer($reloadedProject) as $line) {
+            $lines[] = [$line->typeName, $line->requiredQuantity, $line->containerQuantity, $line->status];
+        }
+
+        self::assertSame(
+            [
+                ['Tritanium', 500, 1_000, 'verified'],
+                ['Pyerite', 800, 240, 'partial'],
+                ['Pyerite component', 300, 240, 'partial'],
+            ],
+            $lines,
+        );
+    }
+
     public function testContainerInTheDeliveriesHangarIsNotFoundEvenWithEveryDivisionAllowed(): void
     {
         $this->storeBuildContainerInDeliveries();
@@ -249,6 +276,20 @@ final class ProjectContainerServiceTest extends IntegrationTestCase
             ->setIsJob(false);
         $project->addBomItem($material);
         $this->em->persist($material);
+    }
+
+    private function addJobLine(IndustryProject $project, int $typeId, string $typeName, string $jobGroup, string $activityType, int $requiredQuantity): void
+    {
+        $jobLine = (new IndustryProjectBomLine())
+            ->setTypeId($typeId)
+            ->setTypeName($typeName)
+            ->setRequiredQuantity($requiredQuantity)
+            ->setIsJob(true)
+            ->setJobGroup($jobGroup)
+            ->setActivityType($activityType)
+            ->setRuns(1);
+        $project->addBomItem($jobLine);
+        $this->em->persist($jobLine);
     }
 
     private function verifyContainerOf(IndustryProject $project): array
