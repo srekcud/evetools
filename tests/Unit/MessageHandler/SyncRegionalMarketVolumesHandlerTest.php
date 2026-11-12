@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\MessageHandler;
 
+use App\Constant\EveConstants;
 use App\Entity\CachedStructure;
 use App\Entity\Sde\MapSolarSystem;
 use App\Message\SyncRegionalMarketVolumes;
@@ -28,6 +29,7 @@ use Symfony\Component\Mercure\HubInterface;
 #[CoversClass(SyncRegionalMarketVolumesHandler::class)]
 #[AllowMockObjectsWithoutExpectations]
 #[Group('issue-419')]
+#[Group('issue-781')]
 final class SyncRegionalMarketVolumesHandlerTest extends TestCase
 {
     private const int DEFAULT_STRUCTURE_ID = 1_035_466_617_946;
@@ -36,6 +38,7 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
     private const int UNKNOWN_STRUCTURE_ID = 1_046_664_001_933;
     private const int DEFAULT_REGION_ID = 10000060;
     private const int PREFERRED_REGION_ID = 10000030;
+    private const int THE_FORGE_REGION_ID = EveConstants::THE_FORGE_REGION_ID;
     private const string SYNC_TYPE = 'market-volumes';
 
     private JitaMarketService&MockObject $jitaMarketService;
@@ -109,12 +112,52 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
         $this->handler()(new SyncRegionalMarketVolumes());
 
         $this->assertSame([
+            [self::THE_FORGE_REGION_ID, [587, 588]],
             [self::DEFAULT_REGION_ID, [587, 588]],
             [self::PREFERRED_REGION_ID, [587, 588]],
         ], $calls);
         $state = $this->trackerState();
         $this->assertSame('ok', $state['status']);
-        $this->assertSame('2 regions, 4 types synced', $state['message']);
+        $this->assertSame('3 regions, 6 types synced', $state['message']);
+    }
+
+    public function testTheForgeIsSyncedBeforeTheDefaultStructureRegionWhenNoStructureIsPreferred(): void
+    {
+        $this->givenPreferredStructures([]);
+        $calls = [];
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturnCallback(
+            function (int $regionId, array $typeIds) use (&$calls): array {
+                $calls[] = [$regionId, $typeIds];
+
+                return ['synced' => 2, 'failed' => 0, 'aborted' => false];
+            },
+        );
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([
+            [self::THE_FORGE_REGION_ID, [587, 588]],
+            [self::DEFAULT_REGION_ID, [587, 588]],
+        ], $calls);
+    }
+
+    public function testAPreferredStructureInTheForgeDoesNotSyncTheForgeTwice(): void
+    {
+        $this->regionByStructure[self::PREFERRED_STRUCTURE_ID] = self::THE_FORGE_REGION_ID;
+        $this->givenPreferredStructures([self::PREFERRED_STRUCTURE_ID]);
+        $syncedRegionIds = [];
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturnCallback(
+            function (int $regionId) use (&$syncedRegionIds): array {
+                $syncedRegionIds[] = $regionId;
+
+                return ['synced' => 2, 'failed' => 0, 'aborted' => false];
+            },
+        );
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([self::THE_FORGE_REGION_ID, self::DEFAULT_REGION_ID], $syncedRegionIds);
+        $this->assertSame('2 regions, 4 types synced', $this->trackerState()['message']);
     }
 
     public function testAStructureWhoseRegionIsUnknownIsSkippedWithoutFailingTheTracker(): void
@@ -126,7 +169,7 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
 
         $state = $this->trackerState();
         $this->assertSame('ok', $state['status']);
-        $this->assertSame('1 regions, 2 types synced; skipped (region unknown): ' . self::UNKNOWN_STRUCTURE_ID, $state['message']);
+        $this->assertSame('2 regions, 4 types synced; skipped (region unknown): ' . self::UNKNOWN_STRUCTURE_ID, $state['message']);
     }
 
     public function testFailedTypesFailTheTrackerWithTheCounts(): void
@@ -138,7 +181,7 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
 
         $state = $this->trackerState();
         $this->assertSame('error', $state['status']);
-        $this->assertSame('1 regions, 5 types synced; 3 types failed', $state['message']);
+        $this->assertSame('2 regions, 10 types synced; 6 types failed', $state['message']);
     }
 
     public function testAnAbandonedRegionFailsTheTrackerAndNamesTheRegion(): void
@@ -154,20 +197,50 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
 
         $state = $this->trackerState();
         $this->assertSame('error', $state['status']);
-        $this->assertSame('2 regions, 2 types synced; 60 types failed; abandoned: ' . self::PREFERRED_REGION_ID, $state['message']);
+        $this->assertSame('3 regions, 4 types synced; 60 types failed; abandoned: ' . self::PREFERRED_REGION_ID, $state['message']);
     }
 
-    public function testNoResolvableRegionCompletesTheTrackerWithoutAnyEsiSync(): void
+    public function testAbandoningTheForgeFailsTheTrackerNamesItAndStillSyncsTheOtherRegions(): void
     {
-        $this->regionByStructure[self::DEFAULT_STRUCTURE_ID] = null;
         $this->givenPreferredStructures([]);
-        $this->jitaMarketService->expects($this->never())->method('syncRegionalDailyVolumes');
+        $syncedRegionIds = [];
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturnCallback(
+            function (int $regionId) use (&$syncedRegionIds): array {
+                $syncedRegionIds[] = $regionId;
+
+                return $regionId === self::THE_FORGE_REGION_ID
+                    ? ['synced' => 0, 'failed' => 60, 'aborted' => true]
+                    : ['synced' => 2, 'failed' => 0, 'aborted' => false];
+            },
+        );
 
         $this->handler()(new SyncRegionalMarketVolumes());
 
+        $this->assertSame([self::THE_FORGE_REGION_ID, self::DEFAULT_REGION_ID], $syncedRegionIds);
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 2 types synced; 60 types failed; abandoned: ' . self::THE_FORGE_REGION_ID, $state['message']);
+    }
+
+    public function testWithoutAnyResolvableStructureTheForgeIsStillSyncedAndTheTrackerCompletes(): void
+    {
+        $this->regionByStructure[self::DEFAULT_STRUCTURE_ID] = null;
+        $this->givenPreferredStructures([]);
+        $calls = [];
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturnCallback(
+            function (int $regionId, array $typeIds) use (&$calls): array {
+                $calls[] = [$regionId, $typeIds];
+
+                return ['synced' => 2, 'failed' => 0, 'aborted' => false];
+            },
+        );
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([[self::THE_FORGE_REGION_ID, [587, 588]]], $calls);
         $state = $this->trackerState();
         $this->assertSame('ok', $state['status']);
-        $this->assertSame('0 regions, 0 types synced; skipped (region unknown): ' . self::DEFAULT_STRUCTURE_ID, $state['message']);
+        $this->assertSame('1 regions, 2 types synced; skipped (region unknown): ' . self::DEFAULT_STRUCTURE_ID, $state['message']);
     }
 
     /**

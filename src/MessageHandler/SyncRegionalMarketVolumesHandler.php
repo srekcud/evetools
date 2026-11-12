@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
+use App\Constant\EveConstants;
 use App\Message\SyncRegionalMarketVolumes;
 use App\Repository\CachedStructureRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -42,7 +43,7 @@ final readonly class SyncRegionalMarketVolumesHandler
                 ...$this->userRepository->findDistinctPreferredMarketStructureIds(),
             ]));
 
-            $regionIds = [];
+            $regionIds = [EveConstants::THE_FORGE_REGION_ID => EveConstants::THE_FORGE_REGION_ID];
             $skippedStructureIds = [];
             foreach ($structureIds as $structureId) {
                 $regionId = $this->resolveRegionId($structureId);
@@ -53,7 +54,7 @@ final readonly class SyncRegionalMarketVolumesHandler
                 $regionIds[$regionId] = $regionId;
             }
 
-            $typeIds = $regionIds === [] ? [] : $this->manufacturableProductTypeIds();
+            $typeIds = $this->manufacturableProductTypeIds();
 
             $synced = 0;
             $failed = 0;
