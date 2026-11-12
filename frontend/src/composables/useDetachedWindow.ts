@@ -48,6 +48,7 @@ function copyStyleSheets(target: Window): void {
 
 export function useDetachedWindow(): {
   isOpen: Ref<boolean>
+  isOpening: Ref<boolean>
   kind: Ref<DetachedWindowKind | null>
   currentWindow: ShallowRef<Window | null>
   notice: Ref<DetachedWindowNotice | null>
@@ -57,6 +58,8 @@ export function useDetachedWindow(): {
   resize: (width: number, height: number) => void
 } {
   const isOpen = ref(false)
+  const isOpening = ref(false)
+  let pendingOpening: Promise<DetachedWindowHandle | null> | null = null
   const kind = ref<DetachedWindowKind | null>(null)
   const currentWindow = shallowRef<Window | null>(null)
   const notice = ref<DetachedWindowNotice | null>(null)
@@ -95,7 +98,7 @@ export function useDetachedWindow(): {
     return { window: popup, kind: 'popup', notice: 'popupFallback', cause }
   }
 
-  async function open(size: DetachedWindowSize): Promise<DetachedWindowHandle | null> {
+  async function openNewWindow(size: DetachedWindowSize): Promise<DetachedWindowHandle | null> {
     close()
     notice.value = null
     noticeCause.value = null
@@ -111,6 +114,16 @@ export function useDetachedWindow(): {
     return handle
   }
 
+  function open(size: DetachedWindowSize): Promise<DetachedWindowHandle | null> {
+    if (pendingOpening !== null) return pendingOpening
+    isOpening.value = true
+    pendingOpening = openNewWindow(size).finally(() => {
+      pendingOpening = null
+      isOpening.value = false
+    })
+    return pendingOpening
+  }
+
   function resize(width: number, height: number): void {
     const resizing = currentWindow.value
     if (resizing === null) return
@@ -123,5 +136,5 @@ export function useDetachedWindow(): {
     }
   }
 
-  return { isOpen, kind, currentWindow, notice, noticeCause, open, close, resize }
+  return { isOpen, isOpening, kind, currentWindow, notice, noticeCause, open, close, resize }
 }
