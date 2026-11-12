@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
-import type { Asset } from '@/types'
+import AssetItemNameResolveControl from '@/components/assets/AssetItemNameResolveControl.vue'
+import { apiRequest } from '@/services/api'
+import type { Asset, ItemNameAnswer, ItemNameResolution } from '@/types'
 
 const props = defineProps<{
   location: {
@@ -20,7 +24,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   'toggle-container': [itemId: number]
   'toggle-location': [locationName: string]
+  'item-name-resolved': [itemId: number, itemName: string]
 }>()
+
+const { t } = useI18n()
+const resolutionByAssetId = ref<Record<string, ItemNameResolution>>({})
 
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
@@ -59,12 +67,41 @@ function formatNumber(n: number): string {
   return n.toLocaleString()
 }
 
+function resolvedItemName(asset: Asset): string | null {
+  const resolution = resolutionByAssetId.value[asset.id]
+  return resolution?.status === 'named' ? resolution.itemName : asset.itemName
+}
+
 function getDisplayName(asset: Asset): string {
   const typeName = typeNameLabel(asset.typeName, asset.typeId)
-  if (asset.itemName) {
-    return `${asset.itemName} (${typeName})`
+  const itemName = resolvedItemName(asset)
+  if (itemName) {
+    return `${itemName} (${typeName})`
   }
   return typeName
+}
+
+async function resolveItemName(asset: Asset): Promise<void> {
+  if (resolutionByAssetId.value[asset.id]?.status === 'loading') {
+    return
+  }
+  resolutionByAssetId.value[asset.id] = { status: 'loading' }
+  try {
+    const answer = await apiRequest<ItemNameAnswer>(`/me/assets/${asset.id}/item-name`, { method: 'POST' })
+    if (answer.status === 'unnamed') {
+      resolutionByAssetId.value[asset.id] = { status: 'unnamed' }
+    } else if (answer.itemName === null) {
+      resolutionByAssetId.value[asset.id] = { status: 'error', message: t('assets.itemName.invalidAnswer') }
+    } else {
+      resolutionByAssetId.value[asset.id] = { status: 'named', itemName: answer.itemName }
+      emit('item-name-resolved', asset.itemId, answer.itemName)
+    }
+  } catch (error) {
+    resolutionByAssetId.value[asset.id] = {
+      status: 'error',
+      message: error instanceof Error ? error.message : t('assets.itemName.invalidAnswer'),
+    }
+  }
 }
 </script>
 
@@ -123,6 +160,7 @@ function getDisplayName(asset: Asset): string {
             <div class="flex items-center gap-2">
               <span class="text-slate-200">{{ getDisplayName(asset) }}</span>
               <OpenInGameButton type="market" :targetId="asset.typeId" />
+              <AssetItemNameResolveControl :asset="asset" :resolution="resolutionByAssetId[asset.id]" @resolve="resolveItemName" />
               <!-- Container indicator -->
               <span v-if="isContainer(asset)" class="flex items-center gap-1 text-xs text-amber-400">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,6 +201,7 @@ function getDisplayName(asset: Asset): string {
               />
               <span class="text-slate-300 text-sm">{{ getDisplayName(item) }}</span>
               <OpenInGameButton type="market" :targetId="item.typeId" />
+              <AssetItemNameResolveControl :asset="item" :resolution="resolutionByAssetId[item.id]" @resolve="resolveItemName" />
             </div>
             <span class="text-slate-500 font-mono text-sm">x{{ formatNumber(item.quantity) }}</span>
           </div>

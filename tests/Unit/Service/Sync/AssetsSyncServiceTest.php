@@ -581,6 +581,31 @@ class AssetsSyncServiceTest extends TestCase
         $this->assertSame([], $this->publishedSyncEvents);
     }
 
+    #[Group('issue-784')]
+    public function testSyncCharacterAssetsPersistsTheSingletonFlagOfEveryAsset(): void
+    {
+        $this->assetsService->method('getCharacterAssets')->willReturn($this->singletonFlagAssets());
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCharacterAssets(new Character());
+
+        $this->assertSame([true, false], array_map(static fn (CachedAsset $asset): ?bool => $asset->isSingleton(), $this->persistedAssets));
+    }
+
+    #[Group('issue-784')]
+    public function testSyncCorporationAssetsPersistsTheSingletonFlagOfEveryAsset(): void
+    {
+        $character = new Character();
+        $character->setCorporationId(98000784);
+        $this->corporationService->method('getDivisions')->willReturn([]);
+        $this->assetsService->method('getCorporationAssets')->willReturn($this->singletonFlagAssets());
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character);
+
+        $this->assertSame([true, false], array_map(static fn (CachedAsset $asset): ?bool => $asset->isSingleton(), $this->persistedAssets));
+    }
+
     public function testSyncOfACharacterWhoseUserHasNoIdPublishesNoSyncEvent(): void
     {
         $userWithoutId = $this->createStub(User::class);
@@ -927,6 +952,37 @@ class AssetsSyncServiceTest extends TestCase
             solarSystemName: 'Jita',
             itemName: null,
         );
+    }
+
+    /** @return list<AssetDto> */
+    private function singletonFlagAssets(): array
+    {
+        return [
+            new AssetDto(
+                itemId: 1_050_000_784_001,
+                typeId: 587,
+                typeName: 'Rifter',
+                quantity: 1,
+                locationId: 60003760,
+                locationName: 'Jita IV - Moon 4',
+                locationType: 'station',
+                locationFlag: 'Hangar',
+                itemName: null,
+                isSingleton: true,
+            ),
+            new AssetDto(
+                itemId: 1_050_000_784_002,
+                typeId: 34,
+                typeName: 'Tritanium',
+                quantity: 500,
+                locationId: 60003760,
+                locationName: 'Jita IV - Moon 4',
+                locationType: 'station',
+                locationFlag: 'Hangar',
+                itemName: null,
+                isSingleton: false,
+            ),
+        ];
     }
 
     private function isogenCanInJita(): AssetDto

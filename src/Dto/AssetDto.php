@@ -19,6 +19,7 @@ final readonly class AssetDto
         public ?int $solarSystemId = null,
         public ?string $solarSystemName = null,
         public ?string $itemName = null,
+        public ?bool $isSingleton = null,
     ) {
     }
 }

@@ -26,7 +26,21 @@ export interface Asset {
   solarSystemId: number | null
   solarSystemName: string | null
   itemName: string | null
+  isSingleton: boolean | null
+  canResolveItemName: boolean
   cachedAt: string
+}
+
+export type ItemNameResolution =
+  | { status: 'loading' }
+  | { status: 'named'; itemName: string }
+  | { status: 'unnamed' }
+  | { status: 'error'; message: string }
+
+export interface ItemNameAnswer {
+  id: string
+  status: 'named' | 'unnamed'
+  itemName: string | null
 }
 
 export interface User {

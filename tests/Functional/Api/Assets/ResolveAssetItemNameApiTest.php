@@ -1,0 +1,253 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Functional\Api\Assets;
+
+use App\Entity\CachedAsset;
+use App\Entity\Character;
+use App\Entity\EveToken;
+use App\Entity\User;
+use App\Exception\EsiApiException;
+use App\Service\ESI\EsiClient;
+use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\MockObject\Stub;
+use Psr\Log\NullLogger;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+
+#[Group('issue-784')]
+final class ResolveAssetItemNameApiTest extends WebTestCase
+{
+    private const int JITA_STATION_ID = 60_003_760;
+    private const int RIFTER_TYPE_ID = 587;
+    private const int TRITANIUM_TYPE_ID = 34;
+    private const int STATION_CONTAINER_TYPE_ID = 17_366;
+    private const int RIFTER_ITEM_ID = 1_050_000_784_301;
+    private const int TRITANIUM_ITEM_ID = 1_050_000_784_302;
+    private const int STATION_CONTAINER_ITEM_ID = 1_050_000_784_303;
+    private const int LEGACY_PYERITE_ITEM_ID = 1_050_000_784_304;
+
+    private static int $nextEveCharacterId = 2_113_784_301;
+
+    private KernelBrowser $client;
+    private EntityManagerInterface $em;
+    private EsiClient&Stub $esiClient;
+
+    /** @var list<array{endpoint: string, body: array<int|string, mixed>}> */
+    private array $namesRequests = [];
+
+    /** @var list<mixed>|\Throwable */
+    private array|\Throwable $namesAnswer = [];
+
+    protected function setUp(): void
+    {
+        $this->namesRequests = [];
+        $this->namesAnswer = [];
+        $this->client = self::createClient();
+        $this->client->disableReboot();
+        self::getContainer()->set('logger', new NullLogger());
+        $this->em = self::getContainer()->get(EntityManagerInterface::class);
+
+        $this->esiClient = $this->createStub(EsiClient::class);
+        $this->esiClient->method('post')->willReturnCallback(
+            function (string $endpoint, array $body): array {
+                if ($endpoint === '/universe/names/') {
+                    return [];
+                }
+
+                $this->namesRequests[] = ['endpoint' => $endpoint, 'body' => $body];
+
+                if ($this->namesAnswer instanceof \Throwable) {
+                    throw $this->namesAnswer;
+                }
+
+                return $this->namesAnswer;
+            },
+        );
+        self::getContainer()->set(EsiClient::class, $this->esiClient);
+    }
+
+    public function testResolvingTheNameOfAnUnnamedShipStoresItAndAnswersNamed(): void
+    {
+        $pilot = $this->persistPilot();
+        $ship = $this->persistAsset($pilot, self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, true);
+        $this->em->flush();
+        $shipId = $ship->getId()->toRfc4122();
+        $this->namesAnswer = [['item_id' => self::RIFTER_ITEM_ID, 'name' => 'Hauler One']];
+
+        $this->resolveItemName($pilot, $shipId);
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame($shipId, $body['id']);
+        self::assertSame('named', $body['status']);
+        self::assertSame('Hauler One', $body['itemName']);
+        self::assertSame(
+            [['endpoint' => '/characters/' . $pilot->getMainCharacter()->getEveCharacterId() . '/assets/names/', 'body' => [self::RIFTER_ITEM_ID]]],
+            $this->namesRequests,
+        );
+        $this->em->clear();
+        self::assertSame('Hauler One', $this->em->find(CachedAsset::class, $shipId)->getItemName());
+    }
+
+    public function testAContainerWithoutCustomNameInGameAnswersUnnamedWithANullNameAndStoresNothing(): void
+    {
+        $pilot = $this->persistPilot();
+        $container = $this->persistAsset($pilot, self::STATION_CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 'Station Container', 1, true);
+        $this->em->flush();
+        $containerId = $container->getId()->toRfc4122();
+        $this->namesAnswer = [['item_id' => self::STATION_CONTAINER_ITEM_ID, 'name' => 'None']];
+
+        $this->resolveItemName($pilot, $containerId);
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame('unnamed', $body['status']);
+        self::assertArrayHasKey('itemName', $body);
+        self::assertNull($body['itemName']);
+        $this->em->clear();
+        self::assertNull($this->em->find(CachedAsset::class, $containerId)->getItemName());
+    }
+
+    public function testAnEsiFailureAnswers502AndStoresNothing(): void
+    {
+        $pilot = $this->persistPilot();
+        $container = $this->persistAsset($pilot, self::STATION_CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 'Station Container', 1, true);
+        $this->em->flush();
+        $containerId = $container->getId()->toRfc4122();
+        $this->namesAnswer = new EsiApiException('Requested item is not a nameable asset', 404);
+
+        $this->resolveItemName($pilot, $containerId);
+
+        self::assertResponseStatusCodeSame(502);
+        self::assertStringContainsString('Requested item is not a nameable asset', (string) $this->client->getResponse()->getContent());
+        $this->em->clear();
+        self::assertNull($this->em->find(CachedAsset::class, $containerId)->getItemName());
+    }
+
+    public function testTheAssetOfAnotherUsersCharacterAnswers404AndCallsNoEsi(): void
+    {
+        $owner = $this->persistPilot();
+        $ship = $this->persistAsset($owner, self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, true);
+        $intruder = $this->persistPilot();
+        $this->em->flush();
+        $shipId = $ship->getId()->toRfc4122();
+        $this->namesAnswer = [['item_id' => self::RIFTER_ITEM_ID, 'name' => 'Stolen Name']];
+
+        $this->resolveItemName($intruder, $shipId);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame([], $this->namesRequests);
+        $this->em->clear();
+        self::assertNull($this->em->find(CachedAsset::class, $shipId)->getItemName());
+    }
+
+    public function testAStackOfTritaniumAnswers422AndCallsNoEsi(): void
+    {
+        $pilot = $this->persistPilot();
+        $stack = $this->persistAsset($pilot, self::TRITANIUM_ITEM_ID, self::TRITANIUM_TYPE_ID, 'Tritanium', 500, false);
+        $this->em->flush();
+
+        $this->resolveItemName($pilot, $stack->getId()->toRfc4122());
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([], $this->namesRequests);
+    }
+
+    public function testCharacterAssetsExposeTheSingletonFlagAndWhetherTheirItemNameCanBeResolved(): void
+    {
+        $pilot = $this->persistPilot();
+        $this->persistAsset($pilot, self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, true);
+        $this->persistAsset($pilot, self::TRITANIUM_ITEM_ID, self::TRITANIUM_TYPE_ID, 'Tritanium', 500, false);
+        $this->persistAsset($pilot, self::LEGACY_PYERITE_ITEM_ID, 35, 'Pyerite', 750, null);
+        $this->em->flush();
+        $this->em->clear();
+
+        $this->client->loginUser($this->em->find(User::class, $pilot->getId()), 'api');
+        $this->client->request(
+            'GET',
+            '/api/me/characters/' . $pilot->getMainCharacter()->getId()->toRfc4122() . '/assets',
+            server: ['HTTP_ACCEPT' => 'application/json'],
+        );
+
+        self::assertResponseStatusCodeSame(200);
+        $itemsByItemId = [];
+        foreach ($this->responseJson()['items'] as $item) {
+            self::assertArrayHasKey('isSingleton', $item);
+            self::assertArrayHasKey('canResolveItemName', $item);
+            $itemsByItemId[$item['itemId']] = $item;
+        }
+        self::assertTrue($itemsByItemId[self::RIFTER_ITEM_ID]['isSingleton']);
+        self::assertTrue($itemsByItemId[self::RIFTER_ITEM_ID]['canResolveItemName']);
+        self::assertFalse($itemsByItemId[self::TRITANIUM_ITEM_ID]['isSingleton']);
+        self::assertFalse($itemsByItemId[self::TRITANIUM_ITEM_ID]['canResolveItemName']);
+        self::assertNull($itemsByItemId[self::LEGACY_PYERITE_ITEM_ID]['isSingleton']);
+        self::assertFalse($itemsByItemId[self::LEGACY_PYERITE_ITEM_ID]['canResolveItemName']);
+    }
+
+    private function resolveItemName(User $user, string $assetId): void
+    {
+        $this->em->clear();
+        $this->client->loginUser($this->em->find(User::class, $user->getId()), 'api');
+        $this->client->request(
+            'POST',
+            '/api/me/assets/' . $assetId . '/item-name',
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'],
+            content: '{}',
+        );
+    }
+
+    private function persistPilot(): User
+    {
+        $eveCharacterId = self::$nextEveCharacterId++;
+        $character = (new Character())
+            ->setEveCharacterId($eveCharacterId)
+            ->setName('Pilot ' . $eveCharacterId)
+            ->setCorporationId(98_784_301)
+            ->setCorporationName('Varrow Logistics');
+        $token = (new EveToken())
+            ->setAccessToken('access-' . $eveCharacterId)
+            ->setRefreshTokenEncrypted('refresh-' . $eveCharacterId)
+            ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
+            ->setScopes(['esi-assets.read_assets.v1']);
+        $character->setEveToken($token);
+        $user = new User();
+        $user->addCharacter($character);
+        $user->setMainCharacter($character);
+        $this->em->persist($user);
+        $this->em->persist($character);
+        $this->em->persist($token);
+        $this->em->flush();
+
+        return $user;
+    }
+
+    private function persistAsset(User $user, int $itemId, int $typeId, string $typeName, int $quantity, ?bool $isSingleton): CachedAsset
+    {
+        $asset = (new CachedAsset())
+            ->setItemId($itemId)
+            ->setTypeId($typeId)
+            ->setTypeName($typeName)
+            ->setQuantity($quantity)
+            ->setLocationId(self::JITA_STATION_ID)
+            ->setLocationName('Jita IV - Moon 4 - Caldari Navy Assembly Plant')
+            ->setLocationType('station')
+            ->setLocationFlag('Hangar')
+            ->setIsSingleton($isSingleton)
+            ->setCharacter($user->getMainCharacter())
+            ->setIsCorporationAsset(false);
+        $this->em->persist($asset);
+
+        return $asset;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function responseJson(): array
+    {
+        return json_decode((string) $this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+    }
+}
