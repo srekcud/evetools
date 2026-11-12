@@ -3,6 +3,56 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.17 (2026-11-12)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Planning : bouton pour copier le nom du blueprint (ou de la formule) d'un
+  job, a coller dans la recherche du jeu
+- Les achats du wallet sont rattaches seuls a la ligne du projet quand une
+  seule ligne ouverte correspond ; les autres restent proposes
+- Projet solo : plus de colonne ni de bloc de reservation, une seule action
+  "J'ai fourni" par ligne
+- Projet de groupe : la contribution du proprietaire est approuvee seule
+  quand il est le seul a pouvoir valider
+- Structures : les rigs de laboratoire (invention, recherche ME et TE) sont
+  proposes et acceptes
+- Recherche ME/TE : duree calculee avec les bonus de la structure et de ses
+  rigs, cout d'installation de la recherche TE affiche
+- Scanner de rentabilite : plus d'erreur serveur quand les prix ne sont pas
+  en cache
+- Contributions sur les datacores et decryptors : le prix Jita est connu
+- Prix des materiaux absents du carnet Jita : recuperes a la demande au lieu
+  de rester vides
+
+### PI
+- La production totale compte la production nette : ce que vos propres
+  usines consomment n'est plus compte deux fois
+- Une usine ne tourne que sur ce que sa colonie fournit ou stocke ; une usine
+  a l'arret est signalee
+- Colonie sans extracteur : la carte montre le produit final, son stock et
+  le temps restant avec le stock de la colonie
+
+### Assets
+- Assets et blueprints de corporation : la synchro passe par un Director
+  connecte ; une corporation sans Director est signalee dans les echecs de
+  synchro de la bibliotheque de blueprints
+- Le filtre de lieu ne liste plus que les stations et structures
+- Icones des blueprints affichees
+- Plus de plantage en tapant dans la recherche
+
+### Compagnon
+- Une seule fenetre detachee par onglet : ouvrir le compagnon de minage
+  ferme celui du groupe (et l'inverse), avec un message qui le dit
+- La fenetre detachee du groupe ne reste plus vide a l'ouverture
+
+### Administration
+- Les taches planifiees qui ne tournaient jamais (extractions lunaires,
+  contrats de courrier, operations de minage recurrentes, purges, volumes de
+  marche, contrats publics) tournent a nouveau
+- Le tableau des synchros tient sans defilement horizontal
+
+--------------------------------------------------------------------------------
 Version 0.16 (2026-11-12)
 --------------------------------------------------------------------------------
 
