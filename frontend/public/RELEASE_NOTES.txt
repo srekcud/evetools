@@ -3,6 +3,28 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.18 (2026-11-12)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Collage en masse : un suffixe *N ajoute N copies identiques d'un blueprint
+  (ex. "Ogre II 2 4 x10 *5" ajoute 5 lignes de 10 runs)
+- Plus d'erreur a l'ouverture d'un projet sans alerte de prix
+
+### Assets
+- Objets des structures de la corporation : ranges sous la bonne structure et
+  son systeme solaire, au lieu d'etre regroupes sous le nom du systeme
+- Rafraichissement des assets de corporation : l'erreur renvoyee (par
+  exemple aucun Director connecte) est affichee au lieu d'une vue vide
+- Le rafraichissement s'arrete avec un message s'il reste sans reponse
+  pendant 2 minutes
+
+### Synchronisation
+- Les synchros en arriere-plan informent de nouveau la page en temps reel
+  (demarrage, progression, fin, erreur)
+- La synchro des contrats publics ne s'interrompt plus faute de memoire
+
+--------------------------------------------------------------------------------
 Version 0.17 (2026-11-12)
 --------------------------------------------------------------------------------
 
