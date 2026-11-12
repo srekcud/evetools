@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Constant\EveConstants;
 use App\Repository\CachedAssetRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -58,6 +59,9 @@ class CachedAsset
 
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $itemName = null;
+
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    private ?bool $isSingleton = null;
 
     #[ORM\ManyToOne(targetEntity: Character::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
@@ -228,6 +232,25 @@ class CachedAsset
         $this->itemName = $itemName;
 
         return $this;
+    }
+
+    public function isSingleton(): ?bool
+    {
+        return $this->isSingleton;
+    }
+
+    public function setIsSingleton(?bool $isSingleton): static
+    {
+        $this->isSingleton = $isSingleton;
+
+        return $this;
+    }
+
+    public function canResolveItemName(): bool
+    {
+        return $this->isSingleton === true
+            && $this->itemName === null
+            && $this->locationFlag !== EveConstants::OFFICE_LOCATION_FLAG;
     }
 
     public function getCharacter(): ?Character

@@ -6,6 +6,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useGroupCourierStore } from '@/stores/group-industry/courier'
 import type { CourierCandidate, CourierLine, CourierQuoteStatus, CourierTransportState } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
 const DASH = '—'
@@ -119,6 +120,8 @@ watch(
     courierStore.fetchCourier(props.projectId)
   },
 )
+
+useRefetchOnReconnect(() => courierStore.fetchCourier(props.projectId))
 
 watch(
   () => syncStore.getSyncProgress('industry-project'),

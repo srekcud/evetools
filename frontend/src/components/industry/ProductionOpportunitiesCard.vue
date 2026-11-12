@@ -136,7 +136,7 @@ function rowKey(opportunity: ProductionOpportunity): string {
         {{ t('industry.opportunities.unknownCount', { count: store.result.unknownProductCount }) }}
       </p>
 
-      <p v-if="store.result.rows.length === 0" class="px-4 py-4 text-sm text-slate-500">{{ t('industry.opportunities.empty') }}</p>
+      <p v-if="store.result.rows.length === 0" data-testid="opportunities-empty" class="px-4 py-4 text-sm text-slate-500">{{ t('industry.opportunities.empty') }}</p>
 
       <DataTable v-else>
         <table class="w-full text-sm">

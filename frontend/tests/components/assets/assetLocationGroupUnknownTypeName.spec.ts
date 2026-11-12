@@ -25,6 +25,8 @@ function asset(overrides: Partial<Asset>): Asset {
     solarSystemId: 30000142,
     solarSystemName: 'Jita',
     itemName: null,
+    isSingleton: false,
+    canResolveItemName: false,
     divisionName: null,
     cachedAt: '2026-10-22T10:00:00+00:00',
     ...overrides,

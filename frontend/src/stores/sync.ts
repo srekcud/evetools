@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useAuthStore } from './auth'
 import { safeJsonParse } from '@/services/api'
 
-export type SyncStatus = 'idle' | 'started' | 'in_progress' | 'completed' | 'error'
+export type SyncStatus = 'idle' | 'started' | 'in_progress' | 'completed' | 'error' | 'unknown'
 
 export interface SyncProgress {
   syncType: string
@@ -50,6 +50,8 @@ export const useSyncStore = defineStore('sync', () => {
   const miningOperationEvents = ref<Record<string, MiningOperationEvent>>({})
   const alertMessages = ref<Record<string, AlertMessage>>({})
   const reconnectAttempts = ref(0)
+  const reconnectedAt = ref<number | null>(null)
+  let connectionDropped = false
 
   // Config
   const maxReconnectAttempts = 5
@@ -132,6 +134,11 @@ export const useSyncStore = defineStore('sync', () => {
         isConnected.value = true
         connectionError.value = null
         reconnectAttempts.value = 0
+        if (connectionDropped) {
+          connectionDropped = false
+          markRunningSyncsUnknown()
+          reconnectedAt.value = Date.now()
+        }
         console.debug('Mercure: Connected')
       }
 
@@ -189,6 +196,7 @@ export const useSyncStore = defineStore('sync', () => {
       eventSource.value.onerror = (_event: Event) => {
         console.error('Mercure: Connection error')
         isConnected.value = false
+        connectionDropped = true
 
         // Only attempt reconnect if not intentionally closed
         if (eventSource.value?.readyState === EventSource.CLOSED) {
@@ -235,6 +243,17 @@ export const useSyncStore = defineStore('sync', () => {
     }, delay)
   }
 
+  function markRunningSyncsUnknown() {
+    syncStatus.value = Object.fromEntries(
+      Object.entries(syncStatus.value).map(([syncType, progress]) => [
+        syncType,
+        progress.status === 'started' || progress.status === 'in_progress'
+          ? { ...progress, status: 'unknown' as const, progress: null }
+          : progress,
+      ])
+    )
+  }
+
   function getSyncProgress(syncType: string): SyncProgress | null {
     return syncStatus.value[syncType] ?? null
   }
@@ -278,6 +297,8 @@ export const useSyncStore = defineStore('sync', () => {
       } else {
         disconnect()
         clearAllSyncStatus()
+        connectionDropped = false
+        reconnectedAt.value = null
       }
     },
     { immediate: true }
@@ -290,6 +311,7 @@ export const useSyncStore = defineStore('sync', () => {
     syncStatus,
     alertMessages,
     reconnectAttempts,
+    reconnectedAt,
 
     // Computed
     isAnyLoading,

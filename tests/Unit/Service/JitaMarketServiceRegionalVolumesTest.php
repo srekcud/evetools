@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service;
 
+use App\Constant\EveConstants;
 use App\Service\JitaMarketService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -13,10 +14,12 @@ use Symfony\Component\Clock\MockClock;
 
 #[CoversClass(JitaMarketService::class)]
 #[Group('issue-419')]
+#[Group('issue-781')]
 final class JitaMarketServiceRegionalVolumesTest extends TestCase
 {
     use SimulatesJitaMarketEsi;
 
+    private const int THE_FORGE = EveConstants::THE_FORGE_REGION_ID;
     private const int HEIMATAR = 10000030;
     private const int TRITANIUM = 34;
     private const int PYERITE = 35;
@@ -47,6 +50,32 @@ final class JitaMarketServiceRegionalVolumesTest extends TestCase
         $this->assertSame(155.03, $this->marketCache->getItem('volume_10000030_34')->get());
         $this->assertSame(0.0, $this->marketCache->getItem('volume_10000030_35')->get());
         $this->assertFalse($this->marketCache->getItem('jita_volume_34')->isHit());
+        $this->assertFalse($this->marketCache->getItem('jita_volume_35')->isHit());
+    }
+
+    public function testSyncOfTheForgeStoresTheThirtyDayAverageUnderTheJitaKeyOnly(): void
+    {
+        $service = $this->serviceWithHistories([self::TRITANIUM => $this->thirtyTwoDaysOfHistory()], self::THE_FORGE);
+
+        $result = $service->syncRegionalDailyVolumes(self::THE_FORGE, [self::TRITANIUM]);
+
+        $this->assertSame(['synced' => 1, 'failed' => 0, 'aborted' => false], $result);
+        $this->assertSame(155.03, $this->marketCache->getItem('jita_volume_34')->get());
+        $this->assertFalse($this->marketCache->getItem('volume_10000002_34')->isHit());
+    }
+
+    public function testSyncOfTheForgeKeepsTheJitaVolumesForFortyEightHours(): void
+    {
+        $service = $this->serviceWithHistories([self::TRITANIUM => $this->thirtyTwoDaysOfHistory()], self::THE_FORGE);
+
+        $service->syncRegionalDailyVolumes(self::THE_FORGE, [self::TRITANIUM]);
+
+        $this->clock->sleep(self::FORTY_SEVEN_HOURS);
+        $this->assertTrue($this->marketCache->getItem('jita_volume_34')->isHit());
+        $this->assertSame([self::TRITANIUM => 155.03], $service->getCachedDailyVolumes([self::TRITANIUM]));
+        $this->clock->sleep(self::FORTY_NINE_HOURS - self::FORTY_SEVEN_HOURS);
+        $this->assertFalse($this->marketCache->getItem('jita_volume_34')->isHit());
+        $this->assertSame([], $service->getCachedDailyVolumes([self::TRITANIUM]));
     }
 
     public function testSyncKeepsTheVolumesForFortyEightHours(): void
@@ -104,6 +133,19 @@ final class JitaMarketServiceRegionalVolumesTest extends TestCase
         $this->assertSame([], $this->requestedEsiUrls);
     }
 
+    public function testCachedDailyVolumesForTheForgeReadTheJitaKeysLikeCachedDailyVolumes(): void
+    {
+        $service = $this->serviceWithHistories([]);
+        $this->store('jita_volume_34', 12.5);
+        $this->store('volume_10000002_35', 99.0);
+
+        $volumesForTheForge = $service->getCachedDailyVolumesForRegion(self::THE_FORGE, [self::TRITANIUM, self::PYERITE]);
+
+        $this->assertSame([self::TRITANIUM => 12.5], $volumesForTheForge);
+        $this->assertSame($service->getCachedDailyVolumes([self::TRITANIUM, self::PYERITE]), $volumesForTheForge);
+        $this->assertSame([], $this->requestedEsiUrls);
+    }
+
     private function store(string $key, float $volume): void
     {
         $item = $this->marketCache->getItem($key);
@@ -114,11 +156,11 @@ final class JitaMarketServiceRegionalVolumesTest extends TestCase
     /**
      * @param array<int, list<array<string, mixed>>> $historiesByTypeId
      */
-    private function serviceWithHistories(array $historiesByTypeId): JitaMarketService
+    private function serviceWithHistories(array $historiesByTypeId, int $regionId = self::HEIMATAR): JitaMarketService
     {
         $routes = [];
         foreach ($historiesByTypeId as $typeId => $history) {
-            $routes[sprintf('/markets/%d/history/#%d', self::HEIMATAR, $typeId)] = [$history];
+            $routes[sprintf('/markets/%d/history/#%d', $regionId, $typeId)] = [$history];
         }
 
         return $this->createJitaMarketServiceOnSimulatedEsi($routes, $this->marketCache, $this->createStub(\Doctrine\DBAL\Connection::class));

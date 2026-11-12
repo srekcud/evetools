@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiRequest } from '@/services/api'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 
 export type NotificationCategory = 'planetary' | 'industry' | 'escalation' | 'esi' | 'price' | 'mining_operation' | 'moon_chunk'
 export type NotificationLevel = 'info' | 'success' | 'warning' | 'error' | 'critical'
@@ -38,6 +39,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
   const currentPage = ref(1)
   const hasMore = ref(false)
   const totalItems = ref(0)
+  let lastCategory: NotificationCategory | undefined
+  let lastIsRead: boolean | undefined
 
   // Computed
   const unreadNotifications = computed(() =>
@@ -56,6 +59,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
       isLoadingMore.value = true
     }
     error.value = null
+    lastCategory = category
+    lastIsRead = isRead
 
     try {
       const params: string[] = [`page=${page}`]
@@ -90,6 +95,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
       console.error('Failed to fetch unread count:', e)
     }
   }
+
+  useRefetchOnReconnect(() => Promise.all([fetchNotifications(1, lastCategory, lastIsRead), fetchUnreadCount()]))
 
   async function markAsRead(id: string): Promise<void> {
     try {

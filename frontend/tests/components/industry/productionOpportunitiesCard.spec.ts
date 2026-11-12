@@ -184,6 +184,14 @@ describe('ProductionOpportunitiesCard', () => {
     expect(wrapper.get('[data-testid="opportunities-fees-unknown"]').text()).toContain(t('industry.opportunities.feesUnknown'))
   })
 
+  it('says nothing profitable is left to produce, with the left-out count, when no row remains', async () => {
+    const { wrapper, t } = await mountCard(opportunities([], { unknownProductCount: 12 }))
+
+    expect(wrapper.get('[data-testid="opportunities-empty"]').text()).toContain(t('industry.opportunities.empty'))
+    expect(wrapper.get('[data-testid="opportunities-unknown-count"]').text()).toContain(t('industry.opportunities.unknownCount', { count: 12 }))
+    expect(wrapper.find('table').exists()).toBe(false)
+  })
+
   it('shows the error when the ranking cannot be loaded', async () => {
     const { wrapper } = await mountCard(new Error('Ranking unavailable (fictif)'))
 

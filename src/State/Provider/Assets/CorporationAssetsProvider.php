@@ -78,6 +78,8 @@ class CorporationAssetsProvider implements ProviderInterface
         $item->solarSystemId = $asset->getSolarSystemId();
         $item->solarSystemName = $asset->getSolarSystemName();
         $item->itemName = $asset->getItemName();
+        $item->isSingleton = $asset->isSingleton();
+        $item->canResolveItemName = $asset->canResolveItemName();
         $item->divisionName = $asset->getDivisionName();
         $item->cachedAt = $asset->getCachedAt()->format('c');
 

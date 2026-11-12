@@ -7,6 +7,7 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupStructuresStore } from '@/stores/group-industry/structures'
 import type { StructureComparisonGroup, StructureComparisonRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
 type BannerKind = 'onlyFavoriteSystem' | 'belowThreshold' | 'notRetained' | 'byTotalCost'
@@ -109,6 +110,8 @@ watch(
     structuresStore.fetchStructures(props.projectId)
   },
 )
+
+useRefetchOnReconnect(() => structuresStore.fetchStructures(props.projectId))
 
 watch(
   () => syncStore.getSyncProgress('industry-project'),

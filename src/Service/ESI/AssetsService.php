@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Service\ESI;
 
+use App\Constant\EveConstants;
 use App\Dto\AssetDto;
 use App\Entity\CachedStructure;
 use App\Entity\Character;
 use App\Entity\EveToken;
+use App\Exception\EsiApiException;
 use App\Repository\CachedStructureRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\TypeNameResolver;
@@ -19,7 +21,7 @@ class AssetsService
 {
     private const int FIRST_STRUCTURE_ID = 1000000000000;
     private const int NAMES_CHUNK_SIZE = 1000;
-    private const string OFFICE_LOCATION_FLAG = 'OfficeFolder';
+    private const string NO_CUSTOM_NAME = 'None';
 
     /** @var array<int, array{name: string, solar_system_id: ?int, owner_id?: ?int, type_id?: ?int}> */
     private array $structureCache = [];
@@ -39,6 +41,22 @@ class AssetsService
     public function lastNameBatchFailures(): int
     {
         return $this->nameBatchFailures;
+    }
+
+    public function resolveSingleItemName(int $itemId, EveToken $token, ?int $characterId, ?int $corporationId): ?string
+    {
+        $endpoint = $this->itemNamesEndpoint($characterId, $corporationId);
+        $entries = $this->esiClient->post($endpoint, [$itemId], $token);
+
+        foreach ($entries as $entry) {
+            if (!is_array($entry) || !isset($entry['name']) || !is_string($entry['name'])) {
+                throw new EsiApiException('ESI returned an asset name entry without a text name', 502, $endpoint);
+            }
+
+            return $this->isCustomName($entry['name']) ? $entry['name'] : null;
+        }
+
+        return null;
     }
 
     /**
@@ -87,13 +105,15 @@ class AssetsService
             return [];
         }
 
+        $singletonFlags = $this->singletonFlagsByItemId($rawAssets, $characterId, $corporationId);
+
         // Collect unique type IDs and location IDs with their types
         $typeIds = array_unique(array_column($rawAssets, 'type_id'));
         $nameableItemIds = array_column(
             array_filter(
                 $rawAssets,
-                static fn (array $raw): bool => $raw['is_singleton'] === true
-                    && ($raw['location_flag'] ?? null) !== self::OFFICE_LOCATION_FLAG,
+                static fn (array $raw): bool => $singletonFlags[$raw['item_id']]
+                    && ($raw['location_flag'] ?? null) !== EveConstants::OFFICE_LOCATION_FLAG,
             ),
             'item_id',
         );
@@ -155,6 +175,7 @@ class AssetsService
                 solarSystemId: $info['solar_system_id'] ?? null,
                 solarSystemName: $info['solar_system_name'] ?? null,
                 itemName: $itemNames[$itemId] ?? null,
+                isSingleton: $singletonFlags[$itemId],
             );
         }
 
@@ -262,9 +283,7 @@ class AssetsService
         }
 
         $names = [];
-        $endpoint = $characterId !== null
-            ? "/characters/{$characterId}/assets/names/"
-            : "/corporations/{$corporationId}/assets/names/";
+        $endpoint = $this->itemNamesEndpoint($characterId, $corporationId);
 
         // ESI accepts up to 1000 IDs per request
         foreach (array_chunk($itemIds, self::NAMES_CHUNK_SIZE) as $chunk) {
@@ -276,6 +295,46 @@ class AssetsService
         }
 
         return $names;
+    }
+
+    /**
+     * @param array<array<string, mixed>> $rawAssets
+     * @return array<int, bool>
+     */
+    private function singletonFlagsByItemId(array $rawAssets, ?int $characterId, ?int $corporationId): array
+    {
+        $flags = [];
+        foreach ($rawAssets as $raw) {
+            if (!array_key_exists('is_singleton', $raw) || !is_bool($raw['is_singleton'])) {
+                throw new EsiApiException(
+                    "ESI asset {$raw['item_id']} has a missing or non-boolean is_singleton field",
+                    502,
+                    $this->assetsEndpoint($characterId, $corporationId),
+                );
+            }
+            $flags[$raw['item_id']] = $raw['is_singleton'];
+        }
+
+        return $flags;
+    }
+
+    private function assetsEndpoint(?int $characterId, ?int $corporationId): string
+    {
+        return $characterId !== null
+            ? "/characters/{$characterId}/assets/"
+            : "/corporations/{$corporationId}/assets/";
+    }
+
+    private function itemNamesEndpoint(?int $characterId, ?int $corporationId): string
+    {
+        return $characterId !== null
+            ? "/characters/{$characterId}/assets/names/"
+            : "/corporations/{$corporationId}/assets/names/";
+    }
+
+    private function isCustomName(string $name): bool
+    {
+        return $name !== '' && $name !== self::NO_CUSTOM_NAME;
     }
 
     /**
@@ -306,7 +365,7 @@ class AssetsService
         $names = [];
         foreach ($data as $item) {
             // Only store non-empty names (items with custom names)
-            if (!empty($item['name']) && $item['name'] !== 'None') {
+            if (!empty($item['name']) && $item['name'] !== self::NO_CUSTOM_NAME) {
                 $names[$item['item_id']] = $item['name'];
             }
         }

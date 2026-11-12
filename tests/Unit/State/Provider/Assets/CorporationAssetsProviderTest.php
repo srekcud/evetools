@@ -16,6 +16,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\State\Provider\Assets\CorporationAssetsProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -44,6 +45,7 @@ class CorporationAssetsProviderTest extends TestCase
     private const int MATERIALS_TRITANIUM_ITEM_ID = 1_040_000_000_101;
     private const int MATERIALS_PYERITE_ITEM_ID = 1_040_000_000_102;
     private const int SHIPS_RIFTER_ITEM_ID = 1_040_000_000_301;
+    private const int SHIPS_STATION_CONTAINER_ITEM_ID = 1_040_000_000_303;
     private const int DIRECTOR_STASH_PLEX_ITEM_ID = 1_040_000_000_701;
     private const int CORP_DELIVERIES_MEXALLON_ITEM_ID = 1_040_000_000_901;
     private const int IMPOUNDED_ISOGEN_ITEM_ID = 1_040_000_000_902;
@@ -217,6 +219,35 @@ class CorporationAssetsProviderTest extends TestCase
 
         self::assertSame(0, $result->total);
         self::assertSame([], $result->items);
+    }
+
+    #[Group('issue-784')]
+    public function testItemsExposeTheSingletonFlagAndWhetherTheirItemNameCanBeResolved(): void
+    {
+        $this->corporationHangar = [
+            $this->corporationAsset(self::SHIPS_RIFTER_ITEM_ID, 587, 'Rifter', 1, self::OFFICE_ITEM_ID, 'item', 'CorpSAG3', 'Ships')->setIsSingleton(true),
+            $this->corporationAsset(self::MATERIALS_TRITANIUM_ITEM_ID, 34, 'Tritanium', 1_500_000, self::OFFICE_ITEM_ID, 'item', 'CorpSAG1', 'Materials')->setIsSingleton(false),
+            $this->corporationAsset(self::MATERIALS_PYERITE_ITEM_ID, 35, 'Pyerite', 750_000, self::OFFICE_ITEM_ID, 'item', 'CorpSAG1', 'Materials'),
+            $this->corporationAsset(self::SHIPS_STATION_CONTAINER_ITEM_ID, 17_366, 'Station Container', 1, self::OFFICE_ITEM_ID, 'item', 'CorpSAG3', 'Ships')->setIsSingleton(true)->setItemName('Ammo Box'),
+        ];
+        $this->loginCorporationMember();
+        $this->allowDivisions([1, 3]);
+        $this->requestStack->push(new Request());
+
+        $result = $this->provider->provide(new Get());
+
+        self::assertSame(
+            [
+                self::SHIPS_RIFTER_ITEM_ID => [true, true],
+                self::MATERIALS_TRITANIUM_ITEM_ID => [false, false],
+                self::MATERIALS_PYERITE_ITEM_ID => [null, false],
+                self::SHIPS_STATION_CONTAINER_ITEM_ID => [true, false],
+            ],
+            array_combine(
+                $this->itemIdsOf($result->items),
+                array_map(static fn (AssetItemResource $item): array => [$item->isSingleton, $item->canResolveItemName], $result->items),
+            ),
+        );
     }
 
     // ===========================================
