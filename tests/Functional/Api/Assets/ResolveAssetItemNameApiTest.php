@@ -7,6 +7,9 @@ namespace App\Tests\Functional\Api\Assets;
 use App\Entity\CachedAsset;
 use App\Entity\Character;
 use App\Entity\EveToken;
+use App\Entity\Sde\InvCategory;
+use App\Entity\Sde\InvGroup;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Service\ESI\EsiClient;
@@ -24,6 +27,9 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
     private const int RIFTER_TYPE_ID = 587;
     private const int TRITANIUM_TYPE_ID = 34;
     private const int STATION_CONTAINER_TYPE_ID = 17_366;
+    private const int SHIP_CATEGORY_ID = 6;
+    private const int CELESTIAL_CATEGORY_ID = 2;
+    private const int MATERIAL_CATEGORY_ID = 4;
     private const int RIFTER_ITEM_ID = 1_050_000_784_301;
     private const int TRITANIUM_ITEM_ID = 1_050_000_784_302;
     private const int STATION_CONTAINER_ITEM_ID = 1_050_000_784_303;
@@ -187,6 +193,77 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
         self::assertFalse($itemsByItemId[self::LEGACY_PYERITE_ITEM_ID]['canResolveItemName']);
     }
 
+    #[Group('issue-797')]
+    public function testRowsSyncedBeforeTheSingletonFlagExistedOfferTheResolutionForShipsAndContainersOnly(): void
+    {
+        $this->seedCategorizedTypes();
+        $pilot = $this->persistPilot();
+        $this->persistAsset($pilot, self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, null);
+        $this->persistAsset($pilot, self::STATION_CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 'Station Container', 1, null);
+        $this->persistAsset($pilot, self::LEGACY_PYERITE_ITEM_ID, 35, 'Pyerite', 1, null);
+        $this->persistAsset($pilot, self::TRITANIUM_ITEM_ID, self::TRITANIUM_TYPE_ID, 'Tritanium', 500, null);
+        $this->em->flush();
+        $this->em->clear();
+
+        $this->client->loginUser($this->em->find(User::class, $pilot->getId()), 'api');
+        $this->client->request(
+            'GET',
+            '/api/me/characters/' . $pilot->getMainCharacter()->getId()->toRfc4122() . '/assets',
+            server: ['HTTP_ACCEPT' => 'application/json'],
+        );
+
+        self::assertResponseStatusCodeSame(200);
+        $canResolveByItemId = [];
+        foreach ($this->responseJson()['items'] as $item) {
+            $canResolveByItemId[$item['itemId']] = [$item['isSingleton'], $item['canResolveItemName']];
+        }
+        ksort($canResolveByItemId);
+        self::assertSame(
+            [
+                self::RIFTER_ITEM_ID => [null, true],
+                self::TRITANIUM_ITEM_ID => [null, false],
+                self::STATION_CONTAINER_ITEM_ID => [null, true],
+                self::LEGACY_PYERITE_ITEM_ID => [null, false],
+            ],
+            $canResolveByItemId,
+        );
+    }
+
+    #[Group('issue-797')]
+    public function testResolvingTheNameOfAnUnflaggedShipStoresItAndAnswersNamed(): void
+    {
+        $this->seedCategorizedTypes();
+        $pilot = $this->persistPilot();
+        $ship = $this->persistAsset($pilot, self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, null);
+        $this->em->flush();
+        $shipId = $ship->getId()->toRfc4122();
+        $this->namesAnswer = [['item_id' => self::RIFTER_ITEM_ID, 'name' => 'Hauler One']];
+
+        $this->resolveItemName($pilot, $shipId);
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame('named', $body['status']);
+        self::assertSame('Hauler One', $body['itemName']);
+        $this->em->clear();
+        self::assertSame('Hauler One', $this->em->find(CachedAsset::class, $shipId)->getItemName());
+    }
+
+    #[Group('issue-797')]
+    public function testResolvingAnUnflaggedMaterialAnswers422AndCallsNoEsi(): void
+    {
+        $this->seedCategorizedTypes();
+        $pilot = $this->persistPilot();
+        $material = $this->persistAsset($pilot, self::LEGACY_PYERITE_ITEM_ID, 35, 'Pyerite', 1, null);
+        $this->em->flush();
+
+        $this->resolveItemName($pilot, $material->getId()->toRfc4122());
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('refresh the assets', (string) $this->client->getResponse()->getContent());
+        self::assertSame([], $this->namesRequests);
+    }
+
     private function resolveItemName(User $user, string $assetId): void
     {
         $this->em->clear();
@@ -197,6 +274,32 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
             server: ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'],
             content: '{}',
         );
+    }
+
+    private function seedCategorizedTypes(): void
+    {
+        $this->seedType(self::RIFTER_TYPE_ID, 'Rifter', 25, 'Frigate', self::SHIP_CATEGORY_ID, 'Ship');
+        $this->seedType(self::STATION_CONTAINER_TYPE_ID, 'Station Container', 448, 'Audit Log Secure Container', self::CELESTIAL_CATEGORY_ID, 'Celestial');
+        $this->seedType(self::TRITANIUM_TYPE_ID, 'Tritanium', 18, 'Mineral', self::MATERIAL_CATEGORY_ID, 'Material');
+        $this->seedType(35, 'Pyerite', 18, 'Mineral', self::MATERIAL_CATEGORY_ID, 'Material');
+        $this->em->flush();
+    }
+
+    private function seedType(int $typeId, string $typeName, int $groupId, string $groupName, int $categoryId, string $categoryName): void
+    {
+        $category = $this->em->find(InvCategory::class, $categoryId);
+        if ($category === null) {
+            $category = (new InvCategory())->setCategoryId($categoryId)->setCategoryName($categoryName);
+            $this->em->persist($category);
+        }
+        $group = $this->em->find(InvGroup::class, $groupId);
+        if ($group === null) {
+            $group = (new InvGroup())->setGroupId($groupId)->setGroupName($groupName)->setCategory($category);
+            $this->em->persist($group);
+        }
+        if ($this->em->find(InvType::class, $typeId) === null) {
+            $this->em->persist((new InvType())->setTypeId($typeId)->setTypeName($typeName)->setGroup($group)->setVolume(1.0));
+        }
     }
 
     private function persistPilot(): User

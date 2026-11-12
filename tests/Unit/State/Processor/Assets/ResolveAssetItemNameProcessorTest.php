@@ -10,6 +10,9 @@ use App\ApiResource\Input\EmptyInput;
 use App\Entity\CachedAsset;
 use App\Entity\Character;
 use App\Entity\EveToken;
+use App\Entity\Sde\InvCategory;
+use App\Entity\Sde\InvGroup;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
@@ -138,6 +141,7 @@ final class ResolveAssetItemNameProcessorTest extends TestCase
             $assetsSyncService,
             $this->createAssetsService(),
             $entityManager,
+            $this->createCategorizedInvTypeRepository(),
         );
     }
 
@@ -342,7 +346,8 @@ final class ResolveAssetItemNameProcessorTest extends TestCase
     public static function ineligibleAssets(): iterable
     {
         yield 'stack of Tritanium' => [self::TRITANIUM_ITEM_ID, self::TRITANIUM_TYPE_ID, 'Tritanium', 500, false, null, 'Hangar', 'not a singleton'];
-        yield 'singleton flag unknown' => [self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, null, null, 'Hangar', 'singleton flag unknown'];
+        yield 'singleton flag unknown on a material' => [self::TRITANIUM_ITEM_ID, self::TRITANIUM_TYPE_ID, 'Tritanium', 1, null, null, 'Hangar', 'singleton flag unknown'];
+        yield 'singleton flag unknown on a stack of ships' => [self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 5, null, null, 'Hangar', 'singleton flag unknown'];
         yield 'already named' => [self::STATION_CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 'Station Container', 1, true, 'Ammo Box', 'Hangar', 'already named'];
         yield 'office' => [self::OFFICE_ITEM_ID, self::OFFICE_TYPE_ID, 'Office', 1, true, null, 'OfficeFolder', 'office'];
     }
@@ -369,6 +374,32 @@ final class ResolveAssetItemNameProcessorTest extends TestCase
         self::assertSame(0, $this->flushCount);
     }
 
+    #[Group('issue-797')]
+    public function testUnflaggedShipRowSyncedBeforeTheSingletonFlagExistedIsResolvedLikeAFlaggedOne(): void
+    {
+        $ship = $this->personalAsset(self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, null, null);
+        $this->namesAnswer = [['item_id' => self::RIFTER_ITEM_ID, 'name' => 'Hauler One']];
+
+        $result = $this->resolve();
+
+        self::assertSame(['named', 'Hauler One'], [$result->status, $result->itemName]);
+        self::assertSame('Hauler One', $ship->getItemName());
+        self::assertSame([self::RIFTER_ITEM_ID], $this->namesRequests[0]['body']);
+    }
+
+    #[Group('issue-797')]
+    public function testUnflaggedContainerRowAnswersUnnamedWhenTheGameHoldsNoCustomName(): void
+    {
+        $container = $this->personalAsset(self::STATION_CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 'Station Container', 1, null, null);
+        $this->namesAnswer = [['item_id' => self::STATION_CONTAINER_ITEM_ID, 'name' => 'None']];
+
+        $result = $this->resolve();
+
+        self::assertSame('unnamed', $result->status);
+        self::assertNull($container->getItemName());
+        self::assertSame(0, $this->flushCount);
+    }
+
     private function resolve(string $assetId = self::ASSET_ID): AssetItemNameResource
     {
         return $this->processor->process(new EmptyInput(), new Post(), ['id' => $assetId]);
@@ -383,6 +414,39 @@ final class ResolveAssetItemNameProcessorTest extends TestCase
         }
 
         self::fail('The resolution of the item name did not fail');
+    }
+
+    private function createCategorizedInvTypeRepository(): InvTypeRepository
+    {
+        $categoryIdsByTypeId = [
+            self::RIFTER_TYPE_ID => 6,
+            self::STATION_CONTAINER_TYPE_ID => 2,
+            self::TRITANIUM_TYPE_ID => 4,
+            self::OFFICE_TYPE_ID => 2,
+        ];
+
+        $repository = $this->createStub(InvTypeRepository::class);
+        $repository->method('findByTypeIds')->willReturnCallback(
+            function (array $typeIds) use ($categoryIdsByTypeId): array {
+                $types = [];
+                foreach ($typeIds as $typeId) {
+                    if (!isset($categoryIdsByTypeId[$typeId])) {
+                        continue;
+                    }
+                    $category = $this->createStub(InvCategory::class);
+                    $category->method('getCategoryId')->willReturn($categoryIdsByTypeId[$typeId]);
+                    $group = $this->createStub(InvGroup::class);
+                    $group->method('getCategory')->willReturn($category);
+                    $type = $this->createStub(InvType::class);
+                    $type->method('getGroup')->willReturn($group);
+                    $types[$typeId] = $type;
+                }
+
+                return $types;
+            },
+        );
+
+        return $repository;
     }
 
     private function createAssetsService(): AssetsService

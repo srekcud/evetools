@@ -246,11 +246,21 @@ class CachedAsset
         return $this;
     }
 
-    public function canResolveItemName(): bool
+    public function canResolveItemName(?int $categoryId = null): bool
     {
-        return $this->isSingleton === true
+        return $this->mayBeSingleton($categoryId)
             && $this->itemName === null
             && $this->locationFlag !== EveConstants::OFFICE_LOCATION_FLAG;
+    }
+
+    private function mayBeSingleton(?int $categoryId): bool
+    {
+        if ($this->isSingleton !== null) {
+            return $this->isSingleton;
+        }
+
+        return \in_array($categoryId, [EveConstants::SHIP_CATEGORY_ID, EveConstants::CELESTIAL_CATEGORY_ID], true)
+            && $this->quantity === 1;
     }
 
     public function getCharacter(): ?Character

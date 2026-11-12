@@ -88,7 +88,7 @@ class CharacterAssetsProvider implements ProviderInterface
         $item->solarSystemName = $asset->getSolarSystemName();
         $item->itemName = $asset->getItemName();
         $item->isSingleton = $asset->isSingleton();
-        $item->canResolveItemName = $asset->canResolveItemName();
+        $item->canResolveItemName = $asset->canResolveItemName($item->categoryId);
         $item->cachedAt = $asset->getCachedAt()->format('c');
 
         if ($includeDivision) {
