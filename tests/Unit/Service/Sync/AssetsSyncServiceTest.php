@@ -7,15 +7,16 @@ namespace App\Tests\Unit\Service\Sync;
 use App\Dto\AssetDto;
 use App\Entity\CachedAsset;
 use App\Entity\Character;
-use App\Entity\CorpAssetVisibility;
 use App\Entity\EveToken;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
-use App\Repository\CorpAssetVisibilityRepository;
 use App\Service\ESI\AssetsService;
+use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\CorporationService;
+use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\AssetsSyncService;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -28,6 +29,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
@@ -36,11 +38,15 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 class AssetsSyncServiceTest extends TestCase
 {
+    private const int MEMBER_ID = 2_112_729_001;
+    private const int DIRECTOR_ID = 2_112_729_002;
+    private const string ASSETS_SCOPE = 'esi-assets.read_corporation_assets.v1';
+    private const string ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
+
     private AssetsService&Stub $assetsService;
     private CorporationService&Stub $corporationService;
     private CachedAssetRepository&MockObject $cachedAssetRepository;
     private CharacterRepository&Stub $characterRepository;
-    private CorpAssetVisibilityRepository&Stub $visibilityRepository;
     private EntityManagerInterface&MockObject $em;
     private AssetsSyncService $service;
 
@@ -49,13 +55,31 @@ class AssetsSyncServiceTest extends TestCase
 
     private array $publishedSyncEvents = [];
 
+    private CorporationRoleReader $corporationRoleReader;
+
+    private array $rolesByEveCharacterId = [];
+
+    private array $rolesFailures = [];
+
+    private array $rolesReadFor = [];
+
     protected function setUp(): void
     {
         $this->assetsService = $this->createStub(AssetsService::class);
         $this->corporationService = $this->createStub(CorporationService::class);
         $this->cachedAssetRepository = $this->createMock(CachedAssetRepository::class);
         $this->characterRepository = $this->createStub(CharacterRepository::class);
-        $this->visibilityRepository = $this->createStub(CorpAssetVisibilityRepository::class);
+        $esiClient = $this->createStub(EsiClient::class);
+        $esiClient->method('get')->willReturnCallback(function (string $endpoint): array {
+            $eveCharacterId = (int) preg_replace('#\D#', '', $endpoint);
+            $this->rolesReadFor[] = $eveCharacterId;
+            if (isset($this->rolesFailures[$eveCharacterId])) {
+                throw $this->rolesFailures[$eveCharacterId];
+            }
+
+            return ['roles' => $this->rolesByEveCharacterId[$eveCharacterId] ?? []];
+        });
+        $this->corporationRoleReader = new CorporationRoleReader(new CharacterService($esiClient), new ArrayAdapter(), new NullLogger());
         $this->em = $this->createMock(EntityManagerInterface::class);
 
         $mercureHub = $this->createStub(HubInterface::class);
@@ -81,7 +105,7 @@ class AssetsSyncServiceTest extends TestCase
             $this->corporationService,
             $this->cachedAssetRepository,
             $this->characterRepository,
-            $this->visibilityRepository,
+            $this->corporationRoleReader,
             $this->em,
             new NullLogger(),
             $mercurePublisher,
@@ -227,7 +251,7 @@ class AssetsSyncServiceTest extends TestCase
 
     public function testSyncCorporationReturnsFalseWhenNoCharacterWithAccess(): void
     {
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn(null);
+        $this->corporationMembersAre([]);
 
         $result = $this->service->syncCorporationAssetsForCorp(98000001);
 
@@ -238,172 +262,108 @@ class AssetsSyncServiceTest extends TestCase
     // canSyncCorporationAssets
     // ===========================================
 
-    public function testCanSyncCorporationAssetsReturnsTrueWhenCharacterFound(): void
+    public function testCanSyncCorporationAssetsReturnsTrueWhenADirectorIsConnected(): void
     {
-        $character = $this->createStub(Character::class);
-        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($character);
+        $this->corporationMembersAre([$this->member(self::MEMBER_ID, ['Director'])]);
 
         $this->assertTrue($this->service->canSyncCorporationAssets(98000001));
     }
 
-    public function testCanSyncCorporationAssetsReturnsFalseWhenNoCharacterFound(): void
+    public function testCanSyncCorporationAssetsReturnsFalseWhenNoDirectorIsConnected(): void
     {
-        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn(null);
+        $this->corporationMembersAre([$this->member(self::MEMBER_ID, ['Accountant'])]);
 
         $this->assertFalse($this->service->canSyncCorporationAssets(98000001));
     }
 
     // ===========================================
-    // getCorpAssetsCharacter — Director priority
+    // getCorpAssetsCharacter — in-game Director role (#729)
     // ===========================================
 
-    public function testGetCorpAssetsCharacterPrefersDirectorFromVisibilityConfig(): void
+    #[Group('issue-729')]
+    public function testGetCorpAssetsCharacterSkipsTheMembersWithoutTheDirectorRoleEvenWhenTriedFirst(): void
     {
-        $token = $this->createStub(EveToken::class);
-        $token->method('hasScope')->willReturn(true);
+        $plainMember = $this->member(self::MEMBER_ID, []);
+        $director = $this->member(self::DIRECTOR_ID, ['Director']);
+        $this->corporationMembersAre([$plainMember, $director]);
 
-        $directorCharacter = $this->createStub(Character::class);
-        $directorCharacter->method('getCorporationId')->willReturn(98000001);
-        $directorCharacter->method('getEveToken')->willReturn($token);
-        $directorCharacter->method('isAuthValid')->willReturn(true);
-
-        $directorUser = $this->createStub(User::class);
-        $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$directorCharacter]));
-
-        $visibility = new CorpAssetVisibility();
-        $visibility->setCorporationId(98000001);
-        $visibility->setVisibleDivisions([1]);
-        $visibility->setConfiguredBy($directorUser);
-
-        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
-
-        // The fallback should NOT be used
-        $fallbackCharacter = $this->createStub(Character::class);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($fallbackCharacter);
-
-        $result = $this->service->getCorpAssetsCharacter(98000001);
-
-        $this->assertSame($directorCharacter, $result);
+        $this->assertSame($director, $this->service->getCorpAssetsCharacter(98000001));
+        $this->assertSame([self::MEMBER_ID, self::DIRECTOR_ID], $this->rolesReadFor);
     }
 
-    public function testGetCorpAssetsCharacterFallsBackWhenDirectorAuthIsInvalid(): void
+    #[Group('issue-729')]
+    public function testGetCorpAssetsCharacterReturnsNullWhenNoMemberHoldsTheDirectorRole(): void
     {
-        $token = $this->createStub(EveToken::class);
-        $token->method('hasScope')->willReturn(true);
-
-        $directorCharacter = $this->createStub(Character::class);
-        $directorCharacter->method('getCorporationId')->willReturn(98000001);
-        $directorCharacter->method('getEveToken')->willReturn($token);
-        $directorCharacter->method('isAuthValid')->willReturn(false);
-
-        $directorUser = $this->createStub(User::class);
-        $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$directorCharacter]));
-
-        $visibility = new CorpAssetVisibility();
-        $visibility->setCorporationId(98000001);
-        $visibility->setVisibleDivisions([1]);
-        $visibility->setConfiguredBy($directorUser);
-
-        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
-
-        $validCorpCharacter = $this->createStub(Character::class);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($validCorpCharacter);
-
-        $this->assertSame($validCorpCharacter, $this->service->getCorpAssetsCharacter(98000001));
-    }
-
-    public function testGetCorpAssetsCharacterUsesTheValidDirectorCharacterWhenAnotherOneOfTheSameUserIsInvalid(): void
-    {
-        $token = $this->createStub(EveToken::class);
-        $token->method('hasScope')->willReturn(true);
-
-        $invalidCharacter = $this->createStub(Character::class);
-        $invalidCharacter->method('getCorporationId')->willReturn(98000001);
-        $invalidCharacter->method('getEveToken')->willReturn($token);
-        $invalidCharacter->method('isAuthValid')->willReturn(false);
-
-        $validCharacter = $this->createStub(Character::class);
-        $validCharacter->method('getCorporationId')->willReturn(98000001);
-        $validCharacter->method('getEveToken')->willReturn($token);
-        $validCharacter->method('isAuthValid')->willReturn(true);
-
-        $directorUser = $this->createStub(User::class);
-        $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$invalidCharacter, $validCharacter]));
-
-        $visibility = new CorpAssetVisibility();
-        $visibility->setCorporationId(98000001);
-        $visibility->setVisibleDivisions([1]);
-        $visibility->setConfiguredBy($directorUser);
-
-        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($this->createStub(Character::class));
-
-        $this->assertSame($validCharacter, $this->service->getCorpAssetsCharacter(98000001));
-    }
-
-    public function testGetCorpAssetsCharacterReturnsNullWhenDirectorAuthIsInvalidAndNoOtherCharacterHasAccess(): void
-    {
-        $token = $this->createStub(EveToken::class);
-        $token->method('hasScope')->willReturn(true);
-
-        $directorCharacter = $this->createStub(Character::class);
-        $directorCharacter->method('getCorporationId')->willReturn(98000001);
-        $directorCharacter->method('getEveToken')->willReturn($token);
-        $directorCharacter->method('isAuthValid')->willReturn(false);
-
-        $directorUser = $this->createStub(User::class);
-        $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$directorCharacter]));
-
-        $visibility = new CorpAssetVisibility();
-        $visibility->setCorporationId(98000001);
-        $visibility->setVisibleDivisions([1]);
-        $visibility->setConfiguredBy($directorUser);
-
-        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn(null);
+        $this->corporationMembersAre([
+            $this->member(self::MEMBER_ID, ['Accountant']),
+            $this->member(self::DIRECTOR_ID, ['Station_Manager']),
+        ]);
 
         $this->assertNull($this->service->getCorpAssetsCharacter(98000001));
     }
 
-    public function testGetCorpAssetsCharacterFallsBackWhenNoVisibilityConfig(): void
+    #[Group('issue-729')]
+    public function testGetCorpAssetsCharacterIgnoresADirectorWhoseAuthIsInvalid(): void
     {
-        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+        $director = $this->member(self::DIRECTOR_ID, ['Director']);
+        $director->markAuthInvalid();
+        $this->corporationMembersAre([$director]);
 
-        $fallbackCharacter = $this->createStub(Character::class);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($fallbackCharacter);
-
-        $result = $this->service->getCorpAssetsCharacter(98000001);
-
-        $this->assertSame($fallbackCharacter, $result);
+        $this->assertNull($this->service->getCorpAssetsCharacter(98000001));
     }
 
-    public function testGetCorpAssetsCharacterFallsBackWhenDirectorLacksScope(): void
+    #[Group('issue-729')]
+    public function testGetCorpAssetsCharacterIgnoresADirectorWithoutTheRolesScope(): void
     {
-        $token = $this->createStub(EveToken::class);
-        $token->method('hasScope')->willReturn(false);
+        $this->corporationMembersAre([$this->member(self::DIRECTOR_ID, ['Director'], [self::ASSETS_SCOPE])]);
 
-        $directorCharacter = $this->createStub(Character::class);
-        $directorCharacter->method('getCorporationId')->willReturn(98000001);
-        $directorCharacter->method('getEveToken')->willReturn($token);
+        $this->assertNull($this->service->getCorpAssetsCharacter(98000001));
+    }
 
-        $directorUser = $this->createStub(User::class);
-        $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$directorCharacter]));
+    #[Group('issue-729')]
+    public function testGetCorpAssetsCharacterIgnoresADirectorWithoutTheCorporationAssetsScope(): void
+    {
+        $this->corporationMembersAre([$this->member(self::DIRECTOR_ID, ['Director'], [self::ROLES_SCOPE])]);
 
-        $visibility = new CorpAssetVisibility();
-        $visibility->setCorporationId(98000001);
-        $visibility->setVisibleDivisions([1]);
-        $visibility->setConfiguredBy($directorUser);
+        $this->assertNull($this->service->getCorpAssetsCharacter(98000001));
+    }
 
-        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
+    #[Group('issue-729')]
+    public function testGetCorpAssetsCharacterTriesTheNextMemberWhenTheRolesReadOfTheFirstIsForbidden(): void
+    {
+        $this->corporationMembersAre([
+            $this->member(self::MEMBER_ID, ['Director']),
+            $director = $this->member(self::DIRECTOR_ID, ['Director']),
+        ]);
+        $this->rolesFailures[self::MEMBER_ID] = EsiApiException::forbidden();
 
-        $fallbackCharacter = $this->createStub(Character::class);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($fallbackCharacter);
+        $this->assertSame($director, $this->service->getCorpAssetsCharacter(98000001));
+    }
 
-        $result = $this->service->getCorpAssetsCharacter(98000001);
+    #[Group('issue-729')]
+    public function testGetCorpAssetsCharacterReadsTheRolesOnceForTwoLookups(): void
+    {
+        $director = $this->member(self::DIRECTOR_ID, ['Director']);
+        $this->corporationMembersAre([$director]);
 
-        $this->assertSame($fallbackCharacter, $result);
+        $first = $this->service->getCorpAssetsCharacter(98000001);
+        $second = $this->service->getCorpAssetsCharacter(98000001);
+
+        $this->assertSame([$director, $director, [self::DIRECTOR_ID]], [$first, $second, $this->rolesReadFor]);
+    }
+
+    #[Group('issue-729')]
+    public function testAForbiddenCorporationAssetsReadForgetsTheRememberedDirector(): void
+    {
+        $director = $this->member(self::DIRECTOR_ID, ['Director']);
+        $this->corporationMembersAre([$director]);
+        $this->corporationService->method('getDivisions')->willThrowException(EsiApiException::forbidden());
+        $this->service->getCorpAssetsCharacter(98000001);
+
+        $this->assertFalse($this->service->syncCorporationAssetsForCorp(98000001));
+        $this->assertSame($director, $this->service->getCorpAssetsCharacter(98000001));
+
+        $this->assertSame([self::DIRECTOR_ID, self::DIRECTOR_ID], $this->rolesReadFor);
     }
 
     // ===========================================
@@ -811,8 +771,8 @@ class AssetsSyncServiceTest extends TestCase
 
     public function testSyncCorporationAssetsForCorpReportsSuccessWithTheCharacterHavingAccess(): void
     {
-        $character = $this->createCharacterWithUser(12345);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($character);
+        $character = $this->member(self::DIRECTOR_ID, ['Director']);
+        $this->corporationMembersAre([$character]);
         $this->corporationService->method('getDivisions')->willReturn([1 => 'Minerals']);
         $this->assetsService->method('getCorporationAssets')->willReturn([
             $this->createAsset(itemId: 2201, locationFlag: 'CorpSAG1'),
@@ -825,8 +785,8 @@ class AssetsSyncServiceTest extends TestCase
 
     public function testSyncCorporationAssetsForCorpReportsFailureWhenEsiFails(): void
     {
-        $character = $this->createCharacterWithUser(12345);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($character);
+        $character = $this->member(self::DIRECTOR_ID, ['Director']);
+        $this->corporationMembersAre([$character]);
         $this->assetsService->method('getCorporationAssets')->willThrowException(EsiApiException::fromResponse(502, 'Bad Gateway'));
 
         $this->assertFalse($this->service->syncCorporationAssetsForCorp(98000001));
@@ -1010,6 +970,29 @@ class AssetsSyncServiceTest extends TestCase
         $character = $this->createStub(Character::class);
         $character->method('getUser')->willReturn($user);
         $character->method('getCorporationId')->willReturn(98000001);
+
+        return $character;
+    }
+
+    private function corporationMembersAre(array $members): void
+    {
+        $this->characterRepository->method('findByCorporationId')->willReturn($members);
+    }
+
+    private function member(int $eveCharacterId, array $roles, array $scopes = [self::ASSETS_SCOPE, self::ROLES_SCOPE]): Character
+    {
+        $user = new User();
+        $character = (new Character())
+            ->setEveCharacterId($eveCharacterId)
+            ->setName('Member ' . $eveCharacterId)
+            ->setCorporationId(98000001);
+        $character->setEveToken((new EveToken())
+            ->setAccessToken('access-token-' . $eveCharacterId)
+            ->setRefreshTokenEncrypted('refresh-token-' . $eveCharacterId)
+            ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
+            ->setScopes($scopes));
+        $user->addCharacter($character);
+        $this->rolesByEveCharacterId[$eveCharacterId] = $roles;
 
         return $character;
     }

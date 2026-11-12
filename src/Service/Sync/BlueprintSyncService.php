@@ -11,9 +11,9 @@ use App\Entity\OwnedBlueprint;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
-use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\OwnedBlueprintRepository;
 use App\Service\ESI\BlueprintsService;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -29,7 +29,7 @@ class BlueprintSyncService
         private readonly OwnedBlueprintRepository $ownedBlueprintRepository,
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CharacterRepository $characterRepository,
-        private readonly CorpAssetVisibilityRepository $visibilityRepository,
+        private readonly CorporationRoleReader $corporationRoleReader,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
@@ -166,17 +166,12 @@ class BlueprintSyncService
 
     private function corporationReader(int $corporationId): ?Character
     {
-        $director = $this->visibilityRepository->findByCorporationId($corporationId)?->getConfiguredBy();
-        foreach ($director?->getCharacters() ?? [] as $character) {
-            if ($character->getCorporationId() === $corporationId
-                && $character->isAuthValid()
-                && $character->getEveToken()?->hasScope(EveConstants::CORPORATION_BLUEPRINTS_SCOPE) === true
-            ) {
-                return $character;
-            }
-        }
-
-        return $this->characterRepository->findWithCorpBlueprintsAccess($corporationId);
+        return $this->corporationRoleReader->findHolder(
+            $corporationId,
+            array_values($this->characterRepository->findByCorporationId($corporationId)),
+            [],
+            [EveConstants::CORPORATION_BLUEPRINTS_SCOPE, EveConstants::CORPORATION_ROLES_SCOPE],
+        )->holder;
     }
 
     private function ownedBlueprintOf(BlueprintDto $blueprint, \DateTimeImmutable $syncedAt): OwnedBlueprint

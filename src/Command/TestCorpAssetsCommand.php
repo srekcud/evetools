@@ -193,7 +193,7 @@ class TestCorpAssetsCommand extends Command
                     $io->error("Sync failed: {$e->getMessage()}");
                 }
             } else {
-                $io->warning("No character with corporation assets access found. Need a character with esi-assets.read_corporation_assets.v1 scope.");
+                $io->warning("No Director connected. Need a Director character with the esi-assets.read_corporation_assets.v1 and esi-characters.read_corporation_roles.v1 scopes.");
             }
         }
 
