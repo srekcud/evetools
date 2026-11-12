@@ -29,6 +29,7 @@ use App\Message\TriggerPveSync;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerStructureMarketSync;
 use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Messenger\Message\RedispatchMessage;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
 use Symfony\Component\Scheduler\Schedule;
@@ -41,6 +42,8 @@ class SyncScheduler implements ScheduleProviderInterface
     // Shared across every consumer of `scheduler_default` (worker, `make scheduler`, replicas)
     // so that a due recurring message is emitted only once.
     private const LOCK_NAME = 'scheduler_default';
+
+    private const ASYNC_TRANSPORT = 'async';
 
     public function __construct(
         private readonly CacheInterface $cache,
@@ -56,91 +59,96 @@ class SyncScheduler implements ScheduleProviderInterface
             ->processOnlyLastMissedRun(true)
             // Ansiblex sync every 12 hours
             ->add(
-                RecurringMessage::every('12 hours', new TriggerAnsiblexSync())
+                self::everyViaAsync('12 hours', new TriggerAnsiblexSync())
             )
             // Structure market sync every hour
             ->add(
-                RecurringMessage::every('1 hour', new TriggerStructureMarketSync())
+                self::everyViaAsync('1 hour', new TriggerStructureMarketSync())
             )
             // Jita market sync every hour
             ->add(
-                RecurringMessage::every('1 hour', new TriggerJitaMarketSync())
+                self::everyViaAsync('1 hour', new TriggerJitaMarketSync())
             )
             // PVE data sync every hour
             ->add(
-                RecurringMessage::every('1 hour', new TriggerPveSync())
+                self::everyViaAsync('1 hour', new TriggerPveSync())
             )
             // Industry jobs sync every 30 minutes
             ->add(
-                RecurringMessage::every('30 minutes', new SyncIndustryJobs())
+                self::everyViaAsync('30 minutes', new SyncIndustryJobs())
             )
             // Mining ledger sync every hour
             ->add(
-                RecurringMessage::every('1 hour', new TriggerMiningSync())
+                self::everyViaAsync('1 hour', new TriggerMiningSync())
             )
             // Wallet transactions sync every hour
             ->add(
-                RecurringMessage::every('1 hour', new SyncWalletTransactions())
+                self::everyViaAsync('1 hour', new SyncWalletTransactions())
             )
             // Moon tax ledger and wallet journal sync every hour
             ->add(
-                RecurringMessage::every('1 hour', new TriggerMoonTaxSync())
+                self::everyViaAsync('1 hour', new TriggerMoonTaxSync())
             )
             ->add(
-                RecurringMessage::every('1 hour', new SyncBlueprints())
+                self::everyViaAsync('1 hour', new SyncBlueprints())
             )
             ->add(
-                RecurringMessage::every('5 minutes', new SyncCharacterOrders())
+                self::everyViaAsync('5 minutes', new SyncCharacterOrders())
             )
             // Planetary colonies sync every 30 minutes
             ->add(
-                RecurringMessage::every('30 minutes', new TriggerPlanetarySync())
+                self::everyViaAsync('30 minutes', new TriggerPlanetarySync())
             )
             // Refresh prices for alert types and check thresholds every 30 minutes
             ->add(
-                RecurringMessage::every('30 minutes', new CheckAlertPrices())
+                self::everyViaAsync('30 minutes', new CheckAlertPrices())
             )
             // ESI adjusted prices sync every 24 hours
             ->add(
-                RecurringMessage::every('24 hours', new SyncAdjustedPrices())
+                self::everyViaAsync('24 hours', new SyncAdjustedPrices())
             )
             // ESI system cost indices sync every 2 hours
             ->add(
-                RecurringMessage::every('2 hours', new SyncCostIndices())
+                self::everyViaAsync('2 hours', new SyncCostIndices())
             )
             // Public contract prices sync every 30 minutes
             ->add(
-                RecurringMessage::every('30 minutes', new SyncPublicContracts())
+                self::everyViaAsync('30 minutes', new SyncPublicContracts())
             )
             ->add(
-                RecurringMessage::every('30 minutes', new TriggerCorporationMiningExtractionsSync())
+                self::everyViaAsync('30 minutes', new TriggerCorporationMiningExtractionsSync())
             )
             ->add(
-                RecurringMessage::every('30 minutes', new TriggerMiningOperationRecurrences())
+                self::everyViaAsync('30 minutes', new TriggerMiningOperationRecurrences())
             )
             ->add(
-                RecurringMessage::every('30 minutes', new CheckCourierContracts())
+                self::everyViaAsync('30 minutes', new CheckCourierContracts())
             )
             ->add(
-                RecurringMessage::every('5 minutes', new CheckMoonChunkAlerts())
+                self::everyViaAsync('5 minutes', new CheckMoonChunkAlerts())
             )
             ->add(
-                RecurringMessage::every('5 minutes', new CheckMiningSiteDepletionAlerts())
+                self::everyViaAsync('5 minutes', new CheckMiningSiteDepletionAlerts())
             )
             ->add(
-                RecurringMessage::every('24 hours', new SyncRegionalMarketVolumes())
+                self::everyViaAsync('24 hours', new SyncRegionalMarketVolumes())
             )
             // Purge old notifications daily
             ->add(
-                RecurringMessage::every('1 day', new PurgeOldNotifications())
+                self::everyViaAsync('1 day', new PurgeOldNotifications())
             )
             // Purge old market history daily
             ->add(
-                RecurringMessage::every('1 day', new PurgeOldMarketHistory())
+                self::everyViaAsync('1 day', new PurgeOldMarketHistory())
             )
             // Purge expired shared shopping lists daily
             ->add(
-                RecurringMessage::every('1 day', new PurgeExpiredSharedLists())
+                self::everyViaAsync('1 day', new PurgeExpiredSharedLists())
             );
+    }
+
+    private static function everyViaAsync(string $frequency, object $message): RecurringMessage
+    {
+        return RecurringMessage::every($frequency, new RedispatchMessage($message, self::ASYNC_TRANSPORT));
     }
 }

@@ -74,7 +74,7 @@ class SyncSchedulerLockTest extends TestCase
 
         $firstConsumerMessages->next();
         $firstConsumerMessageClasses = [
-            $firstConsumerFirstMessage::class,
+            $firstConsumerFirstMessage->envelope::class,
             ...$this->drainMessageClasses($firstConsumerMessages),
         ];
 
@@ -94,7 +94,7 @@ class SyncSchedulerLockTest extends TestCase
     {
         $classes = [];
         while ($messages->valid()) {
-            $classes[] = $messages->current()::class;
+            $classes[] = $messages->current()->envelope::class;
             $messages->next();
         }
 
