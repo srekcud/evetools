@@ -130,6 +130,39 @@ final class PublicContractListingRepositoryTest extends IntegrationTestCase
         );
     }
 
+    #[Group('issue-805')]
+    public function testAContractWithTwoHundredDistinctTypesIsRecordedAndReloadedWithItsSignature(): void
+    {
+        $items = array_map(static fn (int $typeId): array => ['typeId' => 1_000 + $typeId, 'quantity' => 1_000_000 + $typeId], range(1, 200));
+        $listing = PublicContractListing::firstSeen(900_805, self::FORGE, 5001, 1_000_000.0, $items, new \DateTimeImmutable('+7 days'), new \DateTimeImmutable('-1 day'));
+        $expectedSignature = $listing->getItemsSignature();
+        $this->persistAll([$listing]);
+
+        $reloaded = $this->repository->findByContractIds([900_805]);
+
+        self::assertCount(1, $reloaded);
+        self::assertSame($expectedSignature, $reloaded[0]->getItemsSignature());
+        self::assertCount(200, $reloaded[0]->getItems());
+    }
+
+    #[Group('issue-805')]
+    public function testTheMigrationExpressionRehashesAnExistingSignatureLikeTheEntityDoes(): void
+    {
+        $listing = PublicContractListing::firstSeen(
+            900_806,
+            self::FORGE,
+            5001,
+            1_000_000.0,
+            [['typeId' => 34, 'quantity' => 100], ['typeId' => 35, 'quantity' => 50]],
+            new \DateTimeImmutable('+7 days'),
+            new \DateTimeImmutable('-1 day'),
+        );
+
+        $rehashedBySql = $this->em->getConnection()->fetchOne("SELECT encode(sha256(convert_to('34:100;35:50', 'UTF8')), 'hex')");
+
+        self::assertSame($listing->getItemsSignature(), $rehashedBySql);
+    }
+
     /**
      * @param list<PublicContractListing> $listings
      */

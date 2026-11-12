@@ -41,7 +41,7 @@ class PublicContractListing
     #[ORM\Column(type: 'json')]
     private array $items;
 
-    #[ORM\Column(type: 'string', length: 1000)]
+    #[ORM\Column(type: 'string', length: 64)]
     private string $itemsSignature;
 
     #[ORM\Column(type: 'integer', nullable: true)]
@@ -87,10 +87,10 @@ class PublicContractListing
         $listing->issuerId = $issuerId;
         $listing->price = $price;
         $listing->items = self::aggregatedByType($items);
-        $listing->itemsSignature = implode(';', array_map(
+        $listing->itemsSignature = hash('sha256', implode(';', array_map(
             static fn (array $item): string => $item['typeId'] . ':' . $item['quantity'],
             $listing->items,
-        ));
+        )));
         $isSingleType = 1 === count($listing->items);
         $listing->typeId = $isSingleType ? $listing->items[0]['typeId'] : null;
         $listing->quantity = $isSingleType ? $listing->items[0]['quantity'] : null;
