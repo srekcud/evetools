@@ -22,7 +22,7 @@ export interface Asset {
   locationName: string
   locationType: string
   locationFlag: string | null
-  divisionName?: string
+  divisionName: string | null
   solarSystemId: number | null
   solarSystemName: string | null
   itemName: string | null
