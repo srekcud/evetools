@@ -59,7 +59,7 @@ class ProjectPlanningResource
     public array $characters = [];
 
     /**
-     * @var list<array{lineId: string, typeName: string, reason: string}>
+     * @var list<array{lineId: string, typeName: string, blueprintName: string|null, reason: string}>
      */
     public array $unscheduled = [];
 }

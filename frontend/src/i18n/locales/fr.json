@@ -2669,6 +2669,9 @@
       "noJob": "Aucun job",
       "skillsUnknownCause": "Compétences non synchronisées : aucun job ne peut être confié à ce personnage",
       "runs": "{runs} runs",
+      "copyBlueprintName": "Copier le nom du blueprint « {name} »",
+      "blueprintNameCopied": "Nom du blueprint copié",
+      "blueprintNameCopyFailed": "Copie impossible : le navigateur a refusé l'accès au presse-papier",
       "activity": {
         "manufacturing": "Fabrication",
         "reaction": "Réaction"

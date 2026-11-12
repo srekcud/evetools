@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\ProjectPlanningResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\PlanningBlueprintNames;
 use App\Service\Industry\Project\PlanningCharacterLane;
 use App\Service\Industry\Project\PlanningJob;
 use App\Service\Industry\Project\PlanningUnscheduled;
@@ -32,6 +33,7 @@ final readonly class ProjectPlanningProvider implements ProviderInterface
         private ProjectAccessChecker $accessChecker,
         private ProjectPlanningInputLoader $inputLoader,
         private ProjectPlanningBuilder $planningBuilder,
+        private PlanningBlueprintNames $blueprintNames,
         private ClockInterface $clock,
     ) {
     }
@@ -55,7 +57,9 @@ final readonly class ProjectPlanningProvider implements ProviderInterface
 
         $this->accessChecker->assertAcceptedMember($user, $project);
 
-        $planning = $this->planningBuilder->build($this->inputLoader->load($project), $this->clock->now());
+        $input = $this->inputLoader->load($project);
+        $planning = $this->planningBuilder->build($input, $this->clock->now());
+        $blueprintNameByLineId = $this->blueprintNames->byLineId($input->lines);
 
         $resource = new ProjectPlanningResource();
         $resource->id = $projectId;
@@ -66,9 +70,14 @@ final readonly class ProjectPlanningProvider implements ProviderInterface
         $resource->delaySeconds = $planning->delaySeconds;
         $resource->delayCause = null === $planning->delayCause ? null : $this->waitOf($planning->delayCause);
         $resource->lanesShown = $project->isSoloProjectOf($project->getOwner());
-        $resource->characters = $resource->lanesShown ? array_map($this->laneOf(...), $planning->characters) : [];
+        $resource->characters = $resource->lanesShown ? array_map(fn (PlanningCharacterLane $lane): array => $this->laneOf($lane, $blueprintNameByLineId), $planning->characters) : [];
         $resource->unscheduled = array_map(
-            static fn (PlanningUnscheduled $line): array => ['lineId' => $line->lineId, 'typeName' => $line->typeName, 'reason' => $line->reason],
+            static fn (PlanningUnscheduled $line): array => [
+                'lineId' => $line->lineId,
+                'typeName' => $line->typeName,
+                'blueprintName' => $blueprintNameByLineId[$line->lineId] ?? null,
+                'reason' => $line->reason,
+            ],
             $planning->unscheduled,
         );
 
@@ -76,9 +85,11 @@ final readonly class ProjectPlanningProvider implements ProviderInterface
     }
 
     /**
+     * @param array<string, string> $blueprintNameByLineId
+     *
      * @return array<string, mixed>
      */
-    private function laneOf(PlanningCharacterLane $lane): array
+    private function laneOf(PlanningCharacterLane $lane, array $blueprintNameByLineId): array
     {
         return [
             'characterName' => $lane->characterName,
@@ -86,19 +97,20 @@ final readonly class ProjectPlanningProvider implements ProviderInterface
             'slots' => $lane->slots,
             'skills' => $lane->skills,
             'endsAt' => $lane->endsAt?->format(\DATE_ATOM),
-            'jobs' => array_map($this->jobOf(...), $lane->jobs),
+            'jobs' => array_map(fn (PlanningJob $job): array => $this->jobOf($job, $blueprintNameByLineId[$job->lineId] ?? null), $lane->jobs),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function jobOf(PlanningJob $job): array
+    private function jobOf(PlanningJob $job, ?string $blueprintName): array
     {
         return [
             'lineId' => $job->lineId,
             'typeId' => $job->typeId,
             'typeName' => $job->typeName,
+            'blueprintName' => $blueprintName,
             'activity' => $job->activity,
             'runs' => $job->runs,
             'planned' => null === $job->planned ? null : [

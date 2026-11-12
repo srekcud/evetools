@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupPlanningStore } from '@/stores/group-industry/planning'
 import { useSyncStore } from '@/stores/sync'
+import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import PlanningWaitLabel from './PlanningWaitLabel.vue'
 import ProjectPlanningAssignments from './ProjectPlanningAssignments.vue'
 import ProjectPlanningGantt from './ProjectPlanningGantt.vue'
@@ -146,6 +147,7 @@ watch(
           >
             <UnknownContributionValue />
             <span :title="job.typeName" class="truncate max-w-[18rem] text-slate-200">{{ job.typeName }}</span>
+            <BlueprintNameCopyButton :blueprint-name="job.blueprintName" />
             <span class="text-violet-300">{{ t(`groupIndustry.planning.unscheduledReason.${job.reason}`) }}</span>
           </li>
         </ul>

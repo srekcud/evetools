@@ -18,6 +18,7 @@ export const CORIN_VALE = 'Corin Vale'
 export function planningJob(overrides: Partial<PlanningJob> & Pick<PlanningJob, 'lineId' | 'typeName'>): PlanningJob {
   return {
     typeId: 0,
+    blueprintName: null,
     activity: 'manufacturing',
     runs: 1,
     planned: null,
