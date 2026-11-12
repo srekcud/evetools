@@ -3086,6 +3086,33 @@
       "validating": "Declaring...",
       "validationFailed": "The declaration stopped"
     },
+    "t2BlueprintCopyProposal": {
+      "title": "Owned T2 BPCs",
+      "toggle": "Declare my T2 blueprint copies",
+      "loading": "Reading your blueprints...",
+      "loadError": "The T2 BPC proposal could not be read",
+      "empty": "No T2 BPC owned for this plan.",
+      "unknownTitle": "Your T2 BPCs cannot be read",
+      "unknown": {
+        "blueprints_not_synced": "Your blueprints were never synced. Sync them from the Blueprints page.",
+        "container_not_found": "The project container was not found in the corporation assets.",
+        "no_director": "No Director is connected to read the corporation assets.",
+        "corporation_assets_not_synced": "The corporation assets were never synced.",
+        "no_visible_division": "No corporation division is shared with you.",
+        "owner_without_corporation": "You have no corporation to read the container from."
+      },
+      "columns": {
+        "type": "T2 product",
+        "manufacturing": "Plan runs",
+        "personal": "Personal",
+        "container": "Container",
+        "available": "Available",
+        "runs": "Runs"
+      },
+      "declare": "Declare",
+      "declaring": "Declaring...",
+      "declarationFailed": "The declaration was refused"
+    },
     "structureHealth": {
       "title": "Structure health",
       "loading": "Reading the structures...",

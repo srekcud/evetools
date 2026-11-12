@@ -1131,3 +1131,36 @@ export interface IntermediateStockSelection {
   bomItemId: string
   quantity: number
 }
+
+export type T2BlueprintCopyProposalState = 'ready' | 'not_solo' | 'assets_unknown'
+
+export type T2BlueprintCopyUnknownReason =
+  | 'blueprints_not_synced'
+  | 'container_not_found'
+  | 'no_director'
+  | 'corporation_assets_not_synced'
+  | 'no_visible_division'
+  | 'owner_without_corporation'
+
+export interface T2BlueprintCopyProposalLine {
+  productTypeId: number
+  typeName: string
+  manufacturingRuns: number
+  personalRuns: number
+  containerRuns: number | null
+  availableRuns: number
+  proposedRuns: number
+  declaredRuns: number
+}
+
+export interface T2BlueprintCopyProposal {
+  id: string
+  state: T2BlueprintCopyProposalState
+  unknownReason: T2BlueprintCopyUnknownReason | null
+  lines: T2BlueprintCopyProposalLine[]
+}
+
+export interface T2BlueprintCopySelection {
+  productTypeId: number
+  runs: number
+}
