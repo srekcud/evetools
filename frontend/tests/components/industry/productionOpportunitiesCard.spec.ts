@@ -34,7 +34,6 @@ const HAMMERHEAD_AT_JITA: ProductionOpportunity = {
   iskPerSlotHour: 138_819.92,
   missingSkills: [],
   groupHint: true,
-  loss: false,
 }
 
 const HOBGOBLIN_AT_CAPITAL: ProductionOpportunity = {
@@ -59,19 +58,6 @@ const SENTRY_NEEDING_A_SKILL: ProductionOpportunity = {
   iskPerSlotHour: null,
   missingSkills: [{ skillId: 11_433, name: 'High Energy Physics', level: 5 }],
   groupHint: true,
-}
-
-const SENTRY_AT_A_LOSS: ProductionOpportunity = {
-  ...HAMMERHEAD_AT_JITA,
-  typeId: SENTRY_TYPE_ID,
-  typeName: 'Curator II',
-  profitPerUnit: -50,
-  weeklyQuantity: null,
-  limitedBy: null,
-  weeklyProfit: null,
-  iskPerSlotHour: null,
-  groupHint: false,
-  loss: true,
 }
 
 function opportunities(rows: ProductionOpportunity[], overrides: Partial<ProductionOpportunitiesResponse> = {}): ProductionOpportunitiesResponse {
@@ -182,15 +168,6 @@ describe('ProductionOpportunitiesCard', () => {
     expect(sentry.find('[data-testid="opportunity-group-hint"]').exists()).toBe(true)
   })
 
-  it('marks a product sold at a loss without a quantity or a profit once the loss rows are shown', async () => {
-    const { wrapper, t } = await mountCard(opportunities([SENTRY_AT_A_LOSS]))
-    await wrapper.get('[data-testid="opportunities-show-losses"]').trigger('click')
-
-    const sentry = row(wrapper, SENTRY_TYPE_ID, 'jita')
-    expect(sentry.text()).toContain(t('industry.opportunities.loss'))
-    expect(sentry.find('[data-testid="opportunity-limit"]').exists()).toBe(false)
-  })
-
   it('shows an unknown quantity with its cause, never as zero, when the free slots are unknown', async () => {
     const response = opportunities([{ ...HAMMERHEAD_AT_JITA, weeklyQuantity: null, limitedBy: null, weeklyProfit: null, iskPerSlotHour: null }], { freeSlots: null })
     const { wrapper, t } = await mountCard(response)
@@ -207,40 +184,12 @@ describe('ProductionOpportunitiesCard', () => {
     expect(wrapper.get('[data-testid="opportunities-fees-unknown"]').text()).toContain(t('industry.opportunities.feesUnknown'))
   })
 
-  it('hides the loss rows by default and keeps the profitable ones', async () => {
-    const { wrapper } = await mountCard(opportunities([HAMMERHEAD_AT_JITA, SENTRY_AT_A_LOSS]))
+  it('says nothing profitable is left to produce, with the left-out count, when no row remains', async () => {
+    const { wrapper, t } = await mountCard(opportunities([], { unknownProductCount: 12 }))
 
-    expect(wrapper.find(`[data-testid="opportunity-row-${HAMMERHEAD_TYPE_ID}-jita"]`).exists()).toBe(true)
-    expect(wrapper.find(`[data-testid="opportunity-row-${SENTRY_TYPE_ID}-jita"]`).exists()).toBe(false)
-    expect(wrapper.find('[data-testid="opportunities-empty"]').exists()).toBe(false)
-  })
-
-  it('says no profitable product was found with complete data and the left-out count when only loss rows remain', async () => {
-    const { wrapper, t } = await mountCard(opportunities([SENTRY_AT_A_LOSS], { unknownProductCount: 12 }))
-
-    expect(wrapper.get('[data-testid="opportunities-empty"]').text()).toContain(t('industry.opportunities.emptyProfitable'))
+    expect(wrapper.get('[data-testid="opportunities-empty"]').text()).toContain(t('industry.opportunities.empty'))
     expect(wrapper.get('[data-testid="opportunities-unknown-count"]').text()).toContain(t('industry.opportunities.unknownCount', { count: 12 }))
     expect(wrapper.find('table').exists()).toBe(false)
-  })
-
-  it('brings the loss rows back and hides the empty state when the toggle is on, and hides them again when it is off', async () => {
-    const { wrapper } = await mountCard(opportunities([SENTRY_AT_A_LOSS]))
-    const toggle = wrapper.get('[data-testid="opportunities-show-losses"]')
-
-    expect(toggle.attributes('aria-pressed')).toBe('false')
-    await toggle.trigger('click')
-    expect(toggle.attributes('aria-pressed')).toBe('true')
-    expect(row(wrapper, SENTRY_TYPE_ID, 'jita').attributes('data-state')).toBe('loss')
-    expect(wrapper.find('[data-testid="opportunities-empty"]').exists()).toBe(false)
-
-    await toggle.trigger('click')
-    expect(wrapper.find(`[data-testid="opportunity-row-${SENTRY_TYPE_ID}-jita"]`).exists()).toBe(false)
-  })
-
-  it('offers no loss toggle when no row is at a loss', async () => {
-    const { wrapper } = await mountCard(opportunities([HAMMERHEAD_AT_JITA]))
-
-    expect(wrapper.find('[data-testid="opportunities-show-losses"]').exists()).toBe(false)
   })
 
   it('shows the error when the ranking cannot be loaded', async () => {

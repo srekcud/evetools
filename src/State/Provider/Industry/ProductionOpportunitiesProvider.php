@@ -116,7 +116,6 @@ class ProductionOpportunitiesProvider implements ProviderInterface
                 $opportunity->missingSkills,
             ),
             'groupHint' => $opportunity->groupHint,
-            'loss' => $opportunity->loss,
         ];
     }
 }
