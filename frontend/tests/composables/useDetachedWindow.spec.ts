@@ -27,7 +27,7 @@ describe('useDetachedWindow', () => {
   it('opens a popup of the requested size when Document Picture-in-Picture does not exist', async () => {
     const popup = detachedWindowStub()
     const windowOpen = vi.spyOn(window, 'open').mockReturnValue(popup)
-    const detached = useDetachedWindow()
+    const detached = useDetachedWindow('group')
 
     const opened = await detached.open(BAR_SIZE)
 
@@ -45,7 +45,7 @@ describe('useDetachedWindow', () => {
     let grant: (granted: Window) => void = () => {}
     const requestWindow = vi.fn(() => new Promise<Window>((resolve) => { grant = resolve }))
     Object.defineProperty(window, 'documentPictureInPicture', { value: { requestWindow }, configurable: true })
-    const detached = useDetachedWindow()
+    const detached = useDetachedWindow('group')
 
     const first = detached.open(BAR_SIZE)
     const second = detached.open(BAR_SIZE)
@@ -66,7 +66,7 @@ describe('useDetachedWindow', () => {
     const windows = [detachedWindowStub(), detachedWindowStub()]
     const requestWindow = vi.fn(async () => windows[requestWindow.mock.calls.length - 1] as Window)
     Object.defineProperty(window, 'documentPictureInPicture', { value: { requestWindow }, configurable: true })
-    const detached = useDetachedWindow()
+    const detached = useDetachedWindow('group')
 
     await detached.open(BAR_SIZE)
     detached.close()
@@ -81,7 +81,7 @@ describe('useDetachedWindow', () => {
 
   it('returns null and stays closed when the browser refuses the popup', async () => {
     vi.spyOn(window, 'open').mockReturnValue(null)
-    const detached = useDetachedWindow()
+    const detached = useDetachedWindow('group')
 
     const opened = await detached.open(BAR_SIZE)
 

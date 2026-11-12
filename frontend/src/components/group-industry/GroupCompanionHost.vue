@@ -26,7 +26,7 @@ const companion = useGroupCompanionStore()
 const syncStore = useSyncStore()
 const authStore = useAuthStore()
 const { showToast } = useToast()
-const detached = useDetachedWindow()
+const detached = useDetachedWindow('group')
 
 const size = ref<CompanionWindowSizeKey>(recallCompanionWindowSize())
 const now = ref(Date.now())

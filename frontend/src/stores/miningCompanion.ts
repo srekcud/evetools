@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
+import { claimCompanionWindow, otherOwnerHolding, releaseCompanionWindow } from '@/composables/companionWindowOwner'
 import {
   COMPANION_CLIPBOARD_STORAGE_KEY,
   COMPANION_NOTIFICATIONS_STORAGE_KEY,
@@ -72,6 +73,7 @@ export const useMiningCompanionStore = defineStore('miningCompanion', () => {
   let opening = false
 
   function reset(): void {
+    releaseCompanionWindow('mining')
     companionWindow.value = null
     windowKind.value = null
     target.value = null
@@ -96,6 +98,7 @@ export const useMiningCompanionStore = defineStore('miningCompanion', () => {
     notice.value = null
     noticeCause.value = null
     try {
+      const heldByOther = otherOwnerHolding('mining')
       const opened = await openCompanionWindow(window, size.value)
       companionWindow.value = opened.window
       windowKind.value = opened.kind
@@ -103,6 +106,7 @@ export const useMiningCompanionStore = defineStore('miningCompanion', () => {
       notice.value = opened.notice === 'popupFallback' ? POPUP_FALLBACK_NOTICE : null
       noticeCause.value = opened.cause
       watchClosing(opened.window)
+      claimCompanionWindow('mining', opened.kind, heldByOther, close)
     } catch (failure) {
       if (!(failure instanceof CompanionWindowError)) throw failure
       notice.value = POPUP_BLOCKED_NOTICE

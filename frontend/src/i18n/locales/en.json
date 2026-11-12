@@ -4609,6 +4609,12 @@
       }
     }
   },
+  "companionWindow": {
+    "replaced": {
+      "mining": "The mining companion was closed: the browser allows only one detached window per tab.",
+      "group": "The group companion was closed: the browser allows only one detached window per tab."
+    }
+  },
   "miningCompanion": {
     "title": "Companion",
     "windowTitle": "EVE Tools · mining companion",
