@@ -2381,8 +2381,6 @@
       "successRate24h": "Taux de succès sur les dernières 24 h",
       "runStuck": "bloqué",
       "status": "Status",
-      "health": "Sante",
-      "message": "Message",
       "running": "En cours",
       "waiting": "en attente...",
       "actionFailed": "Action echouee",
