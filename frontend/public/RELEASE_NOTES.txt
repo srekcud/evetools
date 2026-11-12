@@ -3,6 +3,33 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.16 (2026-11-12)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Projet solo : les intermediaires deja en stock et apportes sont deduits de
+  la BOM (moins de runs, moins de materiaux a acheter)
+- Projet termine : le surplus d'intermediaires produits en trop (runs entiers)
+  est affiche, sans valorisation
+- Bibliotheque de blueprints : recherche par nom
+- Bibliotheque de blueprints : filtre BPO, BPC et BPR, avec le nombre de
+  chacun
+- Les formules de reaction apparaissent en BPR et non plus en BPO
+- Blueprints de corporation : nom du hangar affiche au lieu de "Division N"
+- Container d'un projet : plus de ligne d'ecart vide quand la quantite dans
+  le container est inconnue
+
+### Minage
+- Le formulaire de creation d'une operation tient sur un seul ecran, avec
+  boutons pour selectionner tous les personnages prets ou aucun
+
+### Assets
+- La recherche trouve les items ranges dans un container, qui s'ouvre seul
+- Les noms des containers ne se perdent plus quand l'ESI refuse un lot
+- Assets de corporation : la synchro passe par un personnage dont le jeton est
+  valide, signale quand elle ne peut pas tourner et previent qui l'a lancee
+
+--------------------------------------------------------------------------------
 Version 0.15 (2026-11-11)
 --------------------------------------------------------------------------------
 
