@@ -1,4 +1,5 @@
 import { ref, shallowRef, type Ref, type ShallowRef } from 'vue'
+import { claimCompanionWindow, otherOwnerHolding, releaseCompanionWindow, type CompanionOwner } from '@/composables/companionWindowOwner'
 
 export type DetachedWindowKind = 'pip' | 'popup'
 
@@ -46,7 +47,7 @@ function copyStyleSheets(target: Window): void {
   }
 }
 
-export function useDetachedWindow(): {
+export function useDetachedWindow(owner: CompanionOwner): {
   isOpen: Ref<boolean>
   isOpening: Ref<boolean>
   kind: Ref<DetachedWindowKind | null>
@@ -66,6 +67,7 @@ export function useDetachedWindow(): {
   const noticeCause = ref<string | null>(null)
 
   function markClosed(): void {
+    releaseCompanionWindow(owner)
     isOpen.value = false
     kind.value = null
     currentWindow.value = null
@@ -102,6 +104,7 @@ export function useDetachedWindow(): {
     close()
     notice.value = null
     noticeCause.value = null
+    const heldByOther = otherOwnerHolding(owner)
     const handle = await requestWindow(size)
     if (handle === null) return null
     copyStyleSheets(handle.window)
@@ -111,6 +114,7 @@ export function useDetachedWindow(): {
     kind.value = handle.kind
     notice.value = handle.notice
     noticeCause.value = handle.cause
+    claimCompanionWindow(owner, handle.kind, heldByOther, close)
     return handle
   }
 

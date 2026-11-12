@@ -4609,6 +4609,12 @@
       }
     }
   },
+  "companionWindow": {
+    "replaced": {
+      "mining": "Le compagnon de minage a été fermé : le navigateur n'autorise qu'une seule fenêtre détachée par onglet.",
+      "group": "Le compagnon de groupe a été fermé : le navigateur n'autorise qu'une seule fenêtre détachée par onglet."
+    }
+  },
   "miningCompanion": {
     "title": "Compagnon",
     "windowTitle": "EVE Tools · compagnon de minage",
