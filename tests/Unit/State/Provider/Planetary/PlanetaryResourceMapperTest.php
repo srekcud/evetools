@@ -19,6 +19,7 @@ use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
+use App\Service\Planetary\PlanetaryFactoryColonyTracker;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Planetary\PlanetaryResourceMapper;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -66,6 +67,8 @@ final class PlanetaryResourceMapperTest extends TestCase
     private int $nextPinId = 1;
 
     private ?int $planetaryThresholdMinutes = null;
+
+    private ?PlanetaryFactoryColonyTracker $factoryColonyTracker = null;
 
     public function testRoutesToKnownTypesKeepTheirSdeContentTypeName(): void
     {
@@ -261,6 +264,55 @@ final class PlanetaryResourceMapperTest extends TestCase
         $this->assertSame(['expired', false], $this->statusAndExpiringFlagOfAnExtractorExpiring('-1 minute'));
     }
 
+    #[Group('issue-744')]
+    public function testColonyWithoutExtractorExposesTheTrackedFactoryProgressWithItsEndTime(): void
+    {
+        $tracker = $this->createMock(PlanetaryFactoryColonyTracker::class);
+        $tracker->expects($this->once())->method('track')->willReturn([
+            'finalProductTypeId' => self::NANITES,
+            'finalProductName' => 'Nanites',
+            'factoryCount' => 2,
+            'stockedFinalProduct' => 5,
+            'maxProducts' => 50,
+            'remainingSeconds' => 7200,
+        ]);
+        $this->factoryColonyTracker = $tracker;
+        $colony = $this->colony()->setCachedAt(new \DateTimeImmutable('2026-10-18T09:05:00+00:00'));
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $progress = $this->mapper()->toResource($colony)->factoryProgress;
+
+        $this->assertNotNull($progress);
+        $this->assertSame(
+            [self::NANITES, 'Nanites', 2, 5, 50, 7200],
+            [$progress['finalProductTypeId'], $progress['finalProductName'], $progress['factoryCount'], $progress['stockedFinalProduct'], $progress['maxProducts'], $progress['remainingSeconds']],
+        );
+        $this->assertSame('2026-10-18T11:05:00+00:00', $progress['endsAt']);
+    }
+
+    #[Group('issue-744')]
+    public function testColonyWithAnExtractorIsNotTrackedAsAFactoryColony(): void
+    {
+        $tracker = $this->createMock(PlanetaryFactoryColonyTracker::class);
+        $tracker->expects($this->never())->method('track');
+        $this->factoryColonyTracker = $tracker;
+        $colony = $this->colony();
+        $colony->addPin($this->extractorPin(self::BACTERIA)->setExpiryTime(new \DateTimeImmutable('+2 days')));
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $this->assertNull($this->mapper()->toResource($colony)->factoryProgress);
+    }
+
+    #[Group('issue-744')]
+    public function testColonyWithoutAnyFactoryIsNotTrackedAsAFactoryColony(): void
+    {
+        $tracker = $this->createMock(PlanetaryFactoryColonyTracker::class);
+        $tracker->expects($this->never())->method('track');
+        $this->factoryColonyTracker = $tracker;
+
+        $this->assertNull($this->mapper()->toResource($this->colony())->factoryProgress);
+    }
+
     private function statusAndExpiringFlagOfAnExtractorExpiring(string $expiresIn): array
     {
         $colony = $this->colony();
@@ -333,6 +385,7 @@ final class PlanetaryResourceMapperTest extends TestCase
             $schematicRepository,
             $solarSystemRepository,
             new PlanetaryExpiryThresholdResolver($preferenceRepository),
+            $this->factoryColonyTracker ?? $this->createStub(PlanetaryFactoryColonyTracker::class),
         );
     }
 

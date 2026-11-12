@@ -8,6 +8,7 @@ import { usePlanetaryHelpers, TIER_CONFIG } from '@/composables/usePlanetaryHelp
 import { useTypeNames } from '@/composables/useTypeNames'
 import type { Colony } from '@/stores/planetary'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
+import PiFactoryProgress from '@/components/planetary/PiFactoryProgress.vue'
 
 const props = withDefaults(defineProps<{
   colony: Colony
@@ -125,9 +126,12 @@ defineEmits<{
                 </span>
               </div>
             </template>
-            <span v-if="getExtractorPins(colony).length === 0" class="text-slate-500 text-xs italic">
-              {{ t('pi.colony.noExtractors') }}
-            </span>
+            <template v-if="getExtractorPins(colony).length === 0">
+              <PiFactoryProgress v-if="colony.factoryProgress" :progress="colony.factoryProgress" :threshold-minutes="thresholdMinutes" />
+              <span v-else class="text-slate-500 text-xs italic">
+                {{ t('pi.colony.noExtractors') }}
+              </span>
+            </template>
           </template>
           <!-- Collection mode: show summary from colony-level metadata -->
           <template v-else-if="colony.extractorCount > 0">
@@ -142,6 +146,7 @@ defineEmits<{
             </span>
           </template>
           <!-- No extractors at all -->
+          <PiFactoryProgress v-else-if="colony.factoryProgress" :progress="colony.factoryProgress" :threshold-minutes="thresholdMinutes" />
           <span v-else class="text-slate-500 text-xs italic">
             {{ t('pi.colony.noExtractors') }}
           </span>

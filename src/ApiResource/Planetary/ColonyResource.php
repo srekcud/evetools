@@ -80,6 +80,9 @@ class ColonyResource
     /** @var string active|expiring|expired|idle */
     public string $status = 'idle';
 
+    /** @var array{finalProductTypeId: int, finalProductName: ?string, factoryCount: int, stockedFinalProduct: int, maxProducts: int, remainingSeconds: int, endsAt: string}|null */
+    public ?array $factoryProgress = null;
+
     /** @var list<array<string, mixed>> */
     public array $pins = [];
 

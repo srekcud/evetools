@@ -12,6 +12,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
+use App\Service\Planetary\PlanetaryFactoryColonyTracker;
 use App\Service\TypeNameResolver;
 
 class PlanetaryResourceMapper
@@ -27,6 +28,7 @@ class PlanetaryResourceMapper
         private readonly PlanetSchematicRepository $schematicRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
         private readonly PlanetaryExpiryThresholdResolver $expiryThresholdResolver,
+        private readonly PlanetaryFactoryColonyTracker $factoryColonyTracker,
     ) {
     }
 
@@ -103,7 +105,27 @@ class PlanetaryResourceMapper
         }
 
         $resource->nearestExpiry = $nearestExpiry?->format('c');
+        $resource->factoryProgress = $this->trackFactoryColony($colony, $resource);
         $resource->status = $this->computeStatus($colony, $this->expiryThresholdMinutesOf($colony));
+    }
+
+    /**
+     * @return array{finalProductTypeId: int, finalProductName: ?string, factoryCount: int, stockedFinalProduct: int, maxProducts: int, remainingSeconds: int, endsAt: string}|null
+     */
+    private function trackFactoryColony(PlanetaryColony $colony, ColonyResource $resource): ?array
+    {
+        if ($resource->extractorCount > 0 || $resource->factoryCount === 0) {
+            return null;
+        }
+
+        $progress = $this->factoryColonyTracker->track($colony);
+        if ($progress === null) {
+            return null;
+        }
+
+        $progress['endsAt'] = $colony->getCachedAt()->modify('+'.$progress['remainingSeconds'].' seconds')->format('c');
+
+        return $progress;
     }
 
     private function expiryThresholdMinutesOf(PlanetaryColony $colony): int

@@ -390,6 +390,7 @@
     "colony": {
       "unknown": "Inconnu",
       "noExtractors": "Aucun extracteur",
+      "factoryProgress": "{product} : {stocked} en stock, {max} encore fabricables",
       "stale": "OBSOLETE",
       "noDetail": "Aucun detail disponible pour cette colonie. Synchronisez pour charger les donnees des installations.",
       "extractors": "Extracteurs",

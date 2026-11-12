@@ -50,6 +50,7 @@ const BARREN_COLONY: Colony = {
   factoryCount: 1,
   activeExtractors: 0,
   nearestExpiry: null,
+  factoryProgress: null,
   status: 'idle',
   pins: [COOLANT_FACTORY],
   routes: [],

@@ -186,7 +186,7 @@ class PlanetaryProductionCalculator
                 }
             }
 
-            $runRates = $this->resolveRunRates($producers, $this->stockByType($colony));
+            $runRates = $this->resolveRunRates($producers, $colony->getStockByType());
 
             foreach ($producers as $index => $producer) {
                 $typeId = $producer['typeId'];
@@ -205,25 +205,8 @@ class PlanetaryProductionCalculator
     }
 
     /**
-     * @return array<int, float> typeId => amount held by the pins of the colony
-     */
-    private function stockByType(PlanetaryColony $colony): array
-    {
-        $stock = [];
-        foreach ($colony->getPins() as $pin) {
-            foreach ($pin->getContents() ?? [] as $content) {
-                if ($content['amount'] > 0) {
-                    $stock[$content['type_id']] = ($stock[$content['type_id']] ?? 0.0) + $content['amount'];
-                }
-            }
-        }
-
-        return $stock;
-    }
-
-    /**
      * @param list<array{typeId: int, quantity: float, inputs: array<int, float>}> $producers
-     * @param array<int, float>                                                    $stock
+     * @param array<int, int>                                                      $stock
      * @return list<float> run rate between 0 and 1 of each producer
      */
     private function resolveRunRates(array $producers, array $stock): array
