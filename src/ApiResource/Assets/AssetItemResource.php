@@ -34,5 +34,9 @@ class AssetItemResource
 
     public ?string $divisionName = null;
 
+    public ?bool $isSingleton = null;
+
+    public bool $canResolveItemName = false;
+
     public string $cachedAt;
 }

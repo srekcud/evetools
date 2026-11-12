@@ -26,6 +26,8 @@ export interface Asset {
   solarSystemId: number | null
   solarSystemName: string | null
   itemName: string | null
+  isSingleton: boolean | null
+  canResolveItemName: boolean
   cachedAt: string
 }
 

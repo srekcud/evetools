@@ -59,6 +59,9 @@ class CachedAsset
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $itemName = null;
 
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    private ?bool $isSingleton = null;
+
     #[ORM\ManyToOne(targetEntity: Character::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     private ?Character $character = null;
@@ -228,6 +231,23 @@ class CachedAsset
         $this->itemName = $itemName;
 
         return $this;
+    }
+
+    public function isSingleton(): ?bool
+    {
+        return $this->isSingleton;
+    }
+
+    public function setIsSingleton(?bool $isSingleton): static
+    {
+        $this->isSingleton = $isSingleton;
+
+        return $this;
+    }
+
+    public function canResolveItemName(): bool
+    {
+        return false;
     }
 
     public function getCharacter(): ?Character

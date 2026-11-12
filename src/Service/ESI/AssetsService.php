@@ -41,6 +41,11 @@ class AssetsService
         return $this->nameBatchFailures;
     }
 
+    public function resolveSingleItemName(int $itemId, EveToken $token, ?int $characterId, ?int $corporationId): ?string
+    {
+        return null;
+    }
+
     /**
      * @return AssetDto[]
      */
