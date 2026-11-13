@@ -6,6 +6,7 @@ namespace App\Entity;
 
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectContributionRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -52,6 +53,9 @@ class IndustryProjectContribution
 
     #[ORM\Column(type: 'boolean')]
     private bool $isVerified = false;
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $valuedAtJitaPrice = false;
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $verifiedAt = null;
@@ -175,6 +179,15 @@ class IndustryProjectContribution
         return false;
     }
 
+    public function isReopenable(): bool
+    {
+        return ContributionStatus::Approved === $this->status
+            && ContributionType::Material === $this->type
+            && null !== $this->bomItem
+            && !$this->bomItem->isJob()
+            && !\in_array($this->project->getStatus(), [ProjectStatus::Selling, ProjectStatus::Completed], true);
+    }
+
     public function isAutoDetected(): bool
     {
         return $this->isAutoDetected;
@@ -194,6 +207,17 @@ class IndustryProjectContribution
     public function setIsVerified(bool $isVerified): static
     {
         $this->isVerified = $isVerified;
+        return $this;
+    }
+
+    public function isValuedAtJitaPrice(): bool
+    {
+        return $this->valuedAtJitaPrice;
+    }
+
+    public function setValuedAtJitaPrice(bool $valuedAtJitaPrice): static
+    {
+        $this->valuedAtJitaPrice = $valuedAtJitaPrice;
         return $this;
     }
 

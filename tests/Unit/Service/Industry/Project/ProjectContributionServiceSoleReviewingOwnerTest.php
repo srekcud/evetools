@@ -14,6 +14,7 @@ use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\ProjectContributionService;
@@ -50,6 +51,7 @@ final class ProjectContributionServiceSoleReviewingOwnerTest extends TestCase
             $this->createStub(JitaMarketService::class),
             $this->createStub(LineReservationService::class),
             $this->createStub(IndustryProjectService::class),
+            $this->createStub(ContributorPaidPurchaseReader::class),
         );
 
         $this->owner = $this->createStub(User::class);

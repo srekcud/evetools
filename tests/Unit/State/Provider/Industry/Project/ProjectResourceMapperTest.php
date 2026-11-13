@@ -153,7 +153,7 @@ class ProjectResourceMapperTest extends TestCase
     #[Group('issue-538')]
     public function testMaterialContributionWithAValueCarriesThePercentileSourceOfTheDeposit(): void
     {
-        $resource = $this->mapper->contributionToResource($this->contributionOf(ContributionType::Material, 500.0));
+        $resource = $this->mapper->contributionToResource($this->contributionOf(ContributionType::Material, 500.0)->setValuedAtJitaPrice(true));
 
         $this->assertSame(500.0, $resource->estimatedValue);
         $this->assertSame(

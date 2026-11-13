@@ -83,12 +83,18 @@ class ReviewContributionProcessor implements ProcessorInterface
                 $this->contributionService->approve($contribution, $user);
             } elseif ($data->status === 'rejected') {
                 $this->contributionService->reject($contribution, $user);
+            } else {
+                $this->contributionService->reopen($contribution);
             }
         } catch (\DomainException $e) {
             throw new BadRequestHttpException($e->getMessage());
         }
 
-        $action = $data->status === 'approved' ? 'contribution_approved' : 'contribution_rejected';
+        $action = match ($data->status) {
+            'approved' => 'contribution_approved',
+            'rejected' => 'contribution_rejected',
+            default => 'contribution_synced',
+        };
         $this->mercurePublisher->publishGroupProjectEvent(
             $project->getId()->toRfc4122(),
             $action,

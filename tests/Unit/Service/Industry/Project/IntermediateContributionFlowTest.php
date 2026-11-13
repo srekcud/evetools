@@ -14,6 +14,7 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\ProjectContributionService;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -47,6 +48,7 @@ final class IntermediateContributionFlowTest extends TestCase
             $this->jitaMarket,
             $this->createStub(LineReservationService::class),
             $this->projectService,
+            $this->createStub(ContributorPaidPurchaseReader::class),
         );
     }
 

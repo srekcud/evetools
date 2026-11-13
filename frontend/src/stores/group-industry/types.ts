@@ -219,6 +219,8 @@ export type GroupContribution = {
   isAutoDetected: boolean
   duplicatesDerived: boolean
   isVerified: boolean
+  valuedAtJitaPrice: boolean
+  reopenable: boolean
   reviewedByCharacterName: string | null
   reviewedAt: string | null
   note: string | null

@@ -92,7 +92,7 @@ trait BuildsIshtarGroupProject
         $this->ramJobLine = $this->addJobLine($this->ishtarBatch, self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 'component', self::RAM_RUNS, self::RAM_RUNS * self::RAM_UNITS_PER_RUN, 10, 20, self::ISHTAR_TYPE_ID);
         $this->ishtarJobLine = $this->addJobLine($this->ishtarBatch, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_RUNS, self::ISHTAR_RUNS, 4, 8, null)->setFulfilledQuantity(self::ISHTAR_RUNS);
 
-        $this->memberMorphiteContribution = $this->addContribution($this->memberMembership, $this->morphiteLine, ContributionType::Material, 3, 55_500.0, ContributionStatus::Approved);
+        $this->memberMorphiteContribution = $this->addContribution($this->memberMembership, $this->morphiteLine, ContributionType::Material, 3, 55_500.0, ContributionStatus::Approved)->setValuedAtJitaPrice(true);
         $this->ownerIshtarJobInstall = $this->addContribution($this->ownerMembership, $this->ishtarJobLine, ContributionType::JobInstall, self::ISHTAR_RUNS, 499_500.0, ContributionStatus::Approved);
         $this->memberRamJobInstall = $this->addContribution($this->memberMembership, $this->ramJobLine, ContributionType::JobInstall, self::RAM_RUNS * self::RAM_UNITS_PER_RUN, 180_000.0, ContributionStatus::Pending)
             ->setNote('Three runs in Jita IV');

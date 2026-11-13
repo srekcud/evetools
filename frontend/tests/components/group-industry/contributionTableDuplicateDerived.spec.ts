@@ -29,6 +29,8 @@ function contribution(overrides: Partial<GroupContribution>): GroupContribution 
     status: 'approved',
     isAutoDetected: false,
     isVerified: false,
+    valuedAtJitaPrice: false,
+    reopenable: false,
     duplicatesDerived: false,
     reviewedByCharacterName: 'Kira Doran',
     reviewedAt: '2026-11-09T10:00:00+00:00',
