@@ -5,6 +5,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import AssetItemNameResolveControl from '@/components/assets/AssetItemNameResolveControl.vue'
+import AssetBlueprintBadge from '@/components/assets/AssetBlueprintBadge.vue'
 import { apiRequest } from '@/services/api'
 import { locationIssue } from '@/utils/assetLocation'
 import type { Asset, ItemNameAnswer, ItemNameResolution } from '@/types'
@@ -199,6 +200,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
               <span class="text-slate-200">{{ getDisplayName(asset) }}</span>
               <OpenInGameButton type="market" :targetId="asset.typeId" />
               <AssetItemNameResolveControl :asset="asset" :resolution="resolutionByAssetId[asset.id]" @resolve="resolveItemName" />
+              <AssetBlueprintBadge v-if="asset.blueprint" :blueprint="asset.blueprint" />
               <!-- Container indicator -->
               <span v-if="isContainer(asset)" class="flex items-center gap-1 text-xs text-amber-400">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,6 +243,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
               <span class="text-slate-300 text-sm">{{ getDisplayName(item) }}</span>
               <OpenInGameButton type="market" :targetId="item.typeId" />
               <AssetItemNameResolveControl :asset="item" :resolution="resolutionByAssetId[item.id]" @resolve="resolveItemName" />
+              <AssetBlueprintBadge v-if="item.blueprint" :blueprint="item.blueprint" />
             </div>
             <span class="text-slate-500 font-mono text-sm">x{{ formatNumber(item.quantity) }}</span>
           </div>

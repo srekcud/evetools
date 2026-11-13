@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Assets;
 
 use ApiPlatform\Metadata\Get;
+use App\ApiResource\Assets\AssetBlueprintResource;
 use App\ApiResource\Assets\AssetItemResource;
 use App\Entity\CachedAsset;
 use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
+use App\Entity\OwnedBlueprint;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
+use App\Repository\OwnedBlueprintRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\Service\Sync\CorporationAssetsRefreshGate;
+use App\State\Provider\Assets\AssetBlueprintAnnotator;
 use App\State\Provider\Assets\CorporationAssetsProvider;
 use App\Tests\Unit\Support\StubsSdeTypeClassification;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -101,6 +105,7 @@ class CorporationAssetsProviderTest extends TestCase
             $invTypeRepository,
             new CorporationAssetsRefreshGate($this->cachedAssetRepository, new ArrayAdapter(clock: $clock), $clock),
             $this->requestStack,
+            $this->annotatorOwning([]),
         );
     }
 
@@ -313,9 +318,62 @@ class CorporationAssetsProviderTest extends TestCase
         );
     }
 
+    #[Group('issue-887')]
+    public function testBlueprintRowsExposeTheStateOfTheOwnedBlueprintsOfTheCorporation(): void
+    {
+        $this->corporationHangar = [
+            $this->corporationAsset(self::MATERIALS_RIFTER_BLUEPRINT_ITEM_ID, 691, 'Rifter Blueprint', 1, self::OFFICE_ITEM_ID, 'item', 'CorpSAG1', 'Materials')->setIsSingleton(true),
+            $this->corporationAsset(self::MATERIALS_UNKNOWN_TYPE_ITEM_ID, 691, 'Rifter Blueprint', 1, self::OFFICE_ITEM_ID, 'item', 'CorpSAG1', 'Materials')->setIsSingleton(true),
+            $this->corporationAsset(self::SHIPS_RIFTER_ITEM_ID, 587, 'Rifter', 1, self::OFFICE_ITEM_ID, 'item', 'CorpSAG3', 'Ships')->setIsSingleton(true),
+        ];
+        $this->loginCorporationMember();
+        $this->allowDivisions([1, 3]);
+        $this->requestStack->push(new Request());
+        $ownedBlueprints = $this->createMock(OwnedBlueprintRepository::class);
+        $ownedBlueprints->expects(self::once())->method('findByCorporationId')->with(self::CORPORATION_ID)->willReturn([
+            (new OwnedBlueprint())->setItemId(self::MATERIALS_RIFTER_BLUEPRINT_ITEM_ID)->setQuantity(-1)->setRuns(-1)->setMaterialEfficiency(10)->setTimeEfficiency(20),
+        ]);
+        $provider = new CorporationAssetsProvider(
+            $this->security,
+            new VisibleCorporationAssetsFinder($this->cachedAssetRepository, $this->visibilityRepository),
+            $this->createSdeClassification([
+                587 => self::shipClassification(),
+                691 => self::blueprintClassification(),
+            ]),
+            new CorporationAssetsRefreshGate($this->cachedAssetRepository, new ArrayAdapter(), new MockClock(self::NOW)),
+            $this->requestStack,
+            new AssetBlueprintAnnotator($ownedBlueprints),
+        );
+
+        $result = $provider->provide(new Get());
+
+        self::assertEquals(
+            [
+                self::MATERIALS_RIFTER_BLUEPRINT_ITEM_ID => new AssetBlueprintResource('original', null, 10, 20),
+                self::MATERIALS_UNKNOWN_TYPE_ITEM_ID => new AssetBlueprintResource('not_synced', null, null, null),
+                self::SHIPS_RIFTER_ITEM_ID => null,
+            ],
+            array_combine(
+                $this->itemIdsOf($result->items),
+                array_map(static fn (AssetItemResource $item): ?AssetBlueprintResource => $item->blueprint, $result->items),
+            ),
+        );
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    /**
+     * @param list<OwnedBlueprint> $owned
+     */
+    private function annotatorOwning(array $owned): AssetBlueprintAnnotator
+    {
+        $repository = $this->createStub(OwnedBlueprintRepository::class);
+        $repository->method('findByCorporationId')->willReturn($owned);
+
+        return new AssetBlueprintAnnotator($repository);
+    }
 
     private function loginCorporationMember(): void
     {

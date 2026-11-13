@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Serializer;
 
+use App\ApiResource\Assets\AssetBlueprintResource;
 use App\ApiResource\Assets\AssetItemResource;
 use App\ApiResource\Assets\CharacterAssetsResource;
 use App\ApiResource\Assets\CorporationAssetsResource;
@@ -35,6 +36,7 @@ final class AssetListNormalizerTest extends TestCase
         'divisionName',
         'isSingleton',
         'canResolveItemName',
+        'blueprint',
         'cachedAt',
     ];
 
@@ -98,6 +100,20 @@ final class AssetListNormalizerTest extends TestCase
         self::assertSame(self::ITEM_FIELDS, array_keys($item));
         self::assertArrayNotHasKey('@id', $item);
         self::assertArrayNotHasKey('@type', $item);
+    }
+
+    #[Group('issue-887')]
+    public function testBlueprintStateIsNormalizedToAnArrayAndNullForOtherItems(): void
+    {
+        $blueprintRow = self::tritaniumStack();
+        $blueprintRow->blueprint = new AssetBlueprintResource('copy', 10, 8, 14);
+        $resource = new CharacterAssetsResource();
+        $resource->items = [$blueprintRow, self::namedContainerInSpace()];
+
+        $items = $this->normalizer->normalize($resource, 'json')['items'];
+
+        self::assertSame(['status' => 'copy', 'runs' => 10, 'materialEfficiency' => 8, 'timeEfficiency' => 14], $items[0]['blueprint']);
+        self::assertNull($items[1]['blueprint']);
     }
 
     public function testItemKeepsTheTypeOfEveryField(): void

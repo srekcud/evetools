@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Serializer;
 
+use App\ApiResource\Assets\AssetItemResource;
 use App\ApiResource\Assets\CharacterAssetsResource;
 use App\ApiResource\Assets\CorporationAssetsResource;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
@@ -34,7 +35,18 @@ final readonly class AssetListNormalizer implements NormalizerInterface
         \assert($data instanceof CorporationAssetsResource || $data instanceof CharacterAssetsResource);
 
         $payload = get_object_vars($data);
-        $payload['items'] = array_map(get_object_vars(...), $data->items);
+        $payload['items'] = array_map(self::normalizeItem(...), $data->items);
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function normalizeItem(AssetItemResource $item): array
+    {
+        $payload = get_object_vars($item);
+        $payload['blueprint'] = $item->blueprint === null ? null : get_object_vars($item->blueprint);
 
         return $payload;
     }
