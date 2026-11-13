@@ -15,31 +15,34 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\CockpitBomLine;
 use App\Service\Industry\Project\ProjectCockpitInput;
+use App\Service\Industry\Project\ProjectLineFulfillments;
 
 final readonly class ProjectCockpitInputFactory
 {
     private const array MANAGER_ROLES = [ParticipantRole::Owner, ParticipantRole::Admin];
 
-    public function create(IndustryProject $project, User $user): ProjectCockpitInput
+    public function create(IndustryProject $project, User $user, ?ProjectLineFulfillments $fulfillments = null): ProjectCockpitInput
     {
+        $fulfillments ??= ProjectLineFulfillments::none();
+
         return new ProjectCockpitInput(
             $project->getStatus(),
             $project->getItems()->count(),
-            array_values($project->getBomItems()->map($this->toCockpitBomLine(...))->toArray()),
+            array_values($project->getBomItems()->map(fn (IndustryProjectBomLine $line): CockpitBomLine => $this->toCockpitBomLine($line, $fulfillments))->toArray()),
             $this->soldQuantityByTypeId($project),
             $this->pendingContributionCount($project),
             $this->isManager($user, $project),
         );
     }
 
-    private function toCockpitBomLine(IndustryProjectBomLine $line): CockpitBomLine
+    private function toCockpitBomLine(IndustryProjectBomLine $line, ProjectLineFulfillments $fulfillments): CockpitBomLine
     {
         return new CockpitBomLine(
             $line->getId()->toRfc4122(),
             $line->getTypeId(),
             $line->getTypeName(),
             $line->getRequiredQuantity(),
-            $line->getFulfilledQuantity(),
+            $fulfillments->fulfilledOf($line),
             $line->isJob(),
             $line->getJobGroup(),
             $line->getRuns(),

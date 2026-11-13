@@ -181,8 +181,14 @@ function ringStrokeColor(percent: number): string {
               </td>
 
               <!-- Fulfilled -->
-              <td class="py-2.5 px-3 text-right font-mono" :class="fulfillmentTextClass(item.fulfillmentPercent)" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(item.fulfilledQuantity, 0) }}
+              <td data-testid="fulfilled-quantity" class="py-2.5 px-3 text-right font-mono" :class="fulfillmentTextClass(item.fulfillmentPercent)" style="font-variant-numeric: tabular-nums;">
+                <template v-if="item.containerStockState === 'unknown'">≥ </template>{{ formatNumber(item.fulfilledQuantity, 0) }}
+                <span
+                  v-if="item.containerStockState === 'unknown'"
+                  data-testid="container-stock-unknown"
+                  class="block text-xs font-sans text-amber-400"
+                  :title="t('groupIndustry.bom.containerStockUnknown')"
+                >{{ t('groupIndustry.container.statuses.unknown') }}</span>
                 <span
                   v-if="item.purchasedQuantity !== undefined"
                   data-testid="purchased-quantity"

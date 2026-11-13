@@ -48,6 +48,10 @@ class ProjectBomLineResource
 
     public float $fulfillmentPercent;
 
+    public ?int $containerQuantity = null;
+
+    public string $containerStockState = 'none';
+
     public ?float $estimatedPrice = null;
 
     public ?float $estimatedTotal = null;

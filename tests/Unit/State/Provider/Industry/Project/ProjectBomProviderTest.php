@@ -19,6 +19,10 @@ use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\State\Provider\Industry\Project\ProjectBomProvider;
+use App\Service\Industry\Project\ContainerStockState;
+use App\Service\Industry\Project\ProjectContainerFulfillment;
+use App\Service\Industry\Project\ProjectContainerService;
+use App\Service\Industry\Project\ProjectContainerStock;
 use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -57,6 +61,7 @@ class ProjectBomProviderTest extends TestCase
             new ProjectAccessChecker($this->memberRepository),
             $this->createStub(IndustryProjectLineReservationRepository::class),
             $this->createStub(ProjectJobLocationResolver::class),
+            $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')),
         );
     }
 
@@ -186,7 +191,7 @@ class ProjectBomProviderTest extends TestCase
         foreach ([$member, $owner] as $viewer) {
             $security = $this->createStub(Security::class);
             $security->method('getUser')->willReturn($viewer);
-            $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository), $this->createStub(IndustryProjectLineReservationRepository::class), $this->createStub(ProjectJobLocationResolver::class));
+            $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository), $this->createStub(IndustryProjectLineReservationRepository::class), $this->createStub(ProjectJobLocationResolver::class), $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')));
             $installersByViewer[] = $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0]->jobMatches[0]['characterName'];
         }
 
@@ -338,11 +343,76 @@ class ProjectBomProviderTest extends TestCase
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             $this->createStub(IndustryProjectLineReservationRepository::class),
             $this->createStub(ProjectJobLocationResolver::class),
+            $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')),
         );
 
         $result = $provider->provide(new GetCollection(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
 
         self::assertSame(['Ferox', 'Tritanium'], array_map(fn (ProjectBomLineResource $item) => $item->typeName, $result));
+    }
+
+    #[Group('issue-866')]
+    public function testMaterialLineReadsTheContainerStockAsFulfilled(): void
+    {
+        $result = $this->readMaterialLineWith(new ProjectContainerStock(null, [11478 => 2]), 55, 0);
+
+        self::assertSame(2, $result->fulfilledQuantity);
+        self::assertSame(53, $result->remainingQuantity);
+        self::assertEqualsWithDelta(3.64, $result->fulfillmentPercent, 0.01);
+        self::assertFalse($result->isFulfilled);
+        self::assertSame(53, $result->freeQuantity);
+        self::assertSame(2, $result->containerQuantity);
+        self::assertSame('known', $result->containerStockState);
+    }
+
+    #[Group('issue-866')]
+    public function testMaterialLineOfAnUnreadableContainerKeepsTheContributionsAndFlagsTheStockUnknown(): void
+    {
+        $result = $this->readMaterialLineWith(new ProjectContainerStock('container_not_found'), 55, 10);
+
+        self::assertSame(10, $result->fulfilledQuantity);
+        self::assertSame(45, $result->remainingQuantity);
+        self::assertNull($result->containerQuantity);
+        self::assertSame('unknown', $result->containerStockState);
+    }
+
+    #[Group('issue-866')]
+    public function testJobLineIgnoresTheContainerStock(): void
+    {
+        $result = $this->readMaterialLineWith(new ProjectContainerStock(null, [11478 => 300]), 300, 20, true);
+
+        self::assertSame(20, $result->fulfilledQuantity);
+        self::assertNull($result->containerQuantity);
+        self::assertSame('none', $result->containerStockState);
+    }
+
+    private function readMaterialLineWith(ProjectContainerStock $stock, int $required, int $contributed, bool $isJob = false): ProjectBomLineResource
+    {
+        $user = $this->createUserStub();
+        $this->security->method('getUser')->willReturn($user);
+        $project = (new IndustryProject())->setOwner($user);
+        $this->projectRepository->method('find')->willReturn($project);
+        $line = $this->createBomItem(11478, 'R.A.M.- Starship Tech', $required, $contributed, null, $isJob, $isJob ? 'component' : null, null, null, null, null, null);
+        $this->bomItemRepository->method('findBy')->willReturn([$line]);
+        $provider = new ProjectBomProvider(
+            $this->security,
+            $this->projectRepository,
+            $this->bomItemRepository,
+            new ProjectAccessChecker($this->memberRepository),
+            $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(ProjectJobLocationResolver::class),
+            $this->containerFulfillmentOf($stock),
+        );
+
+        return $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0];
+    }
+
+    private function containerFulfillmentOf(ProjectContainerStock $stock): ProjectContainerFulfillment
+    {
+        $containerService = $this->createStub(ProjectContainerService::class);
+        $containerService->method('containerStockOf')->willReturn($stock);
+
+        return new ProjectContainerFulfillment($containerService);
     }
 
     private function readSabreBatchBom(Uuid $projectId): string
@@ -358,6 +428,7 @@ class ProjectBomProviderTest extends TestCase
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             $this->createStub(IndustryProjectLineReservationRepository::class),
             $this->createStub(ProjectJobLocationResolver::class),
+            $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')),
         );
 
         return $this->outcomeOf(fn () => $provider->provide(new GetCollection(), ['projectId' => $projectId->toRfc4122()]));

@@ -20,6 +20,8 @@ use App\Repository\IndustryProjectRepository;
 use App\Entity\IndustryProjectLineReservation;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\JobInstallerName;
+use App\Service\Industry\Project\ProjectContainerFulfillment;
+use App\Service\Industry\Project\ProjectLineFulfillments;
 use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\Service\Industry\Project\PilotName;
 use App\Service\UuidOrNotFound;
@@ -39,6 +41,7 @@ class ProjectBomProvider implements ProviderInterface
         private readonly ProjectAccessChecker $accessChecker,
         private readonly IndustryProjectLineReservationRepository $reservationRepository,
         private readonly ProjectJobLocationResolver $jobLocationResolver,
+        private readonly ProjectContainerFulfillment $containerFulfillment,
     ) {
     }
 
@@ -66,6 +69,7 @@ class ProjectBomProvider implements ProviderInterface
         $this->accessChecker->assertAcceptedMember($user, $project);
 
         $bomItems = $this->bomItemRepository->findBy(['project' => $project]);
+        $fulfillments = $this->containerFulfillment->of($project);
 
         $reservationsByLine = [];
         foreach ($this->reservationRepository->findByProject($project) as $reservation) {
@@ -77,7 +81,7 @@ class ProjectBomProvider implements ProviderInterface
             : [];
 
         return array_map(
-            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $locationsByJobId),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $locationsByJobId, $fulfillments),
             $bomItems,
         );
     }
@@ -103,16 +107,18 @@ class ProjectBomProvider implements ProviderInterface
      * @param list<IndustryProjectLineReservation> $reservations
      * @param array<int, array{blueprint: array<string, mixed>, output: array<string, mixed>}> $locationsByJobId
      */
-    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $locationsByJobId): ProjectBomLineResource
+    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $locationsByJobId, ProjectLineFulfillments $fulfillments): ProjectBomLineResource
     {
         $resource = new ProjectBomLineResource();
         $resource->id = $item->getId()->toString();
         $resource->typeId = $item->getTypeId();
         $resource->typeName = $item->getTypeName();
         $resource->requiredQuantity = $item->getRequiredQuantity();
-        $resource->fulfilledQuantity = $item->getFulfilledQuantity();
-        $resource->remainingQuantity = $item->getRemainingQuantity();
-        $resource->fulfillmentPercent = $item->getFulfillmentPercent();
+        $resource->fulfilledQuantity = $fulfillments->fulfilledOf($item);
+        $resource->remainingQuantity = $fulfillments->remainingOf($item);
+        $resource->fulfillmentPercent = $fulfillments->percentOf($item);
+        $resource->containerQuantity = $fulfillments->containerQuantityOf($item);
+        $resource->containerStockState = $fulfillments->stateOf($item)->value;
         $resource->estimatedPrice = $item->getEstimatedPrice();
         $resource->estimatedTotal = $item->getEstimatedPrice() !== null
             ? $item->getEstimatedPrice() * $item->getRequiredQuantity()
@@ -125,7 +131,7 @@ class ProjectBomProvider implements ProviderInterface
         $resource->meLevel = $item->getMeLevel();
         $resource->teLevel = $item->getTeLevel();
         $resource->runs = $item->getRuns();
-        $resource->isFulfilled = $item->isFulfilled();
+        $resource->isFulfilled = $fulfillments->isFulfilled($item);
         $resource->jobMatches = array_values($item->getJobMatches()->map(
             static function (IndustryProjectJobMatch $match) use ($project, $viewer, $locationsByJobId): array {
                 $jobMatch = get_object_vars(ProjectJobMatchResource::fromEntity($match));
@@ -141,7 +147,7 @@ class ProjectBomProvider implements ProviderInterface
         )->toArray());
         $resource->purchasedQuantity = $item->getPurchasedQuantity();
 
-        $visibleReservations = $item->isFulfilled() ? [] : $reservations;
+        $visibleReservations = $fulfillments->isFulfilled($item) ? [] : $reservations;
         $resource->reservations = array_map(
             static fn (IndustryProjectLineReservation $reservation): array => [
                 'participantId' => $reservation->getParticipant()->getId()->toRfc4122(),
@@ -152,7 +158,7 @@ class ProjectBomProvider implements ProviderInterface
             $visibleReservations,
         );
         $resource->reservedQuantity = array_sum(array_map(static fn (IndustryProjectLineReservation $reservation): int => $reservation->getQuantity(), $visibleReservations));
-        $resource->freeQuantity = max(0, $item->getRemainingQuantity() - $resource->reservedQuantity);
+        $resource->freeQuantity = max(0, $resource->remainingQuantity - $resource->reservedQuantity);
 
         return $resource;
     }

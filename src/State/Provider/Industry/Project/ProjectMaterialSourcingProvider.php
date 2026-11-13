@@ -17,6 +17,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\MaterialSourcingPresenter;
 use App\Service\Industry\Project\MaterialsToSourceFactory;
+use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -36,6 +37,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         private IndustryProjectService $projectService,
         private MaterialSourcingComparator $comparator,
         private StructureMarketPrices $structureMarketPrices,
+        private ProjectContainerFulfillment $containerFulfillment,
     ) {
     }
 
@@ -68,7 +70,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         $bomLines = $this->bomLineRepository->findBy(['project' => $project]);
         $structureId = $user->getPreferredMarketStructureId();
         $sourcings = $this->comparator->compare(
-            MaterialsToSourceFactory::of($bomLines, $planned->plan),
+            MaterialsToSourceFactory::of($bomLines, $planned->plan, $this->containerFulfillment->of($project)),
             $structureId,
             $this->projectService->favoriteSystemsOf($owner),
         );

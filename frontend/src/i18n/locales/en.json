@@ -3204,7 +3204,8 @@
       "totalItems": "Total Items",
       "totalEstCost": "Total Est. Cost",
       "overallFulfillment": "Overall Fulfillment",
-      "purchasedQuantity": "{quantity} purchased"
+      "purchasedQuantity": "{quantity} purchased",
+      "containerStockUnknown": "Container unreadable: the container stock is unknown, only the declared quantity counts"
     },
     "reservation": {
       "reservedBy": "Reserved by",
