@@ -33,6 +33,9 @@ const characters = computed(() => user.value?.characters || [])
 const selectedCharacterId = ref<string | null>(null)
 const assets = ref<Asset[]>([])
 const isLoading = ref(false)
+const isReloading = ref(false)
+const hasLoadedCurrentOwner = ref(false)
+let pendingAssetsRequest: AbortController | null = null
 const isRefreshing = ref(false)
 const error = ref('')
 const refreshNotice = ref('')
@@ -306,10 +309,30 @@ const totalLocations = computed(() => new Set(rootAssets.value.map(a => a.locati
 const totalSystems = computed(() => new Set(assets.value.filter(a => a.solarSystemName).map(a => a.solarSystemName)).size)
 
 // Fetch assets
+function abortPendingAssetsRequest() {
+  pendingAssetsRequest?.abort()
+  pendingAssetsRequest = null
+}
+
+function dropFiltersMissingFromAssets() {
+  if (selectedSolarSystem.value && !solarSystems.value.includes(selectedSolarSystem.value)) {
+    selectedSolarSystem.value = ''
+  }
+  if (selectedLocation.value && !locations.value.some(location => location.name === selectedLocation.value)) {
+    selectedLocation.value = ''
+  }
+}
+
 async function fetchAssets() {
   if (viewMode.value === 'character' && !selectedCharacterId.value) return
 
-  isLoading.value = true
+  abortPendingAssetsRequest()
+  const request = new AbortController()
+  pendingAssetsRequest = request
+
+  const isReload = hasLoadedCurrentOwner.value
+  isLoading.value = !isReload
+  isReloading.value = isReload
   error.value = ''
 
   const isCorporationRequest = viewMode.value === 'corporation'
@@ -320,21 +343,32 @@ async function fetchAssets() {
       : `/api/me/characters/${selectedCharacterId.value}/assets`
 
     const response = await fetch(endpoint, {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+      headers: { 'Authorization': `Bearer ${authStore.token}` },
+      signal: request.signal,
     })
 
     if (!response.ok) throw new Error('Failed to fetch assets')
 
     const data = await safeJsonParse<{ items?: Asset[]; nextRefreshAt?: string | null }>(response)
+    if (request.signal.aborted) return
     assets.value = data.items || []
     nextRefreshAt.value = isCorporationRequest ? (data.nextRefreshAt ?? null) : null
+    hasLoadedCurrentOwner.value = true
+    dropFiltersMissingFromAssets()
   } catch (e) {
+    if (request.signal.aborted) return
     error.value = 'Failed to load assets'
     console.error(e)
   } finally {
-    isLoading.value = false
+    if (pendingAssetsRequest === request) {
+      pendingAssetsRequest = null
+      isLoading.value = false
+      isReloading.value = false
+    }
   }
 }
+
+onUnmounted(abortPendingAssetsRequest)
 
 async function onSaveVisibility(payload: CorporationVisibilityPayload) {
   if (await saveVisibility(payload)) {
@@ -502,6 +536,12 @@ watch(characters, (newChars) => {
 }, { immediate: true })
 
 watch([selectedCharacterId, viewMode], () => {
+  abortPendingAssetsRequest()
+  assets.value = []
+  nextRefreshAt.value = null
+  hasLoadedCurrentOwner.value = false
+  isReloading.value = false
+  isLoading.value = false
   selectedSolarSystem.value = ''
   selectedLocation.value = ''
   searchQuery.value = ''
@@ -632,6 +672,16 @@ watch([selectedCharacterId, viewMode], () => {
             v-if="!isLoading && assetsByLocation.length > 0"
             :location-groups="assetsByLocation"
           />
+
+          <div
+            v-if="isReloading"
+            data-testid="assets-reloading"
+            role="progressbar"
+            :aria-label="t('assets.loading')"
+            class="h-0.5 w-full overflow-hidden rounded-full bg-slate-800"
+          >
+            <div class="h-full w-1/3 animate-pulse bg-cyan-500"></div>
+          </div>
 
           <!-- Loading state -->
           <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">
