@@ -16,6 +16,7 @@ const props = defineProps<{
     solarSystemName: string | null
     assets: Asset[]
     totalQuantity: number
+    divisionBreakdown?: { divisionName: string; totalQuantity: number }[]
   }
   expandedContainers: Set<number>
   collapsedLocations: Set<string>
@@ -140,6 +141,16 @@ async function resolveItemName(asset: Asset): Promise<void> {
               class="px-2 py-0.5 rounded-sm text-[10px] font-medium uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/30"
             >{{ t(`assets.locationIssue.${issue}.badge`) }}</span>
           </div>
+          <div
+            v-if="props.location.divisionBreakdown && props.location.divisionBreakdown.length > 0"
+            data-testid="location-division-breakdown"
+            class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400"
+          >
+            <span v-for="part in props.location.divisionBreakdown" :key="part.divisionName">
+              {{ t('assets.divisionName', { name: part.divisionName }) }}
+              <span class="font-mono text-cyan-400">{{ formatNumber(part.totalQuantity) }}</span>
+            </span>
+          </div>
           <div class="flex items-center gap-2">
             <span v-if="props.location.solarSystemName && !props.location.locationName.startsWith(props.location.solarSystemName)" class="text-xs text-cyan-400">{{ props.location.solarSystemName }}</span>
             <span class="text-xs text-slate-500">{{ t('assets.itemTypesCount', { count: props.location.assets.length }, props.location.assets.length) }}</span>
@@ -187,7 +198,8 @@ async function resolveItemName(asset: Asset): Promise<void> {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
               </span>
-              <span v-else-if="asset.locationFlag" class="text-xs text-slate-500">({{ asset.locationFlag }})</span>
+              <span v-if="asset.divisionName" data-testid="asset-division" class="text-xs text-slate-500">{{ t('assets.divisionName', { name: asset.divisionName }) }}</span>
+              <span v-else-if="!isContainer(asset) && asset.locationFlag" class="text-xs text-slate-500">({{ asset.locationFlag }})</span>
             </div>
           </div>
           <span class="text-slate-400 font-mono text-sm">x{{ formatNumber(asset.quantity) }}</span>

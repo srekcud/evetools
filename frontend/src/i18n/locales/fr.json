@@ -2114,6 +2114,11 @@
     "selectCharacter": "Selectionner un personnage",
     "loading": "Chargement des assets...",
     "clearFilters": "Effacer les filtres",
+    "divisionFilter": {
+      "all": "Toutes",
+      "label": "Division de hangar"
+    },
+    "divisionName": "Hangar - {name}",
     "stats": {
       "totalItems": "Items totaux",
       "itemTypes": "Types d'items",
