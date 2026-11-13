@@ -20,6 +20,7 @@ final class EveConstants
     public const OFFICE_LOCATION_FLAG = 'OfficeFolder';
     public const ASSET_SAFETY_LOCATION_FLAG = 'AssetSafety';
     public const CHARACTER_ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
+    public const UI_WAYPOINT_SCOPE = 'esi-ui.write_waypoint.v1';
     public const CELESTIAL_CATEGORY_ID = 2;
     public const SHIP_CATEGORY_ID = 6;
     public const DEPLOYABLE_CATEGORY_ID = 22;

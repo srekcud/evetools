@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { apiRequest } from '@/services/api'
 
-type WindowAction = 'market' | 'info' | 'contract'
+type WindowAction = 'market' | 'info' | 'contract' | 'waypoint'
 
 interface OpenWindowResponse {
   success: boolean
@@ -25,6 +25,10 @@ export function useOpenWindow() {
 
   async function openContract(contractId: number): Promise<boolean> {
     return performAction('contract', contractId, { contractId })
+  }
+
+  async function openWaypoint(destinationId: number): Promise<boolean> {
+    return performAction('waypoint', destinationId, { destinationId })
   }
 
   async function performAction(action: WindowAction, id: number, body: Record<string, number>): Promise<boolean> {
@@ -63,6 +67,7 @@ export function useOpenWindow() {
     openMarket,
     openInfo,
     openContract,
+    openWaypoint,
     isLoading,
     isActionLoading,
   }

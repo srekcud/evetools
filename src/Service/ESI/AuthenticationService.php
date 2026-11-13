@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\ESI;
 
+use App\Constant\EveConstants;
 use App\Dto\CharacterInfoDto;
 use App\Dto\EveTokenDto;
 use App\Entity\Character;
@@ -67,6 +68,7 @@ class AuthenticationService
 
         // UI (quality of life)
         'esi-ui.open_window.v1',
+        EveConstants::UI_WAYPOINT_SCOPE,
 
         // Corporation Projects (opportunités)
         'esi-corporations.read_projects.v1',

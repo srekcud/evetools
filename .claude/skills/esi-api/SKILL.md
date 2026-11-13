@@ -777,7 +777,7 @@ https://esi.evetech.net/latest
 
 ## 10. OAuth2 Scopes Reference
 
-All 30 scopes requested during authentication (defined in `AuthenticationService::REQUIRED_SCOPES`):
+All 31 scopes requested during authentication (defined in `AuthenticationService::REQUIRED_SCOPES`):
 
 ### Assets & Corporation
 | Scope | Endpoint | Description |
@@ -841,6 +841,7 @@ All 30 scopes requested during authentication (defined in `AuthenticationService
 | Scope | Endpoint | Description |
 |---|---|---|
 | `esi-ui.open_window.v1` | `POST /ui/openwindow/marketdetails/` | Open in-game window |
+| `esi-ui.write_waypoint.v1` | `POST /ui/autopilot/waypoint/` | Set the autopilot destination |
 
 ### Corporation Projects
 | Scope | Endpoint | Description |

@@ -9,7 +9,9 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Input\OpenWindow\OpenWindowContractInput;
 use App\ApiResource\Input\OpenWindow\OpenWindowInfoInput;
 use App\ApiResource\Input\OpenWindow\OpenWindowMarketInput;
+use App\ApiResource\Input\OpenWindow\OpenWindowWaypointInput;
 use App\ApiResource\OpenWindow\OpenWindowResource;
+use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Service\ESI\OpenWindowService;
@@ -19,7 +21,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * @implements ProcessorInterface<OpenWindowMarketInput|OpenWindowInfoInput|OpenWindowContractInput, OpenWindowResource>
+ * @implements ProcessorInterface<OpenWindowMarketInput|OpenWindowInfoInput|OpenWindowContractInput|OpenWindowWaypointInput, OpenWindowResource>
  */
 class OpenWindowProcessor implements ProcessorInterface
 {
@@ -58,11 +60,19 @@ class OpenWindowProcessor implements ProcessorInterface
 
         $result = new OpenWindowResource();
 
+        if ($data instanceof OpenWindowWaypointInput && !$token->hasScope(EveConstants::UI_WAYPOINT_SCOPE)) {
+            $result->success = false;
+            $result->error = sprintf('Missing ESI scope %s: log in again to set a destination', EveConstants::UI_WAYPOINT_SCOPE);
+
+            return $result;
+        }
+
         try {
             match (true) {
                 $data instanceof OpenWindowMarketInput => $this->openWindowService->openMarketDetails($token, $data->typeId),
                 $data instanceof OpenWindowInfoInput => $this->openWindowService->openInformation($token, $data->targetId),
                 $data instanceof OpenWindowContractInput => $this->openWindowService->openContract($token, $data->contractId),
+                $data instanceof OpenWindowWaypointInput => $this->openWindowService->setWaypoint($token, $data->destinationId),
                 default => throw new \InvalidArgumentException('Unknown input type'),
             };
 

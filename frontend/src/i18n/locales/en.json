@@ -2671,6 +2671,7 @@
   "openWindow": {
     "market": "Open market in-game",
     "info": "Open info in-game",
+    "waypoint": "Set as destination",
     "contract": "Open contract in-game",
     "success": "Window opened in-game",
     "error": "Error opening window"
