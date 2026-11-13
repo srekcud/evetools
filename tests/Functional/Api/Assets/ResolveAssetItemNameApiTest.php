@@ -98,6 +98,29 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
         self::assertSame('Hauler One', $this->em->find(CachedAsset::class, $shipId)->getItemName());
     }
 
+    #[Group('issue-861')]
+    public function testResolvingWithoutBodyAndWithJsonContentTypeAnswers200(): void
+    {
+        $pilot = $this->persistPilot();
+        $ship = $this->persistAsset($pilot, self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, true);
+        $this->em->flush();
+        $shipId = $ship->getId()->toRfc4122();
+        $this->namesAnswer = [['item_id' => self::RIFTER_ITEM_ID, 'name' => 'Hauler One']];
+
+        $this->em->clear();
+        $this->client->loginUser($this->em->find(User::class, $pilot->getId()), 'api');
+        $this->client->request(
+            'POST',
+            '/api/me/assets/' . $shipId . '/item-name',
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'],
+        );
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame('named', $body['status']);
+        self::assertSame('Hauler One', $body['itemName']);
+    }
+
     public function testAContainerWithoutCustomNameInGameAnswersUnnamedWithANullNameAndStoresNothing(): void
     {
         $pilot = $this->persistPilot();
