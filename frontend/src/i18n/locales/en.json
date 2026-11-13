@@ -2113,6 +2113,18 @@
     "noAssets": "No assets",
     "selectCharacter": "Select a character",
     "loading": "Loading assets...",
+    "groupBy": {
+      "label": "Group the inventory",
+      "location": "By location",
+      "type": "By type"
+    },
+    "byType": {
+      "sortName": "Name",
+      "sortQuantity": "Quantity",
+      "locationsCount": "{count} location | {count} locations",
+      "locationsListLabel": "Items of a type, by location",
+      "toggleLocations": "Show the locations of {type}"
+    },
     "clearFilters": "Clear filters",
     "stats": {
       "totalItems": "Total items",

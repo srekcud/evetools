@@ -2113,6 +2113,18 @@
     "noAssets": "Aucun asset",
     "selectCharacter": "Selectionner un personnage",
     "loading": "Chargement des assets...",
+    "groupBy": {
+      "label": "Grouper l'inventaire",
+      "location": "Par emplacement",
+      "type": "Par type"
+    },
+    "byType": {
+      "sortName": "Nom",
+      "sortQuantity": "Quantité",
+      "locationsCount": "{count} emplacement | {count} emplacements",
+      "locationsListLabel": "Items d'un type, par emplacement",
+      "toggleLocations": "Afficher les emplacements de {type}"
+    },
     "clearFilters": "Effacer les filtres",
     "stats": {
       "totalItems": "Items totaux",

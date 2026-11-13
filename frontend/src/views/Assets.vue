@@ -12,12 +12,14 @@ import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
 import { COLLAPSE_LOCATIONS_ROW_THRESHOLD } from '@/constants/assetsConstants'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
+import { filterTypeGroups, groupAssetsByType } from '@/utils/assetsByType'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
+import AssetTypeView from '@/components/assets/AssetTypeView.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
@@ -51,6 +53,7 @@ const nextRefreshAt = ref<string | null>(null)
 const now = ref(Date.now())
 const searchQuery = ref(urlFilters.search)
 const viewMode = ref(urlFilters.viewMode)
+const groupBy = ref<'location' | 'type'>('location')
 const selectedSolarSystem = ref<string>(urlFilters.solarSystem)
 const selectedLocation = ref<string>(urlFilters.location)
 const expandedContainers = ref<Set<number>>(new Set())
@@ -59,6 +62,7 @@ const collapsedLocations = ref<Set<string>>(new Set())
 const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError, fetchVisibility, saveVisibility, clearVisibility } = useCorporationAssetVisibility()
 
 const isCorpView = computed(() => viewMode.value === 'corporation')
+const isTypeView = computed(() => !isCorpView.value && groupBy.value === 'type')
 
 const refreshBlockedUntil = computed(() =>
   isCorpView.value && nextRefreshAt.value !== null && Date.parse(nextRefreshAt.value) > now.value
@@ -312,6 +316,16 @@ const assetsByLocation = computed(() => {
   }
 
   return Object.values(grouped).sort((a, b) => a.locationName.localeCompare(b.locationName))
+})
+
+const typeGroups = computed(() => {
+  if (!isTypeView.value) {
+    return []
+  }
+  return filterTypeGroups(
+    groupAssetsByType(assets.value, asset => typeNameLabel(asset.typeName, asset.typeId)),
+    { solarSystem: selectedSolarSystem.value, location: selectedLocation.value, searchQuery: searchQuery.value },
+  )
 })
 
 function revealSearchMatches() {
@@ -706,6 +720,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
           <!-- Filters -->
           <AssetsFilterBar
             :view-mode="viewMode"
+            :group-by="groupBy"
             :characters="characters"
             :selected-character-id="selectedCharacterId"
             :search-query="searchQuery"
@@ -714,6 +729,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             :selected-solar-system="selectedSolarSystem"
             :selected-location="selectedLocation"
             @update:view-mode="viewMode = $event"
+            @update:group-by="groupBy = $event"
             @update:selected-character-id="selectedCharacterId = $event"
             @update:search-query="searchQuery = $event"
             @update:selected-solar-system="selectedSolarSystem = $event"
@@ -779,6 +795,9 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             </template>
           </div>
 
+          <!-- Assets by type -->
+          <AssetTypeView v-else-if="isTypeView" :groups="typeGroups" />
+
           <!-- Assets by location -->
           <div v-else class="relative rounded-xl space-y-4" :class="{ 'hud-updated': assetsUpdated }">
             <AssetLocationGroup
@@ -795,7 +814,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
           </div>
 
           <!-- No results -->
-          <div v-if="!isLoading && assets.length > 0 && filteredAssets.length === 0" class="text-center py-12">
+          <div v-if="!isLoading && assets.length > 0 && (isTypeView ? typeGroups.length === 0 : filteredAssets.length === 0)" class="text-center py-12">
             <p class="text-slate-500">{{ t('assets.noMatchingItems') }}</p>
           </div>
         </template>
