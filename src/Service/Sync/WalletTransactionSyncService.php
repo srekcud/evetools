@@ -6,7 +6,6 @@ namespace App\Service\Sync;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
-use App\Entity\CharacterWalletReading;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\CharacterWalletReadingRepository;
 use App\Service\ESI\EsiClient;
@@ -131,6 +130,8 @@ class WalletTransactionSyncService
                     );
                 }
             }
+
+            $this->recordSuccessfulReading($character, $pageExpirations);
         } catch (\Throwable $e) {
             $this->logger->error('Failed to fetch wallet transactions from ESI', [
                 'characterName' => $character->getName(),
@@ -147,13 +148,15 @@ class WalletTransactionSyncService
             return;
         }
 
-        $this->recordSuccessfulReading($character, $pageExpirations);
-
         $this->logger->info('Wallet transactions synced', [
             'characterName' => $character->getName(),
             'total' => $totalCount,
             'new' => $newCount,
         ]);
+
+        if ($newTransactions !== []) {
+            $this->purchaseLinker->linkNewPurchases($character, $newTransactions);
+        }
 
         if ($userId !== null) {
             $this->mercurePublisher->syncCompleted(
@@ -161,10 +164,6 @@ class WalletTransactionSyncService
                 'wallet-transactions',
                 sprintf('%d transactions fetched (%d new)', $totalCount, $newCount),
             );
-        }
-
-        if ($newTransactions !== []) {
-            $this->purchaseLinker->linkNewPurchases($character, $newTransactions);
         }
     }
 
@@ -178,28 +177,20 @@ class WalletTransactionSyncService
             ? $readAt->modify(sprintf('+%d seconds', self::WALLET_CACHE_TTL_SECONDS))
             : min($pageExpirations);
 
-        $reading = $this->readingOf($character);
-        $reading->setReadAt($readAt)->setNextReadAt($nextReadAt);
-        $this->entityManager->flush();
+        $this->readingRepository->record($character, $readAt, $nextReadAt);
     }
 
     private function recordFailedReading(Character $character): void
     {
-        $reading = $this->readingOf($character);
-        $reading->setNextReadAt($this->clock->now()->modify(sprintf('+%d seconds', self::WALLET_RETRY_DELAY_SECONDS)));
-        $this->entityManager->flush();
-    }
+        $nextReadAt = $this->clock->now()->modify(sprintf('+%d seconds', self::WALLET_RETRY_DELAY_SECONDS));
 
-    private function readingOf(Character $character): CharacterWalletReading
-    {
-        $reading = $this->readingRepository->findOneByCharacter($character);
-        if ($reading !== null) {
-            return $reading;
+        try {
+            $this->readingRepository->record($character, null, $nextReadAt);
+        } catch (\Throwable $recordingError) {
+            $this->logger->error('Failed to record the failed wallet reading', [
+                'characterName' => $character->getName(),
+                'error' => $recordingError->getMessage(),
+            ]);
         }
-
-        $reading = (new CharacterWalletReading())->setCharacter($character);
-        $this->entityManager->persist($reading);
-
-        return $reading;
     }
 }
