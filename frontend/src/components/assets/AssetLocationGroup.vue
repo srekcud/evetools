@@ -5,9 +5,12 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import AssetItemNameResolveControl from '@/components/assets/AssetItemNameResolveControl.vue'
+import AssetShipGroups from '@/components/assets/AssetShipGroups.vue'
 import AssetBlueprintBadge from '@/components/assets/AssetBlueprintBadge.vue'
 import { apiRequest } from '@/services/api'
+import { SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
 import { locationIssue } from '@/utils/assetLocation'
+import { isFittedFlag, isGroupableShip } from '@/utils/shipFit'
 import type { Asset, ItemNameAnswer, ItemNameResolution } from '@/types'
 
 const props = defineProps<{
@@ -25,6 +28,7 @@ const props = defineProps<{
   expandedContainers: Set<number>
   collapsedLocations: Set<string>
   containerContents: Map<number, Asset[]>
+  fitContents?: Map<number, Asset[]>
 }>()
 
 const emit = defineEmits<{
@@ -41,7 +45,21 @@ const resolutionByAssetId = ref<Record<string, ItemNameResolution>>({})
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 
+const groupedShips = computed(() => props.location.assets.filter(isGroupableShip))
+const plainAssets = computed(() => props.location.assets.filter(asset => !isGroupableShip(asset)))
+
+function fullContentsOf(itemId: number): Asset[] {
+  return (props.fitContents ?? props.containerContents).get(itemId) ?? []
+}
+
+function isAssembledShip(asset: Asset): boolean {
+  return asset.categoryId === SHIP_CATEGORY_ID && asset.isSingleton === true
+}
+
 function isContainer(asset: Asset): boolean {
+  if (isAssembledShip(asset)) {
+    return getContainerContents(asset).length > 0
+  }
   return props.containerContents.has(asset.itemId)
 }
 
@@ -68,7 +86,8 @@ function toggleLocation(): void {
 }
 
 function getContainerContents(asset: Asset): Asset[] {
-  return props.containerContents.get(asset.itemId) || []
+  const contents = props.containerContents.get(asset.itemId) || []
+  return isAssembledShip(asset) ? contents.filter(item => !isFittedFlag(item.locationFlag)) : contents
 }
 
 const quantityBarWidth = computed(() =>
@@ -190,7 +209,8 @@ async function resolveItemName(asset: Asset): Promise<void> {
 
     <!-- Items (collapsible) -->
     <div v-if="!props.collapsedLocations.has(props.location.locationName)" class="divide-y divide-slate-800">
-      <template v-for="asset in props.location.assets" :key="asset.id">
+      <AssetShipGroups :ships="groupedShips" :contents-of="fullContentsOf" />
+      <template v-for="asset in plainAssets" :key="asset.id">
         <!-- Regular item or container header -->
         <div
           :class="[

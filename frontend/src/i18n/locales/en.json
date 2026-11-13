@@ -2182,6 +2182,23 @@
       "shareBlueprintsHelp": "Blueprints, BPCs and reaction formulas of every division appear in the blueprint library; the rest of the content of hidden divisions stays hidden.",
       "shareBlueprintsOn": "Blueprints of hidden divisions: shown",
       "shareBlueprintsOff": "Blueprints of hidden divisions: hidden"
+    },
+    "shipGroups": {
+      "showAll": "Show all {count}",
+      "badFit": "Fit to review",
+      "copyEft": "Copy fit (EFT)",
+      "copied": "Fit copied",
+      "copyFailed": "Copy failed",
+      "copyUnavailable": "Copy unavailable: a module name is unknown",
+      "showFit": "Show fit",
+      "hideFit": "Hide fit",
+      "low": "Low slots",
+      "mid": "Mid slots",
+      "high": "High slots",
+      "rig": "Rigs",
+      "subsystem": "Subsystems",
+      "drones": "Drones",
+      "cargo": "Cargo"
     }
   },
   "contracts": {
