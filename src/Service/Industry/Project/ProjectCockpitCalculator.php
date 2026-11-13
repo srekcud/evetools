@@ -59,7 +59,7 @@ final readonly class ProjectCockpitCalculator
         $jobLines = array_values(array_filter($input->bomLines, static fn (CockpitBomLine $line): bool => $line->isJob));
         $finalLines = array_values(array_filter($jobLines, static fn (CockpitBomLine $line): bool => $line->jobGroup === self::JOB_GROUP_FINAL));
         $uncoveredMaterials = $this->undelivered($materialLines);
-        $undeliveredJobs = $this->undelivered($jobLines);
+        $undeliveredJobs = $this->undeliveredJobs($jobLines);
         $unitsToSell = array_sum(array_map(static fn (CockpitBomLine $line): int => $line->requiredQuantity, $finalLines));
         $unitsSold = min($unitsToSell, $this->soldUnitsOf($finalLines, $input->soldQuantityByTypeId));
 
@@ -97,6 +97,19 @@ final readonly class ProjectCockpitCalculator
         return array_values(array_filter(
             $lines,
             static fn (CockpitBomLine $line): bool => $line->fulfilledQuantity < $line->requiredQuantity,
+        ));
+    }
+
+    /**
+     * @param list<CockpitBomLine> $jobLines
+     *
+     * @return list<CockpitBomLine>
+     */
+    private function undeliveredJobs(array $jobLines): array
+    {
+        return array_values(array_filter(
+            $this->undelivered($jobLines),
+            static fn (CockpitBomLine $line): bool => $line->runs === null || $line->deliveredRuns < $line->runs,
         ));
     }
 

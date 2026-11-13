@@ -329,9 +329,52 @@ final class ProjectCockpitCalculatorTest extends TestCase
         self::assertSame(['project_completed', false, null, null, null, null, null, null], $this->actionRow($cockpit));
     }
 
+    public function testInProgressProjectWhoseJobLinesAreCoveredByDeliveredEsiJobsCountsThemProducedAndStartsSelling(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->job('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 200, 0, 2, 2, 2),
+        ], [], 0, true);
+
+        self::assertSame(['produce', 'current', 1, 1, null, null], $this->phaseRow($cockpit, 'produce'));
+        self::assertSame(['start_selling', false, null, 'selling', null, null, null, null], $this->actionRow($cockpit));
+    }
+
+    public function testJobLineWhoseDeliveredRunsFallShortOfItsRunsStaysToLaunchWithTheRunsNotYetMatched(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->job('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 300, 0, 3, 2, 1),
+        ], [], 0, true);
+
+        self::assertSame(['produce', 'current', 0, 1, null, null], $this->phaseRow($cockpit, 'produce'));
+        self::assertSame(
+            ['launch_job', false, 'materials', null, 'line-ram', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 1],
+            $this->actionRow($cockpit),
+        );
+    }
+
+    public function testSellingProjectWhoseJobLinesAreCoveredByDeliveredEsiJobsHasNoJobsUnfinishedBlock(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::Selling, 1, [
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 2, 0, 2, 2, 2),
+        ], [], 0, true);
+
+        self::assertSame(['produce', 'done', 1, 1, null, null], $this->phaseRow($cockpit, 'produce'));
+    }
+
+    public function testJobLineWithoutRunsIsNotProducedByDeliveredRunsAlone(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->job('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 300, 0, null, 0, 3),
+        ], [], 0, true);
+
+        self::assertSame(['produce', 'current', 0, 1, null, null], $this->phaseRow($cockpit, 'produce'));
+    }
+
     private function material(string $id, int $typeId, string $typeName, int $requiredQuantity, int $fulfilledQuantity): CockpitBomLine
     {
-        return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, false, null, null, 0);
+        return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, false, null, null, 0, 0);
     }
 
     private function job(
@@ -343,8 +386,9 @@ final class ProjectCockpitCalculatorTest extends TestCase
         int $fulfilledQuantity,
         ?int $runs,
         int $matchedRuns,
+        int $deliveredRuns = 0,
     ): CockpitBomLine {
-        return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, true, $jobGroup, $runs, $matchedRuns);
+        return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, true, $jobGroup, $runs, $matchedRuns, $deliveredRuns);
     }
 
     private function cockpitOf(
