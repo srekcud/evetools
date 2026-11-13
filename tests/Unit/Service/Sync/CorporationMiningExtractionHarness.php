@@ -35,8 +35,11 @@ use App\Service\MoonChunk\MoonChunkVolumeEstimator;
 use App\Service\MiningValuation\MiningProfileUnitPrices;
 use App\Service\MiningValuation\MiningValuationProfileReader;
 use App\Service\OreValueService;
+use App\Service\Sde\ResolvedMoon;
+use App\Service\Sde\SdeCelestialNameResolver;
 use App\Service\StructureMarketService;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\AbstractLogger;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -119,6 +122,10 @@ trait CorporationMiningExtractionHarness
     private array $dispatchedMessages = [];
 
     private SyncTracker $syncTracker;
+
+    private array $sdeMoons = [];
+
+    private array $loggedWarnings = [];
 
     private function setUpCorporationMiningHarness(): void
     {
@@ -419,6 +426,22 @@ trait CorporationMiningExtractionHarness
             $solarSystemRepository->method($method)->willReturnCallback(static fn (int $solarSystemId): ?MapSolarSystem => self::solarSystem($solarSystemId));
         }
 
+        $celestialNameResolver = $this->createStub(SdeCelestialNameResolver::class);
+        $celestialNameResolver->method('moon')->willReturnCallback(fn (int $moonId): ?ResolvedMoon => $this->sdeMoons[$moonId] ?? null);
+
+        $warningLogger = new class ($this->loggedWarnings) extends AbstractLogger {
+            public function __construct(private array &$warnings)
+            {
+            }
+
+            public function log($level, \Stringable|string $message, array $context = []): void
+            {
+                if ($level === 'warning') {
+                    $this->warnings[] = $context;
+                }
+            }
+        };
+
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('persist')->willReturnCallback(function (object $entity): void {
             if ($entity instanceof CorporationMiningExtraction && !in_array($entity, $this->storedExtractions, true)) {
@@ -469,13 +492,14 @@ trait CorporationMiningExtractionHarness
             $followRepository,
             $miningOperationRepository,
             $solarSystemRepository,
+            $celestialNameResolver,
             $entityManager,
             $this->mercurePublisher(),
             $this->syncTracker,
             $messageBus,
             $security,
             $this->clock,
-            new NullLogger(),
+            $warningLogger,
         ];
     }
 

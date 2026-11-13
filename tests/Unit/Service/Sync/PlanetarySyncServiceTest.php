@@ -17,6 +17,7 @@ use App\Service\ESI\PlanetaryService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
+use App\Service\Sde\SdeCelestialNameResolver;
 use App\Service\Sync\PlanetarySyncService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
@@ -25,6 +26,7 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Mercure\HubInterface;
@@ -57,6 +59,12 @@ final class PlanetarySyncServiceTest extends TestCase
     private ?int $planetaryThresholdMinutes = null;
 
     private MockClock $clock;
+
+    private ?string $sdePlanetName = null;
+
+    private int $planetInfoCalls = 0;
+
+    private array $loggedWarnings = [];
 
     private ?PlanetaryColony $syncedColony = null;
 
@@ -363,6 +371,29 @@ final class PlanetarySyncServiceTest extends TestCase
         );
     }
 
+    public function testAPlanetKnownToTheSdeNamesTheColonyWithoutAnyEsiPlanetCall(): void
+    {
+        $this->sdePlanetName = 'Rashy I';
+
+        $this->syncColonyWithPins([]);
+
+        self::assertSame('Rashy I', $this->syncedColony?->getPlanetName());
+        self::assertSame(0, $this->planetInfoCalls);
+        self::assertSame([], $this->loggedWarnings);
+    }
+
+    public function testAPlanetMissingFromTheSdeIsLoggedAsAWarningThenNamedByEsi(): void
+    {
+        $this->sdePlanetName = null;
+
+        $this->syncColonyWithPins([]);
+
+        self::assertSame(self::PLANET_NAME, $this->syncedColony?->getPlanetName());
+        self::assertSame(1, $this->planetInfoCalls);
+        self::assertCount(1, $this->loggedWarnings);
+        self::assertSame(self::PLANET_ID, $this->loggedWarnings[0]['planetId']);
+    }
+
     private function assertLevelForMinutesBeforeExpiry(int $minutes, string $expectedLevel): void
     {
         $this->clock = new MockClock('2026-11-10 12:00:00 UTC');
@@ -394,7 +425,27 @@ final class PlanetarySyncServiceTest extends TestCase
             'last_update' => '2026-10-19T08:00:00Z',
         ]]);
         $planetaryService->method('fetchColonyDetail')->willReturn(['pins' => $pins, 'routes' => []]);
-        $planetaryService->method('fetchPlanetInfo')->willReturn(['name' => self::PLANET_NAME]);
+        $planetaryService->method('fetchPlanetInfo')->willReturnCallback(function (): array {
+            $this->planetInfoCalls++;
+
+            return ['name' => self::PLANET_NAME];
+        });
+
+        $celestialNameResolver = $this->createStub(SdeCelestialNameResolver::class);
+        $celestialNameResolver->method('planetName')->willReturnCallback(fn (): ?string => $this->sdePlanetName);
+
+        $warningLogger = new class ($this->loggedWarnings) extends AbstractLogger {
+            public function __construct(private array &$warnings)
+            {
+            }
+
+            public function log($level, \Stringable|string $message, array $context = []): void
+            {
+                if ($level === 'warning') {
+                    $this->warnings[] = $context;
+                }
+            }
+        };
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('persist')->willReturnCallback(function (object $entity): void {
@@ -451,11 +502,12 @@ final class PlanetarySyncServiceTest extends TestCase
             $planetaryService,
             $colonyRepository,
             $this->createStub(MapSolarSystemRepository::class),
+            $celestialNameResolver,
             new TypeNameResolver($sdeTypes),
             $entityManager,
             new MercurePublisherService($hub, new NullLogger()),
             $notificationDispatcher,
-            new NullLogger(),
+            $warningLogger,
             new PlanetaryExpiryThresholdResolver($preferenceRepository),
             $this->clock,
         );

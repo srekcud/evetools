@@ -12,6 +12,8 @@ class SdeMapImporter
 {
     use SdeImportTrait;
 
+    private const int CELESTIAL_BATCH_SIZE = 2000;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
@@ -207,6 +209,99 @@ class SdeMapImporter
         }
 
         $this->notify($progressCallback, "  Total: {$count} solar systems imported");
+
+        $this->importPlanets($progressCallback);
+        $this->importMoons($progressCallback);
+    }
+
+    public function importPlanets(?callable $progressCallback = null): void
+    {
+        $this->truncateTable('sde_map_planets');
+
+        $validSolarSystemIds = $this->knownSolarSystemIds();
+        $count = 0;
+        $batch = [];
+
+        foreach ($this->readJsonlFile('mapPlanets.jsonl') as $planetId => $planet) {
+            $solarSystemId = (int) $planet['solarSystemID'];
+            if (!isset($validSolarSystemIds[$solarSystemId])) {
+                continue;
+            }
+
+            $batch[] = [(int) $planetId, $solarSystemId, (int) $planet['celestialIndex'], (int) $planet['typeID']];
+            $count++;
+
+            if (count($batch) >= self::CELESTIAL_BATCH_SIZE) {
+                $this->insertCelestialsBatch('sde_map_planets', ['planet_id', 'solar_system_id', 'celestial_index', 'type_id'], $batch);
+                $batch = [];
+            }
+        }
+
+        $this->insertCelestialsBatch('sde_map_planets', ['planet_id', 'solar_system_id', 'celestial_index', 'type_id'], $batch);
+
+        $this->notify($progressCallback, "  Total: {$count} planets imported");
+    }
+
+    public function importMoons(?callable $progressCallback = null): void
+    {
+        $this->truncateTable('sde_map_moons');
+
+        $validSolarSystemIds = $this->knownSolarSystemIds();
+        $count = 0;
+        $batch = [];
+
+        foreach ($this->readJsonlFile('mapMoons.jsonl') as $moonId => $moon) {
+            $solarSystemId = (int) $moon['solarSystemID'];
+            if (!isset($validSolarSystemIds[$solarSystemId])) {
+                continue;
+            }
+
+            $batch[] = [(int) $moonId, $solarSystemId, (int) $moon['orbitID'], (int) $moon['celestialIndex'], (int) $moon['orbitIndex']];
+            $count++;
+
+            if (count($batch) >= self::CELESTIAL_BATCH_SIZE) {
+                $this->insertCelestialsBatch('sde_map_moons', ['moon_id', 'solar_system_id', 'orbit_id', 'celestial_index', 'orbit_index'], $batch);
+                $batch = [];
+            }
+        }
+
+        $this->insertCelestialsBatch('sde_map_moons', ['moon_id', 'solar_system_id', 'orbit_id', 'celestial_index', 'orbit_index'], $batch);
+
+        $this->notify($progressCallback, "  Total: {$count} moons imported");
+    }
+
+    /** @return array<int, true> */
+    private function knownSolarSystemIds(): array
+    {
+        $solarSystemIds = [];
+        $result = $this->getConnection()->executeQuery('SELECT solar_system_id FROM sde_map_solar_systems');
+        while ($row = $result->fetchAssociative()) {
+            $solarSystemIds[(int) $row['solar_system_id']] = true;
+        }
+
+        return $solarSystemIds;
+    }
+
+    /**
+     * @param list<string> $columns
+     * @param list<list<int>> $rows
+     */
+    private function insertCelestialsBatch(string $table, array $columns, array $rows): void
+    {
+        if ($rows === []) {
+            return;
+        }
+
+        $placeholders = '(' . implode(', ', array_fill(0, count($columns), '?')) . ')';
+        $this->getConnection()->executeStatement(
+            sprintf(
+                'INSERT INTO %s (%s) VALUES %s',
+                $table,
+                implode(', ', $columns),
+                implode(', ', array_fill(0, count($rows), $placeholders)),
+            ),
+            array_merge(...$rows),
+        );
     }
 
     /** @param list<array<string, mixed>> $batch */

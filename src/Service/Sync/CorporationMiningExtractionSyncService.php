@@ -18,6 +18,7 @@ use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Sde\SdeCelestialNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
@@ -40,6 +41,7 @@ class CorporationMiningExtractionSyncService
         private readonly CorporationMiningExtractionRepository $extractionRepository,
         private readonly CorporationMiningSyncStateRepository $syncStateRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
+        private readonly SdeCelestialNameResolver $celestialNameResolver,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly ClockInterface $clock,
@@ -234,6 +236,13 @@ class CorporationMiningExtractionSyncService
      */
     private function readMoon(int $moonId): array
     {
+        $sdeMoon = $this->celestialNameResolver->moon($moonId);
+        if ($sdeMoon !== null) {
+            return ['name' => $sdeMoon->name, 'systemId' => $sdeMoon->solarSystemId];
+        }
+
+        $this->logger->warning('Moon missing from the SDE, read from ESI', ['moon_id' => $moonId]);
+
         try {
             $moon = $this->esiClient->getWithCache(sprintf('/universe/moons/%d/', $moonId));
         } catch (EsiApiException $e) {
