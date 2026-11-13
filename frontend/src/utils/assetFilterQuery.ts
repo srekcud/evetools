@@ -8,9 +8,10 @@ export interface AssetFilterState {
   search: string
   solarSystem: string
   location: string
+  division: string
 }
 
-const OWNED_QUERY_KEYS = ['view', 'character', 'q', 'system', 'location'] as const
+const OWNED_QUERY_KEYS = ['view', 'character', 'q', 'system', 'location', 'division'] as const
 const CORPORATION_VIEW = 'corporation'
 const LAST_CHARACTER_STORAGE_PREFIX = 'assetsLastCharacterId:'
 
@@ -25,6 +26,7 @@ export function readAssetFilterQuery(query: LocationQuery): AssetFilterState {
     search: textOf(query.q),
     solarSystem: textOf(query.system),
     location: textOf(query.location),
+    division: textOf(query.division),
   }
 }
 
@@ -41,6 +43,7 @@ export function writeAssetFilterQuery(current: LocationQuery, filters: AssetFilt
   if (filters.search) query.q = filters.search
   if (filters.solarSystem) query.system = filters.solarSystem
   if (filters.location) query.location = filters.location
+  if (filters.division) query.division = filters.division
   return query
 }
 

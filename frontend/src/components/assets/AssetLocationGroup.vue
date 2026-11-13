@@ -159,7 +159,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
               class="text-xs text-slate-500"
             >{{ t('assets.shipsCount', { count: formatNumber(props.location.shipCount) }, props.location.shipCount) }}</span>
           </div>
-          <div v-if="props.location.divisions && props.location.divisions.length > 0" class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+          <div v-if="props.location.divisions && props.location.divisions.length > 0" data-testid="location-division-breakdown" class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
             <span
               v-for="division in props.location.divisions"
               :key="division.name"
@@ -216,7 +216,8 @@ async function resolveItemName(asset: Asset): Promise<void> {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
               </span>
-              <span v-else-if="asset.locationFlag" class="text-xs text-slate-500">({{ asset.locationFlag }})</span>
+              <span v-if="asset.divisionName" data-testid="asset-division" class="text-xs text-slate-500">{{ t('assets.divisionName', { name: asset.divisionName }) }}</span>
+              <span v-else-if="!isContainer(asset) && asset.locationFlag" class="text-xs text-slate-500">({{ asset.locationFlag }})</span>
             </div>
           </div>
           <span class="text-slate-400 font-mono text-sm">x{{ formatNumber(asset.quantity) }}</span>

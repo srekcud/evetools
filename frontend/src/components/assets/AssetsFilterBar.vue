@@ -7,13 +7,18 @@ interface LocationOption {
   solarSystemName: string | null
 }
 
+interface DivisionOption {
+  name: string
+  rowCount: number
+}
+
 interface CharacterOption {
   id: string
   name: string
   isMain: boolean
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   viewMode: 'character' | 'corporation'
   characters: CharacterOption[]
   selectedCharacterId: string | null
@@ -22,7 +27,14 @@ const props = defineProps<{
   locations: LocationOption[]
   selectedSolarSystem: string
   selectedLocation: string
-}>()
+  divisions?: DivisionOption[]
+  selectedDivision?: string
+  allDivisionsRowCount?: number
+}>(), {
+  divisions: () => [],
+  selectedDivision: '',
+  allDivisionsRowCount: 0,
+})
 
 const emit = defineEmits<{
   'update:viewMode': [value: 'character' | 'corporation']
@@ -30,10 +42,15 @@ const emit = defineEmits<{
   'update:searchQuery': [value: string]
   'update:selectedSolarSystem': [value: string]
   'update:selectedLocation': [value: string]
+  'update:selectedDivision': [value: string]
   'clear-filters': []
 }>()
 
 const { t } = useI18n()
+
+const chipClass = 'px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 border transition-colors'
+const chipActiveClass = 'bg-cyan-600 border-cyan-500 text-white'
+const chipIdleClass = 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
 </script>
 
 <template>
@@ -119,7 +136,7 @@ const { t } = useI18n()
 
       <!-- Clear filters button -->
       <button
-        v-if="props.selectedSolarSystem || props.selectedLocation || props.searchQuery"
+        v-if="props.selectedSolarSystem || props.selectedLocation || props.selectedDivision || props.searchQuery"
         @click="emit('clear-filters')"
         class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-200 text-sm flex items-center gap-2"
       >
@@ -127,6 +144,36 @@ const { t } = useI18n()
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
         {{ t('assets.clearFilters') }}
+      </button>
+    </div>
+
+    <div
+      v-if="props.viewMode === 'corporation' && props.divisions.length > 0"
+      role="group"
+      :aria-label="t('assets.divisionFilter.label')"
+      class="flex flex-wrap gap-2"
+    >
+      <button
+        type="button"
+        data-testid="division-chip"
+        :aria-pressed="props.selectedDivision === ''"
+        :class="[chipClass, props.selectedDivision === '' ? chipActiveClass : chipIdleClass]"
+        @click="emit('update:selectedDivision', '')"
+      >
+        {{ t('assets.divisionFilter.all') }}
+        <span class="font-mono text-xs opacity-70">{{ props.allDivisionsRowCount.toLocaleString() }}</span>
+      </button>
+      <button
+        v-for="division in props.divisions"
+        :key="division.name"
+        type="button"
+        data-testid="division-chip"
+        :aria-pressed="props.selectedDivision === division.name"
+        :class="[chipClass, props.selectedDivision === division.name ? chipActiveClass : chipIdleClass]"
+        @click="emit('update:selectedDivision', division.name)"
+      >
+        {{ t('assets.divisionName', { name: division.name }) }}
+        <span class="font-mono text-xs opacity-70">{{ division.rowCount.toLocaleString() }}</span>
       </button>
     </div>
   </div>
