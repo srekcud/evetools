@@ -747,6 +747,17 @@
     },
     "scanner": {
       "pivot": "Pivot",
+      "batchDiagnosis": {
+        "title": "Pourquoi rien ne correspond",
+        "scanned": "{count} produits scannés sans la marge minimale ni le volume journalier minimal.",
+        "noSalePrice": "{count} n'ont aucun prix de vente au lieu choisi (marché non synchronisé ou vide).",
+        "noMaterialPrice": "{count} ont un matériau sans prix Jita.",
+        "noDailyVolume": "{count} n'ont aucun volume journalier pour la région du lieu (synchro des volumes non lancée, ou région inconnue).",
+        "belowMargin": "{count} sont sous la marge minimale de {min} %.",
+        "belowVolume": "{count} sont sous le volume journalier minimal de {min}.",
+        "nothingScanned": "Le scan n'a renvoyé aucun produit pour cette catégorie et ce lieu, même sans la marge minimale ni le volume journalier minimal.",
+        "failed": "Le diagnostic n'a pas pu être chargé."
+      },
       "batch": {
         "title": "Scanner de Profits",
         "subtitle": "Analysez la rentabilite de tous les items fabricables. Trouvez les meilleurs items a produire.",
@@ -2076,8 +2087,26 @@
     "allSystems": "Tous les systemes",
     "location": "Emplacement",
     "allLocations": "Tous les emplacements",
+    "unknownStructure": "Structure inconnue ({system})",
+    "unknownStructureNoSystem": "Structure inconnue",
+    "unknownLocation": "Lieu inconnu ({system})",
+    "unknownLocationNoSystem": "Lieu inconnu",
+    "locationIssue": {
+      "unresolved": {
+        "badge": "Structure non résolue",
+        "tooltip": "Aucun de vos personnages ne peut lire cette structure : ESI n'en donne pas le nom."
+      },
+      "missingName": {
+        "badge": "Nom manquant",
+        "tooltip": "ESI n'a fourni aucun nom pour ce lieu : il est identifié par son système solaire."
+      }
+    },
     "syncNoAnswer": "La synchro n'a pas répondu.",
     "refreshFailed": "L'actualisation des assets a échoué.",
+    "loadFailed": "Le chargement des assets a échoué.",
+    "itemTypesCount": "{count} type d'items | {count} types d'items",
+    "itemsCount": "{count} item | {count} items",
+    "mainCharacterSuffix": "(Principal)",
     "refreshAvailableAt": "Actualisation possible à {time}",
     "syncAlreadyRunning": "Une synchro des assets de la corporation est déjà en cours",
     "syncing": "Synchronisation...",

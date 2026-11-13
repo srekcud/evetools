@@ -8,6 +8,7 @@ use App\Entity\CachedAsset;
 use App\Entity\Character;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -51,6 +52,42 @@ final class CharacterAssetsApiTest extends WebTestCase
         }
         self::assertNull($item['itemName']);
         self::assertNull($item['solarSystemName']);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function inventoryFormats(): iterable
+    {
+        yield 'json' => ['application/json'];
+        yield 'json-ld' => ['application/ld+json'];
+    }
+
+    #[Group('issue-874')]
+    #[DataProvider('inventoryFormats')]
+    public function testTheInventoryListIsServedWithoutLinkedDataKeysWhateverTheFormat(string $accept): void
+    {
+        $user = $this->createPilotOwningAnUnnamedAsset();
+
+        $this->client->loginUser($user, 'api');
+        $this->client->request(
+            'GET',
+            '/api/me/characters/' . $user->getMainCharacter()->getId()->toRfc4122() . '/assets',
+            server: ['HTTP_ACCEPT' => $accept],
+        );
+
+        self::assertResponseStatusCodeSame(200);
+        $body = json_decode((string) $this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame(['characterId', 'total', 'items'], array_keys($body));
+        self::assertSame(1, $body['total']);
+        self::assertSame(
+            [
+                'id', 'itemId', 'typeId', 'typeName', 'categoryId', 'quantity', 'locationId', 'locationName',
+                'locationType', 'locationFlag', 'solarSystemId', 'solarSystemName', 'itemName', 'divisionName',
+                'isSingleton', 'canResolveItemName', 'cachedAt',
+            ],
+            array_keys($body['items'][0]),
+        );
     }
 
     private function createPilotOwningAnUnnamedAsset(): User

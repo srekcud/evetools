@@ -18,6 +18,7 @@ final class EveConstants
     public const CORPORATION_ASSETS_SCOPE = 'esi-assets.read_corporation_assets.v1';
     public const CORPORATION_ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
     public const OFFICE_LOCATION_FLAG = 'OfficeFolder';
+    public const ASSET_SAFETY_LOCATION_FLAG = 'AssetSafety';
     public const CHARACTER_ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
     public const CELESTIAL_CATEGORY_ID = 2;
     public const SHIP_CATEGORY_ID = 6;

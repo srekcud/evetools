@@ -212,7 +212,9 @@ class AssetsService
         }
 
         if ($this->isSolarSystemRoot($container)) {
-            return $this->resolveOwnedStructure($container, $locationInfo, $itemNames);
+            $ownedStructure = $this->resolveOwnedStructure($container, $locationInfo, $itemNames);
+
+            return $ownedStructure === null ? null : ($this->assetSafetyOrigin($container, $ownedStructure) ?? $ownedStructure);
         }
 
         $current = $container;
@@ -233,10 +235,35 @@ class AssetsService
             return null;
         }
 
+        $assetSafetyOrigin = $this->assetSafetyOrigin($current, $root);
+        if ($assetSafetyOrigin !== null) {
+            $root = $assetSafetyOrigin;
+            if ($container === $current) {
+                return $root;
+            }
+        }
+
         $containerTypeId = $container['type_id'];
         $containerName = $itemNames[$containerId] ?? $typeNames[$containerTypeId] ?? UnknownTypeName::label($containerTypeId);
 
         return [...$root, 'name' => "{$containerName} — {$root['name']}"];
+    }
+
+    /**
+     * @param array<string, mixed> $topAsset
+     * @param array{name: string, solar_system_id: ?int, solar_system_name: ?string} $root
+     * @return array{name: string, solar_system_id: ?int, solar_system_name: ?string}|null
+     */
+    private function assetSafetyOrigin(array $topAsset, array $root): ?array
+    {
+        if (($topAsset['location_flag'] ?? null) !== EveConstants::ASSET_SAFETY_LOCATION_FLAG
+            || !AssetLocationLabel::isUnknownOrigin($root['name'])
+            || $root['solar_system_name'] === null
+        ) {
+            return null;
+        }
+
+        return [...$root, 'name' => AssetLocationLabel::assetSafety($root['solar_system_name'])];
     }
 
     /**
@@ -585,6 +612,15 @@ class AssetsService
                 if ($locationInfo['solar_system_id'] !== null) {
                     $locationInfo['solar_system_name'] = $systemNames[$locationInfo['solar_system_id']] ?? null;
                 }
+            }
+            unset($locationInfo);
+        }
+
+        foreach ($info as $locationId => $resolvedLocation) {
+            if (trim($resolvedLocation['name']) === '') {
+                $info[$locationId]['name'] = $locationId < self::FIRST_STRUCTURE_ID
+                    ? AssetLocationLabel::unknownStation($resolvedLocation['solar_system_name'])
+                    : AssetLocationLabel::unknownStructure($resolvedLocation['solar_system_name']);
             }
         }
 

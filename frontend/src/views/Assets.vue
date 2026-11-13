@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/assetLocation'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
@@ -122,13 +123,24 @@ const rootAssets = computed(() =>
   assets.value.filter(asset => asset.locationType !== 'item' || !existingItemIds.value.has(asset.locationId)),
 )
 
+function locationOptionLabel(locationName: string, solarSystemName: string | null): string {
+  if (isUnresolvedStructureName(locationName)) {
+    return solarSystemName
+      ? t('assets.unknownStructure', { system: solarSystemName })
+      : t('assets.unknownStructureNoSystem')
+  }
+  if (isUnresolvedLocationName(locationName)) {
+    return solarSystemName
+      ? t('assets.unknownLocation', { system: solarSystemName })
+      : t('assets.unknownLocationNoSystem')
+  }
+  return locationName
+}
+
 // Get unique locations (filtered by selected solar system)
 const locations = computed(() => {
   const locs = new Map<string, { solarSystemName: string | null }>()
   for (const asset of rootAssets.value) {
-    if (asset.locationName.startsWith('Structure #') || asset.locationName.startsWith('Location #')) {
-      continue
-    }
     if (!locs.has(asset.locationName)) {
       locs.set(asset.locationName, { solarSystemName: asset.solarSystemName })
     }
@@ -136,6 +148,7 @@ const locations = computed(() => {
 
   let result = Array.from(locs.entries()).map(([name, data]) => ({
     name,
+    label: locationOptionLabel(name, data.solarSystemName),
     solarSystemName: data.solarSystemName
   }))
 
@@ -143,7 +156,7 @@ const locations = computed(() => {
     result = result.filter(loc => loc.solarSystemName === selectedSolarSystem.value)
   }
 
-  return result.sort((a, b) => a.name.localeCompare(b.name))
+  return result.sort((a, b) => a.label.localeCompare(b.label))
 })
 
 // Build a set of all item_ids
@@ -357,7 +370,7 @@ async function fetchAssets() {
     dropFiltersMissingFromAssets()
   } catch (e) {
     if (request.signal.aborted) return
-    error.value = 'Failed to load assets'
+    error.value = t('assets.loadFailed')
     console.error(e)
   } finally {
     if (pendingAssetsRequest === request) {
@@ -430,7 +443,7 @@ watch(
       syncStore.clearSyncStatus(currentSyncType.value)
     } else if (progress.status === 'error') {
       stopSyncTimeout()
-      error.value = progress.message || 'Sync failed'
+      error.value = progress.message || t('common.errors.syncFailed')
       isRefreshing.value = false
       syncStore.clearSyncStatus(currentSyncType.value)
     } else if (progress.status === 'started' || progress.status === 'in_progress') {
@@ -464,7 +477,7 @@ async function refreshAssets() {
 
     if (!response.ok) {
       const data = await safeJsonParse<{ error?: string }>(response)
-      throw new Error(data.error || 'Failed to refresh')
+      throw new Error(data.error || t('assets.refreshFailed'))
     }
 
     const data = await safeJsonParse<{ status?: string; error?: string; nextRefreshAt?: string | null }>(response)
@@ -499,7 +512,7 @@ async function refreshAssets() {
       isRefreshing.value = false
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to refresh assets'
+    error.value = e instanceof Error ? e.message : t('assets.refreshFailed')
     isRefreshing.value = false
   }
 }

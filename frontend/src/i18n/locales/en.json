@@ -747,6 +747,17 @@
     },
     "scanner": {
       "pivot": "Pivot",
+      "batchDiagnosis": {
+        "title": "Why nothing matches",
+        "scanned": "{count} products scanned without the minimum margin and minimum daily volume.",
+        "noSalePrice": "{count} have no sell price at the selected venue (market not synced or empty).",
+        "noMaterialPrice": "{count} have a material without a Jita price.",
+        "noDailyVolume": "{count} have no daily volume for the venue region (volume sync not run, or region unknown).",
+        "belowMargin": "{count} are under the minimum margin of {min} %.",
+        "belowVolume": "{count} are under the minimum daily volume of {min}.",
+        "nothingScanned": "The scan returned no product for this category and venue, even without the minimum margin and minimum daily volume.",
+        "failed": "The diagnosis could not be loaded."
+      },
       "batch": {
         "title": "Profit Scanner",
         "subtitle": "Analyze profitability of all manufacturable items. Find the best things to build.",
@@ -2076,8 +2087,26 @@
     "allSystems": "All systems",
     "location": "Location",
     "allLocations": "All locations",
+    "unknownStructure": "Unknown structure ({system})",
+    "unknownStructureNoSystem": "Unknown structure",
+    "unknownLocation": "Unknown location ({system})",
+    "unknownLocationNoSystem": "Unknown location",
+    "locationIssue": {
+      "unresolved": {
+        "badge": "Unresolved structure",
+        "tooltip": "None of your characters can read this structure, so ESI gives no name for it."
+      },
+      "missingName": {
+        "badge": "Missing name",
+        "tooltip": "ESI gave no name for this location, so it is identified by its solar system."
+      }
+    },
     "syncNoAnswer": "The sync did not answer.",
     "refreshFailed": "The asset refresh failed.",
+    "loadFailed": "Failed to load the assets.",
+    "itemTypesCount": "{count} item type | {count} item types",
+    "itemsCount": "{count} item | {count} items",
+    "mainCharacterSuffix": "(Main)",
     "refreshAvailableAt": "Refresh available at {time}",
     "syncAlreadyRunning": "A sync of the corporation assets is already running",
     "syncing": "Syncing...",

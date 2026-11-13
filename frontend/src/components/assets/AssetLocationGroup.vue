@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import AssetItemNameResolveControl from '@/components/assets/AssetItemNameResolveControl.vue'
 import { apiRequest } from '@/services/api'
+import { locationIssue } from '@/utils/assetLocation'
 import type { Asset, ItemNameAnswer, ItemNameResolution } from '@/types'
 
 const props = defineProps<{
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const issue = computed(() => locationIssue(props.location.locationName))
 const resolutionByAssetId = ref<Record<string, ItemNameResolution>>({})
 
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -106,7 +108,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
 </script>
 
 <template>
-  <div class="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+  <div data-testid="location-group" class="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
     <!-- Location header (clickable to collapse) -->
     <div
       role="button"
@@ -129,14 +131,22 @@ async function resolveItemName(asset: Asset): Promise<void> {
           </svg>
         </div>
         <div>
-          <h3 class="font-medium text-slate-200">{{ props.location.locationName }}</h3>
+          <div class="flex items-center gap-2">
+            <h3 class="font-medium text-slate-200">{{ props.location.locationName }}</h3>
+            <span
+              v-if="issue"
+              data-testid="location-badge"
+              :title="t(`assets.locationIssue.${issue}.tooltip`)"
+              class="px-2 py-0.5 rounded-sm text-[10px] font-medium uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/30"
+            >{{ t(`assets.locationIssue.${issue}.badge`) }}</span>
+          </div>
           <div class="flex items-center gap-2">
             <span v-if="props.location.solarSystemName && !props.location.locationName.startsWith(props.location.solarSystemName)" class="text-xs text-cyan-400">{{ props.location.solarSystemName }}</span>
-            <span class="text-xs text-slate-500">{{ props.location.assets.length }} types d'items</span>
+            <span class="text-xs text-slate-500">{{ t('assets.itemTypesCount', { count: props.location.assets.length }, props.location.assets.length) }}</span>
           </div>
         </div>
       </div>
-      <span class="text-sm text-cyan-400 font-mono">{{ formatNumber(props.location.totalQuantity) }} items</span>
+      <span class="text-sm text-cyan-400 font-mono">{{ t('assets.itemsCount', { count: formatNumber(props.location.totalQuantity) }, props.location.totalQuantity) }}</span>
     </div>
 
     <!-- Items (collapsible) -->

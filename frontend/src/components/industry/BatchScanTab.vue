@@ -7,6 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
+import { diagnoseBatchScan } from '@/utils/batchScanDiagnosis'
 import type { BatchScanContractSales, BatchScanItem } from '@/stores/industry/types'
 import PriceSourceBadge from './PriceSourceBadge.vue'
 import ProductionCalculator from './ProductionCalculator.vue'
@@ -127,6 +128,24 @@ const filteredResults = computed((): BatchScanItem[] => {
   })
 
   return items
+})
+
+const scanDiagnosisLines = computed((): string[] => {
+  if (scannerStore.scanDiagnosisFailed) return [t('industry.scanner.batchDiagnosis.failed')]
+  const rows = scannerStore.scanDiagnosisRows
+  if (rows === null) return []
+
+  const diagnosis = diagnoseBatchScan(rows, scannerStore.scanFilters.minMargin, scannerStore.scanFilters.minDailyVolume)
+  if (diagnosis.scanned === 0) return [t('industry.scanner.batchDiagnosis.nothingScanned')]
+
+  const prefix = 'industry.scanner.batchDiagnosis.'
+  const lines = [t(`${prefix}scanned`, { count: diagnosis.scanned })]
+  if (diagnosis.withoutSalePrice > 0) lines.push(t(`${prefix}noSalePrice`, { count: diagnosis.withoutSalePrice }))
+  if (diagnosis.withoutMaterialPrice > 0) lines.push(t(`${prefix}noMaterialPrice`, { count: diagnosis.withoutMaterialPrice }))
+  if (diagnosis.withoutDailyVolume > 0) lines.push(t(`${prefix}noDailyVolume`, { count: diagnosis.withoutDailyVolume }))
+  if (diagnosis.belowMinMargin > 0) lines.push(t(`${prefix}belowMargin`, { count: diagnosis.belowMinMargin, min: scannerStore.scanFilters.minMargin }))
+  if (diagnosis.belowMinDailyVolume > 0) lines.push(t(`${prefix}belowVolume`, { count: diagnosis.belowMinDailyVolume, min: scannerStore.scanFilters.minDailyVolume }))
+  return lines
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredResults.value.length / PAGE_SIZE)))
@@ -895,6 +914,12 @@ onBeforeUnmount(() => {
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
       </svg>
       <p class="text-slate-500">{{ t('industry.scanner.batch.noResults') }}</p>
+      <div v-if="scanDiagnosisLines.length > 0" data-test="scan-diagnosis" class="mt-4 text-left max-w-xl mx-auto">
+        <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.scanner.batchDiagnosis.title') }}</p>
+        <ul class="space-y-1 text-sm text-amber-400">
+          <li v-for="line in scanDiagnosisLines" :key="line">{{ line }}</li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
