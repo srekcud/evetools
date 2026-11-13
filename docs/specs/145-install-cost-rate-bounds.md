@@ -6,7 +6,7 @@ Bilan de #145 sur main 663da26 :
 
 - Bornes de saisie 0 à 50 % : **en place** (spec #113, `StructureFacilityTaxValidationTest`, 422 hors bornes).
 - Conversion entité (pourcents) → noyau (fraction) : **en place** (`ConfiguredProductionStructures.php:78`, ÷ 100 ; taxe non saisie = 0 %).
-- Taxe non saisie = 0 % : **décidée** par Sylvain (commentaire de l'issue), documentée dans le glossaire ; **absente** de la doc utilisateur (`docs/user/*/`) → ajoutée dans ce lot.
+- Taxe non saisie = 0 % : **décidée** par Sylvain (commentaire de l'issue), documentée dans le glossaire ; **absente** de la doc utilisateur (`frontend/src/help/{fr,en}/playbooks/`) → ajoutée dans ce lot.
 - `InstallCost::assertRate()` (`src/Industry/Domain/InstallCost.php:67-72`) refuse un taux négatif ou non fini, **sans borne haute** : une taxe passée en pourcents (3,5) ou un indice aberrant (5,0) est accepté. **Corrigé dans ce lot.**
 - Même nom `facilityTaxRate` pour des pourcents (entité, services) et une fraction (noyau) : lot b.
 
@@ -14,7 +14,7 @@ Bilan de #145 sur main 663da26 :
 
 - **R1 — Taxe.** `InstallCost::forJob()` refuse (`\InvalidArgumentException`) une taxe d'installation hors de [0 ; 0,5] (fraction ; 0,5 = 50 %, borne de la spec #113).
 - **R2 — Cost index.** Il refuse un cost index hors de [0 ; 1] ; un indice absent (`null`) reste un coût inconnu (inchangé).
-- **R3 — Doc utilisateur.** `docs/user/fr/structures-industrielles.md` et `docs/user/en/industry-structures.md` décrivent le champ **Taxe d'installation (%)** : de 0 à 50, vide = 0 % dans les calculs, station NPC fixée à 0,25 % par le jeu.
+- **R3 — Doc utilisateur.** `frontend/src/help/fr/playbooks/industry-structures.md` et `frontend/src/help/en/playbooks/industry-structures.md` décrivent le champ **Taxe d'installation (%)** : de 0 à 50, vide = 0 % dans les calculs, station NPC fixée à 0,25 % par le jeu.
 
 ## Exemples
 

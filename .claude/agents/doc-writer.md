@@ -14,7 +14,7 @@ Tu peux créer ou modifier uniquement :
 - `README.md`, `CONTRIBUTING.md` ;
 - `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md` ;
 - `.claude/skills/*/SKILL.md` **de référence** (ex. `esi-api`), pas les skills de workflow ;
-- le guide utilisateur, dans `docs/user/`.
+- le guide utilisateur et le centre d'aide, dans `frontend/src/help/{fr,en}/<section>/<slug>.md` (sections `faq`, `playbooks`, `calculations`, `data`, `limits` ; même chemin dans les deux langues, une page sans sa jumelle fait échouer les tests).
 
 Interdits :
 - `src/`, `tests/`, `frontend/`, `config/`, `migrations/`, tout fichier de configuration ;

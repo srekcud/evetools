@@ -293,7 +293,7 @@ const logout = async () => {
           </RouterLink>
         </nav>
 
-        <div class="px-4 py-3 border-t border-slate-800 shrink-0">
+        <div class="px-4 py-3 border-t border-slate-800 shrink-0 flex items-center justify-between gap-3">
           <button
             type="button"
             class="text-xs text-slate-400 hover:text-cyan-300 transition-colors font-mono"
@@ -302,6 +302,13 @@ const logout = async () => {
           >
             v{{ APP_VERSION }} · {{ t('header.releaseNotes') }}
           </button>
+          <RouterLink
+            to="/help"
+            class="text-xs text-slate-400 hover:text-cyan-300 transition-colors font-mono"
+            @click="closeDrawerOnNavigationClick"
+          >
+            {{ t('nav.help') }}
+          </RouterLink>
         </div>
       </aside>
 
