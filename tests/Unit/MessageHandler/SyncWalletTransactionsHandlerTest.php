@@ -99,7 +99,36 @@ final class SyncWalletTransactionsHandlerTest extends TestCase
         );
     }
 
-    private function queuedCharacterIds(array $activeCharacters, array $storedReadings): array
+    public function testManualTriggerQueuesEveryCharacterWithTheWalletScopeEvenWhenNotDue(): void
+    {
+        $due = $this->characterWithScopes('0199a1f0-0000-7000-8000-000000000021', [self::WALLET_SCOPE]);
+        $notDue = $this->characterWithScopes('0199a1f0-0000-7000-8000-000000000022', [self::WALLET_SCOPE]);
+        $retryPending = $this->characterWithScopes('0199a1f0-0000-7000-8000-000000000023', [self::WALLET_SCOPE]);
+        $neverRead = $this->characterWithScopes('0199a1f0-0000-7000-8000-000000000024', [self::WALLET_SCOPE]);
+        $withoutScope = $this->characterWithScopes('0199a1f0-0000-7000-8000-000000000025', ['esi-skills.read_skills.v1']);
+        $withoutToken = $this->characterWithoutToken('0199a1f0-0000-7000-8000-000000000026');
+        $readings = [
+            $this->readingOf($due, '2026-11-13T20:03:00+00:00', '2026-11-13T21:03:00+00:00'),
+            $this->readingOf($notDue, '2026-11-13T20:30:00+00:00', '2026-11-13T21:30:00+00:00'),
+            $this->readingOf($retryPending, null, '2026-11-13T21:19:00+00:00'),
+        ];
+
+        self::assertSame(
+            [
+                $due->getId()?->toRfc4122(),
+                $notDue->getId()?->toRfc4122(),
+                $retryPending->getId()?->toRfc4122(),
+                $neverRead->getId()?->toRfc4122(),
+            ],
+            $this->queuedCharacterIds(
+                [$due, $notDue, $retryPending, $neverRead, $withoutScope, $withoutToken],
+                $readings,
+                new SyncWalletTransactions(dueOnly: false),
+            ),
+        );
+    }
+
+    private function queuedCharacterIds(array $activeCharacters, array $storedReadings, ?SyncWalletTransactions $message = null): array
     {
         $characterRepository = $this->createStub(CharacterRepository::class);
         $characterRepository->method('findActiveWithValidTokens')->willReturn($activeCharacters);
@@ -138,7 +167,7 @@ final class SyncWalletTransactionsHandlerTest extends TestCase
             new MockClock(new \DateTimeImmutable(self::NOW)),
         );
 
-        $handler(new SyncWalletTransactions());
+        $handler($message ?? new SyncWalletTransactions());
 
         return $queued;
     }

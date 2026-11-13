@@ -50,11 +50,28 @@ final class WalletReadingStateReaderTest extends TestCase
         $readings = [$this->readingOf($main, null, '2026-11-13T20:19:10+00:00')];
 
         self::assertSame(
-            [['Elin Marsk', 'never_read', null]],
-            array_map(
-                static fn (array $state): array => [$state[0], $state[1], $state[2]],
-                $this->statesOf($this->reader($readings)->forUser($user)),
-            ),
+            [['Elin Marsk', 'never_read', null, null]],
+            $this->statesOf($this->reader($readings)->forUser($user)),
+        );
+    }
+
+    public function testCharacterWhoseWalletScopeWasRevokedAfterAReadIsMissingScopeAndExposesNoDate(): void
+    {
+        $user = new User();
+        $main = $this->characterOf($user, 'Lysa Orrin', (new EveToken())->setScopes(['esi-skills.read_skills.v1']));
+        $user->setMainCharacter($main);
+        $withoutToken = $this->characterOf($user, 'Marek Tull', null);
+        $readings = [
+            $this->readingOf($main, '2026-11-13T20:04:10+00:00', '2026-11-13T21:04:00+00:00'),
+            $this->readingOf($withoutToken, '2026-11-13T19:10:00+00:00', '2026-11-13T20:10:00+00:00'),
+        ];
+
+        self::assertSame(
+            [
+                ['Lysa Orrin', 'missing_scope', null, null],
+                ['Marek Tull', 'no_token', null, null],
+            ],
+            $this->statesOf($this->reader($readings)->forUser($user)),
         );
     }
 

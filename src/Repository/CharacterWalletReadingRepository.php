@@ -19,6 +19,10 @@ class CharacterWalletReadingRepository extends ServiceEntityRepository
         parent::__construct($registry, CharacterWalletReading::class);
     }
 
+    public function record(Character $character, ?\DateTimeImmutable $readAt, \DateTimeImmutable $nextReadAt): void
+    {
+    }
+
     public function findOneByCharacter(Character $character): ?CharacterWalletReading
     {
         return $this->findOneBy(['character' => $character]);

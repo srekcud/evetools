@@ -120,6 +120,116 @@ final class CharacterWalletReadingRepositoryTest extends IntegrationTestCase
         ]);
     }
 
+    public function testRecordingTheReadingOfANeverReadCharacterThenAnotherOneKeepsASingleUpdatedRow(): void
+    {
+        $this->flushAndClear();
+        $aria = $this->em->find(Character::class, $this->ariaMain->getId());
+        $brann = $this->em->find(Character::class, $this->brannMain->getId());
+
+        $this->repository->record($brann, $this->utc('2026-11-13 19:00:00'), $this->utc('2026-11-13 20:00:00'));
+        $this->repository->record($aria, $this->utc('2026-11-13 20:04:10'), $this->utc('2026-11-13 21:04:00'));
+        $this->repository->record($aria, $this->utc('2026-11-13 20:30:00'), $this->utc('2026-11-13 21:30:00'));
+        $this->em->clear();
+
+        self::assertSame(
+            [
+                'aria' => [1, ['2026-11-13 20:30:00', '2026-11-13 21:30:00']],
+                'brann' => [1, ['2026-11-13 19:00:00', '2026-11-13 20:00:00']],
+            ],
+            [
+                'aria' => [$this->rowCountOf($this->ariaMain), $this->datesStoredFor($this->ariaMain)],
+                'brann' => [$this->rowCountOf($this->brannMain), $this->datesStoredFor($this->brannMain)],
+            ],
+        );
+    }
+
+    public function testFirstRecordWithoutReadAtThenASuccessfulOneSetsReadAt(): void
+    {
+        $this->flushAndClear();
+        $aria = $this->em->find(Character::class, $this->ariaMain->getId());
+
+        $this->repository->record($aria, null, $this->utc('2026-11-13 20:19:10'));
+        $afterFailure = $this->datesStoredFor($this->ariaMain);
+        $this->repository->record($aria, $this->utc('2026-11-13 20:30:00'), $this->utc('2026-11-13 21:30:00'));
+        $this->em->clear();
+
+        self::assertSame(
+            [[null, '2026-11-13 20:19:10'], ['2026-11-13 20:30:00', '2026-11-13 21:30:00'], 1],
+            [$afterFailure, $this->datesStoredFor($this->ariaMain), $this->rowCountOf($this->ariaMain)],
+        );
+    }
+
+    public function testRecordingAFailureKeepsTheExistingReadAt(): void
+    {
+        $this->flushAndClear();
+        $aria = $this->em->find(Character::class, $this->ariaMain->getId());
+        $this->repository->record($aria, $this->utc('2026-11-13 19:00:00'), $this->utc('2026-11-13 20:00:00'));
+
+        $this->repository->record($aria, null, $this->utc('2026-11-13 20:19:10'));
+        $this->em->clear();
+
+        self::assertSame(
+            [['2026-11-13 19:00:00', '2026-11-13 20:19:10'], 1],
+            [$this->datesStoredFor($this->ariaMain), $this->rowCountOf($this->ariaMain)],
+        );
+    }
+
+    public function testRecordingTheSameDatesTwiceIsAccepted(): void
+    {
+        $this->flushAndClear();
+        $aria = $this->em->find(Character::class, $this->ariaMain->getId());
+
+        $this->repository->record($aria, $this->utc('2026-11-13 20:04:10'), $this->utc('2026-11-13 21:04:00'));
+        $this->repository->record($aria, $this->utc('2026-11-13 20:04:10'), $this->utc('2026-11-13 21:04:00'));
+        $this->em->clear();
+
+        self::assertSame(
+            [['2026-11-13 20:04:10', '2026-11-13 21:04:00'], 1],
+            [$this->datesStoredFor($this->ariaMain), $this->rowCountOf($this->ariaMain)],
+        );
+    }
+
+    public function testRecordingIsASingleAtomicUpsertStatement(): void
+    {
+        $this->flushAndClear();
+        $aria = $this->em->find(Character::class, $this->ariaMain->getId());
+        $this->repository->record($aria, $this->utc('2026-11-13 19:00:00'), $this->utc('2026-11-13 20:00:00'));
+
+        $queries = $this->sqlExecutedDuring(function () use ($aria): void {
+            $this->repository->record($aria, $this->utc('2026-11-13 20:04:10'), $this->utc('2026-11-13 21:04:00'));
+        });
+        $readingQueries = $this->queriesMatching($queries, '/character_wallet_reading/i');
+
+        self::assertCount(1, $readingQueries, implode("\n", $queries));
+        self::assertMatchesRegularExpression('/^\s*INSERT\s+INTO\s+character_wallet_reading.*ON\s+CONFLICT\s*\(\s*character_id\s*\)\s+DO\s+UPDATE/is', $readingQueries[0]);
+    }
+
+    private function utc(string $dateTime): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable($dateTime . ' UTC');
+    }
+
+    private function rowCountOf(Character $character): int
+    {
+        return \count($this->em->getRepository(CharacterWalletReading::class)->findBy(['character' => $character->getId()]));
+    }
+
+    /**
+     * @return array{?string, string}
+     */
+    private function datesStoredFor(Character $character): array
+    {
+        $this->em->clear();
+        $reading = $this->em->getRepository(CharacterWalletReading::class)->findOneBy(['character' => $character->getId()]);
+        self::assertNotNull($reading);
+        $utc = new \DateTimeZone('UTC');
+
+        return [
+            $reading->getReadAt()?->setTimezone($utc)->format('Y-m-d H:i:s'),
+            $reading->getNextReadAt()->setTimezone($utc)->format('Y-m-d H:i:s'),
+        ];
+    }
+
     private function persistReading(Character $character, ?string $readAtUtc, string $nextReadAtUtc): void
     {
         $this->em->persist(

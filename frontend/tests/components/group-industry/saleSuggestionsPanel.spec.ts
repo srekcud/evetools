@@ -376,4 +376,44 @@ describe('SaleSuggestionsPanel wallet readings', () => {
     })
     expect(chips[0]).toContain(readSentence(refreshedReadAt, refreshedNextReadAt))
   })
+  it('says in French that the wallet is being read between the start and the completion of the reading', async () => {
+    const wrapper = await mountPanel('fr')
+    const beforeTheReading = wrapper.find('[data-testid="wallet-reading-in-progress"]').exists()
+
+    useSyncStore().syncStatus['wallet-transactions'] = walletTransactionsSync('started')
+    await flushPromises()
+    const duringTheReading = normalized(wrapper.get('[data-testid="wallet-reading-in-progress"]').text())
+
+    useSyncStore().syncStatus['wallet-transactions'] = walletTransactionsSync('completed')
+    await flushPromises()
+
+    expect({ beforeTheReading, duringTheReading, afterTheReading: wrapper.find('[data-testid="wallet-reading-in-progress"]').exists() }).toEqual({
+      beforeTheReading: false,
+      duringTheReading: 'Lecture du wallet…',
+      afterTheReading: false,
+    })
+  })
+
+  it('gives the latest next reading time when there is no suggestion and shows no wallet state while loading or in error', async () => {
+    responses.suggestions = async () => suggestionList([])
+    const wrapper = await mountPanel()
+    const hint = normalized(wrapper.get('[data-testid="wallet-reading-empty-hint"]').text())
+    const chipsWhenEmpty = walletReadingChips(wrapper).length
+
+    responses.suggestions = () => new Promise(() => undefined)
+    useSyncStore().syncStatus['wallet-transactions'] = walletTransactionsSync('completed')
+    await flushPromises()
+    const whileLoading = [walletReadingChips(wrapper).length, wrapper.find('[data-testid="wallet-reading-empty-hint"]').exists()]
+
+    responses.suggestions = async () => {
+      throw new ApiError('Service unavailable', 503)
+    }
+    useSyncStore().syncStatus['wallet-transactions'] = { ...walletTransactionsSync('completed'), timestamp: '2026-11-13T21:06:00+00:00' }
+    await flushPromises()
+    const inError = [walletReadingChips(wrapper).length, wrapper.find('[data-testid="wallet-reading-empty-hint"]').exists()]
+
+    expect(hint).toContain(clockTime(ALT_NEXT_READ_AT))
+    expect(hint.toLowerCase()).toContain('manual')
+    expect({ chipsWhenEmpty, whileLoading, inError }).toEqual({ chipsWhenEmpty: 2, whileLoading: [0, false], inError: [0, false] })
+  })
 })

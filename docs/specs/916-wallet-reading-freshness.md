@@ -82,3 +82,4 @@ ESI met `/characters/{id}/wallet/transactions` en cache 3600 s (`x-server-cache-
 ## Glossaire
 
 Ajout : **Lecture du wallet** (Wallet reading). Mise à jour : **Transaction wallet** (sync calée sur l'`Expires`).
+- D5 (revue) : la lecture s'enregistre par un upsert natif atomique (`CharacterWalletReadingRepository::record`), le service ne lit plus l'enregistrement ; un enregistrement qui échoue ne masque pas l'erreur ESI et publie `syncError` ; l'achat est lié avant la publication de `syncCompleted`.

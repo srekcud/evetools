@@ -19,6 +19,7 @@ use App\Service\Sync\WalletTransactionSyncService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -42,6 +43,11 @@ class WalletTransactionSyncServiceTest extends TestCase
 
     private array $persisted = [];
 
+    /** @var list<array{character: Character, readAt: ?\DateTimeImmutable, nextReadAt: \DateTimeImmutable}> */
+    private array $recordedReadings = [];
+
+    private ?\Throwable $recordFailure = null;
+
     protected function setUp(): void
     {
         $this->esiClient = $this->createMock(EsiClient::class);
@@ -51,6 +57,17 @@ class WalletTransactionSyncServiceTest extends TestCase
         $this->purchaseLinker = $this->createMock(AutomaticPurchaseLinker::class);
         $this->readingRepository = $this->createMock(CharacterWalletReadingRepository::class);
         $this->persisted = [];
+        $this->recordedReadings = [];
+        $this->recordFailure = null;
+        $this->readingRepository->method('record')->willReturnCallback(
+            function (Character $character, ?\DateTimeImmutable $readAt, \DateTimeImmutable $nextReadAt): void {
+                if ($this->recordFailure !== null) {
+                    throw $this->recordFailure;
+                }
+
+                $this->recordedReadings[] = ['character' => $character, 'readAt' => $readAt, 'nextReadAt' => $nextReadAt];
+            },
+        );
         $this->em->method('persist')->willReturnCallback(function (object $entity): void {
             $this->persisted[] = $entity;
         });
@@ -81,9 +98,11 @@ class WalletTransactionSyncServiceTest extends TestCase
         $this->esiClient->expects($this->never())->method('getWithExpiry');
         $this->em->expects($this->never())->method('flush');
         $this->readingRepository->expects($this->never())->method('findOneByCharacter');
-        $this->assertSame([], $this->persisted);
 
         $this->service->syncCharacterTransactions($character);
+
+        $this->assertSame([], $this->persisted);
+        $this->assertSame([], $this->recordedReadings);
     }
 
     public function testNoScopeReturnsEarly(): void
@@ -97,9 +116,11 @@ class WalletTransactionSyncServiceTest extends TestCase
         $this->esiClient->expects($this->never())->method('getWithExpiry');
         $this->em->expects($this->never())->method('flush');
         $this->readingRepository->expects($this->never())->method('findOneByCharacter');
-        $this->assertSame([], $this->persisted);
 
         $this->service->syncCharacterTransactions($character);
+
+        $this->assertSame([], $this->persisted);
+        $this->assertSame([], $this->recordedReadings);
     }
 
     // ===========================================
@@ -454,10 +475,23 @@ class WalletTransactionSyncServiceTest extends TestCase
 
         $this->service->syncCharacterTransactions($character);
 
-        $readings = $this->persistedReadings();
-        $this->assertCount(1, $readings);
-        $this->assertSame($character, $readings[0]->getCharacter());
-        $this->assertSame(['2026-11-13 20:04:10', '2026-11-13 21:04:00'], $this->datesOf($readings[0]));
+        $this->assertCount(1, $this->recordedReadings);
+        $this->assertSame($character, $this->recordedReadings[0]['character']);
+        $this->assertSame([['2026-11-13 20:04:10', '2026-11-13 21:04:00']], $this->recordedDates());
+    }
+
+    #[Group('issue-916')]
+    public function testReadingIsRecordedThroughTheRepositoryUpsertAndNeverLoadedNorPersistedAsAnEntity(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+
+        $this->esiClient->method('getWithExpiry')->willReturn($this->page([], '21:04:00'));
+        $this->readingRepository->expects($this->never())->method('findOneByCharacter');
+
+        $this->service->syncCharacterTransactions($character);
+
+        $this->assertSame([['2026-11-13 20:04:10', '2026-11-13 21:04:00']], $this->recordedDates());
+        $this->assertSame([], $this->persistedReadings());
     }
 
     #[Group('issue-916')]
@@ -471,20 +505,27 @@ class WalletTransactionSyncServiceTest extends TestCase
 
         $this->service->syncCharacterTransactions($character);
 
-        $readings = $this->persistedReadings();
-        $this->assertCount(1, $readings);
-        $this->assertSame($character, $readings[0]->getCharacter());
-        $this->assertSame(['2026-11-13 20:04:10', '2026-11-13 21:04:00'], $this->datesOf($readings[0]));
+        $this->assertCount(1, $this->recordedReadings);
+        $this->assertSame($character, $this->recordedReadings[0]['character']);
+        $this->assertSame([['2026-11-13 20:04:10', '2026-11-13 21:04:00']], $this->recordedDates());
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function expiresOfTwoPagesInReadingOrder(): iterable
+    {
+        yield 'earliest expires on the second page' => ['21:04:00', '21:03:30'];
+        yield 'earliest expires on the first page' => ['21:03:30', '21:04:00'];
     }
 
     #[Group('issue-916')]
-    public function testNextReadAtIsTheEarliestExpiresOfThePagesRead(): void
+    #[DataProvider('expiresOfTwoPagesInReadingOrder')]
+    public function testNextReadAtIsTheEarliestExpiresOfThePagesRead(string $firstPageExpires, string $secondPageExpires): void
     {
         $character = $this->createCharacterWithUser(12345);
 
         $this->esiClient->expects($this->exactly(2))->method('getWithExpiry')->willReturnOnConsecutiveCalls(
-            $this->page([$this->makeTransactionData(8101), $this->makeTransactionData(8102)], '21:04:00'),
-            $this->page([$this->makeTransactionData(8103)], '21:03:30'),
+            $this->page([$this->makeTransactionData(8101), $this->makeTransactionData(8102)], $firstPageExpires),
+            $this->page([$this->makeTransactionData(8103)], $secondPageExpires),
         );
         $this->transactionRepository->method('findExistingTransactionIds')->willReturnCallback(
             static fn (array $ids): array => in_array(8103, $ids, true) ? [8103] : [],
@@ -492,9 +533,7 @@ class WalletTransactionSyncServiceTest extends TestCase
 
         $this->service->syncCharacterTransactions($character);
 
-        $readings = $this->persistedReadings();
-        $this->assertCount(1, $readings);
-        $this->assertSame(['2026-11-13 20:04:10', '2026-11-13 21:03:30'], $this->datesOf($readings[0]));
+        $this->assertSame([['2026-11-13 20:04:10', '2026-11-13 21:03:30']], $this->recordedDates());
     }
 
     #[Group('issue-916')]
@@ -506,59 +545,37 @@ class WalletTransactionSyncServiceTest extends TestCase
 
         $this->service->syncCharacterTransactions($character);
 
-        $readings = $this->persistedReadings();
-        $this->assertCount(1, $readings);
-        $this->assertSame(['2026-11-13 20:04:10', '2026-11-13 21:04:10'], $this->datesOf($readings[0]));
+        $this->assertSame([['2026-11-13 20:04:10', '2026-11-13 21:04:10']], $this->recordedDates());
+    }
+
+    /** @return iterable<string, array{?string, ?string}> */
+    public static function expiresOfTwoPagesWithOneMissing(): iterable
+    {
+        yield 'second page without expires' => ['21:03:30', null];
+        yield 'first page without expires' => [null, '21:03:30'];
     }
 
     #[Group('issue-916')]
-    public function testSuccessfulReadUpdatesTheExistingReadingOfTheCharacterInsteadOfAddingAnother(): void
+    #[DataProvider('expiresOfTwoPagesWithOneMissing')]
+    public function testNextReadAtFallsBackToOneHourAfterTheReadWhenOnePageHasNoExpires(?string $firstPageExpires, ?string $secondPageExpires): void
     {
         $character = $this->createCharacterWithUser(12345);
-        $existing = $this->readingOf($character, '2026-11-13 19:04:05', '2026-11-13 20:04:00');
-        $this->readingRepository->method('findOneByCharacter')->willReturn($existing);
 
-        $this->esiClient->method('getWithExpiry')->willReturn($this->page([], '21:04:00'));
+        $this->esiClient->expects($this->exactly(2))->method('getWithExpiry')->willReturnOnConsecutiveCalls(
+            $this->page([$this->makeTransactionData(8111), $this->makeTransactionData(8112)], $firstPageExpires),
+            $this->page([$this->makeTransactionData(8113)], $secondPageExpires),
+        );
+        $this->transactionRepository->method('findExistingTransactionIds')->willReturnCallback(
+            static fn (array $ids): array => in_array(8113, $ids, true) ? [8113] : [],
+        );
 
         $this->service->syncCharacterTransactions($character);
 
-        $this->assertSame(['2026-11-13 20:04:10', '2026-11-13 21:04:00'], $this->datesOf($existing));
-        $this->assertSame([], array_values(array_filter(
-            $this->persistedReadings(),
-            static fn (CharacterWalletReading $reading): bool => $reading !== $existing,
-        )));
+        $this->assertSame([['2026-11-13 20:04:10', '2026-11-13 21:04:10']], $this->recordedDates());
     }
 
     #[Group('issue-916')]
-    public function testSameExpiresAsThePreviousReadIsRecordedAsIs(): void
-    {
-        $character = $this->createCharacterWithUser(12345);
-        $existing = $this->readingOf($character, '2026-11-13 20:00:00', '2026-11-13 21:04:00');
-        $this->readingRepository->method('findOneByCharacter')->willReturn($existing);
-
-        $this->esiClient->method('getWithExpiry')->willReturn($this->page([], '21:04:00'));
-
-        $this->service->syncCharacterTransactions($character);
-
-        $this->assertSame(['2026-11-13 20:04:10', '2026-11-13 21:04:00'], $this->datesOf($existing));
-    }
-
-    #[Group('issue-916')]
-    public function testFailedReadKeepsReadAtAndRetriesFifteenMinutesLater(): void
-    {
-        $character = $this->createCharacterWithUser(12345);
-        $existing = $this->readingOf($character, '2026-11-13 19:00:00', '2026-11-13 20:00:00');
-        $this->readingRepository->method('findOneByCharacter')->willReturn($existing);
-
-        $this->esiClient->method('getWithExpiry')->willThrowException(new \RuntimeException('ESI timeout'));
-
-        $this->service->syncCharacterTransactions($character);
-
-        $this->assertSame(['2026-11-13 19:00:00', '2026-11-13 20:19:10'], $this->datesOf($existing));
-    }
-
-    #[Group('issue-916')]
-    public function testFailedReadOfANeverReadCharacterRecordsAReadingWithoutReadAt(): void
+    public function testFailedReadRecordsNoReadAtAndRetriesFifteenMinutesLater(): void
     {
         $character = $this->createCharacterWithUser(12345);
 
@@ -566,18 +583,16 @@ class WalletTransactionSyncServiceTest extends TestCase
 
         $this->service->syncCharacterTransactions($character);
 
-        $readings = $this->persistedReadings();
-        $this->assertCount(1, $readings);
-        $this->assertSame($character, $readings[0]->getCharacter());
-        $this->assertSame([null, '2026-11-13 20:19:10'], $this->datesOf($readings[0]));
+        $this->assertCount(1, $this->recordedReadings);
+        $this->assertSame($character, $this->recordedReadings[0]['character']);
+        $this->assertSame([[null, '2026-11-13 20:19:10']], $this->recordedDates());
+        $this->assertSame([], $this->persistedReadings());
     }
 
     #[Group('issue-916')]
     public function testFailureOnTheSecondPageDoesNotRecordTheFirstPageAsASuccessfulRead(): void
     {
         $character = $this->createCharacterWithUser(12345);
-        $existing = $this->readingOf($character, '2026-11-13 19:00:00', '2026-11-13 20:00:00');
-        $this->readingRepository->method('findOneByCharacter')->willReturn($existing);
 
         $this->esiClient->method('getWithExpiry')->willReturnOnConsecutiveCalls(
             $this->page([$this->makeTransactionData(8201), $this->makeTransactionData(8202)], '21:04:00'),
@@ -587,7 +602,78 @@ class WalletTransactionSyncServiceTest extends TestCase
 
         $this->service->syncCharacterTransactions($character);
 
-        $this->assertSame(['2026-11-13 19:00:00', '2026-11-13 20:19:10'], $this->datesOf($existing));
+        $this->assertSame([[null, '2026-11-13 20:19:10']], $this->recordedDates());
+    }
+
+    #[Group('issue-916')]
+    public function testFailureToRecordASuccessfulReadPublishesSyncErrorAndNeverSyncCompleted(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+
+        $this->esiClient->method('getWithExpiry')->willReturn($this->page([], '21:04:00'));
+        $this->databaseGoesDown();
+        $publishedPayloads = $this->capturePublishedPayloads();
+
+        $this->runIgnoringAnyFailure($character);
+
+        $statuses = array_column($publishedPayloads->getArrayCopy(), 'status');
+        $this->assertContains('error', $statuses);
+        $this->assertNotContains('completed', $statuses);
+        $errorMessages = array_column(array_filter(
+            $publishedPayloads->getArrayCopy(),
+            static fn (array $payload): bool => $payload['status'] === 'error',
+        ), 'message');
+        $this->assertSame(['database down'], array_values($errorMessages));
+    }
+
+    #[Group('issue-916')]
+    public function testFailureToRecordTheFailedReadKeepsTheOriginalEsiErrorAndPublishesSyncError(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+
+        $this->esiClient->method('getWithExpiry')->willThrowException(new \RuntimeException('ESI timeout'));
+        $this->databaseGoesDown();
+        $publishedPayloads = $this->capturePublishedPayloads();
+
+        $propagated = $this->runIgnoringAnyFailure($character);
+
+        $errorMessages = array_column(array_filter(
+            $publishedPayloads->getArrayCopy(),
+            static fn (array $payload): bool => $payload['status'] === 'error',
+        ), 'message');
+        $this->assertSame(['ESI timeout'], array_values($errorMessages));
+        $this->assertNotContains('completed', array_column($publishedPayloads->getArrayCopy(), 'status'));
+        $this->assertTrue($propagated === null || $propagated->getMessage() === 'ESI timeout');
+    }
+
+    #[Group('issue-916')]
+    public function testNewPurchasesAreLinkedBeforeSyncCompletedIsPublished(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+
+        $this->esiClient->method('getWithExpiry')->willReturnOnConsecutiveCalls(
+            $this->page([$this->makeTransactionData(8301), $this->makeTransactionData(8302)], '21:04:00'),
+            $this->page([], '21:04:00'),
+        );
+        $this->transactionRepository->method('findExistingTransactionIds')->willReturn([]);
+
+        $events = [];
+        $this->hub->method('publish')->willReturnCallback(
+            static function (Update $update) use (&$events): string {
+                $events[] = 'mercure:' . json_decode((string) $update->getData(), true)['status'];
+
+                return 'id';
+            },
+        );
+        $this->purchaseLinker->method('linkNewPurchases')->willReturnCallback(
+            static function () use (&$events): void {
+                $events[] = 'link';
+            },
+        );
+
+        $this->service->syncCharacterTransactions($character);
+
+        $this->assertSame(['mercure:started', 'mercure:in_progress', 'link', 'mercure:completed'], $events);
     }
 
     // ===========================================
@@ -621,22 +707,51 @@ class WalletTransactionSyncServiceTest extends TestCase
         ));
     }
 
-    private function readingOf(Character $character, string $readAtUtc, string $nextReadAtUtc): CharacterWalletReading
-    {
-        return (new CharacterWalletReading())
-            ->setCharacter($character)
-            ->setReadAt(new \DateTimeImmutable($readAtUtc . ' UTC'))
-            ->setNextReadAt(new \DateTimeImmutable($nextReadAtUtc . ' UTC'));
-    }
-
-    private function datesOf(CharacterWalletReading $reading): array
+    /**
+     * @return list<array{?string, string}>
+     */
+    private function recordedDates(): array
     {
         $utc = new \DateTimeZone('UTC');
 
-        return [
-            $reading->getReadAt()?->setTimezone($utc)->format('Y-m-d H:i:s'),
-            $reading->getNextReadAt()->setTimezone($utc)->format('Y-m-d H:i:s'),
-        ];
+        return array_map(
+            static fn (array $reading): array => [
+                $reading['readAt']?->setTimezone($utc)->format('Y-m-d H:i:s'),
+                $reading['nextReadAt']->setTimezone($utc)->format('Y-m-d H:i:s'),
+            ],
+            $this->recordedReadings,
+        );
+    }
+
+    private function databaseGoesDown(): void
+    {
+        $this->recordFailure = new \RuntimeException('database down');
+        $this->em->method('flush')->willThrowException($this->recordFailure);
+    }
+
+    private function capturePublishedPayloads(): \ArrayObject
+    {
+        $publishedPayloads = new \ArrayObject();
+        $this->hub->method('publish')->willReturnCallback(
+            static function (Update $update) use ($publishedPayloads): string {
+                $publishedPayloads->append(json_decode((string) $update->getData(), true));
+
+                return 'id';
+            },
+        );
+
+        return $publishedPayloads;
+    }
+
+    private function runIgnoringAnyFailure(Character $character): ?\Throwable
+    {
+        try {
+            $this->service->syncCharacterTransactions($character);
+        } catch (\Throwable $failure) {
+            return $failure;
+        }
+
+        return null;
     }
 
     private function createCharacterWithUser(int $eveCharacterId): Character

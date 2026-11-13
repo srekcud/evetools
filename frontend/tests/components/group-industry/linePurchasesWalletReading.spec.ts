@@ -200,4 +200,37 @@ describe('LinePurchases wallet reading', () => {
     expect({ newBeforeTheReload, markedAsNew }).toEqual({ newBeforeTheReload: 0, markedAsNew: [false, true, true] })
     expect(normalized(wrapper.get(SUGGESTION_NEW).text()).toLowerCase()).toBe('new')
   })
+  it('clears the new marks when the window is closed and opened again', async () => {
+    const appears = plateSuggestion(6_400_000_203, 'Cyra Lune', 5, 1_110_000, false)
+    const wrapper = mountPurchases()
+    await openPurchases(wrapper)
+    suggestionsAnswer = answer([appears], READ_TWICE)
+    await finishWalletReading()
+    const newWhileOpen = wrapper.findAll(SUGGESTION_NEW).length
+
+    await wrapper.get('button[aria-label="Close"]').trigger('click')
+    await openPurchases(wrapper)
+
+    expect({ newWhileOpen, suggestionsShown: wrapper.findAll(SUGGESTION).length, newAfterReopening: wrapper.findAll(SUGGESTION_NEW).length }).toEqual({
+      newWhileOpen: 1,
+      suggestionsShown: 1,
+      newAfterReopening: 0,
+    })
+  })
+
+  it('does not mark as new a suggestion that was already linked before and after the reload', async () => {
+    const linkedBefore = plateSuggestion(6_400_000_301, 'Aria Solberg', 7, 1_240_000, true)
+    suggestionsAnswer = answer([linkedBefore], READ_ONCE)
+    const wrapper = mountPurchases()
+    await openPurchases(wrapper)
+
+    suggestionsAnswer = answer([linkedBefore], READ_TWICE)
+    await finishWalletReading()
+
+    expect({ suggestionsShown: wrapper.findAll(SUGGESTION).length, newMarks: wrapper.findAll(SUGGESTION_NEW).length, reads: suggestionReads() }).toEqual({
+      suggestionsShown: 1,
+      newMarks: 0,
+      reads: 2,
+    })
+  })
 })
