@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onUnmounted, watch } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { readAssetFilterQuery, readLastCharacterId, rememberLastCharacterId, writeAssetFilterQuery } from '@/utils/assetFilterQuery'
@@ -9,7 +9,8 @@ import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
 import { ApiError, apiRequest, carriesServerMessage } from '@/services/api'
 import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
-import { COLLAPSE_LOCATIONS_ROW_THRESHOLD } from '@/constants/assetsConstants'
+import { COLLAPSE_LOCATIONS_ROW_THRESHOLD, FRESHNESS_TICK_MS, SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
+import { useFormatters } from '@/composables/useFormatters'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
@@ -22,6 +23,23 @@ import AssetDistributionChart from '@/components/assets/AssetDistributionChart.v
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
 import type { Asset } from '@/types'
+
+type LocationSort = 'items' | 'name'
+
+interface DivisionCount {
+  name: string
+  count: number
+}
+
+interface LocationSummary {
+  locationId: number
+  locationName: string
+  solarSystemName: string | null
+  assets: Asset[]
+  totalQuantity: number
+  shipCount: number
+  divisions: DivisionCount[]
+}
 import { useFlash } from '@/composables/useUpdateFlash'
 import { formatEveClock } from '@/views/MiningOperation/miningOperationTime'
 
@@ -31,6 +49,7 @@ const router = useRouter()
 const { pilotName } = usePilotName()
 const authStore = useAuthStore()
 const { typeNameLabel } = useTypeNames()
+const { formatTimeSince } = useFormatters()
 const syncStore = useSyncStore()
 
 const user = computed(() => authStore.user)
@@ -55,6 +74,8 @@ const selectedSolarSystem = ref<string>(urlFilters.solarSystem)
 const selectedLocation = ref<string>(urlFilters.location)
 const expandedContainers = ref<Set<number>>(new Set())
 const collapsedLocations = ref<Set<string>>(new Set())
+const locationSort = ref<LocationSort>('items')
+const freshnessNow = ref(new Date())
 
 const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError, fetchVisibility, saveVisibility, clearVisibility } = useCorporationAssetVisibility()
 
@@ -276,15 +297,20 @@ const filteredAssets = computed(() => {
   return result
 })
 
-// Group assets by location
+function compareDivisions(a: DivisionCount, b: DivisionCount): number {
+  return b.count - a.count || a.name.localeCompare(b.name)
+}
+
+function compareLocations(a: LocationSummary, b: LocationSummary): number {
+  if (locationSort.value === 'items') {
+    return b.totalQuantity - a.totalQuantity || a.locationName.localeCompare(b.locationName)
+  }
+  return a.locationName.localeCompare(b.locationName)
+}
+
 const assetsByLocation = computed(() => {
-  const grouped: Record<string, {
-    locationId: number
-    locationName: string
-    solarSystemName: string | null
-    assets: Asset[]
-    totalQuantity: number
-  }> = {}
+  const grouped: Record<string, LocationSummary> = {}
+  const divisionCounts: Record<string, Map<string, number>> = {}
 
   for (const asset of filteredAssets.value) {
     if (asset.locationType === 'item' && existingItemIds.value.has(asset.locationId)) {
@@ -298,21 +324,74 @@ const assetsByLocation = computed(() => {
         locationName: key,
         solarSystemName: asset.solarSystemName,
         assets: [],
-        totalQuantity: 0
+        totalQuantity: 0,
+        shipCount: 0,
+        divisions: [],
       }
+      divisionCounts[key] = new Map()
     }
-    grouped[key].assets.push(asset)
-    grouped[key].totalQuantity += asset.quantity
 
+    let quantity = asset.quantity
     if (isContainer(asset)) {
       for (const item of getContainerContents(asset)) {
-        grouped[key].totalQuantity += item.quantity
+        quantity += item.quantity
       }
+    }
+
+    grouped[key].assets.push(asset)
+    grouped[key].totalQuantity += quantity
+    if (asset.categoryId === SHIP_CATEGORY_ID && asset.isSingleton === true) {
+      grouped[key].shipCount += asset.quantity
+    }
+    if (asset.divisionName !== null) {
+      const known = divisionCounts[key].get(asset.divisionName)
+      divisionCounts[key].set(asset.divisionName, known === undefined ? quantity : known + quantity)
     }
   }
 
-  return Object.values(grouped).sort((a, b) => a.locationName.localeCompare(b.locationName))
+  for (const [key, counts] of Object.entries(divisionCounts)) {
+    grouped[key].divisions = Array.from(counts, ([name, count]) => ({ name, count })).sort(compareDivisions)
+  }
+
+  return Object.values(grouped).sort(compareLocations)
 })
+
+const largestLocationQuantity = computed(() =>
+  assetsByLocation.value.reduce((largest, location) => Math.max(largest, location.totalQuantity), 0),
+)
+
+const lastSyncedAt = computed(() => {
+  let newest: string | null = null
+  for (const asset of assets.value) {
+    if (newest === null || Date.parse(asset.cachedAt) > Date.parse(newest)) {
+      newest = asset.cachedAt
+    }
+  }
+  return newest
+})
+
+const freshnessLabel = computed(() =>
+  lastSyncedAt.value === null
+    ? null
+    : t('assets.syncedAt', { time: formatTimeSince(lastSyncedAt.value, freshnessNow.value) }),
+)
+
+let freshnessIntervalId: ReturnType<typeof setInterval> | null = null
+
+function startFreshnessClock() {
+  freshnessIntervalId = setInterval(() => {
+    freshnessNow.value = new Date()
+  }, FRESHNESS_TICK_MS)
+}
+
+function stopFreshnessClock() {
+  if (freshnessIntervalId === null) return
+  clearInterval(freshnessIntervalId)
+  freshnessIntervalId = null
+}
+
+onMounted(startFreshnessClock)
+onUnmounted(stopFreshnessClock)
 
 function revealSearchMatches() {
   const query = normalizedSearchQuery.value
@@ -401,6 +480,7 @@ async function fetchAssets() {
     assets.value = data.items || []
     nextRefreshAt.value = isCorporationRequest ? (data.nextRefreshAt ?? null) : null
     hasLoadedCurrentOwner.value = true
+    freshnessNow.value = new Date()
     dropFiltersMissingFromAssets()
     if (!isReload) {
       collapseLocationsOfLargeInventory()
@@ -625,7 +705,10 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
       <div class="space-y-6">
         <!-- Action bar -->
         <div class="flex items-center justify-between">
-          <p class="text-slate-400">{{ t('assets.subtitle') }}</p>
+          <div>
+            <p class="text-slate-400">{{ t('assets.subtitle') }}</p>
+            <p v-if="freshnessLabel" data-testid="assets-freshness" class="text-xs text-slate-500">{{ freshnessLabel }}</p>
+          </div>
           <button
             @click="refreshAssets"
             :disabled="isRefreshing || isLoading || refreshBlockedUntil !== null"
@@ -781,6 +864,18 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
 
           <!-- Assets by location -->
           <div v-else class="relative rounded-xl space-y-4" :class="{ 'hud-updated': assetsUpdated }">
+            <div class="flex items-center justify-end gap-2">
+              <label for="assets-location-sort" class="text-xs text-slate-500">{{ t('assets.sort.label') }}</label>
+              <select
+                id="assets-location-sort"
+                v-model="locationSort"
+                data-testid="location-sort"
+                class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200"
+              >
+                <option value="items">{{ t('assets.sort.items') }}</option>
+                <option value="name">{{ t('assets.sort.name') }}</option>
+              </select>
+            </div>
             <AssetLocationGroup
               v-for="location in assetsByLocation"
               :key="location.locationName"
@@ -788,6 +883,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
               :expanded-containers="expandedContainers"
               :collapsed-locations="collapsedLocations"
               :container-contents="visibleContainerContents"
+              :max-quantity="largestLocationQuantity"
               @toggle-container="toggleContainer"
               @toggle-location="toggleLocation"
               @item-name-resolved="applyResolvedItemName"

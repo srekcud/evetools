@@ -2106,6 +2106,13 @@
     "loadFailed": "Failed to load the assets.",
     "itemTypesCount": "{count} item type | {count} item types",
     "itemsCount": "{count} item | {count} items",
+    "shipsCount": "{count} ship | {count} ships",
+    "syncedAt": "Synced {time}",
+    "sort": {
+      "label": "Sort locations",
+      "items": "Item count",
+      "name": "Name"
+    },
     "mainCharacterSuffix": "(Main)",
     "refreshAvailableAt": "Refresh available at {time}",
     "syncAlreadyRunning": "A sync of the corporation assets is already running",
