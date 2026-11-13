@@ -54,10 +54,11 @@ function shownNames(wrapper: VueWrapper): string[] {
 }
 
 async function mountBatchScan(): Promise<VueWrapper> {
+  const scannedProducts = [BURST, SLASHER_WITH_UNKNOWN_MARGIN, RIFTER]
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) =>
-    endpoint === '/me/settings' ? { preferredMarketStructureId: null, preferredMarketStructureName: null, marketStructures: [] } : [],
+    endpoint === '/me/settings' ? { preferredMarketStructureId: null, preferredMarketStructureName: null, marketStructures: [] } : scannedProducts,
   )
-  useScannerStore().scanResults = [BURST, SLASHER_WITH_UNKNOWN_MARGIN, RIFTER]
+  useScannerStore().scanResults = scannedProducts
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   const wrapper = mount(BatchScanTab, {
     global: { plugins: [i18n], stubs: { ProductionCalculator: true } },

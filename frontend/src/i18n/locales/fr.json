@@ -747,6 +747,17 @@
     },
     "scanner": {
       "pivot": "Pivot",
+      "batchDiagnosis": {
+        "title": "Pourquoi rien ne correspond",
+        "scanned": "{count} produits scannés sans la marge minimale ni le volume journalier minimal.",
+        "noSalePrice": "{count} n'ont aucun prix de vente au lieu choisi (marché non synchronisé ou vide).",
+        "noMaterialPrice": "{count} ont un matériau sans prix Jita.",
+        "noDailyVolume": "{count} n'ont aucun volume journalier pour la région du lieu (synchro des volumes non lancée, ou région inconnue).",
+        "belowMargin": "{count} sont sous la marge minimale de {min} %.",
+        "belowVolume": "{count} sont sous le volume journalier minimal de {min}.",
+        "nothingScanned": "Le scan n'a renvoyé aucun produit pour cette catégorie et ce lieu, même sans la marge minimale ni le volume journalier minimal.",
+        "failed": "Le diagnostic n'a pas pu être chargé."
+      },
       "batch": {
         "title": "Scanner de Profits",
         "subtitle": "Analysez la rentabilite de tous les items fabricables. Trouvez les meilleurs items a produire.",

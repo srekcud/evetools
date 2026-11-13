@@ -17,6 +17,8 @@ export const useScannerStore = defineStore('industry-scanner', () => {
   const scanLoading = ref(false)
   const scanError = ref<string | null>(null)
   const lastScanAt = ref<Date | null>(null)
+  const scanDiagnosisRows = ref<BatchScanItem[] | null>(null)
+  const scanDiagnosisFailed = ref(false)
   const scanFilters = ref<ScanFilters>({
     category: 'all',
     minMargin: null,
@@ -47,31 +49,53 @@ export const useScannerStore = defineStore('industry-scanner', () => {
   let latestBuyVsBuildRequestId = 0
   let latestPivotRequestId = 0
 
+  function scanUrl(filters: ScanFilters, withMinimums: boolean): string {
+    const params = new URLSearchParams()
+    if (filters.category && filters.category !== 'all') params.set('category', filters.category)
+    if (withMinimums && filters.minMargin != null) params.set('minMargin', String(filters.minMargin))
+    if (withMinimums && filters.minDailyVolume != null) params.set('minDailyVolume', String(filters.minDailyVolume))
+    if (filters.sellVenue) params.set('sellVenue', filters.sellVenue)
+    if (filters.structureId != null) params.set('structureId', String(filters.structureId))
+
+    const query = params.toString()
+    return `/industry/profit-scan${query ? `?${query}` : ''}`
+  }
+
+  async function diagnoseEmptyScan(requestId: number, filters: ScanFilters): Promise<void> {
+    if (filters.minMargin == null && filters.minDailyVolume == null) {
+      scanDiagnosisRows.value = []
+      return
+    }
+
+    try {
+      const rows = await apiRequest<BatchScanItem[]>(scanUrl(filters, false))
+      if (requestId !== latestScanRequestId) return
+      scanDiagnosisRows.value = rows
+    } catch {
+      if (requestId !== latestScanRequestId) return
+      scanDiagnosisFailed.value = true
+    }
+  }
+
   async function fetchBatchScan(filters?: Partial<ScanFilters>): Promise<void> {
     const requestId = ++latestScanRequestId
     scanLoading.value = true
     scanError.value = null
+    scanDiagnosisRows.value = null
+    scanDiagnosisFailed.value = false
 
     if (filters) {
       Object.assign(scanFilters.value, filters)
     }
 
     try {
-      const params = new URLSearchParams()
-      const f = scanFilters.value
-      if (f.category && f.category !== 'all') params.set('category', f.category)
-      if (f.minMargin != null) params.set('minMargin', String(f.minMargin))
-      if (f.minDailyVolume != null) params.set('minDailyVolume', String(f.minDailyVolume))
-      if (f.sellVenue) params.set('sellVenue', f.sellVenue)
-      if (f.structureId != null) params.set('structureId', String(f.structureId))
-
-      const query = params.toString()
-      const url = `/industry/profit-scan${query ? `?${query}` : ''}`
-
-      const data = await apiRequest<BatchScanItem[]>(url)
+      const data = await apiRequest<BatchScanItem[]>(scanUrl(scanFilters.value, true))
       if (requestId !== latestScanRequestId) return
       scanResults.value = data
       lastScanAt.value = new Date()
+      if (data.length === 0) {
+        await diagnoseEmptyScan(requestId, scanFilters.value)
+      }
     } catch (e) {
       if (requestId !== latestScanRequestId) return
       scanResults.value = []
@@ -232,6 +256,8 @@ export const useScannerStore = defineStore('industry-scanner', () => {
     scanError,
     lastScanAt,
     scanFilters,
+    scanDiagnosisRows,
+    scanDiagnosisFailed,
     fetchBatchScan,
 
     // BPC prices
