@@ -47,6 +47,14 @@ const overallFulfillment = computed(() => {
   return project === null ? null : Math.round(project.fulfillmentPercent)
 })
 
+const MAX_UNFILLED_LINE_PERCENT = 99
+
+function lineFulfillmentLabel(item: BomItem): string {
+  const rounded = Math.round(item.fulfillmentPercent)
+  const displayed = item.isFulfilled ? rounded : Math.min(rounded, MAX_UNFILLED_LINE_PERCENT)
+  return `${displayed}%`
+}
+
 const RING_RADIUS = 16
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
 
@@ -212,8 +220,8 @@ function ringStrokeColor(percent: number): string {
                       :style="{ width: Math.min(item.fulfillmentPercent, 100) + '%' }"
                     ></div>
                   </div>
-                  <span class="text-xs font-mono w-8 text-right" :class="percentTextClass(item.fulfillmentPercent)">
-                    {{ item.fulfillmentPercent }}%
+                  <span data-testid="line-fulfillment-percent" class="text-xs font-mono min-w-8 shrink-0 text-right whitespace-nowrap" :class="percentTextClass(item.fulfillmentPercent)">
+                    {{ lineFulfillmentLabel(item) }}
                   </span>
                   <!-- Lock icon for fully fulfilled -->
                   <svg
