@@ -13,6 +13,7 @@ import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
 import { COLLAPSE_LOCATIONS_ROW_THRESHOLD, FRESHNESS_TICK_MS, SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
 import { useFormatters } from '@/composables/useFormatters'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { useAssetChanges } from '@/composables/useAssetChanges'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { filterTypeGroups, groupAssetsByType } from '@/utils/assetsByType'
 import { summarizeSelection } from '@/utils/assetSelection'
@@ -24,6 +25,7 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
 import AssetSafetyBlock from '@/components/assets/AssetSafetyBlock.vue'
+import AssetChangesPanel from '@/components/assets/AssetChangesPanel.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
 import AssetTypeView from '@/components/assets/AssetTypeView.vue'
 import AssetSelectionBar from '@/components/assets/AssetSelectionBar.vue'
@@ -621,8 +623,15 @@ async function openPinnedContainer(itemId: number) {
   document.querySelector(`[data-asset-item-id="${itemId}"]`)?.scrollIntoView?.({ block: 'center' })
 }
 
+const changesEndpoint = computed(() => {
+  if (isCorpView.value) return '/me/corporation/assets/changes'
+  return selectedCharacterId.value ? `/me/characters/${selectedCharacterId.value}/assets/changes` : null
+})
+const { changes: assetChanges, hasError: assetChangesFailed, load: loadAssetChanges } = useAssetChanges(changesEndpoint)
+
 async function onSaveVisibility(payload: CorporationVisibilityPayload) {
   if (await saveVisibility(payload)) {
+    void loadAssetChanges()
     await fetchAssets()
   } else {
     error.value = visibilitySaveError.value
@@ -677,6 +686,7 @@ watch(
     if (progress.status === 'completed') {
       stopSyncTimeout()
       fetchAssets().then(flashAssets)
+      void loadAssetChanges()
       isRefreshing.value = false
       syncStore.clearSyncStatus(currentSyncType.value)
     } else if (progress.status === 'error') {
@@ -940,6 +950,8 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             :locations="assetSafetyLocations"
             @show-content="showAssetSafetyContent"
           />
+
+          <AssetChangesPanel :changes="assetChanges" :error="assetChangesFailed" />
 
           <!-- Stats -->
           <AssetsStatsCards

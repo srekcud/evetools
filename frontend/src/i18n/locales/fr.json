@@ -2185,6 +2185,14 @@
       "reminder": "Ces items restent verrouillés tant que le pilote n'a pas demandé leur livraison en jeu.",
       "showContent": "Afficher le contenu"
     },
+    "changes": {
+      "title": "Changements depuis la sync précédente",
+      "interval": "{from} → {to}",
+      "added": "+{count} ajoutés",
+      "removed": "−{count} retirés",
+      "empty": "Aucun changement enregistré entre les deux dernières syncs",
+      "loadFailed": "Impossible de lire les changements depuis la sync précédente."
+    },
     "syncInProgress": "Synchronisation en cours",
     "syncDescription": "Vos assets sont en cours de synchronisation depuis l'ESI...",
     "refreshFromEve": "Rafraichir depuis EVE",

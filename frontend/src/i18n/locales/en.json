@@ -2185,6 +2185,14 @@
       "reminder": "These items stay locked until the pilot requests their delivery in game.",
       "showContent": "Show content"
     },
+    "changes": {
+      "title": "Changes since the previous sync",
+      "interval": "{from} → {to}",
+      "added": "+{count} added",
+      "removed": "−{count} removed",
+      "empty": "No change recorded between the last two syncs",
+      "loadFailed": "Could not read the changes since the previous sync."
+    },
     "syncInProgress": "Sync in progress",
     "syncDescription": "Your assets are being synced from ESI...",
     "refreshFromEve": "Refresh from EVE",
