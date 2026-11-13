@@ -5,6 +5,8 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { formatEft, groupAssembledShips } from '@/utils/shipFit'
 import type { ShipGroup } from '@/utils/shipFit'
+import AssetVolumeBadge from '@/components/assets/AssetVolumeBadge.vue'
+import { summarizeVolume, type PackagedVolumeCatalog } from '@/utils/assetVolume'
 import type { Asset } from '@/types'
 
 const COLLAPSED_GROUP_LIMIT = 8
@@ -13,6 +15,7 @@ const COPY_FEEDBACK_DURATION_MS = 2000
 const props = defineProps<{
   ships: Asset[]
   contentsOf: (itemId: number) => Asset[]
+  packagedVolumes?: PackagedVolumeCatalog | null
 }>()
 
 const { t } = useI18n()
@@ -41,6 +44,10 @@ function groupTitle(group: ShipGroup): string {
   const name = group.representative.itemName
   const count = group.ships.length
   return name !== null && name !== '' ? `${hull} · ${name} ×${count}` : `${hull} ×${count}`
+}
+
+function groupVolume(group: ShipGroup) {
+  return props.packagedVolumes ? summarizeVolume(group.ships, props.contentsOf, props.packagedVolumes) : null
 }
 
 function toggleGroup(key: string): void {
@@ -122,6 +129,12 @@ onBeforeUnmount(() => {
             class="px-2 py-0.5 rounded-sm text-xs font-medium uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/30"
           >{{ t('assets.shipGroups.badFit') }}</span>
         </div>
+        <AssetVolumeBadge
+          v-if="groupVolume(group)"
+          :volume="groupVolume(group)!"
+          test-id="ship-group-volume"
+          class="ml-auto shrink-0"
+        />
         <button
           type="button"
           data-testid="ship-group-copy-eft"

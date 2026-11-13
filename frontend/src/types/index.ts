@@ -39,6 +39,13 @@ export interface Asset {
   cachedAt: string
 }
 
+export interface PackagedVolumesAnswer {
+  id: string
+  volumes: Record<string, number>
+  excludedTypeIds: number[]
+  refreshedAt: string | null
+}
+
 export interface PinnedContainer {
   id: string
   itemId: number | null

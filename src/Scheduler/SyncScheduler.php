@@ -17,6 +17,7 @@ use App\Message\SyncBlueprints;
 use App\Message\SyncCharacterOrders;
 use App\Message\SyncRegionalMarketVolumes;
 use App\Message\SyncCostIndices;
+use App\Message\SyncPackagedVolumes;
 use App\Message\SyncPublicContracts;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerCorporationMiningExtractionsSync;
@@ -148,6 +149,9 @@ class SyncScheduler implements ScheduleProviderInterface
             )
             ->add(
                 self::everyViaAsync('24 hours', new CheckSdeBuild())
+            )
+            ->add(
+                self::everyViaAsync('7 days', new SyncPackagedVolumes())
             );
     }
 

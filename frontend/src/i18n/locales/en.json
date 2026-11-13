@@ -2141,11 +2141,30 @@
       "clear": "Clear",
       "unknownTypes": "{count} type without a name is left out of the multibuy | {count} types without a name are left out of the multibuy"
     },
+    "volume": {
+      "label": "Packaged volume",
+      "amount": "{amount} m³",
+      "unknownTypes": "{count} type without volume | {count} types without volume",
+      "notLoaded": "Packaged volumes are not loaded yet. They are refreshed once a week."
+    },
+    "courier": {
+      "open": "Courier contract",
+      "title": "Courier contract draft",
+      "from": "From",
+      "volume": "Packaged volume",
+      "unknownTypes": "Types without volume, not counted",
+      "hint": "Create the contract in game and paste the volume. Collateral and reward are yours to set.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyFailed": "Copy failed",
+      "close": "Close"
+    },
     "syncedAt": "Synced {time}",
     "sort": {
       "label": "Sort locations",
       "items": "Item count",
-      "name": "Name"
+      "name": "Name",
+      "volume": "Packaged volume"
     },
     "mainCharacterSuffix": "(Main)",
     "refreshAvailableAt": "Refresh available at {time}",
@@ -2544,6 +2563,7 @@
         "market-history-purge": "Market history purge",
         "shared-lists-purge": "Shared lists purge",
         "sde-build": "SDE build check",
+        "packaged-volumes": "Packaged volumes",
         "assets": "Assets",
         "corporation-assets": "Corporation assets",
         "market-alerts": "Market alerts"

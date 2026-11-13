@@ -30,4 +30,5 @@ final class EveConstants
     public const SECURE_CARGO_CONTAINER_GROUP_ID = 340;
     public const AUDIT_LOG_SECURE_CONTAINER_GROUP_ID = 448;
     public const FREIGHT_CONTAINER_GROUP_ID = 649;
+    public const STATION_CONTAINER_TYPE_IDS = [17366, 17367, 17368];
 }

@@ -2141,11 +2141,30 @@
       "clear": "Effacer",
       "unknownTypes": "{count} type sans nom est exclu du multibuy | {count} types sans nom sont exclus du multibuy"
     },
+    "volume": {
+      "label": "Volume reconditionné",
+      "amount": "{amount} m³",
+      "unknownTypes": "{count} type sans volume | {count} types sans volume",
+      "notLoaded": "Les volumes reconditionnés ne sont pas encore chargés. Ils sont mis à jour une fois par semaine."
+    },
+    "courier": {
+      "open": "Contrat de courrier",
+      "title": "Brouillon de contrat de courrier",
+      "from": "Depuis",
+      "volume": "Volume reconditionné",
+      "unknownTypes": "Types sans volume, non comptés",
+      "hint": "Crée le contrat en jeu et colle le volume. Caution et récompense sont à ta main.",
+      "copy": "Copier",
+      "copied": "Copié",
+      "copyFailed": "Échec de la copie",
+      "close": "Fermer"
+    },
     "syncedAt": "Synchronisé {time}",
     "sort": {
       "label": "Trier les emplacements",
       "items": "Nombre d'items",
-      "name": "Nom"
+      "name": "Nom",
+      "volume": "Volume reconditionné"
     },
     "mainCharacterSuffix": "(Principal)",
     "refreshAvailableAt": "Actualisation possible à {time}",
@@ -2544,6 +2563,7 @@
         "market-history-purge": "Purge de l'historique de marche",
         "shared-lists-purge": "Purge des listes partagees",
         "sde-build": "Vérification de la build SDE",
+        "packaged-volumes": "Volumes reconditionnés",
         "assets": "Assets",
         "corporation-assets": "Assets de corporation",
         "market-alerts": "Alertes de marche"

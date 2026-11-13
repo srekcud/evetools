@@ -16,6 +16,7 @@ use App\Message\SyncAdjustedPrices;
 use App\Message\SyncBlueprints;
 use App\Message\SyncCharacterOrders;
 use App\Message\SyncCostIndices;
+use App\Message\SyncPackagedVolumes;
 use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
 use App\Message\SyncRegionalMarketVolumes;
@@ -74,6 +75,7 @@ class SyncSchedulerIntervalsTest extends TestCase
         CheckMoonChunkAlerts::class => 'moon-chunk-alerts',
         CheckMiningSiteDepletionAlerts::class => 'mining-site-depletion-alerts',
         CheckSdeBuild::class => 'sde-build',
+        SyncPackagedVolumes::class => 'packaged-volumes',
         PurgeOldNotifications::class => 'notifications-purge',
         PurgeOldMarketHistory::class => 'market-history-purge',
         PurgeExpiredSharedLists::class => 'shared-lists-purge',
@@ -92,6 +94,8 @@ class SyncSchedulerIntervalsTest extends TestCase
     private const ONE_HOUR_IN_SECONDS = 3600;
 
     private const ONE_DAY_IN_SECONDS = 86400;
+
+    private const ONE_WEEK_IN_SECONDS = 604800;
 
     public function testEveryScheduledSyncIsTrackedWithTheSameIntervalAndNothingElseIsTracked(): void
     {
@@ -127,6 +131,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'moon-chunk-alerts' => 300,
             'moon-tax' => 3600,
             'notifications-purge' => 86400,
+            'packaged-volumes' => 604800,
             'planetary' => 1800,
             'public-contracts' => 1800,
             'pve' => 3600,
@@ -201,6 +206,15 @@ class SyncSchedulerIntervalsTest extends TestCase
         $this->assertSame(
             self::ONE_DAY_IN_SECONDS,
             $this->scheduledIntervalsByMessageClass()[CheckSdeBuild::class] ?? null,
+        );
+    }
+
+    #[Group('issue-890')]
+    public function testPackagedVolumesAreRefreshedEveryWeek(): void
+    {
+        $this->assertSame(
+            self::ONE_WEEK_IN_SECONDS,
+            $this->scheduledIntervalsByMessageClass()[SyncPackagedVolumes::class] ?? null,
         );
     }
 
