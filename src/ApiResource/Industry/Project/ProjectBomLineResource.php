@@ -65,6 +65,8 @@ class ProjectBomLineResource
 
     public ?string $activityType = null;
 
+    public ?string $blueprintName = null;
+
     public ?int $parentTypeId = null;
 
     public ?int $meLevel = null;
