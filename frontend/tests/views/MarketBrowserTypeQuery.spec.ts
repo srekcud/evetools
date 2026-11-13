@@ -41,6 +41,7 @@ function typeDetail(typeId: number, typeName: string, jitaSell: number, jitaBuy:
     structureSell: null,
     structureBuy: null,
     structureName: null,
+    structurePrices: [],
     hasPreferredStructure: false,
     avgDailyVolume: null,
     change30d: null,

@@ -80,6 +80,8 @@ class MarketTypeDetailProvider implements ProviderInterface
             $resource->structureBuyOrders = $this->structureMarketService->getBuyOrders($structureId, $typeId);
         }
 
+        $resource->structurePrices = $this->structurePrices($user, $typeId);
+
         // Volume and price change from history
         $volumes = $this->jitaMarketService->getAverageDailyVolumes([$typeId]);
         $resource->avgDailyVolume = $volumes[$typeId] ?? null;
@@ -90,5 +92,33 @@ class MarketTypeDetailProvider implements ProviderInterface
         $resource->isFavorite = $favorite !== null;
 
         return $resource;
+    }
+
+    /**
+     * @return list<array{structureId: int, structureName: string, sell: ?float, buy: ?float}>
+     */
+    private function structurePrices(User $user, int $typeId): array
+    {
+        $structureNames = [];
+        $preferredStructureId = $user->getPreferredMarketStructureId();
+        if ($preferredStructureId !== null) {
+            $structureNames[$preferredStructureId] = $user->getPreferredMarketStructureName() ?? 'Structure ' . $preferredStructureId;
+        }
+
+        foreach ($user->getMarketStructures() as $followedStructure) {
+            $structureNames[$followedStructure['id']] ??= $followedStructure['name'];
+        }
+
+        $structurePrices = [];
+        foreach ($structureNames as $structureId => $structureName) {
+            $structurePrices[] = [
+                'structureId' => $structureId,
+                'structureName' => $structureName,
+                'sell' => $this->structureMarketService->getLowestSellPrice($structureId, $typeId),
+                'buy' => $this->structureMarketService->getHighestBuyPrice($structureId, $typeId),
+            ];
+        }
+
+        return $structurePrices;
     }
 }

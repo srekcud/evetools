@@ -29,10 +29,18 @@ export interface MarketTypeDetail {
   structureSell: number | null
   structureBuy: number | null
   structureName: string | null
+  structurePrices: StructurePrice[]
   hasPreferredStructure: boolean
   avgDailyVolume: number | null
   change30d: number | null
   isFavorite: boolean
+}
+
+export interface StructurePrice {
+  structureId: number
+  structureName: string
+  sell: number | null
+  buy: number | null
 }
 
 export interface MarketOrder {
@@ -69,6 +77,8 @@ export interface MarketAlert {
   direction: 'above' | 'below'
   threshold: number
   priceSource: string
+  structureId: number | null
+  structureName: string | null
   status: 'active' | 'triggered' | 'expired'
   currentPrice: number | null
   triggeredAt: string | null
@@ -81,6 +91,7 @@ export interface CreateAlertInput {
   direction: 'above' | 'below'
   threshold: number
   priceSource: string
+  structureId?: number
 }
 
 export interface UpdateAlertInput {

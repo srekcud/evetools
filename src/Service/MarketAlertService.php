@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Entity\MarketPriceAlert;
 use App\Entity\Notification;
-use App\Entity\User;
 use App\Enum\AlertDirection;
 use App\Enum\AlertPriceSource;
 use App\Enum\AlertStatus;
@@ -55,7 +54,7 @@ class MarketAlertService
         $buyPrices = $this->jitaMarketService->getBuyPricesWithFallback($typeIds);
 
         // Batch-load structure prices per user (only for users with structure alerts)
-        $structurePricesByUser = $this->loadStructurePrices($alerts);
+        $structurePricesByStructure = $this->loadStructurePrices($alerts);
 
         $triggered = 0;
         $changed = false;
@@ -66,7 +65,7 @@ class MarketAlertService
                 $alert,
                 $sellPrices,
                 $buyPrices,
-                $structurePricesByUser[$userId] ?? null,
+                $alert->getStructureId() === null ? null : ($structurePricesByStructure[$alert->getStructureId()] ?? null),
             );
 
             if ($currentPrice === null) {
@@ -175,44 +174,27 @@ class MarketAlertService
      * Load structure prices grouped by user ID, only for users that have structure-based alerts.
      *
      * @param MarketPriceAlert[] $alerts
-     * @return array<string, array{sell: array<int, float|null>, buy: array<int, float|null>}>
+     * @return array<int, array{sell: array<int, float|null>, buy: array<int, float|null>}>
      */
     private function loadStructurePrices(array $alerts): array
     {
-        // Group structure alerts by user
-        /** @var array<string, array{user: User, typeIds: int[]}> $byUser */
-        $byUser = [];
+        /** @var array<int, int[]> $typeIdsByStructure */
+        $typeIdsByStructure = [];
 
         foreach ($alerts as $alert) {
-            if (!in_array($alert->getPriceSource(), [AlertPriceSource::StructureSell, AlertPriceSource::StructureBuy], true)) {
+            $structureId = $alert->getStructureId();
+            if ($structureId === null || !in_array($alert->getPriceSource(), [AlertPriceSource::StructureSell, AlertPriceSource::StructureBuy], true)) {
                 continue;
             }
 
-            $userId = $alert->getUser()->getId()?->toRfc4122() ?? '';
-            if ($userId === '') {
-                continue;
-            }
-
-            if (!isset($byUser[$userId])) {
-                $byUser[$userId] = ['user' => $alert->getUser(), 'typeIds' => []];
-            }
-            $byUser[$userId]['typeIds'][] = $alert->getTypeId();
-        }
-
-        if (empty($byUser)) {
-            return [];
+            $typeIdsByStructure[$structureId][] = $alert->getTypeId();
         }
 
         $result = [];
 
-        foreach ($byUser as $userId => $data) {
-            $structureId = $data['user']->getPreferredMarketStructureId();
-            if ($structureId === null) {
-                continue;
-            }
-
-            $uniqueTypeIds = array_values(array_unique($data['typeIds']));
-            $result[$userId] = [
+        foreach ($typeIdsByStructure as $structureId => $typeIds) {
+            $uniqueTypeIds = array_values(array_unique($typeIds));
+            $result[$structureId] = [
                 'sell' => $this->structureMarketService->getLowestSellPrices($structureId, $uniqueTypeIds),
                 'buy' => $this->structureMarketService->getHighestBuyPrices($structureId, $uniqueTypeIds),
             ];

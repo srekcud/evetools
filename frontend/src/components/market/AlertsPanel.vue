@@ -4,10 +4,9 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import type { MarketAlert } from '@/stores/market'
 
-const props = defineProps<{
+defineProps<{
   alerts: MarketAlert[]
   isDeleting?: boolean
-  structureName?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -44,13 +43,13 @@ function extractSystemName(name: string | null | undefined): string {
   return dash > 0 ? name.substring(0, dash) : name
 }
 
-function priceSourceLabel(priceSource: string): string {
-  switch (priceSource) {
+function priceSourceLabel(alert: MarketAlert): string {
+  switch (alert.priceSource) {
     case 'jita_sell': return 'Jita Sell'
     case 'jita_buy': return 'Jita Buy'
-    case 'structure_sell': return extractSystemName(props.structureName) + ' Sell'
-    case 'structure_buy': return extractSystemName(props.structureName) + ' Buy'
-    default: return priceSource
+    case 'structure_sell': return extractSystemName(alert.structureName) + ' Sell'
+    case 'structure_buy': return extractSystemName(alert.structureName) + ' Buy'
+    default: return alert.priceSource
   }
 }
 
@@ -98,7 +97,7 @@ function priceSourceLabel(priceSource: string): string {
                 <div class="min-w-0">
                   <div class="text-sm font-medium text-slate-200 truncate max-w-[16rem]" :title="alert.typeName">{{ alert.typeName }}</div>
                   <div class="text-xs text-slate-500">
-                    {{ priceSourceLabel(alert.priceSource) }}
+                    {{ priceSourceLabel(alert) }}
                   </div>
                   <div
                     v-if="alert.triggeredAt && alert.triggeredPrice !== null"

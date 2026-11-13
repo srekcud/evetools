@@ -58,12 +58,7 @@ class CreateAlertProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Invalid price source. Must be one of: jita_sell, jita_buy, structure_sell, structure_buy');
         }
 
-        // Structure sources require a preferred structure
-        if (in_array($priceSource, [AlertPriceSource::StructureSell, AlertPriceSource::StructureBuy], true)
-            && $user->getPreferredMarketStructureId() === null
-        ) {
-            throw new BadRequestHttpException('You must set a preferred market structure before using structure price alerts');
-        }
+        $structureId = $this->resolveStructureId($user, $priceSource, $data->structureId);
 
         // Validate threshold
         MarketAlertRules::assertThresholdIsPositive($data->threshold);
@@ -75,10 +70,45 @@ class CreateAlertProcessor implements ProcessorInterface
         $alert->setDirection($direction);
         $alert->setThreshold($data->threshold);
         $alert->setPriceSource($priceSource);
+        $alert->setStructureId($structureId);
 
         $this->em->persist($alert);
         $this->em->flush();
 
-        return MarketAlertResourceMapper::toResource($alert, $this->priceResolver->currentPrice($user, $alert));
+        return MarketAlertResourceMapper::toResource(
+            $alert,
+            $this->priceResolver->currentPrice($user, $alert),
+            MarketAlertResourceMapper::structureNameOf($user, $alert),
+        );
+    }
+
+    private function resolveStructureId(User $user, AlertPriceSource $priceSource, ?int $requestedStructureId): ?int
+    {
+        $isStructureSource = in_array($priceSource, [AlertPriceSource::StructureSell, AlertPriceSource::StructureBuy], true);
+
+        if (!$isStructureSource) {
+            if ($requestedStructureId !== null) {
+                throw new BadRequestHttpException('A structure can only be set on a structure price source');
+            }
+
+            return null;
+        }
+
+        $preferredStructureId = $user->getPreferredMarketStructureId();
+
+        if ($requestedStructureId === null) {
+            if ($preferredStructureId === null) {
+                throw new BadRequestHttpException('You must set a preferred market structure before using structure price alerts');
+            }
+
+            return $preferredStructureId;
+        }
+
+        $followedStructureIds = array_column($user->getMarketStructures(), 'id');
+        if ($requestedStructureId !== $preferredStructureId && !in_array($requestedStructureId, $followedStructureIds, true)) {
+            throw new BadRequestHttpException('The structure must be your preferred or a followed market structure');
+        }
+
+        return $requestedStructureId;
     }
 }

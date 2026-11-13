@@ -50,6 +50,10 @@ class MarketAlertItemProvider implements ProviderInterface
             throw new AccessDeniedHttpException('Access denied');
         }
 
-        return MarketAlertResourceMapper::toResource($alert, $this->priceResolver->currentPrice($user, $alert));
+        return MarketAlertResourceMapper::toResource(
+            $alert,
+            $this->priceResolver->currentPrice($user, $alert),
+            MarketAlertResourceMapper::structureNameOf($user, $alert),
+        );
     }
 }

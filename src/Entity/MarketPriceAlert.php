@@ -43,6 +43,9 @@ class MarketPriceAlert
     #[ORM\Column(type: 'string', length: 20, enumType: AlertPriceSource::class)]
     private AlertPriceSource $priceSource;
 
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $structureId = null;
+
     #[ORM\Column(type: 'string', length: 20, enumType: AlertStatus::class)]
     private AlertStatus $status = AlertStatus::Active;
 
@@ -128,6 +131,17 @@ class MarketPriceAlert
     public function setPriceSource(AlertPriceSource $priceSource): static
     {
         $this->priceSource = $priceSource;
+        return $this;
+    }
+
+    public function getStructureId(): ?int
+    {
+        return $this->structureId;
+    }
+
+    public function setStructureId(?int $structureId): static
+    {
+        $this->structureId = $structureId;
         return $this;
     }
 

@@ -364,7 +364,6 @@ const allButtonLabel = computed(() => {
       <div v-if="activeTab === 'alerts'">
         <AlertsPanel
           :alerts="marketStore.alerts"
-          :structure-name="marketStore.typeDetail?.structureName"
           @delete="(id: string) => marketStore.deleteAlert(id)"
           @edit="(alert: MarketAlert) => editingAlert = alert"
           @select-item="selectItemFromAlerts"
@@ -376,7 +375,6 @@ const allButtonLabel = computed(() => {
           :type-id="editingAlert?.typeId ?? 0"
           :current-sell-price="null"
           :current-buy-price="null"
-          :structure-name="marketStore.typeDetail?.structureName"
           @close="editingAlert = null"
           @update="saveEditedAlert"
         />

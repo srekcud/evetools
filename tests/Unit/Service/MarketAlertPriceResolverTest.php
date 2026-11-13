@@ -21,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 final class MarketAlertPriceResolverTest extends TestCase
 {
     private const int STRUCTURE_ID = 1000000000001;
+    private const int OTHER_STRUCTURE_ID = 1000000000002;
     private const int PYERITE = 35;
     private const int MEXALLON = 36;
 
@@ -37,20 +38,63 @@ final class MarketAlertPriceResolverTest extends TestCase
 
     public function testResolvesEachPriceSourceInTheOrderOfTheAlerts(): void
     {
-        $user = (new User())->setPreferredMarketStructureId(self::STRUCTURE_ID);
+        $user = new User();
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([self::PYERITE => 12.0]);
         $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([self::PYERITE => 9.0]);
         $this->structureMarketService->method('getLowestSellPrices')->with(self::STRUCTURE_ID)->willReturn([self::PYERITE => 11.0]);
         $this->structureMarketService->method('getHighestBuyPrices')->with(self::STRUCTURE_ID)->willReturn([self::PYERITE => 8.0]);
 
         $prices = $this->resolver->currentPrices($user, [
-            $this->alert(self::PYERITE, AlertPriceSource::StructureBuy),
+            $this->structureAlert(self::PYERITE, AlertPriceSource::StructureBuy, self::STRUCTURE_ID),
             $this->alert(self::PYERITE, AlertPriceSource::JitaSell),
-            $this->alert(self::PYERITE, AlertPriceSource::StructureSell),
+            $this->structureAlert(self::PYERITE, AlertPriceSource::StructureSell, self::STRUCTURE_ID),
             $this->alert(self::PYERITE, AlertPriceSource::JitaBuy),
         ]);
 
         $this->assertSame([8.0, 12.0, 11.0, 9.0], $prices);
+    }
+
+    public function testAStructureAlertReadsItsOwnStructureAndNotThePreferredOneOfItsOwner(): void
+    {
+        $user = (new User())->setPreferredMarketStructureId(self::OTHER_STRUCTURE_ID);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+        $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([]);
+        $this->structureMarketService->method('getLowestSellPrices')->willReturnMap([
+            [self::STRUCTURE_ID, [self::PYERITE], [self::PYERITE => 11.0]],
+            [self::OTHER_STRUCTURE_ID, [self::PYERITE], [self::PYERITE => 14.0]],
+        ]);
+        $this->structureMarketService->method('getHighestBuyPrices')->willReturn([]);
+
+        $price = $this->resolver->currentPrice($user, $this->structureAlert(self::PYERITE, AlertPriceSource::StructureSell, self::STRUCTURE_ID));
+
+        $this->assertSame(11.0, $price);
+    }
+
+    public function testLoadsTheStructurePricesOncePerDistinctStructureWithTheTypeIdsOfItsAlerts(): void
+    {
+        $user = new User();
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+        $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([]);
+        $sellCalls = [];
+        $this->structureMarketService->expects($this->exactly(2))->method('getLowestSellPrices')
+            ->willReturnCallback(static function (int $structureId, array $typeIds) use (&$sellCalls): array {
+                $sellCalls[] = [$structureId, $typeIds];
+
+                return match ($structureId) {
+                    self::STRUCTURE_ID => [self::PYERITE => 11.0, self::MEXALLON => 56.5],
+                    default => [self::PYERITE => 14.0],
+                };
+            });
+        $this->structureMarketService->expects($this->exactly(2))->method('getHighestBuyPrices')->willReturn([]);
+
+        $prices = $this->resolver->currentPrices($user, [
+            $this->structureAlert(self::PYERITE, AlertPriceSource::StructureSell, self::STRUCTURE_ID),
+            $this->structureAlert(self::PYERITE, AlertPriceSource::StructureSell, self::OTHER_STRUCTURE_ID),
+            $this->structureAlert(self::MEXALLON, AlertPriceSource::StructureSell, self::STRUCTURE_ID),
+        ]);
+
+        $this->assertSame([11.0, 14.0, 56.5], $prices);
+        $this->assertSame([[self::STRUCTURE_ID, [self::PYERITE, self::MEXALLON]], [self::OTHER_STRUCTURE_ID, [self::PYERITE]]], $sellCalls);
     }
 
     public function testLoadsTheJitaPricesOnceForTheDistinctTypeIds(): void
@@ -85,9 +129,9 @@ final class MarketAlertPriceResolverTest extends TestCase
         $this->assertSame([12.0], $prices);
     }
 
-    public function testAStructureSourceWithoutPreferredStructureHasNoPriceAndNeverCallsTheStructureMarket(): void
+    public function testAStructureSourceWithoutStructureIdHasNoPriceAndNeverCallsTheStructureMarket(): void
     {
-        $user = new User();
+        $user = (new User())->setPreferredMarketStructureId(self::STRUCTURE_ID);
         $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
         $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([]);
         $this->structureMarketService->expects($this->never())->method('getLowestSellPrices');
@@ -120,12 +164,30 @@ final class MarketAlertPriceResolverTest extends TestCase
         $this->assertSame(9.0, $price);
     }
 
+    public function testAStructureAlertOnAStructureWithoutCachedPriceHasNoPriceAndNoJitaFallback(): void
+    {
+        $user = new User();
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([self::PYERITE => 12.0]);
+        $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([self::PYERITE => 9.0]);
+        $this->structureMarketService->method('getLowestSellPrices')->willReturn([]);
+        $this->structureMarketService->method('getHighestBuyPrices')->willReturn([]);
+
+        $price = $this->resolver->currentPrice($user, $this->structureAlert(self::PYERITE, AlertPriceSource::StructureSell, self::STRUCTURE_ID));
+
+        $this->assertNull($price);
+    }
+
     public function testNoAlertsNeedNoPriceLookup(): void
     {
         $this->jitaMarketService->expects($this->never())->method('getPricesWithFallback');
         $this->jitaMarketService->expects($this->never())->method('getBuyPricesWithFallback');
 
         $this->assertSame([], $this->resolver->currentPrices(new User(), []));
+    }
+
+    private function structureAlert(int $typeId, AlertPriceSource $priceSource, int $structureId): MarketPriceAlert
+    {
+        return $this->alert($typeId, $priceSource)->setStructureId($structureId);
     }
 
     private function alert(int $typeId, AlertPriceSource $priceSource): MarketPriceAlert
