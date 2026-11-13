@@ -2121,16 +2121,32 @@
     "selectCharacter": "Selectionner un personnage",
     "loading": "Chargement des assets...",
     "clearFilters": "Effacer les filtres",
+    "divisionFilter": {
+      "all": "Toutes",
+      "label": "Division de hangar"
+    },
+    "divisionName": "Hangar - {name}",
     "stats": {
       "totalItems": "Items totaux",
       "itemTypes": "Types d'items",
       "systems": "Systemes",
       "locations": "Emplacements"
     },
+    "assetSafety": {
+      "title": "Asset Safety",
+      "items": "{count} items",
+      "ships": "{count} vaisseaux",
+      "reminder": "Ces items restent verrouillés tant que le pilote n'a pas demandé leur livraison en jeu.",
+      "showContent": "Afficher le contenu"
+    },
     "syncInProgress": "Synchronisation en cours",
     "syncDescription": "Vos assets sont en cours de synchronisation depuis l'ESI...",
     "refreshFromEve": "Rafraichir depuis EVE",
     "noMatchingItems": "Aucun item correspondant aux filtres",
+    "blueprint": {
+      "runs": "{count} runs",
+      "notSynced": "Absent du sync blueprints"
+    },
     "itemName": {
       "resolve": "Récupérer le nom personnalisé depuis EVE",
       "unnamed": "Pas de nom personnalisé en jeu",

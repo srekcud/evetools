@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, shallowRef, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { readAssetFilterQuery, readLastCharacterId, rememberLastCharacterId, writeAssetFilterQuery } from '@/utils/assetFilterQuery'
 import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/assetLocation'
+import { summarizeAssetSafety } from '@/utils/assetSafety'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
@@ -18,6 +19,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
+import AssetSafetyBlock from '@/components/assets/AssetSafetyBlock.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
@@ -72,6 +74,7 @@ const searchQuery = ref(urlFilters.search)
 const viewMode = ref(urlFilters.viewMode)
 const selectedSolarSystem = ref<string>(urlFilters.solarSystem)
 const selectedLocation = ref<string>(urlFilters.location)
+const selectedDivision = ref<string>(urlFilters.division)
 const expandedContainers = ref<Set<number>>(new Set())
 const collapsedLocations = ref<Set<string>>(new Set())
 const locationSort = ref<LocationSort>('items')
@@ -150,6 +153,20 @@ const solarSystems = computed(() => {
 const rootAssets = computed(() =>
   assets.value.filter(asset => asset.locationType !== 'item' || !existingItemIds.value.has(asset.locationId)),
 )
+
+const divisions = computed(() => {
+  const rowCounts = new Map<string, number>()
+  for (const asset of assets.value) {
+    if (asset.divisionName !== null) {
+      rowCounts.set(asset.divisionName, (rowCounts.get(asset.divisionName) ?? 0) + 1)
+    }
+  }
+  return Array.from(rowCounts, ([name, rowCount]) => ({ name, rowCount })).sort((a, b) => a.name.localeCompare(b.name))
+})
+
+function isInSelectedDivision(asset: Asset): boolean {
+  return !selectedDivision.value || asset.divisionName === selectedDivision.value
+}
 
 function locationOptionLabel(locationName: string, solarSystemName: string | null): string {
   if (isUnresolvedStructureName(locationName)) {
@@ -289,6 +306,9 @@ const filteredAssets = computed(() => {
   if (selectedLocation.value) {
     result = result.filter(a => a.locationName === selectedLocation.value)
   }
+  if (selectedDivision.value) {
+    result = result.filter(isInSelectedDivision)
+  }
   if (searchQuery.value.trim()) {
     const query = normalizedSearchQuery.value
     result = result.filter(a => matchesSearch(a, query) || getContainerContents(a).length > 0)
@@ -349,8 +369,10 @@ const assetsByLocation = computed(() => {
     }
   }
 
-  for (const [key, counts] of Object.entries(divisionCounts)) {
-    grouped[key].divisions = Array.from(counts, ([name, count]) => ({ name, count })).sort(compareDivisions)
+  if (!selectedDivision.value) {
+    for (const [key, counts] of Object.entries(divisionCounts)) {
+      grouped[key].divisions = Array.from(counts, ([name, count]) => ({ name, count })).sort(compareDivisions)
+    }
   }
 
   return Object.values(grouped).sort(compareLocations)
@@ -426,11 +448,27 @@ watch(selectedSolarSystem, () => {
   selectedLocation.value = ''
 })
 
+const assetSafetyLocations = computed(() => summarizeAssetSafety(assets.value))
+
+async function showAssetSafetyContent(locationName: string) {
+  const location = assetSafetyLocations.value.find(candidate => candidate.locationName === locationName)
+  if (location === undefined) {
+    return
+  }
+  selectedSolarSystem.value = location.solarSystemName
+  await nextTick()
+  selectedLocation.value = locationName
+  const reopened = new Set(collapsedLocations.value)
+  reopened.delete(locationName)
+  collapsedLocations.value = reopened
+}
+
 // Stats
-const totalItems = computed(() => assets.value.reduce((sum, a) => sum + a.quantity, 0))
-const totalTypes = computed(() => new Set(assets.value.map(a => a.typeId)).size)
-const totalLocations = computed(() => new Set(rootAssets.value.map(a => a.locationId)).size)
-const totalSystems = computed(() => new Set(assets.value.filter(a => a.solarSystemName).map(a => a.solarSystemName)).size)
+const divisionAssets = computed(() => assets.value.filter(isInSelectedDivision))
+const totalItems = computed(() => divisionAssets.value.reduce((sum, a) => sum + a.quantity, 0))
+const totalTypes = computed(() => new Set(divisionAssets.value.map(a => a.typeId)).size)
+const totalLocations = computed(() => new Set(rootAssets.value.filter(isInSelectedDivision).map(a => a.locationId)).size)
+const totalSystems = computed(() => new Set(divisionAssets.value.filter(a => a.solarSystemName).map(a => a.solarSystemName)).size)
 
 // Fetch assets
 function abortPendingAssetsRequest() {
@@ -444,6 +482,9 @@ function dropFiltersMissingFromAssets() {
   }
   if (selectedLocation.value && !locations.value.some(location => location.name === selectedLocation.value)) {
     selectedLocation.value = ''
+  }
+  if (selectedDivision.value && !divisions.value.some(division => division.name === selectedDivision.value)) {
+    selectedDivision.value = ''
   }
 }
 
@@ -638,6 +679,7 @@ function formatDate(dateStr: string): string {
 function clearFilters() {
   selectedSolarSystem.value = ''
   selectedLocation.value = ''
+  selectedDivision.value = ''
   searchQuery.value = ''
 }
 
@@ -661,7 +703,7 @@ watch(selectedCharacterId, (characterId) => {
   }
 }, { immediate: true })
 
-watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selectedLocation], () => {
+watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selectedLocation, selectedDivision], () => {
   router.replace({
     query: writeAssetFilterQuery(route.query, {
       viewMode: viewMode.value,
@@ -669,6 +711,7 @@ watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selected
       search: searchQuery.value,
       solarSystem: selectedSolarSystem.value,
       location: selectedLocation.value,
+      division: selectedDivision.value,
     }),
   })
 }, { immediate: true })
@@ -687,6 +730,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
   if (!isFirstOwnerResolution) {
     selectedSolarSystem.value = ''
     selectedLocation.value = ''
+    selectedDivision.value = ''
     searchQuery.value = ''
   }
   if (viewMode.value === 'corporation') {
@@ -796,12 +840,22 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             :locations="locations"
             :selected-solar-system="selectedSolarSystem"
             :selected-location="selectedLocation"
+            :divisions="divisions"
+            :selected-division="selectedDivision"
+            :all-divisions-row-count="assets.length"
             @update:view-mode="viewMode = $event"
             @update:selected-character-id="selectedCharacterId = $event"
             @update:search-query="searchQuery = $event"
             @update:selected-solar-system="selectedSolarSystem = $event"
             @update:selected-location="selectedLocation = $event"
+            @update:selected-division="selectedDivision = $event"
             @clear-filters="clearFilters"
+          />
+
+          <AssetSafetyBlock
+            v-if="assetSafetyLocations.length > 0"
+            :locations="assetSafetyLocations"
+            @show-content="showAssetSafetyContent"
           />
 
           <!-- Stats -->

@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Assets;
 
 use ApiPlatform\Metadata\Get;
+use App\ApiResource\Assets\AssetBlueprintResource;
 use App\ApiResource\Assets\AssetItemResource;
 use App\Entity\CachedAsset;
 use App\Entity\Character;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Entity\OwnedBlueprint;
 use App\Repository\CharacterRepository;
+use App\Repository\OwnedBlueprintRepository;
+use App\State\Provider\Assets\AssetBlueprintAnnotator;
 use App\State\Provider\Assets\CharacterAssetsProvider;
 use App\Tests\Unit\Support\StubsSdeTypeClassification;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -80,6 +84,7 @@ final class CharacterAssetsProviderTest extends TestCase
                 self::TYPE_TRITANIUM => self::mineralClassification(),
             ]),
             $this->requestStack,
+            $this->annotatorOwning([]),
         );
     }
 
@@ -93,6 +98,7 @@ final class CharacterAssetsProviderTest extends TestCase
             $this->cachedAssetRepository,
             $this->createSdeClassification([]),
             $this->requestStack,
+            $this->annotatorOwning([]),
         );
 
         $this->expectException(UnauthorizedHttpException::class);
@@ -112,6 +118,7 @@ final class CharacterAssetsProviderTest extends TestCase
             $this->cachedAssetRepository,
             $this->createSdeClassification([]),
             $this->requestStack,
+            $this->annotatorOwning([]),
         );
 
         $this->expectException(NotFoundHttpException::class);
@@ -169,6 +176,49 @@ final class CharacterAssetsProviderTest extends TestCase
             ],
             $this->mapByItemId($result->items, static fn (AssetItemResource $item): bool => $item->canResolveItemName),
         );
+    }
+
+    #[Group('issue-887')]
+    public function testBlueprintRowsExposeTheStateOfTheirOwnedBlueprintAndOtherRowsNone(): void
+    {
+        $this->cachedAssetRepository->method('findByCharacter')->willReturn([
+            $this->characterAsset(self::BLUEPRINT_ITEM_ID, self::TYPE_RIFTER_BLUEPRINT, 1)->setIsSingleton(true),
+            $this->characterAsset(self::RIFTER_ITEM_ID, self::TYPE_RIFTER, 1)->setIsSingleton(true),
+        ]);
+        $provider = new CharacterAssetsProvider(
+            $this->security,
+            $this->characterRepository,
+            $this->cachedAssetRepository,
+            $this->createSdeClassification([
+                self::TYPE_RIFTER => self::shipClassification(),
+                self::TYPE_RIFTER_BLUEPRINT => self::blueprintClassification(),
+            ]),
+            $this->requestStack,
+            $this->annotatorOwning([
+                (new OwnedBlueprint())->setItemId(self::BLUEPRINT_ITEM_ID)->setQuantity(-2)->setRuns(7)->setMaterialEfficiency(6)->setTimeEfficiency(12),
+            ]),
+        );
+
+        $result = $provider->provide(new Get(), ['characterId' => Uuid::v4()->toRfc4122()]);
+
+        self::assertEquals(
+            [
+                self::BLUEPRINT_ITEM_ID => new AssetBlueprintResource('copy', 7, 6, 12),
+                self::RIFTER_ITEM_ID => null,
+            ],
+            $this->mapByItemId($result->items, static fn (AssetItemResource $item): ?AssetBlueprintResource => $item->blueprint),
+        );
+    }
+
+    /**
+     * @param list<OwnedBlueprint> $owned
+     */
+    private function annotatorOwning(array $owned): AssetBlueprintAnnotator
+    {
+        $repository = $this->createStub(OwnedBlueprintRepository::class);
+        $repository->method('findByCharacters')->willReturn($owned);
+
+        return new AssetBlueprintAnnotator($repository);
     }
 
     private function characterAsset(int $itemId, int $typeId, int $quantity): CachedAsset

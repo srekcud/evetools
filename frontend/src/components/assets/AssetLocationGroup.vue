@@ -6,6 +6,7 @@ import { useTypeNames } from '@/composables/useTypeNames'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import AssetItemNameResolveControl from '@/components/assets/AssetItemNameResolveControl.vue'
 import AssetShipGroups from '@/components/assets/AssetShipGroups.vue'
+import AssetBlueprintBadge from '@/components/assets/AssetBlueprintBadge.vue'
 import { apiRequest } from '@/services/api'
 import { SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
 import { locationIssue } from '@/utils/assetLocation'
@@ -177,7 +178,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
               class="text-xs text-slate-500"
             >{{ t('assets.shipsCount', { count: formatNumber(props.location.shipCount) }, props.location.shipCount) }}</span>
           </div>
-          <div v-if="props.location.divisions && props.location.divisions.length > 0" class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+          <div v-if="props.location.divisions && props.location.divisions.length > 0" data-testid="location-division-breakdown" class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
             <span
               v-for="division in props.location.divisions"
               :key="division.name"
@@ -219,6 +220,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
               <span class="text-slate-200">{{ getDisplayName(asset) }}</span>
               <OpenInGameButton type="market" :targetId="asset.typeId" />
               <AssetItemNameResolveControl :asset="asset" :resolution="resolutionByAssetId[asset.id]" @resolve="resolveItemName" />
+              <AssetBlueprintBadge v-if="asset.blueprint" :blueprint="asset.blueprint" />
               <!-- Container indicator -->
               <span v-if="isContainer(asset)" class="flex items-center gap-1 text-xs text-amber-400">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,7 +236,8 @@ async function resolveItemName(asset: Asset): Promise<void> {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
               </span>
-              <span v-else-if="asset.locationFlag" class="text-xs text-slate-500">({{ asset.locationFlag }})</span>
+              <span v-if="asset.divisionName" data-testid="asset-division" class="text-xs text-slate-500">{{ t('assets.divisionName', { name: asset.divisionName }) }}</span>
+              <span v-else-if="!isContainer(asset) && asset.locationFlag" class="text-xs text-slate-500">({{ asset.locationFlag }})</span>
             </div>
           </div>
           <span class="text-slate-400 font-mono text-sm">x{{ formatNumber(asset.quantity) }}</span>
@@ -261,6 +264,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
               <span class="text-slate-300 text-sm">{{ getDisplayName(item) }}</span>
               <OpenInGameButton type="market" :targetId="item.typeId" />
               <AssetItemNameResolveControl :asset="item" :resolution="resolutionByAssetId[item.id]" @resolve="resolveItemName" />
+              <AssetBlueprintBadge v-if="item.blueprint" :blueprint="item.blueprint" />
             </div>
             <span class="text-slate-500 font-mono text-sm">x{{ formatNumber(item.quantity) }}</span>
           </div>
