@@ -77,7 +77,7 @@ Most screens name the missing data. Details in [known limits](/help?page=limits/
 
 ### Why is my inventory out of date?
 
-Assets are not scheduled. They sync when you log in, when you add a character, and with the "Refresh from EVE" button of the Inventory, which needs a character whose authorization is valid.
+Assets are not scheduled. They sync when you log in, when you add a character, and with the "Refresh" button of the Inventory, which needs a character whose authorization is valid.
 
 Corporation assets can also be refreshed on demand, at most once an hour: the screen shows "Refresh available at …" while you wait. They need a connected Director.
 

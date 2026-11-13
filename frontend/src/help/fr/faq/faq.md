@@ -77,7 +77,7 @@ La plupart des écrans nomment la donnée manquante. Détails dans [limites conn
 
 ### Pourquoi mon inventaire n'est pas à jour ?
 
-Les assets ne sont pas planifiés. Ils se synchronisent à votre connexion, à l'ajout d'un personnage et au bouton « Rafraichir depuis EVE » de l'Inventaire, qui exige un personnage dont l'autorisation est valide.
+Les assets ne sont pas planifiés. Ils se synchronisent à votre connexion, à l'ajout d'un personnage et au bouton « Actualiser » de l'Inventaire, qui exige un personnage dont l'autorisation est valide.
 
 Les assets de corporation se rafraîchissent aussi à la demande, au plus une fois par heure : l'écran affiche « Actualisation possible à … » pendant l'attente. Ils exigent un Director connecté.
 
