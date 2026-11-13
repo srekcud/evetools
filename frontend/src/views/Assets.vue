@@ -17,6 +17,8 @@ import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { filterTypeGroups, groupAssetsByType } from '@/utils/assetsByType'
 import { summarizeSelection } from '@/utils/assetSelection'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
+import { usePinnedContainers } from '@/composables/usePinnedContainers'
+import { locateContainer, projectPinnedFirst } from '@/utils/pinnedContainers'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
@@ -27,6 +29,7 @@ import AssetTypeView from '@/components/assets/AssetTypeView.vue'
 import AssetSelectionBar from '@/components/assets/AssetSelectionBar.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
+import PinnedContainersPanel from '@/components/assets/PinnedContainersPanel.vue'
 import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
 import type { Asset } from '@/types'
 
@@ -91,6 +94,8 @@ const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError,
 
 const isCorpView = computed(() => viewMode.value === 'corporation')
 const isTypeView = computed(() => !isCorpView.value && groupBy.value === 'type')
+
+const { entries: pinnedEntries, pinnedItemIds, projectPinnedItemIds, fetchPinned, pin: pinContainer, unpin: unpinContainer, clearPinned } = usePinnedContainers()
 
 const refreshBlockedUntil = computed(() =>
   isCorpView.value && nextRefreshAt.value !== null && Date.parse(nextRefreshAt.value) > now.value
@@ -390,6 +395,10 @@ const assetsByLocation = computed(() => {
     }
   }
 
+  for (const location of Object.values(grouped)) {
+    location.assets = projectPinnedFirst(location.assets, projectPinnedItemIds.value)
+  }
+
   if (!selectedDivision.value) {
     for (const [key, counts] of Object.entries(divisionCounts)) {
       grouped[key].divisions = Array.from(counts, ([name, count]) => ({ name, count })).sort(compareDivisions)
@@ -545,6 +554,9 @@ async function fetchAssets() {
   error.value = ''
 
   const isCorporationRequest = viewMode.value === 'corporation'
+  if (isCorporationRequest) {
+    void fetchPinned()
+  }
 
   try {
     const endpoint = isCorporationRequest
@@ -578,6 +590,36 @@ async function fetchAssets() {
 }
 
 onUnmounted(abortPendingAssetsRequest)
+
+async function onTogglePin(itemId: number) {
+  try {
+    if (pinnedItemIds.value.has(itemId)) {
+      await unpinContainer(itemId)
+    } else {
+      await pinContainer(itemId)
+    }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('assets.loadFailed')
+  }
+}
+
+async function openPinnedContainer(itemId: number) {
+  const located = locateContainer(itemId, assetsByItemId.value)
+  if (!located) {
+    return
+  }
+  searchQuery.value = ''
+  selectedDivision.value = ''
+  selectedSolarSystem.value = ''
+  selectedLocation.value = ''
+  await nextTick()
+  const reopenedLocations = new Set(collapsedLocations.value)
+  reopenedLocations.delete(located.locationName)
+  collapsedLocations.value = reopenedLocations
+  expandedContainers.value = new Set([...expandedContainers.value, ...located.containerItemIds])
+  await nextTick()
+  document.querySelector(`[data-asset-item-id="${itemId}"]`)?.scrollIntoView?.({ block: 'center' })
+}
 
 async function onSaveVisibility(payload: CorporationVisibilityPayload) {
   if (await saveVisibility(payload)) {
@@ -775,6 +817,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
     fetchVisibility()
   } else {
     clearVisibility()
+    clearPinned()
   }
   fetchAssets()
 }, { immediate: true })
@@ -961,6 +1004,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
 
           <!-- Assets by location -->
           <div v-else class="relative rounded-xl space-y-4" :class="{ 'hud-updated': assetsUpdated }">
+            <PinnedContainersPanel v-if="isCorpView" :entries="pinnedEntries" @open="openPinnedContainer" />
             <div class="flex items-center justify-end gap-2">
               <label for="assets-location-sort" class="text-xs text-slate-500">{{ t('assets.sort.label') }}</label>
               <select
@@ -983,6 +1027,10 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
               :fit-contents="containerContents"
               :max-quantity="largestLocationQuantity"
               :selected="selectedLocationNames.has(location.locationName)"
+              :can-pin="isCorpView"
+              :pinned-item-ids="pinnedItemIds"
+              :project-pinned-item-ids="projectPinnedItemIds"
+              @toggle-pin="onTogglePin"
               @toggle-container="toggleContainer"
               @toggle-location="toggleLocation"
               @toggle-selection="toggleLocationSelection"

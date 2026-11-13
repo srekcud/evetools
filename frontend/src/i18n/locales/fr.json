@@ -2111,6 +2111,14 @@
     "itemTypesCount": "{count} type d'items | {count} types d'items",
     "itemsCount": "{count} item | {count} items",
     "shipsCount": "{count} vaisseau | {count} vaisseaux",
+    "pinned": {
+      "title": "Mes containers épinglés",
+      "projectWatched": "{project} · {count} container surveillé | {project} · {count} containers surveillés",
+      "notFound": "Introuvable à la dernière synchronisation",
+      "pin": "Épingler {name}",
+      "unpin": "Désépingler {name}",
+      "lockedByProject": "{name} est épinglé par un projet actif"
+    },
     "selection": {
       "selectLocation": "Sélectionner {location}",
       "summary": "{count} emplacement sélectionné | {count} emplacements sélectionnés",

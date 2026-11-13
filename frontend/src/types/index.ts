@@ -39,6 +39,19 @@ export interface Asset {
   cachedAt: string
 }
 
+export interface PinnedContainer {
+  id: string
+  itemId: number | null
+  name: string
+  locationName: string | null
+  solarSystemName: string | null
+  divisionName: string | null
+  itemCount: number | null
+  found: boolean
+  projectId: string | null
+  projectName: string | null
+}
+
 export type ItemNameResolution =
   | { status: 'loading' }
   | { status: 'named'; itemName: string }

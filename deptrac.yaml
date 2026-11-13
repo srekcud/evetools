@@ -140,6 +140,8 @@ deptrac:
       - App\State\Provider\MoonTax\MoonTaxResourceMapper
     App\State\Processor\MoonTax\CancelMoonTaxStatementProcessor:
       - App\State\Provider\MoonTax\MoonTaxResourceMapper
+    App\State\Processor\Assets\PinContainerProcessor:
+      - App\State\Provider\Assets\PinnedContainerResourceMapper
     App\State\Processor\Market\CreateAlertProcessor:
       - App\State\Provider\Market\MarketAlertResourceMapper
     App\State\Processor\Market\UpdateAlertProcessor:
