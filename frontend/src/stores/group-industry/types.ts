@@ -508,9 +508,25 @@ export type PurchaseSuggestion = {
   alreadyLinked: boolean
 }
 
+export type WalletReadingStatus = 'read' | 'never_read' | 'missing_scope' | 'no_token'
+
+export type WalletReading = {
+  characterName: string
+  status: WalletReadingStatus
+  readAt: string | null
+  nextReadAt: string | null
+}
+
 export type PurchaseSuggestions = {
   suggestions: PurchaseSuggestion[]
   totalCount: number
+  walletReadings: WalletReading[]
+}
+
+export type GroupSaleSuggestionList = {
+  id: string
+  suggestions: GroupSaleSuggestion[]
+  walletReadings: WalletReading[]
 }
 
 export type LinkedTransactionPurchaseInput = {

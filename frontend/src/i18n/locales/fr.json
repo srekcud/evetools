@@ -2106,6 +2106,13 @@
     "loadFailed": "Le chargement des assets a échoué.",
     "itemTypesCount": "{count} type d'items | {count} types d'items",
     "itemsCount": "{count} item | {count} items",
+    "shipsCount": "{count} vaisseau | {count} vaisseaux",
+    "syncedAt": "Synchronisé {time}",
+    "sort": {
+      "label": "Trier les emplacements",
+      "items": "Nombre d'items",
+      "name": "Nom"
+    },
     "mainCharacterSuffix": "(Principal)",
     "refreshAvailableAt": "Actualisation possible à {time}",
     "syncAlreadyRunning": "Une synchro des assets de la corporation est déjà en cours",
@@ -3311,6 +3318,17 @@
         "no_visible_division": "Aucune division de la corporation visible du propriétaire",
         "container_not_found": "Aucun container visible ne porte le nom du projet"
       }
+    },
+    "walletReading": {
+      "read": "Wallet lu à {readAt} · prochaine lecture vers {nextReadAt}",
+      "readWithoutNext": "Wallet lu à {readAt}",
+      "neverRead": "Wallet jamais lu",
+      "missingScope": "Scope wallet manquant",
+      "noToken": "Pas de token",
+      "inProgress": "Lecture du wallet…",
+      "newTransaction": "Nouveau",
+      "emptyHintBounded": "Une transaction faite en jeu apparaît ici au plus tard à {time}. Si tu ne peux pas attendre, utilise la saisie manuelle.",
+      "emptyHintUnbounded": "Aucun wallet n'a encore été lu. Utilise la saisie manuelle pour l'enregistrer maintenant."
     },
     "purchases": {
       "open": "Achats",

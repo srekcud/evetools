@@ -132,7 +132,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'pve' => 3600,
             'sde-build' => 86400,
             'shared-lists-purge' => 86400,
-            'wallet' => 3600,
+            'wallet' => 300,
         ], $this->scheduledIntervalsBySyncTrackerKey());
     }
 
@@ -183,6 +183,15 @@ class SyncSchedulerIntervalsTest extends TestCase
         $this->assertSame(
             self::ONE_HOUR_IN_SECONDS,
             $this->scheduledIntervalsByMessageClass()[TriggerMoonTaxSync::class] ?? null,
+        );
+    }
+
+    #[Group('issue-916')]
+    public function testWalletTransactionsAreReadEveryFiveMinutes(): void
+    {
+        $this->assertSame(
+            self::FIVE_MINUTES_IN_SECONDS,
+            $this->scheduledIntervalsByMessageClass()[SyncWalletTransactions::class] ?? null,
         );
     }
 

@@ -62,6 +62,18 @@ class EsiClient
         }
     }
 
+    public function getWithExpiry(string $endpoint, ?EveToken $token = null): PaginatedEsiResponse
+    {
+        try {
+            $response = $this->requestWithRetry('GET', $endpoint, $token);
+            $items = $this->handleResponse($response, $endpoint, $token);
+
+            return new PaginatedEsiResponse($items, $this->expiresAt($this->responseHeaders($response)));
+        } catch (TransportExceptionInterface $e) {
+            throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
+        }
+    }
+
     /**
      * GETs an unversioned ESI route (e.g. corporation projects): served from the origin of the
      * configured base URL, without its version segment, and dated by X-Compatibility-Date.
