@@ -56,6 +56,8 @@ final readonly class BlueprintLibraryProvider implements ProviderInterface
                 'divisionName' => $row->divisionName,
                 'count' => $row->count,
                 'usedByRunningJob' => $row->usedByRunningJob,
+                'productTypeId' => $row->productTypeId,
+                'productName' => $row->productName,
             ],
             $library->rows,
         );

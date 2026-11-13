@@ -579,8 +579,10 @@ export type SlotTrackerData = {
 // Cross-tab navigation intent for the Industry cockpit
 export type ProjectPrefill = { typeId: number; typeName: string; runs?: number; me?: number; te?: number; isT2?: boolean; excludedTypeIds?: number[] }
 
+export type ProjectPrefillItem = { typeId: number; typeName: string; meLevel: number; teLevel: number; runs: number }
+
 export type NavigationIntent =
-  | { target: 'projects'; openCreateModal?: boolean; prefill?: ProjectPrefill }
+  | { target: 'projects'; openCreateModal?: boolean; prefill?: ProjectPrefill; prefillItems?: ProjectPrefillItem[] }
   | { target: 'margins'; typeId: number }
   | { target: 'batch' }
   | { target: 'buy-vs-build'; typeId: number }
@@ -674,6 +676,8 @@ export interface BlueprintLibraryEntry {
   divisionName: string | null
   count: number
   usedByRunningJob: boolean
+  productTypeId: number | null
+  productName: string | null
 }
 
 export interface BlueprintLibrary {

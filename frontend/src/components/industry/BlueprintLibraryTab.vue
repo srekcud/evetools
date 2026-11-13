@@ -7,7 +7,8 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { useBlueprintsStore } from '@/stores/industry/blueprints'
-import type { BlueprintKind, BlueprintLibraryEntry, BlueprintScope, CharacterSyncFailure } from '@/stores/industry/types'
+import { useIndustryStore } from '@/stores/industry'
+import type { BlueprintKind, BlueprintLibraryEntry, BlueprintScope, CharacterSyncFailure, ProjectPrefillItem } from '@/stores/industry/types'
 import { useSyncStore } from '@/stores/sync'
 
 type ScopeFilter = 'all' | BlueprintScope
@@ -17,6 +18,7 @@ const SYNC_TYPE = 'blueprints'
 const FILTERS: ScopeFilter[] = ['all', 'personal', 'corporation']
 const KINDS: BlueprintKind[] = ['bpo', 'bpc', 'bpr']
 const NOT_APPLICABLE = '—'
+const DEFAULT_RUNS = 1
 const KIND_BADGE_CLASSES: Record<BlueprintKind, string> = {
   bpo: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
   bpr: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
@@ -28,6 +30,7 @@ const { getBlueprintIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 const store = useBlueprintsStore()
 const syncStore = useSyncStore()
+const industryStore = useIndustryStore()
 
 const filter = ref<ScopeFilter>('all')
 const search = ref('')
@@ -51,6 +54,60 @@ const countByKind = computed<Record<BlueprintKind, number>>(() => {
   for (const entry of entriesInScope.value) counts[entry.kind] += entry.count
   return counts
 })
+
+const indexByEntry = computed(() => new Map((store.library?.blueprints ?? []).map((entry, index) => [entry, index])))
+const selectedIndexes = ref<Set<number>>(new Set())
+
+function isSelectable(entry: BlueprintLibraryEntry): boolean {
+  return entry.productTypeId !== null
+}
+
+function indexOf(entry: BlueprintLibraryEntry): number {
+  const index = indexByEntry.value.get(entry)
+  if (index === undefined) throw new Error(`Blueprint ${entry.typeId} is not in the library`)
+  return index
+}
+
+const selectableEntries = computed(() => entries.value.filter(isSelectable))
+const selectedEntries = computed(() => selectableEntries.value.filter(entry => selectedIndexes.value.has(indexOf(entry))))
+const allVisibleSelected = computed(() => selectableEntries.value.length > 0 && selectedEntries.value.length === selectableEntries.value.length)
+
+function setSelected(entry: BlueprintLibraryEntry, selected: boolean): void {
+  const next = new Set(selectedIndexes.value)
+  if (selected) next.add(indexOf(entry))
+  else next.delete(indexOf(entry))
+  selectedIndexes.value = next
+}
+
+function setAllVisibleSelected(selected: boolean): void {
+  selectedIndexes.value = selected ? new Set(selectableEntries.value.map(indexOf)) : new Set()
+}
+
+watch(selectableEntries, (visible) => {
+  const visibleIndexes = new Set(visible.map(indexOf))
+  const kept = [...selectedIndexes.value].filter(index => visibleIndexes.has(index))
+  if (kept.length !== selectedIndexes.value.size) selectedIndexes.value = new Set(kept)
+})
+
+watch(() => store.library, () => {
+  selectedIndexes.value = new Set()
+})
+
+function prefillItemOf(entry: BlueprintLibraryEntry): ProjectPrefillItem {
+  if (entry.productTypeId === null || entry.productName === null) throw new Error(`Blueprint ${entry.typeId} has no product`)
+  return {
+    typeId: entry.productTypeId,
+    typeName: entry.productName === UNKNOWN_TYPE_MARKER ? typeNameLabel(null, entry.productTypeId) : entry.productName,
+    meLevel: entry.me,
+    teLevel: entry.te,
+    runs: entry.kind === 'bpc' && entry.runs !== null ? entry.runs : DEFAULT_RUNS,
+  }
+}
+
+function createProject(): void {
+  if (selectedEntries.value.length === 0) return
+  industryStore.navigationIntent = { target: 'projects', prefillItems: selectedEntries.value.map(prefillItemOf) }
+}
 
 function toggleKind(kind: BlueprintKind): void {
   if (!selectedKinds.value.includes(kind)) {
@@ -170,6 +227,13 @@ onMounted(() => {
         <div class="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-slate-800">
           <h2 class="text-base font-semibold text-white">{{ t('industry.blueprints.library') }}</h2>
           <div class="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              data-testid="blueprints-create-project"
+              class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:hover:bg-cyan-600 rounded-lg text-white text-sm font-medium transition-colors"
+              :disabled="selectedEntries.length === 0"
+              @click="createProject"
+            >{{ t('industry.blueprints.createProject', { count: selectedEntries.length }) }}</button>
             <input
               v-model="search"
               data-testid="blueprints-search"
@@ -225,6 +289,17 @@ onMounted(() => {
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-xs uppercase text-slate-500">
+                <th class="px-4 py-2 w-8">
+                  <input
+                    type="checkbox"
+                    data-testid="blueprints-select-all"
+                    :aria-label="t('industry.blueprints.selectAll')"
+                    :checked="allVisibleSelected"
+                    :disabled="selectableEntries.length === 0"
+                    class="accent-cyan-500"
+                    @change="setAllVisibleSelected(($event.target as HTMLInputElement).checked)"
+                  />
+                </th>
                 <th class="px-4 py-2">{{ t('industry.blueprints.columns.blueprint') }}</th>
                 <th class="px-4 py-2">{{ t('industry.blueprints.columns.kind') }}</th>
                 <th class="px-4 py-2 text-right">{{ t('industry.blueprints.columns.efficiency') }}</th>
@@ -239,6 +314,18 @@ onMounted(() => {
                 data-testid="blueprint-row"
                 class="border-t border-slate-800"
               >
+                <td class="px-4 py-2">
+                  <input
+                    type="checkbox"
+                    data-testid="blueprint-select"
+                    :aria-label="t('industry.blueprints.selectRow', { name: nameOf(entry) })"
+                    :title="isSelectable(entry) ? undefined : t('industry.blueprints.noProduct')"
+                    :checked="selectedIndexes.has(indexOf(entry))"
+                    :disabled="!isSelectable(entry)"
+                    class="accent-cyan-500"
+                    @change="setSelected(entry, ($event.target as HTMLInputElement).checked)"
+                  />
+                </td>
                 <td class="px-4 py-2">
                   <div class="flex items-center gap-2 min-w-0">
                     <img :src="getBlueprintIconUrl(entry.typeId, entry.kind)" alt="" class="w-6 h-6 rounded-sm" @error="onImageError" />
