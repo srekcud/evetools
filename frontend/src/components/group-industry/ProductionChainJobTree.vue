@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ChainStepMark from './ChainStepMark.vue'
 import { computed, nextTick, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IskAmount from '@/components/common/IskAmount.vue'
@@ -42,6 +43,12 @@ const PLANNED_OUTSIDE_FAVORITE_SYSTEM = 'best_outside_favorite_system'
 const props = defineProps<{
   nodes: ChainNode[]
   selectedId: string | null
+  projectId?: string
+  canMark?: boolean
+}>()
+
+defineEmits<{
+  marked: []
 }>()
 
 const { t } = useI18n()
@@ -210,6 +217,13 @@ function plansStructure(node: ChainNode): boolean {
             >
               <i class="inline-block w-1.5 h-1.5 rounded-full" :class="chainStatusDotClass(item.node.status)"></i>{{ t(`groupIndustry.chain.status.${item.node.status}`) }}
             </span>
+            <ChainStepMark
+              v-if="item.node.activity !== null && projectId !== undefined"
+              :project-id="projectId"
+              :node="item.node"
+              :can-mark="canMark === true"
+              @marked="$emit('marked')"
+            />
           </td>
 
           <td class="py-2 px-3 text-right font-mono text-slate-300">

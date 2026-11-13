@@ -1,9 +1,9 @@
 import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { apiRequest } from '@/services/api'
+import { ApiError, apiRequest } from '@/services/api'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { deferred } from '../deferred'
-import { HAMMERHEAD_I, HAMMERHEAD_II, SALE, TRITANIUM } from '../productionChainNodes'
+import { chainNode, HAMMERHEAD_I, HAMMERHEAD_I_ID, HAMMERHEAD_II, SALE, TRITANIUM } from '../productionChainNodes'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -15,6 +15,10 @@ const DRAKE_BATCH_ID = 'project-drake-batch'
 
 function chainPath(projectId: string): string {
   return `/industry/projects/${projectId}/chain`
+}
+
+function markPath(projectId: string, lineId: string): string {
+  return `/industry/projects/${projectId}/bom/${lineId}/mark`
 }
 
 beforeEach(() => {
@@ -61,6 +65,56 @@ describe('group chain store', () => {
     await store.fetchChain(HAMMERHEAD_BATCH_ID)
 
     expect(store.nodes.map(node => node.plannedCopyDuration)).toEqual([plannedCopyDuration, null])
+  })
+
+  it('keeps the step mark of a node and turns a mark omitted by the API into an explicit null', async () => {
+    const mark = { state: 'done', runs: 3 }
+    const { mark: _omitted, ...withoutMark } = HAMMERHEAD_II
+    vi.mocked(apiRequest).mockResolvedValue({ id: HAMMERHEAD_BATCH_ID, nodes: [{ ...HAMMERHEAD_I, mark }, withoutMark] })
+    const store = useGroupChainStore()
+
+    await store.fetchChain(HAMMERHEAD_BATCH_ID)
+
+    expect(store.nodes.map(node => node.mark)).toEqual([mark, null])
+  })
+
+  it('marks a step by posting its state and runs on the line then reads the chain again and answers true', async () => {
+    vi.mocked(apiRequest).mockResolvedValueOnce({ id: HAMMERHEAD_I_ID }).mockResolvedValueOnce({
+      id: HAMMERHEAD_BATCH_ID,
+      nodes: [chainNode({ ...HAMMERHEAD_I, mark: { state: 'done', runs: 4 } })],
+    })
+    const store = useGroupChainStore()
+
+    const marked = await store.markStep(HAMMERHEAD_BATCH_ID, HAMMERHEAD_I_ID, 'done', 4)
+
+    expect(marked).toBe(true)
+    expect(apiRequest).toHaveBeenCalledTimes(2)
+    expect(apiRequest).toHaveBeenNthCalledWith(1, markPath(HAMMERHEAD_BATCH_ID, HAMMERHEAD_I_ID), { method: 'POST', body: JSON.stringify({ state: 'done', runs: 4 }) })
+    expect(apiRequest).toHaveBeenNthCalledWith(2, chainPath(HAMMERHEAD_BATCH_ID))
+    expect({ markError: store.markError, marks: store.nodes.map(node => node.mark) }).toEqual({ markError: null, marks: [{ state: 'done', runs: 4 }] })
+  })
+
+  it('exposes the message of the server when it refuses the mark, answers false and does not read the chain again', async () => {
+    vi.mocked(apiRequest).mockRejectedValue(new ApiError('Runs must be between 1 and 3', 400))
+    const store = useGroupChainStore()
+
+    const marked = await store.markStep(HAMMERHEAD_BATCH_ID, HAMMERHEAD_I_ID, 'launched', 9)
+
+    expect(marked).toBe(false)
+    expect(store.markError).toBe('Runs must be between 1 and 3')
+    expect(apiRequest).toHaveBeenCalledExactlyOnceWith(markPath(HAMMERHEAD_BATCH_ID, HAMMERHEAD_I_ID), { method: 'POST', body: JSON.stringify({ state: 'launched', runs: 9 }) })
+  })
+
+  it('removes the mark of a step with a delete on the line then reads the chain again and answers true', async () => {
+    vi.mocked(apiRequest).mockResolvedValueOnce(undefined).mockResolvedValueOnce({ id: HAMMERHEAD_BATCH_ID, nodes: [HAMMERHEAD_I] })
+    const store = useGroupChainStore()
+
+    const removed = await store.unmarkStep(HAMMERHEAD_BATCH_ID, HAMMERHEAD_I_ID)
+
+    expect(removed).toBe(true)
+    expect(apiRequest).toHaveBeenNthCalledWith(1, markPath(HAMMERHEAD_BATCH_ID, HAMMERHEAD_I_ID), { method: 'DELETE' })
+    expect(apiRequest).toHaveBeenNthCalledWith(2, chainPath(HAMMERHEAD_BATCH_ID))
+    expect(store.markError).toBeNull()
   })
 
   it('exposes the API error instead of an empty chain when the request fails', async () => {

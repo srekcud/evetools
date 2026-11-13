@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectBomLineMark;
 use App\Entity\IndustryProjectJobMatch;
+use App\Enum\BomLineMarkState;
 use App\Enum\ContributionStatus;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
@@ -44,6 +46,21 @@ final class ProjectCockpitInputFactoryTest extends TestCase
 
         self::assertSame(3, $input->bomLines[0]->deliveredRuns);
         self::assertSame(15, $input->bomLines[0]->matchedRuns);
+    }
+
+    #[Group('issue-807')]
+    public function testJobLineCarriesTheCountedRunsOfItsStepMarkAndItsLinkedJobsWithoutAddingThem(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 10);
+        $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 10, 10, 0);
+        $sabreJob->setMark(new IndustryProjectBomLineMark(BomLineMarkState::Done, 10, new \DateTimeImmutable('2026-11-13T09:00:00+00:00')));
+        $this->jobMatchOn($sabreJob, 6, 'delivered');
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+
+        self::assertSame([10, 6], [$input->bomLines[0]->matchedRuns, $input->bomLines[0]->deliveredRuns]);
     }
 
     public function testInputCarriesTheStatusTheProductsTheBomLinesTheSoldQuantitiesAndThePendingContributions(): void

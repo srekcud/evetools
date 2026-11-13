@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { ChainNode, ProjectChain } from './types'
+import type { ChainNode, ChainStepMarkState, ProjectChain } from './types'
 
 const NULLABLE_NODE_FIELDS = [
   'parentId',
@@ -19,6 +19,7 @@ const NULLABLE_NODE_FIELDS = [
   'plannedCopyDuration',
   'soldQuantity',
   'grossRevenue',
+  'mark',
 ] as const satisfies readonly (keyof ChainNode)[]
 
 function withExplicitNulls(node: ChainNode): ChainNode {
@@ -61,5 +62,27 @@ export const useGroupChainStore = defineStore('group-chain', () => {
     }
   }
 
-  return { nodes, loading, error, fetchChain }
+  const markError = ref<string | null>(null)
+
+  async function changeMark(projectId: string, lineId: string, request: RequestInit, fallbackMessage: string): Promise<boolean> {
+    markError.value = null
+    try {
+      await apiRequest(`/industry/projects/${projectId}/bom/${lineId}/mark`, request)
+    } catch (failure) {
+      markError.value = failure instanceof Error ? failure.message : fallbackMessage
+      return false
+    }
+    await fetchChain(projectId)
+    return true
+  }
+
+  function markStep(projectId: string, lineId: string, state: ChainStepMarkState, runs: number): Promise<boolean> {
+    return changeMark(projectId, lineId, { method: 'POST', body: JSON.stringify({ state, runs }) }, 'Failed to mark the step')
+  }
+
+  function unmarkStep(projectId: string, lineId: string): Promise<boolean> {
+    return changeMark(projectId, lineId, { method: 'DELETE' }, 'Failed to remove the mark')
+  }
+
+  return { nodes, loading, error, markError, fetchChain, markStep, unmarkStep }
 })

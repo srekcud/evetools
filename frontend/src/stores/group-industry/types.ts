@@ -671,6 +671,13 @@ export type ChainPlannedCopyDuration = {
   characterName: string | null
 }
 
+export type ChainStepMarkState = 'launched' | 'done'
+
+export type ChainStepMark = {
+  state: ChainStepMarkState
+  runs: number
+}
+
 export type ChainNode = {
   id: string
   stage: ChainStage
@@ -694,6 +701,7 @@ export type ChainNode = {
   plannedCopyDuration: ChainPlannedCopyDuration | null
   soldQuantity: number | null
   grossRevenue: number | null
+  mark: ChainStepMark | null
 }
 
 export type ProjectChain = {

@@ -43,7 +43,7 @@ final readonly class ProjectCockpitInputFactory
             $line->isJob(),
             $line->getJobGroup(),
             $line->getRuns(),
-            $line->getMatchedRuns(),
+            $line->getCountedRuns(),
             $line->getDeliveredRuns(),
         );
     }
