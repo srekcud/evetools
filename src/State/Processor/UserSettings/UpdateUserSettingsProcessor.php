@@ -62,8 +62,8 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
         $resource->preferredMarketStructureName = $user->getPreferredMarketStructureName();
         $resource->defaultMarketStructureId = $this->defaultMarketStructureId;
         $resource->defaultMarketStructureName = $this->defaultMarketStructureName;
-        $resource->effectiveMarketStructureId = $user->getPreferredMarketStructureId() ?? $this->defaultMarketStructureId;
-        $resource->effectiveMarketStructureName = $user->getPreferredMarketStructureName() ?? $this->defaultMarketStructureName;
+        $resource->effectiveMarketStructureId = $user->getEffectiveMarketStructureId() ?? $this->defaultMarketStructureId;
+        $resource->effectiveMarketStructureName = $user->getEffectiveMarketStructureName() ?? $this->defaultMarketStructureName;
         $resource->marketStructures = $user->getMarketStructures();
 
         return $resource;

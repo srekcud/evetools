@@ -76,8 +76,8 @@ class MarketHistoryProvider implements ProviderInterface
         $structureName = $this->defaultMarketStructureName;
 
         if ($user instanceof User) {
-            $structureId = $user->getPreferredMarketStructureId() ?? $this->defaultMarketStructureId;
-            $structureName = $user->getPreferredMarketStructureName() ?? $this->defaultMarketStructureName;
+            $structureId = $user->getEffectiveMarketStructureId() ?? $this->defaultMarketStructureId;
+            $structureName = $user->getEffectiveMarketStructureName() ?? $this->defaultMarketStructureName;
         }
 
         $resource->structureId = $structureId;

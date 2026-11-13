@@ -46,7 +46,7 @@ class ParseProcessor implements ProcessorInterface
             throw new BadRequestHttpException('No text provided');
         }
 
-        $structureId = $data->structureId ?? $user->getPreferredMarketStructureId();
+        $structureId = $data->structureId ?? $user->getEffectiveMarketStructureId();
         $transportCostPerM3 = $data->transportCost;
 
         $parsedItems = $this->itemParserService->parseItemList($data->text);

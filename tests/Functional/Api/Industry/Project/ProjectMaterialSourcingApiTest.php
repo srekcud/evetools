@@ -143,6 +143,26 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
         self::assertSame(['jita', true], [$tritanium['side'], $tritanium['structureFallback']]);
     }
 
+    #[Group('issue-880')]
+    public function testFirstMarketStructureOfTheListIsTheSourcingStructureWhenNoStructureIsPreferred(): void
+    {
+        $this->member->setPreferredMarketStructureId(null)->setPreferredMarketStructureName(null);
+        $this->member->setMarketStructures([
+            ['id' => self::STRUCTURE_ID, 'name' => self::STRUCTURE_NAME],
+            ['id' => self::STRUCTURE_ID + 1, 'name' => 'Ashab - Market Fortizar'],
+        ]);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame([self::STRUCTURE_ID, self::STRUCTURE_NAME, false, null], [$body['structureId'], $body['structureName'], $body['structureSynced'], $body['structureLastSync']]);
+        [$tritanium] = $this->rowsSortedBy('typeId', $body['rows']);
+        self::assertSame(['jita', true], [$tritanium['side'], $tritanium['structureFallback']]);
+    }
+
     public function testPilotOfAnotherCorporationIsRefusedTheSourcing(): void
     {
         $this->client->loginUser($this->outsider, 'api');

@@ -8,11 +8,13 @@ use ApiPlatform\Metadata\Get;
 use App\ApiResource\Market\MarketHistoryEntryResource;
 use App\ApiResource\Market\MarketHistoryResource;
 use App\Entity\MarketPriceHistory;
+use App\Entity\User;
 use App\Repository\StructureMarketSnapshotRepository;
 use App\Service\MarketHistoryService;
 use App\State\Provider\Market\MarketHistoryProvider;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -170,6 +172,40 @@ class MarketHistoryProviderTest extends TestCase
         $result = $this->provider->provide(new Get(), ['typeId' => 34]);
 
         $this->assertInstanceOf(MarketHistoryResource::class, $result);
+    }
+
+    // ===========================================
+    // Structure source
+    // ===========================================
+
+    #[Group('issue-880')]
+    public function testStructureHistoryReadsTheFirstMarketStructureOfTheListWhenNoPreferredStructureIsSet(): void
+    {
+        $user = (new User())->setMarketStructures([
+            ['id' => 1049588174021, 'name' => 'C-J6MT'],
+            ['id' => 1035466617946, 'name' => '4-HWWF'],
+        ]);
+        $this->security->method('getUser')->willReturn($user);
+        $this->requestStack->push(new Request(['source' => 'structure', 'days' => '45']));
+        $this->snapshotRepository->expects($this->once())->method('findHistory')->with(1049588174021, 34, 45)->willReturn([]);
+
+        $result = $this->provider->provide(new Get(), ['typeId' => 34]);
+
+        $this->assertSame(1049588174021, $result->structureId);
+        $this->assertSame('C-J6MT', $result->structureName);
+    }
+
+    #[Group('issue-880')]
+    public function testStructureHistoryReadsTheDefaultStructureWhenTheUserHasNoMarketStructure(): void
+    {
+        $this->security->method('getUser')->willReturn(new User());
+        $this->requestStack->push(new Request(['source' => 'structure']));
+        $this->snapshotRepository->expects($this->once())->method('findHistory')->with(1234567890, 34, 30)->willReturn([]);
+
+        $result = $this->provider->provide(new Get(), ['typeId' => 34]);
+
+        $this->assertSame(1234567890, $result->structureId);
+        $this->assertSame('Test Structure', $result->structureName);
     }
 
     // ===========================================

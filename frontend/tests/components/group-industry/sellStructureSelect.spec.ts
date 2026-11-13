@@ -69,6 +69,25 @@ describe('SellStructureSelect', () => {
     expect(wrapper.emitted('update:modelValue')).toEqual([[60_003_760]])
   })
 
+  it('selects the first market structure of the list by emitting its id when no structure is preferred and none is selected yet', async () => {
+    const wrapper = await mountSelect({
+      preferredMarketStructureId: null,
+      preferredMarketStructureName: null,
+      marketStructures: [KEEPSTAR_A, FORTIZAR_B],
+    })
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([[1_042_000_000_001]])
+  })
+
+  it('emits nothing for a structure of the list when the project already carries a structure', async () => {
+    const wrapper = await mountSelect(
+      { preferredMarketStructureId: null, preferredMarketStructureName: null, marketStructures: [KEEPSTAR_A, FORTIZAR_B] },
+      { modelValue: FORTIZAR_B.id },
+    )
+
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+  })
+
   it('replaces the select by a no market structure notice and emits nothing when the user has no structure', async () => {
     const wrapper = await mountSelect({ preferredMarketStructureId: null, preferredMarketStructureName: null, marketStructures: [] })
 

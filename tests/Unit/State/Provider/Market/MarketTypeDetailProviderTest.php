@@ -18,6 +18,7 @@ use App\Service\MarketHistoryService;
 use App\Service\StructureMarketService;
 use App\State\Provider\Market\MarketTypeDetailProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -255,6 +256,24 @@ class MarketTypeDetailProviderTest extends TestCase
         $this->assertSame([], $result->structurePrices);
     }
 
+    #[Group('issue-880')]
+    public function testFirstFollowedStructureIsTheDetailStructureWhenNoStructureIsPreferred(): void
+    {
+        $user = (new User())
+            ->addMarketStructure(self::FOLLOWED_STRUCTURE_ID, 'Jita - Followed hub')
+            ->addMarketStructure(self::PREFERRED_STRUCTURE_ID, 'Perimeter - Second hub');
+        $this->givenTritaniumDetail($user);
+        $this->givenStructurePrices(self::FOLLOWED_STRUCTURE_ID, 5.25, 4.5);
+        $this->givenStructurePrices(self::PREFERRED_STRUCTURE_ID, 4.8, 4.2);
+
+        $result = $this->provider->provide(new Get(), ['typeId' => 34]);
+
+        $this->assertTrue($result->hasPreferredStructure);
+        $this->assertSame('Jita - Followed hub', $result->structureName);
+        $this->assertSame(5.25, $result->structureSell);
+        $this->assertSame(4.5, $result->structureBuy);
+    }
+
     public function testStructureSellKeepsReadingThePreferredStructureOnly(): void
     {
         $user = (new User())
@@ -327,12 +346,9 @@ class MarketTypeDetailProviderTest extends TestCase
         );
     }
 
-    private function createUserStub(?int $preferredStructureId = null): User&Stub
+    private function createUserStub(?int $preferredStructureId = null): User
     {
-        $user = $this->createStub(User::class);
-        $user->method('getPreferredMarketStructureId')->willReturn($preferredStructureId);
-
-        return $user;
+        return (new User())->setPreferredMarketStructureId($preferredStructureId);
     }
 
     private function createInvType(int $typeId, string $typeName, string $groupName, string $categoryName): InvType

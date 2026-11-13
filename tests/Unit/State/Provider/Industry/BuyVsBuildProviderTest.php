@@ -86,6 +86,22 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertSame(25000.0, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buyCostStructure']);
     }
 
+    #[Group('issue-880')]
+    public function testFirstMarketStructureOfTheListIsExposedAsTheSellStructureWhenNoPreferredStructureIsSet(): void
+    {
+        $user = $this->goldenUser()
+            ->setPreferredMarketStructureId(null)
+            ->setMarketStructures([
+                ['id' => self::SELL_STRUCTURE_ID, 'name' => 'Sell hub'],
+                ['id' => self::OTHER_SELL_STRUCTURE_ID, 'name' => 'Other sell hub'],
+            ]);
+
+        $resource = $this->provide(self::HAIL_L, [], $user, null);
+
+        $this->assertSame(self::SELL_STRUCTURE_ID, $resource->sellStructureId);
+        $this->assertSame(25000.0, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buyCostStructure']);
+    }
+
     #[Group('issue-100')]
     public function testStructureQueryParameterIsExposedAsTheSellStructureOverThePreferredMarketStructure(): void
     {

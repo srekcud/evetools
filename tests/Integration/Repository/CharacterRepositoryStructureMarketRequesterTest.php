@@ -9,6 +9,7 @@ use App\Entity\EveToken;
 use App\Entity\User;
 use App\Repository\CharacterRepository;
 use App\Tests\Integration\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Issue #28: freezes CharacterRepository::findStructureMarketRequester(int $structureId, bool $isDefaultStructure): ?Character,
@@ -129,6 +130,44 @@ final class CharacterRepositoryStructureMarketRequesterTest extends IntegrationT
         self::assertNull($this->requesterNameFor(self::DEFAULT_STRUCTURE_ID, isDefaultStructure: true));
     }
 
+    #[Group('issue-880')]
+    public function testReturnsTheCharacterOfTheUserWhoOnlyHasTheStructureInHisMarketStructuresList(): void
+    {
+        $this->createPilot('Other Structure Pilot', $this->createRequester(self::OTHER_STRUCTURE_ID));
+        $this->createPilot('List Pilot', $this->createRequester(null, marketStructures: [['id' => self::PREFERRED_STRUCTURE_ID, 'name' => 'Listed hub']]));
+        $this->flushAndClear();
+
+        self::assertSame('List Pilot', $this->requesterNameFor(self::PREFERRED_STRUCTURE_ID));
+    }
+
+    #[Group('issue-880')]
+    public function testReturnsTheCharacterOfTheUserWhoPrefersAnotherStructureButListsTheRequestedOne(): void
+    {
+        $this->createPilot('Mixed Pilot', $this->createRequester(self::OTHER_STRUCTURE_ID, marketStructures: [['id' => self::PREFERRED_STRUCTURE_ID, 'name' => 'Listed hub']]));
+        $this->flushAndClear();
+
+        self::assertSame('Mixed Pilot', $this->requesterNameFor(self::PREFERRED_STRUCTURE_ID));
+    }
+
+    #[Group('issue-880')]
+    public function testUsersWithoutPreferenceButWithAMarketStructuresListDoNotRequestTheDefaultStructure(): void
+    {
+        $this->createPilot('List Pilot', $this->createRequester(null, marketStructures: [['id' => self::OTHER_STRUCTURE_ID, 'name' => 'Listed hub']]));
+        $this->flushAndClear();
+
+        self::assertNull($this->requesterNameFor(self::DEFAULT_STRUCTURE_ID, isDefaultStructure: true));
+    }
+
+    #[Group('issue-880')]
+    public function testDefaultStructureIsRequestedByTheUserWithoutAnyStructureEvenWhenAListUserLoggedInMoreRecently(): void
+    {
+        $this->createPilot('List Pilot', $this->createRequester(null, lastLoginAt: '2026-10-05 12:00:00', marketStructures: [['id' => self::OTHER_STRUCTURE_ID, 'name' => 'Listed hub']]));
+        $this->createPilot('No Structure Pilot', $this->createRequester(null, lastLoginAt: '2026-10-01 12:00:00'));
+        $this->flushAndClear();
+
+        self::assertSame('No Structure Pilot', $this->requesterNameFor(self::DEFAULT_STRUCTURE_ID, isDefaultStructure: true));
+    }
+
     public function testPrefersTheMostRecentlyLoggedInRequester(): void
     {
         $this->createPilot('Never Logged In', $this->createRequester(self::PREFERRED_STRUCTURE_ID, lastLoginAt: null));
@@ -145,10 +184,12 @@ final class CharacterRepositoryStructureMarketRequesterTest extends IntegrationT
         return $this->repository->findStructureMarketRequester($structureId, $isDefaultStructure)?->getName();
     }
 
-    private function createRequester(?int $preferredMarketStructureId, ?string $lastLoginAt = '2026-10-01 12:00:00'): User
+    /** @param list<array{id: int, name: string}> $marketStructures */
+    private function createRequester(?int $preferredMarketStructureId, ?string $lastLoginAt = '2026-10-01 12:00:00', array $marketStructures = []): User
     {
         return $this->createUser()
             ->setPreferredMarketStructureId($preferredMarketStructureId)
+            ->setMarketStructures($marketStructures)
             ->setLastLoginAt($lastLoginAt === null ? null : new \DateTimeImmutable($lastLoginAt));
     }
 

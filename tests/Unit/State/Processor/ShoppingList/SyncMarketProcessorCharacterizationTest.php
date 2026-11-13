@@ -158,6 +158,27 @@ final class SyncMarketProcessorCharacterizationTest extends TestCase
         $this->assertSame([['/markets/structures/' . self::PREFERRED_STRUCTURE_ID . '/', $token]], $this->structureOrdersRequests);
     }
 
+    #[Group('issue-880')]
+    public function testWithoutRequestedNorPreferredStructureTheFirstMarketStructureOfTheListIsSynced(): void
+    {
+        $this->user->setPreferredMarketStructureId(null);
+        $this->user->addMarketStructure(self::REQUESTED_STRUCTURE_ID, self::REQUESTED_STRUCTURE_NAME);
+        $this->user->addMarketStructure(self::PREFERRED_STRUCTURE_ID, self::PREFERRED_STRUCTURE_NAME);
+        $token = $this->createToken([EveConstants::STRUCTURE_MARKET_SCOPE]);
+        $this->user->addCharacter($this->createCharacter($token));
+        $this->givenStructureName(self::REQUESTED_STRUCTURE_ID, self::REQUESTED_STRUCTURE_NAME);
+        $this->givenStructureOrders(self::REQUESTED_STRUCTURE_ID, $this->requestedStructureOrders());
+        $this->givenStructureOrders(self::DEFAULT_STRUCTURE_ID, [[]]);
+
+        $result = $this->process(null);
+
+        $this->assertTrue($result->success);
+        $this->assertSame(self::REQUESTED_STRUCTURE_ID, $result->structureId);
+        $this->assertSame(self::REQUESTED_STRUCTURE_NAME, $result->structureName);
+        $this->assertSame(4, $result->totalOrders);
+        $this->assertSame([['/markets/structures/' . self::REQUESTED_STRUCTURE_ID . '/', $token]], $this->structureOrdersRequests);
+    }
+
     public function testWithoutRequestedNorPreferredStructureTheDefaultStructureIsSyncedUnderItsConfiguredName(): void
     {
         $this->user->setPreferredMarketStructureId(null);

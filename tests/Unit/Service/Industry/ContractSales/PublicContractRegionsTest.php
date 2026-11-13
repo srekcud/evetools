@@ -70,7 +70,7 @@ final class PublicContractRegionsTest extends TestCase
         ];
 
         $userRepository = $this->createStub(UserRepository::class);
-        $userRepository->method('findDistinctPreferredMarketStructureIds')->willReturn($preferredStructureIds);
+        $userRepository->method('findDistinctMarketStructureIds')->willReturn($preferredStructureIds);
 
         $cachedStructureRepository = $this->createStub(CachedStructureRepository::class);
         $cachedStructureRepository->method('findByStructureId')->willReturnCallback(

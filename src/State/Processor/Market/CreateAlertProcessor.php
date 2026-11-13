@@ -94,18 +94,17 @@ class CreateAlertProcessor implements ProcessorInterface
             return null;
         }
 
-        $preferredStructureId = $user->getPreferredMarketStructureId();
+        $effectiveStructureId = $user->getEffectiveMarketStructureId();
 
         if ($requestedStructureId === null) {
-            if ($preferredStructureId === null) {
+            if ($effectiveStructureId === null) {
                 throw new BadRequestHttpException('You must set a preferred market structure before using structure price alerts');
             }
 
-            return $preferredStructureId;
+            return $effectiveStructureId;
         }
 
-        $followedStructureIds = array_column($user->getMarketStructures(), 'id');
-        if ($requestedStructureId !== $preferredStructureId && !in_array($requestedStructureId, $followedStructureIds, true)) {
+        if (!$user->followsMarketStructure($requestedStructureId)) {
             throw new BadRequestHttpException('The structure must be your preferred or a followed market structure');
         }
 

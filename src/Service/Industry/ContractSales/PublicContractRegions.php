@@ -26,7 +26,7 @@ class PublicContractRegions
         $regionIds = [EveConstants::THE_FORGE_REGION_ID => EveConstants::THE_FORGE_REGION_ID];
         $unknownStructureIds = [];
 
-        foreach ($this->userRepository->findDistinctPreferredMarketStructureIds() as $structureId) {
+        foreach ($this->userRepository->findDistinctMarketStructureIds() as $structureId) {
             $regionId = $this->regionIdOf($structureId);
             if (null === $regionId) {
                 $unknownStructureIds[] = $structureId;

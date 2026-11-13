@@ -70,10 +70,10 @@ class MarketTypeDetailProvider implements ProviderInterface
         }
 
         // Structure prices (if user has a preferred structure)
-        $structureId = $user->getPreferredMarketStructureId();
+        $structureId = $user->getEffectiveMarketStructureId();
         $resource->hasPreferredStructure = $structureId !== null;
         if ($structureId !== null) {
-            $resource->structureName = $user->getPreferredMarketStructureName();
+            $resource->structureName = $user->getEffectiveMarketStructureName();
             $resource->structureSell = $this->structureMarketService->getLowestSellPrice($structureId, $typeId);
             $resource->structureBuy = $this->structureMarketService->getHighestBuyPrice($structureId, $typeId);
             $resource->structureSellOrders = $this->structureMarketService->getSellOrders($structureId, $typeId);

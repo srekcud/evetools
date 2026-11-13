@@ -377,8 +377,8 @@ class CreateProjectProcessorTest extends TestCase
     #[Group('issue-50')]
     public function testSellStructureAbsentAtCreationIsThePreferredMarketStructureOfTheOwner(): void
     {
-        $this->owner->method('getPreferredMarketStructureId')->willReturn(self::JITA_STRUCTURE_ID);
-        $this->owner->method('getPreferredMarketStructureName')->willReturn('Jita 4-4');
+        $this->owner->method('getEffectiveMarketStructureId')->willReturn(self::JITA_STRUCTURE_ID);
+        $this->owner->method('getEffectiveMarketStructureName')->willReturn('Jita 4-4');
 
         $this->createProjectFrom($this->sabreInput());
 
@@ -398,8 +398,8 @@ class CreateProjectProcessorTest extends TestCase
     #[Group('issue-50')]
     public function testSellStructureSentAtCreationTakesItsNameFromTheMarketStructuresOfTheOwner(): void
     {
-        $this->owner->method('getPreferredMarketStructureId')->willReturn(self::JITA_STRUCTURE_ID);
-        $this->owner->method('getPreferredMarketStructureName')->willReturn('Jita 4-4');
+        $this->owner->method('getEffectiveMarketStructureId')->willReturn(self::JITA_STRUCTURE_ID);
+        $this->owner->method('getEffectiveMarketStructureName')->willReturn('Jita 4-4');
         $this->owner->method('getMarketStructures')->willReturn([['id' => self::KEEPSTAR_STRUCTURE_ID, 'name' => 'Keepstar A']]);
         $input = $this->sabreInput();
         $input->sellStructureId = self::KEEPSTAR_STRUCTURE_ID;
@@ -413,7 +413,7 @@ class CreateProjectProcessorTest extends TestCase
     #[Group('issue-50')]
     public function testSellStructureSentAtCreationOutsideTheMarketStructuresOfTheOwnerIsABadRequestAndNoProjectIsCreated(): void
     {
-        $this->owner->method('getPreferredMarketStructureId')->willReturn(self::JITA_STRUCTURE_ID);
+        $this->owner->method('getEffectiveMarketStructureId')->willReturn(self::JITA_STRUCTURE_ID);
         $input = $this->sabreInput();
         $input->sellStructureId = 999;
 

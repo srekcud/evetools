@@ -43,7 +43,7 @@ class SyncMarketProcessor implements ProcessorInterface
 
         // Cascade: explicit input > user preference > app default
         $structureId = $data->structureId
-            ?? $user->getPreferredMarketStructureId()
+            ?? $user->getEffectiveMarketStructureId()
             ?? $this->defaultMarketStructureId;
 
         $token = null;
