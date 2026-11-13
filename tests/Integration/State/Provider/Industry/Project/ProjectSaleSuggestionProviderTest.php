@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\State\Provider\Industry\Project;
 
-use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Get;
+use App\ApiResource\Industry\Project\ProjectSaleSuggestionListResource;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectProduct;
@@ -15,7 +16,9 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedWalletTransactionRepository;
+use App\Repository\CharacterWalletReadingRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Sync\WalletReadingStateReader;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSaleSuggestionProvider;
 use App\Tests\Integration\IntegrationTestCase;
@@ -115,11 +118,14 @@ final class ProjectSaleSuggestionProviderTest extends IntegrationTestCase
             self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(ProjectAccessChecker::class),
             self::getContainer()->get(CachedWalletTransactionRepository::class),
+            new WalletReadingStateReader(self::getContainer()->get(CharacterWalletReadingRepository::class)),
         );
 
         $suggestions = [];
         $queries = $this->sqlExecutedDuring(function () use ($provider, $projectId, &$suggestions): void {
-            $suggestions = $provider->provide(new GetCollection(), ['projectId' => $projectId]);
+            $list = $provider->provide(new Get(), ['projectId' => $projectId]);
+            self::assertInstanceOf(ProjectSaleSuggestionListResource::class, $list);
+            $suggestions = $list->suggestions;
         });
 
         return [$queries, \count($suggestions)];

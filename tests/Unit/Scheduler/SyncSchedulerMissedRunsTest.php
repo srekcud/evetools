@@ -58,6 +58,7 @@ class SyncSchedulerMissedRunsTest extends TestCase
 
         $this->assertSame(
             [
+                SyncWalletTransactions::class,
                 SyncCharacterOrders::class,
                 CheckMoonChunkAlerts::class,
                 CheckMiningSiteDepletionAlerts::class,
@@ -72,7 +73,6 @@ class SyncSchedulerMissedRunsTest extends TestCase
                 TriggerJitaMarketSync::class,
                 TriggerPveSync::class,
                 TriggerMiningSync::class,
-                SyncWalletTransactions::class,
                 TriggerMoonTaxSync::class,
                 SyncBlueprints::class,
                 SyncCostIndices::class,

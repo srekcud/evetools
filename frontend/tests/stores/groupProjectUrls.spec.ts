@@ -28,7 +28,7 @@ const PURCHASE_SUGGESTIONS_URL = `/industry/projects/${PROJECT_ID}/purchase-sugg
 const PLATES_PURCHASES_URL = `/industry/projects/${PROJECT_ID}/bom/${PLATES_LINE_ID}/purchases`
 const DELETE_PURCHASE_URL = `/industry/projects/${PROJECT_ID}/purchases/purchase-manual`
 const AVAILABLE_JOB = { esiJobId: 9001, characterName: 'Cyra Lune', linkedToBomLineId: null, matchId: null }
-const PURCHASE_SUGGESTIONS = { suggestions: [{ transactionId: 6_400_000_201, transactionUuid: TRANSACTION_UUID, typeId: 21010, alreadyLinked: false }], totalCount: 1 }
+const PURCHASE_SUGGESTIONS = { suggestions: [{ transactionId: 6_400_000_201, transactionUuid: TRANSACTION_UUID, typeId: 21010, alreadyLinked: false }], totalCount: 1, walletReadings: [{ characterName: 'Cyra Lune', status: 'read', readAt: '2026-11-13T20:04:10+00:00', nextReadAt: '2026-11-13T21:04:00+00:00' }] }
 
 type PurchaseInput = { transactionId: string } | { typeId: number; quantity: number; unitPrice: number }
 

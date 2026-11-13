@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\State\Provider\Industry\Project;
 
-use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Get;
+use App\ApiResource\Industry\Project\ProjectSaleSuggestionListResource;
 use App\ApiResource\Industry\Project\ProjectSaleSuggestionResource;
+use App\ApiResource\Industry\WalletReadingResource;
 use App\Entity\CachedWalletTransaction;
+use App\Entity\CharacterWalletReading;
+use App\Entity\EveToken;
 use App\Entity\User;
 use App\Enum\ProjectStatus;
+use App\Repository\CharacterWalletReadingRepository;
+use App\Service\Sync\WalletReadingStateReader;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSaleSuggestionProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -30,18 +36,23 @@ final class ProjectSaleSuggestionProviderTest extends TestCase
     private Security&Stub $security;
     private ProjectSaleSuggestionProvider $provider;
 
+    private array $storedWalletReadings = [];
+
     protected function setUp(): void
     {
         $this->createSabreBatch();
         $this->createSabreBatchSellers();
         $this->createSabreBatchWalletTransactions();
         $this->security = $this->createStub(Security::class);
+        $readingRepository = $this->createStub(CharacterWalletReadingRepository::class);
+        $readingRepository->method('findByCharacters')->willReturnCallback(fn (): array => $this->storedWalletReadings);
 
         $this->provider = new ProjectSaleSuggestionProvider(
             $this->security,
             $this->sabreBatchProjectRepository(),
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             $this->walletTransactionRepository(),
+            new WalletReadingStateReader($readingRepository),
         );
     }
 
@@ -209,6 +220,50 @@ final class ProjectSaleSuggestionProviderTest extends TestCase
         self::assertSame([$this->t7->getId()?->toRfc4122(), $this->t1->getId()?->toRfc4122()], $this->suggestedTransactionIds());
     }
 
+    #[Group('issue-916')]
+    public function testListIsIdentifiedByTheProjectAndCarriesTheWalletReadingsOfTheCharactersOfTheOwner(): void
+    {
+        $this->actAsTheOwner();
+        $this->oMain->setEveToken((new EveToken())->setScopes(['esi-wallet.read_character_wallet.v1']));
+        $this->storedWalletReadings[] = (new CharacterWalletReading())
+            ->setCharacter($this->oMain)
+            ->setReadAt(new \DateTimeImmutable('2026-11-13T20:04:10+00:00'))
+            ->setNextReadAt(new \DateTimeImmutable('2026-11-13T21:04:00+00:00'));
+
+        $list = $this->provideList();
+
+        self::assertSame($this->sabreBatch->getId()?->toRfc4122(), $list->id);
+        self::assertSame(
+            [
+                ['O-Main', 'read', '2026-11-13T20:04:10+00:00', '2026-11-13T21:04:00+00:00'],
+                ['O-Alt', 'no_token', null, null],
+            ],
+            $this->walletReadingFieldsOf($list),
+        );
+        self::assertSame([$this->t7->getId()?->toRfc4122(), $this->t1->getId()?->toRfc4122()], array_map(
+            static fn (ProjectSaleSuggestionResource $suggestion): string => $suggestion->transactionId,
+            $list->suggestions,
+        ));
+    }
+
+    #[Group('issue-916')]
+    public function testListWithoutSuggestionStillCarriesTheWalletReadings(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->sellerCharacter(2120000031, 'A-Alt')));
+
+        $list = $this->provideList();
+
+        self::assertSame([[], [['A-Alt', 'no_token', null, null]]], [$list->suggestions, $this->walletReadingFieldsOf($list)]);
+    }
+
+    #[Group('issue-916')]
+    public function testAdminIsServedTheWalletReadingsOfHisOwnCharactersOnly(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->aMain));
+
+        self::assertSame([['A-Main', 'no_token', null, null]], $this->walletReadingFieldsOf($this->provideList()));
+    }
+
     public static function suggestionAccessMatrix(): iterable
     {
         yield 'L10 accepted member' => [self::ACCEPTED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
@@ -233,7 +288,7 @@ final class ProjectSaleSuggestionProviderTest extends TestCase
     {
         $this->actAsTheOwner();
 
-        self::assertSame(self::PROJECT_NOT_FOUND, $this->outcomeOf(fn () => $this->provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toRfc4122()])));
+        self::assertSame(self::PROJECT_NOT_FOUND, $this->outcomeOf(fn () => $this->provider->provide(new Get(), ['projectId' => Uuid::v4()->toRfc4122()])));
     }
 
     public function testSuggestionsWithoutUserAreUnauthorized(): void
@@ -253,7 +308,23 @@ final class ProjectSaleSuggestionProviderTest extends TestCase
 
     private function provideSuggestions(): array
     {
-        return $this->provider->provide(new GetCollection(), ['projectId' => $this->sabreBatch->getId()?->toRfc4122()]);
+        return $this->provideList()->suggestions;
+    }
+
+    private function provideList(): ProjectSaleSuggestionListResource
+    {
+        $list = $this->provider->provide(new Get(), ['projectId' => $this->sabreBatch->getId()?->toRfc4122()]);
+        self::assertInstanceOf(ProjectSaleSuggestionListResource::class, $list);
+
+        return $list;
+    }
+
+    private function walletReadingFieldsOf(ProjectSaleSuggestionListResource $list): array
+    {
+        return array_map(
+            static fn (WalletReadingResource $reading): array => [$reading->characterName, $reading->status, $reading->readAt, $reading->nextReadAt],
+            $list->walletReadings,
+        );
     }
 
     private function suggestedTransactionIds(): array

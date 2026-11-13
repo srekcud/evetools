@@ -5,18 +5,21 @@ declare(strict_types=1);
 namespace App\Tests\Integration\MessageHandler;
 
 use App\Entity\Character;
+use App\Entity\CharacterWalletReading;
 use App\Entity\EveToken;
 use App\Message\SyncPlanetaryColonies;
 use App\Message\SyncWalletTransactions;
 use App\MessageHandler\SyncPlanetaryColoniesHandler;
 use App\MessageHandler\SyncWalletTransactionsHandler;
 use App\Repository\CharacterRepository;
+use App\Repository\CharacterWalletReadingRepository;
 use App\Service\Admin\SyncTracker;
 use App\Service\Sync\PlanetarySyncService;
 use App\Service\Sync\WalletTransactionSyncService;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -89,6 +92,7 @@ final class ScheduledCharacterSyncFanOutTest extends KernelTestCase
             $this->characterWithScopes(self::CHARACTER_WITH_SCOPE_B, [$requiredScope]),
         ]);
         $container->set(CharacterRepository::class, $characterRepository);
+        $container->set(CharacterWalletReadingRepository::class, $this->walletReadingRepository([]));
 
         $charactersSyncedInline = [];
         $syncService = $this->createStub($syncServiceClass);
@@ -142,6 +146,34 @@ final class ScheduledCharacterSyncFanOutTest extends KernelTestCase
         );
     }
 
+    #[Group('issue-916')]
+    public function testScheduledWalletSyncQueuesOnlyTheCharactersWhoseWalletReadingIsDue(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+
+        $due = $this->characterWithScopes(self::CHARACTER_WITH_SCOPE_A, ['esi-wallet.read_character_wallet.v1']);
+        $notDue = $this->characterWithScopes(self::CHARACTER_WITH_SCOPE_B, ['esi-wallet.read_character_wallet.v1']);
+        $characterRepository = $this->createStub(CharacterRepository::class);
+        $characterRepository->method('findActiveWithValidTokens')->willReturn([$due, $notDue]);
+        $container->set(CharacterRepository::class, $characterRepository);
+        $container->set(CharacterWalletReadingRepository::class, $this->walletReadingRepository([
+            $this->readingOf($due, new \DateTimeImmutable('-2 hours'), new \DateTimeImmutable('-1 hour')),
+            $this->readingOf($notDue, new \DateTimeImmutable('-5 minutes'), new \DateTimeImmutable('+55 minutes')),
+        ]));
+        $container->set(WalletTransactionSyncService::class, $this->createStub(WalletTransactionSyncService::class));
+        $container->set(SyncTracker::class, $this->createStub(SyncTracker::class));
+
+        $bus = $container->get(MessageBusInterface::class);
+        $bus->dispatch(new Envelope(new SyncWalletTransactions(), [new ReceivedStamp('scheduler_default')]));
+
+        $asyncTransport = $container->get('messenger.transport.async');
+        self::assertSame(
+            [self::CHARACTER_WITH_SCOPE_A],
+            array_map(static fn (Envelope $envelope): ?string => $envelope->getMessage()->characterId ?? null, $asyncTransport->getSent()),
+        );
+    }
+
     /** @param list<string> $grantedScopes */
     private function characterWithScopes(string $characterId, array $grantedScopes): Character
     {
@@ -156,5 +188,24 @@ final class ScheduledCharacterSyncFanOutTest extends KernelTestCase
         $character->method('getEveToken')->willReturn($token);
 
         return $character;
+    }
+
+    private function walletReadingRepository(array $storedReadings): CharacterWalletReadingRepository
+    {
+        $repository = $this->createStub(CharacterWalletReadingRepository::class);
+        $repository->method('findByCharacters')->willReturn($storedReadings);
+        $repository->method('findOneByCharacter')->willReturnCallback(
+            static fn (Character $character): ?CharacterWalletReading => array_find(
+                $storedReadings,
+                static fn (CharacterWalletReading $reading): bool => $reading->getCharacter() === $character,
+            ),
+        );
+
+        return $repository;
+    }
+
+    private function readingOf(Character $character, \DateTimeImmutable $readAt, \DateTimeImmutable $nextReadAt): CharacterWalletReading
+    {
+        return (new CharacterWalletReading())->setCharacter($character)->setReadAt($readAt)->setNextReadAt($nextReadAt);
     }
 }

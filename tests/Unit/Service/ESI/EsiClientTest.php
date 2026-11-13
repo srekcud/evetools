@@ -944,6 +944,80 @@ final class EsiClientTest extends TestCase
         ], $result);
     }
 
+    #[Group('issue-916')]
+    public function testGetWithExpiryReturnsTheItemsOfTheSingleRequestAndItsExpires(): void
+    {
+        $issuedAt = time();
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['transaction_id' => 5001, 'type_id' => 34, 'quantity' => 1000]], 200, [
+                'Expires' => $this->httpDate($issuedAt + 3600),
+            ]),
+        ]);
+
+        $response = $esiClient->getWithExpiry('/characters/2112000001/wallet/transactions/?from_id=5100', $this->createEveToken());
+
+        $this->assertSame([['transaction_id' => 5001, 'type_id' => 34, 'quantity' => 1000]], $response->items);
+        $this->assertSame($issuedAt + 3600, $response->expiresAt?->getTimestamp());
+        $this->assertSame([self::BASE_URL . '/characters/2112000001/wallet/transactions/?from_id=5100'], array_column($this->recordedRequests, 'url'));
+        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[0]['headers']['authorization']);
+    }
+
+    #[Group('issue-916')]
+    public function testGetWithExpiryReturnsUnknownExpiryWhenTheResponseHasNoExpires(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['transaction_id' => 5002, 'type_id' => 35, 'quantity' => 500]]),
+        ]);
+
+        $response = $esiClient->getWithExpiry('/characters/2112000001/wallet/transactions/', $this->createEveToken());
+
+        $this->assertSame([['transaction_id' => 5002, 'type_id' => 35, 'quantity' => 500]], $response->items);
+        $this->assertNull($response->expiresAt);
+    }
+
+    #[Group('issue-916')]
+    public function testGetWithExpiryReturnsUnknownExpiryWhenTheExpiresIsUnreadable(): void
+    {
+        $esiClient = $this->createEsiClient([
+            $this->jsonResponse([['transaction_id' => 5003, 'type_id' => 36, 'quantity' => 250]], 200, ['Expires' => 'not a date']),
+        ]);
+
+        $response = $esiClient->getWithExpiry('/characters/2112000001/wallet/transactions/', $this->createEveToken());
+
+        $this->assertSame([['transaction_id' => 5003, 'type_id' => 36, 'quantity' => 250]], $response->items);
+        $this->assertNull($response->expiresAt);
+    }
+
+    #[Group('issue-916')]
+    public function testGetWithExpiryThrowsEsiApiExceptionWithStatusMessageAndEndpointOfAFailedResponse(): void
+    {
+        $esiClient = $this->createEsiClient([$this->errorResponse(403)]);
+
+        try {
+            $esiClient->getWithExpiry('/characters/2112000001/wallet/transactions/', $this->createEveToken());
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(403, $exception->statusCode);
+            $this->assertSame('Access forbidden', $exception->getMessage());
+            $this->assertSame('/characters/2112000001/wallet/transactions/', $exception->endpoint);
+        }
+    }
+
+    #[Group('issue-916')]
+    public function testGetWithExpiryThrowsNetworkErrorWithStatusZero(): void
+    {
+        $esiClient = $this->createEsiClient([$this->networkErrorResponse()]);
+
+        try {
+            $esiClient->getWithExpiry('/characters/2112000001/wallet/transactions/', $this->createEveToken());
+            $this->fail('Expected EsiApiException');
+        } catch (EsiApiException $exception) {
+            $this->assertSame(0, $exception->statusCode);
+            $this->assertSame('Network error: Connection reset by peer', $exception->getMessage());
+            $this->assertSame('/characters/2112000001/wallet/transactions/', $exception->endpoint);
+        }
+    }
+
     // ---------------------------------------------------------------
     // Issue #43 -- post() and postEmpty()
     // ---------------------------------------------------------------

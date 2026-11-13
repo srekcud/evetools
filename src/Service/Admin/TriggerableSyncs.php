@@ -81,6 +81,10 @@ final class TriggerableSyncs
     /** @return list<object> */
     public static function messagesFor(string $type): array
     {
+        if ($type === 'wallet') {
+            return [new SyncWalletTransactions(dueOnly: false)];
+        }
+
         return array_map(
             static fn (string $messageClass): object => new $messageClass(),
             self::MESSAGE_CLASSES_BY_TYPE[$type] ?? [],

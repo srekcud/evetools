@@ -7,7 +7,8 @@ import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPan
 import { dateFormat } from '@/composables/useFormatters'
 import { ApiError, apiRequest } from '@/services/api'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
-import type { GroupSale, GroupSaleSuggestion } from '@/stores/group-industry/types'
+import { useSyncStore, type SyncProgress } from '@/stores/sync'
+import type { GroupSale, GroupSaleSuggestion, GroupSaleSuggestionList, WalletReading } from '@/stores/group-industry/types'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -88,6 +89,28 @@ function manualSale(id: string, soldAt: string): GroupSale {
 
 const MANUAL_SALE_V = manualSale('sale-v', '2026-10-24T12:00:00+00:00')
 const MANUAL_SALE_V2 = manualSale('sale-v2', '2026-10-25T12:00:00+00:00')
+
+const MAIN_READ_AT = '2026-11-13T20:04:10+00:00'
+const MAIN_NEXT_READ_AT = '2026-11-13T21:04:00+00:00'
+const ALT_NEXT_READ_AT = '2026-11-13T21:20:00+00:00'
+
+const WALLET_READINGS: WalletReading[] = [
+  { characterName: 'O-Main', status: 'read', readAt: MAIN_READ_AT, nextReadAt: MAIN_NEXT_READ_AT },
+  { characterName: 'O-Alt', status: 'read', readAt: '2026-11-13T20:20:00+00:00', nextReadAt: ALT_NEXT_READ_AT },
+]
+
+function suggestionList(suggestions: GroupSaleSuggestion[], walletReadings: WalletReading[] = WALLET_READINGS): GroupSaleSuggestionList {
+  return { id: PROJECT_ID, suggestions, walletReadings }
+}
+
+function clockTime(iso: string): string {
+  const date = new Date(iso)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function walletTransactionsSync(status: SyncProgress['status']): SyncProgress {
+  return { syncType: 'wallet-transactions', status, progress: null, message: null, data: null, timestamp: '2026-11-13T21:05:00+00:00' }
+}
 
 type Responses = {
   sales: () => Promise<unknown>
@@ -172,7 +195,7 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
   responses = {
     sales: async () => [],
-    suggestions: async () => [T7_SUGGESTION, T1_SUGGESTION],
+    suggestions: async () => suggestionList([T7_SUGGESTION, T1_SUGGESTION]),
     recording: async () => SALE_OF_T7,
   }
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
@@ -216,7 +239,7 @@ describe('SaleSuggestionsPanel list', () => {
   })
 
   it('says there is no wallet transaction to link when the list is empty', async () => {
-    responses.suggestions = async () => []
+    responses.suggestions = async () => suggestionList([])
 
     const wrapper = await mountPanel()
 
@@ -254,7 +277,7 @@ describe('SaleSuggestionsPanel recording', () => {
 
   it('reads the suggestions again once the sale is recorded', async () => {
     const wrapper = await mountPanel()
-    responses.suggestions = async () => [T1_SUGGESTION]
+    responses.suggestions = async () => suggestionList([T1_SUGGESTION])
 
     await recordAsSale(wrapper, 'O-Alt', 10)
 
@@ -284,7 +307,7 @@ describe('SaleSuggestionsPanel possible duplicates', () => {
 
   it('names every sale that T1 may duplicate', async () => {
     await listSalesOfTheProject([MANUAL_SALE_V, MANUAL_SALE_V2])
-    responses.suggestions = async () => [T7_SUGGESTION, { ...T1_SUGGESTION, possibleDuplicateSaleIds: ['sale-v', 'sale-v2'] }]
+    responses.suggestions = async () => suggestionList([T7_SUGGESTION, { ...T1_SUGGESTION, possibleDuplicateSaleIds: ['sale-v', 'sale-v2'] }])
 
     const wrapper = await mountPanel()
 
@@ -310,5 +333,87 @@ describe('SaleSuggestionsPanel possible duplicates', () => {
 
     const t1Row = normalized(rowSoldBy(wrapper, 'O-Main').text())
     expect([t1Row.includes('Possible duplicate'), t1Row.includes('of the sale of')]).toEqual([true, false])
+  })
+})
+
+function walletReadingChips(wrapper: VueWrapper): string[] {
+  return wrapper.findAll('[data-testid="wallet-reading"]').map(chip => normalized(chip.text()))
+}
+
+function readSentence(readAt: string, nextReadAt: string): string {
+  return `Wallet read at ${clockTime(readAt)} · next read around ${clockTime(nextReadAt)}`
+}
+
+describe('SaleSuggestionsPanel wallet readings', () => {
+  it('shows one chip per character with the time of its last wallet reading and of its next one', async () => {
+    const wrapper = await mountPanel()
+
+    const chips = walletReadingChips(wrapper)
+    expect(chips).toHaveLength(2)
+    expect(chips[0]).toContain('O-Main')
+    expect(chips[0]).toContain(readSentence(MAIN_READ_AT, MAIN_NEXT_READ_AT))
+    expect(chips[1]).toContain('O-Alt')
+    expect(chips[1]).toContain(readSentence('2026-11-13T20:20:00+00:00', ALT_NEXT_READ_AT))
+  })
+
+  it('reads the suggestions and the wallet readings again when the wallet reading of the characters completes', async () => {
+    const wrapper = await mountPanel()
+    const refreshedReadAt = '2026-11-13T21:05:10+00:00'
+    const refreshedNextReadAt = '2026-11-13T22:04:00+00:00'
+    responses.suggestions = async () => suggestionList(
+      [T1_SUGGESTION],
+      [{ characterName: 'O-Main', status: 'read', readAt: refreshedReadAt, nextReadAt: refreshedNextReadAt }],
+    )
+
+    useSyncStore().syncStatus['wallet-transactions'] = walletTransactionsSync('completed')
+    await flushPromises()
+
+    const chips = walletReadingChips(wrapper)
+    expect({ reads: suggestionReads(), shown: shownSuggestions(wrapper), chipCount: chips.length }).toEqual({
+      reads: 2,
+      shown: [['O-Main', '3', '61,250,000', '183,750,000']],
+      chipCount: 1,
+    })
+    expect(chips[0]).toContain(readSentence(refreshedReadAt, refreshedNextReadAt))
+  })
+  it('says in French that the wallet is being read between the start and the completion of the reading', async () => {
+    const wrapper = await mountPanel('fr')
+    const beforeTheReading = wrapper.find('[data-testid="wallet-reading-in-progress"]').exists()
+
+    useSyncStore().syncStatus['wallet-transactions'] = walletTransactionsSync('started')
+    await flushPromises()
+    const duringTheReading = normalized(wrapper.get('[data-testid="wallet-reading-in-progress"]').text())
+
+    useSyncStore().syncStatus['wallet-transactions'] = walletTransactionsSync('completed')
+    await flushPromises()
+
+    expect({ beforeTheReading, duringTheReading, afterTheReading: wrapper.find('[data-testid="wallet-reading-in-progress"]').exists() }).toEqual({
+      beforeTheReading: false,
+      duringTheReading: 'Lecture du wallet…',
+      afterTheReading: false,
+    })
+  })
+
+  it('gives the latest next reading time when there is no suggestion and shows no wallet state while loading or in error', async () => {
+    responses.suggestions = async () => suggestionList([])
+    const wrapper = await mountPanel()
+    const hint = normalized(wrapper.get('[data-testid="wallet-reading-empty-hint"]').text())
+    const chipsWhenEmpty = walletReadingChips(wrapper).length
+
+    responses.suggestions = () => new Promise(() => undefined)
+    useSyncStore().syncStatus['wallet-transactions'] = walletTransactionsSync('completed')
+    await flushPromises()
+    const whileLoading = [walletReadingChips(wrapper).length, wrapper.find('[data-testid="wallet-reading-empty-hint"]').exists()]
+
+    responses.suggestions = async () => {
+      throw new ApiError('Service unavailable', 503)
+    }
+    useSyncStore().syncStatus['wallet-transactions'] = { ...walletTransactionsSync('completed'), timestamp: '2026-11-13T21:06:00+00:00' }
+    await flushPromises()
+    const inError = [walletReadingChips(wrapper).length, wrapper.find('[data-testid="wallet-reading-empty-hint"]').exists()]
+
+    expect(hint).toContain(clockTime(ALT_NEXT_READ_AT))
+    expect(hint.toLowerCase()).toContain('manual')
+    expect({ chipsWhenEmpty, whileLoading, inError }).toEqual({ chipsWhenEmpty: 2, whileLoading: [0, false], inError: [0, false] })
   })
 })

@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { ApiError, apiRequest } from '@/services/api'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
-import type { GroupSale, GroupSaleSuggestion } from '@/stores/group-industry/types'
+import type { GroupSale, GroupSaleSuggestion, GroupSaleSuggestionList, WalletReading } from '@/stores/group-industry/types'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -76,6 +76,15 @@ const SALE_OF_T7: GroupSale = {
   createdAt: '2026-10-29T08:00:00+00:00',
 }
 
+const WALLET_READINGS: WalletReading[] = [
+  { characterName: 'O-Main', status: 'read', readAt: '2026-11-13T20:04:10+00:00', nextReadAt: '2026-11-13T21:04:00+00:00' },
+  { characterName: 'O-Alt', status: 'missing_scope', readAt: null, nextReadAt: null },
+]
+
+function suggestionList(projectId: string, suggestions: GroupSaleSuggestion[]): GroupSaleSuggestionList {
+  return { id: projectId, suggestions, walletReadings: WALLET_READINGS }
+}
+
 function suggestionsPath(projectId: string): string {
   return `/industry/projects/${projectId}/sale-suggestions`
 }
@@ -92,13 +101,14 @@ beforeEach(() => {
 describe('group distribution store sale suggestions', () => {
   it('reads the sale suggestions of the project newest first', async () => {
     const store = useGroupDistributionStore()
-    vi.mocked(apiRequest).mockResolvedValueOnce([T7_SUGGESTION, T1_SUGGESTION])
+    vi.mocked(apiRequest).mockResolvedValueOnce(suggestionList(SABRE_PROJECT_ID, [T7_SUGGESTION, T1_SUGGESTION]))
 
     await expect(store.fetchSaleSuggestions(SABRE_PROJECT_ID)).resolves.toBeUndefined()
 
     expect(apiRequest).toHaveBeenCalledWith(suggestionsPath(SABRE_PROJECT_ID))
-    expect({ suggestions: store.saleSuggestions, error: store.saleSuggestionsError }).toEqual({
+    expect({ suggestions: store.saleSuggestions, walletReadings: store.saleWalletReadings, error: store.saleSuggestionsError }).toEqual({
       suggestions: [T7_SUGGESTION, T1_SUGGESTION],
+      walletReadings: WALLET_READINGS,
       error: null,
     })
   })
@@ -109,22 +119,57 @@ describe('group distribution store sale suggestions', () => {
 
     await expect(store.fetchSaleSuggestions(SABRE_PROJECT_ID)).resolves.toBeUndefined()
 
-    expect({ suggestions: store.saleSuggestions, error: store.saleSuggestionsError, loading: store.loadingSaleSuggestions }).toEqual({
+    expect({ suggestions: store.saleSuggestions, walletReadings: store.saleWalletReadings, error: store.saleSuggestionsError, loading: store.loadingSaleSuggestions }).toEqual({
       suggestions: [],
+      walletReadings: [],
       error: 'Only project owner or admin can perform this action',
       loading: false,
     })
   })
 
-  it('forgets the suggestions of the previous project while those of another project load', async () => {
+  it('forgets the wallet readings of an earlier empty list when a later read fails', async () => {
+    const store = useGroupDistributionStore()
+    vi.mocked(apiRequest).mockResolvedValueOnce(suggestionList(SABRE_PROJECT_ID, []))
+    await store.fetchSaleSuggestions(SABRE_PROJECT_ID)
+    const readingsAfterTheEmptyList = store.saleWalletReadings
+    vi.mocked(apiRequest).mockRejectedValueOnce(new ApiError('Service unavailable', 503))
+
+    await store.fetchSaleSuggestions(SABRE_PROJECT_ID)
+
+    expect({ readingsAfterTheEmptyList, suggestions: store.saleSuggestions, walletReadings: store.saleWalletReadings, error: store.saleSuggestionsError }).toEqual({
+      readingsAfterTheEmptyList: WALLET_READINGS,
+      suggestions: [],
+      walletReadings: [],
+      error: 'Service unavailable',
+    })
+  })
+
+  it('rejects a sale suggestions response in the former array format with the explicit store error', async () => {
     const store = useGroupDistributionStore()
     vi.mocked(apiRequest).mockResolvedValueOnce([T7_SUGGESTION, T1_SUGGESTION])
+
+    await store.fetchSaleSuggestions(SABRE_PROJECT_ID)
+
+    expect({ suggestions: store.saleSuggestions, walletReadings: store.saleWalletReadings, error: store.saleSuggestionsError }).toEqual({
+      suggestions: [],
+      walletReadings: [],
+      error: 'Unexpected sale suggestions response',
+    })
+  })
+
+  it('forgets the suggestions of the previous project while those of another project load', async () => {
+    const store = useGroupDistributionStore()
+    vi.mocked(apiRequest).mockResolvedValueOnce(suggestionList(SABRE_PROJECT_ID, [T7_SUGGESTION, T1_SUGGESTION]))
     await store.fetchSaleSuggestions(SABRE_PROJECT_ID)
     vi.mocked(apiRequest).mockReturnValueOnce(new Promise(() => undefined))
 
     void store.fetchSaleSuggestions(HECATE_PROJECT_ID)
 
-    expect({ suggestions: store.saleSuggestions, loading: store.loadingSaleSuggestions }).toEqual({ suggestions: [], loading: true })
+    expect({ suggestions: store.saleSuggestions, walletReadings: store.saleWalletReadings, loading: store.loadingSaleSuggestions }).toEqual({
+      suggestions: [],
+      walletReadings: [],
+      loading: true,
+    })
   })
 })
 
