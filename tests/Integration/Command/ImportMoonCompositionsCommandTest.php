@@ -18,6 +18,7 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 
 #[CoversClass(ImportMoonCompositionsCommand::class)]
 #[Group('issue-853')]
+#[Group('issue-859')]
 final class ImportMoonCompositionsCommandTest extends IntegrationTestCase
 {
     use SeedsMoonChunkMarket;
@@ -29,9 +30,9 @@ final class ImportMoonCompositionsCommandTest extends IntegrationTestCase
     {
         parent::setUp();
         $this->seedMoonOreSde($this->em);
-        $this->persistExtraction(40_301_001, 'Veyra - II - Moon 1');
-        $this->persistExtraction(40_301_003, 'Veyra - II - Moon 3');
-        $this->persistExtraction(40_399_999, 'Unlisted - I - Moon 1');
+        $this->persistExtraction(40_301_001, 'Veyra II - Moon 1');
+        $this->persistExtraction(40_301_003, 'Veyra II - Moon 3');
+        $this->persistExtraction(40_399_999, 'Unlisted I - Moon 1');
         $this->em->flush();
     }
 
@@ -55,7 +56,7 @@ final class ImportMoonCompositionsCommandTest extends IntegrationTestCase
         self::assertStringContainsString('Skipped (already scanned): 0', $display);
         self::assertStringContainsString('Not found in the sheet: 1', $display);
         self::assertStringContainsString('Rejected: 1', $display);
-        self::assertStringContainsString('Veyra - II - Moon 3', $display);
+        self::assertStringContainsString('Veyra II - Moon 3', $display);
         self::assertStringContainsString('Cinnabar', $display);
         self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM moon_compositions'));
     }

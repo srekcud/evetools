@@ -11,6 +11,8 @@ use Symfony\Component\Validator\ConstraintViolationInterface;
 
 final readonly class MoonCompositionImporter
 {
+    private const string ESI_MOON_NAME_PATTERN = '/^(.+) ([IVXLCDM]+) - (Moon \d+)$/';
+
     public function __construct(
         private CorporationMiningExtractionRepository $extractionRepository,
         private MoonCompositionRepository $compositionRepository,
@@ -34,7 +36,7 @@ final readonly class MoonCompositionImporter
         $rejected = [];
         foreach ($moons as $moon) {
             $moonName = $moon['moonName'];
-            $composition = $moonName === null ? null : ($compositionsByMoonName[$moonName] ?? null);
+            $composition = $moonName === null ? null : ($compositionsByMoonName[$this->toSheetMoonName($moonName)] ?? null);
             if ($moonName === null || $composition === null) {
                 ++$notFound;
                 continue;
@@ -60,5 +62,10 @@ final readonly class MoonCompositionImporter
         }
 
         return new MoonCompositionImportReport(count($moons), $matched, $imported, $skipped, $notFound, $rejected);
+    }
+
+    private function toSheetMoonName(string $esiMoonName): string
+    {
+        return preg_replace(self::ESI_MOON_NAME_PATTERN, '$1 - $2 - $3', $esiMoonName) ?? $esiMoonName;
     }
 }
