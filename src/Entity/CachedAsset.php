@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Constant\EveConstants;
+use App\Constant\NameableAssetType;
 use App\Repository\CachedAssetRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -246,21 +247,17 @@ class CachedAsset
         return $this;
     }
 
-    public function canResolveItemName(?int $categoryId = null): bool
+    public function canResolveItemName(?int $categoryId = null, ?int $groupId = null): bool
     {
-        return $this->mayBeSingleton($categoryId)
+        return NameableAssetType::accepts($categoryId, $groupId)
+            && $this->mayBeSingleton()
             && $this->itemName === null
             && $this->locationFlag !== EveConstants::OFFICE_LOCATION_FLAG;
     }
 
-    private function mayBeSingleton(?int $categoryId): bool
+    private function mayBeSingleton(): bool
     {
-        if ($this->isSingleton !== null) {
-            return $this->isSingleton;
-        }
-
-        return \in_array($categoryId, [EveConstants::SHIP_CATEGORY_ID, EveConstants::CELESTIAL_CATEGORY_ID], true)
-            && $this->quantity === 1;
+        return $this->isSingleton ?? $this->quantity === 1;
     }
 
     public function getCharacter(): ?Character

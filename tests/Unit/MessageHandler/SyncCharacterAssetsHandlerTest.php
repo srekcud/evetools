@@ -124,6 +124,7 @@ final class SyncCharacterAssetsHandlerTest extends TestCase
             new NullLogger(),
             new TypeNameResolver($this->createStub(InvTypeRepository::class)),
             $this->createStub(StaStationRepository::class),
+            $this->createStub(InvTypeRepository::class),
         );
         $characterRepository = $this->createStub(CharacterRepository::class);
         $characterRepository->method('find')->willReturn($character);

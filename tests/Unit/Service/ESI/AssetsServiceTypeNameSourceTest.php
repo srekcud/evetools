@@ -175,6 +175,7 @@ final class AssetsServiceTypeNameSourceTest extends TestCase
             new NullLogger(),
             new TypeNameResolver($this->createSdeTypeRepository($sdeTypeNames)),
             $this->createStub(StaStationRepository::class),
+            $this->createStub(InvTypeRepository::class),
         );
     }
 

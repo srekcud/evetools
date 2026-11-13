@@ -131,6 +131,7 @@ final class AssetsServiceSingleItemNameTest extends TestCase
             new NullLogger(),
             new TypeNameResolver($this->createStub(InvTypeRepository::class)),
             $this->createStub(StaStationRepository::class),
+            $this->createStub(InvTypeRepository::class),
         );
     }
 }

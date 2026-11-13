@@ -7,6 +7,7 @@ namespace App\State\Processor\Assets;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Assets\AssetItemNameResource;
+use App\Constant\EveConstants;
 use App\Entity\CachedAsset;
 use App\Entity\EveToken;
 use App\Entity\User;
@@ -122,7 +123,12 @@ class ResolveAssetItemNameProcessor implements ProcessorInterface
 
     private function assertEligible(CachedAsset $asset): void
     {
-        if ($asset->canResolveItemName($this->categoryIdOf($asset))) {
+        $invType = $this->invTypeRepository->findByTypeIds([$asset->getTypeId()])[$asset->getTypeId()] ?? null;
+
+        if ($asset->canResolveItemName(
+            $invType?->getGroup()->getCategory()->getCategoryId(),
+            $invType?->getGroup()->getGroupId(),
+        )) {
             return;
         }
 
@@ -130,17 +136,11 @@ class ResolveAssetItemNameProcessor implements ProcessorInterface
             $asset->isSingleton() === null => 'Singleton flag unknown, refresh the assets',
             $asset->isSingleton() === false => 'This asset is not a singleton, it cannot have a custom name',
             $asset->getItemName() !== null => 'This asset is already named',
-            default => 'An office cannot be named',
+            $asset->getLocationFlag() === EveConstants::OFFICE_LOCATION_FLAG => 'An office cannot be named',
+            default => 'This type cannot have a custom name',
         };
 
         throw new UnprocessableEntityHttpException($reason);
-    }
-
-    private function categoryIdOf(CachedAsset $asset): ?int
-    {
-        $invType = $this->invTypeRepository->findByTypeIds([$asset->getTypeId()])[$asset->getTypeId()] ?? null;
-
-        return $invType?->getGroup()->getCategory()->getCategoryId();
     }
 
     private function fetchItemName(CachedAsset $asset): ?string

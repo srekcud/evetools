@@ -16,6 +16,7 @@ use App\Repository\Sde\StaStationRepository;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\EsiClient;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Support\StubsSdeTypeClassification;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\Stub;
@@ -25,6 +26,8 @@ use Psr\Log\NullLogger;
 #[CoversClass(AssetsService::class)]
 class AssetsServiceCorporationStructureTest extends TestCase
 {
+    use StubsSdeTypeClassification;
+
     private const int CORPORATION_ID = 98057377;
     private const string CORPORATION_ASSETS_ENDPOINT = '/corporations/98057377/assets/';
     private const string CORPORATION_ASSET_NAMES_ENDPOINT = '/corporations/98057377/assets/names/';
@@ -236,6 +239,12 @@ class AssetsServiceCorporationStructureTest extends TestCase
             new NullLogger(),
             new TypeNameResolver($this->createSdeTypeRepositoryKnowingNoType()),
             $this->createStub(StaStationRepository::class),
+            $this->createSdeClassification([
+                self::TYPE_FORTIZAR => self::structureClassification(),
+                self::TYPE_SOTIYO => self::structureClassification(),
+                self::TYPE_STATION_CONTAINER => self::cargoContainerClassification(),
+                self::TYPE_TRITANIUM => self::mineralClassification(),
+            ]),
         );
 
         return $assetsService->getCorporationAssets($character);
