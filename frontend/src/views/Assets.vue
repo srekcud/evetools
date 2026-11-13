@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/assetLocation'
 import { useAuthStore } from '@/stores/auth'
@@ -7,6 +7,7 @@ import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
 import { safeJsonParse } from '@/services/api'
 import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
+import { COLLAPSE_LOCATIONS_ROW_THRESHOLD } from '@/constants/assetsConstants'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -32,7 +33,7 @@ const characters = computed(() => user.value?.characters || [])
 
 // State
 const selectedCharacterId = ref<string | null>(null)
-const assets = ref<Asset[]>([])
+const assets = shallowRef<Asset[]>([])
 const isLoading = ref(false)
 const isReloading = ref(false)
 const hasLoadedCurrentOwner = ref(false)
@@ -180,9 +181,13 @@ const containerContents = computed(() => {
 })
 
 function applyResolvedItemName(itemId: number, itemName: string): void {
-  assets.value = assets.value.map(asset =>
-    asset.itemId === itemId ? { ...asset, itemName, canResolveItemName: false } : asset,
-  )
+  const index = assets.value.findIndex(asset => asset.itemId === itemId)
+  if (index === -1) {
+    return
+  }
+  const updated = assets.value.slice()
+  updated[index] = { ...updated[index], itemName, canResolveItemName: false }
+  assets.value = updated
 }
 
 function isContainer(asset: Asset): boolean {
@@ -336,6 +341,13 @@ function dropFiltersMissingFromAssets() {
   }
 }
 
+function collapseLocationsOfLargeInventory() {
+  if (rootAssets.value.length <= COLLAPSE_LOCATIONS_ROW_THRESHOLD) {
+    return
+  }
+  collapsedLocations.value = new Set(assetsByLocation.value.map(location => location.locationName))
+}
+
 async function fetchAssets() {
   if (viewMode.value === 'character' && !selectedCharacterId.value) return
 
@@ -368,6 +380,9 @@ async function fetchAssets() {
     nextRefreshAt.value = isCorporationRequest ? (data.nextRefreshAt ?? null) : null
     hasLoadedCurrentOwner.value = true
     dropFiltersMissingFromAssets()
+    if (!isReload) {
+      collapseLocationsOfLargeInventory()
+    }
   } catch (e) {
     if (request.signal.aborted) return
     error.value = t('assets.loadFailed')

@@ -165,6 +165,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
               :src="getTypeIconUrl(asset.typeId, 32, asset.categoryId ?? undefined)"
               :alt="typeNameLabel(asset.typeName, asset.typeId)"
               class="w-8 h-8 rounded-sm"
+              loading="lazy"
               @error="onImageError"
             />
             <div class="flex items-center gap-2">
@@ -207,6 +208,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
                 :src="getTypeIconUrl(item.typeId, 32, item.categoryId ?? undefined)"
                 :alt="typeNameLabel(item.typeName, item.typeId)"
                 class="w-6 h-6 rounded-sm"
+                loading="lazy"
                 @error="onImageError"
               />
               <span class="text-slate-300 text-sm">{{ getDisplayName(item) }}</span>
