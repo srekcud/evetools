@@ -89,3 +89,52 @@ describe('EsiErrorBudgetCard', () => {
     }
   })
 })
+
+describe('EsiErrorBudgetCard, local clock', () => {
+  const RELATIVE_TIME_TICK_MS = 30000
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('moves the last observation from just now to 1min ago after 30 seconds of local clock', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-11T10:30:40+00:00'))
+    const wrapper = mountCard(budgetOf({ windowEndsAt: '2026-11-11T10:35:00+00:00' }))
+
+    expect(wrapper.get('[data-testid="esi-budget-observed"]').text()).toBe('just now')
+
+    vi.advanceTimersByTime(RELATIVE_TIME_TICK_MS)
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="esi-budget-observed"]').text()).toBe('1min ago')
+    wrapper.unmount()
+  })
+
+  it('turns the level to unknown once the local time passes the end of the window', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-11T10:30:30+00:00'))
+    const wrapper = mountCard(budgetOf({ level: 'low', windowEndsAt: '2026-11-11T10:30:45+00:00' }))
+
+    expect(wrapper.get('[data-testid="esi-budget-level"]').text()).toBe(messageOf('en', 'admin.esiBudget.level.low'))
+
+    vi.advanceTimersByTime(RELATIVE_TIME_TICK_MS)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="esi-budget-level"]').text()).toBe(messageOf('en', 'admin.esiBudget.level.unknown'))
+    wrapper.unmount()
+  })
+
+  it('runs one interval while mounted and none after unmount', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-11T10:30:30+00:00'))
+    const wrapper = mountCard(budgetOf())
+
+    expect(vi.getTimerCount()).toBe(1)
+
+    wrapper.unmount()
+
+    expect(vi.getTimerCount()).toBe(0)
+  })
+})

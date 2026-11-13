@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useFlash } from '@/composables/useUpdateFlash'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -151,6 +151,44 @@ function handleMaintenanceAction(name: string, actionKey: MaintenanceActionKey) 
 
 const { isFlashing: statsUpdated, flash: flashStats } = useFlash()
 
+const ADMIN_HEALTH_DEBOUNCE_MS = 1000
+
+const failedMessagesRefreshSignal = ref<string | null>(null)
+const pendingHealthRefreshes = new Map<string, ReturnType<typeof setTimeout>>()
+
+function refreshOnceSettled(scope: string, refresh: () => void): void {
+  const pending = pendingHealthRefreshes.get(scope)
+  if (pending !== undefined) clearTimeout(pending)
+  pendingHealthRefreshes.set(scope, setTimeout(() => {
+    pendingHealthRefreshes.delete(scope)
+    refresh()
+  }, ADMIN_HEALTH_DEBOUNCE_MS))
+}
+
+watch(
+  () => syncStore.adminHealthSignals['esi-error-budget'],
+  (signal) => {
+    if (!signal) return
+    refreshOnceSettled('esi-error-budget', () => { adminStore.fetchStats().then(flashStats) })
+  },
+)
+
+watch(
+  () => syncStore.adminHealthSignals['failed-messages'],
+  (signal) => {
+    if (!signal) return
+    refreshOnceSettled('failed-messages', () => {
+      adminStore.fetchQueues()
+      failedMessagesRefreshSignal.value = signal
+    })
+  },
+)
+
+onUnmounted(() => {
+  pendingHealthRefreshes.forEach((timer) => clearTimeout(timer))
+  pendingHealthRefreshes.clear()
+})
+
 const selectedUserId = ref<string | null>(null)
 
 async function openUserSheet(userId: string): Promise<void> {
@@ -287,7 +325,7 @@ watch(
             </div>
           </div>
 
-          <FailedMessagesCard />
+          <FailedMessagesCard :refresh-signal="failedMessagesRefreshSignal" />
         </div>
 
         <EsiErrorBudgetCard v-if="stats?.esiErrorBudget" :budget="stats.esiErrorBudget" />

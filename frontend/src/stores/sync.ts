@@ -49,6 +49,7 @@ export const useSyncStore = defineStore('sync', () => {
   const groupProjectEvents = ref<Record<string, GroupProjectEvent>>({})
   const miningOperationEvents = ref<Record<string, MiningOperationEvent>>({})
   const alertMessages = ref<Record<string, AlertMessage>>({})
+  const adminHealthSignals = ref<Record<string, string>>({})
   const reconnectAttempts = ref(0)
   const reconnectedAt = ref<number | null>(null)
   let connectionDropped = false
@@ -169,6 +170,14 @@ export const useSyncStore = defineStore('sync', () => {
             miningOperationEvents.value = {
               ...miningOperationEvents.value,
               [data.operationId]: { action: data.action, data: data.data, timestamp: data.timestamp },
+            }
+            return
+          }
+
+          if (data.adminHealth && !data.syncType) {
+            adminHealthSignals.value = {
+              ...adminHealthSignals.value,
+              [data.adminHealth]: data.timestamp,
             }
             return
           }
@@ -310,6 +319,7 @@ export const useSyncStore = defineStore('sync', () => {
     connectionError,
     syncStatus,
     alertMessages,
+    adminHealthSignals,
     reconnectAttempts,
     reconnectedAt,
 

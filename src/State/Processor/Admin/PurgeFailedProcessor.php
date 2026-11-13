@@ -8,8 +8,10 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Admin\ActionResultResource;
 use App\Entity\User;
+use App\Enum\AdminHealthScope;
 use App\Security\AdminChecker;
 use App\Service\Admin\MessengerQueueService;
+use App\Service\Mercure\MercurePublisherService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -23,6 +25,7 @@ class PurgeFailedProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly MessengerQueueService $queueService,
         private readonly AdminChecker $adminChecker,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -40,6 +43,7 @@ class PurgeFailedProcessor implements ProcessorInterface
 
         try {
             $deleted = $this->queueService->purgeFailed();
+            $this->mercurePublisher->publishAdminHealth(AdminHealthScope::FailedMessages);
 
             $resource->success = true;
             $resource->message = "Purged {$deleted} failed messages";

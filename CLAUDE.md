@@ -166,6 +166,7 @@ new Patch(
 - Frontend : `stores/sync.ts` (EventSource sur `?match=<topic>` + cookie, token via `/api/mercure/token`). Cookie limité à 4096 octets par les navigateurs : au-delà d'environ 30 projets acceptés, `TokenProvider` lève une `LengthException`
 - Topics : `/user/{userId}/sync/{syncType}`
 - Types sync (`MercurePublisherService::getTopicsForUser()`) : character-assets, corporation-assets, ansiblex, industry-jobs, industry-job-completed, industry-project, pve, mining, corporation-mining-extractions, wallet-transactions, market-structure, planetary, public-contracts, admin-sync, mining-operation-snapshot, moon-tax, blueprints
+- Topic partagé admin : `/admin/health` (`MercurePublisherService::ADMIN_HEALTH_TOPIC`), autorisé dans le jeton Mercure des seuls admins (`TokenProvider`), message `{adminHealth: esi-error-budget|failed-messages}` puis refetch côté `Admin.vue` ; budget ESI limité à une publication par fenêtre (`EsiErrorBudgetBroadcaster`)
 - Autres topics utilisateur : `/user/{userId}/alerts/planetary-expiry`, `/user/{userId}/alerts/market-price`, `/user/{userId}/notifications`, `/user/{userId}/mining-operations`
 - Les syncs globales (market-jita, alert-prices, cost-indices, adjusted-prices…) n'ont pas de topic dédié : `SyncTracker` les suit et notifie via `admin-sync`
 

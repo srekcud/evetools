@@ -6,9 +6,11 @@ namespace App\State\Processor\Admin;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
+use App\Enum\AdminHealthScope;
 use App\Security\AdminAccessGuard;
 use App\Service\Admin\FailedMessageHttpExceptionMapper;
 use App\Service\Admin\FailedMessageService;
+use App\Service\Mercure\MercurePublisherService;
 
 /**
  * @template TInput
@@ -22,6 +24,7 @@ abstract class AbstractFailedMessageProcessor implements ProcessorInterface
         private readonly AdminAccessGuard $accessGuard,
         protected readonly FailedMessageService $failedMessages,
         private readonly FailedMessageHttpExceptionMapper $exceptionMapper,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -35,7 +38,10 @@ abstract class AbstractFailedMessageProcessor implements ProcessorInterface
     {
         $this->accessGuard->requireAdmin();
 
-        return $this->exceptionMapper->mapping(fn (): ?object => $this->apply($data, $uriVariables));
+        $result = $this->exceptionMapper->mapping(fn (): ?object => $this->apply($data, $uriVariables));
+        $this->mercurePublisher->publishAdminHealth(AdminHealthScope::FailedMessages);
+
+        return $result;
     }
 
     /**

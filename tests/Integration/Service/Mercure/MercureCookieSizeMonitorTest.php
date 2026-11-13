@@ -13,6 +13,7 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\UserRepository;
+use App\Security\AdminChecker;
 use App\Service\Mercure\MercureCookieSizeMonitor;
 use App\State\Provider\Mercure\TokenProvider;
 use App\Tests\Integration\IntegrationTestCase;
@@ -100,6 +101,7 @@ final class MercureCookieSizeMonitorTest extends IntegrationTestCase
             $security,
             self::getContainer()->get(IndustryProjectParticipantRepository::class),
             self::getContainer()->get(Authorization::class),
+            new AdminChecker(''),
             'https://mercure.example.test/.well-known/mercure',
         );
     }

@@ -89,3 +89,28 @@ describe('sync store, alert messages', () => {
     expect(syncStore.syncStatus.planetary.status).toBe('completed')
   })
 })
+
+describe('sync store, admin health signals', () => {
+  it('records the latest signal of each scope without touching the sync status', async () => {
+    const syncStore = await connectedSyncStore()
+
+    receive({ adminHealth: 'failed-messages', timestamp: '2026-11-13T08:00:00+00:00' })
+    receive({ adminHealth: 'esi-error-budget', timestamp: '2026-11-13T08:00:05+00:00' })
+    receive({ adminHealth: 'failed-messages', timestamp: '2026-11-13T08:00:09+00:00' })
+
+    expect(syncStore.adminHealthSignals).toEqual({
+      'failed-messages': '2026-11-13T08:00:09+00:00',
+      'esi-error-budget': '2026-11-13T08:00:05+00:00',
+    })
+    expect(syncStore.syncStatus).toEqual({})
+  })
+
+  it('keeps handling a sync progress message as a sync status and records no signal', async () => {
+    const syncStore = await connectedSyncStore()
+
+    receive({ syncType: 'admin-sync', status: 'completed', progress: 100, message: null, data: null, timestamp: '2026-11-13T08:10:00+00:00' })
+
+    expect(Object.keys(syncStore.syncStatus)).toEqual(['admin-sync'])
+    expect(syncStore.adminHealthSignals).toEqual({})
+  })
+})
