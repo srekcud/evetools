@@ -41,6 +41,32 @@ final readonly class MoonCompositionRecorder
     }
 
     /**
+     * @param list<MoonScanLine> $scanLines
+     */
+    public function recordImported(int $corporationId, int $moonId, array $scanLines): bool
+    {
+        $lines = $this->resolved($scanLines);
+
+        return $this->entityManager->wrapInTransaction(function () use ($corporationId, $moonId, $lines): bool {
+            $this->entityManager->getConnection()->executeQuery(self::LOCK_QUERY, ['key' => sprintf(self::LOCK_KEY_FORMAT, $corporationId, $moonId)]);
+            if ($this->compositionRepository->findOneBy(['corporationId' => $corporationId, 'moonId' => $moonId]) !== null) {
+                return false;
+            }
+
+            $this->entityManager->persist(
+                (new MoonComposition())
+                    ->setCorporationId($corporationId)
+                    ->setMoonId($moonId)
+                    ->setRecordedAt($this->clock->now())
+                    ->setLines($lines),
+            );
+            $this->entityManager->flush();
+
+            return true;
+        });
+    }
+
+    /**
      * @param list<array{typeId: int, share: float}> $lines
      */
     private function recordInTransaction(User $user, int $corporationId, int $moonId, array $lines): MoonComposition

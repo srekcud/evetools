@@ -69,4 +69,24 @@ class CorporationMiningExtractionRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['corporationId' => $corporationId, 'structureId' => $structureId]) !== null;
     }
+
+    /**
+     * @return list<array{corporationId: int, moonId: int, moonName: ?string}>
+     */
+    public function findDistinctMoons(): array
+    {
+        /** @var list<array{corporationId: numeric-string|int, moonId: numeric-string|int, moonName: ?string}> $rows */
+        $rows = $this->createQueryBuilder('extraction')
+            ->select('extraction.corporationId AS corporationId', 'extraction.moonId AS moonId', 'MAX(extraction.moonName) AS moonName')
+            ->groupBy('extraction.corporationId', 'extraction.moonId')
+            ->orderBy('extraction.corporationId', 'ASC')
+            ->addOrderBy('extraction.moonId', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(
+            static fn (array $row): array => ['corporationId' => (int) $row['corporationId'], 'moonId' => (int) $row['moonId'], 'moonName' => $row['moonName']],
+            $rows,
+        );
+    }
 }

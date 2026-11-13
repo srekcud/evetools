@@ -53,6 +53,19 @@ final class MoonChunkValuerTest extends TestCase
         );
     }
 
+    #[Group('issue-853')]
+    public function testSharesAddingUpToLessThanOneValueOnlyTheListedOresAndTheRestOfTheChunkIsWorthNothing(): void
+    {
+        $value = $this->valuer->value(
+            [self::BITUMENS => 0.5, self::CHROMITE => 0.3],
+            self::CHUNK_VOLUME_M3,
+            [self::BITUMENS => 100.0, self::CHROMITE => 300.0],
+            [self::BITUMENS => 10.0, self::CHROMITE => 10.0],
+        );
+
+        self::assertSame(['known', 14_000_000.0], [$value->status, $value->totalValue]);
+    }
+
     public function testEachOreUsesItsOwnShareVolumeAndPrice(): void
     {
         $value = $this->valuer->value(
