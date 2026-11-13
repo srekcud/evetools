@@ -128,7 +128,7 @@ describe('Assets filters read from the URL', () => {
   it('opens the corporation view when the URL says view=corporation', async () => {
     await mountAssets({ view: 'corporation' })
 
-    expect(requestedEndpoints()).toEqual([CORPORATION_ENDPOINT])
+    expect(requestedEndpoints()).toEqual(['/api/me/pinned-containers', CORPORATION_ENDPOINT])
   })
 
   it('opens the character named in the URL', async () => {

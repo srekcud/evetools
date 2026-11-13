@@ -32,6 +32,9 @@ const props = defineProps<{
   collapsedLocations: Set<string>
   containerContents: Map<number, Asset[]>
   fitContents?: Map<number, Asset[]>
+  canPin?: boolean
+  pinnedItemIds?: Set<number>
+  projectPinnedItemIds?: Set<number>
 }>()
 
 const emit = defineEmits<{
@@ -39,6 +42,7 @@ const emit = defineEmits<{
   'toggle-location': [locationName: string]
   'toggle-selection': [locationName: string]
   'item-name-resolved': [itemId: number, itemName: string]
+  'toggle-pin': [itemId: number]
 }>()
 
 const { t } = useI18n()
@@ -82,6 +86,28 @@ function containerToggleAttributes(asset: Asset): Record<string, unknown> {
         emit('toggle-container', asset.itemId)
       }
     },
+  }
+}
+
+function isPinned(asset: Asset): boolean {
+  return props.pinnedItemIds?.has(asset.itemId) === true
+}
+
+function isPinnedByProject(asset: Asset): boolean {
+  return props.projectPinnedItemIds?.has(asset.itemId) === true
+}
+
+function pinLabel(asset: Asset): string {
+  const name = resolvedItemName(asset) ?? typeNameLabel(asset.typeName, asset.typeId)
+  if (isPinnedByProject(asset)) {
+    return t('assets.pinned.lockedByProject', { name })
+  }
+  return t(isPinned(asset) ? 'assets.pinned.unpin' : 'assets.pinned.pin', { name })
+}
+
+function togglePin(asset: Asset): void {
+  if (!isPinnedByProject(asset)) {
+    emit('toggle-pin', asset.itemId)
   }
 }
 
@@ -222,6 +248,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
             'px-5 py-3 flex items-center justify-between transition-colors',
             isContainer(asset) ? 'hover:bg-slate-800/50 cursor-pointer' : 'hover:bg-slate-800/30'
           ]"
+          :data-asset-item-id="asset.itemId"
           v-bind="containerToggleAttributes(asset)"
         >
           <div class="flex items-center gap-3">
@@ -253,6 +280,22 @@ async function resolveItemName(asset: Asset): Promise<void> {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
               </span>
+              <button
+                v-if="props.canPin && isContainer(asset)"
+                type="button"
+                data-testid="container-pin"
+                :aria-label="pinLabel(asset)"
+                :aria-pressed="isPinned(asset)"
+                :title="pinLabel(asset)"
+                :disabled="isPinnedByProject(asset)"
+                :class="['p-0.5 rounded-sm transition-colors', isPinned(asset) ? 'text-amber-400' : 'text-slate-500 hover:text-amber-400', isPinnedByProject(asset) && 'cursor-not-allowed']"
+                @click.stop="togglePin(asset)"
+                @keydown.stop
+              >
+                <svg class="w-4 h-4" :fill="isPinned(asset) ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                </svg>
+              </button>
               <span v-if="asset.divisionName" data-testid="asset-division" class="text-xs text-slate-500">{{ t('assets.divisionName', { name: asset.divisionName }) }}</span>
               <span v-else-if="!isContainer(asset) && asset.locationFlag" class="text-xs text-slate-500">({{ asset.locationFlag }})</span>
             </div>

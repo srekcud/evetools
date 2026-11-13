@@ -2111,6 +2111,14 @@
     "itemTypesCount": "{count} item type | {count} item types",
     "itemsCount": "{count} item | {count} items",
     "shipsCount": "{count} ship | {count} ships",
+    "pinned": {
+      "title": "My pinned containers",
+      "projectWatched": "{project} · {count} container watched | {project} · {count} containers watched",
+      "notFound": "Not found in the last sync",
+      "pin": "Pin {name}",
+      "unpin": "Unpin {name}",
+      "lockedByProject": "{name} is pinned by an active project"
+    },
     "selection": {
       "selectLocation": "Select {location}",
       "summary": "{count} location selected | {count} locations selected",
