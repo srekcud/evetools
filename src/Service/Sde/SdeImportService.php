@@ -6,12 +6,16 @@ namespace App\Service\Sde;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class SdeImportService
 {
     private const SDE_URL = 'https://developers.eveonline.com/static-data/eve-online-static-data-latest-jsonl.zip';
+    private const LATEST_BUILD_URL = 'https://developers.eveonline.com/static-data/tranquility/latest.jsonl';
+    private const BUILD_FILE = '_sde.jsonl';
+    private const TYPES_FILE = 'types.jsonl';
     private const DOWNLOAD_TIMEOUT = 600;
 
     public const VALID_SECTIONS = ['inventory', 'map', 'industry', 'dogma', 'reference', 'planetary'];
@@ -41,8 +45,9 @@ class SdeImportService
     {
         $this->ensureTempDir();
 
-        $this->notify($progressCallback, 'Downloading SDE from CCP...');
-        $this->downloadSde();
+        $this->notify($progressCallback, 'Checking the latest SDE build from CCP...');
+        $build = $this->downloadSde();
+        $this->notify($progressCallback, sprintf('Importing SDE build %d (released %s)', $build['buildNumber'], $build['releaseDate']));
 
         $this->configureTempDir();
 
@@ -145,27 +150,33 @@ class SdeImportService
         }
     }
 
-    private function downloadSde(): void
+    /**
+     * @return array{buildNumber: int, releaseDate: string}
+     */
+    private function downloadSde(): array
     {
-        $zipPath = $this->tempDir . '/sde.zip';
+        $latestBuild = $this->fetchLatestBuild();
+        $extractedBuild = $this->readExtractedBuild();
 
-        if ($this->filesystem->exists($this->tempDir . '/types.jsonl')) {
-            $this->logger->info('SDE already extracted, skipping download');
+        if ($extractedBuild !== null && $extractedBuild['buildNumber'] === $latestBuild['buildNumber']) {
+            $this->logger->info('SDE build already extracted, skipping download', ['build' => $extractedBuild['buildNumber']]);
 
-            return;
+            return $extractedBuild;
         }
 
-        if (!$this->filesystem->exists($zipPath)) {
-            $this->logger->info('Downloading SDE from CCP...');
+        $this->filesystem->remove($this->tempDir);
+        $this->ensureTempDir();
 
-            try {
-                $response = $this->httpClient->request('GET', self::SDE_URL, [
-                    'timeout' => self::DOWNLOAD_TIMEOUT,
-                ]);
-                $this->filesystem->dumpFile($zipPath, $response->getContent());
-            } catch (TransportExceptionInterface $e) {
-                throw new \RuntimeException('Failed to download SDE: ' . $e->getMessage());
-            }
+        $zipPath = $this->tempDir . '/sde.zip';
+        $this->logger->info('Downloading SDE from CCP...', ['build' => $latestBuild['buildNumber']]);
+
+        try {
+            $response = $this->httpClient->request('GET', self::SDE_URL, [
+                'timeout' => self::DOWNLOAD_TIMEOUT,
+            ]);
+            $this->filesystem->dumpFile($zipPath, $response->getContent());
+        } catch (TransportExceptionInterface $e) {
+            throw new \RuntimeException('Failed to download SDE: ' . $e->getMessage());
         }
 
         $this->logger->info('Extracting SDE...');
@@ -178,6 +189,60 @@ class SdeImportService
         }
 
         $this->filesystem->remove($zipPath);
+
+        $importedBuild = $this->readExtractedBuild();
+        if ($importedBuild === null) {
+            throw new \RuntimeException('The downloaded SDE archive does not record its build number');
+        }
+
+        return $importedBuild;
+    }
+
+    /**
+     * @return array{buildNumber: int, releaseDate: string}
+     */
+    private function fetchLatestBuild(): array
+    {
+        try {
+            $content = $this->httpClient->request('GET', self::LATEST_BUILD_URL)->getContent();
+        } catch (HttpClientExceptionInterface $e) {
+            throw new \RuntimeException('Failed to read the latest SDE build from CCP: ' . $e->getMessage());
+        }
+
+        $build = $this->parseBuildRecord($content);
+        if ($build === null) {
+            throw new \RuntimeException('Failed to read the latest SDE build from CCP: unexpected response');
+        }
+
+        return $build;
+    }
+
+    /**
+     * @return array{buildNumber: int, releaseDate: string}|null
+     */
+    private function readExtractedBuild(): ?array
+    {
+        $buildFile = $this->tempDir . '/' . self::BUILD_FILE;
+
+        if (!$this->filesystem->exists($this->tempDir . '/' . self::TYPES_FILE) || !is_file($buildFile)) {
+            return null;
+        }
+
+        return $this->parseBuildRecord((string) file_get_contents($buildFile));
+    }
+
+    /**
+     * @return array{buildNumber: int, releaseDate: string}|null
+     */
+    private function parseBuildRecord(string $content): ?array
+    {
+        $record = json_decode(strtok($content, "\n") ?: '', true);
+
+        if (!is_array($record) || !is_int($record['buildNumber'] ?? null) || !is_string($record['releaseDate'] ?? null)) {
+            return null;
+        }
+
+        return ['buildNumber' => $record['buildNumber'], 'releaseDate' => $record['releaseDate']];
     }
 
     private function cleanup(): void
