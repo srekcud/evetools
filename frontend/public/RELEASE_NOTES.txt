@@ -3,6 +3,33 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.21 (2026-11-13)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Le stock present dans le conteneur du projet compte comme fourni sur les
+  lignes de materiaux : la quantite restante a sourcer baisse d'autant
+- Conteneur illisible : la ligne garde les contributions comme minimum et
+  le signale, sans compter le stock a zero
+
+### Assets
+- Les noms des conteneurs et vaisseaux de la corporation s'affichent de
+  nouveau apres la synchro, y compris sur les grosses corporations
+- Le bouton pour recuperer le nom d'un objet ne tombe plus en erreur ; il
+  n'est propose que pour les objets qui peuvent porter un nom
+- Rafraichir les assets de corporation : le bouton reste grise jusqu'a la
+  prochaine synchro possible (une heure apres la derniere) et en affiche
+  l'heure ; plus de roue qui tourne sans fin
+
+### Minage
+- Compositions des lunes : la feuille communautaire reconnait maintenant les
+  lunes de la corporation, aucune n'etait trouvee jusqu'ici
+
+### Corrections
+- Plusieurs boutons d'action ne renvoient plus l'erreur "Syntax error"
+  (quitter un projet de groupe, marquer un hauler vide...)
+
+--------------------------------------------------------------------------------
 Version 0.20 (2026-11-13)
 --------------------------------------------------------------------------------
 
