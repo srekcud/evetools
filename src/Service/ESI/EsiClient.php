@@ -62,6 +62,11 @@ class EsiClient
         }
     }
 
+    public function getWithExpiry(string $endpoint, ?EveToken $token = null): PaginatedEsiResponse
+    {
+        return new PaginatedEsiResponse([], null);
+    }
+
     /**
      * GETs an unversioned ESI route (e.g. corporation projects): served from the origin of the
      * configured base URL, without its version segment, and dated by X-Compatibility-Date.

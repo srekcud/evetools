@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Integration\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
 use App\ApiResource\Industry\Project\ProjectSaleResource;
+use App\ApiResource\Industry\Project\ProjectSaleSuggestionListResource;
 use App\ApiResource\Industry\Project\ProjectSaleSuggestionResource;
 use App\ApiResource\Input\Industry\Project\RecordSaleFromWalletTransactionInput;
 use App\Entity\CachedWalletTransaction;
@@ -21,10 +22,12 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedWalletTransactionRepository;
+use App\Repository\CharacterWalletReadingRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Sync\WalletReadingStateReader;
 use App\State\Processor\Industry\Project\DeleteSaleProcessor;
 use App\State\Processor\Industry\Project\RecordSaleFromWalletTransactionProcessor;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -222,10 +225,14 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
             self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(ProjectAccessChecker::class),
             self::getContainer()->get(CachedWalletTransactionRepository::class),
+            new WalletReadingStateReader(self::getContainer()->get(CharacterWalletReadingRepository::class)),
         );
 
+        $list = $provider->provide(new Get(), ['projectId' => $this->projectId]);
+        self::assertInstanceOf(ProjectSaleSuggestionListResource::class, $list);
+
         $duplicatesByTransaction = [];
-        foreach ($provider->provide(new GetCollection(), ['projectId' => $this->projectId]) as $suggestion) {
+        foreach ($list->suggestions as $suggestion) {
             \assert($suggestion instanceof ProjectSaleSuggestionResource);
             $duplicatesByTransaction[$suggestion->transactionId] = $suggestion->possibleDuplicateSaleIds;
         }

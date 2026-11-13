@@ -36,4 +36,7 @@ class PurchaseSuggestionListResource
     public array $suggestions = [];
 
     public int $totalCount = 0;
+
+    /** @var WalletReadingResource[] */
+    public array $walletReadings = [];
 }

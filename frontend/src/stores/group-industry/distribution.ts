@@ -10,6 +10,7 @@ import type {
   RecordSaleFromWalletTransactionInput,
   RecordSaleInput,
   UpdateSaleInput,
+  WalletReading,
 } from './types'
 
 export const useGroupDistributionStore = defineStore('group-distribution', () => {
@@ -27,6 +28,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   const membersError = ref<string | null>(null)
   const openedProjectId = ref<string | null>(null)
   const saleSuggestions = ref<GroupSaleSuggestion[]>([])
+  const saleWalletReadings = ref<WalletReading[]>([])
   const loadingSaleSuggestions = ref(false)
   const saleSuggestionsError = ref<string | null>(null)
 
@@ -252,6 +254,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     updateSale,
     deleteSale,
     saleSuggestions,
+    saleWalletReadings,
     loadingSaleSuggestions,
     saleSuggestionsError,
     fetchSaleSuggestions,
