@@ -3,6 +3,52 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.20 (2026-11-13)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Copies de blueprint T2 possedees : un projet solo peut les declarer, le plan
+  retire alors l'invention, la copie T1 et les datacores correspondants
+- Option par projet (et par defaut dans les reglages) pour exclure
+  l'invention : l'onglet Production liste les copies T2 a fournir
+- Une etape de la chaine peut etre marquee "lancee" ou "terminee" hors de
+  l'application ; elle debloque l'etape suivante comme un job detecte
+- Onglets renommes : "Approvisionnement & jobs" et "Production" ; une fois
+  tous les materiaux couverts, l'approvisionnement se replie en un resume
+- Le compteur "Produire" du cockpit compte les jobs livres detectes en jeu
+- "Voir les jobs" fait defiler jusqu'au tableau des jobs
+- Verification du conteneur : le message dit pourquoi il est introuvable
+  (division masquee ou assets de corporation trop anciens)
+- "J'ai fourni" sur une ligne d'invention ouvre la contribution sur le bon
+  type, et explique pourquoi une valeur est requise
+- Une contribution sur une ligne d'invention ne compte plus comme du stock
+  du produit T2 final
+- "Associer les jobs" ne tombe plus en erreur quand un personnage echoue :
+  les autres sont traites et le personnage en echec est signale
+- Les jobs d'un projet sont de nouveau detectes apres la premiere detection
+- En-tete de projet lisible avec beaucoup de produits (8 icones et +N)
+- Contrats publics : la synchro ne bloque plus sur les gros contrats
+
+### Minage
+- Compositions des lunes de la corporation pre-remplies depuis la feuille
+  communautaire, sans ecraser un scan deja saisi
+
+### Alertes de prix
+- Une alerte sur une structure garde la structure choisie a sa creation
+  (structure preferee ou suivie), au lieu de suivre la structure preferee
+
+### Assets
+- Rafraichissement des assets plus rapide et moins d'erreurs du jeu : noms
+  des objets et des stations lus localement, structures illisibles retentees
+  toutes les 6 heures seulement
+- Bouton pour recuperer le nom d'un conteneur ou d'un vaisseau disponible
+  aussi sur les lignes synchronisees avant la version precedente
+
+### Synchronisation
+- Les synchros ralentissent d'elles-memes avant d'atteindre la limite de
+  requetes du jeu, pour eviter les erreurs de surcharge
+
+--------------------------------------------------------------------------------
 Version 0.19 (2026-11-12)
 --------------------------------------------------------------------------------
 
