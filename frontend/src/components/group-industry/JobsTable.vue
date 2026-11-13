@@ -11,13 +11,13 @@ import LineReservation from './LineReservation.vue'
 import JobLocationBadge from './JobLocationBadge.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
-import type { AvailableJob, BomItem, CharacterMatchFailure, ContainerVerification, ContainerVerificationStatus } from '@/stores/group-industry/types'
+import type { AvailableJob, BomItem, CharacterMatchFailure, ContainerVerification, ContainerVerificationStatus, LineMatchFailure } from '@/stores/group-industry/types'
 
 const emit = defineEmits<{
   contribute: [bomItem: BomItem]
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const projectStore = useGroupProjectStore()
 const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -51,6 +51,12 @@ const isProjectOwner = computed(() => projectStore.currentProject?.myRole === 'o
 const isMatchingJobs = ref(false)
 const matchJobsError = ref<string | null>(null)
 const failedCharacters = ref<CharacterMatchFailure[]>([])
+const failedLines = ref<LineMatchFailure[]>([])
+
+function characterFailureReason(failure: CharacterMatchFailure): string {
+  const key = `industry.syncFailures.reasons.${failure.reason}`
+  return te(key) ? t(key, { status: failure.statusCode }) : failure.reason
+}
 
 async function matchJobs(): Promise<void> {
   const project = projectStore.currentProject
@@ -58,9 +64,12 @@ async function matchJobs(): Promise<void> {
   isMatchingJobs.value = true
   matchJobsError.value = null
   try {
-    failedCharacters.value = await projectStore.matchJobs(project.id)
+    const failures = await projectStore.matchJobs(project.id)
+    failedCharacters.value = failures.failedCharacters
+    failedLines.value = failures.failedLines
   } catch (e) {
     failedCharacters.value = []
+    failedLines.value = []
     matchJobsError.value = e instanceof Error ? e.message : t('groupIndustry.jobs.matchError')
   } finally {
     isMatchingJobs.value = false
@@ -256,7 +265,15 @@ function isJobDimmed(job: BomItem): boolean {
       <p class="text-sm text-amber-400">{{ t('groupIndustry.jobs.matchFailedCharacters') }}</p>
       <ul class="mt-1 space-y-0.5 text-xs text-amber-400/80">
         <li v-for="failure in failedCharacters" :key="failure.characterName">
-          <span class="font-medium">{{ failure.characterName }}</span>: {{ failure.reason }}
+          <span class="font-medium">{{ failure.characterName }}</span>: {{ characterFailureReason(failure) }}
+        </li>
+      </ul>
+    </div>
+    <div v-if="failedLines.length > 0" class="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+      <p class="text-sm text-amber-400">{{ t('groupIndustry.jobs.matchFailedLines') }}</p>
+      <ul class="mt-1 space-y-0.5 text-xs text-amber-400/80">
+        <li v-for="(failure, index) in failedLines" :key="`${failure.typeId}-${failure.reason}-${index}`" data-testid="match-failed-line">
+          <span class="font-medium">{{ failure.typeName }}</span>: {{ t(`groupIndustry.jobs.matchLineReasons.${failure.reason}`) }}
         </li>
       </ul>
     </div>

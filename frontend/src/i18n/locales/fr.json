@@ -3229,6 +3229,12 @@
       "matchJobs": "Associer les jobs",
       "matchError": "Échec de l'association des jobs",
       "matchFailedCharacters": "Certains personnages n'ont pas pu être synchronisés :",
+      "matchFailedLines": "Certaines lignes n'ont pas pu être rapprochées :",
+      "matchLineReasons": {
+        "producer_missing_from_sde": "Blueprint ou réaction absent du SDE",
+        "no_runs": "Aucun run défini sur cette ligne",
+        "contribution_not_refreshed": "Contribution non recalculée"
+      },
       "matchedRuns": "{runs} runs associés",
       "character": "Personnage",
       "jobCost": "Coût du job",

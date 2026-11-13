@@ -11,11 +11,14 @@ use App\ApiResource\Industry\ProjectJobMatchResource;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
+use App\Repository\CharacterRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
+use App\Service\Industry\LineMatchFailure;
 use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Industry\Project\ProjectJobActivityRecorder;
 use App\Service\Sync\CharacterSyncFailure;
+use App\Service\Sync\CharacterSyncIsolation;
 use App\Service\Sync\IndustryJobSyncService;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -38,6 +41,8 @@ class MatchJobsProcessor implements ProcessorInterface
         private readonly LoggerInterface $logger,
         private readonly DerivedContributionService $derivedContributionService,
         private readonly ProjectJobActivityRecorder $jobActivityRecorder,
+        private readonly CharacterRepository $characterRepository,
+        private readonly CharacterSyncIsolation $syncIsolation,
     ) {
     }
 
@@ -49,7 +54,8 @@ class MatchJobsProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['projectId'], 'Project not found'));
+        $projectId = UuidOrNotFound::of($uriVariables['projectId'], 'Project not found');
+        $project = $this->projectRepository->find($projectId);
 
         if ($project === null) {
             throw new NotFoundHttpException('Project not found');
@@ -59,29 +65,53 @@ class MatchJobsProcessor implements ProcessorInterface
 
         $syncedCount = 0;
         $failures = [];
+        $managerReset = false;
 
-        foreach ($user->getCharacters() as $character) {
+        foreach ($user->getCharacters()->toArray() as $listedCharacter) {
+            $character = $this->characterRepository->findByEveCharacterId($listedCharacter->getEveCharacterId());
+
+            if ($character === null) {
+                $reloadFailure = new \LogicException('Character not found when reloaded for the job sync');
+                $failure = CharacterSyncFailure::fromThrowable($listedCharacter, $reloadFailure);
+                $this->logger->warning('Failed to sync jobs for character', $failure->logContext($reloadFailure->getMessage()));
+                $failures[] = $failure;
+                continue;
+            }
+
             if ($character->getEveToken() === null) {
                 $failures[] = CharacterSyncFailure::missingToken($character);
                 continue;
             }
 
             try {
-                $this->jobSyncService->syncCharacterJobs($character);
+                $this->syncIsolation->run(fn () => $this->jobSyncService->syncCharacterJobs($character));
                 $syncedCount++;
             } catch (\Throwable $e) {
+                $managerReset = true;
                 $failure = CharacterSyncFailure::fromThrowable($character, $e);
                 $this->logger->warning('Failed to sync jobs for character', $failure->logContext($e->getMessage()));
                 $failures[] = $failure;
             }
         }
 
-        $this->jobMatcher->matchEsiJobs($project);
+        if ($managerReset) {
+            $project = $this->projectRepository->find($projectId) ?? throw new NotFoundHttpException('Project not found');
+        }
+
+        $lineFailures = $this->jobMatcher->matchEsiJobs($project);
         $this->jobActivityRecorder->recordJobsOf($project);
 
         foreach ($project->getBomItems() as $line) {
-            if ($line->isManufacturingOrReactionJob()) {
+            if (!$line->isManufacturingOrReactionJob()) {
+                continue;
+            }
+
+            try {
                 $this->derivedContributionService->refreshLine($line);
+            } catch (\LogicException $e) {
+                $failure = LineMatchFailure::contributionNotRefreshed($line);
+                $this->logger->warning('Failed to match jobs of line', $failure->logContext($project->getId()->toRfc4122(), $e->getMessage()));
+                $lineFailures[] = $failure;
             }
         }
 
@@ -96,6 +126,10 @@ class MatchJobsProcessor implements ProcessorInterface
         $result->failedCharacters = array_map(
             static fn (CharacterSyncFailure $failure): array => $failure->toArray(),
             $failures,
+        );
+        $result->failedLines = array_map(
+            static fn (LineMatchFailure $failure): array => $failure->toArray(),
+            $lineFailures,
         );
 
         return $result;

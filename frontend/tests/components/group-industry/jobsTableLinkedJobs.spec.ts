@@ -151,6 +151,7 @@ describe('JobsTable linked jobs', () => {
           jobsCost: null,
           syncedCharacters: 1,
           failedCharacters: [{ characterName: 'Cyra Lune', reason: 'ESI token expired', statusCode: 403 }],
+          failedLines: [],
         }
       }
       return [ISHTAR_JOB]
@@ -165,6 +166,57 @@ describe('JobsTable linked jobs', () => {
     expect(callsTo(BOM_URL)).toBe(1)
     expect(wrapper.text()).toContain('Cyra Lune')
     expect(wrapper.text()).toContain('ESI token expired')
+  })
+
+  it('lists the characters not synced with a readable reason and the lines not matched with their type and reason', async () => {
+    vi.mocked(apiRequest).mockImplementation((async (url: string) => {
+      if (url === MATCH_JOBS_URL) {
+        return {
+          jobMatches: [],
+          jobsCost: null,
+          syncedCharacters: 1,
+          failedCharacters: [{ characterName: 'Cyra Lune', reason: 'sync_failed', statusCode: null }],
+          failedLines: [
+            { typeId: 12005, typeName: 'Ishtar', reason: 'producer_missing_from_sde' },
+            { typeId: 11478, typeName: 'R.A.M.- Starship Tech', reason: 'no_runs' },
+            { typeId: 16683, typeName: 'Ferrogel', reason: 'contribution_not_refreshed' },
+          ],
+        }
+      }
+      return [ISHTAR_JOB]
+    }) as never)
+    const wrapper = mountComponent(JobsTable, 'owner', [ISHTAR_JOB])
+
+    await matchJobsButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    const failedLines = wrapper.findAll('[data-testid="match-failed-line"]').map(line => line.text())
+    expect(failedLines).toHaveLength(3)
+    expect(failedLines[0]).toContain('Ishtar')
+    expect(failedLines[0]).toContain('Blueprint or reaction missing from the SDE')
+    expect(failedLines[1]).toContain('R.A.M.- Starship Tech')
+    expect(failedLines[1]).toContain('No runs set on this line')
+    expect(failedLines[2]).toContain('Ferrogel')
+    expect(failedLines[2]).toContain('Contribution not recalculated')
+    expect(wrapper.text()).toContain('Some lines could not be matched:')
+    expect(wrapper.text()).toContain('Cyra Lune')
+    expect(wrapper.text()).toContain('sync failed')
+  })
+
+  it('shows no failed lines panel when every line was matched', async () => {
+    vi.mocked(apiRequest).mockImplementation((async (url: string) => {
+      if (url === MATCH_JOBS_URL) {
+        return { jobMatches: [], jobsCost: null, syncedCharacters: 1, failedCharacters: [], failedLines: [] }
+      }
+      return [ISHTAR_JOB]
+    }) as never)
+    const wrapper = mountComponent(JobsTable, 'owner', [ISHTAR_JOB])
+
+    await matchJobsButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="match-failed-line"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Some lines could not be matched:')
   })
 })
 

@@ -26,6 +26,7 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 #[CoversClass(LinkJobProcessor::class)]
 #[CoversClass(IndustryJobMatcher::class)]
@@ -167,6 +168,7 @@ final class LinkJobProcessorTest extends TestCase
             $productRepository,
             $jobMatchRepository,
             $this->createStub(EntityManagerInterface::class),
+            new NullLogger(),
         );
 
         return new LinkJobProcessor(

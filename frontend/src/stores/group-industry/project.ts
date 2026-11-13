@@ -7,7 +7,7 @@ import type {
   ContainerVerification,
   CorporationAssetsRefresh,
   CreateGroupProjectInput,
-  CharacterMatchFailure,
+  MatchJobsFailures,
   MatchJobsResult,
   AvailableJob,
   PurchaseSuggestions,
@@ -172,7 +172,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     }
   }
 
-  async function matchJobs(projectId: string): Promise<CharacterMatchFailure[]> {
+  async function matchJobs(projectId: string): Promise<MatchJobsFailures> {
     error.value = null
     try {
       const result = await apiRequest<MatchJobsResult>(
@@ -180,7 +180,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
         { method: 'POST', body: '{}' },
       )
       await fetchBom(projectId)
-      return result.failedCharacters
+      return { failedCharacters: result.failedCharacters, failedLines: result.failedLines }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to match jobs'
       throw e

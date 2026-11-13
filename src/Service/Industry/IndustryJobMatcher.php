@@ -11,10 +11,12 @@ use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ParticipantStatus;
+use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 
 class IndustryJobMatcher
 {
@@ -30,10 +32,14 @@ class IndustryJobMatcher
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly IndustryProjectJobMatchRepository $jobMatchRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
-    public function matchEsiJobs(IndustryProject $project): void
+    /**
+     * @return list<LineMatchFailure>
+     */
+    public function matchEsiJobs(IndustryProject $project): array
     {
         $characterIds = [];
         foreach ($this->usersWhoseJobsAreMatched($project) as $user) {
@@ -43,7 +49,7 @@ class IndustryJobMatcher
         }
 
         if ($characterIds === []) {
-            return;
+            return [];
         }
 
         $jobLines = $project->getBomItems()->filter(
@@ -61,10 +67,24 @@ class IndustryJobMatcher
             ...$this->jobIdsKeptByManualLines($jobLines->toArray()),
         ], true);
 
+        $failures = [];
         foreach ($recomputableLines as $line) {
+            $runs = $line->getRuns();
+            if ($runs === null) {
+                $failures[] = $this->reported($project, LineMatchFailure::noRuns($line));
+                continue;
+            }
+
+            try {
+                $producer = $this->productRepository->producerOf($line->getTypeId());
+            } catch (ProducerMissingFromSdeException) {
+                $failures[] = $this->reported($project, LineMatchFailure::producerMissingFromSde($line));
+                continue;
+            }
+
             $jobs = array_filter(
                 $this->jobRepository->findManufacturingJobsByBlueprint(
-                    $this->productRepository->producerOf($line->getTypeId())->getTypeId(),
+                    $producer->getTypeId(),
                     $characterIds,
                     null,
                     $project->getCreatedAt(),
@@ -72,10 +92,12 @@ class IndustryJobMatcher
                 static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput(),
             );
 
-            $this->matchJobsToLine($line, $jobs, $assignedJobIds);
+            $this->matchJobsToLine($line, $runs, $jobs, $assignedJobIds);
         }
 
         $this->entityManager->flush();
+
+        return $failures;
     }
 
     public function isJobOfBomLineActivity(CachedIndustryJob $job, IndustryProjectBomLine $line): bool
@@ -97,14 +119,19 @@ class IndustryJobMatcher
         return $match;
     }
 
+    private function reported(IndustryProject $project, LineMatchFailure $failure): LineMatchFailure
+    {
+        $this->logger->warning('Failed to match jobs of line', $failure->logContext($project->getId()->toRfc4122()));
+
+        return $failure;
+    }
+
     /**
      * @param CachedIndustryJob[] $jobs
      * @param array<int, true>    $assignedJobIds
      */
-    private function matchJobsToLine(IndustryProjectBomLine $line, array $jobs, array &$assignedJobIds): void
+    private function matchJobsToLine(IndustryProjectBomLine $line, int $remainingRuns, array $jobs, array &$assignedJobIds): void
     {
-        $remainingRuns = $line->getRuns() ?? throw new \LogicException(\sprintf('BOM line of type %d has no runs', $line->getTypeId()));
-
         foreach ($jobs as $job) {
             if ($remainingRuns <= 0) {
                 break;

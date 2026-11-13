@@ -147,12 +147,23 @@ export type CharacterMatchFailure = {
   statusCode: number | null
 }
 
+export type LineMatchFailureReason = 'producer_missing_from_sde' | 'no_runs' | 'contribution_not_refreshed'
+
+export type LineMatchFailure = {
+  typeId: number
+  typeName: string
+  reason: LineMatchFailureReason
+}
+
 export type MatchJobsResult = {
   jobMatches: JobMatch[]
   jobsCost: number | null
   syncedCharacters: number
   failedCharacters: CharacterMatchFailure[]
+  failedLines: LineMatchFailure[]
 }
+
+export type MatchJobsFailures = Pick<MatchJobsResult, 'failedCharacters' | 'failedLines'>
 
 export type LineReservation = {
   participantId: string
