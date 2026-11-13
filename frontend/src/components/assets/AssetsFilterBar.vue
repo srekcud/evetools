@@ -18,8 +18,11 @@ interface CharacterOption {
   isMain: boolean
 }
 
+type AssetGrouping = 'location' | 'type'
+
 const props = withDefaults(defineProps<{
   viewMode: 'character' | 'corporation'
+  groupBy?: AssetGrouping
   characters: CharacterOption[]
   selectedCharacterId: string | null
   searchQuery: string
@@ -31,6 +34,7 @@ const props = withDefaults(defineProps<{
   selectedDivision?: string
   allDivisionsRowCount?: number
 }>(), {
+  groupBy: 'location',
   divisions: () => [],
   selectedDivision: '',
   allDivisionsRowCount: 0,
@@ -38,6 +42,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'update:viewMode': [value: 'character' | 'corporation']
+  'update:groupBy': [value: AssetGrouping]
   'update:selectedCharacterId': [value: string | null]
   'update:searchQuery': [value: string]
   'update:selectedSolarSystem': [value: string]
@@ -70,6 +75,30 @@ const chipIdleClass = 'bg-slate-900 border-slate-700 text-slate-400 hover:text-s
           :class="['px-4 py-2 rounded-md text-sm font-medium transition-colors', props.viewMode === 'corporation' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200']"
         >
           {{ t('assets.corporationAssets') }}
+        </button>
+      </div>
+
+      <div
+        v-if="props.viewMode === 'character'"
+        role="group"
+        :aria-label="t('assets.groupBy.label')"
+        class="flex bg-slate-900 rounded-lg p-1"
+      >
+        <button
+          type="button"
+          :aria-pressed="props.groupBy === 'location'"
+          @click="emit('update:groupBy', 'location')"
+          :class="['px-4 py-2 rounded-md text-sm font-medium transition-colors', props.groupBy === 'location' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200']"
+        >
+          {{ t('assets.groupBy.location') }}
+        </button>
+        <button
+          type="button"
+          :aria-pressed="props.groupBy === 'type'"
+          @click="emit('update:groupBy', 'type')"
+          :class="['px-4 py-2 rounded-md text-sm font-medium transition-colors', props.groupBy === 'type' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200']"
+        >
+          {{ t('assets.groupBy.type') }}
         </button>
       </div>
 
