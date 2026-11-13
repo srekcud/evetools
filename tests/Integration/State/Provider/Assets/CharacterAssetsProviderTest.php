@@ -12,7 +12,9 @@ use App\Entity\Character;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
+use App\Repository\OwnedBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\State\Provider\Assets\AssetBlueprintAnnotator;
 use App\State\Provider\Assets\CharacterAssetsProvider;
 use App\Tests\Integration\IntegrationTestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -81,6 +83,7 @@ final class CharacterAssetsProviderTest extends IntegrationTestCase
             self::getContainer()->get(CachedAssetRepository::class),
             self::getContainer()->get(InvTypeRepository::class),
             $requestStack,
+            new AssetBlueprintAnnotator(self::getContainer()->get(OwnedBlueprintRepository::class)),
         );
 
         return $provider->provide(new Get(), ['characterId' => $this->characterId]);

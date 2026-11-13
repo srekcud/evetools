@@ -2131,6 +2131,10 @@
     "syncDescription": "Your assets are being synced from ESI...",
     "refreshFromEve": "Refresh from EVE",
     "noMatchingItems": "No items match the selected filters",
+    "blueprint": {
+      "runs": "{count} runs",
+      "notSynced": "Not in the blueprint sync"
+    },
     "itemName": {
       "resolve": "Fetch the custom name from EVE",
       "unnamed": "No custom name in game",

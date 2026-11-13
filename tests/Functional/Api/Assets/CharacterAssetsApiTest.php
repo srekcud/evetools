@@ -84,7 +84,7 @@ final class CharacterAssetsApiTest extends WebTestCase
             [
                 'id', 'itemId', 'typeId', 'typeName', 'categoryId', 'quantity', 'locationId', 'locationName',
                 'locationType', 'locationFlag', 'solarSystemId', 'solarSystemName', 'itemName', 'divisionName',
-                'isSingleton', 'canResolveItemName', 'cachedAt',
+                'isSingleton', 'canResolveItemName', 'blueprint', 'cachedAt',
             ],
             array_keys($body['items'][0]),
         );

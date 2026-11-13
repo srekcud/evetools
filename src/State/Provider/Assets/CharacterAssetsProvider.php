@@ -30,6 +30,7 @@ class CharacterAssetsProvider implements ProviderInterface
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly RequestStack $requestStack,
+        private readonly AssetBlueprintAnnotator $blueprintAnnotator,
     ) {
     }
 
@@ -64,6 +65,7 @@ class CharacterAssetsProvider implements ProviderInterface
         $resource->characterId = $character->getId()?->toRfc4122() ?? '';
         $resource->total = \count($assets);
         $resource->items = array_map(fn (CachedAsset $asset) => $this->toItemResource($asset, false, $classification), $assets);
+        $this->blueprintAnnotator->annotateCharacterItems($character, $resource->items);
 
         return $resource;
     }

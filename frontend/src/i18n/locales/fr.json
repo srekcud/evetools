@@ -2131,6 +2131,10 @@
     "syncDescription": "Vos assets sont en cours de synchronisation depuis l'ESI...",
     "refreshFromEve": "Rafraichir depuis EVE",
     "noMatchingItems": "Aucun item correspondant aux filtres",
+    "blueprint": {
+      "runs": "{count} runs",
+      "notSynced": "Absent du sync blueprints"
+    },
     "itemName": {
       "resolve": "Récupérer le nom personnalisé depuis EVE",
       "unnamed": "Pas de nom personnalisé en jeu",
