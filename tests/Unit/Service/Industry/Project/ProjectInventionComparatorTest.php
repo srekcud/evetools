@@ -16,6 +16,7 @@ use App\Industry\Domain\Runs;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\Project\ProjectInventionComparator;
 use App\Service\Industry\ProfitMarginService;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -65,6 +66,29 @@ final class ProjectInventionComparatorTest extends TestCase
             [self::HAMMERHEAD_II, 50, 2, 4, EveConstants::JITA_STATION_ID, EveConstants::JITA_SOLAR_SYSTEM_ID, null, null, $this->owner, EveConstants::JITA_SOLAR_SYSTEM_ID, $inventor],
             $received,
         );
+    }
+
+    #[Group('issue-880')]
+    public function testFirstMarketStructureOfTheOwnerListIsTheSellStructureOfTheAnalysisWhenNoPreferredStructureIsSet(): void
+    {
+        $this->owner->setMarketStructures([
+            ['id' => 1_049_588_174_021, 'name' => 'C-J6MT'],
+            ['id' => 1_035_466_617_946, 'name' => '4-HWWF'],
+        ]);
+        $project = $this->projectOf([[self::HAMMERHEAD_II, 'Hammerhead II', 50, 2, 4]]);
+        $this->settings->method('findOneBy')->willReturn(null);
+        $sellStructureId = null;
+        $this->profitMargin->method('analyze')->willReturnCallback(
+            function (...$arguments) use (&$sellStructureId): array {
+                $sellStructureId = $arguments[4];
+
+                return $this->analysisOf(self::HAMMERHEAD_II, []);
+            },
+        );
+
+        $this->comparator([self::HAMMERHEAD_II])->compare($project, null);
+
+        self::assertSame(1_049_588_174_021, $sellStructureId);
     }
 
     public function testFavoriteSystemsOfTheOwnerAndNoInventorAreForwardedToTheAnalysis(): void

@@ -329,6 +329,34 @@ class ProfitMarginProviderTest extends TestCase
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
     }
 
+    #[Group('issue-880')]
+    public function testFirstMarketStructureOfTheListIsAnalyzedWhenNoPreferredStructureIsSet(): void
+    {
+        $user = (new User())->setMarketStructures([
+            ['id' => self::PREFERRED_MARKET_STRUCTURE_ID, 'name' => 'Listed hub'],
+            ['id' => 1046664001931, 'name' => 'Second listed hub'],
+        ]);
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                self::PREFERRED_MARKET_STRUCTURE_ID,
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $user,
+                $this->anything(),
+            )
+            ->willReturn($this->analysis());
+
+        $this->provider($user, new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
     public function testUnknownSellerSalesFeesReachTheServiceAsNull(): void
     {
         $user = new User();

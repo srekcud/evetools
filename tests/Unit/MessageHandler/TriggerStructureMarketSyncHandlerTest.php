@@ -60,7 +60,7 @@ final class TriggerStructureMarketSyncHandlerTest extends TestCase
         $this->characterRepository = $this->createMock(CharacterRepository::class);
 
         $userRepository = $this->createStub(UserRepository::class);
-        $userRepository->method('findDistinctPreferredMarketStructureIds')
+        $userRepository->method('findDistinctMarketStructureIds')
             ->willReturn([self::PREFERRED_STRUCTURE_ID]);
 
         $this->syncTracker = new SyncTracker(

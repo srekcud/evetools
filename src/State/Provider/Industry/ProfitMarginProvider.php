@@ -68,7 +68,7 @@ class ProfitMarginProvider implements ProviderInterface
         // Resolve structure ID: query param > user's preferred market structure
         $structureId = $structureIdParam !== null ? (int) $structureIdParam : null;
         if ($structureId === null) {
-            $structureId = $user->getPreferredMarketStructureId();
+            $structureId = $user->getEffectiveMarketStructureId();
         }
         // Fallback: Jita station ID if no structure configured
         if ($structureId === null) {

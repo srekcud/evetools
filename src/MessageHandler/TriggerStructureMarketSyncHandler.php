@@ -97,7 +97,7 @@ final readonly class TriggerStructureMarketSyncHandler
             $this->defaultMarketStructureId => $this->defaultMarketStructureName,
         ];
 
-        $userStructureIds = $this->userRepository->findDistinctPreferredMarketStructureIds();
+        $userStructureIds = $this->userRepository->findDistinctMarketStructureIds();
 
         foreach ($userStructureIds as $structureId) {
             if (!isset($structures[$structureId])) {

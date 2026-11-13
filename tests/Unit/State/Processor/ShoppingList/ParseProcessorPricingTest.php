@@ -15,6 +15,7 @@ use App\Service\ESI\MarketService;
 use App\Service\ItemParserService;
 use App\State\Processor\ShoppingList\ParseProcessor;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -44,6 +45,8 @@ final class ParseProcessorPricingTest extends TestCase
     private array $structurePrices = [];
 
     private bool $marketUnavailable = false;
+
+    private ?int $structureIdPassedToTheMarket = null;
 
     public function testKnownVolumeChargesTheImportAndChoosesJitaWithImport(): void
     {
@@ -240,6 +243,33 @@ final class ParseProcessorPricingTest extends TestCase
         self::assertSame([self::NITROGEN_ISOTOPES], $result->missingVolumeTypeIds);
     }
 
+    #[Group('issue-880')]
+    public function testFirstMarketStructureOfTheListIsPricedWhenNoStructureIsRequestedNorPreferred(): void
+    {
+        $this->volumes = [self::NITROGEN_ISOTOPES => 0.5];
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+        $user = (new User())->setMarketStructures([
+            ['id' => 1_049_588_174_021, 'name' => 'C-J6MT'],
+            ['id' => 1_035_466_617_946, 'name' => '4-HWWF'],
+        ]);
+
+        $result = $this->parse('100x Nitrogen Isotopes', $user);
+
+        self::assertSame(1_049_588_174_021, $this->structureIdPassedToTheMarket);
+        self::assertSame(1_049_588_174_021, $result->structureId);
+    }
+
+    public function testNoStructureIsPricedWhenTheUserHasNoMarketStructure(): void
+    {
+        $this->volumes = [self::NITROGEN_ISOTOPES => 0.5];
+        $this->jitaPrices = [self::NITROGEN_ISOTOPES => 500.0];
+
+        $result = $this->parse('100x Nitrogen Isotopes');
+
+        self::assertNull($this->structureIdPassedToTheMarket);
+        self::assertNull($result->structureId);
+    }
+
     private function assertIsotopesImportIsUnknownWithJitaTotalOnly(ParseResultResource $result): void
     {
         $expectedJitaTotal = 50000.0;
@@ -259,10 +289,10 @@ final class ParseProcessorPricingTest extends TestCase
         self::assertSame([self::NITROGEN_ISOTOPES], $result->missingVolumeTypeIds);
     }
 
-    private function parse(string $text): ParseResultResource
+    private function parse(string $text, ?User $user = null): ParseResultResource
     {
         $security = $this->createStub(Security::class);
-        $security->method('getUser')->willReturn(new User());
+        $security->method('getUser')->willReturn($user ?? new User());
 
         $invTypeRepository = $this->createStub(InvTypeRepository::class);
         $invTypeRepository->method('findByNames')->willReturnCallback(static function (array $names): array {
@@ -291,17 +321,21 @@ final class ParseProcessorPricingTest extends TestCase
         if ($this->marketUnavailable) {
             $marketService->method('comparePrices')->willThrowException(new \RuntimeException('ESI unavailable'));
         } else {
-            $marketService->method('comparePrices')->willReturnCallback(fn (array $typeIds): array => [
-                'jita' => array_intersect_key($this->jitaPrices, array_flip($typeIds)),
-                'jitaFromCache' => true,
-                'jitaLastSync' => null,
-                'structure' => array_intersect_key($this->structurePrices, array_flip($typeIds)),
-                'structureId' => self::MARKET_STRUCTURE_ID,
-                'structureName' => 'Market hub',
-                'structureAccessible' => true,
-                'structureFromCache' => true,
-                'structureLastSync' => null,
-            ]);
+            $marketService->method('comparePrices')->willReturnCallback(function (array $typeIds, ?int $structureId): array {
+                $this->structureIdPassedToTheMarket = $structureId;
+
+                return [
+                    'jita' => array_intersect_key($this->jitaPrices, array_flip($typeIds)),
+                    'jitaFromCache' => true,
+                    'jitaLastSync' => null,
+                    'structure' => array_intersect_key($this->structurePrices, array_flip($typeIds)),
+                    'structureId' => self::MARKET_STRUCTURE_ID,
+                    'structureName' => 'Market hub',
+                    'structureAccessible' => true,
+                    'structureFromCache' => true,
+                    'structureLastSync' => null,
+                ];
+            });
         }
 
         $processor = new ParseProcessor(

@@ -40,11 +40,19 @@ final class ProjectSellStructuresTest extends TestCase
         self::assertEquals(new SellStructure(self::JITA_STRUCTURE_ID, 'Structure 60003760'), $this->sellStructures->defaultFor($pilot));
     }
 
-    public function testAPilotWithoutPreferredMarketStructureHasNoDefaultEvenWithOtherMarketStructures(): void
+    #[Group('issue-880')]
+    public function testAPilotWithoutPreferredMarketStructureHasTheFirstMarketStructureOfTheListAsDefault(): void
     {
-        $pilot = (new User())->addMarketStructure(self::KEEPSTAR_STRUCTURE_ID, 'Keepstar A');
+        $pilot = (new User())
+            ->addMarketStructure(self::KEEPSTAR_STRUCTURE_ID, 'Keepstar A')
+            ->addMarketStructure(self::FORTIZAR_STRUCTURE_ID, 'Fortizar B');
 
-        self::assertNull($this->sellStructures->defaultFor($pilot));
+        self::assertEquals(new SellStructure(self::KEEPSTAR_STRUCTURE_ID, 'Keepstar A'), $this->sellStructures->defaultFor($pilot));
+    }
+
+    public function testAPilotWithoutAnyMarketStructureHasNoDefault(): void
+    {
+        self::assertNull($this->sellStructures->defaultFor(new User()));
     }
 
     public function testTheSelectableStructuresAreThePreferredOneThenTheMarketStructuresWithoutDuplicate(): void

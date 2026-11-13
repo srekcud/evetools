@@ -55,7 +55,7 @@ class BuyVsBuildProvider implements ProviderInterface
         // Resolve structure ID
         $structureId = $structureIdParam !== null ? (int) $structureIdParam : null;
         if ($structureId === null) {
-            $structureId = $user->getPreferredMarketStructureId();
+            $structureId = $user->getEffectiveMarketStructureId();
         }
 
         // Resolve solar system ID

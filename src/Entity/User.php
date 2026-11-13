@@ -260,6 +260,26 @@ class User implements UserInterface
         return $this;
     }
 
+    public function getEffectiveMarketStructureId(): ?int
+    {
+        return $this->preferredMarketStructureId ?? ($this->marketStructures[0]['id'] ?? null);
+    }
+
+    public function getEffectiveMarketStructureName(): ?string
+    {
+        if (null !== $this->preferredMarketStructureId) {
+            return $this->preferredMarketStructureName;
+        }
+
+        return $this->marketStructures[0]['name'] ?? null;
+    }
+
+    public function followsMarketStructure(int $structureId): bool
+    {
+        return $this->preferredMarketStructureId === $structureId
+            || \in_array($structureId, array_column($this->marketStructures, 'id'), true);
+    }
+
     /** @return list<array{id: int, name: string}> */
     public function getMarketStructures(): array
     {

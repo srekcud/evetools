@@ -41,19 +41,26 @@ class UserRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get all distinct non-null preferred market structure IDs across users.
+     * Get all distinct market structure IDs across users: preferred structures first, then every listed structure.
      *
-     * @return int[]
+     * @return list<int>
      */
-    public function findDistinctPreferredMarketStructureIds(): array
+    public function findDistinctMarketStructureIds(): array
     {
-        $rows = $this->createQueryBuilder('u')
+        $preferredRows = $this->createQueryBuilder('u')
             ->select('DISTINCT u.preferredMarketStructureId')
             ->where('u.preferredMarketStructureId IS NOT NULL')
             ->getQuery()
             ->getSingleColumnResult();
 
-        return array_map(intval(...), $rows);
+        $listedStructureIds = [];
+        foreach ($this->createQueryBuilder('u')->select('u.marketStructures')->getQuery()->getArrayResult() as $row) {
+            foreach ($row['marketStructures'] as $structure) {
+                $listedStructureIds[] = (int) $structure['id'];
+            }
+        }
+
+        return array_values(array_unique([...array_map(intval(...), $preferredRows), ...$listedStructureIds]));
     }
 
     /**

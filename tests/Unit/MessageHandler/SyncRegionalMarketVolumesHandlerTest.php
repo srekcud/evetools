@@ -248,7 +248,7 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
      */
     private function givenPreferredStructures(array $structureIds): void
     {
-        $this->userRepository->method('findDistinctPreferredMarketStructureIds')->willReturn($structureIds);
+        $this->userRepository->method('findDistinctMarketStructureIds')->willReturn($structureIds);
     }
 
     private function handler(): SyncRegionalMarketVolumesHandler

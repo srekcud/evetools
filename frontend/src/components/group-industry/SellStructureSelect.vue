@@ -51,7 +51,7 @@ const structures = computed<MarketStructure[]>(() => {
 const needsPlaceholder = computed(() => props.modelValue === null && !props.preselectPreferred)
 
 function preselectThePreferredStructure(): void {
-  const preferredId = settings.value?.preferredMarketStructureId ?? null
+  const preferredId = settings.value?.preferredMarketStructureId ?? settings.value?.marketStructures[0]?.id ?? null
   if (props.modelValue === null && props.preselectPreferred && preferredId !== null) {
     emit('update:modelValue', preferredId)
   }

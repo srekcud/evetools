@@ -31,7 +31,7 @@ final readonly class ProjectInventionComparator
     {
         $owner = $project->getOwner();
         $solarSystems = AnalysisSolarSystems::resolve(null, $this->settings->findOneBy(['user' => $owner]));
-        $sellStructureId = $owner->getPreferredMarketStructureId() ?? EveConstants::JITA_STATION_ID;
+        $sellStructureId = $owner->getEffectiveMarketStructureId() ?? EveConstants::JITA_STATION_ID;
 
         $entries = [];
         foreach ($project->getItems() as $product) {

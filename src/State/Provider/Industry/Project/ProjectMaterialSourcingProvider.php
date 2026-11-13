@@ -68,7 +68,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         }
 
         $bomLines = $this->bomLineRepository->findBy(['project' => $project]);
-        $structureId = $user->getPreferredMarketStructureId();
+        $structureId = $user->getEffectiveMarketStructureId();
         $sourcings = $this->comparator->compare(
             MaterialsToSourceFactory::of($bomLines, $planned->plan, $this->containerFulfillment->of($project)),
             $structureId,
@@ -83,7 +83,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         $resource->id = $projectId;
         $resource->importIskPerCubicMeterJump = JitaPurchase::IMPORT_ISK_PER_CUBIC_METER_JUMP;
         $resource->structureId = $structureId;
-        $resource->structureName = null === $structureId ? null : $user->getPreferredMarketStructureName();
+        $resource->structureName = null === $structureId ? null : $user->getEffectiveMarketStructureName();
         $resource->structureSynced = null !== $structureId && $this->structureMarketPrices->isSynced($structureId);
         $resource->structureLastSync = null === $structureId ? null : $this->structureMarketPrices->lastSyncOf($structureId)?->format('c');
         $resource->totals = MaterialSourcingPresenter::totalsOf($sourcings);

@@ -428,13 +428,43 @@ class BatchScanProviderTest extends TestCase
         $this->assertNull($this->structureIdPassedToTheScanner(['sellVenue' => 'jita'], 1_046_664_001_931));
     }
 
+    #[Group('issue-880')]
+    public function testStructureVenueFallsBackToTheFirstMarketStructureOfTheListWhenNoPreferredStructureIsSet(): void
+    {
+        $this->assertSame(1_049_588_174_021, $this->structureIdPassedToTheScanner(
+            ['sellVenue' => 'structure'],
+            null,
+            [['id' => 1_049_588_174_021, 'name' => 'C-J6MT'], ['id' => 1_035_466_617_946, 'name' => '4-HWWF']],
+        ));
+    }
+
+    #[Group('issue-880')]
+    public function testContractVenueFallsBackToTheFirstMarketStructureOfTheListWhenNoPreferredStructureIsSet(): void
+    {
+        $this->assertSame(1_049_588_174_021, $this->structureIdPassedToTheScanner(
+            ['sellVenue' => 'contracts'],
+            null,
+            [['id' => 1_049_588_174_021, 'name' => 'C-J6MT'], ['id' => 1_035_466_617_946, 'name' => '4-HWWF']],
+        ));
+    }
+
+    #[Group('issue-880')]
+    public function testJitaVenueIgnoresTheMarketStructuresList(): void
+    {
+        $this->assertNull($this->structureIdPassedToTheScanner(
+            ['sellVenue' => 'jita'],
+            null,
+            [['id' => 1_049_588_174_021, 'name' => 'C-J6MT']],
+        ));
+    }
+
     /**
      * @param array<string, string> $query
+     * @param list<array{id: int, name: string}> $marketStructures
      */
-    private function structureIdPassedToTheScanner(array $query, int $preferredStructureId): ?int
+    private function structureIdPassedToTheScanner(array $query, ?int $preferredStructureId, array $marketStructures = []): ?int
     {
-        $user = $this->createStub(User::class);
-        $user->method('getPreferredMarketStructureId')->willReturn($preferredStructureId);
+        $user = (new User())->setPreferredMarketStructureId($preferredStructureId)->setMarketStructures($marketStructures);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
 

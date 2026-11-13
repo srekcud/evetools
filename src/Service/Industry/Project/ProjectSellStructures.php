@@ -29,12 +29,12 @@ final readonly class ProjectSellStructures
 
     public function defaultFor(User $user): ?SellStructure
     {
-        $preferredId = $user->getPreferredMarketStructureId();
-        if (null === $preferredId) {
+        $effectiveId = $user->getEffectiveMarketStructureId();
+        if (null === $effectiveId) {
             return null;
         }
 
-        return new SellStructure($preferredId, $user->getPreferredMarketStructureName() ?? \sprintf(self::UNNAMED_STRUCTURE_FORMAT, $preferredId));
+        return new SellStructure($effectiveId, $user->getEffectiveMarketStructureName() ?? \sprintf(self::UNNAMED_STRUCTURE_FORMAT, $effectiveId));
     }
 
     public function choose(User $user, int $structureId): SellStructure

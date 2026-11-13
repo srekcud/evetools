@@ -20,6 +20,7 @@ use App\State\Processor\Market\CreateAlertProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -306,6 +307,27 @@ class CreateAlertProcessorTest extends TestCase
         $this->assertSame(95.0, $result->currentPrice);
     }
 
+    #[Group('issue-880')]
+    public function testStructureAlertDefaultsToTheFirstFollowedStructureWhenNoStructureIsPreferred(): void
+    {
+        $user = $this->createUserWithStructures(null, [self::FOLLOWED_STRUCTURE_ID, self::PREFERRED_STRUCTURE_ID]);
+        $this->givenAuthenticated($user);
+        $this->structureMarketService->method('getLowestSellPrices')->willReturnMap([
+            [self::FOLLOWED_STRUCTURE_ID, [34], [34 => 120.0]],
+            [self::PREFERRED_STRUCTURE_ID, [34], [34 => 95.0]],
+        ]);
+        $persisted = [];
+        $this->em->expects($this->once())->method('persist')->willReturnCallback(static function (MarketPriceAlert $alert) use (&$persisted): void {
+            $persisted[] = $alert;
+        });
+
+        $result = $this->processor->process($this->structureInput('structure_sell', null), new Post());
+
+        $this->assertSame(self::FOLLOWED_STRUCTURE_ID, $persisted[0]->getStructureId());
+        $this->assertSame(self::FOLLOWED_STRUCTURE_ID, $result->structureId);
+        $this->assertSame(120.0, $result->currentPrice);
+    }
+
     public function testStructureAlertIsCreatedOnAFollowedStructure(): void
     {
         $user = $this->createUserWithStructures(self::PREFERRED_STRUCTURE_ID, [self::FOLLOWED_STRUCTURE_ID]);
@@ -363,9 +385,9 @@ class CreateAlertProcessorTest extends TestCase
         $this->processor->process($this->structureInput('jita_sell', self::FOLLOWED_STRUCTURE_ID), new Post());
     }
 
-    public function testThrowsBadRequestForAStructureSourceWithoutPreferredStructureNorStructureId(): void
+    public function testThrowsBadRequestForAStructureSourceWithoutAnyMarketStructureNorStructureId(): void
     {
-        $user = $this->createUserWithStructures(null, [self::FOLLOWED_STRUCTURE_ID]);
+        $user = $this->createUserWithStructures(null, []);
         $this->givenAuthenticated($user);
         $this->em->expects($this->never())->method('persist');
 

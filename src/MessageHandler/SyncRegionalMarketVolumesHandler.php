@@ -40,7 +40,7 @@ final readonly class SyncRegionalMarketVolumesHandler
         try {
             $structureIds = array_values(array_unique([
                 $this->defaultMarketStructureId,
-                ...$this->userRepository->findDistinctPreferredMarketStructureIds(),
+                ...$this->userRepository->findDistinctMarketStructureIds(),
             ]));
 
             $regionIds = [EveConstants::THE_FORGE_REGION_ID => EveConstants::THE_FORGE_REGION_ID];
