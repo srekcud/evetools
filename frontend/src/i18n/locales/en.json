@@ -2132,6 +2132,13 @@
       "systems": "Systems",
       "locations": "Locations"
     },
+    "assetSafety": {
+      "title": "Asset Safety",
+      "items": "{count} items",
+      "ships": "{count} ships",
+      "reminder": "These items stay locked until the pilot requests their delivery in game.",
+      "showContent": "Show content"
+    },
     "syncInProgress": "Sync in progress",
     "syncDescription": "Your assets are being synced from ESI...",
     "refreshFromEve": "Refresh from EVE",
