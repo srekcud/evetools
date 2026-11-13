@@ -12,6 +12,7 @@ import { deferred, type Deferred } from '../deferred'
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
   useRoute: vi.fn(() => ({ query: {}, params: {} })) as never,
+  useRouter: (() => ({ replace: vi.fn() })) as never,
 }))
 
 const CHARACTER_A_ID = '00000000-0000-4000-8000-0000000000c1'
@@ -25,6 +26,10 @@ const LOADING_TEXT = en.assets.loading
 const RELOADING_INDICATOR = '[data-testid="assets-reloading"]'
 
 enableAutoUnmount(afterEach)
+
+beforeEach(() => {
+  localStorage.clear()
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()

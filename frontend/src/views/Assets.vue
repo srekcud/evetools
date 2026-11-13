@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, shallowRef, computed, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import { readAssetFilterQuery, readLastCharacterId, rememberLastCharacterId, writeAssetFilterQuery } from '@/utils/assetFilterQuery'
 import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/assetLocation'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
@@ -24,6 +26,8 @@ import { useFlash } from '@/composables/useUpdateFlash'
 import { formatEveClock } from '@/views/MiningOperation/miningOperationTime'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const { pilotName } = usePilotName()
 const authStore = useAuthStore()
 const { typeNameLabel } = useTypeNames()
@@ -31,6 +35,7 @@ const syncStore = useSyncStore()
 
 const user = computed(() => authStore.user)
 const characters = computed(() => user.value?.characters || [])
+const urlFilters = readAssetFilterQuery(route.query)
 
 // State
 const selectedCharacterId = ref<string | null>(null)
@@ -44,10 +49,10 @@ const error = ref('')
 const refreshNotice = ref('')
 const nextRefreshAt = ref<string | null>(null)
 const now = ref(Date.now())
-const searchQuery = ref('')
-const viewMode = ref<'character' | 'corporation'>('character')
-const selectedSolarSystem = ref<string>('')
-const selectedLocation = ref<string>('')
+const searchQuery = ref(urlFilters.search)
+const viewMode = ref(urlFilters.viewMode)
+const selectedSolarSystem = ref<string>(urlFilters.solarSystem)
+const selectedLocation = ref<string>(urlFilters.location)
 const expandedContainers = ref<Set<number>>(new Set())
 const collapsedLocations = ref<Set<string>>(new Set())
 
@@ -309,7 +314,7 @@ const assetsByLocation = computed(() => {
   return Object.values(grouped).sort((a, b) => a.locationName.localeCompare(b.locationName))
 })
 
-watch(searchQuery, () => {
+function revealSearchMatches() {
   const query = normalizedSearchQuery.value
   if (!query) {
     return
@@ -333,7 +338,9 @@ watch(searchQuery, () => {
     }
   }
   collapsedLocations.value = reopenedLocations
-})
+}
+
+watch(searchQuery, revealSearchMatches)
 
 // Reset location filter when solar system changes
 watch(selectedSolarSystem, () => {
@@ -397,6 +404,7 @@ async function fetchAssets() {
     dropFiltersMissingFromAssets()
     if (!isReload) {
       collapseLocationsOfLargeInventory()
+      revealSearchMatches()
     }
   } catch (e) {
     if (request.signal.aborted) return
@@ -553,33 +561,54 @@ function clearFilters() {
   searchQuery.value = ''
 }
 
-// Initialize
-onMounted(() => {
-  if (characters.value.length > 0) {
-    const main = characters.value.find(c => c.isMain)
-    selectedCharacterId.value = main?.id || characters.value[0].id
-  }
-})
+function initialCharacterId(): string | null {
+  const available = characters.value
+  if (available.length === 0) return null
+  const ownedId = (id: string | null) => id !== null && available.some(c => c.id === id) ? id : null
+  const lastCharacterId = user.value ? readLastCharacterId(user.value.id) : null
+  return ownedId(urlFilters.characterId) ?? ownedId(lastCharacterId) ?? (available.find(c => c.isMain) ?? available[0]).id
+}
 
-watch(characters, (newChars) => {
-  if (newChars.length > 0 && !selectedCharacterId.value) {
-    const main = newChars.find(c => c.isMain)
-    selectedCharacterId.value = main?.id || newChars[0].id
+watch(characters, () => {
+  if (!selectedCharacterId.value) {
+    selectedCharacterId.value = initialCharacterId()
   }
 }, { immediate: true })
 
-watch([selectedCharacterId, viewMode], () => {
+watch(selectedCharacterId, (characterId) => {
+  if (characterId && user.value) {
+    rememberLastCharacterId(user.value.id, characterId)
+  }
+}, { immediate: true })
+
+watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selectedLocation], () => {
+  router.replace({
+    query: writeAssetFilterQuery(route.query, {
+      viewMode: viewMode.value,
+      characterId: selectedCharacterId.value,
+      search: searchQuery.value,
+      solarSystem: selectedSolarSystem.value,
+      location: selectedLocation.value,
+    }),
+  })
+}, { immediate: true })
+
+watch([selectedCharacterId, viewMode], (_current, previous) => {
+  const previousView = previous?.[1]
+  const isFirstOwnerResolution = (previous?.[0] ?? null) === null && (previousView === undefined || previousView === viewMode.value)
   abortPendingAssetsRequest()
   assets.value = []
   nextRefreshAt.value = null
   hasLoadedCurrentOwner.value = false
   isReloading.value = false
   isLoading.value = false
-  selectedSolarSystem.value = ''
-  selectedLocation.value = ''
-  searchQuery.value = ''
   expandedContainers.value = new Set()
   collapsedLocations.value = new Set()
+  if (!isFirstOwnerResolution) {
+    selectedSolarSystem.value = ''
+    selectedLocation.value = ''
+    searchQuery.value = ''
+  }
   if (viewMode.value === 'corporation') {
     fetchVisibility()
   } else {
