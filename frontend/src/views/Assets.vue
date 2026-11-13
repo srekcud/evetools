@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onUnmounted, watch } from 'vue'
+import { ref, shallowRef, computed, nextTick, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { readAssetFilterQuery, readLastCharacterId, rememberLastCharacterId, writeAssetFilterQuery } from '@/utils/assetFilterQuery'
 import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/assetLocation'
+import { summarizeAssetSafety } from '@/utils/assetSafety'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
@@ -17,6 +18,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
+import AssetSafetyBlock from '@/components/assets/AssetSafetyBlock.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
@@ -346,6 +348,21 @@ watch(searchQuery, revealSearchMatches)
 watch(selectedSolarSystem, () => {
   selectedLocation.value = ''
 })
+
+const assetSafetyLocations = computed(() => summarizeAssetSafety(assets.value))
+
+async function showAssetSafetyContent(locationName: string) {
+  const location = assetSafetyLocations.value.find(candidate => candidate.locationName === locationName)
+  if (location === undefined) {
+    return
+  }
+  selectedSolarSystem.value = location.solarSystemName
+  await nextTick()
+  selectedLocation.value = locationName
+  const reopened = new Set(collapsedLocations.value)
+  reopened.delete(locationName)
+  collapsedLocations.value = reopened
+}
 
 // Stats
 const totalItems = computed(() => assets.value.reduce((sum, a) => sum + a.quantity, 0))
@@ -719,6 +736,12 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             @update:selected-solar-system="selectedSolarSystem = $event"
             @update:selected-location="selectedLocation = $event"
             @clear-filters="clearFilters"
+          />
+
+          <AssetSafetyBlock
+            v-if="assetSafetyLocations.length > 0"
+            :locations="assetSafetyLocations"
+            @show-content="showAssetSafetyContent"
           />
 
           <!-- Stats -->

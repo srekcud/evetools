@@ -2120,6 +2120,13 @@
       "systems": "Systemes",
       "locations": "Emplacements"
     },
+    "assetSafety": {
+      "title": "Asset Safety",
+      "items": "{count} items",
+      "ships": "{count} vaisseaux",
+      "reminder": "Ces items restent verrouillés tant que le pilote n'a pas demandé leur livraison en jeu.",
+      "showContent": "Afficher le contenu"
+    },
     "syncInProgress": "Synchronisation en cours",
     "syncDescription": "Vos assets sont en cours de synchronisation depuis l'ESI...",
     "refreshFromEve": "Rafraichir depuis EVE",

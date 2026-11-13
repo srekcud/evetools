@@ -1,1 +1,2 @@
 export const COLLAPSE_LOCATIONS_ROW_THRESHOLD = 200
+export const SHIP_CATEGORY_ID = 6
