@@ -179,6 +179,10 @@ deptrac:
     App\State\Processor\Industry\Project\DeclareT2BlueprintCopiesProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
       - App\State\Provider\Industry\Project\ProjectT2BlueprintCopyProposalResourceMapper
+    App\State\Processor\Industry\Project\MarkBomLineProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\RemoveBomLineMarkProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\UpdateSaleProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\UpdateProjectProcessor:

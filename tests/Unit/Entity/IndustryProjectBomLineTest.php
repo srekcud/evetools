@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Entity;
 
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectBomLineMark;
+use App\Entity\IndustryProjectJobMatch;
+use App\Enum\BomLineMarkState;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -93,5 +96,64 @@ final class IndustryProjectBomLineTest extends TestCase
             ->setFulfilledQuantity(405);
 
         self::assertFalse($leaf->isCoveredByStock());
+    }
+
+    #[Group('issue-807')]
+    public function testCountedRunsAreTheRunsOfTheStepMarkWhenNoJobIsLinked(): void
+    {
+        $inventionLine = $this->jobLineOfRuns(10)->setMark($this->stepMark(BomLineMarkState::Done, 10));
+
+        self::assertSame([0, 10], [$inventionLine->getMatchedRuns(), $inventionLine->getCountedRuns()]);
+    }
+
+    #[Group('issue-807')]
+    public function testCountedRunsNeverAddTheStepMarkToTheMatchedRuns(): void
+    {
+        $componentLine = $this->jobLineOfRuns(10)->setMark($this->stepMark(BomLineMarkState::Done, 10));
+        $componentLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(807_001)->setRuns(6)->setStatus('delivered'));
+
+        self::assertSame([6, 10], [$componentLine->getMatchedRuns(), $componentLine->getCountedRuns()]);
+    }
+
+    #[Group('issue-807')]
+    public function testCountedRunsAreTheMatchedRunsWhenTheyExceedTheRunsOfTheStepMark(): void
+    {
+        $componentLine = $this->jobLineOfRuns(10)->setMark($this->stepMark(BomLineMarkState::Launched, 10));
+        $componentLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(807_002)->setRuns(14)->setStatus('active'));
+
+        self::assertSame(14, $componentLine->getCountedRuns());
+    }
+
+    #[Group('issue-807')]
+    public function testCountedRunsCapTheStepMarkAtTheRunsOfTheLine(): void
+    {
+        $componentLine = $this->jobLineOfRuns(10)->setMark($this->stepMark(BomLineMarkState::Done, 12));
+
+        self::assertSame(10, $componentLine->getCountedRuns());
+    }
+
+    #[Group('issue-807')]
+    public function testCountedRunsAreTheMatchedRunsWhenTheLineHasNoStepMark(): void
+    {
+        $componentLine = $this->jobLineOfRuns(10);
+        $componentLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(807_003)->setRuns(6)->setStatus('delivered'));
+
+        self::assertSame([null, 6], [$componentLine->getMark(), $componentLine->getCountedRuns()]);
+    }
+
+    private function jobLineOfRuns(int $runs): IndustryProjectBomLine
+    {
+        return (new IndustryProjectBomLine())
+            ->setTypeId(2_183)
+            ->setTypeName('Hammerhead I')
+            ->setIsJob(true)
+            ->setActivityType('manufacturing')
+            ->setRuns($runs)
+            ->setRequiredQuantity($runs);
+    }
+
+    private function stepMark(BomLineMarkState $state, int $runs): IndustryProjectBomLineMark
+    {
+        return new IndustryProjectBomLineMark($state, $runs, new \DateTimeImmutable('2026-11-13T09:00:00+00:00'));
     }
 }

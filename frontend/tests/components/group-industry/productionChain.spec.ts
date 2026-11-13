@@ -115,7 +115,7 @@ beforeEach(() => {
 })
 
 describe('ProductionChain tree with the null fields omitted by the API', () => {
-  const OMITTED_NULL_FIELDS = ['parentId', 'activity', 'runs', 'meLevel', 'teLevel', 'realCost', 'plannedStructure', 'plannedCopyDuration', 'soldQuantity', 'grossRevenue'] as const
+  const OMITTED_NULL_FIELDS = ['parentId', 'activity', 'runs', 'meLevel', 'teLevel', 'realCost', 'plannedStructure', 'plannedCopyDuration', 'soldQuantity', 'grossRevenue', 'mark'] as const
 
   function withoutNullFields(node: ChainNode): ChainNode {
     const sent: Record<string, unknown> = { ...node }

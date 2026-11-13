@@ -14,6 +14,7 @@ final readonly class ProjectChainNode
      * @param list<string>                                                                                                                                                         $structures
      * @param array{name: string|null, status: string}|null                                                                                                                        $plannedStructure
      * @param array{seconds: int|null, missingData: list<array{reason: string, typeId: int|null}>, characterName: string|null}|null $plannedCopyDuration
+     * @param array{state: string, runs: int}|null $mark
      */
     public function __construct(
         public string $id,
@@ -38,6 +39,7 @@ final readonly class ProjectChainNode
         public ?float $grossRevenue,
         public ?int $level,
         public ?array $plannedCopyDuration = null,
+        public ?array $mark = null,
     ) {
     }
 

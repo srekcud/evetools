@@ -18,7 +18,12 @@ const VIEWS: readonly ChainView[] = ['flow', 'tree']
 
 const props = defineProps<{
   projectId: string
+  canMark?: boolean
   excludesInvention?: boolean
+}>()
+
+defineEmits<{
+  marked: []
 }>()
 
 const { t } = useI18n()
@@ -114,6 +119,9 @@ watch(
         v-else
         :nodes="chainStore.nodes"
         :selected-id="selectedNodeId"
+        :project-id="projectId"
+        :can-mark="canMark === true"
+        @marked="$emit('marked')"
       />
       <p v-if="view !== 'flow'" data-testid="chain-io-unknown-cause" class="px-4 pt-3 text-xs text-violet-300">
         {{ t('groupIndustry.chain.ioUnknownCause') }}

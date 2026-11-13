@@ -735,7 +735,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
-        <ProductionChain :project-id="projectId" :excludes-invention="project.excludesInvention" />
+        <ProductionChain :project-id="projectId" :excludes-invention="project.excludesInvention" :can-mark="isOwner && !isCompleted" @marked="refreshGroupProject.cockpit(projectId)" />
         <ProjectBuyOrBuild
           :project-id="projectId"
           :can-switch="isOwnerOrAdmin && !isCompleted"

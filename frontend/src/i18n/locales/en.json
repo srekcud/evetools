@@ -2731,6 +2731,17 @@
       },
       "loading": "Reading the production chain...",
       "loadError": "The production chain could not be read",
+      "mark": {
+        "title": "Mark",
+        "launched": "Launched",
+        "done": "Done",
+        "runs": "Runs",
+        "submit": "Mark",
+        "remove": "Remove the mark",
+        "badge": "Mark",
+        "markedLaunched": "Marked launched ({runs} runs)",
+        "markedDone": "Marked done ({runs} runs)"
+      },
       "level": {
         "title": "Level {level}",
         "count": "{count} job | {count} jobs",

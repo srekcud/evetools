@@ -10,6 +10,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectSale;
+use App\Enum\BomLineMarkState;
 use App\Enum\ContributionStatus;
 use App\Industry\Application\PlannedCopyDurations;
 use App\Industry\Application\StructureChoiceStatus;
@@ -301,7 +302,24 @@ final readonly class ProjectChainBuilder
                 default => null,
             },
             $plannedCopyDuration,
+            $isJob ? $this->markOf($line) : null,
         );
+    }
+
+    /**
+     * @return array{state: string, runs: int}|null
+     */
+    private function markOf(IndustryProjectBomLine $line): ?array
+    {
+        $mark = $line->getMark();
+        if (null === $mark) {
+            return null;
+        }
+
+        return [
+            'state' => $mark->getState()->value,
+            'runs' => min($mark->getRuns(), $line->getRuns() ?? throw new \UnexpectedValueException(\sprintf('Job line %s has no runs.', self::lineId($line)))),
+        ];
     }
 
     /**
@@ -370,6 +388,15 @@ final readonly class ProjectChainBuilder
         }
 
         $runs = $line->getRuns() ?? throw new \UnexpectedValueException(\sprintf('Job line %s has no runs.', self::lineId($line)));
+        $mark = $line->getMark();
+        if (null !== $mark) {
+            if (BomLineMarkState::Done === $mark->getState()) {
+                $deliveredRuns = max($deliveredRuns, min($mark->getRuns(), $runs));
+            } else {
+                $hasJobInProgress = true;
+            }
+        }
+
         if ($deliveredRuns >= $runs) {
             return self::STATUS_DONE;
         }

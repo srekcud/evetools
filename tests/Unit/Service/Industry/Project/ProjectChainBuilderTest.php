@@ -7,11 +7,13 @@ namespace App\Tests\Unit\Service\Industry\Project;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectBomLineMark;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
+use App\Enum\BomLineMarkState;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
@@ -202,6 +204,113 @@ final class ProjectChainBuilderTest extends TestCase
         $this->link($this->product, 'weird', self::TEN_RUNS);
 
         self::assertSame('unknown', $this->node($this->chainOfHammerheads(), self::PRODUCT_LINE_ID)->status);
+    }
+
+    #[Group('issue-807')]
+    public function testInventionMarkedDoneForAllItsRunsIsDoneAndCarriesItsMark(): void
+    {
+        $this->markStep($this->invention, BomLineMarkState::Done, 20);
+
+        $invention = $this->node($this->chainOfHammerheads(), self::INVENTION_LINE_ID);
+
+        self::assertSame(['done', ['state' => 'done', 'runs' => 20]], [$invention->status, $invention->mark]);
+    }
+
+    #[Group('issue-807')]
+    public function testComponentMarkedDoneForAllItsRunsNoLongerBlocksTheProduct(): void
+    {
+        $this->markStep($this->component, BomLineMarkState::Done, self::COMPONENT_RUNS);
+
+        $chain = $this->chainOfHammerheads();
+
+        self::assertSame(
+            ['done', 'todo'],
+            [$this->node($chain, self::COMPONENT_LINE_ID)->status, $this->node($chain, self::PRODUCT_LINE_ID)->status],
+        );
+    }
+
+    #[Group('issue-807')]
+    public function testProductWhoseComponentIsMarkedDoneIsMissingMaterialsWhenItsOwnMaterialsAreMissing(): void
+    {
+        $this->markStep($this->component, BomLineMarkState::Done, self::COMPONENT_RUNS);
+        $this->particleAcceleratorUnit->setFulfilledQuantity(3_999);
+
+        $chain = $this->chainWithNeeds($this->hammerheadLines(), [
+            self::PRODUCT_LINE_ID => [self::PARTICLE_ACCELERATOR_UNIT => 4_000],
+            self::COMPONENT_LINE_ID => [],
+        ]);
+
+        self::assertSame('missing_materials', $this->node($chain, self::PRODUCT_LINE_ID)->status);
+    }
+
+    #[Group('issue-807')]
+    public function testComponentMarkedDoneForPartOfItsRunsIsActiveAndKeepsTheProductBlocked(): void
+    {
+        $this->markStep($this->component, BomLineMarkState::Done, 20);
+
+        $chain = $this->chainOfHammerheads();
+
+        self::assertSame(
+            ['active', 'blocked'],
+            [$this->node($chain, self::COMPONENT_LINE_ID)->status, $this->node($chain, self::PRODUCT_LINE_ID)->status],
+        );
+    }
+
+    #[Group('issue-807')]
+    public function testComponentMarkedLaunchedForAllItsRunsIsActiveNotDoneAndKeepsTheProductBlocked(): void
+    {
+        $this->markStep($this->component, BomLineMarkState::Launched, self::COMPONENT_RUNS);
+
+        $chain = $this->chainOfHammerheads();
+
+        self::assertSame(
+            ['active', 'blocked'],
+            [$this->node($chain, self::COMPONENT_LINE_ID)->status, $this->node($chain, self::PRODUCT_LINE_ID)->status],
+        );
+    }
+
+    #[Group('issue-807')]
+    public function testComponentMarkedDoneForAllItsRunsAndLinkedToADeliveredJobOfFewerRunsIsDone(): void
+    {
+        $this->markStep($this->component, BomLineMarkState::Done, self::COMPONENT_RUNS);
+        $this->link($this->component, 'delivered', 30);
+
+        self::assertSame('done', $this->node($this->chainOfHammerheads(), self::COMPONENT_LINE_ID)->status);
+    }
+
+    #[Group('issue-807')]
+    public function testMarkedRunsAreNeverAddedToTheRunsOfADeliveredJob(): void
+    {
+        $this->markStep($this->component, BomLineMarkState::Done, 20);
+        $this->link($this->component, 'delivered', 30);
+
+        self::assertSame('active', $this->node($this->chainOfHammerheads(), self::COMPONENT_LINE_ID)->status);
+    }
+
+    #[Group('issue-807')]
+    public function testComponentMarkedDoneWhoseLinkedJobHasAnUnexpectedStatusIsUnknown(): void
+    {
+        $this->markStep($this->component, BomLineMarkState::Done, self::COMPONENT_RUNS);
+        $this->link($this->component, 'weird', 5);
+
+        self::assertSame('unknown', $this->node($this->chainOfHammerheads(), self::COMPONENT_LINE_ID)->status);
+    }
+
+    #[Group('issue-807')]
+    public function testNodeCarriesTheStepMarkWithItsRunsCappedAtTheRunsOfTheLineAndNoMarkOtherwise(): void
+    {
+        $this->markStep($this->component, BomLineMarkState::Launched, 70);
+
+        $chain = $this->chainOfHammerheads();
+
+        self::assertSame(
+            [['state' => 'launched', 'runs' => self::COMPONENT_RUNS], null, null],
+            [
+                $this->node($chain, self::COMPONENT_LINE_ID)->mark,
+                $this->node($chain, self::PRODUCT_LINE_ID)->mark,
+                $this->node($chain, self::TRITANIUM_LINE_ID)->mark,
+            ],
+        );
     }
 
     public function testApprovedContributionOfUnknownValueMakesTheRealCostOfTheMaterialUnknownWithBothSuppliersListed(): void
@@ -903,6 +1012,11 @@ final class ProjectChainBuilderTest extends TestCase
         $line->addJobMatch($jobMatch);
 
         return $jobMatch;
+    }
+
+    private function markStep(IndustryProjectBomLine $line, BomLineMarkState $state, int $runs): void
+    {
+        $line->setMark(new IndustryProjectBomLineMark($state, $runs, new \DateTimeImmutable('2026-11-13T09:00:00+00:00')));
     }
 
     private function contribution(IndustryProjectParticipant $participant, IndustryProjectBomLine $line, ContributionType $type, int $quantity, ?float $value, ContributionStatus $status): IndustryProjectContribution

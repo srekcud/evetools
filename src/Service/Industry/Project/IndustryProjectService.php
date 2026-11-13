@@ -247,7 +247,7 @@ class IndustryProjectService
     {
         foreach ($existingByKey as $key => $existingLines) {
             foreach (array_slice($existingLines, \count($plannedByKey[$key] ?? [])) as $droppedLine) {
-                if (!$droppedLine->getJobMatches()->isEmpty() || !$droppedLine->getPurchases()->isEmpty() || $carriesContribution($droppedLine)) {
+                if (!$droppedLine->getJobMatches()->isEmpty() || !$droppedLine->getPurchases()->isEmpty() || null !== $droppedLine->getMark() || $carriesContribution($droppedLine)) {
                     throw new \RuntimeException(\sprintf('The line "%s" carries a linked job, a purchase or a contribution and cannot be removed from the plan.', $droppedLine->getTypeName()));
                 }
             }
@@ -274,6 +274,11 @@ class IndustryProjectService
                 $linkedRuns = array_sum(array_map(static fn (IndustryProjectJobMatch $match): int => $match->getRuns(), $existingLine->getJobMatches()->toArray()));
                 if ($existingLine->isJob() && $linkedRuns > $plannedLine->getRuns()) {
                     throw new \RuntimeException(\sprintf('The line "%s" has %d runs linked to ESI jobs, more than the %d the plan now needs.', $existingLine->getTypeName(), $linkedRuns, $plannedLine->getRuns()));
+                }
+
+                $markedRuns = $existingLine->getMark()?->getRuns();
+                if ($existingLine->isJob() && null !== $markedRuns && $markedRuns > $plannedLine->getRuns()) {
+                    throw new \RuntimeException(\sprintf('The line "%s" has %d runs marked, more than the %d the plan now needs.', $existingLine->getTypeName(), $markedRuns, $plannedLine->getRuns()));
                 }
             }
         }

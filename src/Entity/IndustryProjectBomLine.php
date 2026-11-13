@@ -86,10 +86,15 @@ class IndustryProjectBomLine
     #[ORM\OneToMany(targetEntity: IndustryProjectPurchase::class, mappedBy: 'bomLine', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $purchases;
 
+    /** @var Collection<int, IndustryProjectBomLineMark> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectBomLineMark::class, mappedBy: 'line', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $marks;
+
     public function __construct()
     {
         $this->id = Uuid::v7();
         $this->jobMatches = new ArrayCollection();
+        $this->marks = new ArrayCollection();
         $this->purchases = new ArrayCollection();
     }
 
@@ -327,6 +332,36 @@ class IndustryProjectBomLine
     public function getMatchedRuns(): int
     {
         return array_sum($this->jobMatches->map(static fn (IndustryProjectJobMatch $jobMatch): int => $jobMatch->getRuns())->toArray());
+    }
+
+    public function getMark(): ?IndustryProjectBomLineMark
+    {
+        return $this->marks->first() ?: null;
+    }
+
+    public function setMark(?IndustryProjectBomLineMark $mark): static
+    {
+        foreach ($this->marks->toArray() as $existing) {
+            if ($existing !== $mark) {
+                $this->marks->removeElement($existing);
+            }
+        }
+        if (null !== $mark && !$this->marks->contains($mark)) {
+            $this->marks->add($mark);
+            $mark->setLine($this);
+        }
+
+        return $this;
+    }
+
+    public function getCountedRuns(): int
+    {
+        $mark = $this->getMark();
+        if (null === $mark) {
+            return $this->getMatchedRuns();
+        }
+
+        return max($this->getMatchedRuns(), min($mark->getRuns(), $this->getRuns() ?? throw new \LogicException('A marked job line has no runs.')));
     }
 
     public function getDeliveredRuns(): int

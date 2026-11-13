@@ -2731,6 +2731,17 @@
       },
       "loading": "Lecture de la chaîne de production...",
       "loadError": "La chaîne de production n'a pas pu être lue",
+      "mark": {
+        "title": "Marquer",
+        "launched": "Lancé",
+        "done": "Fait",
+        "runs": "Runs",
+        "submit": "Marquer",
+        "remove": "Retirer la marque",
+        "badge": "Marque",
+        "markedLaunched": "Marqué lancé ({runs} runs)",
+        "markedDone": "Marqué fait ({runs} runs)"
+      },
       "level": {
         "title": "Niveau {level}",
         "count": "{count} job | {count} jobs",

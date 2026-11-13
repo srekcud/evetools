@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry\Project;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectBomLineMark;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectPurchase;
@@ -20,6 +21,7 @@ use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
+use App\Enum\BomLineMarkState;
 use App\Enum\IndustryActivityType;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryUserSettingsRepository;
@@ -144,6 +146,58 @@ final class IndustryProjectServiceBlacklistSwitchTest extends TestCase
         );
     }
 
+    #[Group('issue-807')]
+    public function testBuildBomRefusesToDropAJobLineCarryingAStepMarkAndNamesItsType(): void
+    {
+        $project = $this->projectBuiltWithoutBlacklist();
+        $this->markStep($this->lineOf($project, self::HULL_PLATING, true), BomLineMarkState::Done, 15);
+        $project->setBlacklistTypeIds([self::HULL_PLATING]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('The line "Hull Plating" carries a linked job, a purchase or a contribution and cannot be removed from the plan.');
+
+        $this->service()->buildBom($project, $this->owner(), refuseToDropWorkedLines: true);
+    }
+
+    #[Group('issue-807')]
+    public function testBuildBomRefusesToCutAJobLineBelowItsMarkedRunsAndNamesItsType(): void
+    {
+        $project = $this->projectBuiltWithoutBlacklist();
+        $this->markStep($this->lineOf($project, self::RIFTER, true), BomLineMarkState::Done, 4);
+        $project->getItems()->first()->setRuns(3);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('The line "Rifter" has 4 runs marked, more than the 3 the plan now needs.');
+
+        $this->service()->buildBom($project, $this->owner(), refuseToDropWorkedLines: true);
+    }
+
+    #[Group('issue-807')]
+    public function testBuildBomKeepsTheStepMarkOfAJobLineWhoseRunsFallToTheMarkedRuns(): void
+    {
+        $project = $this->projectBuiltWithoutBlacklist();
+        $rifterLine = $this->lineOf($project, self::RIFTER, true);
+        $stepMark = $this->markStep($rifterLine, BomLineMarkState::Launched, 3);
+        $project->getItems()->first()->setRuns(3);
+
+        $this->service()->buildBom($project, $this->owner(), refuseToDropWorkedLines: true);
+
+        self::assertSame([3, $stepMark], [$rifterLine->getRuns(), $rifterLine->getMark()]);
+    }
+
+    #[Group('issue-807')]
+    public function testBuildBomKeepsTheStepMarkOfAJobLineCutBelowItsMarkedRunsWhenItIsNotAskedToRefuseWorkedLines(): void
+    {
+        $project = $this->projectBuiltWithoutBlacklist();
+        $rifterLine = $this->lineOf($project, self::RIFTER, true);
+        $stepMark = $this->markStep($rifterLine, BomLineMarkState::Done, 4);
+        $project->getItems()->first()->setRuns(3);
+
+        $this->service()->buildBom($project, $this->owner());
+
+        self::assertSame([3, $stepMark, 3], [$rifterLine->getRuns(), $rifterLine->getMark(), $rifterLine->getCountedRuns()]);
+    }
+
     private function projectBuiltWithoutBlacklist(): IndustryProject
     {
         $project = new IndustryProject();
@@ -174,6 +228,14 @@ final class IndustryProjectServiceBlacklistSwitchTest extends TestCase
     private function linkJobTo(IndustryProjectBomLine $line): void
     {
         $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(900_001)->setRuns(3));
+    }
+
+    private function markStep(IndustryProjectBomLine $line, BomLineMarkState $state, int $runs): IndustryProjectBomLineMark
+    {
+        $stepMark = new IndustryProjectBomLineMark($state, $runs, new \DateTimeImmutable('2026-11-13T09:00:00+00:00'));
+        $line->setMark($stepMark);
+
+        return $stepMark;
     }
 
     private function purchaseOn(IndustryProjectBomLine $line): void
