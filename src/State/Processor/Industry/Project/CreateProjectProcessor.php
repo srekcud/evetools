@@ -98,6 +98,7 @@ class CreateProjectProcessor implements ProcessorInterface
                 acceptsOutsideFavoriteSystem: $data->acceptsOutsideFavoriteSystem,
                 minimumOutsideSaving: $data->minimumOutsideSaving,
                 template: $template,
+                excludesInvention: $data->excludesInvention ?? $template?->isExcludesInvention() ?? $user->isIndustryExcludeInvention(),
                 sellStructure: null === $data->sellStructureId ? $this->sellStructures->defaultFor($user) : $this->sellStructures->choose($user, $data->sellStructureId),
             );
 

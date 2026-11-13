@@ -27,9 +27,10 @@ const proposal = computed(() => proposalStore.proposal)
 const lines = computed(() => proposal.value?.lines ?? [])
 const isReady = computed(() => proposal.value?.state === 'ready')
 const isUnknown = computed(() => proposal.value?.state === 'assets_unknown')
+const isInventionExcluded = computed(() => proposal.value?.state === 'invention_excluded')
 const hasLoadFailed = computed(() => proposal.value === null && proposalStore.error !== null)
 const isVisible = computed(() => {
-  if (hasLoadFailed.value) return true
+  if (hasLoadFailed.value || isInventionExcluded.value) return true
   if (isDraft.value) return isReady.value || isUnknown.value
   return isReady.value
 })
@@ -108,6 +109,12 @@ async function declare(): Promise<void> {
         <p class="font-semibold">{{ t('groupIndustry.t2BlueprintCopyProposal.loadError') }}</p>
         <p class="mt-1 break-words">{{ proposalStore.error }}</p>
       </div>
+
+      <p
+        v-else-if="isInventionExcluded"
+        data-testid="t2-blueprint-copy-proposal-invention-excluded"
+        class="m-4 p-3 rounded border border-slate-700 bg-slate-950/60 text-sm text-slate-300"
+      >{{ t('groupIndustry.t2BlueprintCopyProposal.inventionExcluded') }}</p>
 
       <div
         v-else-if="isUnknown && proposal?.unknownReason"

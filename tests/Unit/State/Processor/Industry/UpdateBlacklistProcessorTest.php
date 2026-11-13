@@ -51,6 +51,36 @@ final class UpdateBlacklistProcessorTest extends TestCase
         self::assertFalse($states['biochem_reactions']['partiallyBlacklisted']);
     }
 
+    #[Group('issue-806')]
+    public function testExcludeInventionIsSavedOnTheUserAndExposedAndAnAbsentValueLeavesItUnchanged(): void
+    {
+        $user = new User();
+        $excluding = new UpdateBlacklistInput();
+        $excluding->excludeInvention = true;
+        $groupsOnly = new UpdateBlacklistInput();
+        $groupsOnly->groupIds = [self::GROUP_OUTSIDE_EVERY_CATEGORY];
+
+        $afterExcluding = $this->processorOf($user)->process($excluding, new Put());
+        $afterGroupsOnly = $this->processorOf($user)->process($groupsOnly, new Put());
+
+        self::assertTrue($afterExcluding->excludeInvention);
+        self::assertTrue($afterGroupsOnly->excludeInvention);
+        self::assertTrue($user->isIndustryExcludeInvention());
+    }
+
+    #[Group('issue-806')]
+    public function testExcludeInventionFalseClearsTheSettingOfTheUser(): void
+    {
+        $user = (new User())->setIndustryExcludeInvention(true);
+        $input = new UpdateBlacklistInput();
+        $input->excludeInvention = false;
+
+        $resource = $this->processorOf($user)->process($input, new Put());
+
+        self::assertFalse($resource->excludeInvention);
+        self::assertFalse($user->isIndustryExcludeInvention());
+    }
+
     private function processorOf(User $user): UpdateBlacklistProcessor
     {
         $security = $this->createStub(Security::class);

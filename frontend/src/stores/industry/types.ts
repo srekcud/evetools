@@ -25,6 +25,7 @@ export interface BlacklistConfig {
   categories: BlacklistCategory[]
   groupIds: number[]
   items: BlacklistItem[]
+  excludeInvention: boolean
 }
 
 export interface StructureConfig {

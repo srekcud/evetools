@@ -88,6 +88,7 @@ function sabreProject(status: GroupProjectStatus, myRole: GroupMemberRole): Grou
     private: false,
     notes: null,
     acceptsOutsideFavoriteSystem: false,
+    excludesInvention: false,
     minimumOutsideSaving: 5,
     sellStructureId: null,
     sellStructureName: null,

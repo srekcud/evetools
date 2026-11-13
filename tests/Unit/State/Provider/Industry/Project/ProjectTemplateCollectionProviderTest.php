@@ -66,4 +66,22 @@ final class ProjectTemplateCollectionProviderTest extends TestCase
         self::assertSame([], $ownByBob->blacklistGroupIds);
         self::assertSame(750_000.0, $ownByBob->minimumOutsideSaving);
     }
+
+    #[Group('issue-806')]
+    public function testTemplateExposesWhetherItExcludesTheInvention(): void
+    {
+        $bob = $this->pilot('Bob Lenoir', 98_000_001);
+        $excluding = $this->templateOf($bob, 'Hail line', false)->setExcludesInvention(true);
+        $keeping = $this->templateOf($bob, 'Warrior line', false);
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($bob);
+        $repository = $this->createStub(IndustryProjectTemplateRepository::class);
+        $repository->method('findVisibleTo')->willReturn([$excluding, $keeping]);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('countByTemplate')->willReturn([(string) $excluding->getId() => 0, (string) $keeping->getId() => 0]);
+
+        $resources = (new ProjectTemplateCollectionProvider($security, $repository, $projectRepository))->provide(new GetCollection());
+
+        self::assertSame([true, false], [$resources[0]->excludesInvention, $resources[1]->excludesInvention]);
+    }
 }

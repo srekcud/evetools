@@ -36,6 +36,17 @@ async function saveBlacklist(groupIds: number[], typeIds: number[]): Promise<boo
   }
 }
 
+async function toggleExcludeInvention(event: Event) {
+  const input = event.target as HTMLInputElement
+  saveFailed.value = false
+  try {
+    await store.updateExcludeInvention(input.checked)
+  } catch {
+    saveFailed.value = true
+    input.checked = store.blacklist?.excludeInvention === true
+  }
+}
+
 const activeGroupIds = computed(() => new Set(store.blacklist?.groupIds ?? []))
 
 const activeTypeIds = computed(() => {
@@ -112,6 +123,20 @@ function hideDropdownDelayed() {
       <p v-if="saveFailed" role="alert" data-testid="blacklist-save-error" class="text-sm text-red-400">
         {{ t('industry.blacklist.saveError') }}
       </p>
+
+      <label class="flex items-start gap-3 p-2.5 rounded-lg bg-slate-800/50 border border-slate-700 cursor-pointer hover:bg-slate-800">
+        <input
+          type="checkbox"
+          data-testid="blacklist-exclude-invention"
+          :checked="store.blacklist.excludeInvention"
+          class="mt-0.5 w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
+          @change="toggleExcludeInvention"
+        />
+        <span>
+          <span class="block text-sm text-slate-200">{{ t('industry.blacklist.excludeInvention') }}</span>
+          <span class="block text-xs text-slate-500 mt-0.5">{{ t('industry.blacklist.excludeInventionHint') }}</span>
+        </span>
+      </label>
 
       <!-- Categories -->
       <div>

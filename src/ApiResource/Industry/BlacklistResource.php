@@ -44,4 +44,6 @@ class BlacklistResource
 
     /** @var list<array<string, mixed>> */
     public array $items = [];
+
+    public bool $excludeInvention = false;
 }

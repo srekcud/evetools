@@ -51,6 +51,7 @@ const SABRE_BATCH: GroupProject = {
   private: false,
   notes: null,
   acceptsOutsideFavoriteSystem: false,
+  excludesInvention: false,
   minimumOutsideSaving: 5,
   sellStructureId: null,
   sellStructureName: null,

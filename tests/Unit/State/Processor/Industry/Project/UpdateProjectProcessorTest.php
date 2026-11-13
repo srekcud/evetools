@@ -808,6 +808,88 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertSame('The production plan has 301 BOM lines, above the limit of 300 BOM lines per project.', $refusal?->getMessage());
     }
 
+    #[Group('issue-806')]
+    public function testOwnerExcludesTheInventionOfADraftProjectAndTheBomIsRebuiltWithTheExclusion(): void
+    {
+        $this->project->setStatus(ProjectStatus::Draft);
+        $input = new UpdateProjectInput();
+        $input->excludesInvention = true;
+
+        $seenByTheRebuild = null;
+        $this->projectService->expects($this->once())->method('buildBom')
+            ->with($this->project, $this->owner)
+            ->willReturnCallback(function () use (&$seenByTheRebuild): void {
+                $seenByTheRebuild = $this->project->isExcludesInvention();
+            });
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $resource = $this->update($input);
+
+        self::assertTrue($seenByTheRebuild);
+        self::assertTrue($this->project->isExcludesInvention());
+        self::assertTrue($resource->excludesInvention);
+    }
+
+    #[Group('issue-806')]
+    public function testExcludingTheInventionWithTheCurrentValueOrWithoutValueDoesNotRebuildTheBom(): void
+    {
+        $this->project->setExcludesInvention(true);
+        $same = new UpdateProjectInput();
+        $same->excludesInvention = true;
+        $absent = new UpdateProjectInput();
+        $absent->name = 'Rorqual batch';
+
+        $this->projectService->expects($this->never())->method('buildBom');
+
+        $this->update($same);
+        $resource = $this->update($absent);
+
+        self::assertTrue($resource->excludesInvention);
+    }
+
+    #[DataProvider('statusesAfterTheDraft')]
+    #[Group('issue-806')]
+    public function testTheInventionExclusionOfAProjectThatIsNotADraftIsRefusedAndNothingIsChanged(ProjectStatus $status): void
+    {
+        $this->project->setStatus($status);
+        $input = new UpdateProjectInput();
+        $input->excludesInvention = true;
+
+        $this->projectService->expects($this->never())->method('buildBom');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $e) {
+            $refusal = $e;
+        }
+
+        self::assertInstanceOf(BadRequestHttpException::class, $refusal);
+        self::assertFalse($this->project->isExcludesInvention());
+    }
+
+    #[Group('issue-806')]
+    public function testABomThatCannotBeRebuiltWithTheInventionExclusionIsABadRequestAndTheFormerValueIsRestored(): void
+    {
+        $this->project->setExcludesInvention(true);
+        $input = new UpdateProjectInput();
+        $input->excludesInvention = false;
+
+        $this->projectService->method('buildBom')->willThrowException(new \RuntimeException('The production plan has 301 BOM lines, above the limit of 300 BOM lines per project.'));
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $e) {
+            $refusal = $e;
+        }
+
+        self::assertSame('The production plan has 301 BOM lines, above the limit of 300 BOM lines per project.', $refusal?->getMessage());
+        self::assertTrue($this->project->isExcludesInvention());
+    }
+
     #[DataProvider('statusesWhereTheTypesCanBeSwitched')]
     #[Group('issue-343')]
     public function testTheBlacklistTypesOfAProjectThatIsNotADraftNorCompletedAreSavedAndTheBomIsRebuiltRefusingToDropWorkedLines(ProjectStatus $status): void

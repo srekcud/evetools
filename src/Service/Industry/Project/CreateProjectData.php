@@ -34,6 +34,7 @@ final readonly class CreateProjectData
         public ?IndustryProjectTemplate $template = null,
         public ?SellStructure $sellStructure = null,
         public bool $personalUse = false,
+        public bool $excludesInvention = false,
     ) {
     }
 }

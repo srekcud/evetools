@@ -92,6 +92,7 @@ export function useIndustryStore() {
     get blacklist() { return blacklistStore.blacklist },
     fetchBlacklist: blacklistStore.fetchBlacklist,
     updateBlacklist: blacklistStore.updateBlacklist,
+    updateExcludeInvention: blacklistStore.updateExcludeInvention,
     searchBlacklistItems: blacklistStore.searchBlacklistItems,
 
     // Cross-tab navigation intent

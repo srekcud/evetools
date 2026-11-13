@@ -33,6 +33,7 @@ function groupProject(id: string, status: GroupProjectStatus): GroupProject {
     containerName: null,
     private: true,
     acceptsOutsideFavoriteSystem: false,
+    excludesInvention: false,
     minimumOutsideSaving: 500000,
     sellStructureId: null,
     sellStructureName: null,

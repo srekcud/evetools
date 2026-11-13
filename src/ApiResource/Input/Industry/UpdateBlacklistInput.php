@@ -11,4 +11,6 @@ class UpdateBlacklistInput
 
     /** @var int[]|null */
     public ?array $typeIds = null;
+
+    public ?bool $excludeInvention = null;
 }

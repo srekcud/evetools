@@ -17,6 +17,7 @@ use App\Enum\ProjectStatus;
 use App\Repository\OwnedBlueprintRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\Project\InventedProductsReader;
 use App\Service\Industry\Project\ProjectContainerService;
 use App\Service\Industry\Project\ProjectContainerStock;
 use App\Service\Industry\Project\T2BlueprintCopyProposal;
@@ -86,7 +87,7 @@ final class T2BlueprintCopyProposerTest extends TestCase
             })
             ->setProductTypeId($productTypeId));
 
-        $this->proposer = new T2BlueprintCopyProposer($blueprintRepository, $containerService, $inventionService, $activityProductRepository);
+        $this->proposer = new T2BlueprintCopyProposer($blueprintRepository, $containerService, new InventedProductsReader($inventionService), $activityProductRepository);
     }
 
     public function testPersonalCopiesAndContainerCopiesAddUpToTheAvailableRunsAndTheProposalIsTheManufacturingRunsAtMost(): void
@@ -277,6 +278,32 @@ final class T2BlueprintCopyProposerTest extends TestCase
         $proposal = $this->proposalOf();
 
         self::assertSame(['not_solo', null, []], [$proposal->state, $proposal->unknownReason, $proposal->lines]);
+    }
+
+    #[Group('issue-806')]
+    public function testProjectExcludingTheInventionHasAnInventionExcludedProposalWithoutLines(): void
+    {
+        $this->manufacturing(self::ISHTAR, 'Ishtar', 15);
+        $this->personalBlueprints = [$this->personalCopy(self::ISHTAR_BLUEPRINT, 8)];
+        $this->project->setExcludesInvention(true);
+
+        $proposal = $this->proposalOf();
+
+        self::assertSame(['invention_excluded', null, []], [$proposal->state, $proposal->unknownReason, $proposal->lines]);
+    }
+
+    #[Group('issue-806')]
+    public function testGroupProjectExcludingTheInventionIsInventionExcludedRatherThanNotSolo(): void
+    {
+        $this->manufacturing(self::ISHTAR, 'Ishtar', 15);
+        $this->project->setExcludesInvention(true);
+        $this->project->addMember(
+            (new IndustryProjectParticipant())->setUser(new User())->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted),
+        );
+
+        $proposal = $this->proposalOf();
+
+        self::assertSame(['invention_excluded', []], [$proposal->state, $proposal->lines]);
     }
 
     private function proposalOf(): T2BlueprintCopyProposal
