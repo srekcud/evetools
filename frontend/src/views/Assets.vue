@@ -12,6 +12,7 @@ import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
 import { COLLAPSE_LOCATIONS_ROW_THRESHOLD, FRESHNESS_TICK_MS, SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
 import { useFormatters } from '@/composables/useFormatters'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
@@ -222,17 +223,24 @@ function isContainer(asset: Asset): boolean {
 
 const assetsByItemId = computed(() => new Map(assets.value.map(a => [a.itemId, a])))
 
-const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase())
+const normalizedSearchQuery = computed(() => normalizeSearchText(searchQuery.value))
+
+function containsQuery(text: string, query: string): boolean {
+  return normalizeSearchText(text).includes(query)
+}
 
 function matchesItemSearch(asset: Asset, query: string): boolean {
-  return typeNameLabel(asset.typeName, asset.typeId).toLowerCase().includes(query) ||
-    (asset.itemName !== null && asset.itemName.toLowerCase().includes(query))
+  return containsQuery(typeNameLabel(asset.typeName, asset.typeId), query) ||
+    (asset.itemName !== null && containsQuery(asset.itemName, query))
+}
+
+function matchesLocationSearch(asset: Asset, query: string): boolean {
+  return containsQuery(asset.locationName, query) ||
+    (asset.solarSystemName !== null && containsQuery(asset.solarSystemName, query))
 }
 
 function matchesSearch(asset: Asset, query: string): boolean {
-  return matchesItemSearch(asset, query) ||
-    asset.locationName.toLowerCase().includes(query) ||
-    (asset.solarSystemName !== null && asset.solarSystemName.toLowerCase().includes(query))
+  return matchesItemSearch(asset, query) || matchesLocationSearch(asset, query)
 }
 
 const visibleContainerContents = computed(() => {
@@ -385,7 +393,7 @@ function stopFreshnessClock() {
 onMounted(startFreshnessClock)
 onUnmounted(stopFreshnessClock)
 
-function expandContainersMatchingSearch() {
+function revealSearchMatches() {
   const query = normalizedSearchQuery.value
   if (!query) {
     return
@@ -397,9 +405,21 @@ function expandContainersMatchingSearch() {
     }
   }
   expandedContainers.value = opened
+
+  const reopenedLocations = new Set(collapsedLocations.value)
+  for (const location of assetsByLocation.value) {
+    const matchesThroughContent = location.assets.some(asset =>
+      !matchesLocationSearch(asset, query) &&
+      (matchesItemSearch(asset, query) || getContainerContents(asset).length > 0),
+    )
+    if (matchesThroughContent) {
+      reopenedLocations.delete(location.locationName)
+    }
+  }
+  collapsedLocations.value = reopenedLocations
 }
 
-watch(searchQuery, expandContainersMatchingSearch)
+watch(searchQuery, revealSearchMatches)
 
 // Reset location filter when solar system changes
 watch(selectedSolarSystem, () => {
@@ -464,7 +484,7 @@ async function fetchAssets() {
     dropFiltersMissingFromAssets()
     if (!isReload) {
       collapseLocationsOfLargeInventory()
-      expandContainersMatchingSearch()
+      revealSearchMatches()
     }
   } catch (e) {
     if (request.signal.aborted) return
