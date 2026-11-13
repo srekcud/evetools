@@ -298,6 +298,36 @@ class CreateProjectProcessorTest extends TestCase
         self::assertSame([false, IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING], [$this->createdProjectData->acceptsOutsideFavoriteSystem, $this->createdProjectData->minimumOutsideSaving]);
     }
 
+    public static function inventionExclusionProvider(): iterable
+    {
+        yield 'E1 explicit true over settings that do not exclude' => [true, null, false, true];
+        yield 'E2 explicit false over settings that exclude' => [false, null, true, false];
+        yield 'E3 absent takes the settings of the owner' => [null, null, true, true];
+        yield 'E4 absent takes the template over the settings' => [null, true, false, true];
+        yield 'E5 absent takes a template that does not exclude over settings that exclude' => [null, false, true, false];
+        yield 'E6 explicit false over a template that excludes' => [false, true, true, false];
+        yield 'E7 absent with neither template nor settings does not exclude' => [null, null, false, false];
+    }
+
+    #[Group('issue-806')]
+    #[DataProvider('inventionExclusionProvider')]
+    public function testInventionExclusionIsTheExplicitValueThenTheTemplateThenTheSettingsOfTheOwner(?bool $excludesInventionSent, ?bool $templateExcludesInvention, bool $settingsExcludeInvention, bool $expectedExcludesInvention): void
+    {
+        $this->owner->method('isIndustryExcludeInvention')->willReturn($settingsExcludeInvention);
+        $input = $this->sabreInput();
+        $input->excludesInvention = $excludesInventionSent;
+        if (null !== $templateExcludesInvention) {
+            $template = (new IndustryProjectTemplate())->setOwner($this->owner)->setName('Hail line')->setExcludesInvention($templateExcludesInvention);
+            $this->templateRepository->method('findVisibleTo')->willReturn([$template]);
+            $input->templateId = (string) $template->getId();
+        }
+
+        $this->createProjectFrom($input);
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertSame($expectedExcludesInvention, $this->createdProjectData->excludesInvention);
+    }
+
     private function givenSellerFees(?array $sellerRates): void
     {
         if ($sellerRates === null) {

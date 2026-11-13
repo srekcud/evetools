@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace App\Service\Industry\Project;
 
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectBomLine;
 use App\Entity\OwnedBlueprint;
 use App\Enum\ProjectStatus;
 use App\Repository\OwnedBlueprintRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Service\Industry\InventionService;
 
 class T2BlueprintCopyProposer
 {
@@ -19,13 +17,17 @@ class T2BlueprintCopyProposer
     public function __construct(
         private readonly OwnedBlueprintRepository $ownedBlueprintRepository,
         private readonly ProjectContainerService $containerService,
-        private readonly InventionService $inventionService,
+        private readonly InventedProductsReader $inventedProductsReader,
         private readonly IndustryActivityProductRepository $activityProductRepository,
     ) {
     }
 
     public function proposalOf(IndustryProject $project): T2BlueprintCopyProposal
     {
+        if ($project->isExcludesInvention()) {
+            return new T2BlueprintCopyProposal(T2BlueprintCopyProposal::STATE_INVENTION_EXCLUDED, null, []);
+        }
+
         $owner = $project->getOwner();
         if (!$project->isSoloProjectOf($owner) || ProjectStatus::Completed === $project->getStatus()) {
             return new T2BlueprintCopyProposal(T2BlueprintCopyProposal::STATE_NOT_SOLO, null, []);
@@ -50,7 +52,7 @@ class T2BlueprintCopyProposer
         $declaredRunsByProductTypeId = $project->declaredRunsByProductTypeId();
 
         $lines = [];
-        foreach ($this->inventedProductsOf($project) as $productTypeId => $product) {
+        foreach ($this->inventedProductsReader->inventedProductsOf($project) as $productTypeId => $product) {
             $blueprintTypeId = $this->activityProductRepository->producerOf($productTypeId)->getTypeId();
             $personalRuns = self::runsOf($personalRunsByBlueprintTypeId, $blueprintTypeId);
             $containerRuns = null === $containerRunsByBlueprintTypeId ? null : self::runsOf($containerRunsByBlueprintTypeId, $blueprintTypeId);
@@ -74,29 +76,6 @@ class T2BlueprintCopyProposer
         usort($lines, static fn (T2BlueprintCopyProposalLine $left, T2BlueprintCopyProposalLine $right): int => $left->typeName <=> $right->typeName);
 
         return new T2BlueprintCopyProposal(T2BlueprintCopyProposal::STATE_READY, null, $lines);
-    }
-
-    /**
-     * @return array<int, array{typeName: string, manufacturingRuns: int}>
-     */
-    private function inventedProductsOf(IndustryProject $project): array
-    {
-        $products = [];
-        foreach ($project->getBomItems() as $bomLine) {
-            if (!$bomLine->isJob() || IndustryProjectBomLine::ACTIVITY_MANUFACTURING !== $bomLine->getActivityType()) {
-                continue;
-            }
-
-            $typeId = $bomLine->getTypeId();
-            $runs = $bomLine->getRuns() ?? throw new \LogicException(\sprintf('The manufacturing line of type %d has no runs.', $typeId));
-            if (isset($products[$typeId])) {
-                $products[$typeId]['manufacturingRuns'] += $runs;
-            } else {
-                $products[$typeId] = ['typeName' => $bomLine->getTypeName(), 'manufacturingRuns' => $runs];
-            }
-        }
-
-        return array_filter($products, fn (int $typeId): bool => null !== $this->inventionService->getInventionData($typeId), ARRAY_FILTER_USE_KEY);
     }
 
     /**

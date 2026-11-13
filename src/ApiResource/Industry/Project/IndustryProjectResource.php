@@ -128,6 +128,8 @@ class IndustryProjectResource
 
     public bool $acceptsOutsideFavoriteSystem = false;
 
+    public bool $excludesInvention = false;
+
     public float $minimumOutsideSaving;
 
     public ?string $notes = null;

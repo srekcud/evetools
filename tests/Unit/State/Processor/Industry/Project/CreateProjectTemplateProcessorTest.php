@@ -84,6 +84,19 @@ final class CreateProjectTemplateProcessorTest extends TestCase
         self::assertSame('Alice Ferrand', $resource->ownerName);
     }
 
+    #[Group('issue-806')]
+    public function testTemplateCopiesTheInventionExclusionOfTheProjectAndExposesIt(): void
+    {
+        $this->hammerheadBatch->setExcludesInvention(true);
+        $persisted = $this->capturePersistedTemplate();
+
+        $resource = $this->process($this->alice, $this->inputFor('Hammerhead line', false));
+
+        $template = $persisted[0] ?? self::fail('No template persisted');
+        self::assertTrue($template->isExcludesInvention());
+        self::assertTrue($resource->excludesInvention);
+    }
+
     #[Group('issue-50')]
     public function testTemplateCopiesTheSellStructureOfTheProjectAndExposesIt(): void
     {

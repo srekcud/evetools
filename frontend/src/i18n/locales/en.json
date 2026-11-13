@@ -1203,6 +1203,8 @@
     "blacklist": {
       "loadError": "The blacklist could not be loaded.",
       "saveError": "The blacklist change was not saved.",
+      "excludeInvention": "Exclude the invention from new projects",
+      "excludeInventionHint": "New projects start with the T2 BPCs to be provided instead of inventing them. Existing projects are not changed.",
       "categories": "Categories",
       "individualItems": "Individual items",
       "searchPlaceholder": "Search an item...",
@@ -2717,6 +2719,16 @@
     },
     "chain": {
       "title": "Production chain",
+      "t2ToProvide": {
+        "title": "T2 BPCs to provide",
+        "description": "The invention is excluded from this plan: these T2 blueprint copies must be provided to manufacture the products.",
+        "loadError": "The T2 BPCs to provide could not be read",
+        "empty": "No T2 product in this plan.",
+        "columns": {
+          "type": "T2 product",
+          "runs": "Runs"
+        }
+      },
       "loading": "Reading the production chain...",
       "loadError": "The production chain could not be read",
       "level": {
@@ -3004,6 +3016,11 @@
       "cancel": "Cancel",
       "saveError": "The blacklist could not be saved"
     },
+    "inventionExclusion": {
+      "label": "Exclude the invention",
+      "help": "The T2 BPCs are to be provided: the plan no longer includes the invention, the T1 copy or the datacores.",
+      "saveError": "The invention exclusion could not be saved"
+    },
     "journal": {
       "runningTitle": "Running now (ESI)",
       "feedTitle": "Activity feed",
@@ -3088,6 +3105,7 @@
     },
     "t2BlueprintCopyProposal": {
       "title": "Owned T2 BPCs",
+      "inventionExcluded": "The invention is excluded from this plan: the T2 BPCs are to be provided, there is nothing to declare.",
       "toggle": "Declare my T2 blueprint copies",
       "loading": "Reading your blueprints...",
       "loadError": "The T2 BPC proposal could not be read",
@@ -3579,6 +3597,8 @@
         "personalUseLabel": "Personal use (not sold)",
         "personalUseHint": "No sale: the finances show the cost per unit instead of the profit.",
         "outsideFavoriteLabel": "Accept structures outside favorite systems",
+        "excludeInventionLabel": "Exclude the invention",
+        "excludeInventionHint": "The T2 BPCs are to be provided: no invention, T1 copy or datacores in the plan.",
         "minimumSavingLabel": "Minimum saving",
         "fromTemplate": "From a template"
       },

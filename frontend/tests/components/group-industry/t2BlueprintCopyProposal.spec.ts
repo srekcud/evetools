@@ -250,6 +250,16 @@ describe('T2 blueprint copy proposal panel', () => {
     expect(wrapper.findAll('button')).toHaveLength(0)
   })
 
+  it('tells that the invention is excluded from the plan instead of listing copies when the project excludes the invention (issue 806)', async () => {
+    serveProposals(proposal([], 'invention_excluded'))
+
+    const wrapper = await mountProposal()
+
+    expect(textOf(wrapper, `${PREFIX}-invention-excluded`)).toBe(text('groupIndustry.t2BlueprintCopyProposal.inventionExcluded'))
+    expect(wrapper.findAll(`[data-testid^="${PREFIX}-row-"]`)).toHaveLength(0)
+    expect(wrapper.find(`[data-testid="${PREFIX}-declare"]`).exists()).toBe(false)
+  })
+
   it('says no T2 blueprint copy is owned for the plan, with no declare button, when the proposal is ready without a line', async () => {
     serveProposals(proposal([]))
 

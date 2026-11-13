@@ -37,6 +37,8 @@ class UpdateProjectInput
 
     public ?bool $acceptsOutsideFavoriteSystem = null;
 
+    public ?bool $excludesInvention = null;
+
     #[Assert\PositiveOrZero]
     public ?float $minimumOutsideSaving = null;
 

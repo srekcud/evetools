@@ -299,6 +299,15 @@ final class ProjectResourceMapperProjectTest extends TestCase
         self::assertSame([false, IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING], [$resource->acceptsOutsideFavoriteSystem, $resource->minimumOutsideSaving]);
     }
 
+    #[Group('issue-806')]
+    public function testInventionExclusionOfTheProjectIsCopiedAsItIs(): void
+    {
+        $withoutExclusion = $this->resource()->excludesInvention;
+        $this->project->setExcludesInvention(true);
+
+        self::assertSame([false, true], [$withoutExclusion, $this->resource()->excludesInvention]);
+    }
+
     private function resource(): IndustryProjectResource
     {
         return $this->mapper->projectToResource($this->project, $this->ownerMembership);

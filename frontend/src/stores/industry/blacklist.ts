@@ -17,6 +17,13 @@ export const useBlacklistStore = defineStore('industry-blacklist', () => {
     })
   }
 
+  async function updateExcludeInvention(excludeInvention: boolean) {
+    blacklist.value = await apiRequest<BlacklistConfig>('/industry/blacklist', {
+      method: 'PUT',
+      body: JSON.stringify({ excludeInvention }),
+    })
+  }
+
   async function searchBlacklistItems(query: string): Promise<SearchResult[]> {
     if (query.length < 2) return []
     try {
@@ -33,6 +40,7 @@ export const useBlacklistStore = defineStore('industry-blacklist', () => {
     blacklist,
     fetchBlacklist,
     updateBlacklist,
+    updateExcludeInvention,
     searchBlacklistItems,
   }
 })

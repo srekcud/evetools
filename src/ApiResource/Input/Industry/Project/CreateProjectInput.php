@@ -68,6 +68,8 @@ class CreateProjectInput
 
     public bool $acceptsOutsideFavoriteSystem = false;
 
+    public ?bool $excludesInvention = null;
+
     #[Assert\PositiveOrZero]
     public float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 

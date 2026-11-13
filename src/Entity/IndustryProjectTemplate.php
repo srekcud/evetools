@@ -35,6 +35,8 @@ class IndustryProjectTemplate
     private array $blacklistTypeIds = [];
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $acceptsOutsideFavoriteSystem = false;
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $excludesInvention = false;
     #[ORM\Column(type: 'float')]
     private float $minimumOutsideSaving = 0.0;
     #[ORM\Column(type: 'bigint', nullable: true)]
@@ -152,6 +154,18 @@ class IndustryProjectTemplate
     public function setAcceptsOutsideFavoriteSystem(bool $acceptsOutsideFavoriteSystem): static
     {
         $this->acceptsOutsideFavoriteSystem = $acceptsOutsideFavoriteSystem;
+
+        return $this;
+    }
+
+    public function isExcludesInvention(): bool
+    {
+        return $this->excludesInvention;
+    }
+
+    public function setExcludesInvention(bool $excludesInvention): static
+    {
+        $this->excludesInvention = $excludesInvention;
 
         return $this;
     }

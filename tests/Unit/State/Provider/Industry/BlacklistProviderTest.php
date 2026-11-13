@@ -37,6 +37,18 @@ final class BlacklistProviderTest extends TestCase
         self::assertSame([], $resource->items);
     }
 
+    #[Group('issue-806')]
+    public function testExposesTheInventionExclusionSettingOfTheUser(): void
+    {
+        $excluding = (new User())->setIndustryExcludeInvention(true);
+        $keeping = new User();
+
+        self::assertSame(
+            [true, false],
+            [$this->providerOf($excluding)->provide(new Get())->excludeInvention, $this->providerOf($keeping)->provide(new Get())->excludeInvention],
+        );
+    }
+
     public function testRejectsAnAnonymousRequest(): void
     {
         $this->expectException(UnauthorizedHttpException::class);

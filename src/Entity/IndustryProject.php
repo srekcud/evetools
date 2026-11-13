@@ -68,6 +68,9 @@ class IndustryProject
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $acceptsOutsideFavoriteSystem = false;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $excludesInvention = false;
+
     #[ORM\Column(type: 'float', options: ['default' => self::DEFAULT_MINIMUM_OUTSIDE_SAVING])]
     private float $minimumOutsideSaving = self::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
@@ -299,6 +302,17 @@ class IndustryProject
     public function setAcceptsOutsideFavoriteSystem(bool $acceptsOutsideFavoriteSystem): static
     {
         $this->acceptsOutsideFavoriteSystem = $acceptsOutsideFavoriteSystem;
+        return $this;
+    }
+
+    public function isExcludesInvention(): bool
+    {
+        return $this->excludesInvention;
+    }
+
+    public function setExcludesInvention(bool $excludesInvention): static
+    {
+        $this->excludesInvention = $excludesInvention;
         return $this;
     }
 

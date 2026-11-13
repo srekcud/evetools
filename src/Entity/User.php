@@ -39,6 +39,9 @@ class User implements UserInterface
     #[ORM\Column(type: 'json')]
     private array $industryBlacklistTypeIds = [];
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $industryExcludeInvention = false;
+
     /** Preferred structure ID for market price comparison */
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $preferredMarketStructureId = null;
@@ -208,6 +211,17 @@ class User implements UserInterface
     public function setIndustryBlacklistGroupIds(array $ids): static
     {
         $this->industryBlacklistGroupIds = $ids;
+        return $this;
+    }
+
+    public function isIndustryExcludeInvention(): bool
+    {
+        return $this->industryExcludeInvention;
+    }
+
+    public function setIndustryExcludeInvention(bool $industryExcludeInvention): static
+    {
+        $this->industryExcludeInvention = $industryExcludeInvention;
         return $this;
     }
 

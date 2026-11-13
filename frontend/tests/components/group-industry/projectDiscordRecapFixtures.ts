@@ -12,6 +12,7 @@ export function completedProject(overrides: Partial<GroupProject> = {}): GroupPr
     containerName: null,
     private: false,
     acceptsOutsideFavoriteSystem: false,
+    excludesInvention: false,
     minimumOutsideSaving: 0,
     sellStructureId: null,
     sellStructureName: null,

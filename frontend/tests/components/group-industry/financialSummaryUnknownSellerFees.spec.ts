@@ -36,6 +36,7 @@ const PROJECT_WITHOUT_SELLER_FEES: GroupProject = {
   private: false,
   notes: null,
   acceptsOutsideFavoriteSystem: false,
+  excludesInvention: false,
   minimumOutsideSaving: 5,
   sellStructureId: null,
   sellStructureName: null,

@@ -35,6 +35,7 @@ const { t } = useI18n()
 const projectNameFieldId = useId()
 const containerNameFieldId = useId()
 const minimumOutsideSavingFieldId = useId()
+const excludeInventionFieldId = useId()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const projectsStore = useProjectsStore()
 const blacklistStore = useBlacklistStore()
@@ -149,6 +150,8 @@ const usedTemplateId = ref<string | null>(null)
 const sellStructureId = ref<number | null>(null)
 const selectableSellStructureIds = ref<number[]>([])
 const acceptsOutsideFavoriteSystem = ref(false)
+const excludesInvention = ref(false)
+const excludesInventionChosen = ref(false)
 const minimumOutsideSaving = ref<number | string>(DEFAULT_MINIMUM_OUTSIDE_SAVING)
 const hasValidMinimumOutsideSaving = computed(() =>
   typeof minimumOutsideSaving.value === 'number' && minimumOutsideSaving.value >= 0,
@@ -189,6 +192,9 @@ async function applyBlacklistDefaults() {
   if (settingsCategories === undefined) {
     blacklistDefaultsUnavailable.value = true
     return
+  }
+  if (!excludesInventionChosen.value) {
+    excludesInvention.value = blacklistStore.blacklist?.excludeInvention === true
   }
   if (blacklistEdited.value) return
   const blacklistedKeys = new Set(settingsCategories.filter(category => category.blacklisted).map(category => category.key))
@@ -310,6 +316,8 @@ function resetForm() {
   isPrivate.value = true
   isPersonalUse.value = false
   acceptsOutsideFavoriteSystem.value = false
+  excludesInvention.value = false
+  excludesInventionChosen.value = false
   minimumOutsideSaving.value = DEFAULT_MINIMUM_OUTSIDE_SAVING
   showLineRentalOverride.value = false
   lineRentalOverrideEnabled.value = false
@@ -336,6 +344,8 @@ function applyTemplate(template: ProjectTemplate) {
   blacklistTypeIds.value = [...template.blacklistTypeIds]
   blacklistGroupIds.value = [...template.blacklistGroupIds]
   acceptsOutsideFavoriteSystem.value = template.acceptsOutsideFavoriteSystem
+  excludesInvention.value = template.excludesInvention
+  excludesInventionChosen.value = true
   minimumOutsideSaving.value = template.minimumOutsideSaving
   if (template.sellStructureId !== null && selectableSellStructureIds.value.includes(template.sellStructureId)) {
     sellStructureId.value = template.sellStructureId
@@ -459,6 +469,7 @@ async function handleCreate() {
       ? Object.fromEntries(lineRentalRates.value.map(r => [r.key, r.value]))
       : undefined,
     acceptsOutsideFavoriteSystem: acceptsOutsideFavoriteSystem.value,
+    excludesInvention: excludesInvention.value,
     minimumOutsideSaving: minimumOutsideSaving.value,
     templateId: usedTemplateId.value ?? undefined,
     sellStructureId: sellStructureId.value ?? undefined,
@@ -897,6 +908,21 @@ function handleClose() {
             class="form-input w-40 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono disabled:opacity-50"
           />
         </div>
+      </div>
+
+      <div>
+        <div class="flex items-center gap-2.5">
+          <input
+            :id="excludeInventionFieldId"
+            v-model="excludesInvention"
+            data-testid="project-exclude-invention"
+            type="checkbox"
+            class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer"
+            @change="excludesInventionChosen = true"
+          />
+          <label :for="excludeInventionFieldId" class="text-sm font-medium text-slate-300 cursor-pointer">{{ t('groupIndustry.modals.newProject.excludeInventionLabel') }}</label>
+        </div>
+        <p class="text-xs text-slate-500 mt-1 ml-6">{{ t('groupIndustry.modals.newProject.excludeInventionHint') }}</p>
       </div>
 
       <!-- Production Blacklist -->

@@ -26,6 +26,7 @@ const PARTIAL_BLACKLIST: BlacklistConfiguration = {
   ],
   groupIds: [BIOCHEMICAL_FIRST_GROUP_ID, GROUP_OUTSIDE_EVERY_CATEGORY],
   items: [],
+  excludeInvention: false,
 }
 
 const reads = apiOutcomesByPath()

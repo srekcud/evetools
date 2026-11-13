@@ -82,6 +82,7 @@ class IndustryProjectService
         $project->setPrivate($data->private);
         $project->setPersonalUse($data->personalUse);
         $project->setAcceptsOutsideFavoriteSystem($data->acceptsOutsideFavoriteSystem);
+        $project->setExcludesInvention($data->excludesInvention);
         $project->setMinimumOutsideSaving($data->minimumOutsideSaving);
         $project->setTemplate($data->template);
         $project->setSellStructure($data->sellStructure?->id, $data->sellStructure?->name);
@@ -137,7 +138,7 @@ class IndustryProjectService
         }
         $jobAggregation = $this->jobLinesOf($plannedProduction, $producers, $typeNames, $owner);
 
-        $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'), $project->declaredRunsByProductTypeId());
+        $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'), $project->declaredRunsByProductTypeId(), $project->isExcludesInvention());
 
         $consumedStockByTypeId = $this->consumedStockByTypeId($project, $plan, $stockByTypeId);
         $coveredLines = $this->coveredLinesOf($project, $plan, $coveredIntermediateTypeIds, $stockByTypeId, $consumedStockByTypeId, $ownedBlueprints, $typeNames);
@@ -720,7 +721,7 @@ class IndustryProjectService
      * @param array<int|string, JobLine> $jobAggregation
      * @param array<int, int> $declaredRunsByProductTypeId
      */
-    private function replaceT2BlueprintCopiesByInventions(array &$materialAggregation, array &$jobAggregation, StructureChoice $copyStructureChoice, array $declaredRunsByProductTypeId): void
+    private function replaceT2BlueprintCopiesByInventions(array &$materialAggregation, array &$jobAggregation, StructureChoice $copyStructureChoice, array $declaredRunsByProductTypeId, bool $excludesInvention): void
     {
         $manufacturingRunsByProduct = [];
         $firstManufacturingJobByProduct = [];
@@ -741,6 +742,10 @@ class IndustryProjectService
         foreach (array_keys($firstManufacturingJobByProduct) as $productTypeId) {
             $invention = $this->inventionService->getInventionData($productTypeId);
             if ($invention === null) {
+                continue;
+            }
+            if ($excludesInvention) {
+                unset($jobAggregation[$productTypeId . ':copy']);
                 continue;
             }
             $declaredRuns = \array_key_exists($productTypeId, $declaredRunsByProductTypeId) ? $declaredRunsByProductTypeId[$productTypeId] : 0;
