@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Service\ESI;
 
 use App\Constant\EveConstants;
+use App\Constant\NameableAssetType;
 use App\Dto\AssetDto;
 use App\Entity\CachedStructure;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Exception\EsiApiException;
 use App\Repository\CachedStructureRepository;
+use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\StaStationRepository;
 use App\Service\TypeNameResolver;
@@ -45,6 +47,7 @@ class AssetsService
         private readonly LoggerInterface $logger,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly StaStationRepository $staStationRepository,
+        private readonly InvTypeRepository $invTypeRepository,
     ) {
     }
 
@@ -119,14 +122,7 @@ class AssetsService
 
         // Collect unique type IDs and location IDs with their types
         $typeIds = array_unique(array_column($rawAssets, 'type_id'));
-        $nameableItemIds = array_column(
-            array_filter(
-                $rawAssets,
-                static fn (array $raw): bool => $singletonFlags[$raw['item_id']]
-                    && ($raw['location_flag'] ?? null) !== EveConstants::OFFICE_LOCATION_FLAG,
-            ),
-            'item_id',
-        );
+        $nameableItemIds = $this->nameableItemIds($rawAssets, $singletonFlags, $typeIds);
         $rawAssetsByItemId = array_column($rawAssets, null, 'item_id');
 
         // Collect resolvable location IDs (skip location_type "item" — those are container/ship item_ids, not structures)
@@ -283,6 +279,39 @@ class AssetsService
     }
 
     /**
+     * @param array<array<string, mixed>> $rawAssets
+     * @param array<int, bool> $singletonFlags
+     * @param array<int, int> $typeIds
+     * @return int[]
+     */
+    private function nameableItemIds(array $rawAssets, array $singletonFlags, array $typeIds): array
+    {
+        $candidates = array_filter(
+            $rawAssets,
+            static fn (array $raw): bool => $singletonFlags[$raw['item_id']]
+                && ($raw['location_flag'] ?? null) !== EveConstants::OFFICE_LOCATION_FLAG,
+        );
+        if ($candidates === []) {
+            return [];
+        }
+
+        $nameableTypeIds = [];
+        foreach ($this->invTypeRepository->findByTypeIds(array_values($typeIds)) as $typeId => $invType) {
+            if (NameableAssetType::accepts(
+                $invType->getGroup()->getCategory()->getCategoryId(),
+                $invType->getGroup()->getGroupId(),
+            )) {
+                $nameableTypeIds[$typeId] = true;
+            }
+        }
+
+        return array_column(
+            array_filter($candidates, static fn (array $raw): bool => isset($nameableTypeIds[$raw['type_id']])),
+            'item_id',
+        );
+    }
+
+    /**
      * @param int[] $itemIds
      * @return array<int, string>
      */
@@ -294,11 +323,11 @@ class AssetsService
 
         $names = [];
         $endpoint = $this->itemNamesEndpoint($characterId, $corporationId);
-        $this->nameBisectionCallsLeft = self::NAMES_BISECTION_CALL_BUDGET;
         $this->nameResolutionLimited = false;
 
         // ESI accepts up to 1000 IDs per request
         foreach (array_chunk($itemIds, self::NAMES_CHUNK_SIZE) as $chunk) {
+            $this->nameBisectionCallsLeft = self::NAMES_BISECTION_CALL_BUDGET;
             if ($this->isNameResolutionLimited()) {
                 ++$this->nameBatchFailures;
                 continue;

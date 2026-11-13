@@ -27,13 +27,17 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
     private const int RIFTER_TYPE_ID = 587;
     private const int TRITANIUM_TYPE_ID = 34;
     private const int STATION_CONTAINER_TYPE_ID = 17_366;
+    private const int RIFTER_BLUEPRINT_TYPE_ID = 691;
     private const int SHIP_CATEGORY_ID = 6;
+    private const int BLUEPRINT_CATEGORY_ID = 9;
+    private const int CARGO_CONTAINER_GROUP_ID = 12;
     private const int CELESTIAL_CATEGORY_ID = 2;
     private const int MATERIAL_CATEGORY_ID = 4;
     private const int RIFTER_ITEM_ID = 1_050_000_784_301;
     private const int TRITANIUM_ITEM_ID = 1_050_000_784_302;
     private const int STATION_CONTAINER_ITEM_ID = 1_050_000_784_303;
     private const int LEGACY_PYERITE_ITEM_ID = 1_050_000_784_304;
+    private const int RIFTER_BLUEPRINT_ITEM_ID = 1_050_000_863_301;
 
     private static int $nextEveCharacterId = 2_113_784_301;
 
@@ -77,6 +81,7 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
 
     public function testResolvingTheNameOfAnUnnamedShipStoresItAndAnswersNamed(): void
     {
+        $this->seedCategorizedTypes();
         $pilot = $this->persistPilot();
         $ship = $this->persistAsset($pilot, self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, true);
         $this->em->flush();
@@ -100,6 +105,7 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
 
     public function testAContainerWithoutCustomNameInGameAnswersUnnamedWithANullNameAndStoresNothing(): void
     {
+        $this->seedCategorizedTypes();
         $pilot = $this->persistPilot();
         $container = $this->persistAsset($pilot, self::STATION_CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 'Station Container', 1, true);
         $this->em->flush();
@@ -119,6 +125,7 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
 
     public function testAnEsiFailureAnswers502AndStoresNothing(): void
     {
+        $this->seedCategorizedTypes();
         $pilot = $this->persistPilot();
         $container = $this->persistAsset($pilot, self::STATION_CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 'Station Container', 1, true);
         $this->em->flush();
@@ -164,10 +171,13 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
 
     public function testCharacterAssetsExposeTheSingletonFlagAndWhetherTheirItemNameCanBeResolved(): void
     {
+        $this->seedCategorizedTypes();
         $pilot = $this->persistPilot();
         $this->persistAsset($pilot, self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, true);
         $this->persistAsset($pilot, self::TRITANIUM_ITEM_ID, self::TRITANIUM_TYPE_ID, 'Tritanium', 500, false);
         $this->persistAsset($pilot, self::LEGACY_PYERITE_ITEM_ID, 35, 'Pyerite', 750, null);
+        $this->persistAsset($pilot, self::STATION_CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 'Station Container', 1, true);
+        $this->persistAsset($pilot, self::RIFTER_BLUEPRINT_ITEM_ID, self::RIFTER_BLUEPRINT_TYPE_ID, 'Rifter Blueprint', 1, true);
         $this->em->flush();
         $this->em->clear();
 
@@ -191,6 +201,25 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
         self::assertFalse($itemsByItemId[self::TRITANIUM_ITEM_ID]['canResolveItemName']);
         self::assertNull($itemsByItemId[self::LEGACY_PYERITE_ITEM_ID]['isSingleton']);
         self::assertFalse($itemsByItemId[self::LEGACY_PYERITE_ITEM_ID]['canResolveItemName']);
+        self::assertTrue($itemsByItemId[self::STATION_CONTAINER_ITEM_ID]['canResolveItemName']);
+        self::assertTrue($itemsByItemId[self::RIFTER_BLUEPRINT_ITEM_ID]['isSingleton']);
+        self::assertFalse($itemsByItemId[self::RIFTER_BLUEPRINT_ITEM_ID]['canResolveItemName']);
+    }
+
+    #[Group('issue-863')]
+    public function testAFlaggedSingletonBlueprintAnswers422WithTheTypeReasonAndCallsNoEsi(): void
+    {
+        $this->seedCategorizedTypes();
+        $pilot = $this->persistPilot();
+        $blueprint = $this->persistAsset($pilot, self::RIFTER_BLUEPRINT_ITEM_ID, self::RIFTER_BLUEPRINT_TYPE_ID, 'Rifter Blueprint', 1, true);
+        $this->em->flush();
+        $this->namesAnswer = [['item_id' => self::RIFTER_BLUEPRINT_ITEM_ID, 'name' => 'Should not be asked']];
+
+        $this->resolveItemName($pilot, $blueprint->getId()->toRfc4122());
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('This type cannot have a custom name', (string) $this->client->getResponse()->getContent());
+        self::assertSame([], $this->namesRequests);
     }
 
     #[Group('issue-797')]
@@ -279,7 +308,8 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
     private function seedCategorizedTypes(): void
     {
         $this->seedType(self::RIFTER_TYPE_ID, 'Rifter', 25, 'Frigate', self::SHIP_CATEGORY_ID, 'Ship');
-        $this->seedType(self::STATION_CONTAINER_TYPE_ID, 'Station Container', 448, 'Audit Log Secure Container', self::CELESTIAL_CATEGORY_ID, 'Celestial');
+        $this->seedType(self::STATION_CONTAINER_TYPE_ID, 'Station Container', self::CARGO_CONTAINER_GROUP_ID, 'Cargo Container', self::CELESTIAL_CATEGORY_ID, 'Celestial');
+        $this->seedType(self::RIFTER_BLUEPRINT_TYPE_ID, 'Rifter Blueprint', 105, 'Frigate Blueprint', self::BLUEPRINT_CATEGORY_ID, 'Blueprint');
         $this->seedType(self::TRITANIUM_TYPE_ID, 'Tritanium', 18, 'Mineral', self::MATERIAL_CATEGORY_ID, 'Material');
         $this->seedType(35, 'Pyerite', 18, 'Mineral', self::MATERIAL_CATEGORY_ID, 'Material');
         $this->em->flush();

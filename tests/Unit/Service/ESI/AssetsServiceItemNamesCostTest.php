@@ -15,6 +15,7 @@ use App\Repository\Sde\StaStationRepository;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\EsiClient;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Support\StubsSdeTypeClassification;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -26,6 +27,8 @@ use Psr\Log\NullLogger;
 #[Group('issue-837')]
 final class AssetsServiceItemNamesCostTest extends TestCase
 {
+    use StubsSdeTypeClassification;
+
     private const int CORPORATION_ID = 98000001;
     private const string ASSETS_ENDPOINT = '/corporations/98000001/assets/';
     private const string NAMES_ENDPOINT = '/corporations/98000001/assets/names/';
@@ -172,6 +175,7 @@ final class AssetsServiceItemNamesCostTest extends TestCase
             new NullLogger(),
             new TypeNameResolver($this->createStub(InvTypeRepository::class)),
             $this->createStub(StaStationRepository::class),
+            $this->createSdeClassification([self::TYPE_STATION_CONTAINER => self::cargoContainerClassification()]),
         );
     }
 

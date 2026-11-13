@@ -133,6 +133,7 @@ final class AssetsServiceTypeNameTest extends TestCase
             new NullLogger(),
             new TypeNameResolver($this->createSdeTypeRepository()),
             $this->createStub(StaStationRepository::class),
+            $this->createStub(InvTypeRepository::class),
         );
 
         return $assetsService->getCharacterAssets($character);

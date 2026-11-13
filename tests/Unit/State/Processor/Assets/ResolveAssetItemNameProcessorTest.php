@@ -55,11 +55,17 @@ final class ResolveAssetItemNameProcessorTest extends TestCase
     private const int STATION_CONTAINER_TYPE_ID = 17_366;
     private const int TRITANIUM_TYPE_ID = 34;
     private const int OFFICE_TYPE_ID = 27;
+    private const int RIFTER_BLUEPRINT_TYPE_ID = 691;
+    private const int DAMAGE_CONTROL_TYPE_ID = 2048;
+    private const int TYPE_ABSENT_FROM_SDE_ID = 888_888;
 
     private const int RIFTER_ITEM_ID = 1_050_000_784_001;
     private const int STATION_CONTAINER_ITEM_ID = 1_050_000_784_002;
     private const int TRITANIUM_ITEM_ID = 1_050_000_784_003;
     private const int OFFICE_ITEM_ID = 1_050_000_784_004;
+    private const int RIFTER_BLUEPRINT_ITEM_ID = 1_050_000_863_001;
+    private const int DAMAGE_CONTROL_ITEM_ID = 1_050_000_863_002;
+    private const int ABSENT_TYPE_ITEM_ID = 1_050_000_863_003;
 
     private const string ESI_REJECTION_MESSAGE = 'Requested item is not a nameable asset';
 
@@ -350,6 +356,11 @@ final class ResolveAssetItemNameProcessorTest extends TestCase
         yield 'singleton flag unknown on a stack of ships' => [self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 5, null, null, 'Hangar', 'singleton flag unknown'];
         yield 'already named' => [self::STATION_CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 'Station Container', 1, true, 'Ammo Box', 'Hangar', 'already named'];
         yield 'office' => [self::OFFICE_ITEM_ID, self::OFFICE_TYPE_ID, 'Office', 1, true, null, 'OfficeFolder', 'office'];
+        yield 'singleton blueprint' => [self::RIFTER_BLUEPRINT_ITEM_ID, self::RIFTER_BLUEPRINT_TYPE_ID, 'Rifter Blueprint', 1, true, null, 'Hangar', 'This type cannot have a custom name'];
+        yield 'already named singleton blueprint' => [self::RIFTER_BLUEPRINT_ITEM_ID, self::RIFTER_BLUEPRINT_TYPE_ID, 'Rifter Blueprint', 1, true, 'Copy 1', 'Hangar', 'This asset is already named'];
+        yield 'singleton fitted module' => [self::DAMAGE_CONTROL_ITEM_ID, self::DAMAGE_CONTROL_TYPE_ID, 'Damage Control II', 1, true, null, 'MedSlot0', 'This type cannot have a custom name'];
+        yield 'singleton material' => [self::TRITANIUM_ITEM_ID, self::TRITANIUM_TYPE_ID, 'Tritanium', 1, true, null, 'Hangar', 'This type cannot have a custom name'];
+        yield 'singleton of a type absent from the SDE' => [self::ABSENT_TYPE_ITEM_ID, self::TYPE_ABSENT_FROM_SDE_ID, 'Unknown Type', 1, true, null, 'Hangar', 'This type cannot have a custom name'];
     }
 
     #[DataProvider('ineligibleAssets')]
@@ -418,24 +429,28 @@ final class ResolveAssetItemNameProcessorTest extends TestCase
 
     private function createCategorizedInvTypeRepository(): InvTypeRepository
     {
-        $categoryIdsByTypeId = [
-            self::RIFTER_TYPE_ID => 6,
-            self::STATION_CONTAINER_TYPE_ID => 2,
-            self::TRITANIUM_TYPE_ID => 4,
-            self::OFFICE_TYPE_ID => 2,
+        $categoryAndGroupByTypeId = [
+            self::RIFTER_TYPE_ID => [6, 25],
+            self::STATION_CONTAINER_TYPE_ID => [2, 12],
+            self::TRITANIUM_TYPE_ID => [4, 18],
+            self::OFFICE_TYPE_ID => [2, 16],
+            self::RIFTER_BLUEPRINT_TYPE_ID => [9, 105],
+            self::DAMAGE_CONTROL_TYPE_ID => [7, 55],
         ];
 
         $repository = $this->createStub(InvTypeRepository::class);
         $repository->method('findByTypeIds')->willReturnCallback(
-            function (array $typeIds) use ($categoryIdsByTypeId): array {
+            function (array $typeIds) use ($categoryAndGroupByTypeId): array {
                 $types = [];
                 foreach ($typeIds as $typeId) {
-                    if (!isset($categoryIdsByTypeId[$typeId])) {
+                    if (!isset($categoryAndGroupByTypeId[$typeId])) {
                         continue;
                     }
+                    [$categoryId, $groupId] = $categoryAndGroupByTypeId[$typeId];
                     $category = $this->createStub(InvCategory::class);
-                    $category->method('getCategoryId')->willReturn($categoryIdsByTypeId[$typeId]);
+                    $category->method('getCategoryId')->willReturn($categoryId);
                     $group = $this->createStub(InvGroup::class);
+                    $group->method('getGroupId')->willReturn($groupId);
                     $group->method('getCategory')->willReturn($category);
                     $type = $this->createStub(InvType::class);
                     $type->method('getGroup')->willReturn($group);
@@ -476,6 +491,7 @@ final class ResolveAssetItemNameProcessorTest extends TestCase
             new NullLogger(),
             new TypeNameResolver($this->createStub(InvTypeRepository::class)),
             $this->createStub(StaStationRepository::class),
+            $this->createStub(InvTypeRepository::class),
         );
     }
 
