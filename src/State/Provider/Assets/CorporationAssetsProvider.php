@@ -29,6 +29,7 @@ class CorporationAssetsProvider implements ProviderInterface
         private readonly InvTypeRepository $invTypeRepository,
         private readonly CorporationAssetsRefreshGate $refreshGate,
         private readonly RequestStack $requestStack,
+        private readonly AssetBlueprintAnnotator $blueprintAnnotator,
     ) {
     }
 
@@ -58,6 +59,7 @@ class CorporationAssetsProvider implements ProviderInterface
         $resource->total = count($assets);
         $resource->nextRefreshAt = $this->refreshGate->nextRefreshAt($corporationId)?->format('c');
         $resource->items = array_map(fn (CachedAsset $asset) => $this->toItemResource($asset, $classification), $assets);
+        $this->blueprintAnnotator->annotateCorporationItems($corporationId, $resource->items);
 
         return $resource;
     }

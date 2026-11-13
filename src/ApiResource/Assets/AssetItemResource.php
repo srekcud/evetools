@@ -38,5 +38,7 @@ class AssetItemResource
 
     public bool $canResolveItemName = false;
 
+    public ?AssetBlueprintResource $blueprint = null;
+
     public string $cachedAt;
 }

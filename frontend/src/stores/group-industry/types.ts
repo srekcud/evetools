@@ -186,6 +186,7 @@ export type BomItem = {
   isJob: boolean
   jobGroup: JobGroup | null
   activityType: string | null
+  blueprintName?: string | null
   parentTypeId: number | null
   meLevel: number | null
   teLevel: number | null

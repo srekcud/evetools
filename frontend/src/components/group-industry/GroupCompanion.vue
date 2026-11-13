@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { BomItem, JobLocation } from '@/stores/group-industry/types'
 import type { CompanionAlert, CompanionTasks } from './companionTasks'
+import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 
 const FREE_LINES_SHOWN = 6
 const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'move_products', 'price_below_break_even', 'undercut_sell_order', 'join_request', 'bom_complete']
@@ -211,7 +212,10 @@ function unknownReasonText(output: JobLocation): string | null {
             class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/60 px-2 py-1"
           >
             <div class="min-w-0 flex-1">
-              <p class="truncate text-sm text-slate-100" :title="item.typeName">{{ item.typeName }}</p>
+              <p class="flex items-center gap-1">
+                <span class="min-w-0 truncate text-sm text-slate-100" :title="item.typeName">{{ item.typeName }}</span>
+                <BlueprintNameCopyButton :blueprint-name="item.blueprintName ?? null" />
+              </p>
               <p v-if="item.isJob" class="truncate text-xs text-slate-400">
                 <template v-if="activityLabel(item.activityType) !== null">{{ activityLabel(item.activityType) }}</template>
                 <template v-else><span data-unknown="true">{{ t('common.unknownValue') }}</span></template>
@@ -255,7 +259,10 @@ function unknownReasonText(output: JobLocation): string | null {
             class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/60 px-2 py-1"
           >
             <div class="min-w-0 flex-1">
-              <p class="truncate text-sm text-slate-100" :title="entry.item.typeName">{{ entry.item.typeName }}</p>
+              <p class="flex items-center gap-1">
+                <span class="min-w-0 truncate text-sm text-slate-100" :title="entry.item.typeName">{{ entry.item.typeName }}</span>
+                <BlueprintNameCopyButton :blueprint-name="entry.item.blueprintName ?? null" />
+              </p>
               <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(entry.quantity, 0) }}</p>
             </div>
             <button
@@ -291,8 +298,9 @@ function unknownReasonText(output: JobLocation): string | null {
             class="flex flex-col gap-0.5 rounded border border-slate-800 bg-slate-900/60 px-2 py-1"
           >
             <p class="flex items-center gap-2">
-              <span class="min-w-0 flex-1 truncate text-sm text-slate-100" :title="job.item.typeName">{{ job.item.typeName }}</span>
-              <span class="flex-shrink-0 text-xs text-slate-400">{{ t(`groupIndustry.companion.jobStatus.${job.match.status}`) }}</span>
+              <span class="min-w-0 truncate text-sm text-slate-100" :title="job.item.typeName">{{ job.item.typeName }}</span>
+              <BlueprintNameCopyButton :blueprint-name="job.item.blueprintName ?? null" />
+              <span class="ml-auto flex-shrink-0 text-xs text-slate-400">{{ t(`groupIndustry.companion.jobStatus.${job.match.status}`) }}</span>
               <span class="flex-shrink-0 font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">{{ t('groupIndustry.companion.runs', { runs: job.match.runs }) }}</span>
             </p>
             <p v-if="job.match.locations" data-testid="companion-job-location" class="truncate text-xs text-slate-400">

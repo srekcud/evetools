@@ -11,6 +11,13 @@ export interface Character {
   lastSyncAt: string | null
 }
 
+export interface AssetBlueprint {
+  status: 'original' | 'copy' | 'not_synced'
+  runs: number | null
+  materialEfficiency: number | null
+  timeEfficiency: number | null
+}
+
 export interface Asset {
   id: string
   itemId: number
@@ -28,6 +35,7 @@ export interface Asset {
   itemName: string | null
   isSingleton: boolean | null
   canResolveItemName: boolean
+  blueprint?: AssetBlueprint | null
   cachedAt: string
 }
 
