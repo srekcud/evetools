@@ -127,7 +127,23 @@
     "menu": "Navigation menu",
     "account": "Account",
     "planetary": "Planetary",
-    "patrimoine": "Wealth"
+    "patrimoine": "Wealth",
+    "help": "Help"
+  },
+  "help": {
+    "title": "Help",
+    "backToApp": "Back to app",
+    "backToIndex": "Back to the help index",
+    "breadcrumbLabel": "Breadcrumb",
+    "emptySection": "No pages in this section yet.",
+    "pageNotFound": "This help page does not exist.",
+    "sections": {
+      "faq": { "title": "Frequently asked questions" },
+      "playbooks": { "title": "Step-by-step guides" },
+      "calculations": { "title": "Calculations" },
+      "data": { "title": "Data" },
+      "limits": { "title": "Limits" }
+    }
   },
   "commandPalette": {
     "open": "Open command palette (Ctrl+K)",

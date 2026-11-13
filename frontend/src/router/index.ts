@@ -257,6 +257,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: '/help',
+      name: 'help',
+      component: () => import('@/views/Help.vue'),
+      meta: { requiresAuth: false },
+    },
+    {
       path: '/market',
       name: 'market',
       component: () => import('@/views/MarketBrowser.vue'),
