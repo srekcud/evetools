@@ -12,7 +12,6 @@ const BARS: Array<[string, Component, string, string]> = [
   ['mining', MiningModuleTabs, 'operations', '/settings/mining'],
   ['pve', PveModuleTabs, 'revenue', '/settings/pve'],
   ['commerce', CommerceModuleTabs, 'market', '/settings/market'],
-  ['wealth', PatrimoineModuleTabs, 'balance', '/settings/pve'],
 ]
 
 enableAutoUnmount(afterEach)
@@ -27,5 +26,14 @@ describe('module tab bars settings shortcut', () => {
     expect(shortcuts).toHaveLength(1)
     expect(shortcuts[0].attributes('aria-label')).toBe(settingsShortcutLabel())
     expect(wrapper.findAll('a[href^="/settings"]')).toHaveLength(1)
+  })
+})
+
+describe('wealth bar settings shortcut', () => {
+  it('shows no settings shortcut because no settings section holds wealth settings', async () => {
+    const wrapper = await mountModuleTabs(PatrimoineModuleTabs, { active: 'balance' })
+
+    expect(wrapper.findAll('a[href^="/settings"]')).toHaveLength(0)
+    expect(wrapper.findAll('a')).toHaveLength(2)
   })
 })

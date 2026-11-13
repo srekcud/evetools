@@ -142,11 +142,11 @@ async function resolveItemName(asset: Asset): Promise<void> {
           </div>
           <div class="flex items-center gap-2">
             <span v-if="props.location.solarSystemName && !props.location.locationName.startsWith(props.location.solarSystemName)" class="text-xs text-cyan-400">{{ props.location.solarSystemName }}</span>
-            <span class="text-xs text-slate-500">{{ props.location.assets.length }} types d'items</span>
+            <span class="text-xs text-slate-500">{{ t('assets.itemTypesCount', { count: props.location.assets.length }, props.location.assets.length) }}</span>
           </div>
         </div>
       </div>
-      <span class="text-sm text-cyan-400 font-mono">{{ formatNumber(props.location.totalQuantity) }} items</span>
+      <span class="text-sm text-cyan-400 font-mono">{{ t('assets.itemsCount', { count: formatNumber(props.location.totalQuantity) }, props.location.totalQuantity) }}</span>
     </div>
 
     <!-- Items (collapsible) -->
