@@ -18,6 +18,7 @@ import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
 import type { Asset } from '@/types'
 import { useFlash } from '@/composables/useUpdateFlash'
+import { formatEveClock } from '@/views/MiningOperation/miningOperationTime'
 
 const { t } = useI18n()
 const { pilotName } = usePilotName()
@@ -34,6 +35,9 @@ const assets = ref<Asset[]>([])
 const isLoading = ref(false)
 const isRefreshing = ref(false)
 const error = ref('')
+const refreshNotice = ref('')
+const nextRefreshAt = ref<string | null>(null)
+const now = ref(Date.now())
 const searchQuery = ref('')
 const viewMode = ref<'character' | 'corporation'>('character')
 const selectedSolarSystem = ref<string>('')
@@ -44,6 +48,38 @@ const collapsedLocations = ref<Set<string>>(new Set())
 const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError, fetchVisibility, saveVisibility, clearVisibility } = useCorporationAssetVisibility()
 
 const isCorpView = computed(() => viewMode.value === 'corporation')
+
+const refreshBlockedUntil = computed(() =>
+  isCorpView.value && nextRefreshAt.value !== null && Date.parse(nextRefreshAt.value) > now.value
+    ? nextRefreshAt.value
+    : null
+)
+
+const refreshButtonLabel = computed(() => {
+  if (isRefreshing.value) return t('common.actions.syncing')
+  if (refreshBlockedUntil.value !== null) return t('assets.refreshAvailableAt', { time: formatEveClock(refreshBlockedUntil.value) })
+  return t('common.actions.refresh')
+})
+
+let cooldownTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+function stopCooldownTimeout() {
+  if (cooldownTimeoutId === null) return
+  clearTimeout(cooldownTimeoutId)
+  cooldownTimeoutId = null
+}
+
+function scheduleCooldownEnd() {
+  stopCooldownTimeout()
+  now.value = Date.now()
+  if (nextRefreshAt.value === null) return
+  const remainingMs = Date.parse(nextRefreshAt.value) - now.value
+  if (remainingMs <= 0) return
+  cooldownTimeoutId = setTimeout(scheduleCooldownEnd, remainingMs)
+}
+
+watch(nextRefreshAt, scheduleCooldownEnd)
+onUnmounted(stopCooldownTimeout)
 const noDivisionsShared = computed(() =>
   isCorpView.value
   && !isDirector.value
@@ -273,10 +309,12 @@ async function fetchAssets() {
   isLoading.value = true
   error.value = ''
 
+  const isCorporationRequest = viewMode.value === 'corporation'
+
   try {
-    const endpoint = viewMode.value === 'character'
-      ? `/api/me/characters/${selectedCharacterId.value}/assets`
-      : '/api/me/corporation/assets'
+    const endpoint = isCorporationRequest
+      ? '/api/me/corporation/assets'
+      : `/api/me/characters/${selectedCharacterId.value}/assets`
 
     const response = await fetch(endpoint, {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
@@ -284,8 +322,9 @@ async function fetchAssets() {
 
     if (!response.ok) throw new Error('Failed to fetch assets')
 
-    const data = await safeJsonParse<{ items?: Asset[] }>(response)
+    const data = await safeJsonParse<{ items?: Asset[]; nextRefreshAt?: string | null }>(response)
     assets.value = data.items || []
+    nextRefreshAt.value = isCorporationRequest ? (data.nextRefreshAt ?? null) : null
   } catch (e) {
     error.value = 'Failed to load assets'
     console.error(e)
@@ -370,6 +409,7 @@ async function refreshAssets() {
 
   isRefreshing.value = true
   error.value = ''
+  refreshNotice.value = ''
 
   try {
     const endpoint = viewMode.value === 'character'
@@ -390,10 +430,16 @@ async function refreshAssets() {
       throw new Error(data.error || 'Failed to refresh')
     }
 
-    const data = await safeJsonParse<{ status?: string; error?: string }>(response)
+    const data = await safeJsonParse<{ status?: string; error?: string; nextRefreshAt?: string | null }>(response)
 
     if (data.status === 'error') {
       error.value = data.error || t('assets.refreshFailed')
+      isRefreshing.value = false
+    } else if (data.status === 'up_to_date') {
+      nextRefreshAt.value = data.nextRefreshAt ?? null
+      isRefreshing.value = false
+    } else if (data.status === 'in_progress') {
+      refreshNotice.value = t('assets.syncAlreadyRunning')
       isRefreshing.value = false
     } else if (data.status === 'pending') {
       if (!syncStore.isConnected) {
@@ -477,13 +523,13 @@ watch([selectedCharacterId, viewMode], () => {
           <p class="text-slate-400">{{ t('assets.subtitle') }}</p>
           <button
             @click="refreshAssets"
-            :disabled="isRefreshing || isLoading"
+            :disabled="isRefreshing || isLoading || refreshBlockedUntil !== null"
             class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg :class="['w-4 h-4', isRefreshing && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            {{ isRefreshing ? t('common.actions.syncing') : t('common.actions.refresh') }}
+            {{ refreshButtonLabel }}
           </button>
         </div>
 
@@ -540,6 +586,7 @@ watch([selectedCharacterId, viewMode], () => {
 
         <!-- Error message -->
         <ErrorBanner v-if="error" :message="error" @dismiss="error = ''" />
+        <p v-if="refreshNotice" data-testid="assets-refresh-notice" class="text-sm text-cyan-300">{{ refreshNotice }}</p>
 
         <!-- No divisions shared (non-director, no config) -->
         <div v-if="noDivisionsShared" class="text-center py-20">
@@ -609,7 +656,7 @@ watch([selectedCharacterId, viewMode], () => {
               <p class="text-slate-500 mb-4">{{ t('assets.noAssets') }}</p>
               <button
                 @click="refreshAssets"
-                :disabled="isRefreshing"
+                :disabled="isRefreshing || refreshBlockedUntil !== null"
                 class="text-cyan-400 hover:underline text-sm"
               >
                 {{ t('assets.refreshFromEve') }}

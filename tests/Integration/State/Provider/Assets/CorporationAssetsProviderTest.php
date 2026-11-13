@@ -12,6 +12,7 @@ use App\Entity\CorpAssetVisibility;
 use App\Entity\User;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
+use App\Service\Sync\CorporationAssetsRefreshGate;
 use App\State\Provider\Assets\CorporationAssetsProvider;
 use App\Tests\Integration\IntegrationTestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -196,6 +197,7 @@ final class CorporationAssetsProviderTest extends IntegrationTestCase
             $security,
             self::getContainer()->get(VisibleCorporationAssetsFinder::class),
             self::getContainer()->get(InvTypeRepository::class),
+            self::getContainer()->get(CorporationAssetsRefreshGate::class),
             $requestStack,
         );
 

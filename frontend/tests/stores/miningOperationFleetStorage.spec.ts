@@ -86,4 +86,13 @@ describe('mining operation store, fleet storage', () => {
 
     expect(vi.mocked(apiRequest).mock.calls).toEqual([[CORPORATION_ASSETS_REFRESH_PATH, { method: 'POST', body: JSON.stringify({}) }]])
   })
+
+  it('gives back the status the server answered to the refresh of the corporation assets', async () => {
+    vi.mocked(apiRequest).mockResolvedValue({ status: 'up_to_date', nextRefreshAt: '2026-11-13T13:00:00+00:00' })
+    const store = useMiningOperationStore()
+
+    const status = await store.refreshCorporationAssets()
+
+    expect(status).toBe('up_to_date')
+  })
 })

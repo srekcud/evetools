@@ -10,6 +10,7 @@ use App\ApiResource\Assets\SyncStatusResource;
 use App\Entity\User;
 use App\Message\SyncCorporationAssets;
 use App\Service\Sync\AssetsSyncService;
+use App\Service\Sync\CorporationAssetsRefreshGate;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -22,9 +23,13 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 class RefreshCorporationAssetsProcessor implements ProcessorInterface
 {
+    private const string UP_TO_DATE_MESSAGE = 'Corporation assets are up to date: ESI serves the same list until the next refresh time.';
+    private const string IN_PROGRESS_MESSAGE = 'A sync of the corporation assets is already running.';
+
     public function __construct(
         private readonly Security $security,
         private readonly AssetsSyncService $assetsSyncService,
+        private readonly CorporationAssetsRefreshGate $refreshGate,
         private readonly MessageBusInterface $messageBus,
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
@@ -67,12 +72,35 @@ class RefreshCorporationAssetsProcessor implements ProcessorInterface
 
         $result = new SyncStatusResource();
 
+        $nextRefreshAt = $this->refreshGate->nextRefreshAt($corporationId);
+        if ($nextRefreshAt !== null) {
+            $result->status = 'up_to_date';
+            $result->message = self::UP_TO_DATE_MESSAGE;
+            $result->syncedAt = $this->refreshGate->lastSyncedAt($corporationId)?->format('c');
+            $result->nextRefreshAt = $nextRefreshAt->format('c');
+
+            return $result;
+        }
+
         if ($async) {
-            $this->messageBus->dispatch(new SyncCorporationAssets(
-                $corporationId,
-                $directorCharacter->getId()?->toRfc4122() ?? '',
-                $requesterId
-            ));
+            if (!$this->refreshGate->claim($corporationId)) {
+                $result->status = 'in_progress';
+                $result->message = self::IN_PROGRESS_MESSAGE;
+
+                return $result;
+            }
+
+            try {
+                $this->messageBus->dispatch(new SyncCorporationAssets(
+                    $corporationId,
+                    $directorCharacter->getId()?->toRfc4122() ?? '',
+                    $requesterId
+                ));
+            } catch (\Throwable $e) {
+                $this->refreshGate->release($corporationId);
+
+                throw $e;
+            }
 
             $result->status = 'pending';
             $result->message = 'Corporation asset sync started. Refresh the page in a few seconds.';

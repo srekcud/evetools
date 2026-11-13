@@ -13,4 +13,8 @@ class SyncStatusResource
     public ?string $error = null;
 
     public ?bool $hasAccess = null;
+
+    public ?string $syncedAt = null;
+
+    public ?string $nextRefreshAt = null;
 }

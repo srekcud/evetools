@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
+use App\Service\Sync\CorporationAssetsRefreshGate;
 use App\State\Provider\Assets\CorporationAssetsProvider;
 use App\Tests\Unit\Support\StubsSdeTypeClassification;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -20,6 +21,8 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -41,6 +44,7 @@ class CorporationAssetsProviderTest extends TestCase
 
     private const int CORPORATION_ID = 98_000_001;
     private const int OTHER_CORPORATION_ID = 98_000_002;
+    private const string NOW = '2026-11-13 12:10:00';
     private const int JITA_STATION_ID = 60_003_760;
     private const int OFFICE_ITEM_ID = 1_040_000_000_001;
 
@@ -66,6 +70,9 @@ class CorporationAssetsProviderTest extends TestCase
     /** @var list<CachedAsset> */
     private array $corporationHangar;
 
+    /** @var array<int, \DateTimeImmutable> */
+    private array $lastSyncByCorporation = [];
+
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
@@ -81,12 +88,18 @@ class CorporationAssetsProviderTest extends TestCase
         $this->requestStack = new RequestStack();
 
         $this->corporationHangar = $this->buildCorporationHangar();
+        $this->lastSyncByCorporation = [];
         $this->emulateCachedAssetQueries();
+        $this->cachedAssetRepository->method('lastCachedAtOfCorporationAssets')->willReturnCallback(
+            fn (int $corporationId): ?\DateTimeImmutable => $this->lastSyncByCorporation[$corporationId] ?? null,
+        );
+        $clock = new MockClock(self::NOW);
 
         $this->provider = new CorporationAssetsProvider(
             $this->security,
             new VisibleCorporationAssetsFinder($this->cachedAssetRepository, $this->visibilityRepository),
             $invTypeRepository,
+            new CorporationAssetsRefreshGate($this->cachedAssetRepository, new ArrayAdapter(clock: $clock), $clock),
             $this->requestStack,
         );
     }
@@ -314,6 +327,45 @@ class CorporationAssetsProviderTest extends TestCase
         $user->method('getMainCharacter')->willReturn($character);
 
         $this->security->method('getUser')->willReturn($user);
+    }
+
+    #[Group('issue-865')]
+    public function testNextRefreshIsOneEsiCacheDurationAfterTheLastSyncOfTheCorporation(): void
+    {
+        $this->loginCorporationMember();
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+        $this->lastSyncByCorporation[self::CORPORATION_ID] = new \DateTimeImmutable('2026-11-13 12:00:00');
+        $this->requestStack->push(new Request());
+
+        $result = $this->provider->provide(new Get());
+
+        self::assertEquals(new \DateTimeImmutable('2026-11-13 13:00:00'), new \DateTimeImmutable((string) $result->nextRefreshAt));
+    }
+
+    #[Group('issue-865')]
+    public function testNextRefreshIsUnknownOnceTheCacheDurationHasElapsed(): void
+    {
+        $this->loginCorporationMember();
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+        $this->lastSyncByCorporation[self::CORPORATION_ID] = new \DateTimeImmutable('2026-11-13 11:10:00');
+        $this->requestStack->push(new Request());
+
+        $result = $this->provider->provide(new Get());
+
+        self::assertNull($result->nextRefreshAt);
+    }
+
+    #[Group('issue-865')]
+    public function testNextRefreshIgnoresTheSyncOfAnotherCorporation(): void
+    {
+        $this->loginCorporationMember();
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+        $this->lastSyncByCorporation[self::OTHER_CORPORATION_ID] = new \DateTimeImmutable('2026-11-13 12:05:00');
+        $this->requestStack->push(new Request());
+
+        $result = $this->provider->provide(new Get());
+
+        self::assertNull($result->nextRefreshAt);
     }
 
     /** @param int[] $divisionNumbers */

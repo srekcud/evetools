@@ -12,6 +12,7 @@ use App\Entity\CachedAsset;
 use App\Entity\User;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
+use App\Service\Sync\CorporationAssetsRefreshGate;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -26,6 +27,7 @@ class CorporationAssetsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly VisibleCorporationAssetsFinder $visibleAssetsFinder,
         private readonly InvTypeRepository $invTypeRepository,
+        private readonly CorporationAssetsRefreshGate $refreshGate,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -54,6 +56,7 @@ class CorporationAssetsProvider implements ProviderInterface
 
         $resource = new CorporationAssetsResource();
         $resource->total = count($assets);
+        $resource->nextRefreshAt = $this->refreshGate->nextRefreshAt($corporationId)?->format('c');
         $resource->items = array_map(fn (CachedAsset $asset) => $this->toItemResource($asset, $classification), $assets);
 
         return $resource;

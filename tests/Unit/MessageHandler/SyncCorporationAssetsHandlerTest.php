@@ -11,16 +11,19 @@ use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Message\SyncCorporationAssets;
 use App\MessageHandler\SyncCorporationAssetsHandler;
+use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
 use App\Service\Admin\SyncTracker;
 use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\AssetsSyncService;
+use App\Service\Sync\CorporationAssetsRefreshGate;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -41,12 +44,15 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
     private array $publishedUpdates = [];
     private MercurePublisherService $mercurePublisher;
     private SyncTracker $syncTracker;
+    private CorporationAssetsRefreshGate $refreshGate;
 
     protected function setUp(): void
     {
         $this->publishedUpdates = [];
         $this->mercurePublisher = new MercurePublisherService($this->hubCollectingUpdates(), new NullLogger());
         $this->syncTracker = new SyncTracker(new ArrayAdapter(), $this->mercurePublisher, new InMemorySyncRunLog());
+        $clock = new MockClock('2026-11-13 12:10:00');
+        $this->refreshGate = new CorporationAssetsRefreshGate($this->createStub(CachedAssetRepository::class), new ArrayAdapter(clock: $clock), $clock);
     }
 
     public function testCharacterThatCannotSyncPublishesAnErrorOnTheUserCorporationAssetsTopic(): void
@@ -232,6 +238,97 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
         self::assertCount(1, $this->errorPayloadsOn(self::CORPORATION_ASSETS_TOPIC));
     }
 
+    #[Group('issue-865')]
+    public function testSuccessfulSyncReleasesTheInFlightMarker(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+        $this->refreshGate->claim(self::CORPORATION_ID);
+
+        $this->handle($this->characterWithUser(), $assetsSyncService);
+
+        self::assertTrue($this->refreshGate->claim(self::CORPORATION_ID));
+    }
+
+    #[Group('issue-865')]
+    public function testCharacterThatCannotSyncReleasesTheInFlightMarker(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(false);
+        $this->refreshGate->claim(self::CORPORATION_ID);
+
+        $this->handle($this->characterWithUser(), $assetsSyncService);
+
+        self::assertTrue($this->refreshGate->claim(self::CORPORATION_ID));
+    }
+
+    #[Group('issue-865')]
+    public function testMissingTriggerCharacterReleasesTheInFlightMarker(): void
+    {
+        $this->refreshGate->claim(self::CORPORATION_ID);
+
+        $this->handle(null, $this->createStub(AssetsSyncService::class));
+
+        self::assertTrue($this->refreshGate->claim(self::CORPORATION_ID));
+    }
+
+    #[Group('issue-865')]
+    public function testRevokedEveGrantReleasesTheInFlightMarker(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+        $assetsSyncService->method('syncCorporationAssets')->willThrowException(new EveAuthRequiredException('2112000001'));
+        $this->refreshGate->claim(self::CORPORATION_ID);
+
+        $this->handle($this->characterWithUser(), $assetsSyncService);
+
+        self::assertTrue($this->refreshGate->claim(self::CORPORATION_ID));
+    }
+
+    #[Group('issue-865')]
+    public function testForbiddenCorporationAssetsReadReleasesTheInFlightMarker(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+        $assetsSyncService->method('syncCorporationAssets')->willThrowException(EsiApiException::forbidden());
+        $this->refreshGate->claim(self::CORPORATION_ID);
+
+        try {
+            $this->handle($this->characterWithUser(), $assetsSyncService);
+        } catch (UnrecoverableMessageHandlingException) {
+        }
+
+        self::assertTrue($this->refreshGate->claim(self::CORPORATION_ID));
+    }
+
+    #[Group('issue-865')]
+    public function testRetryableFailureReleasesTheInFlightMarkerBeforeMessengerRetries(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+        $assetsSyncService->method('syncCorporationAssets')->willThrowException(new \RuntimeException('ESI server error'));
+        $this->refreshGate->claim(self::CORPORATION_ID);
+
+        try {
+            $this->handle($this->characterWithUser(), $assetsSyncService);
+        } catch (\RuntimeException) {
+        }
+
+        self::assertTrue($this->refreshGate->claim(self::CORPORATION_ID));
+    }
+
+    #[Group('issue-865')]
+    public function testHandlerLeavesTheMarkerOfAnotherCorporationAlone(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+        $this->refreshGate->claim(self::CORPORATION_ID + 1);
+
+        $this->handle($this->characterWithUser(), $assetsSyncService);
+
+        self::assertFalse($this->refreshGate->claim(self::CORPORATION_ID + 1));
+    }
+
     private function handle(?Character $character, AssetsSyncService $assetsSyncService, string $requestedByUserId = self::USER_UUID): void
     {
         $characterRepository = $this->createStub(CharacterRepository::class);
@@ -240,6 +337,7 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
         $handler = new SyncCorporationAssetsHandler(
             $characterRepository,
             $assetsSyncService,
+            $this->refreshGate,
             $this->mercurePublisher,
             $this->syncTracker,
             new NullLogger(),

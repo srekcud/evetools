@@ -73,6 +73,7 @@ const SITE_NEXT_STARTED_ACTION = 'site_next_started'
 const HANGAR_EMPTIED_ACTION = 'fleet_hangar_emptied'
 const SITE_RELOADING_ACTIONS = [SITE_SCAN_ACTION, SITE_NEXT_STARTED_ACTION]
 const CORPORATION_ASSETS_SYNC_COMPLETED = 'completed'
+const CORPORATION_ASSETS_REFRESH_WITHOUT_SYNC = ['up_to_date', 'in_progress']
 const PAYMENT_STATUSES = ['shares', 'settled']
 const FULL_PERCENT = 100
 const SNAPSHOT_SYNC_TYPE = 'mining-operation-snapshot'
@@ -374,7 +375,10 @@ const declareFleetStorage = (memberId: string, declaration: DeclareMiningFleetSt
 
 async function refreshCorporationAssets(): Promise<void> {
   awaitingAssetsSync.value = true
-  await runAction(() => store.refreshCorporationAssets())
+  await runAction(async () => {
+    const status = await store.refreshCorporationAssets()
+    if (CORPORATION_ASSETS_REFRESH_WITHOUT_SYNC.includes(status)) awaitingAssetsSync.value = false
+  })
   if (actionFailure.value !== null) awaitingAssetsSync.value = false
 }
 

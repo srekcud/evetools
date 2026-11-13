@@ -88,6 +88,13 @@ function answer(answers: Answers = {}): void {
   })
 }
 
+function answerRefreshOfCorporationAssetsWith(status: string): void {
+  const answerOthers = vi.mocked(apiRequest).getMockImplementation()!
+  vi.mocked(apiRequest).mockImplementation(async (endpoint: string, ...rest: unknown[]) =>
+    endpoint === CORPORATION_ASSETS_REFRESH_PATH ? ({ status } as never) : (answerOthers as (...args: unknown[]) => Promise<never>)(endpoint, ...rest),
+  )
+}
+
 async function mountDetail(locale: TestLocale = 'en'): Promise<VueWrapper> {
   vi.spyOn(useSyncStore(), 'getMiningOperationEvent').mockImplementation((operationId: string) => events[operationId] ?? null)
   const wrapper = mount(MiningOperationDetail, {
@@ -380,6 +387,18 @@ describe('MiningOperationDetail, verification of the corporation container', () 
     await flushPromises()
 
     expect([refreshCalls, callsTo(VERIFICATION_PATH) - verificationsBefore]).toEqual([1, 1])
+  })
+
+  it.each(['up_to_date', 'in_progress'])('stops waiting for the sync when the refresh is answered %s', async status => {
+    answer({ verification: syncedBeforeEndVerification() })
+    answerRefreshOfCorporationAssetsWith(status)
+    const wrapper = await mountDetail()
+
+    const button = buttonNamed(wrapper, 'Refresh corporation assets')
+    await button?.trigger('click')
+    await flushPromises()
+
+    expect([callsTo(CORPORATION_ASSETS_REFRESH_PATH), buttonNamed(wrapper, 'Refresh corporation assets')?.attributes('disabled')]).toEqual([1, undefined])
   })
 
   it('shows nothing to check when nobody delivers', async () => {
