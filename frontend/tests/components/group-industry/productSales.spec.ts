@@ -42,6 +42,22 @@ describe('buildProductSales', () => {
     )
   })
 
+  it('gives a single row to an item listed once per blueprint copy and counts its sales once', () => {
+    const rows = buildProductSales(
+      [ISHTAR, ISHTAR, ISHTAR, ISHTAR, ISHTAR],
+      [finalLine(12_005, 10), finalLine(12_005, 10), finalLine(12_005, 10), finalLine(12_005, 10), finalLine(12_005, 10)],
+      [saleOf(12_005, 'Ishtar', 10)],
+    )
+
+    expect(rows).toEqual([{ typeId: 12_005, typeName: 'Ishtar', sold: 10, produced: 50, remaining: 40 }])
+  })
+
+  it('keeps distinct items as distinct rows, in the order of their first appearance', () => {
+    const rows = buildProductSales([ISHTAR, HECATE, ISHTAR], [finalLine(12_005, 3), finalLine(35_683, 1)], [])
+
+    expect(rows.map(row => row.typeId)).toEqual([12_005, 35_683])
+  })
+
   it('never shows a negative remaining quantity when more was sold than produced', () => {
     expect(buildProductSales([ISHTAR], [finalLine(12_005, 2)], [saleOf(12_005, 'Ishtar', 3)])[0].remaining).toBe(0)
   })

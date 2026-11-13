@@ -16,7 +16,9 @@ export function buildProductSales(
   bomItems: BomItem[],
   sales: GroupSale[],
 ): ProductSalesRow[] {
-  return projectItems.map(({ typeId, typeName }) => {
+  const productsByTypeId = new Map(projectItems.map(item => [item.typeId, item]))
+
+  return [...productsByTypeId.values()].map(({ typeId, typeName }) => {
     const finalLines = bomItems.filter(line => line.jobGroup === FINAL_JOB_GROUP && line.typeId === typeId)
     const produced = finalLines.length === 0 ? null : finalLines.reduce((sum, line) => sum + line.requiredQuantity, 0)
     const sold = sales
