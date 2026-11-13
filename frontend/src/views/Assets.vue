@@ -5,7 +5,7 @@ import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/ass
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
-import { safeJsonParse } from '@/services/api'
+import { ApiError, apiRequest, carriesServerMessage } from '@/services/api'
 import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
 import { COLLAPSE_LOCATIONS_ROW_THRESHOLD } from '@/constants/assetsConstants'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -364,17 +364,12 @@ async function fetchAssets() {
 
   try {
     const endpoint = isCorporationRequest
-      ? '/api/me/corporation/assets'
-      : `/api/me/characters/${selectedCharacterId.value}/assets`
+      ? '/me/corporation/assets'
+      : `/me/characters/${selectedCharacterId.value}/assets`
 
-    const response = await fetch(endpoint, {
-      headers: { 'Authorization': `Bearer ${authStore.token}` },
+    const data = await apiRequest<{ items?: Asset[]; nextRefreshAt?: string | null }>(endpoint, {
       signal: request.signal,
     })
-
-    if (!response.ok) throw new Error('Failed to fetch assets')
-
-    const data = await safeJsonParse<{ items?: Asset[]; nextRefreshAt?: string | null }>(response)
     if (request.signal.aborted) return
     assets.value = data.items || []
     nextRefreshAt.value = isCorporationRequest ? (data.nextRefreshAt ?? null) : null
@@ -478,24 +473,13 @@ async function refreshAssets() {
 
   try {
     const endpoint = viewMode.value === 'character'
-      ? `/api/me/characters/${selectedCharacterId.value}/assets/refresh`
-      : '/api/me/corporation/assets/refresh'
+      ? `/me/characters/${selectedCharacterId.value}/assets/refresh`
+      : '/me/corporation/assets/refresh'
 
-    const response = await fetch(endpoint, {
+    const data = await apiRequest<{ status?: string; error?: string; nextRefreshAt?: string | null }>(endpoint, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({})
+      body: JSON.stringify({}),
     })
-
-    if (!response.ok) {
-      const data = await safeJsonParse<{ error?: string }>(response)
-      throw new Error(data.error || t('assets.refreshFailed'))
-    }
-
-    const data = await safeJsonParse<{ status?: string; error?: string; nextRefreshAt?: string | null }>(response)
 
     if (data.status === 'error') {
       error.value = data.error || t('assets.refreshFailed')
@@ -527,7 +511,8 @@ async function refreshAssets() {
       isRefreshing.value = false
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('assets.refreshFailed')
+    const hasReadableMessage = e instanceof Error && !(e instanceof ApiError && !carriesServerMessage(e))
+    error.value = hasReadableMessage ? e.message : t('assets.refreshFailed')
     isRefreshing.value = false
   }
 }
