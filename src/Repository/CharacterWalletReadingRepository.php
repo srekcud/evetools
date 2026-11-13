@@ -21,7 +21,7 @@ class CharacterWalletReadingRepository extends ServiceEntityRepository
 
     public function findOneByCharacter(Character $character): ?CharacterWalletReading
     {
-        return null;
+        return $this->findOneBy(['character' => $character]);
     }
 
     /**
@@ -30,6 +30,10 @@ class CharacterWalletReadingRepository extends ServiceEntityRepository
      */
     public function findByCharacters(array $characters): array
     {
-        return [];
+        if ($characters === []) {
+            return [];
+        }
+
+        return $this->findBy(['character' => $characters]);
     }
 }

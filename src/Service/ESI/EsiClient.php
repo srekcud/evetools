@@ -64,7 +64,14 @@ class EsiClient
 
     public function getWithExpiry(string $endpoint, ?EveToken $token = null): PaginatedEsiResponse
     {
-        return new PaginatedEsiResponse([], null);
+        try {
+            $response = $this->requestWithRetry('GET', $endpoint, $token);
+            $items = $this->handleResponse($response, $endpoint, $token);
+
+            return new PaginatedEsiResponse($items, $this->expiresAt($this->responseHeaders($response)));
+        } catch (TransportExceptionInterface $e) {
+            throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
+        }
     }
 
     /**

@@ -6,15 +6,21 @@ namespace App\Service\Sync;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
+use App\Entity\CharacterWalletReading;
 use App\Repository\CachedWalletTransactionRepository;
+use App\Repository\CharacterWalletReadingRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\Industry\Project\AutomaticPurchaseLinker;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\ClockInterface;
 
 class WalletTransactionSyncService
 {
+    private const int WALLET_CACHE_TTL_SECONDS = 3600;
+    private const int WALLET_RETRY_DELAY_SECONDS = 900;
+
     public function __construct(
         private readonly EsiClient $esiClient,
         private readonly CachedWalletTransactionRepository $transactionRepository,
@@ -22,6 +28,8 @@ class WalletTransactionSyncService
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly AutomaticPurchaseLinker $purchaseLinker,
+        private readonly CharacterWalletReadingRepository $readingRepository,
+        private readonly ClockInterface $clock,
     ) {
     }
 
@@ -44,6 +52,7 @@ class WalletTransactionSyncService
         $newTransactions = [];
         $fromId = null;
         $maxPages = 50; // Safety limit
+        $pageExpirations = [];
 
         try {
             for ($page = 0; $page < $maxPages; $page++) {
@@ -52,7 +61,9 @@ class WalletTransactionSyncService
                     $url .= "?from_id={$fromId}";
                 }
 
-                $transactions = $this->esiClient->get($url, $token);
+                $response = $this->esiClient->getWithExpiry($url, $token);
+                $transactions = $response->items;
+                $pageExpirations[] = $response->expiresAt;
 
                 if (empty($transactions)) {
                     break;
@@ -127,12 +138,16 @@ class WalletTransactionSyncService
                 'page' => $page,
             ]);
 
+            $this->recordFailedReading($character);
+
             if ($userId !== null) {
                 $this->mercurePublisher->syncError($userId, 'wallet-transactions', $e->getMessage());
             }
 
             return;
         }
+
+        $this->recordSuccessfulReading($character, $pageExpirations);
 
         $this->logger->info('Wallet transactions synced', [
             'characterName' => $character->getName(),
@@ -151,5 +166,40 @@ class WalletTransactionSyncService
         if ($newTransactions !== []) {
             $this->purchaseLinker->linkNewPurchases($character, $newTransactions);
         }
+    }
+
+    /**
+     * @param list<?\DateTimeImmutable> $pageExpirations
+     */
+    private function recordSuccessfulReading(Character $character, array $pageExpirations): void
+    {
+        $readAt = $this->clock->now();
+        $nextReadAt = $pageExpirations === [] || in_array(null, $pageExpirations, true)
+            ? $readAt->modify(sprintf('+%d seconds', self::WALLET_CACHE_TTL_SECONDS))
+            : min($pageExpirations);
+
+        $reading = $this->readingOf($character);
+        $reading->setReadAt($readAt)->setNextReadAt($nextReadAt);
+        $this->entityManager->flush();
+    }
+
+    private function recordFailedReading(Character $character): void
+    {
+        $reading = $this->readingOf($character);
+        $reading->setNextReadAt($this->clock->now()->modify(sprintf('+%d seconds', self::WALLET_RETRY_DELAY_SECONDS)));
+        $this->entityManager->flush();
+    }
+
+    private function readingOf(Character $character): CharacterWalletReading
+    {
+        $reading = $this->readingRepository->findOneByCharacter($character);
+        if ($reading !== null) {
+            return $reading;
+        }
+
+        $reading = (new CharacterWalletReading())->setCharacter($character);
+        $this->entityManager->persist($reading);
+
+        return $reading;
     }
 }

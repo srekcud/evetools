@@ -26,6 +26,7 @@ use App\State\Provider\Industry\PurchaseSuggestionProvider;
         ),
     ],
     security: "is_granted('ROLE_USER')",
+    normalizationContext: ['skip_null_values' => false],
 )]
 class PurchaseSuggestionListResource
 {

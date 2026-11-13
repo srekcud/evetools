@@ -122,7 +122,7 @@ class TriggerSyncProcessor implements ProcessorInterface
                 break;
 
             case 'sync_wallet':
-                $this->messageBus->dispatch(new SyncWalletTransactions());
+                $this->messageBus->dispatch(new SyncWalletTransactions(dueOnly: false));
                 $resource->message = 'Wallet transactions sync triggered';
                 break;
 

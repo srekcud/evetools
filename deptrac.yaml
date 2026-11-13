@@ -134,6 +134,8 @@ deptrac:
       - App\Service\Industry\Project\PilotName
     App\Service\Industry\Project\ProjectContainerService:
       - App\ApiResource\Industry\Project\ProjectContainerVerificationResource
+    App\Service\Sync\WalletReadingStateReader:
+      - App\ApiResource\Industry\WalletReadingResource
     App\State\Processor\MoonTax\MarkMoonTaxStatementPaidProcessor:
       - App\State\Provider\MoonTax\MoonTaxResourceMapper
     App\State\Processor\MoonTax\CancelMoonTaxStatementProcessor:

@@ -5,6 +5,7 @@ import type {
   Distribution,
   GroupSale,
   GroupSaleSuggestion,
+  GroupSaleSuggestionList,
   GroupMember,
   LineRentalRates,
   RecordSaleFromWalletTransactionInput,
@@ -48,14 +49,29 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     loadingSales.value = false
     loadingMembers.value = false
     saleSuggestions.value = []
+    saleWalletReadings.value = []
     saleSuggestionsError.value = null
     loadingSaleSuggestions.value = false
+  }
+
+  function assignTo<T>(target: Ref<T>): (value: T) => void {
+    return value => {
+      target.value = value
+    }
+  }
+
+  function holdSaleSuggestionList(list: GroupSaleSuggestionList): void {
+    if (!Array.isArray(list.suggestions) || !Array.isArray(list.walletReadings)) {
+      throw new Error('Unexpected sale suggestions response')
+    }
+    saleSuggestions.value = list.suggestions
+    saleWalletReadings.value = list.walletReadings
   }
 
   async function fetchForProject<T>(
     projectId: string,
     resource: string,
-    held: Ref<T>,
+    hold: (value: T) => void,
     heldWhenFailed: T,
     loadingIndicator: Ref<boolean>,
     fetchError: Ref<string | null>,
@@ -67,11 +83,11 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     try {
       const fetched = await apiRequest<T>(`/industry/projects/${projectId}/${resource}`)
       if (openedProjectId.value === projectId) {
-        held.value = fetched
+        hold(fetched)
       }
     } catch (e) {
       if (openedProjectId.value === projectId) {
-        held.value = heldWhenFailed
+        hold(heldWhenFailed)
         fetchError.value = e instanceof Error ? e.message : failureMessage
       }
     } finally {
@@ -82,11 +98,11 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   }
 
   function fetchDistribution(projectId: string): Promise<void> {
-    return fetchForProject(projectId, 'distribution', distribution, null, loadingDistribution, distributionError, 'Failed to fetch distribution')
+    return fetchForProject(projectId, 'distribution', assignTo(distribution), null, loadingDistribution, distributionError, 'Failed to fetch distribution')
   }
 
   function fetchSales(projectId: string): Promise<void> {
-    return fetchForProject(projectId, 'sales', sales, [], loadingSales, salesError, 'Failed to fetch sales')
+    return fetchForProject(projectId, 'sales', assignTo(sales), [], loadingSales, salesError, 'Failed to fetch sales')
   }
 
   async function postSale(projectId: string, resource: string, input: RecordSaleInput | RecordSaleFromWalletTransactionInput): Promise<GroupSale> {
@@ -148,11 +164,11 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   }
 
   function fetchSaleSuggestions(projectId: string): Promise<void> {
-    return fetchForProject(projectId, 'sale-suggestions', saleSuggestions, [], loadingSaleSuggestions, saleSuggestionsError, 'Failed to fetch sale suggestions')
+    return fetchForProject(projectId, 'sale-suggestions', holdSaleSuggestionList, { id: projectId, suggestions: [], walletReadings: [] }, loadingSaleSuggestions, saleSuggestionsError, 'Failed to fetch sale suggestions')
   }
 
   function fetchMembers(projectId: string): Promise<void> {
-    return fetchForProject(projectId, 'members', members, [], loadingMembers, membersError, 'Failed to fetch members')
+    return fetchForProject(projectId, 'members', assignTo(members), [], loadingMembers, membersError, 'Failed to fetch members')
   }
 
   async function updateMember(

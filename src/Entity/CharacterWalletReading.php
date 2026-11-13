@@ -19,8 +19,8 @@ class CharacterWalletReading
     #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
     private ?Uuid $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Character::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\OneToOne(targetEntity: Character::class)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Character $character;
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
