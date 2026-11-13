@@ -58,12 +58,14 @@ use App\State\Provider\Notification\NotificationProvider;
         new Post(
             uriTemplate: '/me/notifications/read-all',
             input: EmptyInput::class,
+            deserialize: false,
             processor: MarkAllReadProcessor::class,
             openapi: new Model\Operation(summary: 'Mark all notifications as read', tags: ['Notifications']),
         ),
         new Post(
             uriTemplate: '/me/notifications/clear-read',
             input: EmptyInput::class,
+            deserialize: false,
             processor: ClearReadProcessor::class,
             openapi: new Model\Operation(summary: 'Delete all read notifications', tags: ['Notifications']),
         ),

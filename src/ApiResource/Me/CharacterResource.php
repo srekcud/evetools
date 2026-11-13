@@ -35,6 +35,7 @@ use App\State\Provider\Me\CharacterCollectionProvider;
             uriTemplate: '/me/characters/{id}/set-main',
             processor: SetMainCharacterProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: CharacterResource::class,
             openapi: new Model\Operation(summary: 'Set main character', description: 'Sets a character as the main character for the user', tags: ['Account & Characters']),
         ),

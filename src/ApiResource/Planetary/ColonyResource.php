@@ -32,6 +32,7 @@ use App\State\Provider\Planetary\ColonyDetailProvider;
         new Post(
             uriTemplate: '/planetary/sync',
             input: EmptyInput::class,
+            deserialize: false,
             output: false,
             status: 204,
             processor: SyncPlanetaryProcessor::class,

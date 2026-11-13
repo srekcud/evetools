@@ -71,6 +71,7 @@ use App\State\Provider\Industry\Project\ProjectParticipantItemProvider;
                 'projectId' => new Link(fromClass: IndustryProjectResource::class),
             ],
             input: EmptyInput::class,
+            deserialize: false,
             output: false,
             status: 204,
             processor: LeaveProjectProcessor::class,

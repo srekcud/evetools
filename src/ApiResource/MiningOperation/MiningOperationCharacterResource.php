@@ -26,6 +26,7 @@ use App\State\Processor\MiningOperation\RetryMiningLedgerSnapshotProcessor;
             ],
             processor: RetryMiningLedgerSnapshotProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: false,
             status: 204,
             openapi: new Model\Operation(

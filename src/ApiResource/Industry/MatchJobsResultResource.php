@@ -24,6 +24,7 @@ use App\State\Processor\Industry\MatchJobsProcessor;
             ],
             processor: MatchJobsProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             openapi: new Model\Operation(summary: 'Match ESI jobs', description: 'Matches the job lines of the BOM with ESI industry jobs of the owner', tags: ['Industry - Projects']),
         ),
     ],

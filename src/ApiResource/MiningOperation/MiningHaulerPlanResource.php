@@ -36,6 +36,7 @@ use App\State\Provider\MiningOperation\MiningHaulerPlanProvider;
             ],
             processor: EmptyMiningFleetHangarProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(
                 summary: 'Declare the fleet hangar emptied',
