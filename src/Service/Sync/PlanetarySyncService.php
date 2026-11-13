@@ -16,6 +16,7 @@ use App\Service\ESI\PlanetaryService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
+use App\Service\Sde\SdeCelestialNameResolver;
 use App\Service\TypeNameResolver;
 use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,6 +29,7 @@ class PlanetarySyncService
         private readonly PlanetaryService $planetaryService,
         private readonly PlanetaryColonyRepository $colonyRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
+        private readonly SdeCelestialNameResolver $celestialNameResolver,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
@@ -116,15 +118,7 @@ class PlanetarySyncService
 
                 // Resolve planet name from ESI (public endpoint, only if not already set)
                 if ($colony->getPlanetName() === null) {
-                    try {
-                        $planetInfo = $this->planetaryService->fetchPlanetInfo($planetId);
-                        $colony->setPlanetName($planetInfo['name']);
-                    } catch (\Throwable $e) {
-                        $this->logger->warning('Failed to resolve planet name', [
-                            'planetId' => $planetId,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
+                    $colony->setPlanetName($this->resolvePlanetName($planetId));
                 }
 
                 $notifiedLevels = $this->notifiedLevelsByPinId($colony);
@@ -257,6 +251,27 @@ class PlanetarySyncService
             }
 
             $colony->addPin($pin);
+        }
+    }
+
+    private function resolvePlanetName(int $planetId): ?string
+    {
+        $sdeName = $this->celestialNameResolver->planetName($planetId);
+        if ($sdeName !== null) {
+            return $sdeName;
+        }
+
+        $this->logger->warning('Planet missing from the SDE, read from ESI', ['planetId' => $planetId]);
+
+        try {
+            return $this->planetaryService->fetchPlanetInfo($planetId)['name'];
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to resolve planet name', [
+                'planetId' => $planetId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
         }
     }
 
