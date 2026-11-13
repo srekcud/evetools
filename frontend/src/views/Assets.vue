@@ -883,6 +883,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
               :expanded-containers="expandedContainers"
               :collapsed-locations="collapsedLocations"
               :container-contents="visibleContainerContents"
+              :fit-contents="containerContents"
               :max-quantity="largestLocationQuantity"
               @toggle-container="toggleContainer"
               @toggle-location="toggleLocation"

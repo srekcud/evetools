@@ -2160,6 +2160,23 @@
       "shareBlueprintsHelp": "Les BPO, BPC et formules de réaction de toutes les divisions apparaissent dans la bibliothèque de blueprints ; le reste du contenu des divisions masquées reste caché.",
       "shareBlueprintsOn": "Blueprints des divisions masquées : visibles",
       "shareBlueprintsOff": "Blueprints des divisions masquées : cachés"
+    },
+    "shipGroups": {
+      "showAll": "Tout afficher ({count})",
+      "badFit": "Fit à revoir",
+      "copyEft": "Copier le fit (EFT)",
+      "copied": "Fit copié",
+      "copyFailed": "Copie impossible",
+      "copyUnavailable": "Copie impossible : le nom d'un module est inconnu",
+      "showFit": "Voir le fit",
+      "hideFit": "Masquer le fit",
+      "low": "Slots bas",
+      "mid": "Slots moyens",
+      "high": "Slots hauts",
+      "rig": "Rigs",
+      "subsystem": "Sous-systèmes",
+      "drones": "Drones",
+      "cargo": "Soute"
     }
   },
   "contracts": {
