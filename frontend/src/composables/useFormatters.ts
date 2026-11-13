@@ -73,6 +73,14 @@ export function useFormatters() {
     })
   }
 
+  function formatTime(dateStr: string): string {
+    return new Date(dateStr).toLocaleTimeString(getDateLocaleStr(), {
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+  }
+
   function formatTimeSince(dateStr: string | null, now: Date = new Date()): string {
     if (!dateStr) return t('common.status.never')
     const diff = Math.max(0, now.getTime() - new Date(dateStr).getTime())
@@ -113,6 +121,7 @@ export function useFormatters() {
     formatIskExact,
     formatDate,
     formatDateTime,
+    formatTime,
     formatTimeSince,
     formatDuration,
     formatNumber,

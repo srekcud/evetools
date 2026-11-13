@@ -10,6 +10,7 @@ use App\ApiResource\Input\Admin\TriggerSyncInput;
 use App\Entity\Character;
 use App\Entity\User;
 use App\Message\SyncCostIndices;
+use App\Message\SyncWalletTransactions;
 use App\Message\TriggerAssetsSync;
 use App\Message\TriggerJitaMarketSync;
 use App\Repository\MarketPriceHistoryRepository;
@@ -21,6 +22,7 @@ use App\Service\MarketAlertService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Admin\TriggerSyncProcessor;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -115,6 +117,25 @@ class TriggerSyncProcessorTriggerSyncTest extends TestCase
 
         $this->assertTrue($result->success);
         $this->assertEquals([new TriggerAssetsSync()], $this->dispatchedMessages);
+    }
+
+    #[Group('issue-916')]
+    public function testTriggeringAWalletSyncDispatchesItForEveryCharacterWhateverTheirNextReadAt(): void
+    {
+        $result = $this->triggerSync($this->adminProcessor(), 'wallet');
+
+        $this->assertTrue($result->success);
+        $this->assertSame('Sync triggered: wallet', $result->message);
+        $this->assertEquals([new SyncWalletTransactions(dueOnly: false)], $this->dispatchedMessages);
+    }
+
+    #[Group('issue-916')]
+    public function testTheLegacyWalletActionDispatchesItForEveryCharacterWhateverTheirNextReadAt(): void
+    {
+        $result = $this->adminProcessor()->process(null, new Post(name: 'sync_wallet'));
+
+        $this->assertTrue($result->success);
+        $this->assertEquals([new SyncWalletTransactions(dueOnly: false)], $this->dispatchedMessages);
     }
 
     private function triggerSync(TriggerSyncProcessor $processor, string $type): ActionResultResource

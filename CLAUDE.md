@@ -181,7 +181,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Industry jobs sync | 30 min |
 | PVE data sync | 1h |
 | Mining ledger sync | 1h |
-| Wallet transactions sync (et lignes de frais de contrat du journal wallet, #500) | 1h |
+| Wallet transactions sync (et lignes de frais de contrat du journal wallet, #500) : tick qui ne lit que les personnages dont l'`Expires` ESI est passé (lecture du wallet, #916) | 5 min |
 | Market sync (Jita + Structure) | 1h |
 | Planetary colonies sync | 30 min |
 | Alert prices check | 30 min |

@@ -6,6 +6,7 @@ namespace App\State\Provider\Industry\Project;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
+use App\ApiResource\Industry\Project\ProjectSaleSuggestionListResource;
 use App\ApiResource\Industry\Project\ProjectSaleSuggestionResource;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\IndustryProjectProduct;
@@ -14,11 +15,12 @@ use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ResolvesSaleOfProject;
+use App\Service\Sync\WalletReadingStateReader;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * @implements ProviderInterface<ProjectSaleSuggestionResource>
+ * @implements ProviderInterface<ProjectSaleSuggestionListResource>
  */
 final readonly class ProjectSaleSuggestionProvider implements ProviderInterface
 {
@@ -29,13 +31,11 @@ final readonly class ProjectSaleSuggestionProvider implements ProviderInterface
         private IndustryProjectRepository $projectRepository,
         private ProjectAccessChecker $accessChecker,
         private CachedWalletTransactionRepository $transactionRepository,
+        private WalletReadingStateReader $walletReadingStateReader,
     ) {
     }
 
-    /**
-     * @return ProjectSaleSuggestionResource[]
-     */
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
+    public function provide(Operation $operation, array $uriVariables = [], array $context = []): ProjectSaleSuggestionListResource
     {
         $user = $this->security->getUser();
 
@@ -52,10 +52,15 @@ final readonly class ProjectSaleSuggestionProvider implements ProviderInterface
             $project->getCreatedAt(),
         );
 
-        return array_map(
+        $list = new ProjectSaleSuggestionListResource();
+        $list->id = $project->getId()->toRfc4122();
+        $list->suggestions = array_map(
             fn (CachedWalletTransaction $transaction): ProjectSaleSuggestionResource => $this->suggestionOf($transaction, $project),
             $transactions,
         );
+        $list->walletReadings = $this->walletReadingStateReader->forUser($user);
+
+        return $list;
     }
 
     /**

@@ -6,15 +6,20 @@ namespace App\Tests\Unit\State\Provider\Industry;
 
 use ApiPlatform\Metadata\Get;
 use App\ApiResource\Industry\PurchaseSuggestionResource;
+use App\ApiResource\Industry\WalletReadingResource;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
+use App\Entity\CharacterWalletReading;
+use App\Entity\EveToken;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
+use App\Repository\CharacterWalletReadingRepository;
 use App\Repository\IndustryProjectPurchaseRepository;
 use App\Service\Industry\IndustryCalculationService;
+use App\Service\Sync\WalletReadingStateReader;
 use App\State\Provider\Industry\PurchaseSuggestionProvider;
 use App\Tests\Unit\State\Processor\Industry\TracksJobsAndPurchasesOnIshtarBom;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -36,6 +41,8 @@ final class PurchaseSuggestionProviderTest extends TestCase
     private array $storedPurchases = [];
 
     private array $buyLookups = [];
+
+    private array $storedWalletReadings = [];
 
     protected function setUp(): void
     {
@@ -100,6 +107,52 @@ final class PurchaseSuggestionProviderTest extends TestCase
         );
     }
 
+    #[Group('issue-916')]
+    public function testWalletReadingsOfTheCharactersOfTheOwnerAreServedEvenWithoutAnyBuy(): void
+    {
+        $this->ownerMainCharacter->setEveToken((new EveToken())->setScopes(['esi-wallet.read_character_wallet.v1']));
+        $this->storedWalletReadings[] = (new CharacterWalletReading())
+            ->setCharacter($this->ownerMainCharacter)
+            ->setReadAt(new \DateTimeImmutable('2026-11-13T20:04:10+00:00'))
+            ->setNextReadAt(new \DateTimeImmutable('2026-11-13T21:04:00+00:00'));
+
+        $result = $this->suggestionsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([0, []], [$result->totalCount, $result->suggestions]);
+        self::assertSame(
+            [
+                ['Aria Solberg', 'read', '2026-11-13T20:04:10+00:00', '2026-11-13T21:04:00+00:00'],
+                ['Aria Alt', 'no_token', null, null],
+            ],
+            $this->walletReadingFieldsOf($result->walletReadings),
+        );
+    }
+
+    #[Group('issue-916')]
+    public function testWalletReadingsAreServedWhenTheProjectHasNoPurchasableLine(): void
+    {
+        $this->hecateTritaniumLine->setIsJob(true)->setJobGroup('final');
+        $this->ownerAltCharacter->setEveToken((new EveToken())->setScopes(['esi-wallet.read_character_wallet.v1']));
+
+        $result = $this->suggestionsFor($this->owner, $this->hecateProject);
+
+        self::assertSame([0, []], [$result->totalCount, $result->suggestions]);
+        self::assertSame(
+            [['Aria Solberg', 'no_token', null, null], ['Aria Alt', 'never_read', null, null]],
+            $this->walletReadingFieldsOf($result->walletReadings),
+        );
+    }
+
+    #[Group('issue-916')]
+    public function testWalletReadingsAccompanyTheSuggestionsOfTheBuys(): void
+    {
+        $this->buy($this->ownerMainCharacter, 6_916_000_001, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
+
+        $result = $this->suggestionsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([1, ['Aria Solberg', 'Aria Alt']], [$result->totalCount, array_column($this->walletReadingFieldsOf($result->walletReadings), 0)]);
+    }
+
     public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedWithoutReadingTheWallet(): void
     {
         self::assertSame(
@@ -131,6 +184,8 @@ final class PurchaseSuggestionProviderTest extends TestCase
                 static fn (IndustryProjectPurchase $purchase): bool => in_array($purchase->getTransaction(), $criteria['transaction'], true),
             )),
         );
+        $readingRepository = $this->createStub(CharacterWalletReadingRepository::class);
+        $readingRepository->method('findByCharacters')->willReturnCallback(fn (): array => $this->storedWalletReadings);
         $calculationService = $this->createStub(IndustryCalculationService::class);
         $calculationService->method('resolveTypeName')->willReturnCallback(
             static fn (int $typeId): ?string => [self::RAM_TYPE_ID => 'R.A.M.- Starship Tech', self::TRITANIUM_TYPE_ID => 'Tritanium'][$typeId] ?? null,
@@ -143,6 +198,7 @@ final class PurchaseSuggestionProviderTest extends TestCase
             $calculationService,
             $purchaseRepository,
             $this->accessChecker(),
+            new WalletReadingStateReader($readingRepository),
         ))->provide(new Get(), ['projectId' => $project->getId()->toRfc4122()]);
     }
 
@@ -173,6 +229,14 @@ final class PurchaseSuggestionProviderTest extends TestCase
             ->setSource('esi_wallet');
         $line->addPurchase($purchase);
         $this->storedPurchases[] = $purchase;
+    }
+
+    private function walletReadingFieldsOf(array $walletReadings): array
+    {
+        return array_map(
+            static fn (WalletReadingResource $reading): array => [$reading->characterName, $reading->status, $reading->readAt, $reading->nextReadAt],
+            $walletReadings,
+        );
     }
 
     private function fieldsOf(array $suggestions): array

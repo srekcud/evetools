@@ -71,7 +71,7 @@ class SyncTrackerTest extends TestCase
             [
                 ['industry', 1800, false],
                 ['pve', 3600, false],
-                ['wallet', 3600, false],
+                ['wallet', 300, false],
                 ['mining', 3600, false],
                 ['ansiblex', 43200, false],
                 ['planetary', 1800, false],

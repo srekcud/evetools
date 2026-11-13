@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
+use App\Entity\EveToken;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
@@ -307,6 +308,7 @@ final class GroupSaleApiTest extends WebTestCase
         $this->request('GET', $this->saleSuggestionsUri());
 
         self::assertResponseStatusCodeSame(200);
+        self::assertArrayHasKey('suggestions', $this->responseJson());
         self::assertSame(
             [[$t1->getId()?->toRfc4122(), 22456, 'Sabre', 3, 183_750_000.0, 'Aria Solberg']],
             array_map(
@@ -318,8 +320,48 @@ final class GroupSaleApiTest extends WebTestCase
                     (float) $suggestion['totalPrice'],
                     $suggestion['sellerCharacterName'],
                 ],
-                $this->responseJson()['member'],
+                $this->responseJson()['suggestions'],
             ),
+        );
+    }
+
+    #[Group('issue-916')]
+    public function testSaleSuggestionsAreWrappedWithTheProjectIdAndTheWalletReadingsOfTheCurrentUser(): void
+    {
+        $ownerMain = $this->owner->getMainCharacter();
+        \assert($ownerMain instanceof Character);
+        $token = (new EveToken())
+            ->setAccessToken('access-token')
+            ->setRefreshTokenEncrypted('encrypted-refresh-token')
+            ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
+            ->setScopes(['esi-wallet.read_character_wallet.v1']);
+        $ownerMain->setEveToken($token);
+        $this->em->persist($token);
+        $ownerAlt = (new Character())
+            ->setEveCharacterId(self::$nextEveCharacterId++)
+            ->setName('Aria Alt')
+            ->setCorporationId(self::OWNER_CORPORATION_ID)
+            ->setCorporationName(sprintf('Corporation %d', self::OWNER_CORPORATION_ID));
+        $this->owner->addCharacter($ownerAlt);
+        $this->em->persist($ownerAlt);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->saleSuggestionsUri());
+
+        self::assertResponseStatusCodeSame(200);
+        $response = $this->responseJson();
+        self::assertArrayHasKey('suggestions', $response);
+        self::assertArrayHasKey('walletReadings', $response);
+        self::assertSame([$this->sabreDoctrine->getId()?->toRfc4122(), []], [$response['id'], $response['suggestions']]);
+        self::assertSame(
+            [['Aria Solberg', 'never_read', null, null], ['Aria Alt', 'no_token', null, null]],
+            array_map(static function (array $reading): array {
+                self::assertArrayHasKey('readAt', $reading);
+                self::assertArrayHasKey('nextReadAt', $reading);
+
+                return [$reading['characterName'], $reading['status'], $reading['readAt'], $reading['nextReadAt']];
+            }, $response['walletReadings']),
         );
     }
 
