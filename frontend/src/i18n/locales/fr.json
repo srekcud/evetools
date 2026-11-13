@@ -2426,6 +2426,7 @@
         "notifications-purge": "Purge des notifications",
         "market-history-purge": "Purge de l'historique de marche",
         "shared-lists-purge": "Purge des listes partagees",
+        "sde-build": "Vérification de la build SDE",
         "assets": "Assets",
         "corporation-assets": "Assets de corporation",
         "market-alerts": "Alertes de marche"
@@ -2550,6 +2551,19 @@
         "critical": "Critique"
       }
     },
+    "sdeBuild": {
+      "title": "Build SDE",
+      "imported": "Build importée",
+      "latest": "Dernière build CCP",
+      "lastCheck": "Dernière vérification",
+      "runCommand": "Lance cette commande pour importer la dernière build",
+      "status": {
+        "unknown": "Inconnu",
+        "not_recorded": "Non enregistrée",
+        "up_to_date": "À jour",
+        "outdated": "Périmée"
+      }
+    },
     "scheduler": {
       "throttleEsi": "Throttle ESI : progressif sous 20 errors remain, pause sous 5"
     },
@@ -2620,7 +2634,8 @@
       "esi": "Notifications EVE",
       "price": "Alertes prix",
       "mining_operation": "Opérations de minage",
-      "moon_chunk": "Chunks lunaires"
+      "moon_chunk": "Chunks lunaires",
+      "sde_build": "Build SDE"
     },
     "settingsModal": {
       "title": "Preferences de notifications",

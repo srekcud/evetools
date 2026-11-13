@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { apiRequest } from '@/services/api'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 
-export type NotificationCategory = 'planetary' | 'industry' | 'escalation' | 'esi' | 'price' | 'mining_operation' | 'moon_chunk'
+export type NotificationCategory = 'planetary' | 'industry' | 'escalation' | 'esi' | 'price' | 'mining_operation' | 'moon_chunk' | 'sde_build'
 export type NotificationLevel = 'info' | 'success' | 'warning' | 'error' | 'critical'
 
 export interface AppNotification {

@@ -94,6 +94,25 @@ class UserRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<int> $eveCharacterIds
+     *
+     * @return list<User>
+     */
+    public function findAdminsByMainCharacterEveIds(array $eveCharacterIds): array
+    {
+        if ($eveCharacterIds === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('u')
+            ->innerJoin('u.mainCharacter', 'mainCharacter')
+            ->where('mainCharacter.eveCharacterId IN (:eveCharacterIds)')
+            ->setParameter('eveCharacterIds', $eveCharacterIds)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * @return list<User>
      */
     public function searchByCharacter(string $term, int $limit): array

@@ -109,6 +109,16 @@ export interface AdminEsiErrorBudget {
   hourly: AdminEsiErrorBudgetHour[]
 }
 
+export interface AdminSdeBuild {
+  status: 'unknown' | 'not_recorded' | 'up_to_date' | 'outdated'
+  importedBuildNumber: number | null
+  importedReleaseDate: string | null
+  importedAt: string | null
+  latestBuildNumber: number | null
+  latestReleaseDate: string | null
+  latestCheckedAt: string | null
+}
+
 export interface AdminEsiRateLimitGroup {
   group: string
   remaining: number
@@ -195,6 +205,7 @@ export interface AdminStats {
   schedulerHealth: SchedulerHealthEntry[]
   moduleActiveUsers: AdminModuleActiveUsers[]
   esiErrorBudget: AdminEsiErrorBudget
+  sdeBuild: AdminSdeBuild
   esiRateLimits: AdminEsiRateLimitGroup[]
   mercureCookie: AdminMercureCookie
   charactersToRepair: AdminCharactersToRepair

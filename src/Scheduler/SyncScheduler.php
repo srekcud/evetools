@@ -8,6 +8,7 @@ use App\Message\CheckAlertPrices;
 use App\Message\CheckCourierContracts;
 use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
+use App\Message\CheckSdeBuild;
 use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
@@ -144,6 +145,9 @@ class SyncScheduler implements ScheduleProviderInterface
             // Purge expired shared shopping lists daily
             ->add(
                 self::everyViaAsync('1 day', new PurgeExpiredSharedLists())
+            )
+            ->add(
+                self::everyViaAsync('24 hours', new CheckSdeBuild())
             );
     }
 

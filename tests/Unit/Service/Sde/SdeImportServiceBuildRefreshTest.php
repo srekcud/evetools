@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Sde;
 
+use App\Entity\SdeBuildState;
+use App\Repository\SdeBuildStateRepository;
 use App\Service\Sde\SdeBlueprintImporter;
 use App\Service\Sde\SdeDogmaImporter;
 use App\Service\Sde\SdeImportService;
 use App\Service\Sde\SdeInventoryImporter;
+use App\Service\Sde\SdeLatestBuildFetcher;
 use App\Service\Sde\SdeMapImporter;
 use App\Service\Sde\SdePlanetaryImporter;
 use App\Service\Sde\SdeReferenceImporter;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -218,6 +222,9 @@ final class SdeImportServiceBuildRefreshTest extends TestCase
             };
         });
 
+        $buildStateRepository = $this->createStub(SdeBuildStateRepository::class);
+        $buildStateRepository->method('current')->willReturn(new SdeBuildState());
+
         return new SdeImportService(
             $httpClient,
             new NullLogger(),
@@ -227,6 +234,9 @@ final class SdeImportServiceBuildRefreshTest extends TestCase
             $this->createStub(SdeDogmaImporter::class),
             $this->createStub(SdeReferenceImporter::class),
             $this->createStub(SdePlanetaryImporter::class),
+            new SdeLatestBuildFetcher($httpClient),
+            $buildStateRepository,
+            new MockClock('2026-11-13 15:30:00 UTC'),
             $this->projectDir,
         );
     }

@@ -8,4 +8,5 @@ enum AdminHealthScope: string
 {
     case EsiErrorBudget = 'esi-error-budget';
     case FailedMessages = 'failed-messages';
+    case SdeBuild = 'sde-build';
 }

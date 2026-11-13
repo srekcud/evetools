@@ -32,6 +32,7 @@ const categories: { key: NotificationCategory | undefined; labelKey: string }[] 
   { key: 'price', labelKey: 'notificationHub.categories.price' },
   { key: 'mining_operation', labelKey: 'notificationHub.categories.mining_operation' },
   { key: 'moon_chunk', labelKey: 'notificationHub.categories.moon_chunk' },
+  { key: 'sde_build', labelKey: 'notificationHub.categories.sde_build' },
 ]
 
 function setCategory(category: NotificationCategory | undefined): void {

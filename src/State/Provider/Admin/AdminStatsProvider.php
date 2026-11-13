@@ -18,6 +18,7 @@ use App\ApiResource\Admin\PveCorporationStatsDto;
 use App\ApiResource\Admin\SchedulerHealthEntryDto;
 use App\ApiResource\Admin\SchedulerHealthRunDto;
 use App\Entity\User;
+use App\Repository\SdeBuildStateRepository;
 use App\Security\AdminCharacterEntry;
 use App\Security\AdminCharacterLister;
 use App\Security\AdminChecker;
@@ -28,6 +29,7 @@ use App\Service\ESI\EsiErrorBudget;
 use App\Service\ESI\EsiRateLimitBudget;
 use App\Service\Mercure\MercureCookieSizeMonitor;
 use App\Service\Mercure\MercureCookieUsage;
+use App\Service\Sde\SdeBuildStatusResolver;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -46,6 +48,8 @@ class AdminStatsProvider implements ProviderInterface
         private readonly MercureCookieSizeMonitor $mercureCookieMonitor,
         private readonly CharacterRepairLister $characterRepairLister,
         private readonly AdminCharacterLister $adminCharacterLister,
+        private readonly SdeBuildStateRepository $sdeBuildStateRepository,
+        private readonly SdeBuildStatusResolver $sdeBuildStatusResolver,
         private readonly EsiRateLimitBudget $rateLimitBudget = new EsiRateLimitBudget(new ArrayAdapter()),
     ) {
     }
@@ -169,6 +173,7 @@ class AdminStatsProvider implements ProviderInterface
         $this->fillEsiErrorBudget($resource);
         $this->fillEsiRateLimits($resource);
         $this->fillMercureCookie($resource);
+        $this->fillSdeBuild($resource);
         $this->fillCharactersToRepair($resource);
         $this->fillAdminCharacters($resource);
 
@@ -207,6 +212,20 @@ class AdminStatsProvider implements ProviderInterface
             ),
             $entries,
         );
+    }
+
+    private function fillSdeBuild(AdminStatsResource $resource): void
+    {
+        $state = $this->sdeBuildStateRepository->current();
+        $block = $resource->sdeBuild;
+
+        $block->status = $this->sdeBuildStatusResolver->resolve($state)->value;
+        $block->importedBuildNumber = $state->getImportedBuildNumber();
+        $block->importedReleaseDate = $state->getImportedReleaseDate()?->format(\DateTimeInterface::ATOM);
+        $block->importedAt = $state->getImportedAt()?->format(\DateTimeInterface::ATOM);
+        $block->latestBuildNumber = $state->getLatestBuildNumber();
+        $block->latestReleaseDate = $state->getLatestReleaseDate()?->format(\DateTimeInterface::ATOM);
+        $block->latestCheckedAt = $state->getLatestCheckedAt()?->format(\DateTimeInterface::ATOM);
     }
 
     private function fillMercureCookie(AdminStatsResource $resource): void

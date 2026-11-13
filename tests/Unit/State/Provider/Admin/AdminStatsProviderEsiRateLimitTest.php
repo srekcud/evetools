@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Provider\Admin;
 use ApiPlatform\Metadata\Get;
 use App\Entity\Character;
 use App\Entity\User;
+use App\Repository\SdeBuildStateRepository;
 use App\Security\AdminCharacterLister;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
@@ -14,6 +15,7 @@ use App\Service\Admin\CharacterRepairLister;
 use App\Service\ESI\EsiErrorBudget;
 use App\Service\ESI\EsiRateLimitBudget;
 use App\Service\Mercure\MercureCookieSizeMonitor;
+use App\Service\Sde\SdeBuildStatusResolver;
 use App\State\Provider\Admin\AdminStatsProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -112,6 +114,8 @@ class AdminStatsProviderEsiRateLimitTest extends TestCase
             $this->createStub(MercureCookieSizeMonitor::class),
             $this->createStub(CharacterRepairLister::class),
             $this->createStub(AdminCharacterLister::class),
+            $this->createStub(SdeBuildStateRepository::class),
+            new SdeBuildStatusResolver(),
             $rateLimitBudget,
         );
     }

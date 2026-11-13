@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Admin;
 
+use App\Message\CheckSdeBuild;
 use App\Message\SyncCostIndices;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerStructureMarketSync;
@@ -64,6 +65,11 @@ class TriggerableSyncsTest extends TestCase
     {
         $this->assertEquals([new TriggerJitaMarketSync()], TriggerableSyncs::messagesFor('market-jita'));
         $this->assertEquals([new TriggerStructureMarketSync()], TriggerableSyncs::messagesFor('market-structure'));
+    }
+
+    public function testSdeBuildDispatchesItsOwnMessage(): void
+    {
+        $this->assertEquals([new CheckSdeBuild()], TriggerableSyncs::messagesFor('sde-build'));
     }
 
     public function testAnUnknownTypeIsNotTriggerable(): void
