@@ -31,26 +31,19 @@ class MarketAlertPriceResolver
         $jitaSellPrices = $this->jitaMarketService->getPricesWithFallback($typeIds);
         $jitaBuyPrices = $this->jitaMarketService->getBuyPricesWithFallback($typeIds);
 
-        $structureId = $user->getPreferredMarketStructureId();
-        $structureAlerts = array_filter(
-            $alerts,
-            static fn (MarketPriceAlert $alert): bool => in_array($alert->getPriceSource(), [AlertPriceSource::StructureSell, AlertPriceSource::StructureBuy], true),
-        );
         $structureSellPrices = [];
         $structureBuyPrices = [];
-
-        if ($structureId !== null && $structureAlerts !== []) {
-            $structureTypeIds = $this->distinctTypeIds($structureAlerts);
-            $structureSellPrices = $this->structureMarketService->getLowestSellPrices($structureId, $structureTypeIds);
-            $structureBuyPrices = $this->structureMarketService->getHighestBuyPrices($structureId, $structureTypeIds);
+        foreach ($this->typeIdsByStructure($alerts) as $structureId => $structureTypeIds) {
+            $structureSellPrices[$structureId] = $this->structureMarketService->getLowestSellPrices($structureId, $structureTypeIds);
+            $structureBuyPrices[$structureId] = $this->structureMarketService->getHighestBuyPrices($structureId, $structureTypeIds);
         }
 
         return array_values(array_map(
             static fn (MarketPriceAlert $alert): ?float => match ($alert->getPriceSource()) {
                 AlertPriceSource::JitaSell => $jitaSellPrices[$alert->getTypeId()] ?? null,
                 AlertPriceSource::JitaBuy => $jitaBuyPrices[$alert->getTypeId()] ?? null,
-                AlertPriceSource::StructureSell => $structureSellPrices[$alert->getTypeId()] ?? null,
-                AlertPriceSource::StructureBuy => $structureBuyPrices[$alert->getTypeId()] ?? null,
+                AlertPriceSource::StructureSell => self::structurePrice($structureSellPrices, $alert),
+                AlertPriceSource::StructureBuy => self::structurePrice($structureBuyPrices, $alert),
             },
             $alerts,
         ));
@@ -59,6 +52,35 @@ class MarketAlertPriceResolver
     public function currentPrice(User $user, MarketPriceAlert $alert): ?float
     {
         return $this->currentPrices($user, [$alert])[0];
+    }
+
+    /**
+     * @param array<MarketPriceAlert> $alerts
+     *
+     * @return array<int, list<int>>
+     */
+    private function typeIdsByStructure(array $alerts): array
+    {
+        $typeIdsByStructure = [];
+        foreach ($alerts as $alert) {
+            $structureId = $alert->getStructureId();
+            if ($structureId === null || !in_array($alert->getPriceSource(), [AlertPriceSource::StructureSell, AlertPriceSource::StructureBuy], true)) {
+                continue;
+            }
+            $typeIdsByStructure[$structureId][] = $alert->getTypeId();
+        }
+
+        return array_map(static fn (array $typeIds): array => array_values(array_unique($typeIds)), $typeIdsByStructure);
+    }
+
+    /**
+     * @param array<int, array<int, ?float>> $pricesByStructure
+     */
+    private static function structurePrice(array $pricesByStructure, MarketPriceAlert $alert): ?float
+    {
+        $structureId = $alert->getStructureId();
+
+        return $structureId === null ? null : ($pricesByStructure[$structureId][$alert->getTypeId()] ?? null);
     }
 
     /**

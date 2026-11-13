@@ -15,4 +15,6 @@ class CreateAlertInput
 
     /** 'jita_sell', 'jita_buy', 'structure_sell', or 'structure_buy' */
     public string $priceSource;
+
+    public ?int $structureId = null;
 }

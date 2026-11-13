@@ -64,4 +64,7 @@ class MarketTypeDetailResource
     public bool $hasPreferredStructure = false;
 
     public ?string $structureName = null;
+
+    /** @var list<array{structureId: int, structureName: string, sell: ?float, buy: ?float}> */
+    public array $structurePrices = [];
 }

@@ -82,6 +82,8 @@ function priceAlert(typeId: number, typeName: string, threshold: number, status:
     direction: 'above',
     threshold,
     priceSource: 'jita_sell',
+    structureId: null,
+    structureName: null,
     status,
     currentPrice: status === 'triggered' ? threshold + 1.5 : threshold - 0.75,
     triggeredAt: status === 'triggered' ? '2026-10-26T14:30:00+00:00' : null,

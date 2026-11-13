@@ -536,26 +536,6 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
     }
 
     #[Group('market-audit-11')]
-    public function testStructureAlertCurrentlyFollowsTheUserPreferredStructureOfTheMomentMarketAudit11(): void
-    {
-        $this->givenStructurePrices(self::STRUCTURE_AT_CREATION, [self::MEXALLON => ['sell' => 63.25, 'buy' => 58.125]]);
-        $this->givenStructurePrices(self::STRUCTURE_PREFERRED_NOW, [self::MEXALLON => ['sell' => 57.75, 'buy' => 52.375]]);
-        $user = $this->createUser(self::USER_ID, self::STRUCTURE_AT_CREATION);
-        $alert = $this->createAlert($user, self::MEXALLON, 'Mexallon', AlertDirection::Below, 60.0, AlertPriceSource::StructureSell);
-        $this->givenActiveAlertsAndJitaPrices([$alert], [self::MEXALLON => 59.5], [self::MEXALLON => 54.875]);
-
-        $triggeredWhilePreferringTheCreationStructure = $this->service->checkAlerts();
-        $user->setPreferredMarketStructureId(self::STRUCTURE_PREFERRED_NOW);
-        $triggeredAfterChangingThePreferredStructure = $this->service->checkAlerts();
-
-        $this->assertSame(0, $triggeredWhilePreferringTheCreationStructure);
-        $this->assertSame(1, $triggeredAfterChangingThePreferredStructure);
-        $this->assertSame([
-            [self::USER_ID, self::MEXALLON, 'below', 60.0, 'structure_sell', 57.75],
-        ], $this->triggeredAlerts([$alert]));
-    }
-
-    #[Group('market-audit-11')]
     public function testStructureAlertsWithoutStructurePriceCurrentlyStayActiveWithoutAnyVisibleStateMarketAudit11(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -565,7 +545,7 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
         $this->givenStructurePrices(self::STRUCTURE_AT_CREATION, [self::PYERITE => ['sell' => 9.875, 'buy' => 8.3125]]);
         $userWithoutCachedStructure = $this->createUser(self::USER_ID, self::STRUCTURE_WITHOUT_CACHE);
         $userWithoutPreferredStructure = $this->createUser(self::OTHER_USER_ID, null);
-        $userWithoutId = $this->createUser(null, self::STRUCTURE_AT_CREATION);
+        $userWithoutId = $this->createUser(null, self::STRUCTURE_WITHOUT_CACHE);
         $isogenAlertOnStructureWithoutCache = $this->createAlert($userWithoutCachedStructure, self::ISOGEN, 'Isogen', AlertDirection::Above, 46.0, AlertPriceSource::StructureBuy);
         $mexallonAlertWithoutPreferredStructure = $this->createAlert($userWithoutPreferredStructure, self::MEXALLON, 'Mexallon', AlertDirection::Below, 60.0, AlertPriceSource::StructureSell);
         $pyeriteAlertOfUserWithoutId = $this->createAlert($userWithoutId, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::StructureBuy);
@@ -594,7 +574,7 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
     {
         $this->givenStructurePrices(self::STRUCTURE_AT_CREATION, [self::PYERITE => ['sell' => 9.875, 'buy' => 8.3125]]);
         $this->givenStructurePrices(self::STRUCTURE_PREFERRED_NOW, [self::ISOGEN => ['sell' => 51.0, 'buy' => 45.625]]);
-        $userWithoutId = $this->createUser(null, self::STRUCTURE_AT_CREATION);
+        $userWithoutId = $this->createUser(null, self::STRUCTURE_WITHOUT_CACHE);
         $userWithoutPreferredStructure = $this->createUser(self::OTHER_USER_ID, null);
         $user = $this->createUser(self::USER_ID, self::STRUCTURE_PREFERRED_NOW);
         $structureAlertOfUserWithoutId = $this->createAlert($userWithoutId, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::StructureBuy);
@@ -691,13 +671,16 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
         float $threshold,
         AlertPriceSource $priceSource,
     ): MarketPriceAlert {
+        $isStructureSource = in_array($priceSource, [AlertPriceSource::StructureSell, AlertPriceSource::StructureBuy], true);
+
         return (new MarketPriceAlert())
             ->setUser($user)
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setDirection($direction)
             ->setThreshold($threshold)
-            ->setPriceSource($priceSource);
+            ->setPriceSource($priceSource)
+            ->setStructureId($isStructureSource ? $user->getPreferredMarketStructureId() : null);
     }
 
     private function givenActiveAlertsAndJitaPrices(array $alerts, array $sellPrices, array $buyPrices): void

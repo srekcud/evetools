@@ -75,6 +75,10 @@ class MarketAlertResource
 
     public string $priceSource;
 
+    public ?int $structureId = null;
+
+    public ?string $structureName = null;
+
     public string $status;
 
     public ?float $currentPrice = null;

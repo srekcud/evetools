@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useMarketStore, type MarketTypeDetail as TypeDetailType } from '@/stores/market'
+import { useMarketStore, type CreateAlertInput, type MarketTypeDetail as TypeDetailType } from '@/stores/market'
 import { useFormatters } from '@/composables/useFormatters'
 import MarketHistoryChart from './MarketHistoryChart.vue'
 import OrderBookPanel from './OrderBookPanel.vue'
@@ -64,7 +64,7 @@ async function toggleFavorite(): Promise<void> {
   }
 }
 
-function handleAlertSubmit(payload: { typeId: number; direction: 'above' | 'below'; threshold: number; priceSource: string }): void {
+function handleAlertSubmit(payload: CreateAlertInput): void {
   marketStore.createAlert(payload)
   showAlertModal.value = false
 }
@@ -363,10 +363,7 @@ const price30dAgo = computed(() => {
       :type-id="detail.typeId"
       :current-sell-price="detail.jitaSell"
       :current-buy-price="detail.jitaBuy"
-      :has-structure="detail.hasPreferredStructure"
-      :structure-name="detail.structureName"
-      :current-structure-sell-price="detail.structureSell"
-      :current-structure-buy-price="detail.structureBuy"
+      :structure-prices="detail.structurePrices"
       @close="showAlertModal = false"
       @submit="handleAlertSubmit"
     />
