@@ -64,7 +64,7 @@ const { t } = useI18n()
         class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
       >
         <option v-for="char in props.characters" :key="char.id" :value="char.id">
-          {{ char.name }} {{ char.isMain ? '(Main)' : '' }}
+          {{ char.name }} {{ char.isMain ? t('assets.mainCharacterSuffix') : '' }}
         </option>
       </select>
 

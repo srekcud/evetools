@@ -357,7 +357,7 @@ async function fetchAssets() {
     dropFiltersMissingFromAssets()
   } catch (e) {
     if (request.signal.aborted) return
-    error.value = 'Failed to load assets'
+    error.value = t('assets.loadFailed')
     console.error(e)
   } finally {
     if (pendingAssetsRequest === request) {
@@ -430,7 +430,7 @@ watch(
       syncStore.clearSyncStatus(currentSyncType.value)
     } else if (progress.status === 'error') {
       stopSyncTimeout()
-      error.value = progress.message || 'Sync failed'
+      error.value = progress.message || t('common.errors.syncFailed')
       isRefreshing.value = false
       syncStore.clearSyncStatus(currentSyncType.value)
     } else if (progress.status === 'started' || progress.status === 'in_progress') {
@@ -464,7 +464,7 @@ async function refreshAssets() {
 
     if (!response.ok) {
       const data = await safeJsonParse<{ error?: string }>(response)
-      throw new Error(data.error || 'Failed to refresh')
+      throw new Error(data.error || t('assets.refreshFailed'))
     }
 
     const data = await safeJsonParse<{ status?: string; error?: string; nextRefreshAt?: string | null }>(response)
@@ -499,7 +499,7 @@ async function refreshAssets() {
       isRefreshing.value = false
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to refresh assets'
+    error.value = e instanceof Error ? e.message : t('assets.refreshFailed')
     isRefreshing.value = false
   }
 }
