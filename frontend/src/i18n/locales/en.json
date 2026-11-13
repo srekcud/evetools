@@ -747,6 +747,17 @@
     },
     "scanner": {
       "pivot": "Pivot",
+      "batchDiagnosis": {
+        "title": "Why nothing matches",
+        "scanned": "{count} products scanned without the minimum margin and minimum daily volume.",
+        "noSalePrice": "{count} have no sell price at the selected venue (market not synced or empty).",
+        "noMaterialPrice": "{count} have a material without a Jita price.",
+        "noDailyVolume": "{count} have no daily volume for the venue region (volume sync not run, or region unknown).",
+        "belowMargin": "{count} are under the minimum margin of {min} %.",
+        "belowVolume": "{count} are under the minimum daily volume of {min}.",
+        "nothingScanned": "The scan returned no product for this category and venue, even without the minimum margin and minimum daily volume.",
+        "failed": "The diagnosis could not be loaded."
+      },
       "batch": {
         "title": "Profit Scanner",
         "subtitle": "Analyze profitability of all manufacturable items. Find the best things to build.",
