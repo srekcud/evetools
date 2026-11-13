@@ -21,6 +21,7 @@ const props = defineProps<{
     divisions?: { name: string; count: number }[]
   }
   maxQuantity?: number
+  selected?: boolean
   expandedContainers: Set<number>
   collapsedLocations: Set<string>
   containerContents: Map<number, Asset[]>
@@ -29,6 +30,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'toggle-container': [itemId: number]
   'toggle-location': [locationName: string]
+  'toggle-selection': [locationName: string]
   'item-name-resolved': [itemId: number, itemName: string]
 }>()
 
@@ -130,6 +132,15 @@ async function resolveItemName(asset: Asset): Promise<void> {
       @keydown.space.self.prevent="toggleLocation"
     >
       <div class="flex items-center gap-3">
+        <input
+          type="checkbox"
+          data-testid="location-select"
+          :checked="props.selected === true"
+          :aria-label="t('assets.selection.selectLocation', { location: props.location.locationName })"
+          class="w-4 h-4 rounded-sm accent-cyan-500 cursor-pointer"
+          @click.stop="emit('toggle-selection', props.location.locationName)"
+          @keydown.stop
+        />
         <div class="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center">
           <svg
             :class="['w-5 h-5 text-slate-400 transition-transform', props.collapsedLocations.has(props.location.locationName) && '-rotate-90']"

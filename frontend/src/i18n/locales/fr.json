@@ -2107,6 +2107,12 @@
     "itemTypesCount": "{count} type d'items | {count} types d'items",
     "itemsCount": "{count} item | {count} items",
     "shipsCount": "{count} vaisseau | {count} vaisseaux",
+    "selection": {
+      "selectLocation": "Sélectionner {location}",
+      "summary": "{count} emplacement sélectionné | {count} emplacements sélectionnés",
+      "clear": "Effacer",
+      "unknownTypes": "{count} type sans nom est exclu du multibuy | {count} types sans nom sont exclus du multibuy"
+    },
     "syncedAt": "Synchronisé {time}",
     "sort": {
       "label": "Trier les emplacements",
