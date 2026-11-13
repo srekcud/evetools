@@ -17,6 +17,8 @@ final class MarketPriceAlertRepositoryTest extends IntegrationTestCase
     private const int ACTIVE_TYPE_ID = 34;
     private const int TRIGGERED_TYPE_ID = 35;
     private const int EXPIRED_TYPE_ID = 36;
+    private const int STRUCTURE_TYPE_ID = 37;
+    private const int STRUCTURE_ID = 1035466617946;
 
     private MarketPriceAlertRepository $repository;
 
@@ -46,6 +48,30 @@ final class MarketPriceAlertRepositoryTest extends IntegrationTestCase
         self::assertCount(1, $alerts);
         self::assertSame(self::TRIGGERED_TYPE_ID, $alerts[0]->getTypeId());
         self::assertSame(AlertStatus::Triggered, $alerts[0]->getStatus());
+    }
+
+    public function testStructureIdSurvivesAReloadAndStaysNullForAJitaAlert(): void
+    {
+        $user = $this->createUser();
+        $this->em->persist(
+            (new MarketPriceAlert())
+                ->setUser($user)
+                ->setTypeId(self::STRUCTURE_TYPE_ID)
+                ->setTypeName('Type ' . self::STRUCTURE_TYPE_ID)
+                ->setDirection(AlertDirection::Below)
+                ->setThreshold(95.5)
+                ->setPriceSource(AlertPriceSource::StructureSell)
+                ->setStructureId(self::STRUCTURE_ID),
+        );
+        $this->flushAndClear();
+
+        $structureIdsByTypeId = [];
+        foreach ($this->repository->findActiveAlerts() as $alert) {
+            $structureIdsByTypeId[$alert->getTypeId()] = $alert->getStructureId();
+        }
+        ksort($structureIdsByTypeId);
+
+        self::assertSame([self::ACTIVE_TYPE_ID => null, self::STRUCTURE_TYPE_ID => self::STRUCTURE_ID], $structureIdsByTypeId);
     }
 
     private function createAlert(User $user, int $typeId, AlertStatus $status): void

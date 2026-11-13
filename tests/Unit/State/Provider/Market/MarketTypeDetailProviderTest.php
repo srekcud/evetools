@@ -27,6 +27,15 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 #[CoversClass(MarketTypeDetailProvider::class)]
 class MarketTypeDetailProviderTest extends TestCase
 {
+    private const int PREFERRED_STRUCTURE_ID = 1000000000011;
+    private const int FOLLOWED_STRUCTURE_ID = 1000000000022;
+
+    /** @var array<int, ?float> */
+    private array $cachedSellPrices = [];
+
+    /** @var array<int, ?float> */
+    private array $cachedBuyPrices = [];
+
     private Security&Stub $security;
     private InvTypeRepository&Stub $invTypeRepository;
     private JitaMarketService&Stub $jitaMarketService;
@@ -186,6 +195,84 @@ class MarketTypeDetailProviderTest extends TestCase
         $this->assertNull($result->structureSell);
     }
 
+    public function testStructurePricesListThePreferredStructureThenTheFollowedOnesWithoutDuplicate(): void
+    {
+        $user = (new User())
+            ->setPreferredMarketStructureId(self::PREFERRED_STRUCTURE_ID)
+            ->setPreferredMarketStructureName('Perimeter - Preferred hub')
+            ->addMarketStructure(self::FOLLOWED_STRUCTURE_ID, 'Jita - Followed hub')
+            ->addMarketStructure(self::PREFERRED_STRUCTURE_ID, 'Perimeter - Preferred hub');
+        $this->givenTritaniumDetail($user);
+        $this->givenStructurePrices(self::PREFERRED_STRUCTURE_ID, 4.8, 4.2);
+        $this->givenStructurePrices(self::FOLLOWED_STRUCTURE_ID, 5.25, 4.5);
+
+        $result = $this->provider->provide(new Get(), ['typeId' => 34]);
+
+        $this->assertSame([
+            ['structureId' => self::PREFERRED_STRUCTURE_ID, 'structureName' => 'Perimeter - Preferred hub', 'sell' => 4.8, 'buy' => 4.2],
+            ['structureId' => self::FOLLOWED_STRUCTURE_ID, 'structureName' => 'Jita - Followed hub', 'sell' => 5.25, 'buy' => 4.5],
+        ], $result->structurePrices);
+    }
+
+    public function testStructurePricesAreNullWhenTheStructureHasNoCachedPriceForTheType(): void
+    {
+        $user = (new User())
+            ->setPreferredMarketStructureId(self::PREFERRED_STRUCTURE_ID)
+            ->setPreferredMarketStructureName('Perimeter - Preferred hub')
+            ->addMarketStructure(self::FOLLOWED_STRUCTURE_ID, 'Jita - Followed hub');
+        $this->givenTritaniumDetail($user);
+        $this->givenStructurePrices(self::PREFERRED_STRUCTURE_ID, 4.8, 4.2);
+        $this->givenStructurePrices(self::FOLLOWED_STRUCTURE_ID, null, null);
+
+        $result = $this->provider->provide(new Get(), ['typeId' => 34]);
+
+        $this->assertCount(2, $result->structurePrices);
+        $this->assertSame(
+            ['structureId' => self::FOLLOWED_STRUCTURE_ID, 'structureName' => 'Jita - Followed hub', 'sell' => null, 'buy' => null],
+            $result->structurePrices[1],
+        );
+    }
+
+    public function testStructurePricesListTheFollowedStructuresWhenNoStructureIsPreferred(): void
+    {
+        $user = (new User())->addMarketStructure(self::FOLLOWED_STRUCTURE_ID, 'Jita - Followed hub');
+        $this->givenTritaniumDetail($user);
+        $this->givenStructurePrices(self::FOLLOWED_STRUCTURE_ID, 5.25, 4.5);
+
+        $result = $this->provider->provide(new Get(), ['typeId' => 34]);
+
+        $this->assertSame([
+            ['structureId' => self::FOLLOWED_STRUCTURE_ID, 'structureName' => 'Jita - Followed hub', 'sell' => 5.25, 'buy' => 4.5],
+        ], $result->structurePrices);
+    }
+
+    public function testStructurePricesAreEmptyWithoutAnyStructure(): void
+    {
+        $this->givenTritaniumDetail(new User());
+
+        $result = $this->provider->provide(new Get(), ['typeId' => 34]);
+
+        $this->assertSame([], $result->structurePrices);
+    }
+
+    public function testStructureSellKeepsReadingThePreferredStructureOnly(): void
+    {
+        $user = (new User())
+            ->setPreferredMarketStructureId(self::PREFERRED_STRUCTURE_ID)
+            ->setPreferredMarketStructureName('Perimeter - Preferred hub')
+            ->addMarketStructure(self::FOLLOWED_STRUCTURE_ID, 'Jita - Followed hub');
+        $this->givenTritaniumDetail($user);
+        $this->givenStructurePrices(self::PREFERRED_STRUCTURE_ID, 4.8, 4.2);
+        $this->givenStructurePrices(self::FOLLOWED_STRUCTURE_ID, 5.25, 4.5);
+
+        $result = $this->provider->provide(new Get(), ['typeId' => 34]);
+
+        $this->assertSame(4.8, $result->structureSell);
+        $this->assertSame(4.2, $result->structureBuy);
+        $this->assertSame('Perimeter - Preferred hub', $result->structureName);
+        $this->assertTrue($result->hasPreferredStructure);
+    }
+
     // ===========================================
     // Error cases
     // ===========================================
@@ -213,6 +300,32 @@ class MarketTypeDetailProviderTest extends TestCase
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function givenTritaniumDetail(User $user): void
+    {
+        $this->security->method('getUser')->willReturn($user);
+        $this->invTypeRepository->method('findByTypeId')->willReturn($this->createInvType(34, 'Tritanium', 'Mineral', 'Material'));
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0]);
+        $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([34 => 4.0]);
+        $this->jitaMarketService->method('getOrderBooksWithFallback')->willReturn(['sell' => [], 'buy' => []]);
+        $this->jitaMarketService->method('getAverageDailyVolumes')->willReturn([]);
+        $this->marketHistoryService->method('get30dPriceChange')->willReturn(null);
+        $this->favoriteRepository->method('findByUserAndType')->willReturn(null);
+    }
+
+    private function givenStructurePrices(int $structureId, ?float $sell, ?float $buy): void
+    {
+        $this->cachedSellPrices[$structureId] = $sell;
+        $this->cachedBuyPrices[$structureId] = $buy;
+        $this->structureMarketService->method('getLowestSellPrice')->willReturnCallback(fn (int $id): ?float => $this->cachedSellPrices[$id] ?? null);
+        $this->structureMarketService->method('getHighestBuyPrice')->willReturnCallback(fn (int $id): ?float => $this->cachedBuyPrices[$id] ?? null);
+        $this->structureMarketService->method('getLowestSellPrices')->willReturnCallback(
+            fn (int $id, array $typeIds): array => $this->cachedSellPrices[$id] === null ? [] : [34 => $this->cachedSellPrices[$id]],
+        );
+        $this->structureMarketService->method('getHighestBuyPrices')->willReturnCallback(
+            fn (int $id, array $typeIds): array => $this->cachedBuyPrices[$id] === null ? [] : [34 => $this->cachedBuyPrices[$id]],
+        );
+    }
 
     private function createUserStub(?int $preferredStructureId = null): User&Stub
     {

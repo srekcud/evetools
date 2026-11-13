@@ -46,7 +46,11 @@ class MarketAlertCollectionProvider implements ProviderInterface
         $currentPrices = $this->priceResolver->currentPrices($user, $alerts);
 
         return array_map(
-            static fn (MarketPriceAlert $alert, ?float $currentPrice): MarketAlertResource => MarketAlertResourceMapper::toResource($alert, $currentPrice),
+            static fn (MarketPriceAlert $alert, ?float $currentPrice): MarketAlertResource => MarketAlertResourceMapper::toResource(
+                $alert,
+                $currentPrice,
+                MarketAlertResourceMapper::structureNameOf($user, $alert),
+            ),
             $alerts,
             $currentPrices,
         );

@@ -3980,6 +3980,7 @@
       "below": "En-dessous de",
       "threshold": "Seuil",
       "priceSource": "Source de prix",
+      "structure": "Structure",
       "status": {
         "active": "Active",
         "triggered": "Declenchee",

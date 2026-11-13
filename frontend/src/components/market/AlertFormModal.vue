@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
-import type { MarketAlert } from '@/stores/market'
+import type { MarketAlert, StructurePrice } from '@/stores/market'
 
 const props = defineProps<{
   visible: boolean
@@ -12,10 +12,7 @@ const props = defineProps<{
   typeId: number
   currentSellPrice: number | null
   currentBuyPrice: number | null
-  hasStructure?: boolean
-  structureName?: string | null
-  currentStructureSellPrice?: number | null
-  currentStructureBuyPrice?: number | null
+  structurePrices?: StructurePrice[]
   editingAlert?: MarketAlert | null
 }>()
 
@@ -27,7 +24,7 @@ function extractSystemName(name: string | null | undefined): string {
 
 const emit = defineEmits<{
   close: []
-  submit: [payload: { typeId: number; direction: 'above' | 'below'; threshold: number; priceSource: string }]
+  submit: [payload: { typeId: number; direction: 'above' | 'below'; threshold: number; priceSource: string; structureId?: number }]
   update: [payload: { id: string; direction: 'above' | 'below'; threshold: number }]
 }>()
 
@@ -36,13 +33,22 @@ const { formatIsk } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 
 const priceSourceId = useId()
+const structureId = useId()
 const directionLabelId = useId()
 const thresholdId = useId()
 
 const direction = ref<'above' | 'below'>('below')
 const threshold = ref<number>(0)
 const priceSource = ref<string>('jita_sell')
+const selectedStructureId = ref<number | null>(null)
 const isSubmitting = ref(false)
+
+const structureOptions = computed(() => props.structurePrices ?? [])
+const hasStructure = computed(() => structureOptions.value.length > 0)
+const selectedStructure = computed(() => structureOptions.value.find(option => option.structureId === selectedStructureId.value) ?? structureOptions.value[0] ?? null)
+const selectedSystemName = computed(() => extractSystemName(selectedStructure.value?.structureName))
+const isStructureSource = computed(() => priceSource.value === 'structure_sell' || priceSource.value === 'structure_buy')
+const showStructureSelector = computed(() => isStructureSource.value && structureOptions.value.length > 1)
 
 const isEditing = computed(() => props.editingAlert != null)
 
@@ -57,8 +63,8 @@ const priceSourceLabel = computed(() => {
   switch (props.editingAlert?.priceSource) {
     case 'jita_sell': return 'Jita Sell'
     case 'jita_buy': return 'Jita Buy'
-    case 'structure_sell': return extractSystemName(props.structureName) + ' Sell'
-    case 'structure_buy': return extractSystemName(props.structureName) + ' Buy'
+    case 'structure_sell': return extractSystemName(props.editingAlert?.structureName) + ' Sell'
+    case 'structure_buy': return extractSystemName(props.editingAlert?.structureName) + ' Buy'
     default: return props.editingAlert?.priceSource ?? ''
   }
 })
@@ -74,6 +80,7 @@ watch(() => props.visible, (val) => {
       direction.value = 'below'
       threshold.value = props.currentSellPrice ?? 0
       priceSource.value = 'jita_sell'
+      selectedStructureId.value = structureOptions.value[0]?.structureId ?? null
     }
     isSubmitting.value = false
   }
@@ -91,12 +98,15 @@ async function handleSubmit(): Promise<void> {
         threshold: threshold.value,
       })
     } else {
-      emit('submit', {
+      const payload = {
         typeId: props.typeId,
         direction: direction.value,
         threshold: threshold.value,
         priceSource: priceSource.value,
-      })
+      }
+      emit('submit', isStructureSource.value && selectedStructure.value !== null
+        ? { ...payload, structureId: selectedStructure.value.structureId }
+        : payload)
     }
   } finally {
     isSubmitting.value = false
@@ -157,14 +167,14 @@ async function handleSubmit(): Promise<void> {
           <span class="text-slate-500">Jita Buy:</span>
           <span class="ml-1 text-emerald-400 font-mono">{{ formatIsk(currentBuyPrice) }}</span>
         </div>
-        <template v-if="hasStructure">
+        <template v-if="selectedStructure">
           <div>
-            <span class="text-slate-500">{{ extractSystemName(structureName) }} Sell:</span>
-            <span class="ml-1 text-cyan-400 font-mono">{{ formatIsk(currentStructureSellPrice ?? null) }}</span>
+            <span class="text-slate-500">{{ selectedSystemName }} Sell:</span>
+            <span class="ml-1 text-cyan-400 font-mono">{{ formatIsk(selectedStructure.sell) }}</span>
           </div>
           <div>
-            <span class="text-slate-500">{{ extractSystemName(structureName) }} Buy:</span>
-            <span class="ml-1 text-emerald-400 font-mono">{{ formatIsk(currentStructureBuyPrice ?? null) }}</span>
+            <span class="text-slate-500">{{ selectedSystemName }} Buy:</span>
+            <span class="ml-1 text-emerald-400 font-mono">{{ formatIsk(selectedStructure.buy) }}</span>
           </div>
         </template>
       </div>
@@ -185,8 +195,19 @@ async function handleSubmit(): Promise<void> {
         >
           <option value="jita_sell">Jita Sell</option>
           <option value="jita_buy">Jita Buy</option>
-          <option v-if="hasStructure" value="structure_sell">{{ extractSystemName(structureName) }} Sell</option>
-          <option v-if="hasStructure" value="structure_buy">{{ extractSystemName(structureName) }} Buy</option>
+          <option v-if="hasStructure" value="structure_sell">{{ selectedSystemName }} Sell</option>
+          <option v-if="hasStructure" value="structure_buy">{{ selectedSystemName }} Buy</option>
+        </select>
+      </div>
+
+      <div v-if="!editingAlert && showStructureSelector">
+        <label :for="structureId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('market.alert.structure') }}</label>
+        <select
+          :id="structureId"
+          v-model.number="selectedStructureId"
+          class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-cyan-500/50"
+        >
+          <option v-for="option in structureOptions" :key="option.structureId" :value="option.structureId">{{ option.structureName }}</option>
         </select>
       </div>
 

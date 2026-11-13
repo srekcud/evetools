@@ -63,6 +63,34 @@ final class MarketAlertResourceMapperTest extends TestCase
         $this->assertNull($resource->currentPrice);
     }
 
+    public function testMapsTheStructureIdAndTheGivenStructureNameOfAStructureAlert(): void
+    {
+        $alert = $this->alert()->setPriceSource(AlertPriceSource::StructureSell)->setStructureId(1035466617946);
+
+        $resource = MarketAlertResourceMapper::toResource($alert, 8.75, 'Perimeter - Tranquility Trading Tower');
+
+        $this->assertSame(1035466617946, $resource->structureId);
+        $this->assertSame('Perimeter - Tranquility Trading Tower', $resource->structureName);
+    }
+
+    public function testKeepsTheStructureNameNullWhenTheStructureIsNoLongerKnown(): void
+    {
+        $alert = $this->alert()->setPriceSource(AlertPriceSource::StructureBuy)->setStructureId(1028858195912);
+
+        $resource = MarketAlertResourceMapper::toResource($alert, null);
+
+        $this->assertSame(1028858195912, $resource->structureId);
+        $this->assertNull($resource->structureName);
+    }
+
+    public function testMapsNoStructureForAJitaAlert(): void
+    {
+        $resource = MarketAlertResourceMapper::toResource($this->alert(), 8.75);
+
+        $this->assertNull($resource->structureId);
+        $this->assertNull($resource->structureName);
+    }
+
     private function alert(): MarketPriceAlert
     {
         $alert = (new MarketPriceAlert())

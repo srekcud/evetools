@@ -24,11 +24,18 @@ class AssetsService
     private const int NAMES_CHUNK_SIZE = 1000;
     private const string NO_CUSTOM_NAME = 'None';
     private const string UNRESOLVED_STRUCTURE_RETRY_DELAY = '6 hours';
+    private const int NAMES_BISECTION_CALL_BUDGET = 50;
+    private const int ESI_NOT_FOUND = 404;
+    private const array ESI_LIMITED_STATUS_CODES = [420, 429];
 
     /** @var array<int, array{name: string, solar_system_id: ?int, owner_id?: ?int, type_id?: ?int}> */
     private array $structureCache = [];
 
     private int $nameBatchFailures = 0;
+
+    private int $nameBisectionCallsLeft = self::NAMES_BISECTION_CALL_BUDGET;
+
+    private bool $nameResolutionLimited = false;
 
     public function __construct(
         private readonly EsiClient $esiClient,
@@ -287,9 +294,16 @@ class AssetsService
 
         $names = [];
         $endpoint = $this->itemNamesEndpoint($characterId, $corporationId);
+        $this->nameBisectionCallsLeft = self::NAMES_BISECTION_CALL_BUDGET;
+        $this->nameResolutionLimited = false;
 
         // ESI accepts up to 1000 IDs per request
         foreach (array_chunk($itemIds, self::NAMES_CHUNK_SIZE) as $chunk) {
+            if ($this->isNameResolutionLimited()) {
+                ++$this->nameBatchFailures;
+                continue;
+            }
+
             $fetched = $this->fetchItemNames($endpoint, $chunk, $token);
             $names += $fetched['names'];
             if ($fetched['rejected']) {
@@ -340,6 +354,21 @@ class AssetsService
         return $name !== '' && $name !== self::NO_CUSTOM_NAME;
     }
 
+    private function isNameResolutionLimited(): bool
+    {
+        return $this->nameResolutionLimited;
+    }
+
+    private function isNotFound(\Throwable $error): bool
+    {
+        return $error instanceof EsiApiException && $error->statusCode === self::ESI_NOT_FOUND;
+    }
+
+    private function isLimitedResponse(\Throwable $error): bool
+    {
+        return $error instanceof EsiApiException && \in_array($error->statusCode, self::ESI_LIMITED_STATUS_CODES, true);
+    }
+
     /**
      * @param non-empty-array<int> $itemIds
      * @return array{names: array<int, string>, rejected: bool}
@@ -355,9 +384,16 @@ class AssetsService
                 'error' => $e->getMessage(),
             ]);
 
+            $this->nameResolutionLimited = $this->nameResolutionLimited || $this->isLimitedResponse($e);
+
             $names = [];
-            if (count($itemIds) > 1) {
+            if (count($itemIds) > 1 && $this->isNotFound($e)) {
                 foreach (array_chunk($itemIds, max(1, intdiv(count($itemIds) + 1, 2))) as $half) {
+                    if ($this->isNameResolutionLimited() || $this->nameBisectionCallsLeft <= 0) {
+                        break;
+                    }
+
+                    --$this->nameBisectionCallsLeft;
                     $names += $this->fetchItemNames($endpoint, $half, $token)['names'];
                 }
             }

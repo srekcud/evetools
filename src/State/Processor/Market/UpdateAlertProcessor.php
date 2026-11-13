@@ -81,6 +81,10 @@ class UpdateAlertProcessor implements ProcessorInterface
 
         $this->em->flush();
 
-        return MarketAlertResourceMapper::toResource($alert, $this->priceResolver->currentPrice($user, $alert));
+        return MarketAlertResourceMapper::toResource(
+            $alert,
+            $this->priceResolver->currentPrice($user, $alert),
+            MarketAlertResourceMapper::structureNameOf($user, $alert),
+        );
     }
 }

@@ -32,6 +32,10 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 class CreateAlertProcessorTest extends TestCase
 {
+    private const int PREFERRED_STRUCTURE_ID = 1000000000011;
+    private const int FOLLOWED_STRUCTURE_ID = 1000000000022;
+    private const int UNFOLLOWED_STRUCTURE_ID = 1000000000033;
+
     private Security&Stub $security;
     private EntityManagerInterface&MockObject $em;
     private InvTypeRepository&Stub $invTypeRepository;
@@ -282,9 +286,150 @@ class CreateAlertProcessorTest extends TestCase
         $this->processor->process($input, new Post());
     }
 
+    public function testStructureAlertDefaultsToThePreferredStructure(): void
+    {
+        $user = $this->createUserWithStructures(self::PREFERRED_STRUCTURE_ID, [self::FOLLOWED_STRUCTURE_ID]);
+        $this->givenAuthenticated($user);
+        $this->structureMarketService->method('getLowestSellPrices')->willReturnMap([
+            [self::PREFERRED_STRUCTURE_ID, [34], [34 => 95.0]],
+            [self::FOLLOWED_STRUCTURE_ID, [34], [34 => 120.0]],
+        ]);
+        $persisted = [];
+        $this->em->expects($this->once())->method('persist')->willReturnCallback(static function (MarketPriceAlert $alert) use (&$persisted): void {
+            $persisted[] = $alert;
+        });
+
+        $result = $this->processor->process($this->structureInput('structure_sell', null), new Post());
+
+        $this->assertSame(self::PREFERRED_STRUCTURE_ID, $persisted[0]->getStructureId());
+        $this->assertSame(self::PREFERRED_STRUCTURE_ID, $result->structureId);
+        $this->assertSame(95.0, $result->currentPrice);
+    }
+
+    public function testStructureAlertIsCreatedOnAFollowedStructure(): void
+    {
+        $user = $this->createUserWithStructures(self::PREFERRED_STRUCTURE_ID, [self::FOLLOWED_STRUCTURE_ID]);
+        $this->givenAuthenticated($user);
+        $this->structureMarketService->method('getHighestBuyPrices')->willReturnMap([
+            [self::PREFERRED_STRUCTURE_ID, [34], [34 => 80.0]],
+            [self::FOLLOWED_STRUCTURE_ID, [34], [34 => 105.0]],
+        ]);
+        $persisted = [];
+        $this->em->expects($this->once())->method('persist')->willReturnCallback(static function (MarketPriceAlert $alert) use (&$persisted): void {
+            $persisted[] = $alert;
+        });
+
+        $result = $this->processor->process($this->structureInput('structure_buy', self::FOLLOWED_STRUCTURE_ID), new Post());
+
+        $this->assertSame(self::FOLLOWED_STRUCTURE_ID, $persisted[0]->getStructureId());
+        $this->assertSame(self::FOLLOWED_STRUCTURE_ID, $result->structureId);
+        $this->assertSame('Followed hub', $result->structureName);
+        $this->assertSame(105.0, $result->currentPrice);
+    }
+
+    public function testStructureAlertIsAcceptedOnThePreferredStructureWhenNoStructureIsFollowed(): void
+    {
+        $user = $this->createUserWithStructures(self::PREFERRED_STRUCTURE_ID, []);
+        $this->givenAuthenticated($user);
+        $this->em->expects($this->once())->method('persist');
+
+        $result = $this->processor->process($this->structureInput('structure_sell', self::PREFERRED_STRUCTURE_ID), new Post());
+
+        $this->assertSame(self::PREFERRED_STRUCTURE_ID, $result->structureId);
+        $this->assertSame('Preferred hub', $result->structureName);
+    }
+
+    public function testThrowsBadRequestForAStructureThatIsNeitherPreferredNorFollowed(): void
+    {
+        $user = $this->createUserWithStructures(self::PREFERRED_STRUCTURE_ID, [self::FOLLOWED_STRUCTURE_ID]);
+        $this->givenAuthenticated($user);
+        $this->em->expects($this->never())->method('persist');
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('The structure must be your preferred or a followed market structure');
+
+        $this->processor->process($this->structureInput('structure_sell', self::UNFOLLOWED_STRUCTURE_ID), new Post());
+    }
+
+    public function testThrowsBadRequestForAStructureIdOnAJitaPriceSource(): void
+    {
+        $user = $this->createUserWithStructures(self::PREFERRED_STRUCTURE_ID, [self::FOLLOWED_STRUCTURE_ID]);
+        $this->givenAuthenticated($user);
+        $this->em->expects($this->never())->method('persist');
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('A structure can only be set on a structure price source');
+
+        $this->processor->process($this->structureInput('jita_sell', self::FOLLOWED_STRUCTURE_ID), new Post());
+    }
+
+    public function testThrowsBadRequestForAStructureSourceWithoutPreferredStructureNorStructureId(): void
+    {
+        $user = $this->createUserWithStructures(null, [self::FOLLOWED_STRUCTURE_ID]);
+        $this->givenAuthenticated($user);
+        $this->em->expects($this->never())->method('persist');
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('You must set a preferred market structure before using structure price alerts');
+
+        $this->processor->process($this->structureInput('structure_buy', null), new Post());
+    }
+
+    public function testJitaAlertIsPersistedWithoutStructure(): void
+    {
+        $user = $this->createUserWithStructures(self::PREFERRED_STRUCTURE_ID, []);
+        $this->givenAuthenticated($user);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 12.0]);
+        $persisted = [];
+        $this->em->expects($this->once())->method('persist')->willReturnCallback(static function (MarketPriceAlert $alert) use (&$persisted): void {
+            $persisted[] = $alert;
+        });
+
+        $result = $this->processor->process($this->structureInput('jita_sell', null), new Post());
+
+        $this->assertNull($persisted[0]->getStructureId());
+        $this->assertNull($result->structureId);
+        $this->assertNull($result->structureName);
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function givenAuthenticated(User $user): void
+    {
+        $this->security->method('getUser')->willReturn($user);
+        $invType = new InvType();
+        $invType->setTypeId(34);
+        $invType->setTypeName('Tritanium');
+        $this->invTypeRepository->method('findByTypeId')->willReturn($invType);
+    }
+
+    private function structureInput(string $priceSource, ?int $structureId): CreateAlertInput
+    {
+        $input = new CreateAlertInput();
+        $input->typeId = 34;
+        $input->direction = 'below';
+        $input->threshold = 100.0;
+        $input->priceSource = $priceSource;
+        $input->structureId = $structureId;
+
+        return $input;
+    }
+
+    /** @param list<int> $followedStructureIds */
+    private function createUserWithStructures(?int $preferredStructureId, array $followedStructureIds): User
+    {
+        $user = (new User())
+            ->setPreferredMarketStructureId($preferredStructureId)
+            ->setPreferredMarketStructureName($preferredStructureId === null ? null : 'Preferred hub');
+        (new \ReflectionProperty(User::class, 'id'))->setValue($user, Uuid::v4());
+        foreach ($followedStructureIds as $followedStructureId) {
+            $user->addMarketStructure($followedStructureId, 'Followed hub');
+        }
+
+        return $user;
+    }
 
     private function createUserStub(): User&Stub
     {
