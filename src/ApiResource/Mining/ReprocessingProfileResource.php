@@ -32,6 +32,7 @@ use App\State\Provider\Mining\ReprocessingProfileProvider;
             uriTemplate: '/mining/reprocessing-profile/refresh',
             processor: RefreshReprocessingProfileProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
         ),
     ],
     security: "is_granted('ROLE_USER')",

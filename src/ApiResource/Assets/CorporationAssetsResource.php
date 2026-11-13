@@ -33,6 +33,7 @@ use App\State\Provider\Assets\CorporationAssetsProvider;
             uriTemplate: '/me/corporation/assets/refresh',
             processor: RefreshCorporationAssetsProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: SyncStatusResource::class,
             openapi: new Model\Operation(
                 summary: 'Refresh corporation assets',

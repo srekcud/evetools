@@ -97,6 +97,7 @@ use App\State\Provider\Industry\Project\ProjectProvider;
             ],
             processor: JoinProjectProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             openapi: new Model\Operation(
                 summary: 'Join a project via short link',
                 description: 'Join a group industry project using its short link code. Same-corp members are auto-accepted.',

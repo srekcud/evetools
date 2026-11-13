@@ -38,6 +38,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
             requirements: ['corporationId' => '\d+'],
             processor: RecheckCorporationRoleAccessProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(summary: 'Read the roles again, forgetting the remembered holder, and answer the fresh access', tags: ['Mining']),
         ),

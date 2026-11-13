@@ -17,6 +17,7 @@ use App\State\Processor\Ledger\SyncMiningProcessor;
         new Post(
             uriTemplate: '/ledger/mining/sync',
             input: EmptyInput::class,
+            deserialize: false,
             processor: SyncMiningProcessor::class,
             openapi: new Model\Operation(summary: 'Sync mining ledger from ESI', tags: ['Ledger - Mining']),
         ),

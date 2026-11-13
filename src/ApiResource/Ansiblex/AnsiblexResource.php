@@ -27,6 +27,7 @@ use App\State\Provider\Ansiblex\AnsiblexCollectionProvider;
             uriTemplate: '/me/ansiblex/refresh',
             processor: RefreshAnsiblexProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: AnsiblexSyncResultResource::class,
             openapi: new Model\Operation(
                 summary: 'Refresh Ansiblex gates',
@@ -41,6 +42,7 @@ use App\State\Provider\Ansiblex\AnsiblexCollectionProvider;
             uriTemplate: '/me/ansiblex/discover',
             processor: DiscoverAnsiblexProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: AnsiblexSyncResultResource::class,
             openapi: new Model\Operation(summary: 'Discover Ansiblex gates', description: 'Discovers Ansiblex gates via search (any character with ACL access)', tags: ['Navigation']),
         ),

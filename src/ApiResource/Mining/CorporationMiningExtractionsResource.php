@@ -22,6 +22,7 @@ use App\State\Provider\Mining\CorporationMiningExtractionsProvider;
             uriTemplate: '/mining/corporation-extractions/sync',
             processor: SyncCorporationMiningExtractionsProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
         ),
     ],
     security: "is_granted('ROLE_USER')",

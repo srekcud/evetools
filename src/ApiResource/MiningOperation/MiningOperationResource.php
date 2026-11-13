@@ -117,6 +117,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ],
             processor: RenewMiningOperationJoinCodeProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(
                 summary: 'Renew the join code',
@@ -131,6 +132,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ],
             processor: LeaveMiningOperationProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: false,
             status: 204,
             openapi: new Model\Operation(
@@ -160,6 +162,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ],
             processor: EndMiningOperationProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(
                 summary: 'End a mining operation',
@@ -174,6 +177,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ],
             processor: RecordMiningPresenceProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(
                 summary: 'Record the presence of the current participant',
@@ -188,6 +192,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ],
             processor: DepartMiningOperationProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(
                 summary: 'Leave a mining operation early',
@@ -202,6 +207,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ],
             processor: FreezeMiningSharesProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(
                 summary: 'Freeze the shares of a mining operation',
@@ -216,6 +222,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ],
             processor: SettleMiningOperationProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(
                 summary: 'Settle a mining operation',
@@ -230,6 +237,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ],
             processor: CompleteMiningOperationProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(
                 summary: 'Complete an each-for-themselves mining operation',

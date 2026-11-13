@@ -23,6 +23,7 @@ use App\State\Processor\MoonTax\TriggerMoonTaxCorporationSyncProcessor;
             ],
             processor: TriggerMoonTaxCorporationSyncProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(summary: 'Trigger the moon tax sync of a corporation', tags: ['Moon Tax']),
         ),

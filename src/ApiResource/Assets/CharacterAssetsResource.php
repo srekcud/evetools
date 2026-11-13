@@ -33,6 +33,7 @@ use App\State\Provider\Assets\CharacterAssetsProvider;
             uriTemplate: '/me/characters/{characterId}/assets/refresh',
             processor: RefreshCharacterAssetsProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: SyncStatusResource::class,
             openapi: new Model\Operation(
                 summary: 'Refresh character assets',

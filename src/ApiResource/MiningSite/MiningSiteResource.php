@@ -51,6 +51,7 @@ use App\State\Provider\MiningSite\MiningSiteItemProvider;
             ],
             processor: CloseMiningSiteProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
             openapi: new Model\Operation(summary: 'Close a mining site', tags: ['Mining Sites']),
         ),

@@ -30,6 +30,7 @@ use App\State\Provider\Industry\CharacterSkillCollectionProvider;
             uriTemplate: '/industry/character-skills/sync',
             processor: SyncCharacterSkillsProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: CharacterSkillCollectionResource::class,
             openapi: new Model\Operation(summary: 'Sync skills from ESI', description: 'Syncs industry skills from ESI for all characters', tags: ['Industry - Configuration']),
         ),

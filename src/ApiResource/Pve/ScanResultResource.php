@@ -20,6 +20,7 @@ use App\State\Processor\Pve\ScanLootSalesProcessor;
             uriTemplate: '/pve/scan-contracts',
             processor: ScanContractsProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: ScanContractsResultResource::class,
             openapi: new Model\Operation(
                 summary: 'Scan contracts for expenses',
@@ -33,6 +34,7 @@ use App\State\Processor\Pve\ScanLootSalesProcessor;
             uriTemplate: '/pve/scan-loot-sales',
             processor: ScanLootSalesProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: ScanLootSalesResultResource::class,
             openapi: new Model\Operation(
                 summary: 'Scan for loot sales',
@@ -46,6 +48,7 @@ use App\State\Processor\Pve\ScanLootSalesProcessor;
             uriTemplate: '/pve/scan-loot-contracts',
             processor: ScanLootContractsProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             output: ScanLootContractsResultResource::class,
             openapi: new Model\Operation(
                 summary: 'Scan for loot contracts',

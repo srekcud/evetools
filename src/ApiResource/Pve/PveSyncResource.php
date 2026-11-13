@@ -17,6 +17,7 @@ use App\State\Processor\Pve\SyncPveProcessor;
         new Post(
             uriTemplate: '/pve/sync',
             input: EmptyInput::class,
+            deserialize: false,
             processor: SyncPveProcessor::class,
             openapi: new Model\Operation(summary: 'Sync PVE data from ESI', tags: ['Revenue - PVE']),
         ),
