@@ -30,7 +30,7 @@ const FEROX_BATCH: GroupProject = {
   name: 'Ferox batch',
   status: 'draft',
   shortLinkCode: 'ferox318',
-  containerName: null,
+  containerNames: [],
   ownerCharacterName: 'Brann Holt',
   ownerCorporationId: 98_000_003,
   membersCount: 1,

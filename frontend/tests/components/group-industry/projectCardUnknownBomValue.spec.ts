@@ -10,7 +10,7 @@ const JACKDAW_PROJECT: GroupProject = {
   name: 'Jackdaw batch',
   status: 'in_progress',
   shortLinkCode: 'jackdaw1',
-  containerName: null,
+  containerNames: [],
   ownerCharacterName: 'Brann Holt',
   ownerCorporationId: 98000001,
   membersCount: 4,

@@ -100,9 +100,8 @@ class UpdateProjectProcessor implements ProcessorInterface
             $project->setName($name !== '' ? $name : null);
         }
 
-        if ($data->containerName !== null) {
-            $containerName = trim($data->containerName);
-            $project->setContainerName($containerName !== '' ? $containerName : null);
+        if ($data->containerNames !== null) {
+            $project->setContainerNames($data->containerNames);
         }
 
         if ($data->notes !== null) {

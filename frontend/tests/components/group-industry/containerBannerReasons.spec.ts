@@ -34,6 +34,7 @@ function line(status: ContainerVerificationStatus, assetsSyncedAt: string | null
     status,
     unknownReason: null,
     assetsSyncedAt,
+    missingContainerNames: [],
   }
 }
 
@@ -41,7 +42,7 @@ function mountBanner(locale: Locale, lines: ContainerVerification[], canVerify =
   setActivePinia(createPinia())
   useGroupProjectStore().containerVerification = lines
   return mount(ContainerBanner, {
-    props: { containerName: CONTAINER_NAME, projectId: PROJECT_ID, canVerify },
+    props: { containerNames: [CONTAINER_NAME], projectId: PROJECT_ID, canVerify },
     global: { plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })] },
   })
 }

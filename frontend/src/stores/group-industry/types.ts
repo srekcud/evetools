@@ -67,7 +67,7 @@ export type GroupProject = {
   name: string | null
   status: GroupProjectStatus
   shortLinkCode: string
-  containerName: string | null
+  containerNames: string[]
   private: boolean
   personalUse?: boolean
   solo?: boolean
@@ -416,6 +416,7 @@ export type ContainerVerification = {
   status: ContainerVerificationStatus
   unknownReason: ContainerCheckUnknownReason | null
   assetsSyncedAt: string | null
+  missingContainerNames: string[]
 }
 
 export type CorporationAssetsRefresh = {
@@ -466,7 +467,7 @@ export type CreateGroupProjectInput = {
   blacklistCategoryKeys?: string[]
   blacklistGroupIds?: number[]
   blacklistTypeIds?: number[]
-  containerName?: string
+  containerNames?: string[]
   lineRentalRatesOverride?: Record<string, number>
   brokerFeePercent?: number
   salesTaxPercent?: number

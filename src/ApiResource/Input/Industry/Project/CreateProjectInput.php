@@ -15,6 +15,7 @@ class CreateProjectInput
     private const int MAXIMUM_TIME_EFFICIENCY = 20;
     private const int MAXIMUM_RUNS = 100000;
     private const int MAXIMUM_BLACKLIST_ENTRIES = 200;
+    private const int MAXIMUM_CONTAINER_NAMES = 20;
     private const int MAXIMUM_ITEMS = 100;
 
     #[Assert\Length(max: 255)]
@@ -50,8 +51,10 @@ class CreateProjectInput
     #[Assert\Count(max: self::MAXIMUM_BLACKLIST_ENTRIES)]
     public array $blacklistCategoryKeys = [];
 
-    #[Assert\Length(max: 255)]
-    public ?string $containerName = null;
+    /** @var list<string> */
+    #[Assert\Count(max: self::MAXIMUM_CONTAINER_NAMES)]
+    #[Assert\All([new Assert\Type('string'), new Assert\Length(max: self::MAXIMUM_TEXT_LENGTH)])]
+    public array $containerNames = [];
 
     /** @var array<string, int>|null */
     public ?array $lineRentalRatesOverride = null;

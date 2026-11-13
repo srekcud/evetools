@@ -14,6 +14,7 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesPanel.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
+import { containerNamesFromText } from '@/utils/containerNames'
 import {
   MAXIMUM_MATERIAL_EFFICIENCY,
   MAXIMUM_BLUEPRINT_COPIES,
@@ -143,7 +144,8 @@ const blacklistGroupIds = ref<number[]>([])
 
 // Project metadata
 const projectName = ref('')
-const containerName = ref('')
+const containerNames = ref('')
+const containerNamesInForm = computed(() => containerNamesFromText(containerNames.value))
 const isPrivate = ref(true)
 const isPersonalUse = ref(false)
 const usedTemplateId = ref<string | null>(null)
@@ -312,7 +314,7 @@ function resetForm() {
   blacklistTypeIds.value = []
   blacklistGroupIds.value = []
   projectName.value = ''
-  containerName.value = ''
+  containerNames.value = ''
   isPrivate.value = true
   isPersonalUse.value = false
   acceptsOutsideFavoriteSystem.value = false
@@ -459,7 +461,7 @@ async function handleCreate() {
       teLevel: i.teLevel,
       runs: i.runs,
     })),
-    containerName: containerName.value.trim() || undefined,
+    containerNames: containerNamesInForm.value.length > 0 ? containerNamesInForm.value : undefined,
     blacklistCategoryKeys: blacklistCategories.value
       .filter(cat => cat.checked)
       .map(cat => cat.id),
@@ -972,10 +974,10 @@ function handleClose() {
           {{ t('groupIndustry.modals.newProject.containerLabel') }}
           <span class="text-slate-500 font-normal">({{ t('groupIndustry.modals.newProject.optional') }})</span>
         </label>
-        <input
+        <textarea
           :id="containerNameFieldId"
-          v-model="containerName"
-          type="text"
+          v-model="containerNames"
+          rows="2"
           :placeholder="t('groupIndustry.modals.newProject.containerPlaceholder')"
           class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500"
         />

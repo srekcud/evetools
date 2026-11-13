@@ -7,8 +7,9 @@ namespace App\Service\Industry\Project;
 use App\ApiResource\Industry\Project\ProjectContainerVerificationResource;
 use App\Constant\EveConstants;
 use App\Entity\CachedAsset;
-use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContainer;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
@@ -58,9 +59,9 @@ class ProjectContainerService
             ...$this->bomItemRepository->findMaterialsByProject($project),
             ...$this->bomItemRepository->findComponentJobsByProject($project),
         ];
-        $containerName = $this->containerNameOf($project);
+        $containerNames = $project->getContainerNames();
 
-        if ($materialItems === [] || $containerName === null) {
+        if ($materialItems === [] || $containerNames === []) {
             return [];
         }
 
@@ -78,17 +79,18 @@ class ProjectContainerService
             return $this->buildAllUnknown($materialItems, $unavailabilityReason, $assetsSyncedAt);
         }
 
-        $containerQuantities = $this->getContainerQuantities($corporationId, $containerName, $owner);
+        $named = $this->walkNamedContainers($this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner), $containerNames);
 
-        if ($containerQuantities === null) {
+        if ($named === null) {
             return $this->buildAllContainerNotFound(
                 $materialItems,
-                $this->notFoundStatusOf($corporationId, $containerName, $owner, $assetsSyncedAt),
+                $this->notFoundStatusOf($corporationId, $containerNames, $owner, $assetsSyncedAt),
                 $assetsSyncedAt,
+                $containerNames,
             );
         }
 
-        return $this->buildVerificationResults($materialItems, $containerQuantities, $assetsSyncedAt);
+        return $this->buildVerificationResults($materialItems, $this->quantitiesOf($named['contents']), $assetsSyncedAt, $named['missingContainerNames']);
     }
 
     public function containerScopeOf(IndustryProject $project): ProjectContainerScope
@@ -111,14 +113,14 @@ class ProjectContainerService
             $visibleAssetsByItemId[$asset->getItemId()] = $asset;
         }
 
-        $containerName = $this->containerNameOf($project);
-        if ($containerName === null) {
+        $containerNames = $project->getContainerNames();
+        if ($containerNames === []) {
             return new ProjectContainerScope(self::REASON_NO_CONTAINER_NAME, [], $visibleAssetsByItemId);
         }
 
-        $named = $this->walkNamedContainers($visibleAssets, $containerName);
+        $named = $this->walkNamedContainers($visibleAssets, $containerNames);
         if ($named === null) {
-            return new ProjectContainerScope(self::STATUS_CONTAINER_NOT_FOUND, [], $visibleAssetsByItemId);
+            return new ProjectContainerScope(self::STATUS_CONTAINER_NOT_FOUND, [], $visibleAssetsByItemId, $containerNames);
         }
 
         $containerItemIds = $named['rootItemIds'];
@@ -126,13 +128,13 @@ class ProjectContainerService
             $containerItemIds[] = $content->getItemId();
         }
 
-        return new ProjectContainerScope(null, array_values(array_unique($containerItemIds)), $visibleAssetsByItemId);
+        return new ProjectContainerScope(null, array_values(array_unique($containerItemIds)), $visibleAssetsByItemId, $named['missingContainerNames']);
     }
 
     public function containerStockOf(IndustryProject $project): ProjectContainerStock
     {
-        $containerName = $this->containerNameOf($project);
-        if ($containerName === null) {
+        $containerNames = $project->getContainerNames();
+        if ($containerNames === []) {
             return new ProjectContainerStock(self::REASON_NO_CONTAINER_NAME);
         }
 
@@ -147,9 +149,9 @@ class ProjectContainerService
             return new ProjectContainerStock($unavailabilityReason);
         }
 
-        $named = $this->walkNamedContainers($this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner), $containerName);
+        $named = $this->walkNamedContainers($this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner), $containerNames);
         if ($named === null) {
-            return new ProjectContainerStock(self::STATUS_CONTAINER_NOT_FOUND);
+            return new ProjectContainerStock(self::STATUS_CONTAINER_NOT_FOUND, [], [], $containerNames);
         }
 
         $subContainerItemIds = [];
@@ -169,24 +171,15 @@ class ProjectContainerService
             $quantities[$typeId] = isset($quantities[$typeId]) ? $quantities[$typeId] + $content->getQuantity() : $content->getQuantity();
         }
 
-        return new ProjectContainerStock(null, $quantities, $contentItemIds);
+        return new ProjectContainerStock(null, $quantities, $contentItemIds, $named['missingContainerNames']);
     }
 
-    private function containerNameOf(IndustryProject $project): ?string
+    /**
+     * @param list<string> $containerNames
+     */
+    private function notFoundStatusOf(int $corporationId, array $containerNames, User $owner, ?\DateTimeImmutable $assetsSyncedAt): string
     {
-        $containerName = $project->getContainerName();
-        if ($containerName === null) {
-            return null;
-        }
-
-        $containerName = trim($containerName);
-
-        return $containerName !== '' ? $containerName : null;
-    }
-
-    private function notFoundStatusOf(int $corporationId, string $containerName, User $owner, ?\DateTimeImmutable $assetsSyncedAt): string
-    {
-        if ($this->isNamedInAHiddenDivision($corporationId, $containerName, $owner)) {
+        if ($this->isNamedInAHiddenDivision($corporationId, $containerNames, $owner)) {
             return self::STATUS_CONTAINER_IN_HIDDEN_DIVISION;
         }
 
@@ -198,7 +191,10 @@ class ProjectContainerService
         return self::STATUS_CONTAINER_NOT_FOUND;
     }
 
-    private function isNamedInAHiddenDivision(int $corporationId, string $containerName, User $owner): bool
+    /**
+     * @param list<string> $containerNames
+     */
+    private function isNamedInAHiddenDivision(int $corporationId, array $containerNames, User $owner): bool
     {
         $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
         if ($visibility === null) {
@@ -216,8 +212,10 @@ class ProjectContainerService
             array_map(static fn (CachedAsset $asset): int => $asset->getItemId(), $hangarAssets),
         );
 
+        $wantedKeys = array_map(IndustryProjectContainer::keyOf(...), $containerNames);
         foreach ([...$hangarAssets, ...$containerContents] as $asset) {
-            if ($asset->getItemName() === $containerName) {
+            $itemName = $asset->getItemName();
+            if ($itemName !== null && \in_array(IndustryProjectContainer::keyOf($itemName), $wantedKeys, true)) {
                 return true;
             }
         }
@@ -244,20 +242,14 @@ class ProjectContainerService
     }
 
     /**
-     * Find named containers in the visible corp assets and aggregate the quantities of
-     * everything stored inside them, sub-containers included. Each asset counts once.
+     * @param list<CachedAsset> $contents
      *
-     * @return array<int, int>|null typeId => total quantity across all matching containers, null when no container has that name
+     * @return array<int, int> typeId => total quantity
      */
-    private function getContainerQuantities(int $corporationId, string $containerName, User $owner): ?array
+    private function quantitiesOf(array $contents): array
     {
-        $named = $this->walkNamedContainers($this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner), $containerName);
-        if ($named === null) {
-            return null;
-        }
-
         $quantities = [];
-        foreach ($named['contents'] as $content) {
+        foreach ($contents as $content) {
             $typeId = $content->getTypeId();
             $quantities[$typeId] = isset($quantities[$typeId]) ? $quantities[$typeId] + $content->getQuantity() : $content->getQuantity();
         }
@@ -266,17 +258,33 @@ class ProjectContainerService
     }
 
     /**
-     * @param CachedAsset[] $visibleAssets
+     * Find the containers carrying one of the declared names (case and edge spaces ignored) and collect
+     * everything stored inside them, sub-containers included. Each asset counts once.
      *
-     * @return array{rootItemIds: list<int>, contents: list<CachedAsset>}|null null when no asset has that name
+     * @param CachedAsset[] $visibleAssets
+     * @param list<string> $containerNames
+     *
+     * @return array{rootItemIds: list<int>, contents: list<CachedAsset>, missingContainerNames: list<string>}|null null when no asset has any of the names
      */
-    private function walkNamedContainers(array $visibleAssets, string $containerName): ?array
+    private function walkNamedContainers(array $visibleAssets, array $containerNames): ?array
     {
+        $wantedKeys = [];
+        foreach ($containerNames as $containerName) {
+            $wantedKeys[IndustryProjectContainer::keyOf($containerName)] = false;
+        }
+
         $assetsByLocationId = [];
         $rootItemIds = [];
         foreach ($visibleAssets as $asset) {
             $assetsByLocationId[$asset->getLocationId()][] = $asset;
-            if ($asset->getItemName() === $containerName) {
+            $itemName = $asset->getItemName();
+            if ($itemName === null) {
+                continue;
+            }
+
+            $key = IndustryProjectContainer::keyOf($itemName);
+            if (isset($wantedKeys[$key])) {
+                $wantedKeys[$key] = true;
                 $rootItemIds[] = $asset->getItemId();
             }
         }
@@ -303,7 +311,12 @@ class ProjectContainerService
             }
         }
 
-        return ['rootItemIds' => $rootItemIds, 'contents' => $contents];
+        $missingContainerNames = array_values(array_filter(
+            $containerNames,
+            static fn (string $containerName): bool => !$wantedKeys[IndustryProjectContainer::keyOf($containerName)],
+        ));
+
+        return ['rootItemIds' => $rootItemIds, 'contents' => $contents, 'missingContainerNames' => $missingContainerNames];
     }
 
     /**
@@ -320,12 +333,13 @@ class ProjectContainerService
 
     /**
      * @param IndustryProjectBomLine[] $materialItems
+     * @param list<string> $missingContainerNames
      * @return ProjectContainerVerificationResource[]
      */
-    private function buildAllContainerNotFound(array $materialItems, string $status, ?\DateTimeImmutable $assetsSyncedAt): array
+    private function buildAllContainerNotFound(array $materialItems, string $status, ?\DateTimeImmutable $assetsSyncedAt, array $missingContainerNames): array
     {
         return array_map(
-            fn (IndustryProjectBomLine $item): ProjectContainerVerificationResource => $this->buildResource($item, null, $status, $assetsSyncedAt),
+            fn (IndustryProjectBomLine $item): ProjectContainerVerificationResource => $this->buildResource($item, null, $status, $assetsSyncedAt, null, $missingContainerNames),
             $materialItems,
         );
     }
@@ -333,16 +347,17 @@ class ProjectContainerService
     /**
      * @param IndustryProjectBomLine[] $materialItems
      * @param array<int, int> $containerQuantities
+     * @param list<string> $missingContainerNames
      * @return ProjectContainerVerificationResource[]
      */
-    private function buildVerificationResults(array $materialItems, array $containerQuantities, ?\DateTimeImmutable $assetsSyncedAt): array
+    private function buildVerificationResults(array $materialItems, array $containerQuantities, ?\DateTimeImmutable $assetsSyncedAt, array $missingContainerNames): array
     {
         $results = [];
 
         foreach ($materialItems as $item) {
             $containerQty = isset($containerQuantities[$item->getTypeId()]) ? $containerQuantities[$item->getTypeId()] : 0;
             $status = $this->determineStatus($containerQty, $item->getRequiredQuantity());
-            $results[] = $this->buildResource($item, $containerQty, $status, $assetsSyncedAt);
+            $results[] = $this->buildResource($item, $containerQty, $status, $assetsSyncedAt, null, $missingContainerNames);
         }
 
         return $results;
@@ -361,12 +376,16 @@ class ProjectContainerService
         return self::STATUS_MISSING;
     }
 
+    /**
+     * @param list<string> $missingContainerNames
+     */
     private function buildResource(
         IndustryProjectBomLine $item,
         ?int $containerQuantity,
         string $status,
         ?\DateTimeImmutable $assetsSyncedAt,
         ?string $unknownReason = null,
+        array $missingContainerNames = [],
     ): ProjectContainerVerificationResource {
         $resource = new ProjectContainerVerificationResource();
         $resource->bomItemId = $item->getId()->toString();
@@ -377,6 +396,7 @@ class ProjectContainerService
         $resource->status = $status;
         $resource->unknownReason = $unknownReason;
         $resource->assetsSyncedAt = $assetsSyncedAt;
+        $resource->missingContainerNames = $missingContainerNames;
 
         return $resource;
     }

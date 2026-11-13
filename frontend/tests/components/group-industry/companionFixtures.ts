@@ -51,7 +51,7 @@ export function companionProject(overrides: Partial<GroupProject> = {}): GroupPr
     name: 'Ishtar batch',
     status: 'in_progress',
     shortLinkCode: 'ishtar322',
-    containerName: null,
+    containerNames: [],
     ownerCharacterName: 'Selene Vance',
     ownerCorporationId: 98_000_007,
     membersCount: 3,

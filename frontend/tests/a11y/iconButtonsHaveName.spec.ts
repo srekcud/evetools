@@ -166,7 +166,7 @@ const GROUP_PROJECT: GroupProject = {
   name: 'Widow run',
   status: 'draft',
   shortLinkCode: 'abc123',
-  containerName: null,
+  containerNames: [],
   ownerCharacterName: 'Ilyra Castell',
   ownerCorporationId: 98000001,
   membersCount: 1,

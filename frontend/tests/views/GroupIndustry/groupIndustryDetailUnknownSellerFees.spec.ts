@@ -33,7 +33,7 @@ const SABRE_BATCH_WITHOUT_SELLER_FEES: GroupProject = {
   name: 'Sabre batch',
   status: 'selling',
   shortLinkCode: 'sabre242',
-  containerName: null,
+  containerNames: [],
   ownerCharacterName: 'Aria Solberg',
   ownerCorporationId: 98_000_001,
   membersCount: 3,

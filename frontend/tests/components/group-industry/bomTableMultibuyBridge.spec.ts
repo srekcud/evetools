@@ -71,7 +71,7 @@ const SABRE_PROJECT = {
   name: 'Sabre doctrine',
   status: 'in_progress',
   shortLinkCode: 'sabre01',
-  containerName: null,
+  containerNames: [],
   ownerCharacterName: 'Aria Solberg',
   ownerCorporationId: 98000001,
   membersCount: 3,

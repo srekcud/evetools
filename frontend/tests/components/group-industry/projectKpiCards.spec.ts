@@ -11,7 +11,7 @@ function groupProject(overrides: Partial<GroupProject>): GroupProject {
     name: null,
     status: 'in_progress',
     shortLinkCode: 'link',
-    containerName: null,
+    containerNames: [],
     ownerCharacterName: 'Aria Solberg',
     ownerCorporationId: 98000001,
     membersCount: 2,
