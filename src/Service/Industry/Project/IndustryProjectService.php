@@ -137,7 +137,7 @@ class IndustryProjectService
         }
         $jobAggregation = $this->jobLinesOf($plannedProduction, $producers, $typeNames, $owner);
 
-        $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'));
+        $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'), $project->declaredRunsByProductTypeId());
 
         $consumedStockByTypeId = $this->consumedStockByTypeId($project, $plan, $stockByTypeId);
         $coveredLines = $this->coveredLinesOf($project, $plan, $coveredIntermediateTypeIds, $stockByTypeId, $consumedStockByTypeId, $ownedBlueprints, $typeNames);
@@ -718,8 +718,9 @@ class IndustryProjectService
     /**
      * @param array<int, array{typeName: string, quantity: int}> $materialAggregation
      * @param array<int|string, JobLine> $jobAggregation
+     * @param array<int, int> $declaredRunsByProductTypeId
      */
-    private function replaceT2BlueprintCopiesByInventions(array &$materialAggregation, array &$jobAggregation, StructureChoice $copyStructureChoice): void
+    private function replaceT2BlueprintCopiesByInventions(array &$materialAggregation, array &$jobAggregation, StructureChoice $copyStructureChoice, array $declaredRunsByProductTypeId): void
     {
         $manufacturingRunsByProduct = [];
         $firstManufacturingJobByProduct = [];
@@ -742,11 +743,17 @@ class IndustryProjectService
             if ($invention === null) {
                 continue;
             }
+            $declaredRuns = \array_key_exists($productTypeId, $declaredRunsByProductTypeId) ? $declaredRunsByProductTypeId[$productTypeId] : 0;
+            $runsToInvent = $manufacturingRunsByProduct[$productTypeId] - min($declaredRuns, $manufacturingRunsByProduct[$productTypeId]);
+            if ($runsToInvent === 0) {
+                unset($jobAggregation[$productTypeId . ':copy']);
+                continue;
+            }
             if ($invention['probability'] === null || $invention['probability'] <= 0 || $invention['baseRuns'] <= 0) {
                 throw new InventionProbabilityMissingException($productTypeId, $invention['t1BlueprintTypeId']);
             }
             $t1ProductTypeId = $this->t1ProductTypeIdOf($invention['t1BlueprintTypeId']);
-            $inventionsByProduct[$productTypeId] = ['recipe' => $invention, 'baseProbability' => $invention['probability'], 't1ProductTypeId' => $t1ProductTypeId];
+            $inventionsByProduct[$productTypeId] = ['recipe' => $invention, 'baseProbability' => $invention['probability'], 't1ProductTypeId' => $t1ProductTypeId, 'runsToInvent' => $runsToInvent];
             $inventionTypeIds[] = $t1ProductTypeId;
             foreach ($invention['materials'] as $datacore) {
                 $inventionTypeIds[] = $datacore['typeId'];
@@ -759,9 +766,9 @@ class IndustryProjectService
 
         $typeNames = $this->sdeTypeNames($inventionTypeIds);
 
-        foreach ($inventionsByProduct as $productTypeId => ['recipe' => $invention, 'baseProbability' => $baseProbability, 't1ProductTypeId' => $t1ProductTypeId]) {
+        foreach ($inventionsByProduct as $productTypeId => ['recipe' => $invention, 'baseProbability' => $baseProbability, 't1ProductTypeId' => $t1ProductTypeId, 'runsToInvent' => $runsToInvent]) {
             $firstManufacturingJob = $firstManufacturingJobByProduct[$productTypeId];
-            $attempts = (int) ceil($manufacturingRunsByProduct[$productTypeId] / ($invention['baseRuns'] * $baseProbability));
+            $attempts = (int) ceil($runsToInvent / ($invention['baseRuns'] * $baseProbability));
 
             unset($jobAggregation[$productTypeId . ':copy']);
             $jobAggregation[$productTypeId . ':invention'] = [
