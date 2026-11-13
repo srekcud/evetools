@@ -37,6 +37,7 @@ interface DivisionCount {
 
 interface LocationSummary {
   locationId: number
+  locationType: string
   locationName: string
   solarSystemName: string | null
   assets: Asset[]
@@ -356,6 +357,7 @@ const assetsByLocation = computed(() => {
     if (!grouped[key]) {
       grouped[key] = {
         locationId: asset.locationId,
+        locationType: asset.locationType,
         locationName: key,
         solarSystemName: asset.solarSystemName,
         assets: [],

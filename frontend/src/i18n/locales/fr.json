@@ -2650,6 +2650,7 @@
   "openWindow": {
     "market": "Ouvrir le marche en jeu",
     "info": "Ouvrir les infos en jeu",
+    "waypoint": "Definir comme destination",
     "contract": "Ouvrir le contrat en jeu",
     "success": "Fenetre ouverte en jeu",
     "error": "Erreur lors de l'ouverture"

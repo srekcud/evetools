@@ -5,12 +5,12 @@ import { useOpenWindow } from '@/composables/useOpenWindow'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const props = defineProps<{
-  type: 'market' | 'info' | 'contract'
+  type: 'market' | 'info' | 'contract' | 'waypoint'
   targetId: number
 }>()
 
 const { t } = useI18n()
-const { openMarket, openInfo, openContract, isActionLoading } = useOpenWindow()
+const { openMarket, openInfo, openContract, openWaypoint, isActionLoading } = useOpenWindow()
 
 const status = ref<'idle' | 'success' | 'error'>('idle')
 let statusTimeout: ReturnType<typeof setTimeout> | null = null
@@ -20,6 +20,7 @@ function getTooltip(): string {
     case 'market': return t('openWindow.market')
     case 'info': return t('openWindow.info')
     case 'contract': return t('openWindow.contract')
+    case 'waypoint': return t('openWindow.waypoint')
   }
 }
 
@@ -43,6 +44,9 @@ async function handleClick(event: Event): Promise<void> {
       break
     case 'contract':
       success = await openContract(props.targetId)
+      break
+    case 'waypoint':
+      success = await openWaypoint(props.targetId)
       break
   }
 

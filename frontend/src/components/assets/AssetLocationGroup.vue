@@ -10,10 +10,13 @@ import { apiRequest } from '@/services/api'
 import { locationIssue } from '@/utils/assetLocation'
 import type { Asset, ItemNameAnswer, ItemNameResolution } from '@/types'
 
+const DESTINATION_LOCATION_TYPES = ['station', 'solar_system', 'other']
+
 const props = defineProps<{
   location: {
     locationId: number
     locationName: string
+    locationType?: string
     solarSystemName: string | null
     assets: Asset[]
     totalQuantity: number
@@ -36,6 +39,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const issue = computed(() => locationIssue(props.location.locationName))
+const canSetDestination = computed(() => props.location.locationType !== undefined && DESTINATION_LOCATION_TYPES.includes(props.location.locationType))
 const resolutionByAssetId = ref<Record<string, ItemNameResolution>>({})
 
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -154,6 +158,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
         <div>
           <div class="flex items-center gap-2">
             <h3 class="font-medium text-slate-200">{{ props.location.locationName }}</h3>
+            <OpenInGameButton v-if="canSetDestination" type="waypoint" :targetId="props.location.locationId" />
             <span
               v-if="issue"
               data-testid="location-badge"
@@ -210,6 +215,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
             <div class="flex items-center gap-2">
               <span class="text-slate-200">{{ getDisplayName(asset) }}</span>
               <OpenInGameButton type="market" :targetId="asset.typeId" />
+              <OpenInGameButton v-if="isContainer(asset)" type="info" :targetId="asset.itemId" />
               <AssetItemNameResolveControl :asset="asset" :resolution="resolutionByAssetId[asset.id]" @resolve="resolveItemName" />
               <AssetBlueprintBadge v-if="asset.blueprint" :blueprint="asset.blueprint" />
               <!-- Container indicator -->

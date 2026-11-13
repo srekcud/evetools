@@ -27,4 +27,9 @@ class OpenWindowService
     {
         $this->esiClient->postEmpty("/ui/openwindow/contract/?contract_id={$contractId}", $token);
     }
+
+    public function setWaypoint(EveToken $token, int $destinationId): void
+    {
+        $this->esiClient->postEmpty("/ui/autopilot/waypoint/?add_to_beginning=false&clear_other_waypoints=true&destination_id={$destinationId}", $token);
+    }
 }

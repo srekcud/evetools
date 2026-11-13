@@ -10,6 +10,7 @@ use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\OpenWindow\OpenWindowContractInput;
 use App\ApiResource\Input\OpenWindow\OpenWindowInfoInput;
 use App\ApiResource\Input\OpenWindow\OpenWindowMarketInput;
+use App\ApiResource\Input\OpenWindow\OpenWindowWaypointInput;
 use App\State\Processor\OpenWindow\OpenWindowProcessor;
 
 #[ApiResource(
@@ -43,6 +44,16 @@ use App\State\Processor\OpenWindow\OpenWindowProcessor;
             openapi: new Model\Operation(
                 summary: 'Open contract window',
                 description: 'Opens the in-game contract window for the given contract ID',
+                tags: ['Navigation'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/me/open-window/waypoint',
+            input: OpenWindowWaypointInput::class,
+            processor: OpenWindowProcessor::class,
+            openapi: new Model\Operation(
+                summary: 'Set autopilot destination',
+                description: 'Replaces the in-game autopilot route with the given station, structure or solar system ID',
                 tags: ['Navigation'],
             ),
         ),

@@ -20,14 +20,14 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final class AuthenticationServiceOrdersScopeTest extends TestCase
 {
     private const string ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
-    private const int REQUIRED_SCOPE_COUNT = 30;
+    private const int REQUIRED_SCOPE_COUNT = 31;
 
     public function testOrdersScopeConstantNamesTheEsiScope(): void
     {
         self::assertSame(self::ORDERS_SCOPE, EveConstants::CHARACTER_ORDERS_SCOPE);
     }
 
-    public function testOrdersScopeIsRequiredAndTheListHoldsThirtyDistinctScopes(): void
+    public function testOrdersScopeIsRequiredAndTheListHoldsThirtyOneDistinctScopes(): void
     {
         $scopes = AuthenticationService::getRequiredScopes();
 
