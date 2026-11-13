@@ -13,6 +13,7 @@ use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Service\Industry\Project\ChainBlueprintNames;
 use App\Service\Industry\Project\JobInstallerName;
 use App\Service\Industry\Project\ProjectChainBuilder;
 use App\Service\Industry\Project\ProjectChainNode;
@@ -37,6 +38,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
         private ProjectAccessChecker $accessChecker,
         private ProjectChainBuilder $chainBuilder,
         private ProjectJobMaterialNeedsLoader $jobMaterialNeedsLoader,
+        private ChainBlueprintNames $blueprintNames,
     ) {
     }
 
@@ -76,13 +78,15 @@ final readonly class ProjectChainProvider implements ProviderInterface
             $this->jobMaterialNeedsLoader->load($project, $bomLines),
         );
 
+        $blueprintNameByNodeId = $this->blueprintNames->of($chain->nodes);
+
         $resource = new ProjectChainResource();
         $resource->id = $projectId;
         $resource->nodes = array_map(
             static fn (ProjectChainNode $node): ProjectChainNode => $node->withJobs(array_map(
                 static fn (array $job): array => [...$job, 'characterName' => JobInstallerName::seenBy($job['characterName'], $project, $user)],
                 $node->jobs,
-            ))->withPlannedCopyDurationSeenBy($project->getOwner(), $user),
+            ))->withPlannedCopyDurationSeenBy($project->getOwner(), $user)->withBlueprintName($blueprintNameByNodeId[$node->id] ?? null),
             $chain->nodes,
         );
 

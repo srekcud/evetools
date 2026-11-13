@@ -40,6 +40,7 @@ final readonly class ProjectChainNode
         public ?int $level,
         public ?array $plannedCopyDuration = null,
         public ?array $mark = null,
+        public ?string $blueprintName = null,
     ) {
     }
 
@@ -49,6 +50,11 @@ final readonly class ProjectChainNode
     public function withJobs(array $jobs): self
     {
         return clone($this, ['jobs' => $jobs]);
+    }
+
+    public function withBlueprintName(?string $blueprintName): self
+    {
+        return clone($this, ['blueprintName' => $blueprintName]);
     }
 
     private static function sameUser(User $first, User $second): bool

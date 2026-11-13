@@ -7,6 +7,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import type { ChainJob, ChainNode, ChainStage } from '@/stores/group-industry/types'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
+import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import { chainStatusChipClass, chainStatusDotClass } from './chainStatus'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
@@ -187,6 +188,7 @@ function plansStructure(node: ChainNode): boolean {
               />
               <span v-else data-testid="chain-icon-placeholder" class="w-6 h-6 shrink-0" aria-hidden="true"></span>
               <span class="block truncate min-w-0 max-w-64 font-medium text-slate-200" :title="item.node.typeName ?? undefined">{{ item.node.typeName }}</span>
+              <BlueprintNameCopyButton :blueprint-name="item.node.blueprintName" />
             </div>
           </td>
 

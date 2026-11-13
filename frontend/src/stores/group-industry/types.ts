@@ -700,6 +700,7 @@ export type ChainNode = {
   parentId: string | null
   typeId: number | null
   typeName: string | null
+  blueprintName: string | null
   activity: ChainActivity | null
   runs: number | null
   meLevel: number | null
