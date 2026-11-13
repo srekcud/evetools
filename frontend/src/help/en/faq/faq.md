@@ -190,7 +190,7 @@ It is exact when:
 - every approved contribution has a value, and the total cost is not zero (otherwise "Undistributable distribution");
 - pending contributions have been reviewed: they do not count before approval.
 
-At that point, "Transfers between members" computes the smallest number of transfers, with the payment reference to put in the reason. See [group contributions](/help?page=calculations/group-contributions).
+At that point, "Transfers between members" computes a transfer plan, the smallest possible up to 12 participants to settle and a simpler greedy one beyond, with the payment reference to put in the reason. See [group contributions](/help?page=calculations/group-contributions).
 
 ## Market
 

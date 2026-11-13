@@ -190,7 +190,7 @@ Il est exact quand :
 - chaque apport approuvé a une valeur, et le coût total n'est pas nul (sinon « Répartition impossible ») ;
 - les contributions en attente ont été relues : elles ne comptent pas avant approbation.
 
-À ce stade, « Virements entre membres » calcule le plus petit nombre de virements, avec la référence de paiement à mettre en motif. Voir [contributions de groupe](/help?page=calculations/group-contributions).
+À ce stade, « Virements entre membres » calcule un plan de virements, le plus petit possible jusqu'à 12 participants à solder et plus simple (glouton) au-delà, avec la référence de paiement à mettre en motif. Voir [contributions de groupe](/help?page=calculations/group-contributions).
 
 ## Marché
 
