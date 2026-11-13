@@ -15,6 +15,7 @@ use Symfony\Component\Clock\Test\ClockSensitiveTrait;
 
 #[CoversClass(MoonCompositionImporter::class)]
 #[Group('issue-853')]
+#[Group('issue-859')]
 final class MoonCompositionImporterTest extends IntegrationTestCase
 {
     use ClockSensitiveTrait;
@@ -30,6 +31,7 @@ final class MoonCompositionImporterTest extends IntegrationTestCase
     private const int OVERFULL_MOON = 40_302_004;
     private const int MOON_ABSENT_FROM_SHEET = 40_399_999;
     private const int MOON_WITHOUT_NAME = 40_399_998;
+    private const int HYPHENATED_SYSTEM_MOON = 40_303_001;
     private const string IMPORT_AT = '2026-11-13T20:00:00+00:00';
     private const string SCAN_AT = '2026-11-05T20:00:00+00:00';
     private const string FIXTURE = __DIR__ . '/../../Fixtures/MoonCompositionSheet/community-sheet.csv';
@@ -52,15 +54,15 @@ final class MoonCompositionImporterTest extends IntegrationTestCase
                 ->setRecordedAt(new \DateTimeImmutable(self::SCAN_AT))
                 ->setLines([['typeId' => self::ZEOLITES, 'share' => 1.0]]),
         );
-        $this->persistExtraction(self::CORPORATION_A, self::FIRST_MOON, 'Veyra - II - Moon 1', '2026-11-01');
-        $this->persistExtraction(self::CORPORATION_A, self::FIRST_MOON, 'Veyra - II - Moon 1', '2026-11-08');
-        $this->persistExtraction(self::CORPORATION_A, self::SECOND_MOON, 'Veyra - II - Moon 2', '2026-11-01');
-        $this->persistExtraction(self::CORPORATION_B, self::SECOND_MOON, 'Veyra - II - Moon 2', '2026-11-01');
-        $this->persistExtraction(self::CORPORATION_A, self::UNKNOWN_ORE_MOON, 'Veyra - II - Moon 3', '2026-11-01');
-        $this->persistExtraction(self::CORPORATION_A, self::NOT_AN_ORE_MOON, 'Veyra - II - Moon 4', '2026-11-01');
-        $this->persistExtraction(self::CORPORATION_A, self::ALREADY_SCANNED_MOON, 'Veyra - III - Moon 1', '2026-11-01');
-        $this->persistExtraction(self::CORPORATION_A, self::OVERFULL_MOON, 'Veyra - III - Moon 4', '2026-11-01');
-        $this->persistExtraction(self::CORPORATION_A, self::MOON_ABSENT_FROM_SHEET, 'Unlisted - I - Moon 1', '2026-11-01');
+        $this->persistExtraction(self::CORPORATION_A, self::FIRST_MOON, 'Veyra II - Moon 1', '2026-11-01');
+        $this->persistExtraction(self::CORPORATION_A, self::FIRST_MOON, 'Veyra II - Moon 1', '2026-11-08');
+        $this->persistExtraction(self::CORPORATION_A, self::SECOND_MOON, 'Veyra II - Moon 2', '2026-11-01');
+        $this->persistExtraction(self::CORPORATION_B, self::SECOND_MOON, 'Veyra II - Moon 2', '2026-11-01');
+        $this->persistExtraction(self::CORPORATION_A, self::UNKNOWN_ORE_MOON, 'Veyra II - Moon 3', '2026-11-01');
+        $this->persistExtraction(self::CORPORATION_A, self::NOT_AN_ORE_MOON, 'Veyra II - Moon 4', '2026-11-01');
+        $this->persistExtraction(self::CORPORATION_A, self::ALREADY_SCANNED_MOON, 'Veyra III - Moon 1', '2026-11-01');
+        $this->persistExtraction(self::CORPORATION_A, self::OVERFULL_MOON, 'Veyra III - Moon 4', '2026-11-01');
+        $this->persistExtraction(self::CORPORATION_A, self::MOON_ABSENT_FROM_SHEET, 'Unlisted I - Moon 1', '2026-11-01');
         $this->persistExtraction(self::CORPORATION_A, self::MOON_WITHOUT_NAME, null, '2026-11-01');
         $this->em->flush();
         $this->sheet = file_get_contents(self::FIXTURE) ?: self::fail('Fixture sheet is unreadable');
@@ -113,10 +115,10 @@ final class MoonCompositionImporterTest extends IntegrationTestCase
         $report = $this->importer->import($this->sheet);
 
         $reasonsByMoonName = array_column($report->rejected, 'reason', 'moonName');
-        self::assertSame(['Veyra - II - Moon 3', 'Veyra - II - Moon 4', 'Veyra - III - Moon 4'], array_keys($reasonsByMoonName));
-        self::assertStringContainsString('Cinnabar', $reasonsByMoonName['Veyra - II - Moon 3']);
-        self::assertStringContainsString('Tritanium', $reasonsByMoonName['Veyra - II - Moon 4']);
-        self::assertStringContainsString('120', $reasonsByMoonName['Veyra - III - Moon 4']);
+        self::assertSame(['Veyra II - Moon 3', 'Veyra II - Moon 4', 'Veyra III - Moon 4'], array_keys($reasonsByMoonName));
+        self::assertStringContainsString('Cinnabar', $reasonsByMoonName['Veyra II - Moon 3']);
+        self::assertStringContainsString('Tritanium', $reasonsByMoonName['Veyra II - Moon 4']);
+        self::assertStringContainsString('120', $reasonsByMoonName['Veyra III - Moon 4']);
         self::assertSame(3, $report->imported);
     }
 
@@ -128,6 +130,21 @@ final class MoonCompositionImporterTest extends IntegrationTestCase
         self::assertNotContains(self::UNKNOWN_ORE_MOON, $storedMoonIds);
         self::assertNotContains(self::NOT_AN_ORE_MOON, $storedMoonIds);
         self::assertNotContains(self::OVERFULL_MOON, $storedMoonIds);
+    }
+
+    public function testAMoonOfASystemWhoseNameContainsAHyphenIsMatchedOnTheSpacedSeparatorOfTheSheet(): void
+    {
+        $this->persistExtraction(self::CORPORATION_A, self::HYPHENATED_SYSTEM_MOON, 'Veyra-4K II - Moon 1', '2026-11-01');
+        $this->em->flush();
+        $sheet = "Moon Name,Region,Ore Composition,Max Value\nVeyra-4K - II - Moon 1,Northreach,Sylvite: 0.7;Zeolites: 0.2,\"1,000.0\"\n";
+
+        $report = $this->importer->import($sheet);
+
+        self::assertSame([1, 1, 0], [$report->matched, $report->imported, count($report->rejected)]);
+        self::assertSame(
+            [[self::CORPORATION_A, self::HYPHENATED_SYSTEM_MOON, null, '2026-11-13 20:00:00', [['typeId' => self::SYLVITE, 'share' => 0.7], ['typeId' => self::ZEOLITES, 'share' => 0.2]]]],
+            $this->importedCompositions(),
+        );
     }
 
     public function testRunningTheImportAgainChangesNothing(): void
