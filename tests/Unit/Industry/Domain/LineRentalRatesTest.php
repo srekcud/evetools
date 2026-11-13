@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Industry\Domain;
 use App\Industry\Domain\LineRentalCategory;
 use App\Industry\Domain\LineRentalRates;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -99,6 +100,52 @@ final class LineRentalRatesTest extends TestCase
 
         self::assertEquals(LineRentalRates::resolve(null, []), $withUnknownKeys);
         self::assertSame(1_000_000.0, $withUnknownKeys->dayFactor());
+    }
+
+    public function testFloatRateOfALayerIsUsed(): void
+    {
+        $rates = LineRentalRates::resolve(
+            [LineRentalCategory::ModuleT1->value => 12_500.5, LineRentalRates::DAY_FACTOR_KEY => 750_000.25],
+            [],
+        );
+
+        self::assertSame(12_500.5, $rates->ratePerRun(LineRentalCategory::ModuleT1));
+        self::assertSame(750_000.25, $rates->dayFactor());
+    }
+
+    #[DataProvider('nonNumericLayerValues')]
+    public function testNonNumericValueOfALayerFallsThroughToTheNextLayer(mixed $nonNumericValue): void
+    {
+        $rates = LineRentalRates::resolve(
+            [LineRentalCategory::ShipT1->value => $nonNumericValue, LineRentalRates::DAY_FACTOR_KEY => $nonNumericValue],
+            [LineRentalCategory::ShipT1->value => 120_000, LineRentalRates::DAY_FACTOR_KEY => 1_500_000],
+        );
+
+        self::assertSame(120_000.0, $rates->ratePerRun(LineRentalCategory::ShipT1));
+        self::assertSame(1_500_000.0, $rates->dayFactor());
+    }
+
+    #[DataProvider('nonNumericLayerValues')]
+    public function testNonNumericValueInEveryLayerFallsBackToTheDefault(mixed $nonNumericValue): void
+    {
+        $rates = LineRentalRates::resolve(
+            [LineRentalCategory::ShipT1->value => $nonNumericValue],
+            [LineRentalCategory::ShipT1->value => $nonNumericValue],
+        );
+
+        self::assertSame(100_000.0, $rates->ratePerRun(LineRentalCategory::ShipT1));
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function nonNumericLayerValues(): iterable
+    {
+        yield 'text' => ['abc'];
+        yield 'numeric text' => ['120000'];
+        yield 'null' => [null];
+        yield 'boolean' => [true];
+        yield 'list' => [[120_000]];
     }
 
     public function testMockupLineOfFiveJobsOfFourHoursThirtySevenMinutesOverFiftyRunsIsWorthTheMockupValue(): void

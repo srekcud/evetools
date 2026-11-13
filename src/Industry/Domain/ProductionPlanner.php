@@ -140,7 +140,7 @@ final readonly class ProductionPlanner
     }
 
     /**
-     * @param array<int, true>   $path     intermediates being expanded down to $recipe; a target met again is caught one level below
+     * @param array<int, int>    $path     intermediates being expanded down to $recipe; a target met again is caught one level below
      * @param array<int, Recipe> $finished intermediates whose materials are all finished, in post-order
      */
     private static function walkMaterials(Recipe $recipe, PlanRequest $request, RecipeMemory $recipes, array $path, array &$finished): void
@@ -153,7 +153,7 @@ final readonly class ProductionPlanner
             if (isset($path[$material->typeId])) {
                 throw new \DomainException(\sprintf('Product %d is needed to build itself: the production graph has a cycle.', $material->typeId));
             }
-            self::walkMaterials($materialRecipe, $request, $recipes, $path + [$material->typeId => true], $finished);
+            self::walkMaterials($materialRecipe, $request, $recipes, $path + [$material->typeId => $material->typeId], $finished);
             $finished[$material->typeId] = $materialRecipe;
         }
     }
