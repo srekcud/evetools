@@ -20,6 +20,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Entity\IndustryProjectLineReservation;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\JobInstallerName;
+use App\Service\Industry\Project\PlanningBlueprintNames;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectLineFulfillments;
 use App\Service\Industry\Project\ProjectJobLocationResolver;
@@ -42,6 +43,7 @@ class ProjectBomProvider implements ProviderInterface
         private readonly IndustryProjectLineReservationRepository $reservationRepository,
         private readonly ProjectJobLocationResolver $jobLocationResolver,
         private readonly ProjectContainerFulfillment $containerFulfillment,
+        private readonly PlanningBlueprintNames $blueprintNames,
     ) {
     }
 
@@ -80,10 +82,32 @@ class ProjectBomProvider implements ProviderInterface
             ? $this->jobLocationResolver->locationsOf($project, $this->jobMatchesOf($bomItems))
             : [];
 
+        $blueprintNameByLineId = $this->blueprintNameByLineId($bomItems);
+
         return array_map(
-            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $locationsByJobId, $fulfillments),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $locationsByJobId, $fulfillments, $blueprintNameByLineId[$item->getId()->toRfc4122()] ?? null),
             $bomItems,
         );
+    }
+
+    /**
+     * @param IndustryProjectBomLine[] $bomItems
+     *
+     * @return array<string, string>
+     */
+    private function blueprintNameByLineId(array $bomItems): array
+    {
+        $products = [];
+        foreach ($bomItems as $item) {
+            if ($item->isManufacturingOrReactionJob()) {
+                $products[$item->getId()->toRfc4122()] = [
+                    'typeId' => $item->getTypeId(),
+                    'activity' => IndustryProjectBomLine::ACTIVITY_REACTION === $item->getActivityType() ? 'reaction' : 'manufacturing',
+                ];
+            }
+        }
+
+        return $this->blueprintNames->byKey($products);
     }
 
     /**
@@ -107,7 +131,7 @@ class ProjectBomProvider implements ProviderInterface
      * @param list<IndustryProjectLineReservation> $reservations
      * @param array<int, array{blueprint: array<string, mixed>, output: array<string, mixed>}> $locationsByJobId
      */
-    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $locationsByJobId, ProjectLineFulfillments $fulfillments): ProjectBomLineResource
+    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $locationsByJobId, ProjectLineFulfillments $fulfillments, ?string $blueprintName): ProjectBomLineResource
     {
         $resource = new ProjectBomLineResource();
         $resource->id = $item->getId()->toString();
@@ -127,6 +151,7 @@ class ProjectBomProvider implements ProviderInterface
         $resource->isJob = $item->isJob();
         $resource->jobGroup = $item->getJobGroup();
         $resource->activityType = $item->getActivityType();
+        $resource->blueprintName = $blueprintName;
         $resource->parentTypeId = $item->getParentTypeId();
         $resource->meLevel = $item->getMeLevel();
         $resource->teLevel = $item->getTeLevel();
