@@ -170,6 +170,17 @@ final class CostPartialPriceTest extends TestCase
         $this->assertEquals([self::partialPrice(self::TRITANIUM, self::TRITANIUM_LEAF_COVERAGE)], $totalCost->partialPrices);
     }
 
+    public function testSameTypeIdAtTheSameCoverageKeepsTheFirstPartialPrice(): void
+    {
+        $first = self::partialPrice(self::TRITANIUM, self::TRITANIUM_LEAF_COVERAGE);
+        $second = self::partialPrice(self::TRITANIUM, self::TRITANIUM_LEAF_COVERAGE);
+
+        $cost = Cost::known(new Isk(6000.0))->withPartialPrice($first)->withPartialPrice($second);
+
+        $this->assertCount(1, $cost->partialPrices);
+        $this->assertSame($first, $cost->partialPrices[0]);
+    }
+
     public function testSameTypeIdInAnUnknownSumIsListedOnceAtTheLowestCoverage(): void
     {
         $totalCost = self::tritaniumDatacoreAtPartialPrice()

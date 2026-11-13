@@ -49,10 +49,10 @@ final readonly class StructureSelector
 
     private function selectBest(ActivityKind $activity, ?string $productCategory, ?StructureJobBasis $basis): StructureChoice
     {
-        $candidates = array_values(array_filter(
+        $candidates = array_filter(
             $this->structures,
             static fn (ProductionStructure $structure): bool => $structure->canRun($activity),
-        ));
+        );
         if ([] === $candidates) {
             return StructureChoice::notConfigured();
         }
@@ -64,7 +64,7 @@ final readonly class StructureSelector
     }
 
     /**
-     * @param non-empty-list<ProductionStructure> $candidates
+     * @param non-empty-array<int, ProductionStructure> $candidates
      */
     private function bestMaterialMultiplierOrTotalCost(array $candidates, ActivityKind $activity, ?string $productCategory, ?StructureJobBasis $basis): StructureChoice
     {
@@ -75,10 +75,10 @@ final readonly class StructureSelector
             return $this->bestMaterialMultiplier($candidates, $activity, $productCategory);
         }
 
-        $inFavoriteSystem = array_values(array_filter(
+        $inFavoriteSystem = array_filter(
             $candidates,
             fn (ProductionStructure $structure): bool => $this->favoriteSystems->contains($structure, $activity),
-        ));
+        );
         $reference = [] === $inFavoriteSystem
             ? $this->bestMaterialMultiplier($candidates, $activity, $productCategory)
             : $this->choiceOf($this->smallestMaterialMultiplier($inFavoriteSystem, $activity, $productCategory), StructureChoiceStatus::BestInFavoriteSystem, $activity, $productCategory);
@@ -87,7 +87,7 @@ final readonly class StructureSelector
     }
 
     /**
-     * @param non-empty-list<ProductionStructure> $candidates
+     * @param non-empty-array<int, ProductionStructure> $candidates
      */
     private function cheaperByTotalCost(StructureChoice $reference, array $candidates, ActivityKind $activity, ?string $productCategory, StructureJobBasis $basis, int $favoriteSolarSystemId, StructureSelectionPolicy $policy, StructureTotalCostComparator $comparator): StructureChoice
     {
@@ -116,10 +116,10 @@ final readonly class StructureSelector
 
         $lowestCost = min($knownCosts);
         $cheapest = $this->firstByPreference(
-            array_values(array_filter(
+            array_filter(
                 $comparableCandidates,
                 static fn (ProductionStructure $structure): bool => $knownCosts[$structure->id] - $lowestCost <= self::TOTAL_COST_TOLERANCE_ISK,
-            )),
+            ),
             $activity,
         );
         $saving = $referenceCost->amount()->amount - $knownCosts[$cheapest->id];
@@ -131,15 +131,15 @@ final readonly class StructureSelector
     }
 
     /**
-     * @param non-empty-list<ProductionStructure> $candidates
+     * @param non-empty-array<int, ProductionStructure> $candidates
      */
     private function bestMaterialMultiplier(array $candidates, ActivityKind $activity, ?string $productCategory): StructureChoice
     {
         if (null !== $productCategory && null !== $this->favoriteSystems->forActivity($activity)) {
-            $adaptedInFavoriteSystem = array_values(array_filter(
+            $adaptedInFavoriteSystem = array_filter(
                 $candidates,
                 fn (ProductionStructure $structure): bool => $this->favoriteSystems->contains($structure, $activity) && $structure->isAdaptedTo($productCategory),
-            ));
+            );
 
             return [] === $adaptedInFavoriteSystem
                 ? $this->choiceOf($this->smallestMaterialMultiplier($candidates, $activity, $productCategory), StructureChoiceStatus::BestOutsideFavoriteSystem, $activity, $productCategory)
@@ -152,7 +152,7 @@ final readonly class StructureSelector
     }
 
     /**
-     * @param non-empty-list<ProductionStructure> $candidates
+     * @param non-empty-array<int, ProductionStructure> $candidates
      */
     private function lowestInstallRate(array $candidates, ActivityKind $activity): StructureChoice
     {
@@ -164,10 +164,10 @@ final readonly class StructureSelector
         $knownInstallRates = array_filter($installRates, static fn (?float $installRate): bool => null !== $installRate);
         if ([] !== $knownInstallRates) {
             $lowestInstallRate = min($knownInstallRates);
-            $candidates = array_values(array_filter(
+            $candidates = array_filter(
                 $candidates,
                 static fn (ProductionStructure $structure): bool => null !== $installRates[$structure->id] && $installRates[$structure->id] - $lowestInstallRate < self::INSTALL_RATE_TOLERANCE,
-            ));
+            );
         }
 
         $structure = $this->firstByPreference($candidates, $activity);
@@ -188,7 +188,7 @@ final readonly class StructureSelector
     }
 
     /**
-     * @param non-empty-list<ProductionStructure> $candidates
+     * @param non-empty-array<int, ProductionStructure> $candidates
      */
     private function smallestMaterialMultiplier(array $candidates, ActivityKind $activity, ?string $productCategory): ProductionStructure
     {
@@ -202,7 +202,7 @@ final readonly class StructureSelector
     }
 
     /**
-     * @param list<ProductionStructure> $candidates
+     * @param array<int, ProductionStructure> $candidates
      */
     private function firstByPreference(array $candidates, ActivityKind $activity): ProductionStructure
     {
