@@ -106,6 +106,7 @@ final class ResolveAssetItemNameApiTest extends WebTestCase
     #[Group('issue-861')]
     public function testResolvingWithoutBodyAndWithJsonContentTypeAnswers200(): void
     {
+        $this->seedCategorizedTypes();
         $pilot = $this->persistPilot();
         $ship = $this->persistAsset($pilot, self::RIFTER_ITEM_ID, self::RIFTER_TYPE_ID, 'Rifter', 1, true);
         $this->em->flush();
