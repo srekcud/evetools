@@ -52,7 +52,7 @@ export function groupIndustryProject(id: string, name: string | null, status: Gr
     name,
     status,
     shortLinkCode: `link-${id}`,
-    containerName: null,
+    containerNames: [],
     private: true,
     acceptsOutsideFavoriteSystem: false,
     excludesInvention: false,

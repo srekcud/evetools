@@ -617,13 +617,13 @@ final class IndustryProjectServiceTest extends TestCase
         $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
             name: 'Full Options',
             items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]],
-            containerName: 'Fleet Doctrine Materials',
+            containerNames: ['Fleet Doctrine Materials'],
             lineRentalRatesOverride: ['ship_t2' => 2500000],
             brokerFeePercent: 2.5,
             salesTaxPercent: 3.0,
         ));
 
-        $this->assertSame('Fleet Doctrine Materials', $project->getContainerName());
+        $this->assertSame(['Fleet Doctrine Materials'], $project->getContainerNames());
         $this->assertSame(['ship_t2' => 2500000], $project->getLineRentalRatesOverride());
         $this->assertSame(2.5, $project->getBrokerFeePercent());
         $this->assertSame(3.0, $project->getSalesTaxPercent());

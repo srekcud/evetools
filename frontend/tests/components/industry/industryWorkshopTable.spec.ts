@@ -56,7 +56,7 @@ function groupProject(id: string, name: string, status: GroupProjectStatus, over
     name,
     status,
     shortLinkCode: `link-${id}`,
-    containerName: null,
+    containerNames: [],
     private: true,
     acceptsOutsideFavoriteSystem: false,
     excludesInvention: false,

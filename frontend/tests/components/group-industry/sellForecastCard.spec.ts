@@ -121,7 +121,7 @@ function projectOf(sellStructureId: number | null): GroupProject {
     name: 'Nyx batch',
     status: 'selling',
     shortLinkCode: 'nyx731',
-    containerName: null,
+    containerNames: [],
     ownerCharacterName: 'Selene Vance',
     ownerCorporationId: 98_000_007,
     membersCount: 1,

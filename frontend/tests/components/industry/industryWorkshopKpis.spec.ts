@@ -30,7 +30,7 @@ function groupProject(id: string, status: GroupProjectStatus): GroupProject {
     name: `Project ${status}`,
     status,
     shortLinkCode: `link-${id}`,
-    containerName: null,
+    containerNames: [],
     private: true,
     acceptsOutsideFavoriteSystem: false,
     excludesInvention: false,

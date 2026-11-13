@@ -84,6 +84,32 @@ final class ProjectContainerServiceContainerStockTest extends TestCase
         self::assertSame([self::HYDROGEN_FUEL_BLOCK => 55, self::FERNITE_ALLOY => 220], $stock->quantitiesByTypeId);
     }
 
+    #[Group('issue-894')]
+    public function testContainerStockAddsUpEveryDeclaredContainerWithoutTheCaseAndReportsTheMissingNames(): void
+    {
+        $build = $this->cache(self::STATION_CONTAINER, 1, self::OFFICE_ITEM_ID, 'CorpSAG2', self::CONTAINER_NAME);
+        $this->cache(self::HYDROGEN_FUEL_BLOCK, 40, $build, 'Unlocked', null);
+        $products = $this->cache(self::STATION_CONTAINER, 1, self::OFFICE_ITEM_ID, 'CorpSAG2', '  PRODUCTS ');
+        $this->cache(self::HYDROGEN_FUEL_BLOCK, 5, $products, 'Unlocked', null);
+        $this->cache(self::FERNITE_ALLOY, 7, $products, 'Unlocked', null);
+
+        $stock = $this->service->containerStockOf($this->projectUsingContainers([self::CONTAINER_NAME, 'products', 'Gone']));
+
+        self::assertNull($stock->unknownReason);
+        self::assertSame([self::HYDROGEN_FUEL_BLOCK => 45, self::FERNITE_ALLOY => 7], $stock->quantitiesByTypeId);
+        self::assertSame(['Gone'], $stock->missingContainerNames);
+    }
+
+    #[Group('issue-894')]
+    public function testContainerStockReportsEveryDeclaredNameWhenNoContainerIsFound(): void
+    {
+        $this->cache(self::STATION_CONTAINER, 1, self::OFFICE_ITEM_ID, 'CorpSAG2', 'Spare');
+
+        $stock = $this->service->containerStockOf($this->projectUsingContainers([self::CONTAINER_NAME, 'Products']));
+
+        self::assertSame(['container_not_found', [self::CONTAINER_NAME, 'Products']], [$stock->unknownReason, $stock->missingContainerNames]);
+    }
+
     public function testContainerStockIsUnknownWhenNoVisibleContainerHasTheName(): void
     {
         $this->cache(self::STATION_CONTAINER, 1, self::OFFICE_ITEM_ID, 'CorpSAG2', 'Spare');
@@ -127,12 +153,20 @@ final class ProjectContainerServiceContainerStockTest extends TestCase
         self::assertSame(['container_not_found', []], [$stock->unknownReason, $stock->contentItemIds]);
     }
 
+    private function projectUsingContainers(array $containerNames): IndustryProject
+    {
+        $owner = $this->createStub(User::class);
+        $owner->method('getCorporationId')->willReturn(self::CORPORATION_ID);
+
+        return (new IndustryProject())->setOwner($owner)->setContainerNames($containerNames);
+    }
+
     private function projectUsingContainer(?string $containerName): IndustryProject
     {
         $owner = $this->createStub(User::class);
         $owner->method('getCorporationId')->willReturn(self::CORPORATION_ID);
 
-        return (new IndustryProject())->setOwner($owner)->setContainerName($containerName);
+        return (new IndustryProject())->setOwner($owner)->setContainerNames(null === $containerName ? [] : [$containerName]);
     }
 
     private function cache(int $typeId, int $quantity, int $locationId, string $locationFlag, ?string $itemName): int

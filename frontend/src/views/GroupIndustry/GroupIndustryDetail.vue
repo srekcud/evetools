@@ -24,6 +24,7 @@ import ContributionTable from '@/components/group-industry/ContributionTable.vue
 import JobContainersTable from '@/components/group-industry/JobContainersTable.vue'
 import ProjectSellOrdersSection from '@/components/group-industry/ProjectSellOrdersSection.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
+import { containerNamesFromText, containerNamesToText } from '@/utils/containerNames'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
 import ContractSaleSuggestions from '@/components/group-industry/ContractSaleSuggestions.vue'
 import FinancialCascade from '@/components/group-industry/FinancialCascade.vue'
@@ -109,7 +110,7 @@ const prefilledBomItem = ref<BomItem | undefined>(undefined)
 const showEditModal = ref(false)
 const editForm = ref({
   name: '',
-  containerName: '',
+  containerNames: '',
   brokerFeePercent: null as number | null,
   salesTaxPercent: null as number | null,
   private: true,
@@ -175,7 +176,7 @@ onMounted(async () => {
     loadCockpit(projectId.value),
     loadMembers(projectId.value),
   ])
-  if (projectStore.currentProject?.containerName) {
+  if (projectStore.currentProject && projectStore.currentProject.containerNames.length > 0) {
     await projectStore.fetchContainerVerification(projectId.value)
   }
   if (activeTab.value === 'journal') {
@@ -296,7 +297,7 @@ function openEditModal(): void {
   if (!project.value) return
   editForm.value = {
     name: project.value.name ?? '',
-    containerName: project.value.containerName ?? '',
+    containerNames: containerNamesToText(project.value.containerNames),
     brokerFeePercent: project.value.brokerFeePercent,
     salesTaxPercent: project.value.salesTaxPercent,
     private: project.value.private,
@@ -313,7 +314,7 @@ async function handleEditSave(): Promise<void> {
   try {
     await projectStore.updateProject(projectId.value, {
       name: editForm.value.name || null,
-      containerName: editForm.value.containerName || null,
+      containerNames: containerNamesFromText(editForm.value.containerNames),
       brokerFeePercent: feeOrNull(editForm.value.brokerFeePercent),
       salesTaxPercent: feeOrNull(editForm.value.salesTaxPercent),
       private: editForm.value.private,
@@ -528,11 +529,12 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
                 class="text-xs px-2.5 py-1 rounded-lg font-medium border bg-amber-500/15 text-amber-400 border-amber-500/20"
               >{{ t('groupIndustry.private') }}</span>
               <span
-                v-if="project.containerName"
+                v-for="containerName in project.containerNames"
+                :key="containerName"
                 class="text-xs px-2 py-0.5 rounded-lg bg-violet-500/12 text-violet-400 border border-violet-500/25 font-medium inline-flex items-center gap-1.5"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-                {{ project.containerName }}
+                {{ containerName }}
               </span>
             </div>
             <p class="text-sm text-slate-500">
@@ -662,8 +664,8 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         >
           <!-- Container Banner -->
           <ContainerBanner
-            v-if="project.containerName"
-            :container-name="project.containerName"
+            v-if="project.containerNames.length > 0"
+            :container-names="project.containerNames"
             :project-id="projectId"
             :can-verify="isOwnerOrAdmin"
           />
@@ -866,10 +868,10 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         </div>
         <div>
           <label :for="editContainerNameFieldId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.containerName') }}</label>
-          <input
+          <textarea
             :id="editContainerNameFieldId"
-            v-model="editForm.containerName"
-            type="text"
+            v-model="editForm.containerNames"
+            rows="3"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
             :placeholder="t('groupIndustry.detail.editFields.containerPlaceholder')"
           />

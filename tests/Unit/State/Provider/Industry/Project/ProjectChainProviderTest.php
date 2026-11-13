@@ -34,7 +34,13 @@ use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Entity\Sde\IndustryActivityProduct;
+use App\Entity\Sde\InvType;
+use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\Project\ChainBlueprintNames;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\PlanningBlueprintNames;
 use App\Service\Industry\Project\ProjectChainBuilder;
 use App\Service\Industry\Project\ProjectChainNode;
 use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
@@ -70,6 +76,8 @@ final class ProjectChainProviderTest extends TestCase
     private const int SCIENCE = 3402;
     private const int ADVANCED_INDUSTRY = 3388;
     private const int ISHTAR = 12005;
+    private const int NOCXIUM_ATOMS = 16637;
+    private const int RAW_SPECIMEN = 99001;
     private const int ISHTAR_COPY_BASE_TIME_SECONDS = 18_000;
     private const int ISHTAR_COPY_RUNS = 3;
     private const float AZBEL_TIME_ROLE_BONUS = 0.80;
@@ -229,6 +237,7 @@ final class ProjectChainProviderTest extends TestCase
             new ProjectAccessChecker($this->participantRepository),
             $this->chainBuilder(),
             new ProjectJobMaterialNeedsLoader($projectService),
+            $this->blueprintNames(),
         );
 
         $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
@@ -262,6 +271,7 @@ final class ProjectChainProviderTest extends TestCase
                 new ProjectAccessChecker($this->participantRepository),
                 $this->chainBuilder(),
                 new ProjectJobMaterialNeedsLoader($this->projectService),
+                $this->blueprintNames(),
             );
             $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
             $installersByViewer[] = array_column($this->node($chain, $job->getId()->toRfc4122())->jobs, 'characterName');
@@ -295,6 +305,7 @@ final class ProjectChainProviderTest extends TestCase
                 new ProjectAccessChecker($this->participantRepository),
                 $this->chainBuilder(),
                 new ProjectJobMaterialNeedsLoader($this->projectService),
+                $this->blueprintNames(),
             );
             $copyNode = $this->node($provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]), $copy->getId()->toRfc4122());
             self::assertObjectHasProperty('plannedCopyDuration', $copyNode);
@@ -308,6 +319,66 @@ final class ProjectChainProviderTest extends TestCase
             ],
             $durationsByViewer,
         );
+    }
+
+    #[Group('issue-906')]
+    public function testJobNodesCarryTheNameOfTheBlueprintOrFormulaThatBuildsThemAndOtherNodesCarryNone(): void
+    {
+        $this->security->method('getUser')->willReturn($this->member);
+        $manufacturing = $this->jobLine(self::ISHTAR, 'Ishtar', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $reaction = $this->jobLine(self::NOCXIUM_ATOMS, 'Nocxium Atoms', 'reaction', Uuid::v7()->toRfc4122(), 'best_configured');
+        $unknownProducer = $this->jobLine(self::RAW_SPECIMEN, 'Raw Specimen', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $tritanium = $this->materialLine();
+        $this->bomLineRepository->method('findBy')->willReturn([$manufacturing, $reaction, $unknownProducer, $tritanium]);
+        $this->contributionRepository->method('findApprovedByProject')->willReturn([]);
+        $this->saleRepository->method('findByProjectForListing')->willReturn([]);
+        $this->structureConfigRepository->method('findByUser')->willReturn([]);
+
+        $chain = $this->provider()->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        $expected = [
+            $manufacturing->getId()->toRfc4122() => 'Ishtar Blueprint',
+            $reaction->getId()->toRfc4122() => 'Nocxium Atoms Reaction Formula',
+            $unknownProducer->getId()->toRfc4122() => null,
+            $tritanium->getId()->toRfc4122() => null,
+            'sale' => null,
+        ];
+        $actual = [];
+        foreach ($chain->nodes as $node) {
+            $actual[$node->id] = $node->blueprintName;
+        }
+        ksort($expected);
+        ksort($actual);
+
+        self::assertSame($expected, $actual);
+    }
+
+    private function blueprintNames(): ChainBlueprintNames
+    {
+        $products = $this->createStub(IndustryActivityProductRepository::class);
+        $products->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $productTypeId, int $activityId): ?IndustryActivityProduct => match ([$productTypeId, $activityId]) {
+                [self::ISHTAR, 1] => (new IndustryActivityProduct())->setTypeId(12_006)->setActivityId(1)->setProductTypeId(self::ISHTAR)->setQuantity(1),
+                [self::NOCXIUM_ATOMS, 11] => (new IndustryActivityProduct())->setTypeId(46_170)->setActivityId(11)->setProductTypeId(self::NOCXIUM_ATOMS)->setQuantity(1),
+                default => null,
+            },
+        );
+        $types = $this->createStub(InvTypeRepository::class);
+        $types->method('findByTypeIds')->willReturnCallback(
+            static function (array $typeIds): array {
+                $known = [12_006 => 'Ishtar Blueprint', 46_170 => 'Nocxium Atoms Reaction Formula'];
+                $found = [];
+                foreach ($typeIds as $typeId) {
+                    if (isset($known[$typeId])) {
+                        $found[$typeId] = (new InvType())->setTypeId($typeId)->setTypeName($known[$typeId]);
+                    }
+                }
+
+                return $found;
+            },
+        );
+
+        return new ChainBlueprintNames(new PlanningBlueprintNames($products, $types));
     }
 
     private function chainBuilder(): ProjectChainBuilder
@@ -356,6 +427,7 @@ final class ProjectChainProviderTest extends TestCase
             new ProjectAccessChecker($this->participantRepository),
             $this->chainBuilder(),
             new ProjectJobMaterialNeedsLoader($this->projectService),
+            $this->blueprintNames(),
         );
     }
 

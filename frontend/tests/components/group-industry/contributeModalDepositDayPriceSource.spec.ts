@@ -51,7 +51,7 @@ function hullRunProject(createdAt: string): GroupProject {
     name: 'Hull run',
     status: 'in_progress',
     shortLinkCode: 'hull154',
-    containerName: null,
+    containerNames: [],
     ownerCharacterName: 'Aria Solberg',
     ownerCorporationId: 98000001,
     membersCount: 2,

@@ -3585,6 +3585,7 @@
       "refreshFailed": "Could not refresh the corporation assets",
       "verifyFailed": "Verification failed",
       "approvedGapTitle": "Approved contributions missing from the container, check again before the jobs",
+      "missingNames": "Container not found: {names}",
       "approvedGapLine": "{name}: {container} / {approved} in the container, {approved} approved"
     },
     "actions": {
@@ -3639,9 +3640,9 @@
           "unknown": "unknown"
         },
         "totalRuns": "total runs",
-        "containerLabel": "Corp Container",
+        "containerLabel": "Corp Containers",
         "containerPlaceholder": "e.g. Fleet Doctrine Materials",
-        "containerHint": "If set, admins can verify material contributions against this container's contents in shared corp offices.",
+        "containerHint": "If set, admins can verify material contributions against the contents of these containers in shared corp offices. One name per line, case does not matter.",
         "blacklist": "Blacklist",
         "blacklistLabel": "Blacklist",
         "blacklistDesc": "Items below will be purchased, not manufactured.",
@@ -3827,7 +3828,7 @@
       "editFields": {
         "name": "Project Name",
         "namePlaceholder": "Custom project name...",
-        "containerName": "Container Name",
+        "containerName": "Container Names",
         "containerPlaceholder": "e.g. Fleet Doctrine Materials",
         "brokerFee": "Broker Fee %",
         "salesTax": "Sales Tax %",

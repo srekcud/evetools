@@ -44,9 +44,6 @@ class IndustryProject
     #[ORM\Column(type: 'string', length: 10, unique: true)]
     private string $shortLinkCode;
 
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
-    private ?string $containerName = null;
-
     /** @var array<string, int>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $lineRentalRatesOverride = null;
@@ -106,6 +103,11 @@ class IndustryProject
     #[ORM\OneToMany(targetEntity: IndustryProjectParticipant::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $members;
 
+    /** @var Collection<int, IndustryProjectContainer> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectContainer::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['id' => 'ASC'])]
+    private Collection $containers;
+
     /** @var Collection<int, IndustryProjectBomLine> */
     #[ORM\OneToMany(targetEntity: IndustryProjectBomLine::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $bomItems;
@@ -129,6 +131,7 @@ class IndustryProject
         $this->shortLinkCode = self::generateShortLinkCode();
         $this->items = new ArrayCollection();
         $this->members = new ArrayCollection();
+        $this->containers = new ArrayCollection();
         $this->bomItems = new ArrayCollection();
         $this->contributions = new ArrayCollection();
         $this->sales = new ArrayCollection();
@@ -338,14 +341,46 @@ class IndustryProject
         return $this;
     }
 
-    public function getContainerName(): ?string
+    /** @return Collection<int, IndustryProjectContainer> */
+    public function getContainers(): Collection
     {
-        return $this->containerName;
+        return $this->containers;
     }
 
-    public function setContainerName(?string $containerName): static
+    /** @return list<string> */
+    public function getContainerNames(): array
     {
-        $this->containerName = $containerName;
+        return array_values($this->containers->map(static fn (IndustryProjectContainer $container): string => $container->getName())->toArray());
+    }
+
+    /** @param list<string> $containerNames */
+    public function setContainerNames(array $containerNames): static
+    {
+        $wantedNamesByKey = [];
+        foreach ($containerNames as $containerName) {
+            $trimmedName = trim($containerName);
+            $key = IndustryProjectContainer::keyOf($trimmedName);
+            if ('' !== $key && !isset($wantedNamesByKey[$key])) {
+                $wantedNamesByKey[$key] = $trimmedName;
+            }
+        }
+
+        $keptKeys = [];
+        foreach ($this->containers->toArray() as $container) {
+            $key = IndustryProjectContainer::keyOf($container->getName());
+            if (isset($wantedNamesByKey[$key]) && $wantedNamesByKey[$key] === $container->getName()) {
+                $keptKeys[$key] = true;
+            } else {
+                $this->containers->removeElement($container);
+            }
+        }
+
+        foreach ($wantedNamesByKey as $key => $name) {
+            if (!isset($keptKeys[$key])) {
+                $this->containers->add(new IndustryProjectContainer($this, $name));
+            }
+        }
+
         return $this;
     }
 

@@ -37,7 +37,7 @@ class ProjectResourceMapper
         $resource->name = $project->getName();
         $resource->status = $project->getStatus()->value;
         $resource->shortLinkCode = $project->getShortLinkCode();
-        $resource->containerName = $project->getContainerName();
+        $resource->containerNames = $project->getContainerNames();
         $resource->private = $project->isPrivate();
         $resource->personalUse = $project->isPersonalUse();
         $resource->solo = $project->isSoloProjectOf($project->getOwner());

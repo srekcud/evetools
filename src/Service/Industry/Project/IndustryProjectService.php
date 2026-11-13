@@ -73,7 +73,7 @@ class IndustryProjectService
         $project = new IndustryProject();
         $project->setOwner($owner);
         $project->setName($data->name !== '' ? $data->name : null);
-        $project->setContainerName($data->containerName);
+        $project->setContainerNames($data->containerNames);
         $project->setLineRentalRatesOverride($data->lineRentalRatesOverride);
         $project->setBlacklistGroupIds($data->blacklistGroupIds);
         $project->setBlacklistTypeIds($data->blacklistTypeIds);

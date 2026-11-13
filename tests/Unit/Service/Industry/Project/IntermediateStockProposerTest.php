@@ -84,7 +84,7 @@ final class IntermediateStockProposerTest extends TestCase
     public function testPersonalAndContainerStockAddUp(): void
     {
         $fernite = $this->component(self::FERNITE_ALLOY, 'Fernite Alloy', 100);
-        $this->project->setContainerName(self::CONTAINER_NAME);
+        $this->project->setContainerNames([self::CONTAINER_NAME]);
         $this->personalQuantities = [self::FERNITE_ALLOY => 30];
         $this->containerStock = new ProjectContainerStock(null, [self::FERNITE_ALLOY => 50]);
 
@@ -97,7 +97,7 @@ final class IntermediateStockProposerTest extends TestCase
     public function testProposedQuantityIsCappedByTheRemainingQuantityOfTheLine(): void
     {
         $ceramic = $this->component(self::CERAMIC_POWDER, 'Ceramic Powder', 120, 20);
-        $this->project->setContainerName(self::CONTAINER_NAME);
+        $this->project->setContainerNames([self::CONTAINER_NAME]);
         $this->personalQuantities = [self::CERAMIC_POWDER => 90];
         $this->containerStock = new ProjectContainerStock(null, [self::CERAMIC_POWDER => 60]);
 
@@ -173,7 +173,7 @@ final class IntermediateStockProposerTest extends TestCase
     public function testNamedContainerThatCannotBeFoundMakesTheProposalUnknownWithoutLines(): void
     {
         $this->component(self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 100);
-        $this->project->setContainerName(self::CONTAINER_NAME);
+        $this->project->setContainerNames([self::CONTAINER_NAME]);
         $this->personalQuantities = [self::HYDROGEN_FUEL_BLOCK => 30];
         $this->containerStock = new ProjectContainerStock('container_not_found');
 

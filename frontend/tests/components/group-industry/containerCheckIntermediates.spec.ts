@@ -55,6 +55,7 @@ function verification(line: JobLine, status: ContainerVerificationStatus, contai
     status,
     unknownReason: null,
     assetsSyncedAt: null,
+    missingContainerNames: [],
   }
 }
 
@@ -101,7 +102,7 @@ describe('Container check of the intermediates', () => {
     prepareStore([verification(FUEL_BLOCK, 'partial', 30)])
 
     const text = mount(ContainerBanner, {
-      props: { containerName: 'Build', projectId: PROJECT_ID, canVerify: false },
+      props: { containerNames: ['Build'], projectId: PROJECT_ID, canVerify: false },
       global: { plugins: [i18n()] },
     }).text().replace(/\s+/g, ' ')
 

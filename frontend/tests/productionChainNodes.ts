@@ -7,6 +7,7 @@ export function chainNode(overrides: Partial<ChainNode>): ChainNode {
     parentId: null,
     typeId: 0,
     typeName: '',
+    blueprintName: null,
     activity: null,
     runs: null,
     meLevel: null,

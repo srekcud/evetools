@@ -621,17 +621,103 @@ final class ProjectContainerServiceTest extends TestCase
         );
     }
 
-    public function testContainerNameIsCaseSensitive(): void
+    #[Group('issue-894')]
+    public function testContainerNameMatchesWithoutTheCaseNorTheEdgeSpaces(): void
     {
-        $this->storeInside($this->containerInHangar('build'), self::TRITANIUM, 1_000);
+        $this->storeInside($this->containerInHangar('  bUiLd '), self::TRITANIUM, 1_000);
         $this->allowDivisions(2);
 
         self::assertSame(
             [
-                [self::TRITANIUM, 500, null, 'container_not_found', null],
-                [self::PYERITE, 800, null, 'container_not_found', null],
+                [self::TRITANIUM, 500, 1_000, 'verified', null],
+                [self::PYERITE, 800, 0, 'missing', null],
             ],
             $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    #[Group('issue-894')]
+    public function testSeveralContainerNamesAreSummedInTheVerification(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::TRITANIUM, 300);
+        $this->storeInside($this->containerInHangar('PRODUCTS'), self::TRITANIUM, 250);
+        $this->storeInside($this->containerInHangar('Products'), self::PYERITE, 100);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [
+                [self::TRITANIUM, 500, 550, 'verified', null],
+                [self::PYERITE, 800, 100, 'partial', null],
+            ],
+            $this->verificationOf($this->projectUsingContainers([self::CONTAINER_NAME, 'products'])),
+        );
+    }
+
+    #[Group('issue-894')]
+    public function testMissingContainerNamesAreReportedOnEveryLineWhenOnlySomeContainersExist(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::TRITANIUM, 500);
+        $this->allowDivisions(2);
+
+        $lines = $this->service->verifyContainer($this->projectUsingContainers([self::CONTAINER_NAME, 'Products', 'Spare']));
+
+        self::assertSame(
+            [[['Products', 'Spare'], 'verified'], [['Products', 'Spare'], 'missing']],
+            array_map(static fn (ProjectContainerVerificationResource $line): array => [$line->missingContainerNames, $line->status], $lines),
+        );
+    }
+
+    #[Group('issue-894')]
+    public function testEveryDeclaredNameIsReportedMissingWhenNoContainerExists(): void
+    {
+        $this->containerInHangar('Spare');
+        $this->allowDivisions(2);
+
+        $lines = $this->service->verifyContainer($this->projectUsingContainers([self::CONTAINER_NAME, 'Products']));
+
+        self::assertSame(
+            [[['Build', 'Products'], 'container_not_found'], [['Build', 'Products'], 'container_not_found']],
+            array_map(static fn (ProjectContainerVerificationResource $line): array => [$line->missingContainerNames, $line->status], $lines),
+        );
+    }
+
+    #[Group('issue-894')]
+    public function testNoContainerIsMissingWhenEveryDeclaredNameExists(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::TRITANIUM, 500);
+        $this->allowDivisions(2);
+
+        $lines = $this->service->verifyContainer($this->projectUsingContainer(self::CONTAINER_NAME));
+
+        self::assertSame([[], []], array_map(static fn (ProjectContainerVerificationResource $line): array => $line->missingContainerNames, $lines));
+    }
+
+    #[Group('issue-894')]
+    public function testAssetStoredInTwoDeclaredContainersIsCountedOnce(): void
+    {
+        $build = $this->containerInHangar(self::CONTAINER_NAME);
+        $products = $this->containerInside($build, 'Products');
+        $this->storeInside($products, self::TRITANIUM, 400);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [
+                [self::TRITANIUM, 500, 400, 'partial', null],
+                [self::PYERITE, 800, 0, 'missing', null],
+            ],
+            $this->verificationOf($this->projectUsingContainers([self::CONTAINER_NAME, 'Products'])),
+        );
+    }
+
+    #[Group('issue-894')]
+    public function testSecondNameInAHiddenDivisionMakesTheContainerHidden(): void
+    {
+        $this->containerInHangar('Products', 'CorpSAG3');
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            'container_in_hidden_division',
+            $this->verificationOf($this->projectUsingContainers([self::CONTAINER_NAME, 'Products']))[0][3],
         );
     }
 
@@ -808,6 +894,22 @@ final class ProjectContainerServiceTest extends TestCase
         self::assertEqualsCanonicalizing([$first, $second], $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME))->containerItemIds);
     }
 
+    #[Group('issue-894')]
+    public function testScopeHoldsEveryDeclaredContainerAndReportsTheMissingNames(): void
+    {
+        $build = $this->containerInHangar(self::CONTAINER_NAME);
+        $products = $this->containerInHangar('PRODUCTS');
+        $content = $this->cache(self::TRITANIUM, 10, $products, 'Unlocked', null, self::CORPORATION_ID);
+        $this->containerInHangar('Spare');
+        $this->allowDivisions(2);
+
+        $scope = $this->scopeOf($this->projectUsingContainers([self::CONTAINER_NAME, 'products', 'Gone']));
+
+        self::assertNull($scope->unknownReason);
+        self::assertEqualsCanonicalizing([$build, $products, $content], $scope->containerItemIds);
+        self::assertSame(['Gone'], $scope->missingContainerNames);
+    }
+
     public function testScopeExposesTheVisibleCorporationAssetsByItemIdAndNotTheHiddenOnes(): void
     {
         $visible = $this->containerInHangar('Visible box', 'CorpSAG2');
@@ -901,11 +1003,18 @@ final class ProjectContainerServiceTest extends TestCase
         );
     }
 
+    private function projectUsingContainers(array $containerNames, ?User $owner = null): IndustryProject
+    {
+        return (new IndustryProject())
+            ->setOwner($owner ?? $this->ownerOfCorporation(self::CORPORATION_ID))
+            ->setContainerNames($containerNames);
+    }
+
     private function projectUsingContainer(?string $containerName, ?User $owner = null): IndustryProject
     {
         return (new IndustryProject())
             ->setOwner($owner ?? $this->ownerOfCorporation(self::CORPORATION_ID))
-            ->setContainerName($containerName);
+            ->setContainerNames(null === $containerName ? [] : [$containerName]);
     }
 
     private function ownerOfCorporation(?int $corporationId): User

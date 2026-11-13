@@ -123,7 +123,7 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
     }
 
     /**
-     * Initializes the items, the BOM items and the members of the given projects: one query per collection,
+     * Initializes the items, the BOM items, the members and the containers of the given projects: one query per collection,
      * whatever the number of projects (a single fetch join would multiply the rows).
      *
      * @param IndustryProject[] $projects
@@ -137,6 +137,7 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
         $this->loadProjectCollection($projects, 'items');
         $this->loadProjectCollection($projects, 'bomItems');
         $this->loadProjectCollection($projects, 'members');
+        $this->loadProjectCollection($projects, 'containers');
     }
 
     /**

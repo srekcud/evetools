@@ -69,7 +69,7 @@ function sabreProject(status: GroupProjectStatus, myRole: GroupMemberRole): Grou
     name: 'Sabre',
     status,
     shortLinkCode: 'sabre241',
-    containerName: null,
+    containerNames: [],
     ownerCharacterName: 'O-Main',
     ownerCorporationId: 98_000_001,
     membersCount: 3,

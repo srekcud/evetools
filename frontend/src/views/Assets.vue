@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted, watch } from 'vue'
+import { ref, shallowRef, computed, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { readAssetFilterQuery, readLastCharacterId, rememberLastCharacterId, writeAssetFilterQuery } from '@/utils/assetFilterQuery'
@@ -7,8 +7,9 @@ import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/ass
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
-import { safeJsonParse } from '@/services/api'
+import { ApiError, apiRequest, carriesServerMessage } from '@/services/api'
 import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
+import { COLLAPSE_LOCATIONS_ROW_THRESHOLD } from '@/constants/assetsConstants'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -37,7 +38,7 @@ const urlFilters = readAssetFilterQuery(route.query)
 
 // State
 const selectedCharacterId = ref<string | null>(null)
-const assets = ref<Asset[]>([])
+const assets = shallowRef<Asset[]>([])
 const isLoading = ref(false)
 const isReloading = ref(false)
 const hasLoadedCurrentOwner = ref(false)
@@ -185,9 +186,13 @@ const containerContents = computed(() => {
 })
 
 function applyResolvedItemName(itemId: number, itemName: string): void {
-  assets.value = assets.value.map(asset =>
-    asset.itemId === itemId ? { ...asset, itemName, canResolveItemName: false } : asset,
-  )
+  const index = assets.value.findIndex(asset => asset.itemId === itemId)
+  if (index === -1) {
+    return
+  }
+  const updated = assets.value.slice()
+  updated[index] = { ...updated[index], itemName, canResolveItemName: false }
+  assets.value = updated
 }
 
 function isContainer(asset: Asset): boolean {
@@ -343,6 +348,13 @@ function dropFiltersMissingFromAssets() {
   }
 }
 
+function collapseLocationsOfLargeInventory() {
+  if (rootAssets.value.length <= COLLAPSE_LOCATIONS_ROW_THRESHOLD) {
+    return
+  }
+  collapsedLocations.value = new Set(assetsByLocation.value.map(location => location.locationName))
+}
+
 async function fetchAssets() {
   if (viewMode.value === 'character' && !selectedCharacterId.value) return
 
@@ -359,23 +371,19 @@ async function fetchAssets() {
 
   try {
     const endpoint = isCorporationRequest
-      ? '/api/me/corporation/assets'
-      : `/api/me/characters/${selectedCharacterId.value}/assets`
+      ? '/me/corporation/assets'
+      : `/me/characters/${selectedCharacterId.value}/assets`
 
-    const response = await fetch(endpoint, {
-      headers: { 'Authorization': `Bearer ${authStore.token}` },
+    const data = await apiRequest<{ items?: Asset[]; nextRefreshAt?: string | null }>(endpoint, {
       signal: request.signal,
     })
-
-    if (!response.ok) throw new Error('Failed to fetch assets')
-
-    const data = await safeJsonParse<{ items?: Asset[]; nextRefreshAt?: string | null }>(response)
     if (request.signal.aborted) return
     assets.value = data.items || []
     nextRefreshAt.value = isCorporationRequest ? (data.nextRefreshAt ?? null) : null
     hasLoadedCurrentOwner.value = true
     dropFiltersMissingFromAssets()
     if (!isReload) {
+      collapseLocationsOfLargeInventory()
       expandContainersMatchingSearch()
     }
   } catch (e) {
@@ -473,24 +481,13 @@ async function refreshAssets() {
 
   try {
     const endpoint = viewMode.value === 'character'
-      ? `/api/me/characters/${selectedCharacterId.value}/assets/refresh`
-      : '/api/me/corporation/assets/refresh'
+      ? `/me/characters/${selectedCharacterId.value}/assets/refresh`
+      : '/me/corporation/assets/refresh'
 
-    const response = await fetch(endpoint, {
+    const data = await apiRequest<{ status?: string; error?: string; nextRefreshAt?: string | null }>(endpoint, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({})
+      body: JSON.stringify({}),
     })
-
-    if (!response.ok) {
-      const data = await safeJsonParse<{ error?: string }>(response)
-      throw new Error(data.error || t('assets.refreshFailed'))
-    }
-
-    const data = await safeJsonParse<{ status?: string; error?: string; nextRefreshAt?: string | null }>(response)
 
     if (data.status === 'error') {
       error.value = data.error || t('assets.refreshFailed')
@@ -522,7 +519,8 @@ async function refreshAssets() {
       isRefreshing.value = false
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('assets.refreshFailed')
+    const hasReadableMessage = e instanceof Error && !(e instanceof ApiError && !carriesServerMessage(e))
+    error.value = hasReadableMessage ? e.message : t('assets.refreshFailed')
     isRefreshing.value = false
   }
 }

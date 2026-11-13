@@ -32,7 +32,7 @@ const SABRE_BATCH: GroupProject = {
   name: 'Sabre batch',
   status: 'selling',
   shortLinkCode: 'sabre242',
-  containerName: null,
+  containerNames: [],
   ownerCharacterName: 'Aria Solberg',
   ownerCorporationId: 98_000_001,
   membersCount: 3,

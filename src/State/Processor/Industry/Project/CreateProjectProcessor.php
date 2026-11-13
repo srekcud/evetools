@@ -89,7 +89,7 @@ class CreateProjectProcessor implements ProcessorInterface
                 items: $data->items,
                 blacklistGroupIds: $resolvedGroupIds,
                 blacklistTypeIds: $blacklistTypeIds,
-                containerName: $data->containerName,
+                containerNames: $data->containerNames,
                 lineRentalRatesOverride: $data->lineRentalRatesOverride,
                 brokerFeePercent: $brokerFeePercent,
                 salesTaxPercent: $salesTaxPercent,
