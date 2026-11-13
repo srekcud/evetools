@@ -297,7 +297,7 @@ export const useAdminStore = defineStore('admin', () => {
       const response = await apiRequest<AdminAccess>('/admin/access')
       access.value = response
       return response.hasAccess
-    } catch (e) {
+    } catch {
       access.value = { hasAccess: false, characterName: null }
       return false
     }

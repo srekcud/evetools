@@ -4,6 +4,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import InventionOptionsPanel from '@/components/industry/profit/InventionOptionsPanel.vue'
 import type { InventionUnknownReason, ProfitMarginInventionOption } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const MAIN_ID = '0192f5a0-7c1e-7d2a-9b4e-3a5c6d7e8f90'
 const ALT_ID = '0192f5a0-7c1e-7d2a-9b4e-3a5c6d7e8faa'
@@ -124,7 +125,7 @@ describe('InventionOptionsPanel inventor selector', () => {
   it('shows the probability of the unknown skills as unknown, never as 0', () => {
     const wrapper = mountPanel({ unknownReason: MISSING_INVENTOR_SKILLS, options: [UNKNOWN_SKILLS_OPTION] })
 
-    const cells = wrapper.findAll('tbody tr')[0]!.findAll('td').map(cell => cell.text())
+    const cells = present(wrapper.findAll('tbody tr')[0]).findAll('td').map(cell => cell.text())
     expect(cells[5]).toBe(en.industry.inventionUnknown.label)
   })
 })

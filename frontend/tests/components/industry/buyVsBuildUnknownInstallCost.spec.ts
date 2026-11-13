@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import BuyVsBuildTab from '@/components/industry/BuyVsBuildTab.vue'
 import { useScannerStore } from '@/stores/industry/scanner'
 import type { BuyVsBuildComponent, BuyVsBuildResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const HAIL_L_TYPE_ID = 12779
 const RAM_AMMUNITION_TECH_TYPE_ID = 11476
@@ -125,13 +126,13 @@ type Wrapper = ReturnType<typeof mountWithAnalysis>
 function componentCard(wrapper: Wrapper, typeName: string) {
   const card = wrapper.findAll('div.overflow-hidden').find(candidate => candidate.find('p.font-semibold').exists() && candidate.find('p.font-semibold').text() === typeName)
   expect(card, `component card ${typeName}`).toBeDefined()
-  return card!
+  return present(card)
 }
 
 function jobInstallCostOf(wrapper: Wrapper, typeName: string, jobInstallLabel: string): string {
   const row = componentCard(wrapper, typeName).findAll('div.flex').find(candidate => candidate.find('span').exists() && candidate.find('span').text() === jobInstallLabel)
   expect(row, `job install row of ${typeName}`).toBeDefined()
-  return row!.find('span.font-mono').text()
+  return present(row).find('span.font-mono').text()
 }
 
 beforeEach(() => {

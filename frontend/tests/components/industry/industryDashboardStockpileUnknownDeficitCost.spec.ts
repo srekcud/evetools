@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import IndustryDashboard from '@/components/industry/IndustryDashboard.vue'
 import { apiRequest } from '@/services/api'
 import type { StockpileItemStatus, StockpileStatus } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -81,7 +82,7 @@ async function mountDashboard(locale: 'en' | 'fr') {
 function stockpileCriticalAlert(wrapper: VueWrapper, title: string): string {
   const alert = wrapper.findAll('[role="button"]').find(row => row.text().includes(title))
   expect(alert, `alert ${title}`).toBeDefined()
-  return alert!.text()
+  return present(alert).text()
 }
 
 enableAutoUnmount(afterEach)

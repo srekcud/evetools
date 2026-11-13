@@ -6,6 +6,7 @@ import IndustrySettings from '@/components/industry/IndustrySettings.vue'
 import Industry from '@/views/Industry.vue'
 import { useAdminStore } from '@/stores/admin'
 import { useProjectsStore } from '@/stores/industry/projects'
+import { present } from '../present'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -51,7 +52,7 @@ async function mountWithConfigPanelOpen(): Promise<VueWrapper> {
 function maxJobDurationInput(wrapper: VueWrapper) {
   const label = wrapper.findAll('label').find(candidate => candidate.text() === MAX_JOB_DURATION_LABEL)
   expect(label, `label ${MAX_JOB_DURATION_LABEL}`).toBeDefined()
-  return wrapper.get(`[id="${label!.attributes('for')}"]`)
+  return wrapper.get(`[id="${present(label).attributes('for')}"]`)
 }
 
 async function enterMaxJobDuration(wrapper: VueWrapper, days: string) {

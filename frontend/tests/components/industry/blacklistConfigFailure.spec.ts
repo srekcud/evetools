@@ -7,6 +7,7 @@ import BlacklistConfig from '@/components/industry/BlacklistConfig.vue'
 import { ApiError, apiRequest } from '@/services/api'
 import type { BlacklistConfig as BlacklistConfiguration } from '@/stores/industry/types'
 import { apiOutcomesByPath, rejectWith, respondWith } from '../../deferred'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -52,7 +53,7 @@ async function mountBlacklistConfig(locale: 'en' | 'fr' = 'en'): Promise<VueWrap
 function categoryCheckbox(wrapper: VueWrapper, categoryLabel: string) {
   const label = wrapper.findAll('label').find(candidate => candidate.text() === categoryLabel)
   expect(label, `${categoryLabel} category`).toBeDefined()
-  return label!.get('input[type="checkbox"]')
+  return present(label).get('input[type="checkbox"]')
 }
 
 function fuelBlocksCheckbox(wrapper: VueWrapper) {
@@ -195,7 +196,7 @@ describe('BlacklistConfig change failure (issue 189)', () => {
     const searchResult = wrapper.findAll('button').find(button => button.text() === 'Helium Fuel Block')
     expect(searchResult, 'Helium Fuel Block search result').toBeDefined()
 
-    await searchResult!.trigger('mousedown')
+    await present(searchResult).trigger('mousedown')
     await flushPromises()
 
     expect({

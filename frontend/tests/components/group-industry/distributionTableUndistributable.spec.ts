@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import DistributionTable from '@/components/group-industry/DistributionTable.vue'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import type { Distribution, MemberDistribution } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 const UNDISTRIBUTABLE_BANNER = 'Répartition impossible : aucune contribution approuvée n\'a de coût, le revenu net ne peut pas être réparti'
 
@@ -96,7 +97,7 @@ function totalRow(wrapper: VueWrapper): DOMWrapper<Element> {
 function totalPayoutOfTheRing(wrapper: VueWrapper): string {
   const label = wrapper.findAll('p').find(paragraph => paragraph.text() === 'Total Payout')
   if (label === undefined) throw new Error('ring total payout not found')
-  return label.element.parentElement!.textContent!.replace('Total Payout', '').trim()
+  return present(present(label.element.parentElement).textContent).replace('Total Payout', '').trim()
 }
 
 describe('DistributionTable of an impossible distribution', () => {
@@ -131,7 +132,7 @@ describe('DistributionTable of an impossible distribution', () => {
     const wrapper = mountDistribution(undistributableSale([ARIA_FREE_LINE_RENTAL, BRANN_FREE_MATERIAL]), 'en')
 
     expect(wrapper.findAll('svg circle[stroke-dasharray]')).toHaveLength(0)
-    const legendShares = wrapper.findAll('div.space-y-2 > div').map(entry => entry.findAll('span').slice(-1)[0]!.text())
+    const legendShares = wrapper.findAll('div.space-y-2 > div').map(entry => present(entry.findAll('span').slice(-1)[0]).text())
     expect(legendShares).toEqual(['—', '—'])
   })
 

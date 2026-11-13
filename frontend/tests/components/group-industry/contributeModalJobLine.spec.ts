@@ -7,6 +7,7 @@ import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem, GroupProject } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -75,14 +76,14 @@ function estimatedValueInput(wrapper: VueWrapper): DOMWrapper<HTMLInputElement> 
 function typeCard(wrapper: VueWrapper, label: string): DOMWrapper<HTMLButtonElement> {
   const card = wrapper.findAll<HTMLButtonElement>('button').find(candidate => candidate.text() === label)
   expect(card, `${label} card`).toBeDefined()
-  return card!
+  return present(card)
 }
 
 async function submitWithValue(wrapper: VueWrapper, value: number): Promise<Record<string, unknown>> {
-  await estimatedValueInput(wrapper)!.setValue(value)
-  await wrapper.findAll('button').find(candidate => candidate.text() === en.groupIndustry.contribute.submit)!.trigger('click')
+  await present(estimatedValueInput(wrapper)).setValue(value)
+  await present(wrapper.findAll('button').find(candidate => candidate.text() === en.groupIndustry.contribute.submit)).trigger('click')
   await flushPromises()
-  const [, options] = vi.mocked(apiRequest).mock.calls[0]!
+  const [, options] = present(vi.mocked(apiRequest).mock.calls[0])
   return JSON.parse(String(options?.body))
 }
 
@@ -114,7 +115,7 @@ describe('ContributeModal opened from a job line', () => {
     const wrapper = await openModalFor(INVENTION_LINE, true)
     const whileZero = wrapper.find(VALUE_REQUIRED).exists()
 
-    await estimatedValueInput(wrapper)!.setValue(1_500_000)
+    await present(estimatedValueInput(wrapper)).setValue(1_500_000)
 
     expect({ whileZero, afterValue: wrapper.find(VALUE_REQUIRED).exists() }).toEqual({ whileZero: true, afterValue: false })
   })
@@ -129,10 +130,10 @@ describe('ContributeModal opened from a job line', () => {
     const wrapper = await openModalFor(COMPONENT_LINE, true)
 
     await typeCard(wrapper, 'Material').trigger('click')
-    await wrapper.findAll('button').find(candidate => candidate.text() === en.groupIndustry.contribute.submit)!.trigger('click')
+    await present(wrapper.findAll('button').find(candidate => candidate.text() === en.groupIndustry.contribute.submit)).trigger('click')
     await flushPromises()
 
-    const [, options] = vi.mocked(apiRequest).mock.calls[0]!
+    const [, options] = present(vi.mocked(apiRequest).mock.calls[0])
     expect(JSON.parse(String(options?.body))).toEqual({ type: 'material', bomItemId: 'bom-component', quantity: 5 })
   })
 

@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { apiRequest } from '@/services/api'
 import type { ProfitMarginInventionOption, ProfitMarginResult, SearchResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -104,7 +105,7 @@ const WITH_ATTAINMENT_RESULT: ProfitMarginResult = {
   totalCost: 150_000,
   costPerUnit: 3_750,
   invention: {
-    ...WITHOUT_DECRYPTOR_RESULT.invention!,
+    ...present(WITHOUT_DECRYPTOR_RESULT.invention),
     selectedDecryptorTypeId: ATTAINMENT_DECRYPTOR_TYPE_ID,
     selectedDecryptorName: 'Attainment Decryptor',
   },
@@ -134,7 +135,7 @@ async function mountSabreAnalysis(): Promise<VueWrapper> {
 async function chooseAttainment(wrapper: VueWrapper): Promise<void> {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 14 && candidate.text().includes('Attainment Decryptor'))
   expect(row, 'Attainment Decryptor row').toBeDefined()
-  await row!.trigger('click')
+  await present(row).trigger('click')
   await flushPromises()
 }
 

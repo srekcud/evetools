@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import BuyVsBuildTab from '@/components/industry/BuyVsBuildTab.vue'
 import { useScannerStore } from '@/stores/industry/scanner'
 import type { BuyVsBuildComponent, BuyVsBuildResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const SABRE_TYPE_ID = 22456
 const MAGPULSE_THRUSTER_TYPE_ID = 11533
@@ -137,13 +138,13 @@ type Wrapper = ReturnType<typeof mountWithAnalysis>['wrapper']
 function componentCard(wrapper: Wrapper, typeName: string) {
   const card = wrapper.findAll('div.overflow-hidden').find(candidate => candidate.find('p.font-semibold').exists() && candidate.find('p.font-semibold').text() === typeName)
   expect(card, `component card ${typeName}`).toBeDefined()
-  return card!
+  return present(card)
 }
 
 function priceLineOf(wrapper: Wrapper, typeName: string, label: string): string {
   const line = componentCard(wrapper, typeName).findAll('div.flex.justify-between').find(candidate => candidate.find('span').text() === label)
   expect(line, `${label} line of ${typeName}`).toBeDefined()
-  return line!.text()
+  return present(line).text()
 }
 
 function verdictBarOf(wrapper: Wrapper, typeName: string): string {
@@ -153,7 +154,7 @@ function verdictBarOf(wrapper: Wrapper, typeName: string): string {
 function summaryCard(wrapper: Wrapper, label: string) {
   const card = wrapper.findAll('div.text-center').find(candidate => candidate.find('p').text() === label)
   expect(card, `summary card ${label}`).toBeDefined()
-  return card!
+  return present(card)
 }
 
 beforeEach(() => {

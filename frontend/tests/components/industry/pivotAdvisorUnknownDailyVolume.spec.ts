@@ -5,6 +5,7 @@ import en from '@/i18n/locales/en.json'
 import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import { useScannerStore } from '@/stores/industry/scanner'
 import type { PivotAnalysisResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const SOURCE_PRODUCT_TYPE_ID = 11379
 const unknownLabels = en.industry.inventionUnknown
@@ -63,13 +64,13 @@ function mountPivotAdvisor(sourceDailyVolume: number | null): VueWrapper {
 function cardOf(wrapper: VueWrapper, typeName: string) {
   const card = wrapper.findAll('div.grid > div.relative').find(c => c.find('span.font-bold').text() === typeName)
   expect(card, `card of ${typeName}`).toBeDefined()
-  return card!
+  return present(card)
 }
 
 function dailyVolumeCellOf(wrapper: VueWrapper, typeName: string) {
   const cell = cardOf(wrapper, typeName).findAll('div.bg-slate-800').find(c => c.text().startsWith(dailyVolumeLabel))
   expect(cell, `daily volume cell of ${typeName}`).toBeDefined()
-  return cell!
+  return present(cell)
 }
 
 function displayedCandidateNames(wrapper: VueWrapper): string[] {
@@ -103,7 +104,7 @@ describe('PivotAdvisorTab with a product without daily volume', () => {
   it('shows an unknown source product daily volume as unknown, never as zero units per day', () => {
     const wrapper = mountPivotAdvisor(null)
 
-    const sourceVolume = wrapper.findAll('span').find(span => span.text() === en.industry.scanner.pivotAdvisor.dailyVolume)!.element.nextElementSibling!
+    const sourceVolume = present(present(wrapper.findAll('span').find(span => span.text() === en.industry.scanner.pivotAdvisor.dailyVolume)).element.nextElementSibling)
     expect(sourceVolume.textContent).toContain(unknownLabels.label)
     expect(sourceVolume.textContent).not.toContain(en.industry.scanner.pivotAdvisor.unitsDay)
   })
@@ -113,7 +114,7 @@ describe('PivotAdvisorTab with a product without daily volume', () => {
 
     const sortSelect = wrapper.findAll('select').find(select => select.find('option[value="volume"]').exists())
     expect(sortSelect, 'sort select').toBeDefined()
-    await sortSelect!.setValue('volume')
+    await present(sortSelect).setValue('volume')
 
     expect(displayedCandidateNames(wrapper)).toEqual(['Candidate W', 'Candidate Y', 'Candidate X'])
   })

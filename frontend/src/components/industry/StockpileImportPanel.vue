@@ -36,9 +36,10 @@ const stageNames = computed(() => ({
 }))
 
 const previewStageCount = computed(() => {
-  if (!stockpileStore.importPreview) return 0
+  const preview = stockpileStore.importPreview
+  if (!preview) return 0
   return STAGE_ORDER.filter(
-    s => (stockpileStore.importPreview!.stages[s]?.length ?? 0) > 0,
+    s => (preview.stages[s]?.length ?? 0) > 0,
   ).length
 })
 

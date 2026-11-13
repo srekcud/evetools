@@ -7,6 +7,7 @@ import BatchScanTab from '@/components/industry/BatchScanTab.vue'
 import { apiRequest } from '@/services/api'
 import { useScannerStore } from '@/stores/industry/scanner'
 import type { BatchScanItem } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -114,7 +115,7 @@ function columnIndex(wrapper: VueWrapper, headerLabel: string): number {
 function cellOf(wrapper: VueWrapper, typeName: string, headerLabel: string): DOMWrapper<Element> {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.text().includes(typeName))
   expect(row, `row ${typeName}`).toBeDefined()
-  return row!.findAll('td')[columnIndex(wrapper, headerLabel)]
+  return present(row).findAll('td')[columnIndex(wrapper, headerLabel)]
 }
 
 function rowNames(wrapper: VueWrapper): string[] {

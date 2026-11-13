@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import JobsTable from '@/components/group-industry/JobsTable.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 function jobLine(overrides: Partial<BomItem>): BomItem {
   return {
@@ -85,7 +86,7 @@ describe('JobsTable footer total', () => {
   it('keeps every job cost cell unknown when no job has an estimated total', () => {
     const wrapper = mountJobsTable([SABRE_BLUEPRINT_COPY, SABRE_JOB, PURIFIER_JOB])
 
-    const costCells = wrapper.findAll('tbody tr').filter(row => row.findAll('td').length === 8).map(row => row.findAll('td')[6]!.text())
+    const costCells = wrapper.findAll('tbody tr').filter(row => row.findAll('td').length === 8).map(row => present(row.findAll('td')[6]).text())
     expect(costCells).toEqual(['—', '—', '—'])
   })
 

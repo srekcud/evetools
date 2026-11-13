@@ -9,6 +9,7 @@ import LineReservation from '@/components/group-industry/LineReservation.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem, GroupProject } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -86,7 +87,7 @@ describe('LineReservation', () => {
   it('reserves the free quantity of the line by default', async () => {
     const wrapper = mountReservation(line({ freeQuantity: 50 }))
 
-    await buttonLabelled(wrapper, "I'll handle it")!.trigger('click')
+    await present(buttonLabelled(wrapper, "I'll handle it")).trigger('click')
     await flushPromises()
 
     expect(vi.mocked(apiRequest)).toHaveBeenCalledWith(RESERVATION_URL, { method: 'POST', body: JSON.stringify({ quantity: 50 }) })
@@ -96,7 +97,7 @@ describe('LineReservation', () => {
     const wrapper = mountReservation(line({ freeQuantity: 50 }))
 
     await wrapper.find('input[type="number"]').setValue(10)
-    await buttonLabelled(wrapper, "I'll handle it")!.trigger('click')
+    await present(buttonLabelled(wrapper, "I'll handle it")).trigger('click')
     await flushPromises()
 
     expect(vi.mocked(apiRequest)).toHaveBeenCalledWith(RESERVATION_URL, { method: 'POST', body: JSON.stringify({ quantity: 10 }) })
@@ -105,7 +106,7 @@ describe('LineReservation', () => {
   it('reloads the BOM after a reservation', async () => {
     const wrapper = mountReservation(line({ freeQuantity: 50 }))
 
-    await buttonLabelled(wrapper, "I'll handle it")!.trigger('click')
+    await present(buttonLabelled(wrapper, "I'll handle it")).trigger('click')
     await flushPromises()
 
     expect(vi.mocked(apiRequest)).toHaveBeenCalledWith(`/industry/projects/${PROJECT_ID}/bom`)
@@ -118,7 +119,7 @@ describe('LineReservation', () => {
       freeQuantity: 50,
     }))
 
-    await buttonLabelled(wrapper, 'Release')!.trigger('click')
+    await present(buttonLabelled(wrapper, 'Release')).trigger('click')
     await flushPromises()
 
     expect(vi.mocked(apiRequest)).toHaveBeenCalledWith(RESERVATION_URL, { method: 'DELETE' })
@@ -128,7 +129,7 @@ describe('LineReservation', () => {
     const item = line({})
     const wrapper = mountReservation(item)
 
-    await buttonLabelled(wrapper, 'Contribute')!.trigger('click')
+    await present(buttonLabelled(wrapper, 'Contribute')).trigger('click')
 
     expect(wrapper.emitted('contribute')).toEqual([[item]])
   })
@@ -171,7 +172,7 @@ describe('BomTable reservation column', () => {
     const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
 
     const wrapper = mount(BomTable, { global: { plugins: [i18n] } })
-    await buttonLabelled(wrapper, 'Contribute')!.trigger('click')
+    await present(buttonLabelled(wrapper, 'Contribute')).trigger('click')
 
     expect(wrapper.text()).toContain('Reserved by')
     expect(wrapper.text()).toContain('Brann Holt')
@@ -186,7 +187,7 @@ describe('Solo project line action', () => {
     expect(wrapper.findAll('button').map(button => button.text())).toEqual(['I supplied it'])
     expect(wrapper.find('input[type="number"]').exists()).toBe(false)
 
-    await buttonLabelled(wrapper, 'I supplied it')!.trigger('click')
+    await present(buttonLabelled(wrapper, 'I supplied it')).trigger('click')
 
     expect(wrapper.emitted('contribute')).toHaveLength(1)
   })

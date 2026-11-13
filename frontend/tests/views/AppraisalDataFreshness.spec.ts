@@ -16,6 +16,7 @@ import {
   dataFreshnessRequestCount,
   shownFreshness,
 } from '../dataFreshnessResponses'
+import { present } from '../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -97,7 +98,7 @@ async function mountAppraisedWithStructure(): Promise<VueWrapper> {
 function structurePricesLine(wrapper: VueWrapper) {
   const line = wrapper.findAll('span').find(candidate => candidate.text().startsWith(`${SHORT_STRUCTURE_NAME} ${en.appraisal.pricesUpdated}`))
   if (!line) throw new Error('No structure prices line')
-  return line.element.parentElement!
+  return present(line.element.parentElement)
 }
 
 function freshnessNextToStructurePricesLine(wrapper: VueWrapper) {

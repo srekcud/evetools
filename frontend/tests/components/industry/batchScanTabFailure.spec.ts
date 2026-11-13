@@ -6,6 +6,7 @@ import BatchScanTab from '@/components/industry/BatchScanTab.vue'
 import { apiRequest } from '@/services/api'
 import type { BatchScanItem } from '@/stores/industry/types'
 import { apiOutcomesByPath, rejectWith, respondWith } from '../../deferred'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -85,7 +86,7 @@ describe('BatchScanTab scan failure (issue 189)', () => {
 
     const scanButton = wrapper.findAll('button').find(button => button.text() === en.industry.scanner.batch.scanNow)
     expect(scanButton, 'scan button').toBeDefined()
-    await scanButton!.trigger('click')
+    await present(scanButton).trigger('click')
     await flushPromises()
 
     expect({ shownAfterFirstScan, errorBoxes: redErrorBoxes(wrapper), shownAfterFailure: shownScannedNames(wrapper) }).toEqual({

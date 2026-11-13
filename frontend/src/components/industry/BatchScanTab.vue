@@ -107,8 +107,9 @@ const filteredResults = computed((): BatchScanItem[] => {
     // An unknown margin never satisfies a minimum margin
     items = items.filter(i => i.marginPercent != null && i.marginPercent >= minMargin)
   }
-  if (minDailyVolFilter.value != null) {
-    items = items.filter(i => i.dailyVolume != null && i.dailyVolume >= minDailyVolFilter.value!)
+  const minDailyVol = minDailyVolFilter.value
+  if (minDailyVol != null) {
+    items = items.filter(i => i.dailyVolume != null && i.dailyVolume >= minDailyVol)
   }
 
   items.sort((a, b) => {

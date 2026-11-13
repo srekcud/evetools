@@ -8,6 +8,7 @@ import JobsTable from '@/components/group-industry/JobsTable.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem, GroupMemberRole, GroupProject } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -159,7 +160,7 @@ describe('JobsTable linked jobs', () => {
     const wrapper = mountComponent(JobsTable, 'owner', [ISHTAR_JOB])
 
     expect(matchJobsButton(wrapper)).toBeDefined()
-    await matchJobsButton(wrapper)!.trigger('click')
+    await present(matchJobsButton(wrapper)).trigger('click')
     await flushPromises()
 
     expect(apiRequest).toHaveBeenCalledWith(MATCH_JOBS_URL, { method: 'POST', body: '{}' })
@@ -187,7 +188,7 @@ describe('JobsTable linked jobs', () => {
     }) as never)
     const wrapper = mountComponent(JobsTable, 'owner', [ISHTAR_JOB])
 
-    await matchJobsButton(wrapper)!.trigger('click')
+    await present(matchJobsButton(wrapper)).trigger('click')
     await flushPromises()
 
     const failedLines = wrapper.findAll('[data-testid="match-failed-line"]').map(line => line.text())
@@ -212,7 +213,7 @@ describe('JobsTable linked jobs', () => {
     }) as never)
     const wrapper = mountComponent(JobsTable, 'owner', [ISHTAR_JOB])
 
-    await matchJobsButton(wrapper)!.trigger('click')
+    await present(matchJobsButton(wrapper)).trigger('click')
     await flushPromises()
 
     expect(wrapper.find('[data-testid="match-failed-line"]').exists()).toBe(false)

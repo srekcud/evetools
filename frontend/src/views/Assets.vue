@@ -96,9 +96,10 @@ const hasSharedDivisions = computed(() =>
 )
 
 const sharedDivisionNames = computed(() => {
-  if (!visibility.value) return []
-  return visibility.value.accessibleDivisions
-    .map(num => visibility.value!.allDivisions[num])
+  const currentVisibility = visibility.value
+  if (!currentVisibility) return []
+  return currentVisibility.accessibleDivisions
+    .map(num => currentVisibility.allDivisions[num])
     .filter((name): name is string => name != null)
     .sort((a, b) => a.localeCompare(b))
 })
@@ -151,10 +152,12 @@ const containerContents = computed(() => {
   for (const asset of assets.value) {
     if (asset.locationType === 'item' && existingItemIds.value.has(asset.locationId)) {
       const containerId = asset.locationId
-      if (!contents.has(containerId)) {
-        contents.set(containerId, [])
+      const siblings = contents.get(containerId)
+      if (siblings) {
+        siblings.push(asset)
+      } else {
+        contents.set(containerId, [asset])
       }
-      contents.get(containerId)!.push(asset)
     }
   }
   return contents

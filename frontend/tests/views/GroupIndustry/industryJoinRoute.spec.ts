@@ -13,6 +13,7 @@ import { apiRequest } from '@/services/api'
 import type { GroupProject } from '@/stores/group-industry/types'
 import { messageOf, TEST_LOCALES, type TestLocale } from '../../localeTexts'
 import { deferred } from '../../deferred'
+import { present } from '../../present'
 
 const ORIGIN = 'https://evetools.example'
 const SHORT_LINK_CODE = 'K7Q2MX'
@@ -80,7 +81,7 @@ describe('industry invitation link', () => {
   })
 
   it('keeps the industry entry active on the industry join link', () => {
-    const industryEntry = settableModules.find(entry => entry.id === 'industry')!
+    const industryEntry = present(settableModules.find(entry => entry.id === 'industry'))
 
     expect(isNavItemActive(industryEntry, '/industry/join/K7Q2MX')).toBe(true)
   })

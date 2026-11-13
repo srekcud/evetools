@@ -7,6 +7,7 @@ import JobsTable from '@/components/group-industry/JobsTable.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem, GroupMemberRole, GroupProject } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -136,7 +137,7 @@ function callsTo(url: string): number {
 function rowOf(wrapper: VueWrapper, selector: string, text: string) {
   const row = wrapper.findAll(selector).find(candidate => candidate.text().includes(text))
   expect(row, `${selector} containing ${text}`).toBeDefined()
-  return row!
+  return present(row)
 }
 
 beforeEach(() => {

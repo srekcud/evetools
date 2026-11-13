@@ -8,6 +8,7 @@ import { ApiError, apiRequest } from '@/services/api'
 import { useStructuresStore } from '@/stores/industry/structures'
 import type { StructureConfig as StructureConfigRecord } from '@/stores/industry/types'
 import { apiOutcomesByPath, awaiting, deferred, rejectWith, respondWith } from '../../deferred'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -77,7 +78,7 @@ async function mountStructureConfig(locale: Locale = 'en'): Promise<VueWrapper> 
 async function clickButton(wrapper: VueWrapper, label: string): Promise<void> {
   const button = wrapper.findAll('button').find(candidate => candidate.text() === label)
   expect(button, `button ${label}`).toBeDefined()
-  await button!.trigger('click')
+  await present(button).trigger('click')
   await flushPromises()
 }
 

@@ -55,7 +55,7 @@ async function openReleaseNotes() {
     try {
       const response = await fetch('/RELEASE_NOTES.txt')
       releaseNotes.value = await response.text()
-    } catch (e) {
+    } catch {
       releaseNotes.value = t('header.releaseNotesLoadError')
     } finally {
       loadingReleaseNotes.value = false

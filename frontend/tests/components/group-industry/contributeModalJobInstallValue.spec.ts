@@ -7,6 +7,7 @@ import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -96,12 +97,12 @@ function estimatedValueInput(wrapper: VueWrapper): DOMWrapper<HTMLInputElement> 
 function submitButton(wrapper: VueWrapper): DOMWrapper<HTMLButtonElement> {
   const button = wrapper.findAll<HTMLButtonElement>('button').find(candidate => candidate.text() === contributeLabels.submit)
   expect(button, 'submit button').toBeDefined()
-  return button!
+  return present(button)
 }
 
 function submittedBody(): Record<string, unknown> {
   expect(apiRequest).toHaveBeenCalledTimes(1)
-  const [endpoint, options] = vi.mocked(apiRequest).mock.calls[0]!
+  const [endpoint, options] = present(vi.mocked(apiRequest).mock.calls[0])
   expect(endpoint).toBe(`/industry/projects/${PROJECT_ID}/contributions`)
   expect(options?.method).toBe('POST')
   return JSON.parse(String(options?.body))
@@ -124,9 +125,9 @@ describe('ContributeModal for a job install contribution', () => {
     const input = estimatedValueInput(wrapper)
     expect(input, 'estimated value input').toBeDefined()
 
-    await input!.setValue(0)
+    await present(input).setValue(0)
     expect(submitButton(wrapper).element.disabled).toBe(true)
-    await input!.setValue(1834250.5)
+    await present(input).setValue(1834250.5)
     expect(submitButton(wrapper).element.disabled).toBe(false)
   })
 
@@ -135,7 +136,7 @@ describe('ContributeModal for a job install contribution', () => {
     const input = estimatedValueInput(wrapper)
     expect(input, 'estimated value input').toBeDefined()
 
-    await input!.setValue(1834250.5)
+    await present(input).setValue(1834250.5)
     await submitButton(wrapper).trigger('click')
     await flushPromises()
 

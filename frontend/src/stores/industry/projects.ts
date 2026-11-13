@@ -27,7 +27,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
         `/industry/search?q=${encodeURIComponent(query)}`,
       )
       searchResults.value = data.results
-    } catch (e) {
+    } catch {
       searchResults.value = []
     }
   }

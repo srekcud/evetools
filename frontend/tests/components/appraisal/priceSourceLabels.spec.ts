@@ -4,6 +4,7 @@ import en from '@/i18n/locales/en.json'
 import AppraisalResultsTable from '@/components/appraisal/AppraisalResultsTable.vue'
 import type { MergedItem } from '@/components/appraisal/AppraisalResultsTable.vue'
 import type { AppraisalPriceSources } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const TRITANIUM_TYPE_ID = 34
 const MEXALLON_TYPE_ID = 36
@@ -92,11 +93,11 @@ function mountTable(items: MergedItem[]) {
 function headerOf(wrapper: ReturnType<typeof mountTable>, title: string): string {
   const header = wrapper.findAll('thead th').find(candidate => candidate.text().startsWith(title))
   expect(header, `column ${title}`).toBeDefined()
-  return header!.text()
+  return present(header).text()
 }
 
 function rowCells(wrapper: ReturnType<typeof mountTable>, rowIndex: number): string[] {
-  return wrapper.findAll('tbody tr')[rowIndex]!.findAll('td').map(cell => cell.text())
+  return present(wrapper.findAll('tbody tr')[rowIndex]).findAll('td').map(cell => cell.text())
 }
 
 describe('AppraisalResultsTable price sources', () => {
@@ -114,7 +115,7 @@ describe('AppraisalResultsTable price sources', () => {
   it('marks the partial coverage of the weighted sell price of a row once, on the weighted total', () => {
     const cells = rowCells(mountTable([TRITANIUM]), 0)
 
-    expect(cells[4]!.match(/75% covered/g) ?? []).toHaveLength(1)
+    expect(present(cells[4]).match(/75% covered/g) ?? []).toHaveLength(1)
     expect(cells[3]).not.toContain('75% covered')
   })
 
@@ -124,8 +125,8 @@ describe('AppraisalResultsTable price sources', () => {
     const cells = rowCells(wrapper, 1)
     expect(cells[3]).toBe('-')
     expect(cells[4]).toBe('-')
-    expect(cells[3]! + cells[4]!).not.toContain('·')
-    expect(cells[3]! + cells[4]!).not.toContain('0')
+    expect(present(cells[3]) + present(cells[4])).not.toContain('·')
+    expect(present(cells[3]) + present(cells[4])).not.toContain('0')
   })
 
   it('shows the prices without label nor error when the response carries no price sources', () => {

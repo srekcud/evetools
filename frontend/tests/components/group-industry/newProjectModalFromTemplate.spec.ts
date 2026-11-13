@@ -5,6 +5,7 @@ import en from '@/i18n/locales/en.json'
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
 import { apiRequest } from '@/services/api'
 import { HAMMERHEAD_LINE_FROM_ALICE } from '../../projectTemplateFixtures'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -41,11 +42,11 @@ async function useTheTemplateOfAlice(wrapper: Awaited<ReturnType<typeof mountMod
 async function submitAndReadCreationBody(wrapper: Awaited<ReturnType<typeof mountModal>>) {
   const createButton = wrapper.findAll('button').find(candidate => candidate.text() === 'Create Project')
   expect(createButton, 'create button').toBeDefined()
-  await createButton!.trigger('click')
+  await present(createButton).trigger('click')
   await flushPromises()
   const creationCall = vi.mocked(apiRequest).mock.calls.find(([endpoint]) => endpoint === PROJECTS_ENDPOINT)
   expect(creationCall, 'project creation request').toBeDefined()
-  return JSON.parse(String(creationCall![1]!.body)) as Record<string, unknown>
+  return JSON.parse(String(present(present(creationCall)[1]).body)) as Record<string, unknown>
 }
 
 describe('NewProjectModal from a template', () => {

@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 import { apiRequest } from '@/services/api'
 import type { StockpileItemStatus, StockpileStatus } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -87,7 +88,7 @@ async function mountDashboard(locale: 'en' | 'fr') {
 function kpiCard(wrapper: VueWrapper, label: string): DOMWrapper<Element> {
   const labelElement = wrapper.findAll('div').find(element => element.text() === label)
   expect(labelElement, `KPI ${label}`).toBeDefined()
-  return new DOMWrapper(labelElement!.element.parentElement!)
+  return new DOMWrapper(present(present(labelElement).element.parentElement))
 }
 
 beforeEach(() => {

@@ -8,6 +8,7 @@ import JobsTable from '@/components/group-industry/JobsTable.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem, GroupMemberRole, GroupProject, ProjectPurchase } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -160,7 +161,7 @@ function callsTo(url: string): number {
 function sentBody(url: string): unknown {
   const call = vi.mocked(apiRequest).mock.calls.find(([calledUrl]) => calledUrl === url)
   expect(call, `request to ${url}`).toBeDefined()
-  return JSON.parse(String(call![1]!.body))
+  return JSON.parse(String(present(present(call)[1]).body))
 }
 
 async function openPurchases(wrapper: VueWrapper) {

@@ -7,6 +7,7 @@ import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { apiRequest } from '@/services/api'
 import { useProjectsStore } from '@/stores/industry/projects'
 import type { ProfitMarginInventionOption, ProfitMarginResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -126,7 +127,7 @@ function mountWithAnalysis(analysis: ProfitMarginResult, locale: 'en' | 'fr') {
 function venueRowTagged(wrapper: VueWrapper, tag: string): DOMWrapper<Element> {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('span').some(span => span.text() === tag))
   expect(row, `venue row ${tag}`).toBeDefined()
-  return row!
+  return present(row)
 }
 
 beforeEach(() => {
@@ -142,7 +143,7 @@ describe('ProfitMarginTab with a partial Jita sell price', () => {
 
     const jitaRow = venueRowTagged(wrapper, t('industry.margins.sellTag'))
     expect(jitaRow.text()).toContain(t('industry.partialPrice.marker', { percent: JITA_SELL_COVERAGE_PERCENT }))
-    expect(jitaRow.findAll('td')[2]!.text()).toContain('7.60 K'.replace('.', locale === 'fr' ? ',' : '.'))
+    expect(present(jitaRow.findAll('td')[2]).text()).toContain('7.60 K'.replace('.', locale === 'fr' ? ',' : '.'))
   })
 
   it.each([
@@ -194,12 +195,12 @@ describe('ProfitMarginTab with a partial Jita sell price', () => {
 
     const attainmentRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Attainment Decryptor'))
     expect(attainmentRow, 'Attainment Decryptor row').toBeDefined()
-    await attainmentRow!.trigger('click')
+    await present(attainmentRow).trigger('click')
     await flushPromises()
 
     const jitaRow = venueRowTagged(wrapper, t('industry.margins.sellTag'))
     expect(jitaRow.text()).toContain(t('industry.partialPrice.marker', { percent: JITA_SELL_COVERAGE_PERCENT }))
-    expect(jitaRow.findAll('td')[2]!.text()).toContain('7.60 K'.replace('.', locale === 'fr' ? ',' : '.'))
+    expect(present(jitaRow.findAll('td')[2]).text()).toContain('7.60 K'.replace('.', locale === 'fr' ? ',' : '.'))
   })
 
   it.each([
@@ -209,7 +210,7 @@ describe('ProfitMarginTab with a partial Jita sell price', () => {
     const { wrapper } = mountWithAnalysis(SABRE_WITH_PARTIAL_JITA_SELL, locale)
 
     const sellTooltips: Record<string, Record<string, string>> = { en: en.industry.partialPrice, fr: fr.industry.partialPrice }
-    const sellTooltip = sellTooltips[locale]!['sellTooltip']
+    const sellTooltip = present(sellTooltips[locale])['sellTooltip']
     expect(sellTooltip).toBeTypeOf('string')
     const jitaRow = venueRowTagged(wrapper, locale === 'fr' ? fr.industry.margins.sellTag : en.industry.margins.sellTag)
     expect(jitaRow.find('span[title]').attributes('title')).toBe(sellTooltip)

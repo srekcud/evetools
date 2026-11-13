@@ -4,6 +4,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import InventionOptionsPanel from '@/components/industry/profit/InventionOptionsPanel.vue'
 import type { InventionUnknownReason, ProfitMarginInventionOption } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const MISSING_MARKET_PRICE: InventionUnknownReason = 'missing_market_price'
 
@@ -65,7 +66,7 @@ function mountPanelWithUnknownParityPrice(locale: 'en' | 'fr') {
 function rowOf(wrapper: ReturnType<typeof mountPanelWithUnknownParityPrice>, decryptorName: string) {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.text().includes(decryptorName))
   expect(row, `row ${decryptorName}`).toBeDefined()
-  return row!
+  return present(row)
 }
 
 describe('InventionOptionsPanel with a decryptor without market price', () => {

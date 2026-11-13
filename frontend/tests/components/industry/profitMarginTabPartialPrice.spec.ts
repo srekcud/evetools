@@ -7,6 +7,7 @@ import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { apiRequest } from '@/services/api'
 import { useProjectsStore } from '@/stores/industry/projects'
 import type { ProfitMarginInventionOption, ProfitMarginResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -115,23 +116,23 @@ function mountWithAnalysis(analysis: ProfitMarginResult, locale: 'en' | 'fr') {
 function materialRow(wrapper: VueWrapper, typeName: string): DOMWrapper<Element> {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 4 && candidate.find('td').text() === typeName)
   expect(row, `material row ${typeName}`).toBeDefined()
-  return row!
+  return present(row)
 }
 
 function totalPriceCell(wrapper: VueWrapper, typeName: string): string {
-  return materialRow(wrapper, typeName).findAll('td')[3]!.text()
+  return present(materialRow(wrapper, typeName).findAll('td')[3]).text()
 }
 
 function costSummaryAmount(wrapper: VueWrapper, label: string): string {
   const cell = wrapper.findAll('div.grid-cols-4 > div').find(candidate => candidate.find('div').text() === label)
   expect(cell, `cost summary ${label}`).toBeDefined()
-  return cell!.findAll('div')[1]!.text()
+  return present(present(cell).findAll('div')[1]).text()
 }
 
 function summaryCardAmount(wrapper: VueWrapper, label: string): string {
   const card = wrapper.findAll('div.eve-card.p-4').find(candidate => candidate.find('p').exists() && candidate.find('p').text() === label)
   expect(card, `summary card ${label}`).toBeDefined()
-  return card!.find('p.font-mono').text()
+  return present(card).find('p.font-mono').text()
 }
 
 function wholeIsk(amount: number): string {

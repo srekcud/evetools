@@ -3,6 +3,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import AppraisalResults from '@/components/appraisal/AppraisalResults.vue'
 import type { AppraisalItem, AppraisalTotals } from '@/components/appraisal/AppraisalResults.vue'
+import { present } from '../../present'
 
 const UNKNOWN_TYPE_ID = 34
 const UNKNOWN_TYPE_NAME = 'Mystery Ore'
@@ -88,11 +89,11 @@ describe('AppraisalResults table copy with a type of unknown volume', () => {
       },
     })
 
-    await wrapper.findAll('button').find(button => button.text() === 'Copy')!.trigger('click')
+    await present(wrapper.findAll('button').find(button => button.text() === 'Copy')).trigger('click')
 
-    const rows = (writeText.mock.calls[0]![0] as string).split('\n').map(row => row.split('\t'))
-    expect(rows[1]![2]).toBe('Unknown')
-    expect(rows[2]![2]).toBe('20 m3')
-    expect(rows[3]![2]).toBe('Unknown')
+    const rows = (present(writeText.mock.calls[0])[0] as string).split('\n').map(row => row.split('\t'))
+    expect(present(rows[1])[2]).toBe('Unknown')
+    expect(present(rows[2])[2]).toBe('20 m3')
+    expect(present(rows[3])[2]).toBe('Unknown')
   })
 })

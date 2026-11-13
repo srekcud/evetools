@@ -4,6 +4,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import type { PriceSource } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const JITA_SELL_PERCENTILE_5: PriceSource = { market: 'jita', side: 'sell', method: 'percentile', coveragePercent: null, percentile: 5 }
 const JITA_SELL_WEIGHTED_COMPLETE: PriceSource = { market: 'jita', side: 'sell', method: 'weighted', coveragePercent: null }
@@ -38,7 +39,7 @@ describe('PriceSourceBadge', () => {
     const { wrapper } = mountBadge(JITA_SELL_PERCENTILE_5, locale)
 
     expect(wrapper.text()).toBe('Jita · P5')
-    const tooltip = wrapper.get('[title]').attributes('title')!
+    const tooltip = present(wrapper.get('[title]').attributes('title'))
     expect(tooltip).toContain('Jita')
     expect(tooltip).toContain(sideWord)
     expect(tooltip).toContain('percentile')

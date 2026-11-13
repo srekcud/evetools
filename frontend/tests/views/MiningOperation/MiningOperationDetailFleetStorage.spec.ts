@@ -43,6 +43,7 @@ import {
   syncedBeforeEndVerification,
   verification,
 } from './miningOperationFleetStorageFixtures'
+import { present } from '../../present'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: OPERATION_O }, query: {} })
 
@@ -89,7 +90,7 @@ function answer(answers: Answers = {}): void {
 }
 
 function answerRefreshOfCorporationAssetsWith(status: string): void {
-  const answerOthers = vi.mocked(apiRequest).getMockImplementation()!
+  const answerOthers = present(vi.mocked(apiRequest).getMockImplementation())
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, ...rest: unknown[]) =>
     endpoint === CORPORATION_ASSETS_REFRESH_PATH ? ({ status } as never) : (answerOthers as (...args: unknown[]) => Promise<never>)(endpoint, ...rest),
   )

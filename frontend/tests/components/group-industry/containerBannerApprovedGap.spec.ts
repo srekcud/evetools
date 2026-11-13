@@ -11,6 +11,7 @@ import type {
   ContainerVerification,
   ContainerVerificationStatus,
 } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -222,7 +223,7 @@ describe('ContainerBanner verification button', () => {
     vi.mocked(apiRequest).mockResolvedValue([verification(TRITANIUM, 'partial', 450)])
     const wrapper = mountBanner('en', APPROVED_QUANTITIES, [], true)
 
-    await verifyButton(wrapper)!.trigger('click')
+    await present(verifyButton(wrapper)).trigger('click')
     await flushPromises()
 
     expect([
@@ -235,7 +236,7 @@ describe('ContainerBanner verification button', () => {
     vi.mocked(apiRequest).mockRejectedValue(new Error('Access denied'))
     const wrapper = mountBanner('en', APPROVED_QUANTITIES, [], true)
 
-    await verifyButton(wrapper)!.trigger('click')
+    await present(verifyButton(wrapper)).trigger('click')
     await flushPromises()
 
     expect(normalized(wrapper)).toMatch(/Verification failed/)
@@ -245,7 +246,7 @@ describe('ContainerBanner verification button', () => {
     vi.mocked(apiRequest).mockRejectedValue(new Error('Access denied'))
     const wrapper = mountBanner('fr', APPROVED_QUANTITIES, [], true)
 
-    await verifyButton(wrapper)!.trigger('click')
+    await present(verifyButton(wrapper)).trigger('click')
     await flushPromises()
 
     expect(normalized(wrapper)).toMatch(/Vérification échouée/)

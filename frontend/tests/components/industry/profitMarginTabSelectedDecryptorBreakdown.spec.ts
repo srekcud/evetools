@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { apiRequest } from '@/services/api'
 import type { ProfitMarginInventionOption, ProfitMarginResult, SearchResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -124,7 +125,7 @@ const ATTAINMENT_MARGIN_RESULT: ProfitMarginResult = {
   totalCost: 150_000,
   costPerUnit: 3_750,
   invention: {
-    ...SABRE_MARGIN_RESULT.invention!,
+    ...present(SABRE_MARGIN_RESULT.invention),
     selectedDecryptorTypeId: ATTAINMENT_DECRYPTOR_TYPE_ID,
     selectedDecryptorName: 'Attainment Decryptor',
   },
@@ -138,7 +139,7 @@ const PARITY_MARGIN_RESULT: ProfitMarginResult = {
   totalCost: null,
   costPerUnit: null,
   invention: {
-    ...SABRE_MARGIN_RESULT.invention!,
+    ...present(SABRE_MARGIN_RESULT.invention),
     selectedDecryptorTypeId: PARITY_DECRYPTOR_TYPE_ID,
     selectedDecryptorName: 'Parity Decryptor',
   },
@@ -181,7 +182,7 @@ async function chooseDecryptor(wrapper: VueWrapper, rowLabel: string): Promise<v
 function decryptorRow(wrapper: VueWrapper, rowLabel: string): DOMWrapper<Element> {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 14 && candidate.text().includes(rowLabel))
   expect(row, `decryptor row ${rowLabel}`).toBeDefined()
-  return row!
+  return present(row)
 }
 
 function isMarkedSelected(row: DOMWrapper<Element>): boolean {
@@ -191,15 +192,15 @@ function isMarkedSelected(row: DOMWrapper<Element>): boolean {
 async function refreshPrices(wrapper: VueWrapper): Promise<void> {
   const button = wrapper.findAll('button').find(candidate => candidate.text() === en.industry.margins.refreshPrices)
   expect(button, 'refresh prices button').toBeDefined()
-  await button!.trigger('click')
+  await present(button).trigger('click')
   await flushPromises()
 }
 
 function costCard(wrapper: VueWrapper, label: string): { amount: string, percent: string } {
   const card = wrapper.findAll('div.grid-cols-4 > div').find(candidate => candidate.find('div').text() === label)
   expect(card, `cost card ${label}`).toBeDefined()
-  const [, amount, percent] = card!.findAll('div')
-  return { amount: amount!.text(), percent: percent!.text() }
+  const [, amount, percent] = present(card).findAll('div')
+  return { amount: present(amount).text(), percent: present(percent).text() }
 }
 
 function breakdownBarWidths(wrapper: VueWrapper): number[] | null {
@@ -244,7 +245,7 @@ describe('ProfitMarginTab cost breakdown with a selected decryptor', () => {
     const widths = breakdownBarWidths(wrapper)
 
     expect(widths).toHaveLength(3)
-    expect(widths!.reduce((sum, width) => sum + width, 0)).toBeCloseTo(100, 0)
+    expect(present(widths).reduce((sum, width) => sum + width, 0)).toBeCloseTo(100, 0)
   })
 
   it('draws the breakdown bar of the selected option over 100 % of its total production cost', async () => {
@@ -254,10 +255,10 @@ describe('ProfitMarginTab cost breakdown with a selected decryptor', () => {
 
     const widths = breakdownBarWidths(wrapper)
     expect(widths).toHaveLength(3)
-    expect(widths!.reduce((sum, width) => sum + width, 0)).toBeCloseTo(100, 0)
-    expect(widths![0]).toBeCloseTo(64, 1)
-    expect(widths![1]).toBeCloseTo(6, 1)
-    expect(widths![2]).toBeCloseTo(30, 1)
+    expect(present(widths).reduce((sum, width) => sum + width, 0)).toBeCloseTo(100, 0)
+    expect(present(widths)[0]).toBeCloseTo(64, 1)
+    expect(present(widths)[1]).toBeCloseTo(6, 1)
+    expect(present(widths)[2]).toBeCloseTo(30, 1)
   })
 
   it('shows an unknown material cost and no breakdown bar when the selected option has no material cost', async () => {

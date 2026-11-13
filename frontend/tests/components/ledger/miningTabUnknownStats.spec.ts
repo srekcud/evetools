@@ -14,6 +14,7 @@ import {
   respondWith,
   type MiningTabWrapper,
 } from './miningLedgerHarness'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -33,7 +34,7 @@ const KNOWN_MINING_STATS: MiningStats = {
 
 function oreBreakdownTotal(wrapper: MiningTabWrapper) {
   const breakdown = card(wrapper, en.ledger.mining.oreBreakdown)
-  return breakdown.findAll('span').find(span => span.text().endsWith('total'))!
+  return present(breakdown.findAll('span').find(span => span.text().endsWith('total')))
 }
 
 enableAutoUnmount(afterEach)

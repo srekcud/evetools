@@ -8,6 +8,7 @@ import FinancialCascade from '@/components/group-industry/FinancialCascade.vue'
 import FinancialSummary from '@/components/group-industry/FinancialSummary.vue'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import type { Distribution, MemberDistribution } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 const UNKNOWN = '—'
 const COURIER_REWARD = 376_550
@@ -57,7 +58,7 @@ function mountWith(component: object, distribution: Distribution, locale: 'en' |
 }
 
 function cascadeStepKeys(wrapper: VueWrapper): string[] {
-  return wrapper.findAll('[data-testid^="cascade-step-"]').map(step => step.attributes('data-testid')!.replace('cascade-step-', ''))
+  return wrapper.findAll('[data-testid^="cascade-step-"]').map(step => present(step.attributes('data-testid')).replace('cascade-step-', ''))
 }
 
 async function expandedBreakdown(distribution: Distribution): Promise<string> {

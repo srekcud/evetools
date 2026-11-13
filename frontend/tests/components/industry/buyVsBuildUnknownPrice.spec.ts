@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import BuyVsBuildTab from '@/components/industry/BuyVsBuildTab.vue'
 import { useScannerStore } from '@/stores/industry/scanner'
 import type { BuyVsBuildComponent, BuyVsBuildResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const SABRE_TYPE_ID = 22456
 const PLASMA_THRUSTER_TYPE_ID = 11530
@@ -102,19 +103,19 @@ type Wrapper = ReturnType<typeof mountWithAnalysis>
 function amountUnder(wrapper: Wrapper, cardSelector: string, label: string): string {
   const card = wrapper.findAll(cardSelector).find(candidate => candidate.find('p').text() === label)
   expect(card, `card ${label}`).toBeDefined()
-  return card!.find('p.font-mono').text()
+  return present(card).find('p.font-mono').text()
 }
 
 function summaryAmount(wrapper: Wrapper, label: string): string {
   const card = wrapper.findAll('div.text-center').find(candidate => candidate.find('p').text() === label)
   expect(card, `summary card ${label}`).toBeDefined()
-  return card!.find('p.font-mono').text()
+  return present(card).find('p.font-mono').text()
 }
 
 function componentCard(wrapper: Wrapper, typeName: string) {
   const card = wrapper.findAll('div.overflow-hidden').find(candidate => candidate.find('p.font-semibold').exists() && candidate.find('p.font-semibold').text() === typeName)
   expect(card, `component card ${typeName}`).toBeDefined()
-  return card!
+  return present(card)
 }
 
 function buildCostOf(wrapper: Wrapper, typeName: string): string {

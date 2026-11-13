@@ -34,7 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     try {
       user.value = await apiRequest<User>('/me')
-    } catch (e) {
+    } catch {
       user.value = null
     } finally {
       loading.value = false

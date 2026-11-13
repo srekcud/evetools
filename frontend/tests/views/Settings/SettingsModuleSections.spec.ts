@@ -9,6 +9,7 @@ import SkillsConfig from '@/components/industry/SkillsConfig.vue'
 import StructureConfig from '@/components/industry/StructureConfig.vue'
 import { useProjectsStore } from '@/stores/industry/projects'
 import { callsTo, mountSettingsAt, stubBackend, type BackendCall } from './settingsHarness'
+import { present } from '../../present'
 
 vi.mock('@/composables/usePushNotifications', () => ({
   usePushNotifications: () => ({
@@ -55,7 +56,7 @@ const notificationPreferences = [
 function buttonWithText(wrapper: VueWrapper, text: string) {
   const button = wrapper.findAll('button').find(candidate => candidate.text() === text)
   expect(button, `button ${text}`).toBeDefined()
-  return button!
+  return present(button)
 }
 
 enableAutoUnmount(afterEach)
@@ -109,7 +110,7 @@ describe('Settings industry section', () => {
     })
     const label = wrapper.findAll('label').find(candidate => candidate.text() === 'Max job duration')
     expect(label, 'label Max job duration').toBeDefined()
-    const input = wrapper.get(`[id="${label!.attributes('for')}"]`)
+    const input = wrapper.get(`[id="${present(label).attributes('for')}"]`)
     const store = useProjectsStore() as unknown as { defaultMaxJobDurationDays: number }
     const shownConfigurations = [wrapper.findComponent(FeesConfig).exists()]
     for (const [header, configuration] of [['Skills', SkillsConfig], ['Structures', StructureConfig], ['Blacklist', BlacklistConfig]] as const) {

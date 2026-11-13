@@ -6,6 +6,7 @@ import BatchScanTab from '@/components/industry/BatchScanTab.vue'
 import { apiRequest } from '@/services/api'
 import { useScannerStore } from '@/stores/industry/scanner'
 import type { BatchScanItem } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -69,14 +70,14 @@ async function clearMinMargin(wrapper: VueWrapper): Promise<void> {
   const minMarginInput = wrapper.findAll('label')
     .find(label => label.text() === batchLabels.minMargin)
   expect(minMarginInput, 'min margin label').toBeDefined()
-  await wrapper.find(`#${minMarginInput!.attributes('for')}`).setValue('')
+  await wrapper.find(`#${present(minMarginInput).attributes('for')}`).setValue('')
   await flushPromises()
 }
 
 async function clickScan(wrapper: VueWrapper): Promise<void> {
   const scanButton = wrapper.findAll('button').find(button => button.text() === batchLabels.scanNow)
   expect(scanButton, 'scan button').toBeDefined()
-  await scanButton!.trigger('click')
+  await present(scanButton).trigger('click')
   await flushPromises()
 }
 

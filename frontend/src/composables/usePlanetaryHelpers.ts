@@ -202,9 +202,10 @@ export function usePlanetaryHelpers() {
       const lines: FlowLine[] = []
       for (const [typeId, data] of map) {
         const totalQty = data.routes.reduce((sum, r) => sum + r.quantity, 0)
-        const allCyclesKnown = data.routes.every(r => r.cycleTime !== null && r.cycleTime > 0)
+        const timedRoutes = data.routes.flatMap(r => r.cycleTime !== null && r.cycleTime > 0 ? [{ quantity: r.quantity, cycleTime: r.cycleTime }] : [])
+        const allCyclesKnown = timedRoutes.length === data.routes.length
         const dailyQuantity = allCyclesKnown
-          ? Math.round(data.routes.reduce((sum, r) => sum + r.quantity * (86400 / r.cycleTime!), 0))
+          ? Math.round(timedRoutes.reduce((sum, r) => sum + r.quantity * (86400 / r.cycleTime), 0))
           : null
         const firstCycle = data.routes.find(r => r.cycleTime !== null)?.cycleTime ?? null
 
@@ -272,7 +273,8 @@ export function usePlanetaryHelpers() {
         const cyclesPerDay = (3600 / pin.schematicCycleTime) * 24
         const dailyQty = Math.round(pin.schematicOutput.quantity * cyclesPerDay)
         const unitPrice = findUnitPrice(pin.schematicOutput.typeId)
-        const existing = items.find(i => i.typeId === pin.schematicOutput!.typeId)
+        const outputTypeId = pin.schematicOutput.typeId
+        const existing = items.find(i => i.typeId === outputTypeId)
         if (existing) {
           existing.dailyQuantity += dailyQty
           existing.dailyIskValue += dailyQty * unitPrice

@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
 import { apiRequest } from '@/services/api'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -42,7 +43,7 @@ function mountModal() {
 async function clickButton(wrapper: VueWrapper, label: string) {
   const button = wrapper.findAll('button').find(candidate => candidate.text() === label)
   expect(button, `button ${label}`).toBeDefined()
-  await button!.trigger('click')
+  await present(button).trigger('click')
 }
 
 async function pasteAndParse(wrapper: VueWrapper, text: string) {
@@ -65,7 +66,7 @@ function onlyLineResult(wrapper: VueWrapper) {
 function sentCreationBody(): Record<string, unknown> {
   const creationCall = vi.mocked(apiRequest).mock.calls.find(([endpoint]) => endpoint === PROJECTS_ENDPOINT)
   expect(creationCall, 'project creation request').toBeDefined()
-  return JSON.parse(String(creationCall![1]!.body))
+  return JSON.parse(String(present(present(creationCall)[1]).body))
 }
 
 describe('NewProjectModal bulk paste results', () => {

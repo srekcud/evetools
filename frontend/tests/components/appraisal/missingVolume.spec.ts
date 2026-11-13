@@ -4,6 +4,7 @@ import en from '@/i18n/locales/en.json'
 import AppraisalResultsTable from '@/components/appraisal/AppraisalResultsTable.vue'
 import type { MergedItem } from '@/components/appraisal/AppraisalResultsTable.vue'
 import AppraisalActions from '@/components/appraisal/AppraisalActions.vue'
+import { present } from '../../present'
 
 const VOLUME_COLUMN = 2
 const JITA_WITH_IMPORT_COLUMN = 5
@@ -70,7 +71,7 @@ describe('AppraisalResultsTable with a type of unknown volume', () => {
   }
 
   function rowCells(wrapper: ReturnType<typeof mountTable>, rowIndex: number): string[] {
-    return wrapper.findAll('tbody tr')[rowIndex]!.findAll('td').map(cell => cell.text())
+    return present(wrapper.findAll('tbody tr')[rowIndex]).findAll('td').map(cell => cell.text())
   }
 
   it('shows the volume and the Jita + import of the item as unknown', () => {
@@ -117,12 +118,12 @@ describe('AppraisalActions table copy with a type of unknown volume', () => {
       },
     })
 
-    await wrapper.findAll('button').find(button => button.text() === 'Copy table')!.trigger('click')
+    await present(wrapper.findAll('button').find(button => button.text() === 'Copy table')).trigger('click')
 
-    const rows = (writeText.mock.calls[0]![0] as string).split('\n').map(row => row.split('\t'))
-    expect(rows[1]![VOLUME_COLUMN]).toBe('Unknown')
-    expect(rows[1]![JITA_WITH_IMPORT_COLUMN]).toBe('Unknown')
-    expect(rows[2]![VOLUME_COLUMN]).toBe('20 m3')
-    expect(rows[3]![JITA_WITH_IMPORT_COLUMN]).toBe('-')
+    const rows = (present(writeText.mock.calls[0])[0] as string).split('\n').map(row => row.split('\t'))
+    expect(present(rows[1])[VOLUME_COLUMN]).toBe('Unknown')
+    expect(present(rows[1])[JITA_WITH_IMPORT_COLUMN]).toBe('Unknown')
+    expect(present(rows[2])[VOLUME_COLUMN]).toBe('20 m3')
+    expect(present(rows[3])[JITA_WITH_IMPORT_COLUMN]).toBe('-')
   })
 })
