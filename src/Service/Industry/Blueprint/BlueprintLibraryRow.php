@@ -20,6 +20,8 @@ final readonly class BlueprintLibraryRow
         public ?string $divisionName,
         public int $count,
         public bool $usedByRunningJob,
+        public ?int $productTypeId,
+        public ?string $productName,
     ) {
     }
 }

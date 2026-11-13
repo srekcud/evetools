@@ -1284,6 +1284,10 @@
       "efficiency": "ME {me} · TE {te}",
       "runs": "{count} runs",
       "unlimitedRuns": "∞",
+      "createProject": "Create project ({count})",
+      "noProduct": "No product to manufacture for this blueprint",
+      "selectAll": "Select all visible blueprints",
+      "selectRow": "Select {name}",
       "inUse": "In use by a job",
       "corporation": "corp",
       "division": "Division {number}",
@@ -2107,6 +2111,12 @@
     "itemTypesCount": "{count} item type | {count} item types",
     "itemsCount": "{count} item | {count} items",
     "shipsCount": "{count} ship | {count} ships",
+    "selection": {
+      "selectLocation": "Select {location}",
+      "summary": "{count} location selected | {count} locations selected",
+      "clear": "Clear",
+      "unknownTypes": "{count} type without a name is left out of the multibuy | {count} types without a name are left out of the multibuy"
+    },
     "syncedAt": "Synced {time}",
     "sort": {
       "label": "Sort locations",
@@ -2188,6 +2198,23 @@
       "shareBlueprintsHelp": "Blueprints, BPCs and reaction formulas of every division appear in the blueprint library; the rest of the content of hidden divisions stays hidden.",
       "shareBlueprintsOn": "Blueprints of hidden divisions: shown",
       "shareBlueprintsOff": "Blueprints of hidden divisions: hidden"
+    },
+    "shipGroups": {
+      "showAll": "Show all {count}",
+      "badFit": "Fit to review",
+      "copyEft": "Copy fit (EFT)",
+      "copied": "Fit copied",
+      "copyFailed": "Copy failed",
+      "copyUnavailable": "Copy unavailable: a module name is unknown",
+      "showFit": "Show fit",
+      "hideFit": "Hide fit",
+      "low": "Low slots",
+      "mid": "Mid slots",
+      "high": "High slots",
+      "rig": "Rigs",
+      "subsystem": "Subsystems",
+      "drones": "Drones",
+      "cargo": "Cargo"
     }
   },
   "contracts": {

@@ -8,7 +8,7 @@ import { useBlacklistStore } from '@/stores/industry/blacklist'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupProjectReferencesStore } from '@/stores/group-industry/projectReferences'
 import { useFormatters } from '@/composables/useFormatters'
-import type { ProjectPrefill, SearchResult } from '@/stores/industry/types'
+import type { ProjectPrefill, ProjectPrefillItem, SearchResult } from '@/stores/industry/types'
 import type { CreateGroupProjectInput, GroupProject, ProjectReferenceRow, ProjectTemplate } from '@/stores/group-industry/types'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -47,6 +47,7 @@ const { formatIskFull, formatNumber, formatDate } = useFormatters()
 const props = defineProps<{
   show: boolean
   prefill?: ProjectPrefill | null
+  prefillItems?: ProjectPrefillItem[] | null
 }>()
 
 const emit = defineEmits<{
@@ -280,6 +281,10 @@ function referenceMarginLabel(marginPercent: number | null): string {
 }
 
 function applyPrefill() {
+  if (props.prefillItems && props.prefillItems.length > 0) {
+    items.value = props.prefillItems.map(item => ({ ...item }))
+    return
+  }
   if (!props.prefill) return
   items.value = [{
     typeId: props.prefill.typeId,

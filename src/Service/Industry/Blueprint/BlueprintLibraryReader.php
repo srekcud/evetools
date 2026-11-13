@@ -7,12 +7,14 @@ namespace App\Service\Industry\Blueprint;
 use App\Constant\EveConstants;
 use App\Entity\Character;
 use App\Entity\OwnedBlueprint;
+use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\OwnedBlueprintRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\ESI\CorporationDirectorAccess;
 use App\Service\TypeNameResolver;
@@ -42,6 +44,7 @@ class BlueprintLibraryReader
         private readonly CachedIndustryJobRepository $jobRepository,
         private readonly CachedAssetRepository $assetRepository,
         private readonly IndustryActivityRepository $activityRepository,
+        private readonly IndustryActivityProductRepository $productRepository,
     ) {
     }
 
@@ -54,10 +57,18 @@ class BlueprintLibraryReader
         [$corporationState, $corporate] = $this->corporationBlueprints($corporationId, $user);
 
         $blueprints = [...$personal, ...$corporate];
-        $names = $this->typeNameResolver->findNames(array_values(array_unique(array_map(
+        $blueprintTypeIds = array_values(array_unique(array_map(
             static fn (OwnedBlueprint $blueprint): int => $blueprint->getTypeId(),
             $blueprints,
-        ))));
+        )));
+        $products = $this->productRepository->findProductsForBlueprints($blueprintTypeIds, [
+            IndustryActivityType::Manufacturing->value,
+            IndustryActivityType::Reaction->value,
+        ]);
+        $names = $this->typeNameResolver->findNames(array_values(array_unique([
+            ...$blueprintTypeIds,
+            ...array_map(static fn (IndustryActivityProduct $product): int => $product->getProductTypeId(), array_values($products)),
+        ])));
 
         $itemIdsInProgress = array_flip($this->jobRepository->findBlueprintItemIdsInProgress(array_map(
             static fn (OwnedBlueprint $blueprint): int => $blueprint->getItemId(),
@@ -68,7 +79,7 @@ class BlueprintLibraryReader
         $reactionFormulaTypeIds = $this->reactionFormulaTypeIdsAmong($blueprints);
 
         $rows = array_map(
-            fn (OwnedBlueprint $blueprint): BlueprintLibraryRow => $this->rowOf($blueprint, $names, $divisionNames, $main, isset($itemIdsInProgress[$blueprint->getItemId()]), isset($reactionFormulaTypeIds[$blueprint->getTypeId()])),
+            fn (OwnedBlueprint $blueprint): BlueprintLibraryRow => $this->rowOf($blueprint, $names, $divisionNames, $main, isset($itemIdsInProgress[$blueprint->getItemId()]), isset($reactionFormulaTypeIds[$blueprint->getTypeId()]), $products),
             $blueprints,
         );
         usort($rows, self::compareRows(...));
@@ -120,8 +131,9 @@ class BlueprintLibraryReader
     /**
      * @param array<int, string> $names
      * @param array<int, string> $divisionNames
+     * @param array<string, IndustryActivityProduct> $products
      */
-    private function rowOf(OwnedBlueprint $blueprint, array $names, array $divisionNames, Character $main, bool $usedByRunningJob, bool $isReactionFormula): BlueprintLibraryRow
+    private function rowOf(OwnedBlueprint $blueprint, array $names, array $divisionNames, Character $main, bool $usedByRunningJob, bool $isReactionFormula, array $products): BlueprintLibraryRow
     {
         $character = $blueprint->getCharacter();
         $isOriginal = $blueprint->isOriginal();
@@ -131,6 +143,9 @@ class BlueprintLibraryReader
             $isOriginal => self::KIND_ORIGINAL,
             default => self::KIND_COPY,
         };
+
+        $activity = $kind === self::KIND_REACTION ? IndustryActivityType::Reaction : IndustryActivityType::Manufacturing;
+        $productTypeId = ($products[$blueprint->getTypeId() . '-' . $activity->value] ?? null)?->getProductTypeId();
 
         return new BlueprintLibraryRow(
             $blueprint->getTypeId(),
@@ -146,6 +161,8 @@ class BlueprintLibraryReader
             $divisionNumber === null ? null : $divisionNames[$divisionNumber] ?? null,
             $isOriginal && $blueprint->getQuantity() > 0 ? $blueprint->getQuantity() : 1,
             $usedByRunningJob,
+            $productTypeId,
+            $productTypeId === null ? null : $names[$productTypeId] ?? self::UNKNOWN_TYPE_NAME,
         );
     }
 

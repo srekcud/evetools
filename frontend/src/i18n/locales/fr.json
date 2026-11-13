@@ -1284,6 +1284,10 @@
       "efficiency": "ME {me} · TE {te}",
       "runs": "{count} runs",
       "unlimitedRuns": "∞",
+      "createProject": "Créer un projet ({count})",
+      "noProduct": "Aucun produit à fabriquer pour ce blueprint",
+      "selectAll": "Sélectionner tous les blueprints visibles",
+      "selectRow": "Sélectionner {name}",
       "inUse": "Utilisé par un job",
       "corporation": "corpo",
       "division": "Division {number}",
@@ -2107,6 +2111,12 @@
     "itemTypesCount": "{count} type d'items | {count} types d'items",
     "itemsCount": "{count} item | {count} items",
     "shipsCount": "{count} vaisseau | {count} vaisseaux",
+    "selection": {
+      "selectLocation": "Sélectionner {location}",
+      "summary": "{count} emplacement sélectionné | {count} emplacements sélectionnés",
+      "clear": "Effacer",
+      "unknownTypes": "{count} type sans nom est exclu du multibuy | {count} types sans nom sont exclus du multibuy"
+    },
     "syncedAt": "Synchronisé {time}",
     "sort": {
       "label": "Trier les emplacements",
@@ -2188,6 +2198,23 @@
       "shareBlueprintsHelp": "Les BPO, BPC et formules de réaction de toutes les divisions apparaissent dans la bibliothèque de blueprints ; le reste du contenu des divisions masquées reste caché.",
       "shareBlueprintsOn": "Blueprints des divisions masquées : visibles",
       "shareBlueprintsOff": "Blueprints des divisions masquées : cachés"
+    },
+    "shipGroups": {
+      "showAll": "Tout afficher ({count})",
+      "badFit": "Fit à revoir",
+      "copyEft": "Copier le fit (EFT)",
+      "copied": "Fit copié",
+      "copyFailed": "Copie impossible",
+      "copyUnavailable": "Copie impossible : le nom d'un module est inconnu",
+      "showFit": "Voir le fit",
+      "hideFit": "Masquer le fit",
+      "low": "Slots bas",
+      "mid": "Slots moyens",
+      "high": "Slots hauts",
+      "rig": "Rigs",
+      "subsystem": "Sous-systèmes",
+      "drones": "Drones",
+      "cargo": "Soute"
     }
   },
   "contracts": {
