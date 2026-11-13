@@ -71,6 +71,14 @@ export class ApiError extends Error {
   }
 }
 
+export function apiErrorFallbackMessage(status: number): string {
+  return `API error: ${status}`
+}
+
+export function carriesServerMessage(error: ApiError): boolean {
+  return error.message !== apiErrorFallbackMessage(error.status)
+}
+
 /**
  * Endpoints that make ESI API calls and should be blocked when rate limited
  */
@@ -215,7 +223,7 @@ export async function apiRequest<T>(
       rateLimitStore.setRateLimited()
     }
 
-    throw new ApiError(errorData?.error || errorData?.description || errorData?.detail || `API error: ${response.status}`, response.status)
+    throw new ApiError(errorData?.error || errorData?.description || errorData?.detail || apiErrorFallbackMessage(response.status), response.status)
   }
 
   if (response.status === 204) return null as T
