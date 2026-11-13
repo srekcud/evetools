@@ -16,7 +16,10 @@ const props = defineProps<{
     solarSystemName: string | null
     assets: Asset[]
     totalQuantity: number
+    shipCount?: number
+    divisions?: { name: string; count: number }[]
   }
+  maxQuantity?: number
   expandedContainers: Set<number>
   collapsedLocations: Set<string>
   containerContents: Map<number, Asset[]>
@@ -64,6 +67,12 @@ function toggleLocation(): void {
 function getContainerContents(asset: Asset): Asset[] {
   return props.containerContents.get(asset.itemId) || []
 }
+
+const quantityBarWidth = computed(() =>
+  props.maxQuantity !== undefined && props.maxQuantity > 0
+    ? `${(props.location.totalQuantity / props.maxQuantity) * 100}%`
+    : null,
+)
 
 function formatNumber(n: number): string {
   return n.toLocaleString()
@@ -143,10 +152,28 @@ async function resolveItemName(asset: Asset): Promise<void> {
           <div class="flex items-center gap-2">
             <span v-if="props.location.solarSystemName && !props.location.locationName.startsWith(props.location.solarSystemName)" class="text-xs text-cyan-400">{{ props.location.solarSystemName }}</span>
             <span class="text-xs text-slate-500">{{ t('assets.itemTypesCount', { count: props.location.assets.length }, props.location.assets.length) }}</span>
+            <span
+              v-if="props.location.shipCount"
+              data-testid="location-ship-count"
+              class="text-xs text-slate-500"
+            >{{ t('assets.shipsCount', { count: formatNumber(props.location.shipCount) }, props.location.shipCount) }}</span>
+          </div>
+          <div v-if="props.location.divisions && props.location.divisions.length > 0" class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+            <span
+              v-for="division in props.location.divisions"
+              :key="division.name"
+              data-testid="location-division"
+              class="text-xs text-slate-500"
+            >{{ division.name }} <span class="font-mono text-slate-400">{{ formatNumber(division.count) }}</span></span>
           </div>
         </div>
       </div>
-      <span class="text-sm text-cyan-400 font-mono">{{ t('assets.itemsCount', { count: formatNumber(props.location.totalQuantity) }, props.location.totalQuantity) }}</span>
+      <div class="flex flex-col items-end gap-1 min-w-32">
+        <span class="text-sm text-cyan-400 font-mono">{{ t('assets.itemsCount', { count: formatNumber(props.location.totalQuantity) }, props.location.totalQuantity) }}</span>
+        <div v-if="quantityBarWidth" class="h-1 w-full rounded-full bg-slate-700/60 overflow-hidden">
+          <div data-testid="location-quantity-bar" class="h-full rounded-full bg-cyan-500" :style="{ width: quantityBarWidth }"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Items (collapsible) -->

@@ -2106,6 +2106,13 @@
     "loadFailed": "Le chargement des assets a échoué.",
     "itemTypesCount": "{count} type d'items | {count} types d'items",
     "itemsCount": "{count} item | {count} items",
+    "shipsCount": "{count} vaisseau | {count} vaisseaux",
+    "syncedAt": "Synchronisé {time}",
+    "sort": {
+      "label": "Trier les emplacements",
+      "items": "Nombre d'items",
+      "name": "Nom"
+    },
     "mainCharacterSuffix": "(Principal)",
     "refreshAvailableAt": "Actualisation possible à {time}",
     "syncAlreadyRunning": "Une synchro des assets de la corporation est déjà en cours",
