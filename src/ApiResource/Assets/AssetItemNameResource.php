@@ -19,6 +19,7 @@ use App\State\Processor\Assets\ResolveAssetItemNameProcessor;
             uriVariables: ['id' => new Link(fromClass: self::class)],
             processor: ResolveAssetItemNameProcessor::class,
             input: EmptyInput::class,
+            deserialize: false,
             status: 200,
         ),
     ],
