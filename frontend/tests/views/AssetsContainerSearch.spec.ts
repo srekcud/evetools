@@ -47,7 +47,7 @@ const rawAssets = [
   containedAsset({ id: '00000000-0000-4000-8000-000000000004', itemId: 1050000000302, typeId: 4247, typeName: 'Oxygen Fuel Block', quantity: 45 }),
 ]
 
-async function mountAssets() {
+async function mountAssets(items: Record<string, unknown>[] = rawAssets) {
   const pinia = createPinia()
   setActivePinia(pinia)
   const authStore = useAuthStore()
@@ -71,7 +71,7 @@ async function mountAssets() {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items: rawAssets }), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items }), { status: 200 })))
   const i18n = createI18n({ legacy: false, locale: 'fr', messages: { fr } })
   const wrapper = mount(Assets, {
     global: {
@@ -101,6 +101,95 @@ function containerRow(wrapper: Awaited<ReturnType<typeof mountAssets>>) {
   }
   return row
 }
+
+const OTHER_STATION_NAME = 'Amarr VIII (Oris) - Emperor Family Academy'
+const ACCENTED_CONTAINER_ITEM_ID = 1050000000401
+const COLLAPSE_THRESHOLD_FILLER_COUNT = 201
+
+function accentedInventory(): Record<string, unknown>[] {
+  return [
+    stationAsset({ id: '00000000-0000-4000-8000-000000000011', itemId: 1050000000401, typeId: 3296, typeName: 'Station Container', quantity: 1, itemName: 'Caisse Matériaux' }),
+    containedAsset({ id: '00000000-0000-4000-8000-000000000012', itemId: 1050000000402, locationId: ACCENTED_CONTAINER_ITEM_ID, locationName: `Caisse Matériaux — ${STATION_NAME}`, typeId: 11399, typeName: 'Mégacyte', quantity: 300 }),
+    stationAsset({ id: '00000000-0000-4000-8000-000000000013', itemId: 1050000000403, typeId: 34, typeName: 'Tritanium', quantity: 10 }),
+  ]
+}
+
+function largeInventoryWithContentInOtherStation(): Record<string, unknown>[] {
+  const fillers = Array.from({ length: COLLAPSE_THRESHOLD_FILLER_COUNT }, (_, index) =>
+    stationAsset({ id: `00000000-0000-4000-8000-${String(index + 1000).padStart(12, '0')}`, itemId: 1060000000000 + index, typeId: 34, typeName: 'Tritanium', quantity: 1 }),
+  )
+  const otherStationAssets = [
+    {
+      ...stationAsset({ id: '00000000-0000-4000-8000-000000000021', itemId: 1070000000001, typeId: 3296, typeName: 'Station Container', quantity: 1, itemName: 'Spare Box' }),
+      locationId: 60008494,
+      locationName: OTHER_STATION_NAME,
+      solarSystemName: 'Amarr',
+    },
+    {
+      ...containedAsset({ id: '00000000-0000-4000-8000-000000000022', itemId: 1070000000002, locationId: 1070000000001, locationName: `Spare Box — ${OTHER_STATION_NAME}`, typeId: 40520, typeName: 'Zydrine Crystal', quantity: 7 }),
+      solarSystemName: 'Amarr',
+    },
+  ]
+  return [...fillers, ...otherStationAssets]
+}
+
+describe('Assets search ignoring case and accents', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('finds an accented container name from an unaccented query', async () => {
+    const wrapper = await mountAssets(accentedInventory())
+
+    const text = await searchFor(wrapper, 'materiaux')
+
+    expect(text).toContain('Caisse Matériaux (Station Container)')
+    expect(text).not.toContain('Tritanium')
+  })
+
+  it('finds an unaccented item name from an accented uppercase query', async () => {
+    const wrapper = await mountAssets(accentedInventory())
+
+    const text = await searchFor(wrapper, 'TRITANIÙM')
+
+    expect(text).toContain('Tritanium')
+    expect(text).not.toContain('Caisse Matériaux')
+  })
+
+  it('finds an accented type stored in a container from an unaccented query', async () => {
+    const wrapper = await mountAssets(accentedInventory())
+
+    const text = await searchFor(wrapper, 'megacyte')
+
+    expect(text).toContain('Mégacyte')
+    expect(text).toContain('Caisse Matériaux (Station Container)')
+  })
+})
+
+describe('Assets search opening locations', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('opens a collapsed location matched only through a container content', async () => {
+    const wrapper = await mountAssets(largeInventoryWithContentInOtherStation())
+
+    const text = await searchFor(wrapper, 'zydrine')
+
+    expect(text).toContain('Spare Box (Station Container)')
+    expect(text).toContain('Zydrine Crystal')
+    expect(text).not.toContain('Tritanium')
+  })
+
+  it('keeps a location collapsed when only its name matches', async () => {
+    const wrapper = await mountAssets(largeInventoryWithContentInOtherStation())
+
+    const text = await searchFor(wrapper, 'amarr')
+
+    expect(text).toContain(OTHER_STATION_NAME)
+    expect(text).not.toContain('Spare Box (Station Container)')
+  })
+})
 
 describe('Assets search inside containers', () => {
   afterEach(() => {
