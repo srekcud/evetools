@@ -30,7 +30,7 @@ class ProjectContainerService
     private const string REASON_CORPORATION_ASSETS_NOT_SYNCED = 'corporation_assets_not_synced';
     private const string REASON_NO_VISIBLE_DIVISION = 'no_visible_division';
     private const string REASON_NO_DIRECTOR = 'no_director';
-    private const string REASON_NO_CONTAINER_NAME = 'no_container_name';
+    public const string REASON_NO_CONTAINER_NAME = 'no_container_name';
 
     private const string CORPORATION_ASSETS_STALE_AFTER = 'PT48H';
     private const array CORPORATION_DIVISION_NUMBERS = [1, 2, 3, 4, 5, 6, 7];

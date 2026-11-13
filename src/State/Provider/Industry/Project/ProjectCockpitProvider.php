@@ -13,6 +13,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\CockpitPhasePresenter;
 use App\Service\Industry\Project\ProjectCockpit;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
+use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectPriceAlert;
 use App\Service\Industry\Project\ProjectPriceAlertReader;
 use App\Service\Industry\SellOrders\ProjectSellOrder;
@@ -35,6 +36,7 @@ class ProjectCockpitProvider implements ProviderInterface
         private readonly ProjectCockpitInputFactory $inputFactory,
         private readonly ProjectPriceAlertReader $priceAlertReader,
         private readonly ProjectSellOrdersReader $sellOrdersReader,
+        private readonly ProjectContainerFulfillment $containerFulfillment,
     ) {
     }
 
@@ -58,7 +60,7 @@ class ProjectCockpitProvider implements ProviderInterface
 
         $this->accessChecker->assertAcceptedMember($user, $project);
 
-        $cockpit = $this->calculator->calculate($this->inputFactory->create($project, $user));
+        $cockpit = $this->calculator->calculate($this->inputFactory->create($project, $user, $this->containerFulfillment->of($project)));
 
         return $this->mapToResource($project, $cockpit, $this->priceAlertReader->of($project), $this->sellOrdersReader->undercutOrdersOf($project, $user));
     }

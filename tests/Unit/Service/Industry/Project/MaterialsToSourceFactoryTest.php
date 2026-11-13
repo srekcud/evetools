@@ -13,7 +13,9 @@ use App\Industry\Domain\Plan;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
+use App\Service\Industry\Project\ContainerStockState;
 use App\Service\Industry\Project\MaterialsToSourceFactory;
+use App\Service\Industry\Project\ProjectLineFulfillments;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -69,6 +71,38 @@ final class MaterialsToSourceFactoryTest extends TestCase
             [ActivityKind::Reaction, ActivityKind::Manufacturing],
             array_map(static fn (MaterialToSource $material): ActivityKind => $material->consumedBy, $materials),
         );
+    }
+
+    #[Group('issue-866')]
+    public function testContainerStockReducesTheQuantityToSourceAndAFullyCoveredLineIsNotToSource(): void
+    {
+        $fulfillments = new ProjectLineFulfillments(ContainerStockState::Known, [self::RAM_STARSHIP_TECH => 2, self::TRITANIUM => 12_000]);
+
+        $materials = MaterialsToSourceFactory::of(
+            [$this->material(self::RAM_STARSHIP_TECH, 55, 0), $this->material(self::TRITANIUM, 12_000, 0), $this->material(self::PYERITE, 500, 0)],
+            new Plan([], [], []),
+            $fulfillments,
+        );
+
+        self::assertEquals(
+            [
+                new MaterialToSource(self::RAM_STARSHIP_TECH, new Quantity(53), ActivityKind::Manufacturing),
+                new MaterialToSource(self::PYERITE, new Quantity(500), ActivityKind::Manufacturing),
+            ],
+            $materials,
+        );
+    }
+
+    #[Group('issue-866')]
+    public function testUnreadableContainerLeavesTheContributionsAsTheOnlyDeduction(): void
+    {
+        $materials = MaterialsToSourceFactory::of(
+            [$this->material(self::TRITANIUM, 12_000, 2_000)],
+            new Plan([], [], []),
+            new ProjectLineFulfillments(ContainerStockState::Unknown),
+        );
+
+        self::assertEquals([new MaterialToSource(self::TRITANIUM, new Quantity(10_000), ActivityKind::Manufacturing)], $materials);
     }
 
     private function material(int $typeId, int $required, int $fulfilled): IndustryProjectBomLine

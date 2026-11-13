@@ -18,17 +18,19 @@ final class MaterialsToSourceFactory
      *
      * @return list<MaterialToSource>
      */
-    public static function of(array $bomLines, Plan $plan): array
+    public static function of(array $bomLines, Plan $plan, ?ProjectLineFulfillments $fulfillments = null): array
     {
+        $fulfillments ??= ProjectLineFulfillments::none();
         $consumingActivities = ConsumingActivities::of($plan);
         $materials = [];
         foreach ($bomLines as $line) {
-            if ($line->isJob() || $line->getRemainingQuantity() <= 0) {
+            $remainingQuantity = $fulfillments->remainingOf($line);
+            if ($line->isJob() || $remainingQuantity <= 0) {
                 continue;
             }
             $materials[] = new MaterialToSource(
                 $line->getTypeId(),
-                new Quantity($line->getRemainingQuantity()),
+                new Quantity($remainingQuantity),
                 $consumingActivities[$line->getTypeId()] ?? ActivityKind::Manufacturing,
             );
         }

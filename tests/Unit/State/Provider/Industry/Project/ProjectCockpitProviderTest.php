@@ -17,6 +17,9 @@ use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
+use App\Service\Industry\Project\ProjectContainerService;
+use App\Service\Industry\Project\ProjectContainerStock;
+use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectPriceAlert;
 use App\Service\Industry\Project\ProjectPriceAlertReader;
 use App\Service\Industry\SellOrders\ProjectSellOrder;
@@ -248,6 +251,14 @@ final class ProjectCockpitProviderTest extends TestCase
         return $this->outcomeOf(fn () => $this->provider()->provide(new Get(), ['projectId' => $projectId->toRfc4122()]));
     }
 
+    private function containerWithoutName(): ProjectContainerService
+    {
+        $containerService = $this->createStub(ProjectContainerService::class);
+        $containerService->method('containerStockOf')->willReturn(new ProjectContainerStock('no_container_name'));
+
+        return $containerService;
+    }
+
     private function provider(): ProjectCockpitProvider
     {
         return new ProjectCockpitProvider(
@@ -258,6 +269,7 @@ final class ProjectCockpitProviderTest extends TestCase
             new ProjectCockpitInputFactory(),
             $this->priceAlertReader,
             $this->sellOrdersReader,
+            new ProjectContainerFulfillment($this->containerWithoutName()),
         );
     }
 }

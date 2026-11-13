@@ -198,6 +198,8 @@ export type BomItem = {
   reservations: LineReservation[]
   reservedQuantity: number
   freeQuantity: number
+  containerQuantity?: number | null
+  containerStockState?: 'known' | 'unknown' | 'none'
 }
 
 // --- Contributions ---

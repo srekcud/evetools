@@ -3204,7 +3204,8 @@
       "totalItems": "Total items",
       "totalEstCost": "Cout total est.",
       "overallFulfillment": "Progression globale",
-      "purchasedQuantity": "{quantity} achetés"
+      "purchasedQuantity": "{quantity} achetés",
+      "containerStockUnknown": "Container illisible : son stock est inconnu, seule la quantité déclarée compte"
     },
     "reservation": {
       "reservedBy": "Réservé par",

@@ -13,7 +13,9 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Service\Industry\Project\CockpitBomLine;
+use App\Service\Industry\Project\ContainerStockState;
 use App\Service\Industry\Project\ProjectCockpitInput;
+use App\Service\Industry\Project\ProjectLineFulfillments;
 use App\State\Provider\Industry\Project\ProjectCockpitInputFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -97,6 +99,24 @@ final class ProjectCockpitInputFactoryTest extends TestCase
                 false,
             ),
             $input,
+        );
+    }
+
+    #[Group('issue-866')]
+    public function testMaterialLineCarriesTheEffectiveFulfilledQuantityAndJobLinesTheirOwn(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 5);
+        $tritanium = $this->materialOf($project, self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 1_000);
+        $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 5, 5, 0);
+        $fulfillments = new ProjectLineFulfillments(ContainerStockState::Known, [self::TRITANIUM_TYPE_ID => 25_000, self::SABRE_TYPE_ID => 5]);
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner, $fulfillments);
+
+        self::assertSame(
+            [$tritanium->getId()->toRfc4122() => 25_000, $sabreJob->getId()->toRfc4122() => 0],
+            array_column(array_map(static fn (CockpitBomLine $line): array => [$line->id, $line->fulfilledQuantity], $input->bomLines), 1, 0),
         );
     }
 
