@@ -50,4 +50,7 @@ class ProjectContainerVerificationResource
     public ?string $unknownReason = null;
 
     public ?\DateTimeImmutable $assetsSyncedAt = null;
+
+    /** @var list<string> Declared container names without any visible container */
+    public array $missingContainerNames = [];
 }

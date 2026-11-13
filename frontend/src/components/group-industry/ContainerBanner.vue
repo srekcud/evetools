@@ -19,7 +19,7 @@ const PROBLEM_STATUSES: readonly ContainerVerificationStatus[] = [
 ]
 
 const props = defineProps<{
-  containerName: string
+  containerNames: string[]
   projectId: string
   canVerify?: boolean
 }>()
@@ -31,6 +31,14 @@ const refreshError = ref<string | null>(null)
 const containerCheckProblem = computed(() =>
   projectStore.containerVerification.find(line => PROBLEM_STATUSES.includes(line.status)),
 )
+
+const missingContainerNames = computed(() =>
+  projectStore.containerVerification.find(line => line.missingContainerNames.length > 0)?.missingContainerNames ?? [],
+)
+
+function quoted(names: string[]): string {
+  return names.map(name => `"${name}"`).join(', ')
+}
 
 const assetsSyncedAt = computed(() =>
   projectStore.containerVerification.find(line => line.assetsSyncedAt !== null)?.assetsSyncedAt ?? null,
@@ -107,7 +115,7 @@ watch(() => syncStore.corporationAssetsProgress?.status, async status => {
         </svg>
       </div>
       <div>
-        <span class="text-sm text-violet-400 font-medium">Container: "{{ containerName }}"</span>
+        <span data-testid="container-names" class="text-sm text-violet-400 font-medium">{{ quoted(containerNames) }}</span>
         <span class="text-xs text-slate-500 ml-2">linked to corp offices</span>
         <p v-if="containerCheckProblem" class="text-xs text-amber-400 mt-1">
           <template v-if="containerCheckProblem.status === 'unknown' && containerCheckProblem.unknownReason !== null">
@@ -116,6 +124,9 @@ watch(() => syncStore.corporationAssetsProgress?.status, async status => {
           <template v-else>
             {{ t(`groupIndustry.container.statuses.${containerCheckProblem.status}`) }}
           </template>
+        </p>
+        <p v-if="missingContainerNames.length > 0" data-testid="container-missing-names" class="text-xs text-amber-400 mt-1">
+          {{ t('groupIndustry.container.missingNames', { names: quoted(missingContainerNames) }) }}
         </p>
         <p v-if="assetsSyncedAt !== null" data-testid="container-assets-synced-at" class="text-xs text-slate-500 mt-1">
           {{ t('groupIndustry.container.assetsSyncedAt', { date: formatDateTime(assetsSyncedAt) }) }}

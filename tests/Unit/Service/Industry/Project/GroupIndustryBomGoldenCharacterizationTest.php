@@ -1489,7 +1489,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             ],
             blacklistGroupIds: [self::COMPOSITE_GROUP_ID],
             blacklistTypeIds: [self::FERNITE_CARBIDE],
-            containerName: 'Fuel hangar',
+            containerNames: ['Fuel hangar'],
             lineRentalRatesOverride: ['manufacturing' => 5],
             brokerFeePercent: 1.5,
             salesTaxPercent: 4.5,
@@ -1497,11 +1497,11 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
         self::assertSame([$project], $persisted);
         self::assertSame(
-            [$this->owner, 'Fuel run', 'Fuel hangar', ['manufacturing' => 5], [self::COMPOSITE_GROUP_ID], [self::FERNITE_CARBIDE], 1.5, 4.5],
+            [$this->owner, 'Fuel run', ['Fuel hangar'], ['manufacturing' => 5], [self::COMPOSITE_GROUP_ID], [self::FERNITE_CARBIDE], 1.5, 4.5],
             [
                 $project->getOwner(),
                 $project->getName(),
-                $project->getContainerName(),
+                $project->getContainerNames(),
                 $project->getLineRentalRatesOverride(),
                 $project->getBlacklistGroupIds(),
                 $project->getBlacklistTypeIds(),

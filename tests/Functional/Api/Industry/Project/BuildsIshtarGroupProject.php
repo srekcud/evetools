@@ -81,7 +81,7 @@ trait BuildsIshtarGroupProject
         $this->ownerCorpmate = $this->persistPilot('Corin Vale', self::OWNER_CORPORATION_ID);
 
         $this->ishtarBatch = $this->persistProject('Ishtar batch');
-        $this->ishtarBatch->setContainerName(self::CONTAINER_NAME)->setBrokerFeePercent(3.0)->setSalesTaxPercent(4.5);
+        $this->ishtarBatch->setContainerNames([self::CONTAINER_NAME])->setBrokerFeePercent(3.0)->setSalesTaxPercent(4.5);
         $this->ownerMembership = $this->addMembership($this->ishtarBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
         $this->memberMembership = $this->addMembership($this->ishtarBatch, $this->member, ParticipantRole::Member, ParticipantStatus::Accepted);
         $this->pendingMembership = $this->addMembership($this->ishtarBatch, $this->pendingMember, ParticipantRole::Member, ParticipantStatus::Pending);

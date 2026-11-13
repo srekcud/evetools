@@ -11,11 +11,13 @@ final readonly class ProjectContainerScope
     /**
      * @param list<int> $containerItemIds item ids of the project containers and of everything stored in them
      * @param array<int, CachedAsset> $visibleAssetsByItemId corporation assets visible to the project owner
+     * @param list<string> $missingContainerNames declared container names without any visible container
      */
     public function __construct(
         public ?string $unknownReason,
         public array $containerItemIds = [],
         public array $visibleAssetsByItemId = [],
+        public array $missingContainerNames = [],
     ) {
     }
 

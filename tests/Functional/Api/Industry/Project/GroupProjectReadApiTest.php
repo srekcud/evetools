@@ -34,7 +34,7 @@ final class GroupProjectReadApiTest extends WebTestCase
         $this->request('GET', $this->projectUri($this->ishtarBatch));
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['Ishtar batch', 'Aria Solberg', 'ISHTAR-206', 'owner', 'accepted'], $this->projectDetailRow());
+        self::assertSame(['Ishtar batch', 'Aria Solberg', ['ISHTAR-206'], 'owner', 'accepted'], $this->projectDetailRow());
     }
 
     public function testAcceptedMemberReadsTheProjectDetailWithHisMemberRole(): void
@@ -43,7 +43,7 @@ final class GroupProjectReadApiTest extends WebTestCase
         $this->request('GET', $this->projectUri($this->ishtarBatch));
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['Ishtar batch', 'Aria Solberg', 'ISHTAR-206', 'member', 'accepted'], $this->projectDetailRow());
+        self::assertSame(['Ishtar batch', 'Aria Solberg', ['ISHTAR-206'], 'member', 'accepted'], $this->projectDetailRow());
     }
 
     #[DataProvider('projectReadRoutes')]
@@ -325,7 +325,7 @@ final class GroupProjectReadApiTest extends WebTestCase
     {
         $project = $this->responseJson();
 
-        return [$project['name'], $project['ownerCharacterName'], $project['containerName'], $project['myRole'], $project['myStatus']];
+        return [$project['name'], $project['ownerCharacterName'], $project['containerNames'], $project['myRole'], $project['myStatus']];
     }
 
     private function containerVerificationUri(): string

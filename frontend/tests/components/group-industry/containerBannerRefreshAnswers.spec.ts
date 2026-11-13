@@ -27,7 +27,7 @@ async function clickRefresh(refreshAnswer: Record<string, unknown>) {
   setActivePinia(createPinia())
   answerRefreshWith(refreshAnswer)
   const wrapper = mount(ContainerBanner, {
-    props: { containerName: 'Build', projectId: PROJECT_ID, canVerify: true },
+    props: { containerNames: ['Build'], projectId: PROJECT_ID, canVerify: true },
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })] },
   })
   await wrapper.get('[data-testid="container-refresh-assets"]').trigger('click')

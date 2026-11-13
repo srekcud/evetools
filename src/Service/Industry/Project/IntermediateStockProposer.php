@@ -34,7 +34,7 @@ final readonly class IntermediateStockProposer
         }
 
         $containerQuantities = null;
-        if (null !== $project->getContainerName()) {
+        if ([] !== $project->getContainerNames()) {
             $containerStock = $this->containerService->containerStockOf($project);
             if (null !== $containerStock->unknownReason) {
                 return $this->unknown($containerStock->unknownReason);

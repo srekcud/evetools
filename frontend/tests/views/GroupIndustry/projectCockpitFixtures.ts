@@ -51,7 +51,7 @@ export function nyxProject(status: GroupProjectStatus, myRole: GroupMemberRole =
     name: 'Nyx batch',
     status,
     shortLinkCode: 'nyx731',
-    containerName: null,
+    containerNames: [],
     ownerCharacterName: 'Selene Vance',
     ownerCorporationId: 98_000_007,
     membersCount: 1,

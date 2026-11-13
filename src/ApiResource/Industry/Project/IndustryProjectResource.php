@@ -119,7 +119,8 @@ class IndustryProjectResource
 
     public string $shortLinkCode;
 
-    public ?string $containerName = null;
+    /** @var list<string> */
+    public array $containerNames = [];
 
     public bool $private = true;
 

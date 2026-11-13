@@ -57,7 +57,7 @@ class UpdateProjectProcessorTest extends TestCase
         $this->project = (new IndustryProject());
         $this->project->setOwner($this->owner);
         $this->project->setName('Orca batch');
-        $this->project->setContainerName('GI Orca hangar');
+        $this->project->setContainerNames(['GI Orca hangar']);
         $this->project->setBrokerFeePercent(3.0);
         $this->project->setSalesTaxPercent(3.6);
         $this->assignId($this->project);
@@ -374,50 +374,52 @@ class UpdateProjectProcessorTest extends TestCase
     }
 
     #[Group('issue-168')]
-    public function testUpdateWithoutContainerNameKeepsTheContainerNameOfTheProject(): void
+    public function testUpdateWithoutContainerNamesKeepsTheContainerNamesOfTheProject(): void
     {
         $input = new UpdateProjectInput();
         $input->name = 'Rorqual batch';
 
         $this->update($input);
 
-        self::assertSame('GI Orca hangar', $this->project->getContainerName());
+        self::assertSame(['GI Orca hangar'], $this->project->getContainerNames());
     }
 
     #[Group('issue-168')]
-    public function testUpdateWithAContainerNameReplacesItAndAnEmptyOneClearsIt(): void
+    #[Group('issue-894')]
+    public function testUpdateWithContainerNamesReplacesThemAndAnEmptyListClearsThem(): void
     {
         $input = new UpdateProjectInput();
-        $input->containerName = 'GI Rorqual hangar';
+        $input->containerNames = ['GI Rorqual hangar', 'GI Rorqual products'];
         $this->update($input);
-        self::assertSame('GI Rorqual hangar', $this->project->getContainerName());
+        self::assertSame(['GI Rorqual hangar', 'GI Rorqual products'], $this->project->getContainerNames());
 
         $empty = new UpdateProjectInput();
-        $empty->containerName = '';
+        $empty->containerNames = [];
         $this->update($empty);
-        self::assertNull($this->project->getContainerName());
+        self::assertSame([], $this->project->getContainerNames());
     }
 
     #[Group('issue-800')]
-    public function testContainerNameIsTrimmedOnUpdate(): void
+    #[Group('issue-894')]
+    public function testContainerNamesAreTrimmedOnUpdateAndBlankOnesAreDropped(): void
     {
         $input = new UpdateProjectInput();
-        $input->containerName = '  GI Rorqual hangar ';
+        $input->containerNames = ['  GI Rorqual hangar ', '   ', ''];
 
         $this->update($input);
 
-        self::assertSame('GI Rorqual hangar', $this->project->getContainerName());
+        self::assertSame(['GI Rorqual hangar'], $this->project->getContainerNames());
     }
 
-    #[Group('issue-800')]
-    public function testContainerNameMadeOfSpacesClearsIt(): void
+    #[Group('issue-894')]
+    public function testContainerNamesDifferingOnlyByCaseAreMergedOnUpdate(): void
     {
         $input = new UpdateProjectInput();
-        $input->containerName = '   ';
+        $input->containerNames = ['GI Mats', 'gi mats', 'GI Products'];
 
         $this->update($input);
 
-        self::assertNull($this->project->getContainerName());
+        self::assertSame(['GI Mats', 'GI Products'], $this->project->getContainerNames());
     }
 
     #[Group('issue-321')]

@@ -3585,6 +3585,7 @@
       "refreshFailed": "Impossible de rafraîchir les assets de la corporation",
       "verifyFailed": "Vérification échouée",
       "approvedGapTitle": "Contributions approuvées absentes du container, relancez la vérification avant les jobs",
+      "missingNames": "Container introuvable : {names}",
       "approvedGapLine": "{name} : {container} / {approved} dans le container, {approved} approuvés"
     },
     "actions": {
@@ -3639,9 +3640,9 @@
           "unknown": "inconnu"
         },
         "totalRuns": "runs au total",
-        "containerLabel": "Container corp",
+        "containerLabel": "Containers corp",
         "containerPlaceholder": "ex: Fleet Doctrine Materials",
-        "containerHint": "Si defini, les admins peuvent verifier les contributions materielles contre le contenu de ce container dans les bureaux corp partages.",
+        "containerHint": "Si defini, les admins peuvent verifier les contributions materielles contre le contenu de ces containers dans les bureaux corp partages. Un nom par ligne, la casse est ignoree.",
         "blacklist": "Liste noire",
         "blacklistLabel": "Liste noire",
         "blacklistDesc": "Les items ci-dessous seront achetes, pas fabriques.",
@@ -3827,7 +3828,7 @@
       "editFields": {
         "name": "Nom du projet",
         "namePlaceholder": "Nom personnalise du projet...",
-        "containerName": "Nom du container",
+        "containerName": "Noms des containers",
         "containerPlaceholder": "ex: Fleet Doctrine Materials",
         "brokerFee": "Frais courtier %",
         "salesTax": "Taxe de vente %",

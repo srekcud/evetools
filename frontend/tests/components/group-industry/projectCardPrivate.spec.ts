@@ -10,7 +10,7 @@ const HECATE_PROJECT: GroupProject = {
   name: 'Hecate batch',
   status: 'draft',
   shortLinkCode: 'hecate77',
-  containerName: null,
+  containerNames: [],
   ownerCharacterName: 'Cyra Lune',
   ownerCorporationId: 98000002,
   membersCount: 1,

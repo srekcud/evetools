@@ -17,6 +17,7 @@ final readonly class CreateProjectData
      * @param list<array{typeId: int, typeName: string, meLevel: int, teLevel: int, runs: int}> $items
      * @param int[] $blacklistGroupIds
      * @param int[] $blacklistTypeIds
+     * @param list<string> $containerNames
      * @param array<string, int>|null $lineRentalRatesOverride
      */
     public function __construct(
@@ -24,7 +25,7 @@ final readonly class CreateProjectData
         public array $items,
         public array $blacklistGroupIds = [],
         public array $blacklistTypeIds = [],
-        public ?string $containerName = null,
+        public array $containerNames = [],
         public ?array $lineRentalRatesOverride = null,
         public ?float $brokerFeePercent = null,
         public ?float $salesTaxPercent = null,

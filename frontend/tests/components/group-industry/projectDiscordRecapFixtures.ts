@@ -9,7 +9,7 @@ export function completedProject(overrides: Partial<GroupProject> = {}): GroupPr
     name: 'Sabre run',
     status: 'completed',
     shortLinkCode: 'abc123',
-    containerName: null,
+    containerNames: [],
     private: false,
     acceptsOutsideFavoriteSystem: false,
     excludesInvention: false,

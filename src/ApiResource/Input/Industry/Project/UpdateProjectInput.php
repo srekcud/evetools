@@ -11,6 +11,8 @@ class UpdateProjectInput
 {
     public const int MAXIMUM_NOTES_LENGTH = 5000;
     public const int MAXIMUM_BLACKLIST_ENTRIES = 200;
+    public const int MAXIMUM_CONTAINER_NAMES = 20;
+    public const int MAXIMUM_CONTAINER_NAME_LENGTH = 255;
 
     #[Assert\Length(max: 255)]
     public ?string $name = null;
@@ -18,8 +20,10 @@ class UpdateProjectInput
     #[Assert\Choice(choices: ['published', 'in_progress', 'selling', 'completed'])]
     public ?string $status = null;
 
-    #[Assert\Length(max: 255)]
-    public ?string $containerName = null;
+    /** @var list<string>|null */
+    #[Assert\Count(max: self::MAXIMUM_CONTAINER_NAMES)]
+    #[Assert\All([new Assert\Type('string'), new Assert\Length(max: self::MAXIMUM_CONTAINER_NAME_LENGTH)])]
+    public ?array $containerNames = null;
 
     #[Assert\Range(min: 0, max: ProjectFees::MAXIMUM_PERCENT)]
     public ?float $brokerFeePercent = null;

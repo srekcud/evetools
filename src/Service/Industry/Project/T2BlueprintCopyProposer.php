@@ -39,7 +39,7 @@ class T2BlueprintCopyProposer
         }
 
         $containerBlueprints = null;
-        if (null !== $project->getContainerName()) {
+        if ([] !== $project->getContainerNames()) {
             $containerStock = $this->containerService->containerStockOf($project);
             if (null !== $containerStock->unknownReason) {
                 return $this->unknown($containerStock->unknownReason);

@@ -72,6 +72,7 @@ function verification(
     status,
     unknownReason: status === 'unknown' ? 'corporation_assets_not_synced' : null,
     assetsSyncedAt: null,
+    missingContainerNames: [],
   }
 }
 
@@ -90,7 +91,7 @@ function mountBanner(
   projectStore.bomItems = approved.map(([material, quantity]) => bomLine(material, quantity))
   projectStore.containerVerification = lines
   return mount(ContainerBanner, {
-    props: { containerName: CONTAINER_NAME, projectId: PROJECT_ID, canVerify },
+    props: { containerNames: [CONTAINER_NAME], projectId: PROJECT_ID, canVerify },
     global: { plugins: [i18nFor(locale)] },
   })
 }

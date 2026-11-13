@@ -20,7 +20,7 @@ function groupProject(id: string, name: string, status: GroupProjectStatus): Gro
     name,
     status,
     shortLinkCode: `link-${id}`,
-    containerName: null,
+    containerNames: [],
     private: true,
     acceptsOutsideFavoriteSystem: false,
     excludesInvention: false,

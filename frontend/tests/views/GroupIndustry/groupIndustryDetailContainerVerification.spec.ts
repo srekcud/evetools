@@ -31,7 +31,7 @@ const ISHTAR_BATCH: GroupProject = {
   name: 'Ishtar batch',
   status: 'in_progress',
   shortLinkCode: 'ishtar206',
-  containerName: 'ISHTAR-206',
+  containerNames: ['ISHTAR-206'],
   ownerCharacterName: 'Aria Solberg',
   ownerCorporationId: 98_000_001,
   membersCount: 3,
@@ -65,6 +65,7 @@ const TRITANIUM_VERIFICATION: ContainerVerification = {
   status: 'partial',
   unknownReason: null,
   assetsSyncedAt: null,
+  missingContainerNames: [],
 }
 
 function i18n() {
@@ -135,7 +136,7 @@ describe('container verification loaded when the detail view opens', () => {
   })
 
   it('does not ask for a verification when the project has no container', async () => {
-    await mountDetailOf({ ...ISHTAR_BATCH, containerName: null })
+    await mountDetailOf({ ...ISHTAR_BATCH, containerNames: [] })
 
     expect(verificationRequests()).toBe(0)
   })

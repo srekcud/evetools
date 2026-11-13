@@ -70,6 +70,7 @@ function verification(
     status,
     unknownReason,
     assetsSyncedAt: null,
+    missingContainerNames: [],
   }
 }
 
@@ -79,7 +80,7 @@ function hullRunProject(): GroupProject {
     name: 'Hull run',
     status: 'in_progress',
     shortLinkCode: 'hull0001',
-    containerName: CONTAINER_NAME,
+    containerNames: [CONTAINER_NAME],
     ownerCharacterName: 'Aria Solberg',
     ownerCorporationId: 98000001,
     membersCount: 2,
@@ -125,7 +126,7 @@ function mountBomTable(locale: Locale, lines: ContainerVerification[]): VueWrapp
 function mountBanner(locale: Locale, lines: ContainerVerification[]): VueWrapper {
   givenVerification(lines)
   return mount(ContainerBanner, {
-    props: { containerName: CONTAINER_NAME, projectId: PROJECT_ID },
+    props: { containerNames: [CONTAINER_NAME], projectId: PROJECT_ID },
     global: { plugins: [i18nFor(locale)] },
   })
 }

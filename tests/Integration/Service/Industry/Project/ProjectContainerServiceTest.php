@@ -264,7 +264,7 @@ final class ProjectContainerServiceTest extends IntegrationTestCase
         $project = (new IndustryProject())
             ->setOwner($this->em->getReference(User::class, $this->owner->getId()))
             ->setName('Hull run')
-            ->setContainerName(self::BUILD_CONTAINER_NAME);
+            ->setContainerNames([self::BUILD_CONTAINER_NAME]);
         $this->em->persist($project);
         $this->addMaterial($project, self::TRITANIUM, 'Tritanium', self::TRITANIUM_REQUIRED);
         $this->addMaterial($project, self::PYERITE, 'Pyerite', self::PYERITE_REQUIRED);

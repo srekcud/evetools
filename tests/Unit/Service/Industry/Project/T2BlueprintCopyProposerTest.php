@@ -94,7 +94,7 @@ final class T2BlueprintCopyProposerTest extends TestCase
     {
         $this->manufacturing(self::ISHTAR, 'Ishtar', 15);
         $this->project->addBomItem($this->jobLine(self::ISHTAR, 'Ishtar', 'blueprint', null, 10, 'invention'));
-        $this->project->setContainerName(self::CONTAINER_NAME);
+        $this->project->setContainerNames([self::CONTAINER_NAME]);
         $this->personalBlueprints = [$this->personalCopy(self::ISHTAR_BLUEPRINT, 4), $this->personalCopy(self::ISHTAR_BLUEPRINT, 6)];
         $inContainer = $this->corporationCopy(self::ISHTAR_BLUEPRINT, 3);
         $this->containerStock = new ProjectContainerStock(null, [], [$inContainer->getItemId()]);
@@ -137,7 +137,7 @@ final class T2BlueprintCopyProposerTest extends TestCase
     public function testCorporationCopyOutsideTheContainerOfTheProjectIsNotCounted(): void
     {
         $this->manufacturing(self::ISHTAR, 'Ishtar', 15);
-        $this->project->setContainerName(self::CONTAINER_NAME);
+        $this->project->setContainerNames([self::CONTAINER_NAME]);
         $this->personalBlueprints = [$this->personalCopy(self::ISHTAR_BLUEPRINT, 2)];
         $inContainer = $this->corporationCopy(self::ISHTAR_BLUEPRINT, 3);
         $this->corporationCopy(self::ISHTAR_BLUEPRINT, 9);
@@ -149,7 +149,7 @@ final class T2BlueprintCopyProposerTest extends TestCase
     public function testContainerWithoutAnyCopyGivesZeroContainerRunsAndTheProposalIsNotUnknown(): void
     {
         $this->manufacturing(self::ISHTAR, 'Ishtar', 15);
-        $this->project->setContainerName(self::CONTAINER_NAME);
+        $this->project->setContainerNames([self::CONTAINER_NAME]);
         $this->personalBlueprints = [$this->personalCopy(self::ISHTAR_BLUEPRINT, 5)];
         $this->corporationCopy(self::ISHTAR_BLUEPRINT, 9);
         $this->containerStock = new ProjectContainerStock(null, [], []);
@@ -226,7 +226,7 @@ final class T2BlueprintCopyProposerTest extends TestCase
     public function testBlueprintsNeverSyncedComeBeforeTheReasonOfTheContainer(): void
     {
         $this->manufacturing(self::ISHTAR, 'Ishtar', 15);
-        $this->project->setContainerName(self::CONTAINER_NAME);
+        $this->project->setContainerNames([self::CONTAINER_NAME]);
         $this->containerStock = new ProjectContainerStock('container_not_found');
 
         $proposal = $this->proposalOf();
@@ -237,7 +237,7 @@ final class T2BlueprintCopyProposerTest extends TestCase
     public function testNamedContainerThatCannotBeFoundMakesTheProposalUnknownWithoutLines(): void
     {
         $this->manufacturing(self::ISHTAR, 'Ishtar', 15);
-        $this->project->setContainerName(self::CONTAINER_NAME);
+        $this->project->setContainerNames([self::CONTAINER_NAME]);
         $this->personalBlueprints = [$this->personalCopy(self::ISHTAR_BLUEPRINT, 8)];
         $this->containerStock = new ProjectContainerStock('container_not_found');
 
