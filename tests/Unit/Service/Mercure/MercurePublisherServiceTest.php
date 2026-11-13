@@ -785,6 +785,17 @@ class MercurePublisherServiceTest extends TestCase
         $this->assertSame('failed-messages', json_decode($publishedUpdates[0]->getData(), true)['adminHealth']);
     }
 
+    #[Group('issue-848')]
+    public function testPublishAdminHealthCarriesTheSdeBuildScope(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishAdminHealth(AdminHealthScope::SdeBuild);
+
+        $this->assertCount(1, $publishedUpdates);
+        $this->assertSame('sde-build', json_decode($publishedUpdates[0]->getData(), true)['adminHealth']);
+    }
+
     #[Group('issue-813')]
     public function testPublishAdminHealthLogsAWarningWhenTheHubIsDownAndNeverRaises(): void
     {

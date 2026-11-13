@@ -114,7 +114,7 @@ deptrac:
     StateProvider: [ApiResource, Service, Repository, Entity, Security, Enum, Constant, Exception, Dto, IndustryApplication, Vendor]
     StateProcessor: [ApiResource, Service, Repository, Entity, Message, Security, Enum, Constant, Exception, Dto, Vendor]
     Message: [Enum, Constant, Dto, Vendor]
-    MessageHandler: [Message, Service, Repository, Entity, Enum, Constant, Exception, Dto, Vendor]
+    MessageHandler: [Message, Service, Repository, Entity, Security, Enum, Constant, Exception, Dto, Vendor]
     Scheduler: [Message, Enum, Constant, Vendor]
     Controller: [Service, Repository, Entity, Security, Enum, Constant, Exception, Dto, Vendor]
     Command: [Service, Repository, Entity, Message, Enum, Constant, Exception, Dto, Vendor]

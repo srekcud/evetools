@@ -11,7 +11,7 @@ const TRACKED_SYNC_TYPES = [
   'alert-prices', 'adjusted-prices', 'cost-indices', 'public-contracts', 'corporation-mining-extractions',
   'moon-tax', 'blueprints', 'market-volumes', 'courier-contracts', 'character-orders',
   'mining-operation-recurrences', 'moon-chunk-alerts', 'mining-site-depletion-alerts',
-  'notifications-purge', 'market-history-purge', 'shared-lists-purge', 'assets', 'corporation-assets', 'market-alerts',
+  'notifications-purge', 'market-history-purge', 'shared-lists-purge', 'sde-build', 'assets', 'corporation-assets', 'market-alerts',
 ]
 
 function entryOfType(type: string, triggerable = false): SchedulerHealthEntry {
@@ -45,6 +45,11 @@ describe('SchedulerHealthTable sync names', () => {
 
   it('names a sync differently in French and in English', () => {
     expect(messageOf('fr', 'admin.sync.types.industry')).not.toBe(messageOf('en', 'admin.sync.types.industry'))
+  })
+
+  it('names the SDE build check in both locales', () => {
+    expect(messageOf('en', 'admin.sync.types.sde-build')).toBe('SDE build check')
+    expect(messageOf('fr', 'admin.sync.types.sde-build')).toBe('Vérification de la build SDE')
   })
 
   it.each(TRACKED_SYNC_TYPES)('translates the %s sync in both locales', (type) => {

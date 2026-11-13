@@ -13,6 +13,7 @@ use App\Service\Notification\NotificationDispatcher;
 use App\Service\Notification\WebPushService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -96,6 +97,27 @@ class NotificationDispatcherTest extends TestCase
             'Job completed',
             'Your manufacturing job has completed.',
         );
+    }
+
+    #[Group('issue-848')]
+    public function testSdeBuildCategoryNeedsNoPreferenceRowToBeDelivered(): void
+    {
+        $user = $this->createUserStub();
+        $this->preferenceRepository->method('findByUserAndCategory')->willReturn(null);
+
+        $this->entityManager->expects($this->once())->method('persist')
+            ->with($this->callback(static fn (Notification $notification): bool => $notification->getCategory() === 'sde_build'));
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $this->dispatcher->dispatch(
+            $user,
+            Notification::CATEGORY_SDE_BUILD,
+            Notification::LEVEL_WARNING,
+            'SDE build outdated',
+            'CCP published SDE build 3693310.',
+        );
+
+        $this->assertSame('sde_build', Notification::CATEGORY_SDE_BUILD);
     }
 
     // ===========================================

@@ -41,6 +41,7 @@ class SyncTracker
         'notifications-purge' => 86400,
         'market-history-purge' => 86400,
         'shared-lists-purge' => 86400,
+        'sde-build' => 86400,
     ];
 
     /** Not scheduled, only triggered manually: their last run is shown but no health is computed. */

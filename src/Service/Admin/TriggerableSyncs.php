@@ -8,6 +8,7 @@ use App\Message\CheckAlertPrices;
 use App\Message\CheckCourierContracts;
 use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
+use App\Message\CheckSdeBuild;
 use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
@@ -60,6 +61,7 @@ final class TriggerableSyncs
         'notifications-purge' => [PurgeOldNotifications::class],
         'market-history-purge' => [PurgeOldMarketHistory::class],
         'shared-lists-purge' => [PurgeExpiredSharedLists::class],
+        'sde-build' => [CheckSdeBuild::class],
         'assets' => [TriggerAssetsSync::class],
         'corporation-assets' => [TriggerCorporationAssetsSync::class],
         self::SYNCHRONOUS_TYPE => [],

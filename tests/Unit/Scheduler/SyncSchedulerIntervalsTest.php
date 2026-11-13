@@ -8,6 +8,7 @@ use App\Message\CheckAlertPrices;
 use App\Message\CheckCourierContracts;
 use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
+use App\Message\CheckSdeBuild;
 use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
@@ -72,6 +73,7 @@ class SyncSchedulerIntervalsTest extends TestCase
         TriggerMiningOperationRecurrences::class => 'mining-operation-recurrences',
         CheckMoonChunkAlerts::class => 'moon-chunk-alerts',
         CheckMiningSiteDepletionAlerts::class => 'mining-site-depletion-alerts',
+        CheckSdeBuild::class => 'sde-build',
         PurgeOldNotifications::class => 'notifications-purge',
         PurgeOldMarketHistory::class => 'market-history-purge',
         PurgeExpiredSharedLists::class => 'shared-lists-purge',
@@ -128,6 +130,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'planetary' => 1800,
             'public-contracts' => 1800,
             'pve' => 3600,
+            'sde-build' => 86400,
             'shared-lists-purge' => 86400,
             'wallet' => 3600,
         ], $this->scheduledIntervalsBySyncTrackerKey());
@@ -180,6 +183,15 @@ class SyncSchedulerIntervalsTest extends TestCase
         $this->assertSame(
             self::ONE_HOUR_IN_SECONDS,
             $this->scheduledIntervalsByMessageClass()[TriggerMoonTaxSync::class] ?? null,
+        );
+    }
+
+    #[Group('issue-848')]
+    public function testSdeBuildIsCheckedEveryDay(): void
+    {
+        $this->assertSame(
+            self::ONE_DAY_IN_SECONDS,
+            $this->scheduledIntervalsByMessageClass()[CheckSdeBuild::class] ?? null,
         );
     }
 

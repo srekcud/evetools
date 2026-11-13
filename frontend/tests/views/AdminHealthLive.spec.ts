@@ -42,6 +42,7 @@ async function mountAdmin(): Promise<VueWrapper> {
         SchedulerHealthTable: true,
         MaintenanceActions: true,
         FailedMessagesCard: true,
+        SdeBuildCard: true,
         AdminChartsGrid: true,
         PveCorpRevenue: true,
       },
@@ -82,6 +83,19 @@ describe('Admin page, live health signals', () => {
     const queuesBefore = callsTo('/admin/queues')
 
     signal('esi-error-budget', '2026-11-13T08:00:00+00:00')
+    await vi.advanceTimersByTimeAsync(ADMIN_HEALTH_DEBOUNCE_MS)
+
+    expect(callsTo('/admin/stats')).toBe(statsBefore + 1)
+    expect(callsTo('/admin/queues')).toBe(queuesBefore)
+  })
+
+  it('reads the stats again after a sde-build signal and leaves the queues alone', async () => {
+    await mountAdmin()
+    vi.useFakeTimers()
+    const statsBefore = callsTo('/admin/stats')
+    const queuesBefore = callsTo('/admin/queues')
+
+    signal('sde-build', '2026-11-13T15:30:00+00:00')
     await vi.advanceTimersByTimeAsync(ADMIN_HEALTH_DEBOUNCE_MS)
 
     expect(callsTo('/admin/stats')).toBe(statsBefore + 1)

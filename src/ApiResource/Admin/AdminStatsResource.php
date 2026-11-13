@@ -68,6 +68,8 @@ class AdminStatsResource
 
     public MercureCookieDto $mercureCookie;
 
+    public SdeBuildDto $sdeBuild;
+
     public CharactersToRepairDto $charactersToRepair;
 
     public AdminCharactersDto $adminCharacters;
@@ -78,6 +80,7 @@ class AdminStatsResource
         $this->adminCharacters = new AdminCharactersDto();
         $this->esiErrorBudget = new EsiErrorBudgetDto();
         $this->mercureCookie = new MercureCookieDto();
+        $this->sdeBuild = new SdeBuildDto();
         $this->users = new UserStatsDto();
         $this->characters = new CharacterStatsDto();
         $this->tokens = new TokenStatsDto();
@@ -300,6 +303,17 @@ class EsiLimitedHourDto
         public int $limited429 = 0,
     ) {
     }
+}
+
+class SdeBuildDto
+{
+    public string $status = '';
+    public ?int $importedBuildNumber = null;
+    public ?string $importedReleaseDate = null;
+    public ?string $importedAt = null;
+    public ?int $latestBuildNumber = null;
+    public ?string $latestReleaseDate = null;
+    public ?string $latestCheckedAt = null;
 }
 
 class MercureCookieDto
