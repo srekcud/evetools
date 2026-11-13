@@ -7,6 +7,7 @@ import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { apiRequest } from '@/services/api'
 import { useProjectsStore } from '@/stores/industry/projects'
 import type { ProfitMarginInventionOption, ProfitMarginResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -110,7 +111,7 @@ const SABRE_WITH_ATTAINMENT_CHOSEN: ProfitMarginResult = {
   jobInstallCost: 9_000,
   inventionCost: ATTAINMENT_OPTION.inventionCost,
   invention: {
-    ...SABRE_WITH_UNPRICED_MATERIALS.invention!,
+    ...present(SABRE_WITH_UNPRICED_MATERIALS.invention),
     selectedDecryptorTypeId: ATTAINMENT_DECRYPTOR_TYPE_ID,
     selectedDecryptorName: ATTAINMENT_OPTION.decryptorName,
   },
@@ -129,33 +130,33 @@ function mountWithUnpricedMaterials(locale: 'en' | 'fr') {
 async function selectAttainmentDecryptor(wrapper: VueWrapper): Promise<void> {
   const attainmentRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Attainment Decryptor'))
   expect(attainmentRow, 'Attainment Decryptor row').toBeDefined()
-  await attainmentRow!.trigger('click')
+  await present(attainmentRow).trigger('click')
   await flushPromises()
 }
 
 function materialPriceCells(wrapper: VueWrapper, typeName: string): string[] {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 4 && candidate.find('td').text() === typeName)
   expect(row, `material row ${typeName}`).toBeDefined()
-  return row!.findAll('td').slice(2).map(cell => cell.text())
+  return present(row).findAll('td').slice(2).map(cell => cell.text())
 }
 
 function lastCellOfRowContaining(wrapper: VueWrapper, text: string): string {
   const row = wrapper.findAll('tr').find(candidate => candidate.text().includes(text))
   expect(row, `row ${text}`).toBeDefined()
-  const cells = row!.findAll('td')
-  return cells[cells.length - 1]!.text()
+  const cells = present(row).findAll('td')
+  return present(cells[cells.length - 1]).text()
 }
 
 function summaryCardAmount(wrapper: VueWrapper, label: string): string {
   const card = wrapper.findAll('div.eve-card.p-4').find(candidate => candidate.find('p').exists() && candidate.find('p').text() === label)
   expect(card, `summary card ${label}`).toBeDefined()
-  return card!.find('p.font-mono').text()
+  return present(card).find('p.font-mono').text()
 }
 
 function costSummaryAmount(wrapper: VueWrapper, label: string): string {
   const cell = wrapper.findAll('div.grid-cols-4 > div').find(candidate => candidate.find('div').text() === label)
   expect(cell, `cost summary ${label}`).toBeDefined()
-  return cell!.findAll('div')[1]!.text()
+  return present(present(cell).findAll('div')[1]).text()
 }
 
 beforeEach(() => {

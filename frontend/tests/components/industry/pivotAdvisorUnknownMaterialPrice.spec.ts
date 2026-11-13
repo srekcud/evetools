@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import { useScannerStore } from '@/stores/industry/scanner'
 import type { PivotAnalysisResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const SOURCE_PRODUCT_TYPE_ID = 11379
 const COMPONENT_TWO_TYPE_ID = 11399
@@ -93,19 +94,19 @@ function mountPivotAdvisorShowing(result: PivotAnalysisResult): VueWrapper {
 function candidateCard(wrapper: VueWrapper, candidateName: string): DOMWrapper<Element> {
   const card = wrapper.findAll('div.relative').find(candidate => candidate.text().includes(candidateName))
   expect(card, `candidate card ${candidateName}`).toBeDefined()
-  return card!
+  return present(card)
 }
 
 function sourceProductCard(wrapper: VueWrapper): DOMWrapper<Element> {
   const card = wrapper.findAll('div.rounded-xl').find(candidate => candidate.find('h2').exists())
   expect(card, 'source product card').toBeDefined()
-  return card!
+  return present(card)
 }
 
 function valueNextToLabel(card: DOMWrapper<Element>, label: string): string {
   const labelElement = card.findAll('span, div').find(candidate => candidate.element.childElementCount === 0 && candidate.text() === label)
   expect(labelElement, `label ${label}`).toBeDefined()
-  return labelElement!.element.nextElementSibling?.textContent?.trim() ?? ''
+  return present(labelElement).element.nextElementSibling?.textContent?.trim() ?? ''
 }
 
 beforeEach(() => {

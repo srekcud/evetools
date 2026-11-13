@@ -8,6 +8,7 @@ import GroupIndustryDetail from '@/views/GroupIndustry/GroupIndustryDetail.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { GroupProject } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: 'project-ferox-batch' }, query: {} })
 
@@ -126,7 +127,7 @@ describe('group project detail privacy', () => {
 
     expect((wrapper.get(PRIVATE_EDIT_CHECKBOX).element as HTMLInputElement).checked).toBe(true)
     await wrapper.get(PRIVATE_EDIT_CHECKBOX).setValue(false)
-    await buttonLabelled(wrapper, en.common.actions.save)!.trigger('click')
+    await present(buttonLabelled(wrapper, en.common.actions.save)).trigger('click')
     await flushPromises()
 
     expect(sentPatchBodies()).toEqual([expect.objectContaining({ private: false })])
@@ -138,7 +139,7 @@ describe('group project detail leaving the draft status', () => {
     const wrapper = await mountDetailOf(FEROX_BATCH)
 
     expect(buttonLabelled(wrapper, 'Publish')).toBeDefined()
-    await buttonLabelled(wrapper, 'Start')!.trigger('click')
+    await present(buttonLabelled(wrapper, 'Start')).trigger('click')
     await flushPromises()
 
     expect(sentPatchBodies()).toEqual([{ status: 'in_progress' }])

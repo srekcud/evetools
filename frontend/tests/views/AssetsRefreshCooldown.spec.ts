@@ -9,6 +9,7 @@ import Assets from '@/views/Assets.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { present } from '../present'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
 
@@ -82,7 +83,7 @@ function refreshButton(wrapper: ReturnType<typeof mount>) {
 }
 
 async function clickRefresh(wrapper: ReturnType<typeof mount>) {
-  await refreshButton(wrapper)!.trigger('click')
+  await present(refreshButton(wrapper)).trigger('click')
   await flushPromises()
 }
 

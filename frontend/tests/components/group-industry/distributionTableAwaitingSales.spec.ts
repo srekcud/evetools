@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import DistributionTable from '@/components/group-industry/DistributionTable.vue'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import type { Distribution, MemberDistribution } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 const AWAITING_SALES = 'En attente des ventes'
 const AWAITING_SALES_BANNER = 'Aucune vente enregistrée : le revenu, le profit, la marge et les payouts seront connus à la première vente.'
@@ -151,7 +152,7 @@ function memberRows(wrapper: VueWrapper): DOMWrapper<Element>[] {
 }
 
 function payoutCellOf(row: DOMWrapper<Element>): string {
-  return normalizedText(row.findAll('td')[4]!)
+  return normalizedText(present(row.findAll('td')[4]))
 }
 
 describe('DistributionTable before any sale', () => {

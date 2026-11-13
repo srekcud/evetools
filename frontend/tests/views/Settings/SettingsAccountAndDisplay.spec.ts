@@ -1,5 +1,6 @@
 import { enableAutoUnmount, flushPromises, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { callsTo, mountSettingsAt, stubBackend } from './settingsHarness'
+import { present } from '../../present'
 
 const VISIBILITY_URL = '/api/me/corporation/assets/visibility'
 const ALICE_ID = '0199a1f0-0000-7000-8000-000000358001'
@@ -31,7 +32,7 @@ function corporationVisibility(isDirector: boolean) {
 function moduleCheckbox(wrapper: VueWrapper, label: string): DOMWrapper<HTMLInputElement> {
   const row = wrapper.findAll('label').find(candidate => candidate.text() === label)
   expect(row, `module checkbox ${label}`).toBeDefined()
-  return row!.find<HTMLInputElement>('input[type="checkbox"]')
+  return present(row).find<HTMLInputElement>('input[type="checkbox"]')
 }
 
 function moduleLabels(wrapper: VueWrapper): string[] {
@@ -41,7 +42,7 @@ function moduleLabels(wrapper: VueWrapper): string[] {
 function buttonWithText(wrapper: VueWrapper, text: string) {
   const button = wrapper.findAll('button').find(candidate => candidate.text() === text)
   expect(button, `button ${text}`).toBeDefined()
-  return button!
+  return present(button)
 }
 
 enableAutoUnmount(afterEach)

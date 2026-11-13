@@ -9,6 +9,7 @@ import Assets from '@/views/Assets.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { present } from '../present'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
 
@@ -74,9 +75,9 @@ async function mountCorporationAssets(refreshAnswer: Record<string, unknown>, lo
 async function clickRefresh(wrapper: ReturnType<typeof mount>) {
   const button = wrapper.findAll('button').find(candidate => candidate.text() === 'Refresh')
   expect(button).toBeDefined()
-  await button!.trigger('click')
+  await present(button).trigger('click')
   await flushPromises()
-  return button!
+  return present(button)
 }
 
 function assetsFetchCount(fetchMock: ReturnType<typeof vi.fn>) {
@@ -113,7 +114,7 @@ describe('Corporation assets refresh answered with an error status', () => {
     const button = wrapper.findAll('button').find(candidate => candidate.text() === 'Actualiser' || candidate.text() === 'Rafraîchir')
     expect(button).toBeDefined()
 
-    await button!.trigger('click')
+    await present(button).trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain(fr.assets.refreshFailed)

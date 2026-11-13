@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import StructureConfig from '@/components/industry/StructureConfig.vue'
 import { apiRequest } from '@/services/api'
 import type { RigOption } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -56,7 +57,7 @@ const BOTH_BONUSES_RIG: RigOption = {
 function bonusLabelsOfRig(wrapper: VueWrapper, rigName: string): string[] {
   const entry = wrapper.findAll('button').find(candidate => candidate.text().includes(rigName.replace('Standup M-Set ', '')))
   expect(entry, `rig ${rigName}`).toBeDefined()
-  return entry!.findAll('span.text-table-cell > span').map(label => label.text())
+  return present(entry).findAll('span.text-table-cell > span').map(label => label.text())
 }
 
 async function openRigDropdown(locale: Locale, query: string): Promise<VueWrapper> {
@@ -80,7 +81,7 @@ async function openRigDropdown(locale: Locale, query: string): Promise<VueWrappe
   })
   await flushPromises()
   const messages = locale === 'en' ? en : fr
-  await wrapper.findAll('button').find(candidate => candidate.text() === messages.common.actions.add)!.trigger('click')
+  await present(wrapper.findAll('button').find(candidate => candidate.text() === messages.common.actions.add)).trigger('click')
   await flushPromises()
   await wrapper.get(`input[placeholder="${messages.industry.structures.searchRig}"]`).setValue(query)
   await flushPromises()

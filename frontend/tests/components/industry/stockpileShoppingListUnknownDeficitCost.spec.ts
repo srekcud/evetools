@@ -4,6 +4,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import StockpileShoppingList from '@/components/industry/StockpileShoppingList.vue'
 import type { StockpileShoppingItem } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const ESTIMATED_COST_COLUMN = 5
 
@@ -63,7 +64,7 @@ function mountShoppingList(shoppingList: StockpileShoppingItem[], locale: 'en' |
 function estimatedCostCell(wrapper: VueWrapper, typeName: string) {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.text().includes(typeName))
   expect(row, `row ${typeName}`).toBeDefined()
-  return row!.findAll('td')[ESTIMATED_COST_COLUMN]!
+  return present(present(row).findAll('td')[ESTIMATED_COST_COLUMN])
 }
 
 describe('StockpileShoppingList with a deficit cost unknown', () => {
@@ -97,7 +98,7 @@ describe('StockpileShoppingList with a deficit cost unknown', () => {
 
     const criticalOnly = wrapper.findAll('button').find(button => button.text() === t('industry.stockpile.shoppingList.criticalOnly'))
     expect(criticalOnly, 'critical only filter').toBeDefined()
-    await criticalOnly!.trigger('click')
+    await present(criticalOnly).trigger('click')
 
     expect(wrapper.get('tfoot').find('[title="Unknown value"]').exists()).toBe(false)
     expect(wrapper.get('tfoot').text()).toContain('152.80 K')

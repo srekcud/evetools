@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { apiRequest } from '@/services/api'
 import { useProjectTemplatesStore } from '@/stores/group-industry/templates'
 import { HAMMERHEAD_LINE_FROM_ALICE, SABRE_LINE_OF_BOB } from '../projectTemplateFixtures'
+import { present } from '../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -40,10 +41,10 @@ describe('project templates store', () => {
     const created = await store.saveTemplate({ projectId: HAMMERHEAD_BATCH_ID, name: 'Sabre line', sharedWithCorporation: false })
 
     expect(created).toEqual(SABRE_LINE_OF_BOB)
-    const [endpoint, options] = vi.mocked(apiRequest).mock.calls[1]!
+    const [endpoint, options] = present(vi.mocked(apiRequest).mock.calls[1])
     expect(endpoint).toBe(TEMPLATES_PATH)
-    expect(options!.method).toBe('POST')
-    expect(JSON.parse(String(options!.body))).toEqual({ projectId: HAMMERHEAD_BATCH_ID, name: 'Sabre line', sharedWithCorporation: false })
+    expect(present(options).method).toBe('POST')
+    expect(JSON.parse(String(present(options).body))).toEqual({ projectId: HAMMERHEAD_BATCH_ID, name: 'Sabre line', sharedWithCorporation: false })
     expect(store.templates).toEqual([SABRE_LINE_OF_BOB, HAMMERHEAD_LINE_FROM_ALICE])
   })
 

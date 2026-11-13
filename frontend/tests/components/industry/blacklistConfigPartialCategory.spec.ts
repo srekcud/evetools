@@ -7,6 +7,7 @@ import BlacklistConfig from '@/components/industry/BlacklistConfig.vue'
 import { apiRequest } from '@/services/api'
 import type { BlacklistConfig as BlacklistConfiguration } from '@/stores/industry/types'
 import { apiOutcomesByPath, respondWith } from '../../deferred'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -43,7 +44,7 @@ async function mountBlacklistConfig(): Promise<VueWrapper> {
 function categoryCheckbox(wrapper: VueWrapper, categoryLabel: string): HTMLInputElement {
   const label = wrapper.findAll('label').find(candidate => candidate.text() === categoryLabel)
   expect(label, `${categoryLabel} category`).toBeDefined()
-  return label!.get('input[type="checkbox"]').element as HTMLInputElement
+  return present(label).get('input[type="checkbox"]').element as HTMLInputElement
 }
 
 enableAutoUnmount(afterEach)
@@ -84,7 +85,7 @@ describe('BlacklistConfig partial category (issue 139)', () => {
     changes.respondTo(BLACKLIST_PATH, respondWith(PARTIAL_BLACKLIST))
     const wrapper = await mountBlacklistConfig()
 
-    await wrapper.findAll('label').find(label => label.text() === 'Fuel blocks')!.get('input').setValue(true)
+    await present(wrapper.findAll('label').find(label => label.text() === 'Fuel blocks')).get('input').setValue(true)
     await flushPromises()
 
     expect(changeBodies).toEqual([{ groupIds: [BIOCHEMICAL_FIRST_GROUP_ID, GROUP_OUTSIDE_EVERY_CATEGORY, FUEL_BLOCKS_GROUP_ID], typeIds: [] }])
@@ -95,7 +96,7 @@ describe('BlacklistConfig partial category (issue 139)', () => {
     changes.respondTo(BLACKLIST_PATH, respondWith(PARTIAL_BLACKLIST))
     const wrapper = await mountBlacklistConfig()
 
-    await wrapper.findAll('label').find(label => label.text() === 'Biochemical reactions')!.get('input').setValue(true)
+    await present(wrapper.findAll('label').find(label => label.text() === 'Biochemical reactions')).get('input').setValue(true)
     await flushPromises()
 
     expect(changeBodies).toEqual([{ groupIds: [BIOCHEMICAL_FIRST_GROUP_ID, GROUP_OUTSIDE_EVERY_CATEGORY, BIOCHEMICAL_SECOND_GROUP_ID], typeIds: [] }])

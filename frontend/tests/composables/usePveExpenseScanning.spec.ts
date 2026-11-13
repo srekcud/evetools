@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import { usePveExpenseScanning } from '@/composables/usePveExpenseScanning'
 import { authFetch } from '@/services/api'
+import { present } from '../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -403,7 +404,7 @@ describe('usePveExpenseScanning pending corporation project contribution', () =>
     const scanning = mountScanning({ onError })
     await scanning.scanLootSales(30)
 
-    await scanning.importSingleLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+    await scanning.importSingleLootSale(present(present(scanning.lootScanResults.value).detectedSales[0]))
 
     expect(importBodies).toEqual([{
       sales: [{
@@ -429,7 +430,7 @@ describe('usePveExpenseScanning pending corporation project contribution', () =>
     const scanning = mountScanning()
     await scanning.scanLootSales(30)
 
-    await scanning.importSingleLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+    await scanning.importSingleLootSale(present(present(scanning.lootScanResults.value).detectedSales[0]))
 
     expect(importBodies).toEqual([{
       sales: [{
@@ -454,7 +455,7 @@ describe('usePveExpenseScanning pending corporation project contribution', () =>
     const scanning = mountScanning({ onError })
     await scanning.scanLootSales(30)
 
-    await scanning.importSingleLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+    await scanning.importSingleLootSale(present(present(scanning.lootScanResults.value).detectedSales[0]))
 
     expect(onError.mock.calls).toEqual([['Contribution already counted in the meantime (sync or another tab): run the scan again.']])
     expect(detectedSaleSummaries(scanning)).toEqual([['Pilot Two', 400]])
@@ -466,7 +467,7 @@ describe('usePveExpenseScanning pending corporation project contribution', () =>
     const scanning = mountScanning({ onError })
     await scanning.scanLootSales(30)
 
-    await scanning.ignoreLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+    await scanning.ignoreLootSale(present(present(scanning.lootScanResults.value).detectedSales[0]))
 
     expect(importBodies).toEqual([{
       sales: [],
@@ -489,7 +490,7 @@ describe('usePveExpenseScanning pending corporation project contribution', () =>
     const scanning = mountScanning({ onError })
     await scanning.scanLootSales(30)
 
-    await scanning.ignoreLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+    await scanning.ignoreLootSale(present(present(scanning.lootScanResults.value).detectedSales[0]))
 
     expect(onError.mock.calls).toEqual([['Contribution already counted in the meantime (sync or another tab): run the scan again.']])
     expect(detectedSaleSummaries(scanning)).toEqual([['Pilot Two', 400]])
@@ -500,7 +501,7 @@ describe('usePveExpenseScanning pending corporation project contribution', () =>
     const scanning = mountScanning()
     await scanning.scanLootSales(30)
 
-    await scanning.ignoreLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+    await scanning.ignoreLootSale(present(present(scanning.lootScanResults.value).detectedSales[0]))
 
     expect(importBodies).toEqual([{ sales: [], declined: [{ transactionId: 8200017 }] }])
   })

@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import { useScannerStore } from '@/stores/industry/scanner'
 import type { PivotAnalysisResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const SOURCE_PRODUCT_TYPE_ID = 11379
 const COMPONENT_TWO_TYPE_ID = 11399
@@ -85,7 +86,7 @@ describe('PivotAdvisorTab candidate sort', () => {
 
     const sortSelect = wrapper.findAll('select').find(select => select.find('option[value="margin"]').exists())
     expect(sortSelect, 'sort select').toBeDefined()
-    await sortSelect!.setValue(sortKey)
+    await present(sortSelect).setValue(sortKey)
 
     expect(displayedCandidateNames(wrapper)).toEqual(expectedNames)
   })

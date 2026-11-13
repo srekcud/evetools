@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import FinancialCascade from '@/components/group-industry/FinancialCascade.vue'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import type { Distribution, MemberDistribution } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 function member(costs: Partial<MemberDistribution>): MemberDistribution {
   return {
@@ -78,7 +79,7 @@ function mountCascade(distribution: Distribution | null, locale: 'en' | 'fr' = '
 }
 
 function stepKeys(wrapper: VueWrapper): string[] {
-  return wrapper.findAll('[data-testid^="cascade-step-"]').map(step => step.attributes('data-testid')!.replace('cascade-step-', ''))
+  return wrapper.findAll('[data-testid^="cascade-step-"]').map(step => present(step.attributes('data-testid')).replace('cascade-step-', ''))
 }
 
 function stepText(wrapper: VueWrapper, key: string): string {

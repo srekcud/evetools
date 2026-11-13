@@ -6,6 +6,7 @@ import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesP
 import { apiRequest } from '@/services/api'
 import type { ProjectTemplate } from '@/stores/group-industry/types'
 import { HAMMERHEAD_LINE_FROM_ALICE, SABRE_LINE_OF_BOB } from '../../projectTemplateFixtures'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -31,31 +32,31 @@ describe('ProjectTemplatesPanel', () => {
 
     const [sharedRow, ownRow] = wrapper.findAll(ROW)
     expect(wrapper.findAll(ROW)).toHaveLength(2)
-    expect(sharedRow!.get('[data-testid="project-template-name"]').text()).toBe('Hammerhead line')
-    expect(sharedRow!.get('[data-testid="project-template-owner"]').text()).toContain('Alice Ferrand')
-    expect(sharedRow!.get('[data-testid="project-template-items"]').text()).toContain('2')
-    expect(sharedRow!.get('[data-testid="project-template-scope"]').attributes('data-scope')).toBe('corporation')
-    expect(sharedRow!.find('[data-testid="project-template-share-toggle"]').exists()).toBe(false)
-    expect(sharedRow!.find('[data-testid="project-template-delete"]').exists()).toBe(false)
-    expect(ownRow!.get('[data-testid="project-template-name"]').text()).toBe('Sabre line')
-    expect(ownRow!.get('[data-testid="project-template-items"]').text()).toContain('1')
-    expect(ownRow!.get('[data-testid="project-template-scope"]').attributes('data-scope')).toBe('personal')
-    expect(ownRow!.find('[data-testid="project-template-share-toggle"]').exists()).toBe(true)
-    expect(ownRow!.find('[data-testid="project-template-delete"]').exists()).toBe(true)
+    expect(present(sharedRow).get('[data-testid="project-template-name"]').text()).toBe('Hammerhead line')
+    expect(present(sharedRow).get('[data-testid="project-template-owner"]').text()).toContain('Alice Ferrand')
+    expect(present(sharedRow).get('[data-testid="project-template-items"]').text()).toContain('2')
+    expect(present(sharedRow).get('[data-testid="project-template-scope"]').attributes('data-scope')).toBe('corporation')
+    expect(present(sharedRow).find('[data-testid="project-template-share-toggle"]').exists()).toBe(false)
+    expect(present(sharedRow).find('[data-testid="project-template-delete"]').exists()).toBe(false)
+    expect(present(ownRow).get('[data-testid="project-template-name"]').text()).toBe('Sabre line')
+    expect(present(ownRow).get('[data-testid="project-template-items"]').text()).toContain('1')
+    expect(present(ownRow).get('[data-testid="project-template-scope"]').attributes('data-scope')).toBe('personal')
+    expect(present(ownRow).find('[data-testid="project-template-share-toggle"]').exists()).toBe(true)
+    expect(present(ownRow).find('[data-testid="project-template-delete"]').exists()).toBe(true)
   })
 
   it('shows how many times each template was used in the usage column', async () => {
     const wrapper = await mountPanel([HAMMERHEAD_LINE_FROM_ALICE, SABRE_LINE_OF_BOB])
 
     const [sharedRow, ownRow] = wrapper.findAll(ROW)
-    expect(sharedRow!.get('[data-testid="project-template-usage"]').text()).toBe('3×')
-    expect(ownRow!.get('[data-testid="project-template-usage"]').text()).toBe('0×')
+    expect(present(sharedRow).get('[data-testid="project-template-usage"]').text()).toBe('3×')
+    expect(present(ownRow).get('[data-testid="project-template-usage"]').text()).toBe('0×')
   })
 
   it('emits the whole template with its items, efficiencies, runs, blacklist and options when Use is clicked', async () => {
     const wrapper = await mountPanel([HAMMERHEAD_LINE_FROM_ALICE, SABRE_LINE_OF_BOB])
 
-    await wrapper.findAll(ROW)[0]!.get('[data-testid="project-template-use"]').trigger('click')
+    await present(wrapper.findAll(ROW)[0]).get('[data-testid="project-template-use"]').trigger('click')
 
     expect(wrapper.emitted('use')).toEqual([[HAMMERHEAD_LINE_FROM_ALICE]])
   })

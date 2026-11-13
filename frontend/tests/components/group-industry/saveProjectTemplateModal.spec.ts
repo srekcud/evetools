@@ -5,6 +5,7 @@ import en from '@/i18n/locales/en.json'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
 import { apiRequest } from '@/services/api'
 import { SABRE_LINE_OF_BOB } from '../../projectTemplateFixtures'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -37,9 +38,9 @@ describe('SaveProjectTemplateModal', () => {
     await wrapper.get(SUBMIT_BUTTON).trigger('click')
     await flushPromises()
 
-    const [endpoint, options] = vi.mocked(apiRequest).mock.calls[0]!
+    const [endpoint, options] = present(vi.mocked(apiRequest).mock.calls[0])
     expect(endpoint).toBe('/industry/project-templates')
-    expect(JSON.parse(String(options!.body))).toEqual({ projectId: SABRE_BATCH_ID, name: 'Sabre batch', sharedWithCorporation: true })
+    expect(JSON.parse(String(present(options).body))).toEqual({ projectId: SABRE_BATCH_ID, name: 'Sabre batch', sharedWithCorporation: true })
     expect(wrapper.emitted('saved')).toHaveLength(1)
   })
 

@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { apiRequest } from '@/services/api'
 import type { ProfitMarginInventionOption, ProfitMarginResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -103,7 +104,7 @@ const ATTAINMENT_MARGIN_RESULT: ProfitMarginResult = {
   totalCost: 150_000,
   costPerUnit: 3_750,
   invention: {
-    ...SABRE_MARGIN_RESULT.invention!,
+    ...present(SABRE_MARGIN_RESULT.invention),
     selectedDecryptorTypeId: ATTAINMENT_DECRYPTOR_TYPE_ID,
     selectedDecryptorName: 'Attainment Decryptor',
   },
@@ -136,7 +137,7 @@ async function mountProfitMarginWithAttainmentSelected(): Promise<VueWrapper> {
   const wrapper = await mountProfitMargin()
   const attainmentRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Attainment Decryptor'))
   expect(attainmentRow, 'Attainment Decryptor row').toBeDefined()
-  await attainmentRow!.trigger('click')
+  await present(attainmentRow).trigger('click')
   await flushPromises()
   return wrapper
 }
@@ -144,7 +145,7 @@ async function mountProfitMarginWithAttainmentSelected(): Promise<VueWrapper> {
 function venueRowTagged(wrapper: VueWrapper, tag: string): DOMWrapper<Element> {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('span').some(span => span.text() === tag))
   expect(row, `venue row ${tag}`).toBeDefined()
-  return row!
+  return present(row)
 }
 
 function figuresOf(row: DOMWrapper<Element>): string[] {
@@ -154,7 +155,7 @@ function figuresOf(row: DOMWrapper<Element>): string[] {
 function costSummaryAmount(wrapper: VueWrapper, label: string): string {
   const cell = wrapper.findAll('div.grid-cols-4 > div').find(candidate => candidate.find('div').text() === label)
   expect(cell, `cost summary ${label}`).toBeDefined()
-  return cell!.findAll('div')[1]!.text()
+  return present(present(cell).findAll('div')[1]).text()
 }
 
 beforeEach(() => {

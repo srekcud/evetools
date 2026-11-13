@@ -7,6 +7,7 @@ import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem } from '@/stores/group-industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -114,7 +115,7 @@ async function openModal(): Promise<VueWrapper> {
 async function chooseLineRentalOn(wrapper: VueWrapper, line: BomItem): Promise<void> {
   const typeButton = wrapper.findAll('button').find(candidate => candidate.text() === 'Line Rental')
   expect(typeButton, 'line rental type button').toBeDefined()
-  await typeButton!.trigger('click')
+  await present(typeButton).trigger('click')
   await wrapper.find('select').setValue(line.id)
   await flushPromises()
 }
@@ -122,21 +123,21 @@ async function chooseLineRentalOn(wrapper: VueWrapper, line: BomItem): Promise<v
 function inputOfField(wrapper: VueWrapper, label: string): DOMWrapper<HTMLInputElement> {
   const field = wrapper.findAll('label').find(candidate => candidate.text().startsWith(label))?.element.parentElement
   expect(field, `field ${label}`).toBeTruthy()
-  const input = wrapper.findAll<HTMLInputElement>('input').find(candidate => field!.contains(candidate.element))
+  const input = wrapper.findAll<HTMLInputElement>('input').find(candidate => present(field).contains(candidate.element))
   expect(input, `input of ${label}`).toBeDefined()
-  return input!
+  return present(input)
 }
 
 function submitButton(wrapper: VueWrapper): DOMWrapper<HTMLButtonElement> {
   const button = wrapper.findAll<HTMLButtonElement>('button').find(candidate => candidate.text() === contributeLabels.submit)
   expect(button, 'submit button').toBeDefined()
-  return button!
+  return present(button)
 }
 
 function submittedBody(): Record<string, unknown> {
   const submissions = vi.mocked(apiRequest).mock.calls.filter(([, options]) => options?.method === 'POST')
   expect(submissions).toHaveLength(1)
-  const [endpoint, options] = submissions[0]!
+  const [endpoint, options] = present(submissions[0])
   expect(endpoint).toBe(`/industry/projects/${PROJECT_ID}/contributions`)
   return JSON.parse(String(options?.body))
 }
@@ -235,7 +236,7 @@ describe('ContributeModal line rental suggestion', () => {
     answerSuggestionsWith(MOCKUP_SUGGESTION)
     const wrapper = await openModal()
     const typeButton = wrapper.findAll('button').find(candidate => candidate.text() === 'Line Rental')
-    await typeButton!.trigger('click')
+    await present(typeButton).trigger('click')
     await inputOfField(wrapper, contributeLabels.quantity).setValue(1)
     await inputOfField(wrapper, contributeLabels.estimatedValue).setValue(750_000)
 

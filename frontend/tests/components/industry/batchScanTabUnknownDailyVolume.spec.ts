@@ -7,6 +7,7 @@ import BatchScanTab from '@/components/industry/BatchScanTab.vue'
 import { apiRequest } from '@/services/api'
 import { useScannerStore } from '@/stores/industry/scanner'
 import type { BatchScanItem } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -95,7 +96,7 @@ function cellOf(wrapper: VueWrapper, typeName: string, headerLabel: string): DOM
   expect(index, `column ${headerLabel}`).toBeGreaterThanOrEqual(0)
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.text().includes(typeName))
   expect(row, `row ${typeName}`).toBeDefined()
-  return row!.findAll('td')[index]
+  return present(row).findAll('td')[index]
 }
 
 function rowNames(wrapper: VueWrapper): string[] {
@@ -148,7 +149,7 @@ describe('BatchScanTab with a product without daily volume', () => {
 
   it('keeps the product with an unknown daily volume last whatever the sort direction of the daily volume column', async () => {
     const wrapper = await mountBatchScanShowing([SLASHER_WITHOUT_DAILY_VOLUME, RIFTER_WITH_DAILY_VOLUME])
-    const volumeHeader = wrapper.findAll('thead th').find(header => header.text() === batchLabels.dailyVol)!
+    const volumeHeader = present(wrapper.findAll('thead th').find(header => header.text() === batchLabels.dailyVol))
 
     await volumeHeader.trigger('click')
     const descending = rowNames(wrapper)

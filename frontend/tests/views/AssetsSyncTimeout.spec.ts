@@ -11,6 +11,7 @@ import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore, type SyncProgress, type SyncStatus } from '@/stores/sync'
 import type { User } from '@/types'
+import { present } from '../present'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
 
@@ -79,9 +80,9 @@ async function mountCorporationAssetsRefreshing() {
   wrapper.findComponent(AssetsFilterBar).vm.$emit('update:view-mode', 'corporation')
   await flushPromises()
   const button = wrapper.findAll('button').find(candidate => candidate.text() === 'Refresh')
-  await button!.trigger('click')
+  await present(button).trigger('click')
   await flushPromises()
-  return { wrapper, fetchMock, syncStore, button: button! }
+  return { wrapper, fetchMock, syncStore, button: present(button) }
 }
 
 async function advance(milliseconds: number) {

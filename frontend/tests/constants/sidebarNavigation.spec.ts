@@ -2,6 +2,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import * as sidebarNavigation from '@/constants/sidebarNavigation'
 import { adminNavItem, allNavEntries, isModuleHidden, isNavItemActive, moduleIdsToUnhide, settableModules } from '@/constants/sidebarNavigation'
+import { present } from '../present'
 
 interface PageEntry {
   route: string
@@ -54,7 +55,7 @@ describe('sidebar navigation registry', () => {
 
   it('activates a module on its pages and on its path prefixes, including details and invitations', () => {
     expect(allNavEntries.map(module => module.id)).toHaveLength(8)
-    const moduleOf = (id: string) => allNavEntries.find(module => module.id === id)!
+    const moduleOf = (id: string) => present(allNavEntries.find(module => module.id === id))
 
     expect([
       isNavItemActive(moduleOf('mining'), '/mining/sites/6c1d90a4'),

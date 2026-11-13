@@ -4,6 +4,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import InventionOptionsPanel from '@/components/industry/profit/InventionOptionsPanel.vue'
 import type { ProfitMarginInventionOption } from '@/stores/industry/types'
+import { present } from '../../present'
 
 const margins: Record<string, string> = en.industry.margins
 const frenchMargins: Record<string, string> = fr.industry.margins
@@ -87,7 +88,7 @@ function mountPanel(locale: 'en' | 'fr' = 'en') {
 function cellsOf(wrapper: ReturnType<typeof mountPanel>, decryptorName: string): string[] {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.text().includes(decryptorName))
   expect(row, `row ${decryptorName}`).toBeDefined()
-  return row!.findAll('td').map(cell => cell.text())
+  return present(row).findAll('td').map(cell => cell.text())
 }
 
 const ATTEMPTS_CELL = 6

@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
 import { apiRequest } from '@/services/api'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -26,7 +27,7 @@ function mountNewProjectModal() {
 async function clickButton(wrapper: VueWrapper, label: string) {
   const button = wrapper.findAll('button').find(candidate => candidate.text() === label)
   expect(button, `button ${label}`).toBeDefined()
-  await button!.trigger('click')
+  await present(button).trigger('click')
 }
 
 async function addSabreFromTheSearch(wrapper: VueWrapper) {
@@ -62,7 +63,7 @@ describe('NewProjectModal lines of the same product', () => {
 
     const creationCall = vi.mocked(apiRequest).mock.calls.find(([endpoint]) => endpoint === '/industry/projects')
     expect(creationCall, 'project creation request').toBeDefined()
-    const body = JSON.parse(String(creationCall![1]!.body)) as { items: Array<{ typeId: number }> }
+    const body = JSON.parse(String(present(present(creationCall)[1]).body)) as { items: Array<{ typeId: number }> }
     expect(body.items.map(item => item.typeId)).toEqual(Array(REQUESTED_LINES).fill(SABRE.typeId))
   })
 })

@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
 import { apiRequest } from '@/services/api'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -45,7 +46,7 @@ function mountModal(categories = SETTINGS_CATEGORIES, items: unknown[] = []) {
 function categoryLabel(wrapper: VueWrapper, label: string) {
   const category = wrapper.findAll('label').find(candidate => candidate.text() === label)
   expect(category, `category ${label}`).toBeDefined()
-  return category!
+  return present(category)
 }
 
 function isChecked(wrapper: VueWrapper, label: string): boolean {
@@ -54,15 +55,15 @@ function isChecked(wrapper: VueWrapper, label: string): boolean {
 
 async function createWithFerox(wrapper: VueWrapper): Promise<Record<string, unknown>> {
   const bulkButton = wrapper.findAll('button').find(candidate => candidate.text() === 'Bulk Paste')
-  await bulkButton!.trigger('click')
+  await present(bulkButton).trigger('click')
   await wrapper.get('textarea').setValue('Ferox 2 4 x100')
-  await wrapper.findAll('button').find(candidate => candidate.text() === 'Parse & Add')!.trigger('click')
+  await present(wrapper.findAll('button').find(candidate => candidate.text() === 'Parse & Add')).trigger('click')
   await flushPromises()
-  await wrapper.findAll('button').find(candidate => candidate.text() === 'Create Project')!.trigger('click')
+  await present(wrapper.findAll('button').find(candidate => candidate.text() === 'Create Project')).trigger('click')
   await flushPromises()
   const creationCall = vi.mocked(apiRequest).mock.calls.find(([endpoint]) => endpoint === PROJECTS_ENDPOINT)
   expect(creationCall, 'project creation request').toBeDefined()
-  return JSON.parse(String(creationCall![1]!.body))
+  return JSON.parse(String(present(present(creationCall)[1]).body))
 }
 
 describe('NewProjectModal blacklist defaults from the industry settings', () => {
@@ -121,7 +122,7 @@ describe('NewProjectModal blacklist defaults from the industry settings', () => 
     const wrapper = mountModal()
     await flushPromises()
 
-    const blacklistSection = wrapper.text().split('Corp Container')[0]!.split('Blacklist')[1]!
+    const blacklistSection = present(present(wrapper.text().split('Corp Container')[0]).split('Blacklist')[1])
 
     expect(blacklistSection).toContain('from your settings')
   })

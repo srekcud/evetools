@@ -6,6 +6,7 @@ import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { apiRequest } from '@/services/api'
 import { useProjectsStore } from '@/stores/industry/projects'
 import type { MarginEntry, ProfitMarginInventionOption, ProfitMarginResult } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -144,7 +145,7 @@ const SABRE_WITH_ATTAINMENT_CHOSEN: ProfitMarginResult = {
   totalCost: ATTAINMENT_OPTION.totalProductionCost,
   margins: jitaSellMargin(1_060),
   invention: {
-    ...SABRE_WITH_JITA_SELL.invention!,
+    ...present(SABRE_WITH_JITA_SELL.invention),
     selectedDecryptorTypeId: ATTAINMENT_OPTION.decryptorTypeId,
     selectedDecryptorName: ATTAINMENT_OPTION.decryptorName,
   },
@@ -163,12 +164,12 @@ function mountWithAnalysis(analysis: ProfitMarginResult) {
 function profitCard(wrapper: VueWrapper, t: (key: string) => string): DOMWrapper<Element> {
   const card = wrapper.findAll('.eve-card').find(candidate => candidate.findAll('p')[0]?.text() === t('industry.margins.profit'))
   expect(card, 'Profit card').toBeDefined()
-  return card!
+  return present(card)
 }
 
 function profitCardLines(wrapper: VueWrapper, t: (key: string) => string): { profit: string; perUnit: string } {
   const [, profit, perUnit] = profitCard(wrapper, t).findAll('p')
-  return { profit: profit!.text(), perUnit: perUnit!.text() }
+  return { profit: present(profit).text(), perUnit: present(perUnit).text() }
 }
 
 beforeEach(() => {
@@ -219,7 +220,7 @@ describe('ProfitMarginTab profit per unit', () => {
       profit: '-450',
       perUnit: `${t('industry.margins.perUnit')}: -15 ISK`,
     })
-    expect(profitCard(wrapper, t).findAll('p')[1]!.classes()).toContain('text-red-400')
+    expect(present(profitCard(wrapper, t).findAll('p')[1]).classes()).toContain('text-red-400')
   })
 
   it('divides the profit returned by the server for the chosen decryptor by the output quantity', async () => {
@@ -227,7 +228,7 @@ describe('ProfitMarginTab profit per unit', () => {
 
     const attainmentRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Attainment Decryptor'))
     expect(attainmentRow, 'Attainment Decryptor row').toBeDefined()
-    await attainmentRow!.trigger('click')
+    await present(attainmentRow).trigger('click')
     await flushPromises()
 
     expect(profitCardLines(wrapper, t)).toEqual({

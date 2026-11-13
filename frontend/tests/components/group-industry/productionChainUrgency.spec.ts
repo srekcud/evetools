@@ -8,6 +8,7 @@ import { apiRequest } from '@/services/api'
 import type { ChainNode } from '@/stores/group-industry/types'
 import { messageOf, TEST_LOCALES, type TestLocale } from '../../localeTexts'
 import { chainNode, SALE, SALE_ID } from '../../productionChainNodes'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -44,7 +45,7 @@ async function mountChain(nodes: ChainNode[], locale: TestLocale = 'en'): Promis
 function nodeIdsOutsideTheFold(wrapper: VueWrapper, column: string): string[] {
   return wrapper
     .findAll(`[data-testid="chain-column-${column}"] > [data-testid^="chain-node-"]`)
-    .map(node => node.attributes('data-testid')!.replace('chain-node-', ''))
+    .map(node => present(node.attributes('data-testid')).replace('chain-node-', ''))
 }
 
 describe('production chain overview urgency', () => {

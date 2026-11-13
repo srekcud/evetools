@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
 import { apiRequest } from '@/services/api'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -32,13 +33,13 @@ function mountNewProjectModal() {
 async function clickButton(wrapper: VueWrapper, label: string) {
   const button = wrapper.findAll('button').find(candidate => candidate.text() === label)
   expect(button, `button ${label}`).toBeDefined()
-  await button!.trigger('click')
+  await present(button).trigger('click')
 }
 
 async function checkBlacklistCategory(wrapper: VueWrapper, label: string) {
   const category = wrapper.findAll('label').find(candidate => candidate.text() === label)
   expect(category, `category ${label}`).toBeDefined()
-  await category!.get('input[type="checkbox"]').setValue(true)
+  await present(category).get('input[type="checkbox"]').setValue(true)
 }
 
 async function addItemsByBulkPaste(wrapper: VueWrapper) {
@@ -51,7 +52,7 @@ async function addItemsByBulkPaste(wrapper: VueWrapper) {
 function sentCreationBody(): Record<string, unknown> {
   const creationCall = vi.mocked(apiRequest).mock.calls.find(([endpoint]) => endpoint === '/industry/projects')
   expect(creationCall, 'project creation request').toBeDefined()
-  return JSON.parse(String(creationCall![1]!.body))
+  return JSON.parse(String(present(present(creationCall)[1]).body))
 }
 
 async function createProjectAfterUnchecking(wrapper: VueWrapper) {

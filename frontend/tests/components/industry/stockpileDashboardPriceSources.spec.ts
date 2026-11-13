@@ -5,6 +5,7 @@ import en from '@/i18n/locales/en.json'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 import { apiRequest } from '@/services/api'
 import type { StockpileItemStatus, StockpilePriceSources, StockpileStatus } from '@/stores/industry/types'
+import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -71,7 +72,7 @@ const STOCKPILE_WITH_UNKNOWN_AMOUNTS: StockpileStatus = {
     },
   },
   kpis: { ...PRICED_STOCKPILE.kpis, totalInvested: null },
-  shoppingList: [{ ...PRICED_STOCKPILE.shoppingList[0]!, deficitCost: null }],
+  shoppingList: [{ ...present(PRICED_STOCKPILE.shoppingList[0]), deficitCost: null }],
   missingPriceTypeIds: [MEXALLON_TYPE_ID],
 }
 
@@ -88,13 +89,13 @@ async function mountDashboard(status: StockpileStatus) {
 function totalInvestedCard(wrapper: VueWrapper): DOMWrapper<Element> {
   const labelElement = wrapper.findAll('div').find(element => element.text() === 'Total Invested')
   expect(labelElement, 'KPI Total Invested').toBeDefined()
-  return new DOMWrapper(labelElement!.element.parentElement!)
+  return new DOMWrapper(present(present(labelElement).element.parentElement))
 }
 
 function estimatedCostHeader(wrapper: VueWrapper): string {
   const header = wrapper.findAll('th').find(candidate => candidate.text().startsWith('Est. Cost'))
   expect(header, 'column Est. Cost').toBeDefined()
-  return header!.text()
+  return present(header).text()
 }
 
 beforeEach(() => {

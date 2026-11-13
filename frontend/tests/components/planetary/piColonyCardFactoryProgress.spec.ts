@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import PiColonyCard from '@/components/planetary/PiColonyCard.vue'
 import type { Colony } from '@/stores/planetary'
+import { present } from '../../present'
 
 const FACTORY_PROGRESS = '[data-testid="pi-factory-progress"]'
 const FACTORY_TIMER = '[data-testid="pi-factory-timer"]'
@@ -86,7 +87,7 @@ describe('PiColonyCard factory colony', () => {
   it('shows an expired timer once the stock is used up', () => {
     const wrapper = mountCard({
       ...FACTORY_COLONY,
-      factoryProgress: { ...FACTORY_COLONY.factoryProgress!, maxProducts: 0, remainingSeconds: 0, endsAt: NOW.toISOString() },
+      factoryProgress: { ...present(FACTORY_COLONY.factoryProgress), maxProducts: 0, remainingSeconds: 0, endsAt: NOW.toISOString() },
     })
 
     expect(wrapper.find(FACTORY_TIMER).text()).toBe('EXPIRED')
