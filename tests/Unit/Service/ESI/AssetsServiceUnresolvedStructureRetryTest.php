@@ -177,6 +177,7 @@ class AssetsServiceUnresolvedStructureRetryTest extends TestCase
             new NullLogger(),
             new TypeNameResolver($this->createSdeTypeRepositoryKnowingNoType()),
             $this->createStub(StaStationRepository::class),
+            $this->createStub(InvTypeRepository::class),
         );
 
         $assets = $assetsService->getCorporationAssets($character);

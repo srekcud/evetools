@@ -16,6 +16,7 @@ use App\Repository\Sde\StaStationRepository;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\EsiClient;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Support\StubsSdeTypeClassification;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\Stub;
@@ -32,6 +33,8 @@ use Psr\Log\NullLogger;
 #[CoversClass(AssetsService::class)]
 class AssetsServiceContainerLocationTest extends TestCase
 {
+    use StubsSdeTypeClassification;
+
     private const int EVE_CHARACTER_ID = 2112000001;
     private const string ASSETS_ENDPOINT = '/characters/2112000001/assets/';
     private const string ASSET_NAMES_ENDPOINT = '/characters/2112000001/assets/names/';
@@ -149,6 +152,16 @@ class AssetsServiceContainerLocationTest extends TestCase
             new NullLogger(),
             new TypeNameResolver($this->createSdeTypeRepositoryKnowingNoType()),
             $this->createStub(StaStationRepository::class),
+            $this->createSdeClassification([
+                self::TYPE_STATION_CONTAINER => self::cargoContainerClassification(),
+                self::TYPE_MEDIUM_STANDARD_CONTAINER => self::cargoContainerClassification(),
+                self::TYPE_SMALL_STANDARD_CONTAINER => self::cargoContainerClassification(),
+                self::TYPE_VENTURE => self::shipClassification(),
+                self::TYPE_TRITANIUM => self::mineralClassification(),
+                self::TYPE_PYERITE => self::mineralClassification(),
+                self::TYPE_MEXALLON => self::mineralClassification(),
+                self::TYPE_ISOGEN => self::mineralClassification(),
+            ]),
         );
 
         return $assetsService->getCharacterAssets($character);

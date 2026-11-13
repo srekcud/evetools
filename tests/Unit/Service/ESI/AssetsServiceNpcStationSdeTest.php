@@ -243,6 +243,7 @@ class AssetsServiceNpcStationSdeTest extends TestCase
             $logger ?? new NullLogger(),
             new TypeNameResolver($this->createStub(InvTypeRepository::class)),
             $stationRepository ?? $this->createKnownStationRepository(),
+            $this->createStub(InvTypeRepository::class),
         );
     }
 

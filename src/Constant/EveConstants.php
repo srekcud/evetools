@@ -21,4 +21,11 @@ final class EveConstants
     public const CHARACTER_ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
     public const CELESTIAL_CATEGORY_ID = 2;
     public const SHIP_CATEGORY_ID = 6;
+    public const DEPLOYABLE_CATEGORY_ID = 22;
+    public const STARBASE_CATEGORY_ID = 23;
+    public const STRUCTURE_CATEGORY_ID = 65;
+    public const CARGO_CONTAINER_GROUP_ID = 12;
+    public const SECURE_CARGO_CONTAINER_GROUP_ID = 340;
+    public const AUDIT_LOG_SECURE_CONTAINER_GROUP_ID = 448;
+    public const FREIGHT_CONTAINER_GROUP_ID = 649;
 }

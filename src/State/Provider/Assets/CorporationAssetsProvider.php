@@ -50,26 +50,26 @@ class CorporationAssetsProvider implements ProviderInterface
         $assets = $this->visibleAssetsFinder->findVisibleAssets($corporationId, $divisionName, $user);
 
         // Resolve categoryId from SDE for each unique typeId
-        $categoryMap = $this->resolveCategoryIds($assets);
+        $classification = $this->resolveTypeClassification($assets);
 
         $resource = new CorporationAssetsResource();
         $resource->total = count($assets);
-        $resource->items = array_map(fn (CachedAsset $asset) => $this->toItemResource($asset, $categoryMap), $assets);
+        $resource->items = array_map(fn (CachedAsset $asset) => $this->toItemResource($asset, $classification), $assets);
 
         return $resource;
     }
 
     /**
-     * @param array<int, int> $categoryMap typeId => categoryId
+     * @param array<int, array{categoryId: int, groupId: int}> $classification typeId => category and group
      */
-    private function toItemResource(CachedAsset $asset, array $categoryMap): AssetItemResource
+    private function toItemResource(CachedAsset $asset, array $classification): AssetItemResource
     {
         $item = new AssetItemResource();
         $item->id = $asset->getId()?->toRfc4122() ?? '';
         $item->itemId = $asset->getItemId();
         $item->typeId = $asset->getTypeId();
         $item->typeName = $asset->getTypeName();
-        $item->categoryId = $categoryMap[$asset->getTypeId()] ?? null;
+        $item->categoryId = $classification[$asset->getTypeId()]['categoryId'] ?? null;
         $item->quantity = $asset->getQuantity();
         $item->locationId = $asset->getLocationId();
         $item->locationName = $asset->getLocationName();
@@ -79,7 +79,10 @@ class CorporationAssetsProvider implements ProviderInterface
         $item->solarSystemName = $asset->getSolarSystemName();
         $item->itemName = $asset->getItemName();
         $item->isSingleton = $asset->isSingleton();
-        $item->canResolveItemName = $asset->canResolveItemName($item->categoryId);
+        $item->canResolveItemName = $asset->canResolveItemName(
+            $item->categoryId,
+            $classification[$asset->getTypeId()]['groupId'] ?? null,
+        );
         $item->divisionName = $asset->getDivisionName();
         $item->cachedAt = $asset->getCachedAt()->format('c');
 
@@ -90,9 +93,9 @@ class CorporationAssetsProvider implements ProviderInterface
      * Build a typeId => categoryId map from SDE data.
      *
      * @param CachedAsset[] $assets
-     * @return array<int, int>
+     * @return array<int, array{categoryId: int, groupId: int}>
      */
-    private function resolveCategoryIds(array $assets): array
+    private function resolveTypeClassification(array $assets): array
     {
         $typeIds = array_unique(array_map(fn (CachedAsset $a) => $a->getTypeId(), $assets));
 
@@ -104,7 +107,10 @@ class CorporationAssetsProvider implements ProviderInterface
         $map = [];
 
         foreach ($invTypes as $typeId => $invType) {
-            $map[$typeId] = $invType->getGroup()->getCategory()->getCategoryId();
+            $map[$typeId] = [
+                'categoryId' => $invType->getGroup()->getCategory()->getCategoryId(),
+                'groupId' => $invType->getGroup()->getGroupId(),
+            ];
         }
 
         return $map;
