@@ -16,6 +16,7 @@ final readonly class CockpitBomLine
         public ?string $jobGroup,
         public ?int $runs,
         public int $matchedRuns,
+        public int $deliveredRuns,
     ) {
     }
 }

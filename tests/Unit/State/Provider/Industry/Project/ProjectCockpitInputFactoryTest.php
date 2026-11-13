@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\State\Provider\Industry\Project;
 
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectJobMatch;
 use App\Enum\ContributionStatus;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
@@ -25,6 +27,24 @@ final class ProjectCockpitInputFactoryTest extends TestCase
     private const int ISOGEN_TYPE_ID = 37;
     private const int SABRE_TYPE_ID = 22456;
     private const int GILA_TYPE_ID = 17715;
+
+    public function testJobLineCarriesTheRunsOfItsDeliveredEsiJobsOnly(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 5);
+        $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 5, 5, 5);
+        $this->jobMatchOn($sabreJob, 1, 'delivered');
+        $this->jobMatchOn($sabreJob, 2, 'delivered');
+        $this->jobMatchOn($sabreJob, 3, 'active');
+        $this->jobMatchOn($sabreJob, 4, 'cancelled');
+        $this->jobMatchOn($sabreJob, 5, 'reverted');
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+
+        self::assertSame(3, $input->bomLines[0]->deliveredRuns);
+        self::assertSame(15, $input->bomLines[0]->matchedRuns);
+    }
 
     public function testInputCarriesTheStatusTheProductsTheBomLinesTheSoldQuantitiesAndThePendingContributions(): void
     {
@@ -52,8 +72,8 @@ final class ProjectCockpitInputFactoryTest extends TestCase
                 ProjectStatus::Selling,
                 2,
                 [
-                    new CockpitBomLine($tritanium->getId()->toRfc4122(), self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 38_500, false, null, null, 0),
-                    new CockpitBomLine($sabreJob->getId()->toRfc4122(), self::SABRE_TYPE_ID, 'Sabre', 5, 5, true, 'final', 5, 2),
+                    new CockpitBomLine($tritanium->getId()->toRfc4122(), self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 38_500, false, null, null, 0, 0),
+                    new CockpitBomLine($sabreJob->getId()->toRfc4122(), self::SABRE_TYPE_ID, 'Sabre', 5, 5, true, 'final', 5, 2, 0),
                 ],
                 [self::SABRE_TYPE_ID => 4, self::ISOGEN_TYPE_ID => 50],
                 2,
@@ -86,5 +106,10 @@ final class ProjectCockpitInputFactoryTest extends TestCase
             ['owner' => true, 'acceptedAdmin' => true, 'acceptedMember' => false, 'pendingAdmin' => false, 'removedAdmin' => false],
             $viewerIsManager,
         );
+    }
+
+    private function jobMatchOn(IndustryProjectBomLine $line, int $runs, string $status): void
+    {
+        $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(612_336_000 + $runs)->setRuns($runs)->setStatus($status));
     }
 }

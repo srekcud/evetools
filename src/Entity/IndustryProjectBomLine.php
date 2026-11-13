@@ -329,6 +329,16 @@ class IndustryProjectBomLine
         return array_sum($this->jobMatches->map(static fn (IndustryProjectJobMatch $jobMatch): int => $jobMatch->getRuns())->toArray());
     }
 
+    public function getDeliveredRuns(): int
+    {
+        return array_sum(
+            $this->jobMatches
+                ->filter(static fn (IndustryProjectJobMatch $jobMatch): bool => $jobMatch->getStatus() === CachedIndustryJob::STATUS_DELIVERED)
+                ->map(static fn (IndustryProjectJobMatch $jobMatch): int => $jobMatch->getRuns())
+                ->toArray(),
+        );
+    }
+
     public function hasManualJobMatch(): bool
     {
         return $this->jobMatches->exists(static fn (int $key, IndustryProjectJobMatch $jobMatch): bool => $jobMatch->isManual());
