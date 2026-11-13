@@ -42,12 +42,14 @@ import ProjectPriceAlertBanner from '@/components/group-industry/ProjectPriceAle
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
+import { useGroupT2BlueprintCopyProposalStore } from '@/stores/group-industry/t2BlueprintCopyProposal'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
 import ProjectStructureHealth from '@/components/group-industry/ProjectStructureHealth.vue'
 import ProjectBlacklistEditor from '@/components/group-industry/ProjectBlacklistEditor.vue'
+import ProjectInventionExclusionToggle from '@/components/group-industry/ProjectInventionExclusionToggle.vue'
 import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
 import IntermediateStockProposal from '@/components/group-industry/IntermediateStockProposal.vue'
 import T2BlueprintCopyProposal from '@/components/group-industry/T2BlueprintCopyProposal.vue'
@@ -76,6 +78,7 @@ const route = useRoute()
 const router = useRouter()
 const projectStore = useGroupProjectStore()
 const chainStore = useGroupChainStore()
+const t2ProposalStore = useGroupT2BlueprintCopyProposalStore()
 const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
 const settlementStore = useGroupSettlementStore()
@@ -398,6 +401,11 @@ function onBlacklistSaved(): void {
   loadCockpit(projectId.value)
 }
 
+function onInventionExclusionSaved(): void {
+  onBlacklistSaved()
+  t2ProposalStore.fetchProposal(projectId.value)
+}
+
 function onBuyOrBuildSwitched(): void {
   onBlacklistSaved()
   chainStore.fetchChain(projectId.value)
@@ -637,6 +645,14 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           @saved="onBlacklistSaved"
         />
 
+        <ProjectInventionExclusionToggle
+          :project-id="projectId"
+          :status="project.status"
+          :can-edit="isOwnerOrAdmin"
+          :excludes-invention="project.excludesInvention"
+          @saved="onInventionExclusionSaved"
+        />
+
         <CollapsibleSourcing
           :complete="sourcingComplete"
           :collapsed="sourcingCollapsed"
@@ -719,7 +735,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
-        <ProductionChain :project-id="projectId" :can-mark="isOwner && !isCompleted" @marked="refreshGroupProject.cockpit(projectId)" />
+        <ProductionChain :project-id="projectId" :excludes-invention="project.excludesInvention" :can-mark="isOwner && !isCompleted" @marked="refreshGroupProject.cockpit(projectId)" />
         <ProjectBuyOrBuild
           :project-id="projectId"
           :can-switch="isOwnerOrAdmin && !isCompleted"

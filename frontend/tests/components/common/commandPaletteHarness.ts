@@ -55,6 +55,7 @@ export function groupIndustryProject(id: string, name: string | null, status: Gr
     containerName: null,
     private: true,
     acceptsOutsideFavoriteSystem: false,
+    excludesInvention: false,
     minimumOutsideSaving: 500000,
     sellStructureId: null,
     sellStructureName: null,

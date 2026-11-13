@@ -9,6 +9,7 @@ final readonly class T2BlueprintCopyProposal
     public const string STATE_READY = 'ready';
     public const string STATE_NOT_SOLO = 'not_solo';
     public const string STATE_ASSETS_UNKNOWN = 'assets_unknown';
+    public const string STATE_INVENTION_EXCLUDED = 'invention_excluded';
 
     /**
      * @param list<T2BlueprintCopyProposalLine> $lines

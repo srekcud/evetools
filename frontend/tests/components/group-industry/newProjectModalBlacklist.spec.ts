@@ -116,6 +116,7 @@ describe('NewProjectModal production blacklist', () => {
       blacklistCategoryKeys: ['fuel_blocks', 'complex_reactions'],
       private: true,
       personalUse: false,
+      excludesInvention: false,
       acceptsOutsideFavoriteSystem: false,
       minimumOutsideSaving: DEFAULT_MINIMUM_OUTSIDE_SAVING,
     })

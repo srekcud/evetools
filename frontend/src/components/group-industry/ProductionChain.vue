@@ -2,8 +2,11 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
+import { useGroupT2BlueprintsToProvideStore } from '@/stores/group-industry/t2BlueprintsToProvide'
 import { useSyncStore } from '@/stores/sync'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
+import { useFormatters } from '@/composables/useFormatters'
+import { useEveImages } from '@/composables/useEveImages'
 import { CHAIN_STATUSES, chainStatusDotClass } from './chainStatus'
 import ProductionChainFlow from './ProductionChainFlow.vue'
 import ProductionChainJobTree from './ProductionChainJobTree.vue'
@@ -16,6 +19,7 @@ const VIEWS: readonly ChainView[] = ['flow', 'tree']
 const props = defineProps<{
   projectId: string
   canMark?: boolean
+  excludesInvention?: boolean
 }>()
 
 defineEmits<{
@@ -23,8 +27,11 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { formatNumber } = useFormatters()
+const { getTypeIconUrl, onImageError } = useEveImages()
 const syncStore = useSyncStore()
 const chainStore = useGroupChainStore()
+const toProvideStore = useGroupT2BlueprintsToProvideStore()
 
 const view = ref<ChainView>('flow')
 const selectedNodeId = ref<string | null>(null)
@@ -38,23 +45,30 @@ function showView(next: ChainView): void {
   view.value = next
 }
 
-watch(() => props.projectId, projectId => chainStore.fetchChain(projectId), { immediate: true })
+watch(() => props.projectId, projectId => {
+  chainStore.fetchChain(projectId)
+  toProvideStore.fetchToProvide(projectId)
+}, { immediate: true })
+
+watch(() => props.excludesInvention, () => toProvideStore.fetchToProvide(props.projectId))
 
 watch(
   () => syncStore.getGroupProjectEvent(props.projectId),
   (event) => {
     if (!event) return
     chainStore.fetchChain(props.projectId)
+    toProvideStore.fetchToProvide(props.projectId)
   },
 )
 
-useRefetchOnReconnect(() => chainStore.fetchChain(props.projectId))
+useRefetchOnReconnect(() => Promise.all([chainStore.fetchChain(props.projectId), toProvideStore.fetchToProvide(props.projectId)]))
 
 watch(
   () => syncStore.getSyncProgress('industry-project'),
   (progress) => {
     if (progress?.data?.projectId !== props.projectId) return
     chainStore.fetchChain(props.projectId)
+    toProvideStore.fetchToProvide(props.projectId)
   },
 )
 </script>
@@ -120,6 +134,73 @@ watch(
           {{ t(`groupIndustry.chain.status.${status}`) }}
         </span>
       </footer>
+
+      <section
+        v-if="toProvideStore.error !== null || toProvideStore.toProvide?.excludesInvention === true"
+        data-testid="chain-t2-to-provide"
+        class="border-t border-slate-800"
+      >
+        <header class="px-4 py-3">
+          <h3 class="font-display text-sm font-semibold uppercase tracking-widest text-cyan-400">
+            {{ t('groupIndustry.chain.t2ToProvide.title') }}
+          </h3>
+          <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.chain.t2ToProvide.description') }}</p>
+        </header>
+
+        <div
+          v-if="toProvideStore.error !== null"
+          data-testid="chain-t2-to-provide-error"
+          role="alert"
+          class="m-4 mt-0 p-3 rounded border border-red-500/30 bg-red-500/10 text-sm text-red-300"
+        >
+          <p class="font-semibold">{{ t('groupIndustry.chain.t2ToProvide.loadError') }}</p>
+          <p class="mt-1 break-words">{{ toProvideStore.error }}</p>
+        </div>
+
+        <p
+          v-else-if="toProvideStore.toProvide?.lines.length === 0"
+          data-testid="chain-t2-to-provide-empty"
+          class="px-4 pb-4 text-sm text-slate-500"
+        >{{ t('groupIndustry.chain.t2ToProvide.empty') }}</p>
+
+        <div v-else class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs uppercase tracking-wider text-slate-500">
+                <th class="px-4 py-2 font-medium">{{ t('groupIndustry.chain.t2ToProvide.columns.type') }}</th>
+                <th class="px-4 py-2 font-medium text-right">{{ t('groupIndustry.chain.t2ToProvide.columns.runs') }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+              <tr
+                v-for="line in toProvideStore.toProvide?.lines ?? []"
+                :key="line.productTypeId"
+                :data-testid="`chain-t2-to-provide-row-${line.productTypeId}`"
+              >
+                <td class="px-4 py-2 max-w-[24rem]">
+                  <span class="flex items-center gap-2 min-w-0">
+                    <img
+                      :src="getTypeIconUrl(line.productTypeId, 32)"
+                      alt=""
+                      class="w-5 h-5 rounded-sm shrink-0"
+                      @error="onImageError"
+                    />
+                    <span
+                      :data-testid="`chain-t2-to-provide-name-${line.productTypeId}`"
+                      class="font-medium text-slate-100 truncate"
+                      :title="line.typeName"
+                    >{{ line.typeName }}</span>
+                  </span>
+                </td>
+                <td
+                  :data-testid="`chain-t2-to-provide-runs-${line.productTypeId}`"
+                  class="px-4 py-2 text-right tabular-nums text-cyan-300"
+                >{{ formatNumber(line.runs, 0) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <ProjectReactionSteps :project-id="projectId" />
     </template>

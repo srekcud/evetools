@@ -45,6 +45,7 @@ export type ProjectTemplate = {
   blacklistGroupIds: number[]
   blacklistTypeIds: number[]
   acceptsOutsideFavoriteSystem: boolean
+  excludesInvention: boolean
   minimumOutsideSaving: number
   sellStructureId: number | null
   sellStructureName: string | null
@@ -71,6 +72,7 @@ export type GroupProject = {
   personalUse?: boolean
   solo?: boolean
   acceptsOutsideFavoriteSystem: boolean
+  excludesInvention: boolean
   minimumOutsideSaving: number
   sellStructureId: number | null
   sellStructureName: string | null
@@ -456,6 +458,7 @@ export type CreateGroupProjectInput = {
   brokerFeePercent?: number
   salesTaxPercent?: number
   acceptsOutsideFavoriteSystem: boolean
+  excludesInvention?: boolean
   minimumOutsideSaving: number
   templateId?: string
   sellStructureId?: number
@@ -1140,7 +1143,7 @@ export interface IntermediateStockSelection {
   quantity: number
 }
 
-export type T2BlueprintCopyProposalState = 'ready' | 'not_solo' | 'assets_unknown'
+export type T2BlueprintCopyProposalState = 'ready' | 'not_solo' | 'assets_unknown' | 'invention_excluded'
 
 export type T2BlueprintCopyUnknownReason =
   | 'blueprints_not_synced'
@@ -1166,6 +1169,18 @@ export interface T2BlueprintCopyProposal {
   state: T2BlueprintCopyProposalState
   unknownReason: T2BlueprintCopyUnknownReason | null
   lines: T2BlueprintCopyProposalLine[]
+}
+
+export interface T2BlueprintToProvideLine {
+  productTypeId: number
+  typeName: string
+  runs: number
+}
+
+export interface T2BlueprintsToProvide {
+  id: string
+  excludesInvention: boolean
+  lines: T2BlueprintToProvideLine[]
 }
 
 export interface T2BlueprintCopySelection {

@@ -1149,6 +1149,91 @@ final class IndustryProjectServiceTest extends TestCase
         $this->assertSame([6], $this->runsOf($project, self::HAIL_L, 'invention'));
     }
 
+    #[Group('issue-806')]
+    public function testHailLRunsOfAProjectExcludingTheInventionHaveNoInventionNoT1CopyNoDatacoreAndNoCopyOfTheT2Blueprint(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]])->setExcludesInvention(true);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([[self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null]], $this->jobLines($project));
+        $this->assertSame([self::MORPHITE => 221], $this->materialQuantities($project));
+    }
+
+    #[Group('issue-806')]
+    public function testProjectExcludingTheInventionDoesNotRequireTheInventionProbability(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns(probability: null);
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]])->setExcludesInvention(true);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([[self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null]], $this->jobLines($project));
+    }
+
+    #[Group('issue-806')]
+    public function testDeclaredBlueprintCopiesAreIgnoredWhileTheInventionIsExcludedAndApplyAgainOnceItIsNot(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]])->setExcludesInvention(true);
+        $project->replaceDeclaredBlueprintCopies([new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 6)]);
+
+        $this->service()->buildBom($project, $this->createUser());
+        $jobLinesWhileExcluded = $this->jobLines($project);
+        $project->setExcludesInvention(false);
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([[self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null]], $jobLinesWhileExcluded);
+        $this->assertSame([6], $this->runsOf($project, self::HAIL_L, 'invention'));
+    }
+
+    #[Group('issue-806')]
+    public function testProjectExcludingTheInventionKeepsTheManufacturingAndTheCopyOfTheT1ProductAndDropsTheInventionOfBothT2Products(): void
+    {
+        $this->givenInventedProducts();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenRecipe(self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', [self::MORPHITE => 7], outputPerRun: 100, maxProductionLimit: 40, hasCopyActivity: true);
+        $this->givenRecipe(self::THRASHER, 'Thrasher', [self::TRITANIUM => 100, self::DATACORE_MECHANICAL_ENGINEERING => 50], hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 3], [self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', 4], [self::THRASHER, 'Thrasher', 6]])
+            ->setExcludesInvention(true);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::THRASHER, 'copy', 'blueprint', 6, 6, null],
+                [self::THRASHER, 'manufacturing', 'final', 6, 6, null],
+                [self::HAIL_L, 'manufacturing', 'final', 3, 15_000, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'manufacturing', 'final', 4, 400, null],
+            ],
+            $this->jobLines($project),
+        );
+        $this->assertSame(
+            [self::TRITANIUM => 588, self::MORPHITE => 73, self::DATACORE_MECHANICAL_ENGINEERING => 294],
+            $this->materialQuantities($project),
+        );
+    }
+
+    #[Group('issue-806')]
+    public function testCreateProjectTakesTheInventionExclusionOfTheDataBeforePlanningTheBom(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Hail L with bought blueprint copies',
+            items: [['typeId' => self::HAIL_L, 'typeName' => 'Hail L', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 15]],
+            excludesInvention: true,
+        ));
+
+        $this->assertTrue($project->isExcludesInvention());
+        $this->assertSame([[self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null]], $this->jobLines($project));
+    }
+
     private function copyLineOf(IndustryProject $project): IndustryProjectBomLine
     {
         $copyLines = array_values(array_filter($this->getJobBomItems($project), static fn (IndustryProjectBomLine $job): bool => 'copy' === $job->getActivityType()));

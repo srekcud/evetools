@@ -91,6 +91,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         }
 
         $this->changeTheBlacklist($project, $data);
+        $this->changeTheInventionExclusion($project, $data);
         $this->changeTheSelectionPolicy($project, $data);
         $this->changeTheSellStructure($user, $project, $data);
 
@@ -191,6 +192,32 @@ class UpdateProjectProcessor implements ProcessorInterface
         }
 
         $project->setSellStructure($sellStructure->id, $sellStructure->name);
+    }
+
+    private function changeTheInventionExclusion(IndustryProject $project, UpdateProjectInput $data): void
+    {
+        if (null === $data->excludesInvention) {
+            return;
+        }
+
+        if ($project->getStatus() !== ProjectStatus::Draft) {
+            throw new BadRequestHttpException('The invention exclusion of a project can only be changed while it is a draft');
+        }
+
+        $previousExcludesInvention = $project->isExcludesInvention();
+        if ($data->excludesInvention === $previousExcludesInvention) {
+            return;
+        }
+
+        $project->setExcludesInvention($data->excludesInvention);
+
+        try {
+            $this->projectService->buildBom($project, $project->getOwner());
+        } catch (\RuntimeException $e) {
+            $project->setExcludesInvention($previousExcludesInvention);
+
+            throw new BadRequestHttpException($e->getMessage());
+        }
     }
 
     private function changeTheSelectionPolicy(IndustryProject $project, UpdateProjectInput $data): void

@@ -140,6 +140,7 @@ function projectOf(sellStructureId: number | null): GroupProject {
     private: false,
     notes: null,
     acceptsOutsideFavoriteSystem: false,
+    excludesInvention: false,
     minimumOutsideSaving: 5,
     sellStructureId,
     sellStructureName: sellStructureId === null ? null : PERIMETER_STRUCTURE.name,

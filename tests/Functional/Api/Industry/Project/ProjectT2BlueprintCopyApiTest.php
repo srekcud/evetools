@@ -254,6 +254,182 @@ final class ProjectT2BlueprintCopyApiTest extends WebTestCase
         $this->assertInventionRunsInThePlan([self::ATTEMPTS_FOR_ALL_RUNS]);
     }
 
+    #[Group('issue-806')]
+    public function testProjectCreatedWithTheInventionExcludedHasNoInventionCopyOrDatacoreAndTheOwnerReadsTheProductAndItsRunsToProvide(): void
+    {
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Ishtar with bought copies', 'items' => [$this->ishtarItem()], 'excludesInvention' => true]);
+
+        self::assertResponseStatusCodeSame(201);
+        $project = $this->responseJson();
+        self::assertTrue($project['excludesInvention']);
+        $this->assertNoInventionCopyOrDatacoreInThePlanOf($project['id']);
+
+        $this->actAs($this->owner);
+        $this->request('GET', $this->toProvideUri($project['id']));
+
+        self::assertResponseStatusCodeSame(200);
+        $toProvide = $this->responseJson();
+        self::assertSame([$project['id'], true], [$toProvide['id'], $toProvide['excludesInvention']]);
+        self::assertSame([['productTypeId' => self::ISHTAR_TYPE_ID, 'typeName' => 'Ishtar', 'runs' => self::ISHTAR_RUNS_IN_THE_PLAN]], $toProvide['lines']);
+    }
+
+    #[Group('issue-806')]
+    public function testProjectKeepingTheInventionHasNothingToProvideEvenWithInventedProducts(): void
+    {
+        $this->actAs($this->owner);
+        $this->request('GET', $this->toProvideUri($this->soloIshtar->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $toProvide = $this->responseJson();
+        self::assertSame([false, []], [$toProvide['excludesInvention'], $toProvide['lines']]);
+    }
+
+    #[Group('issue-806')]
+    public function testAcceptedMemberWhoDoesNotOwnTheGroupProjectReadsTheBlueprintCopiesToProvide(): void
+    {
+        $this->ishtarBatch->setExcludesInvention(true);
+        $this->em->flush();
+
+        $this->actAs($this->member);
+        $this->request('GET', $this->toProvideUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([['productTypeId' => self::ISHTAR_TYPE_ID, 'typeName' => 'Ishtar', 'runs' => self::ISHTAR_RUNS]], $this->responseJson()['lines']);
+    }
+
+    #[Group('issue-806')]
+    public function testPilotOutsideTheGroupProjectIsRefusedTheBlueprintCopiesToProvide(): void
+    {
+        $this->ishtarBatch->setExcludesInvention(true);
+        $this->em->flush();
+
+        $this->actAs($this->outsider);
+        $this->request('GET', $this->toProvideUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    #[Group('issue-806')]
+    public function testProjectExcludingTheInventionHasAnInventionExcludedProposalAndRefusesTheDeclarationOfBlueprintCopies(): void
+    {
+        $this->soloIshtar->setExcludesInvention(true);
+        $this->em->flush();
+
+        $this->actAs($this->owner);
+        $this->request('GET', $this->proposalUri($this->soloIshtar->getId()->toRfc4122()));
+        self::assertResponseStatusCodeSame(200);
+        $proposal = $this->responseJson();
+        self::assertSame(['invention_excluded', []], [$proposal['state'], $proposal['lines']]);
+
+        $this->actAs($this->owner);
+        $this->request('POST', $this->declarationUri(), ['copies' => [['productTypeId' => self::ISHTAR_TYPE_ID, 'runs' => 5]]]);
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    #[Group('issue-806')]
+    public function testOwnerExcludesTheInventionOfADraftProjectByPatchAndTheBomLosesTheInvention(): void
+    {
+        $this->actAs($this->owner);
+        $this->request('PATCH', '/api/industry/projects/'.$this->soloIshtar->getId()->toRfc4122(), ['excludesInvention' => true]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->responseJson()['excludesInvention']);
+        $this->assertNoInventionCopyOrDatacoreInThePlanOf($this->soloIshtar->getId()->toRfc4122());
+    }
+
+    #[Group('issue-806')]
+    public function testInventionExclusionOfAPublishedProjectIsRefusedAndTheProjectIsUnchanged(): void
+    {
+        $this->soloIshtar->setStatus(ProjectStatus::Published);
+        $this->em->flush();
+
+        $this->actAs($this->owner);
+        $this->request('PATCH', '/api/industry/projects/'.$this->soloIshtar->getId()->toRfc4122(), ['excludesInvention' => true]);
+
+        self::assertResponseStatusCodeSame(400);
+        $this->em->clear();
+        self::assertFalse($this->em->find(IndustryProject::class, $this->soloIshtar->getId())->isExcludesInvention());
+    }
+
+    #[Group('issue-806')]
+    public function testInventionExclusionSettingIsReadAndWrittenOnTheBlacklistAndAnAbsentValueLeavesItUnchanged(): void
+    {
+        $this->actAs($this->owner);
+        $this->request('GET', '/api/industry/blacklist');
+        self::assertResponseStatusCodeSame(200);
+        self::assertFalse($this->responseJson()['excludeInvention']);
+
+        $this->actAs($this->owner);
+        $this->request('PUT', '/api/industry/blacklist', ['excludeInvention' => true]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->responseJson()['excludeInvention']);
+
+        $this->actAs($this->owner);
+        $this->request('PUT', '/api/industry/blacklist', ['groupIds' => [999_999]]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->responseJson()['excludeInvention']);
+
+        $this->actAs($this->owner);
+        $this->request('GET', '/api/industry/blacklist');
+        self::assertTrue($this->responseJson()['excludeInvention']);
+
+        $this->actAs($this->owner);
+        $this->request('PUT', '/api/industry/blacklist', ['excludeInvention' => false]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertFalse($this->responseJson()['excludeInvention']);
+    }
+
+    #[Group('issue-806')]
+    public function testProjectCreatedWithoutValueTakesTheSettingOfTheUserWhileEarlierProjectsAndAnExplicitFalseKeepTheirValue(): void
+    {
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Before the setting', 'items' => [$this->ishtarItem()]]);
+        self::assertResponseStatusCodeSame(201);
+        $before = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('PUT', '/api/industry/blacklist', ['excludeInvention' => true]);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'After the setting', 'items' => [$this->ishtarItem()]]);
+        self::assertResponseStatusCodeSame(201);
+        $after = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Explicitly inventing', 'items' => [$this->ishtarItem()], 'excludesInvention' => false]);
+        self::assertResponseStatusCodeSame(201);
+        $explicit = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('GET', '/api/industry/projects/'.$before['id']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([false, true, false, false], [$before['excludesInvention'], $after['excludesInvention'], $explicit['excludesInvention'], $this->responseJson()['excludesInvention']]);
+    }
+
+    private function ishtarItem(): array
+    {
+        return ['typeId' => self::ISHTAR_TYPE_ID, 'typeName' => 'Ishtar', 'meLevel' => 4, 'teLevel' => 8, 'runs' => self::ISHTAR_RUNS_IN_THE_PLAN];
+    }
+
+    private function toProvideUri(string $projectId): string
+    {
+        return '/api/industry/projects/'.$projectId.'/t2-blueprints-to-provide';
+    }
+
+    private function assertNoInventionCopyOrDatacoreInThePlanOf(string $projectId): void
+    {
+        $this->em->clear();
+        $project = $this->em->find(IndustryProject::class, Uuid::fromString($projectId));
+        $invented = array_values(array_map(
+            static fn (IndustryProjectBomLine $line): array => [$line->getTypeId(), $line->getActivityType()],
+            array_filter($project->getBomItems()->toArray(), static fn (IndustryProjectBomLine $line): bool => \in_array($line->getActivityType(), ['invention', 'copy'], true)
+                || \in_array($line->getTypeId(), [self::DATACORE_ELECTRONIC_ENGINEERING_TYPE_ID, self::DATACORE_MECHANICAL_ENGINEERING_TYPE_ID, self::VEXOR_TYPE_ID], true)),
+        ));
+        self::assertSame([], $invented);
+    }
+
     private function proposalUri(string $projectId): string
     {
         return '/api/industry/projects/'.$projectId.'/t2-blueprint-copy-proposal';

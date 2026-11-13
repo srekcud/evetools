@@ -65,6 +65,8 @@ class IndustryProjectTemplateResource
 
     public bool $acceptsOutsideFavoriteSystem = false;
 
+    public bool $excludesInvention = false;
+
     public float $minimumOutsideSaving = 0.0;
 
     public ?int $sellStructureId = null;
@@ -90,6 +92,7 @@ class IndustryProjectTemplateResource
         $resource->blacklistGroupIds = $template->getBlacklistGroupIds();
         $resource->blacklistTypeIds = $template->getBlacklistTypeIds();
         $resource->acceptsOutsideFavoriteSystem = $template->isAcceptsOutsideFavoriteSystem();
+        $resource->excludesInvention = $template->isExcludesInvention();
         $resource->minimumOutsideSaving = $template->getMinimumOutsideSaving();
         $resource->sellStructureId = $template->getSellStructureId();
         $resource->sellStructureName = $template->getSellStructureName();

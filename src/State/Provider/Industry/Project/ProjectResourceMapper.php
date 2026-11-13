@@ -42,6 +42,7 @@ class ProjectResourceMapper
         $resource->personalUse = $project->isPersonalUse();
         $resource->solo = $project->isSoloProjectOf($project->getOwner());
         $resource->acceptsOutsideFavoriteSystem = $project->isAcceptsOutsideFavoriteSystem();
+        $resource->excludesInvention = $project->isExcludesInvention();
         $resource->minimumOutsideSaving = $project->getMinimumOutsideSaving();
         $resource->notes = $project->getNotes();
         $resource->sellStructureId = $project->getSellStructureId();

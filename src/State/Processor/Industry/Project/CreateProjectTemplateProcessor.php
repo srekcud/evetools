@@ -66,6 +66,7 @@ class CreateProjectTemplateProcessor implements ProcessorInterface
             ->setBlacklistGroupIds(array_values($project->getBlacklistGroupIds()))
             ->setBlacklistTypeIds(array_values($project->getBlacklistTypeIds()))
             ->setAcceptsOutsideFavoriteSystem($project->isAcceptsOutsideFavoriteSystem())
+            ->setExcludesInvention($project->isExcludesInvention())
             ->setMinimumOutsideSaving($project->getMinimumOutsideSaving())
             ->setSellStructure($project->getSellStructureId(), $project->getSellStructureName())
             ->setSharedWithCorporation($data->sharedWithCorporation);

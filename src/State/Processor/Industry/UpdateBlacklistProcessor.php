@@ -43,12 +43,17 @@ class UpdateBlacklistProcessor implements ProcessorInterface
             $user->setIndustryBlacklistTypeIds(array_map('intval', $data->typeIds));
         }
 
+        if ($data->excludeInvention !== null) {
+            $user->setIndustryExcludeInvention($data->excludeInvention);
+        }
+
         $this->entityManager->flush();
 
         $resource = new BlacklistResource();
         $resource->categories = $this->blacklistService->getCategories($user);
         $resource->groupIds = array_values($user->getIndustryBlacklistGroupIds());
         $resource->items = $this->blacklistService->getBlacklistedItems($user);
+        $resource->excludeInvention = $user->isIndustryExcludeInvention();
 
         return $resource;
     }

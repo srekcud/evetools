@@ -71,6 +71,7 @@ export function companionProject(overrides: Partial<GroupProject> = {}): GroupPr
     private: false,
     notes: null,
     acceptsOutsideFavoriteSystem: false,
+    excludesInvention: false,
     minimumOutsideSaving: 5,
     sellStructureId: null,
     sellStructureName: null,
