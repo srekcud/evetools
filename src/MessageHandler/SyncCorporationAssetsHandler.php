@@ -11,6 +11,7 @@ use App\Repository\CharacterRepository;
 use App\Service\Admin\SyncTracker;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\AssetsSyncService;
+use App\Service\Sync\CorporationAssetsRefreshGate;
 use App\Service\Sync\CorporationSyncRecipients;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,6 +30,7 @@ final readonly class SyncCorporationAssetsHandler
     public function __construct(
         private CharacterRepository $characterRepository,
         private AssetsSyncService $assetsSyncService,
+        private CorporationAssetsRefreshGate $refreshGate,
         private MercurePublisherService $mercurePublisher,
         private SyncTracker $syncTracker,
         private LoggerInterface $logger,
@@ -36,6 +38,15 @@ final readonly class SyncCorporationAssetsHandler
     }
 
     public function __invoke(SyncCorporationAssets $message): void
+    {
+        try {
+            $this->synchronize($message);
+        } finally {
+            $this->refreshGate->release($message->corporationId);
+        }
+    }
+
+    private function synchronize(SyncCorporationAssets $message): void
     {
         $this->syncTracker->start(self::TRACKED_SYNC_TYPE);
 

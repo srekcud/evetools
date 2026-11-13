@@ -2078,6 +2078,8 @@
     "allLocations": "Tous les emplacements",
     "syncNoAnswer": "La synchro n'a pas répondu.",
     "refreshFailed": "L'actualisation des assets a échoué.",
+    "refreshAvailableAt": "Actualisation possible à {time}",
+    "syncAlreadyRunning": "Une synchro des assets de la corporation est déjà en cours",
     "syncing": "Synchronisation...",
     "noAssets": "Aucun asset",
     "selectCharacter": "Selectionner un personnage",

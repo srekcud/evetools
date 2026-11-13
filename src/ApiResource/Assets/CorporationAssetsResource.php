@@ -54,6 +54,8 @@ class CorporationAssetsResource
 
     public int $total = 0;
 
+    public ?string $nextRefreshAt = null;
+
     /** @var AssetItemResource[] */
     public array $items = [];
 }

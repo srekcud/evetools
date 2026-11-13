@@ -417,7 +417,7 @@ export type ContainerVerification = {
 }
 
 export type CorporationAssetsRefresh = {
-  status: 'pending' | 'completed' | 'error'
+  status: 'pending' | 'completed' | 'error' | 'up_to_date' | 'in_progress'
   error?: string
 }
 

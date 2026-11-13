@@ -2078,6 +2078,8 @@
     "allLocations": "All locations",
     "syncNoAnswer": "The sync did not answer.",
     "refreshFailed": "The asset refresh failed.",
+    "refreshAvailableAt": "Refresh available at {time}",
+    "syncAlreadyRunning": "A sync of the corporation assets is already running",
     "syncing": "Syncing...",
     "noAssets": "No assets",
     "selectCharacter": "Select a character",

@@ -954,13 +954,14 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
-  async function refreshCorporationAssets(): Promise<void> {
+  async function refreshCorporationAssets(): Promise<string> {
     error.value = null
     try {
-      await apiRequest<unknown>('/me/corporation/assets/refresh', {
+      const refresh = await apiRequest<{ status: string }>('/me/corporation/assets/refresh', {
         method: 'POST',
         body: JSON.stringify({}),
       })
+      return refresh.status
     } catch (cause) {
       error.value = messageOf(cause, 'Failed to refresh the corporation assets')
       throw cause
