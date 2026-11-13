@@ -53,7 +53,7 @@ async function searchSystems(query: string, target: 'mfg' | 'rxn') {
       rxnResults.value = data
       rxnDropdown.value = true
     }
-  } catch (e) {
+  } catch {
     // silent
   }
 }

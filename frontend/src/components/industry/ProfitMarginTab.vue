@@ -197,18 +197,22 @@ const sellRows = computed((): SellRow[] => {
     }
   }
 
-  if (sp.jitaSell != null && m['jitaSell'] != null) {
-    rows.push(buildRow('jitaSell', 'Jita', t('industry.margins.sellTag'), sp.jitaSell, m['jitaSell']!, r.dailyVolume, null, sp.jitaSellCoveragePercent))
+  const jitaSellMargin = m['jitaSell']
+  if (sp.jitaSell != null && jitaSellMargin != null) {
+    rows.push(buildRow('jitaSell', 'Jita', t('industry.margins.sellTag'), sp.jitaSell, jitaSellMargin, r.dailyVolume, null, sp.jitaSellCoveragePercent))
   }
-  if (sp.structureSell != null && m['structureSell'] != null) {
-    rows.push(buildRow('structureSell', structureName, t('industry.margins.undercutTag'), sp.structureSell, m['structureSell']!, null))
+  const structureSellMargin = m['structureSell']
+  if (sp.structureSell != null && structureSellMargin != null) {
+    rows.push(buildRow('structureSell', structureName, t('industry.margins.undercutTag'), sp.structureSell, structureSellMargin, null))
   }
-  if (sp.structureBuy != null && m['structureBuy'] != null) {
-    rows.push(buildRow('structureBuy', structureName, t('industry.margins.instantSellTag'), sp.structureBuy, m['structureBuy']!, null))
+  const structureBuyMargin = m['structureBuy']
+  if (sp.structureBuy != null && structureBuyMargin != null) {
+    rows.push(buildRow('structureBuy', structureName, t('industry.margins.instantSellTag'), sp.structureBuy, structureBuyMargin, null))
   }
   // Public contract sell (0% fees)
-  if (sp.contractSell != null && m['contractSell'] != null) {
-    rows.push(buildRow('contractSell', 'The Forge', t('industry.margins.contractTag'), sp.contractSell, m['contractSell']!, null, sp.contractCount))
+  const contractSellMargin = m['contractSell']
+  if (sp.contractSell != null && contractSellMargin != null) {
+    rows.push(buildRow('contractSell', 'The Forge', t('industry.margins.contractTag'), sp.contractSell, contractSellMargin, null, sp.contractCount))
   }
   return rows
 })

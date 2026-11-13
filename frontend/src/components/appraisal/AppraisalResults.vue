@@ -72,18 +72,23 @@ function displayPrice(weighted: number | null, best: number | null): number | nu
   return weighted ?? best
 }
 
+function formatDisplayPrice(weighted: number | null, best: number | null): string {
+  const price = displayPrice(weighted, best)
+  return price !== null ? formatNumber(price) : '-'
+}
+
 function copyTable() {
   const header = ['Item', 'Qty', 'Volume', 'Sell (unit)', 'Sell Total', 'Buy (unit)', 'Buy Total', 'Split (unit)', 'Split Total'].join('\t')
   const rows = props.items.map(item => [
     item.typeName,
     item.quantity,
     formatVolumeForCopy(item.totalVolume),
-    displayPrice(item.sellPriceWeighted, item.sellPrice) !== null ? formatNumber(displayPrice(item.sellPriceWeighted, item.sellPrice)!) : '-',
-    displayPrice(item.sellTotalWeighted, item.sellTotal) !== null ? formatNumber(displayPrice(item.sellTotalWeighted, item.sellTotal)!) : '-',
-    displayPrice(item.buyPriceWeighted, item.buyPrice) !== null ? formatNumber(displayPrice(item.buyPriceWeighted, item.buyPrice)!) : '-',
-    displayPrice(item.buyTotalWeighted, item.buyTotal) !== null ? formatNumber(displayPrice(item.buyTotalWeighted, item.buyTotal)!) : '-',
-    displayPrice(item.splitPriceWeighted, item.splitPrice) !== null ? formatNumber(displayPrice(item.splitPriceWeighted, item.splitPrice)!) : '-',
-    displayPrice(item.splitTotalWeighted, item.splitTotal) !== null ? formatNumber(displayPrice(item.splitTotalWeighted, item.splitTotal)!) : '-',
+    formatDisplayPrice(item.sellPriceWeighted, item.sellPrice),
+    formatDisplayPrice(item.sellTotalWeighted, item.sellTotal),
+    formatDisplayPrice(item.buyPriceWeighted, item.buyPrice),
+    formatDisplayPrice(item.buyTotalWeighted, item.buyTotal),
+    formatDisplayPrice(item.splitPriceWeighted, item.splitPrice),
+    formatDisplayPrice(item.splitTotalWeighted, item.splitTotal),
   ].join('\t'))
 
   const footer = [

@@ -31,7 +31,7 @@ export const useBlacklistStore = defineStore('industry-blacklist', () => {
         `/industry/blacklist/search?q=${encodeURIComponent(query)}`,
       )
       return data.results
-    } catch (e) {
+    } catch {
       return []
     }
   }

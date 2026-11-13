@@ -21,7 +21,7 @@ async function syncAll() {
   syncFailures.value = []
   try {
     syncFailures.value = await store.syncCharacterSkills()
-  } catch (e) {
+  } catch {
     // error handled by store
   } finally {
     syncing.value = false

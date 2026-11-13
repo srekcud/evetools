@@ -272,10 +272,13 @@ async function submitForm(): Promise<void> {
       emit('submit', { updates, id: editing.id })
     } else {
       if (!isFormValid.value) return
+      const characterId = formCharacterId.value
+      const solarSystemId = formSystemId.value
+      if (characterId === null || solarSystemId === null) return
       const input: CreateEscalationInput = {
-        characterId: formCharacterId.value!,
+        characterId,
         type: formType.value,
-        solarSystemId: formSystemId.value!,
+        solarSystemId,
         solarSystemName: formSystemName.value,
         securityStatus: formSystemSec.value,
         price: formPrice.value,
