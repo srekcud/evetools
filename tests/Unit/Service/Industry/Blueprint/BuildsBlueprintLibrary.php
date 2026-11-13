@@ -9,11 +9,13 @@ use App\Entity\CorpAssetVisibility;
 use App\Entity\EveToken;
 use App\Entity\OwnedBlueprint;
 use App\Entity\Sde\IndustryActivity;
+use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\OwnedBlueprintRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use Symfony\Component\Uid\Uuid;
 
@@ -196,6 +198,31 @@ trait BuildsBlueprintLibrary
                 }
 
                 return $activities;
+            },
+        );
+
+        return $repository;
+    }
+
+    /** @param array<string, int> $productTypeIdsByBlueprintAndActivity keyed "blueprintTypeId-activityId" */
+    private function productsOf(array $productTypeIdsByBlueprintAndActivity = []): IndustryActivityProductRepository
+    {
+        $repository = $this->createStub(IndustryActivityProductRepository::class);
+        $repository->method('findProductsForBlueprints')->willReturnCallback(
+            static function (array $blueprintTypeIds, array $activityIds) use ($productTypeIdsByBlueprintAndActivity): array {
+                $products = [];
+                foreach ($productTypeIdsByBlueprintAndActivity as $key => $productTypeId) {
+                    [$blueprintTypeId, $activityId] = array_map('intval', explode('-', $key));
+                    if (in_array($blueprintTypeId, $blueprintTypeIds, true) && in_array($activityId, $activityIds, true)) {
+                        $products[$key] = (new IndustryActivityProduct())
+                            ->setTypeId($blueprintTypeId)
+                            ->setActivityId($activityId)
+                            ->setProductTypeId($productTypeId)
+                            ->setQuantity(1);
+                    }
+                }
+
+                return $products;
             },
         );
 

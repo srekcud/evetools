@@ -346,6 +346,7 @@ final class BlueprintLibraryReaderTest extends TestCase
             $this->jobsInProgressOn([]),
             $this->divisionsNamed($divisionNamesByCorporationId),
             $this->reactionFormulas($reactionFormulaTypeIds),
+            $this->productsOf(),
         );
     }
 
@@ -368,6 +369,7 @@ final class BlueprintLibraryReaderTest extends TestCase
             $this->jobsInProgressOn([]),
             $this->divisionsNamed(),
             $this->reactionFormulas(),
+            $this->productsOf(),
         );
     }
 

@@ -90,6 +90,7 @@ final class BlueprintLibraryReaderRunningJobTest extends TestCase
             $this->jobsInProgressOn($itemIdsWithJobInProgress),
             $this->divisionsNamed(),
             $this->reactionFormulas(),
+            $this->productsOf(),
         );
     }
 

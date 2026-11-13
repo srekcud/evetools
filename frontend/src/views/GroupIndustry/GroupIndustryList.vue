@@ -17,7 +17,7 @@ import LineRentalModal from '@/components/group-industry/LineRentalModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { joinOutcome } from '@/views/GroupIndustry/joinOutcome'
 import type { GroupProject, GroupProjectStatus } from '@/stores/group-industry/types'
-import type { ProjectPrefill } from '@/stores/industry/types'
+import type { ProjectPrefill, ProjectPrefillItem } from '@/stores/industry/types'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -66,6 +66,7 @@ const filteredProjects = computed(() => {
 
 const showNewProjectModal = ref(false)
 const newProjectPrefill = ref<ProjectPrefill | null>(null)
+const newProjectPrefillItems = ref<ProjectPrefillItem[] | null>(null)
 const showLineRentalModal = ref(false)
 
 function openNewProjectModal() {
@@ -75,6 +76,7 @@ function openNewProjectModal() {
 function closeNewProjectModal() {
   showNewProjectModal.value = false
   newProjectPrefill.value = null
+  newProjectPrefillItems.value = null
 }
 
 function openLineRentalModal() {
@@ -140,7 +142,10 @@ function consumeNavigationIntent() {
   const intent = industryStore.navigationIntent
   if (!intent || intent.target !== 'projects') return
   industryStore.navigationIntent = null
-  if (intent.prefill) {
+  if (intent.prefillItems) {
+    newProjectPrefillItems.value = intent.prefillItems
+    openNewProjectModal()
+  } else if (intent.prefill) {
     newProjectPrefill.value = intent.prefill
     openNewProjectModal()
   } else if (intent.openCreateModal) {
@@ -343,6 +348,7 @@ onMounted(() => {
     <NewProjectModal
       :show="showNewProjectModal"
       :prefill="newProjectPrefill"
+      :prefill-items="newProjectPrefillItems"
       @close="closeNewProjectModal"
       @created="handleProjectCreated"
     />
