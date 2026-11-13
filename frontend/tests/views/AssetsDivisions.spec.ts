@@ -240,8 +240,8 @@ describe('Assets corporation division display', () => {
 
     const header = locationGroup(wrapper, HOME_STATION).get('[data-testid="location-division-breakdown"]').text().replace(/\s+/g, ' ')
 
-    expect(header).toContain('Hangar - Production')
-    expect(header).toContain('Hangar - Stock')
+    expect(header).toContain('Production')
+    expect(header).toContain('Stock')
   })
 
   it('shows no division breakdown on a location without any division', async () => {

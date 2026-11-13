@@ -84,7 +84,7 @@ class SyncScheduler implements ScheduleProviderInterface
             )
             // Wallet transactions sync every hour
             ->add(
-                self::everyViaAsync('1 hour', new SyncWalletTransactions())
+                self::everyViaAsync('5 minutes', new SyncWalletTransactions())
             )
             // Moon tax ledger and wallet journal sync every hour
             ->add(

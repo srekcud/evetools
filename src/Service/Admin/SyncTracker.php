@@ -19,7 +19,7 @@ class SyncTracker
     public const EXPECTED_INTERVALS = [
         'industry' => 1800,         // 30 min
         'pve' => 3600,              // 1h
-        'wallet' => 3600,           // 1h
+        'wallet' => 300,            // 1h
         'mining' => 3600,           // 1h
         'ansiblex' => 43200,        // 12h
         'planetary' => 1800,        // 30 min

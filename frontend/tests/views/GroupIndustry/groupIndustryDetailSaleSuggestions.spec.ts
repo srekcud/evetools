@@ -166,7 +166,7 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
     if (endpoint === SALES_PATH) return [SALE_V]
-    if (endpoint === SUGGESTIONS_PATH) return [T1_SUGGESTION]
+    if (endpoint === SUGGESTIONS_PATH) return { id: PROJECT_ID, suggestions: [T1_SUGGESTION], walletReadings: [] }
     if (endpoint === SALE_FROM_WALLET_TRANSACTION_PATH && options?.method === 'POST') return recording()
     return {}
   })

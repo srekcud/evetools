@@ -99,6 +99,7 @@ const NEXT_SUGGESTION_UUID = '0192f0c4-7b1e-7a3c-9d2e-205000000201'
 
 const SUGGESTIONS = {
   totalCount: 3,
+  walletReadings: [],
   suggestions: [
     {
       transactionId: 6_400_000_201,

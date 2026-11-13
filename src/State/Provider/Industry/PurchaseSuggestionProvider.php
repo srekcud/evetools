@@ -16,6 +16,7 @@ use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\IndustryProjectPurchaseRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryCalculationService;
+use App\Service\Sync\WalletReadingStateReader;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -34,6 +35,7 @@ class PurchaseSuggestionProvider implements ProviderInterface
         private readonly IndustryCalculationService $calculationService,
         private readonly IndustryProjectPurchaseRepository $purchaseRepository,
         private readonly ProjectAccessChecker $accessChecker,
+        private readonly WalletReadingStateReader $walletReadingStateReader,
     ) {
     }
 
@@ -54,6 +56,7 @@ class PurchaseSuggestionProvider implements ProviderInterface
 
         $result = new PurchaseSuggestionListResource();
         $result->id = $uriVariables['projectId'];
+        $result->walletReadings = $this->walletReadingStateReader->forUser($user);
 
         $typeIds = $this->suggestedTypeIdsOf($project);
         if ($typeIds === []) {

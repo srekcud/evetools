@@ -6,12 +6,14 @@ namespace App\Tests\Unit\Service\Admin;
 
 use App\Message\CheckSdeBuild;
 use App\Message\SyncCostIndices;
+use App\Message\SyncWalletTransactions;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerStructureMarketSync;
 use App\Service\Admin\SyncTracker;
 use App\Service\Admin\TriggerableSyncs;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(TriggerableSyncs::class)]
@@ -70,6 +72,12 @@ class TriggerableSyncsTest extends TestCase
     public function testSdeBuildDispatchesItsOwnMessage(): void
     {
         $this->assertEquals([new CheckSdeBuild()], TriggerableSyncs::messagesFor('sde-build'));
+    }
+
+    #[Group('issue-916')]
+    public function testWalletDispatchesItsMessageForEveryCharacterWhateverTheirNextReadAt(): void
+    {
+        $this->assertEquals([new SyncWalletTransactions(dueOnly: false)], TriggerableSyncs::messagesFor('wallet'));
     }
 
     public function testAnUnknownTypeIsNotTriggerable(): void

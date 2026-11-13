@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import type { BomItem, PurchaseSuggestion } from '@/stores/group-industry/types'
+import WalletReadingChips from '@/components/group-industry/WalletReadingChips.vue'
+import type { BomItem, PurchaseSuggestion, WalletReading } from '@/stores/group-industry/types'
 
 const props = defineProps<{
   item: BomItem
@@ -13,12 +15,16 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
+const syncStore = useSyncStore()
 const { formatIsk, formatDateTime, formatNumber } = useFormatters()
 
 const isProjectOwner = computed(() => projectStore.currentProject?.myRole === 'owner')
 const isOpen = ref(false)
 const isLoadingSuggestions = ref(false)
 const suggestions = ref<PurchaseSuggestion[]>([])
+const walletReadings = ref<WalletReading[]>([])
+const isReadingWallet = ref(false)
+const newTransactionIds = ref<Set<number>>(new Set())
 const purchaseError = ref<string | null>(null)
 const isSubmitting = ref(false)
 const manualQuantity = ref<number | null>(null)
@@ -35,25 +41,61 @@ function failureMessage(error: unknown, fallbackKey: string): string {
   return error instanceof Error ? error.message : t(fallbackKey)
 }
 
+function transactionsNewSince(previous: PurchaseSuggestion[], current: PurchaseSuggestion[]): Set<number> {
+  const previousById = new Map(previous.map(suggestion => [suggestion.transactionId, suggestion]))
+  const appeared = current.filter(suggestion => {
+    const before = previousById.get(suggestion.transactionId)
+    return before === undefined || (!before.alreadyLinked && suggestion.alreadyLinked)
+  })
+  return new Set(appeared.map(suggestion => suggestion.transactionId))
+}
+
+async function loadSuggestions(projectId: string, isReload: boolean): Promise<void> {
+  try {
+    const loaded = await projectStore.fetchPurchaseSuggestions(projectId)
+    if (!isOpen.value) return
+    if (isReload) {
+      const appeared = transactionsNewSince(suggestions.value, loaded.suggestions)
+      newTransactionIds.value = new Set([...newTransactionIds.value, ...appeared])
+    }
+    suggestions.value = loaded.suggestions
+    walletReadings.value = loaded.walletReadings
+  } catch (e) {
+    suggestions.value = []
+    walletReadings.value = []
+    purchaseError.value = failureMessage(e, 'groupIndustry.purchases.loadError')
+  }
+}
+
 async function openPanel(): Promise<void> {
   const project = projectStore.currentProject
   if (project === null) return
   isOpen.value = true
+  isReadingWallet.value = false
+  newTransactionIds.value = new Set()
   purchaseError.value = null
   isLoadingSuggestions.value = true
-  try {
-    suggestions.value = (await projectStore.fetchPurchaseSuggestions(project.id)).suggestions
-  } catch (e) {
-    suggestions.value = []
-    purchaseError.value = failureMessage(e, 'groupIndustry.purchases.loadError')
-  } finally {
-    isLoadingSuggestions.value = false
-  }
+  await loadSuggestions(project.id, false)
+  isLoadingSuggestions.value = false
 }
 
 function closePanel(): void {
   isOpen.value = false
+  isReadingWallet.value = false
 }
+
+watch(() => syncStore.walletTransactionsProgress, async progress => {
+  if (!isOpen.value || progress === null) return
+  if (progress.status === 'started') {
+    isReadingWallet.value = true
+    return
+  }
+  isReadingWallet.value = false
+  const project = projectStore.currentProject
+  if (progress.status === 'completed' && project !== null) {
+    await loadSuggestions(project.id, true)
+  }
+})
 
 async function submitPurchase(
   submit: (projectId: string) => Promise<void>,
@@ -182,6 +224,10 @@ async function deletePurchase(purchaseId: string): Promise<void> {
 
         <section>
           <h3 class="text-sm font-semibold text-slate-200 mb-3">{{ t('groupIndustry.purchases.suggestionsTitle') }}</h3>
+          <div class="mb-3 space-y-2">
+            <WalletReadingChips :readings="walletReadings" :empty-hint="!isLoadingSuggestions && purchaseError === null && lineSuggestions.length === 0" />
+            <p v-if="isReadingWallet" data-testid="wallet-reading-in-progress" class="text-xs text-cyan-400">{{ t('groupIndustry.walletReading.inProgress') }}</p>
+          </div>
           <div v-if="isLoadingSuggestions" class="py-6 text-center text-slate-500 text-sm">
             <LoadingSpinner class="w-5 h-5 mx-auto mb-2 text-cyan-500" />
             {{ t('groupIndustry.purchases.suggestionsLoading') }}
@@ -204,7 +250,14 @@ async function deletePurchase(purchaseId: string): Promise<void> {
               <tbody class="divide-y divide-slate-700/50">
                 <tr v-for="suggestion in lineSuggestions" :key="suggestion.transactionId" data-testid="purchase-suggestion" class="hover:bg-slate-800/30">
                   <td class="py-2.5 px-4 text-xs text-slate-400">{{ formatDateTime(suggestion.date) }}</td>
-                  <td class="py-2.5 px-3 text-slate-200">{{ suggestion.characterName }}</td>
+                  <td class="py-2.5 px-3 text-slate-200">
+                    {{ suggestion.characterName }}
+                    <span
+                      v-if="newTransactionIds.has(suggestion.transactionId)"
+                      data-testid="purchase-suggestion-new"
+                      class="ml-2 px-1.5 py-0.5 rounded-sm text-xs bg-cyan-500/10 text-cyan-300 border border-cyan-500/30"
+                    >{{ t('groupIndustry.walletReading.newTransaction') }}</span>
+                  </td>
                   <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">{{ formatNumber(suggestion.quantity, 0) }}</td>
                   <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">{{ formatIsk(suggestion.unitPrice, 1) }}</td>
                   <td class="py-2.5 px-3 text-right font-mono text-slate-200" style="font-variant-numeric: tabular-nums;">{{ formatIsk(suggestion.totalPrice, 1) }}</td>

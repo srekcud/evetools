@@ -2106,6 +2106,13 @@
     "loadFailed": "Failed to load the assets.",
     "itemTypesCount": "{count} item type | {count} item types",
     "itemsCount": "{count} item | {count} items",
+    "shipsCount": "{count} ship | {count} ships",
+    "syncedAt": "Synced {time}",
+    "sort": {
+      "label": "Sort locations",
+      "items": "Item count",
+      "name": "Name"
+    },
     "mainCharacterSuffix": "(Main)",
     "refreshAvailableAt": "Refresh available at {time}",
     "syncAlreadyRunning": "A sync of the corporation assets is already running",
@@ -3309,6 +3316,17 @@
         "no_visible_division": "No corporation division visible to the owner",
         "container_not_found": "No visible container has the name of the project"
       }
+    },
+    "walletReading": {
+      "read": "Wallet read at {readAt} · next read around {nextReadAt}",
+      "readWithoutNext": "Wallet read at {readAt}",
+      "neverRead": "Wallet never read",
+      "missingScope": "Wallet scope missing",
+      "noToken": "No token",
+      "inProgress": "Reading the wallet…",
+      "newTransaction": "New",
+      "emptyHintBounded": "A transaction made in game shows up here by {time} at the latest. If you cannot wait, use the manual entry.",
+      "emptyHintUnbounded": "No wallet has been read yet. Use the manual entry to record it now."
     },
     "purchases": {
       "open": "Purchases",

@@ -6,6 +6,8 @@ namespace App\Tests\Functional\Api\Industry;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
+use App\Entity\CharacterWalletReading;
+use App\Entity\EveToken;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectPurchase;
@@ -139,6 +141,59 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
                     $suggestion['alreadyLinked'],
                 ], $suggestionList),
             ],
+        );
+    }
+
+    #[Group('issue-916')]
+    public function testPurchaseSuggestionsCarryTheWalletReadingOfEachCharacterOfTheOwnerEvenWithoutAnyBuy(): void
+    {
+        $ownerMain = $this->owner->getMainCharacter();
+        self::assertNotNull($ownerMain);
+        $token = (new EveToken())
+            ->setAccessToken('access-token')
+            ->setRefreshTokenEncrypted('encrypted-refresh-token')
+            ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
+            ->setScopes(['esi-wallet.read_character_wallet.v1']);
+        $ownerMain->setEveToken($token);
+        $this->em->persist($token);
+        $this->em->persist(
+            (new CharacterWalletReading())
+                ->setCharacter($ownerMain)
+                ->setReadAt(new \DateTimeImmutable('2026-11-13 20:04:10 UTC'))
+                ->setNextReadAt(new \DateTimeImmutable('2026-11-13 21:04:00 UTC')),
+        );
+        $ownerAlt = (new Character())
+            ->setEveCharacterId(2_116_916_001)
+            ->setName('Aria Alt')
+            ->setCorporationId($ownerMain->getCorporationId())
+            ->setCorporationName($ownerMain->getCorporationName());
+        $this->owner->addCharacter($ownerAlt);
+        $this->em->persist($ownerAlt);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->ishtarUri().'/purchase-suggestions');
+
+        self::assertResponseStatusCodeSame(200);
+        $response = $this->responseJson();
+        self::assertArrayHasKey('walletReadings', $response);
+        self::assertSame([0, []], [$response['totalCount'], $response['suggestions']]);
+        self::assertSame(
+            [
+                ['Aria Solberg', 'read', (new \DateTimeImmutable('2026-11-13 20:04:10 UTC'))->getTimestamp(), (new \DateTimeImmutable('2026-11-13 21:04:00 UTC'))->getTimestamp()],
+                ['Aria Alt', 'no_token', null, null],
+            ],
+            array_map(static function (array $reading): array {
+                self::assertArrayHasKey('readAt', $reading);
+                self::assertArrayHasKey('nextReadAt', $reading);
+
+                return [
+                    $reading['characterName'],
+                    $reading['status'],
+                    $reading['readAt'] === null ? null : (new \DateTimeImmutable($reading['readAt']))->getTimestamp(),
+                    $reading['nextReadAt'] === null ? null : (new \DateTimeImmutable($reading['nextReadAt']))->getTimestamp(),
+                ];
+            }, $response['walletReadings']),
         );
     }
 

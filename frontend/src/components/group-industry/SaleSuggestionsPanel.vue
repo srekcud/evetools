@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DataTable from '@/components/common/DataTable.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useFormatters } from '@/composables/useFormatters'
+import WalletReadingChips from '@/components/group-industry/WalletReadingChips.vue'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
+import { useSyncStore } from '@/stores/sync'
 import type { GroupSale, GroupSaleSuggestion, RecordSaleFromWalletTransactionInput } from '@/stores/group-industry/types'
 
 const props = defineProps<{
@@ -14,11 +16,13 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const store = useGroupDistributionStore()
+const syncStore = useSyncStore()
 const { formatNumber, formatDate } = useFormatters()
 
 const enteredQuantities = ref<Record<string, number | ''>>({})
 const recordingTransactionId = ref<string | null>(null)
 const linkingError = ref<string | null>(null)
+const isReadingWallet = ref(false)
 
 function duplicatedSalesOf(suggestion: GroupSaleSuggestion): GroupSale[] {
   return store.sales.filter(sale => suggestion.possibleDuplicateSaleIds.includes(sale.id))
@@ -42,6 +46,18 @@ async function recordAsSale(suggestion: GroupSaleSuggestion): Promise<void> {
   await store.fetchSaleSuggestions(props.projectId)
 }
 
+watch(() => syncStore.walletTransactionsProgress, async progress => {
+  if (progress === null) return
+  if (progress.status === 'started') {
+    isReadingWallet.value = true
+    return
+  }
+  isReadingWallet.value = false
+  if (progress.status === 'completed') {
+    await store.fetchSaleSuggestions(props.projectId)
+  }
+})
+
 onMounted(() => {
   store.fetchSaleSuggestions(props.projectId)
 })
@@ -50,6 +66,11 @@ onMounted(() => {
 <template>
   <div class="mb-8">
     <h2 class="text-lg font-semibold text-slate-100 mb-4">{{ t('groupIndustry.saleSuggestions.title') }}</h2>
+
+    <div v-if="!store.loadingSaleSuggestions && store.saleSuggestionsError === null" class="mb-4 space-y-2">
+      <WalletReadingChips :readings="store.saleWalletReadings" :empty-hint="store.saleSuggestions.length === 0" />
+      <p v-if="isReadingWallet" data-testid="wallet-reading-in-progress" class="text-xs text-cyan-400">{{ t('groupIndustry.walletReading.inProgress') }}</p>
+    </div>
 
     <div v-if="store.loadingSaleSuggestions" class="flex items-center justify-center py-12">
       <LoadingSpinner size="lg" class="text-cyan-400" />
