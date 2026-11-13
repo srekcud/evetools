@@ -42,4 +42,7 @@ class MatchJobsResultResource
 
     /** @var list<array{characterName: string, reason: string, statusCode: int|null}> */
     public array $failedCharacters = [];
+
+    /** @var list<array{typeId: int, typeName: string, reason: string}> */
+    public array $failedLines = [];
 }

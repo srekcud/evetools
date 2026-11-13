@@ -39,11 +39,13 @@ final class OpenProjectsJobMatcherTest extends TestCase
         );
 
         $jobMatcher = $this->createStub(IndustryJobMatcher::class);
-        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project): void {
+        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project): array {
             if ($project === $this->failingProject) {
                 throw new \RuntimeException('matching failed');
             }
             $this->steps[] = ['match', $project->getName()];
+
+            return [];
         });
 
         $derivedContributionService = $this->createStub(DerivedContributionService::class);

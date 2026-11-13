@@ -18,12 +18,15 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
+use App\Repository\CharacterRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
+use App\Service\Industry\LineMatchFailure;
 use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Industry\Project\ProjectJobActivityRecorder;
 use App\Service\Sync\CharacterSyncFailure;
+use App\Service\Sync\CharacterSyncIsolation;
 use App\Service\Sync\IndustryJobSyncService;
 use App\State\Processor\Industry\MatchJobsProcessor;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -36,6 +39,7 @@ use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(MatchJobsProcessor::class)]
 #[CoversClass(CharacterSyncFailure::class)]
@@ -75,6 +79,16 @@ final class MatchJobsProcessorTest extends TestCase
 
     private array $recordedProjects = [];
 
+    private array $lineMatchFailures = [];
+
+    private array $refreshFailuresByTypeId = [];
+
+    private int $isolatedRuns = 0;
+
+    private int $managerResets = 0;
+
+    private array $charactersMissingAtReload = [];
+
     protected function setUp(): void
     {
         $this->user = new User();
@@ -82,6 +96,7 @@ final class MatchJobsProcessorTest extends TestCase
         $this->pilotTwo = $this->addCharacterWithToken(self::PILOT_TWO, self::PILOT_TWO_ID);
         $this->pilotThree = $this->addCharacterWithToken(self::PILOT_THREE, self::PILOT_THREE_ID);
         $this->project = (new IndustryProject())->setOwner($this->user);
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::fromString(self::PROJECT_ID));
         $this->admin = new User();
         $this->project->addMember((new IndustryProjectParticipant())->setUser($this->admin)->setRole(ParticipantRole::Admin)->setStatus(ParticipantStatus::Accepted));
         $this->logger = new BufferingLogger();
@@ -260,7 +275,7 @@ final class MatchJobsProcessorTest extends TestCase
         $result = $this->matchJobs();
 
         $this->assertSame(
-            ['jobMatches', 'jobsCost', 'syncedCharacters', 'failedCharacters'],
+            ['jobMatches', 'jobsCost', 'syncedCharacters', 'failedCharacters', 'failedLines'],
             array_keys(get_object_vars($result)),
         );
     }
@@ -339,6 +354,111 @@ final class MatchJobsProcessorTest extends TestCase
         self::assertSame([[$ishtarLine->getId()->toRfc4122(), 1], [$ramLine->getId()->toRfc4122(), 1]], $this->refreshedLines);
     }
 
+    #[Group('issue-798')]
+    public function testSynchronisesEachCharacterWithATokenInsideItsOwnIsolation(): void
+    {
+        $this->pilotTwo->setEveToken(null);
+
+        $this->matchJobs();
+
+        $this->assertSame(2, $this->isolatedRuns);
+    }
+
+    #[Group('issue-798')]
+    public function testResetsTheManagerOfAFailedCharacterThenSyncsTheNextOnesAndAnswersWithoutError(): void
+    {
+        $this->syncFailuresByCharacterName[self::PILOT_TWO] = new \RuntimeException('duplicate key value violates unique constraint');
+
+        $result = $this->matchJobs();
+
+        $this->assertSame(
+            [1, [self::PILOT_ONE, self::PILOT_TWO, self::PILOT_THREE], 2, [['characterName' => self::PILOT_TWO, 'reason' => 'sync_failed', 'statusCode' => null]]],
+            [$this->managerResets, $this->syncedCharacterNames, $result->syncedCharacters, $result->failedCharacters],
+        );
+        $this->assertSame(1, $this->matchEsiJobsCalls);
+    }
+
+    #[Group('issue-798')]
+    public function testReadsTheProjectAgainWhenACharacterFailedSoThatTheMatchingUsesAManagedProject(): void
+    {
+        $this->syncFailuresByCharacterName[self::PILOT_ONE] = new \RuntimeException('connection reset');
+
+        $this->matchJobs();
+
+        $this->assertSame(2, $this->projectLookups);
+        $this->assertSame([[$this->project, 1]], $this->recordedProjects);
+    }
+
+    #[Group('issue-798')]
+    public function testReadsTheProjectOnlyOnceWhenNoCharacterFailed(): void
+    {
+        $this->matchJobs();
+
+        $this->assertSame([1, 0], [$this->projectLookups, $this->managerResets]);
+    }
+
+    #[Group('issue-798')]
+    public function testTreatsACharacterMissingAtReloadAsAFailedSyncOfThatCharacter(): void
+    {
+        $this->charactersMissingAtReload[] = self::PILOT_TWO_ID;
+
+        $result = $this->matchJobs();
+
+        $this->assertSame(
+            [[self::PILOT_ONE, self::PILOT_THREE], [['characterName' => self::PILOT_TWO, 'reason' => 'sync_failed', 'statusCode' => null]]],
+            [$this->syncedCharacterNames, $result->failedCharacters],
+        );
+    }
+
+    #[Group('issue-798')]
+    public function testListsTheLinesTheMatcherCouldNotMatch(): void
+    {
+        $ishtarLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);
+        $this->project->addBomItem($ishtarLine);
+        $this->lineMatchFailures = [LineMatchFailure::producerMissingFromSde($ishtarLine), LineMatchFailure::noRuns($ishtarLine)];
+
+        $result = $this->matchJobs();
+
+        $this->assertSame(
+            [
+                ['typeId' => 12005, 'typeName' => 'Ishtar', 'reason' => 'producer_missing_from_sde'],
+                ['typeId' => 12005, 'typeName' => 'Ishtar', 'reason' => 'no_runs'],
+            ],
+            $result->failedLines,
+        );
+    }
+
+    #[Group('issue-798')]
+    public function testListsALineWhoseContributionCouldNotBeRefreshedAndRefreshesTheOthers(): void
+    {
+        $ishtarLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);
+        $ramLine = (new IndustryProjectBomLine())->setTypeId(11478)->setTypeName('R.A.M.- Starship Tech')->setRequiredQuantity(400)->setIsJob(true)->setJobGroup('component')->setActivityType('manufacturing')->setRuns(4);
+        $this->project->addBomItem($ishtarLine);
+        $this->project->addBomItem($ramLine);
+        $this->refreshFailuresByTypeId[12005] = new \LogicException('Project has no participant for its owner.');
+
+        $result = $this->matchJobs();
+
+        $this->assertSame([[$ramLine->getId()->toRfc4122(), 1]], $this->refreshedLines);
+        $this->assertSame([['typeId' => 12005, 'typeName' => 'Ishtar', 'reason' => 'contribution_not_refreshed']], $result->failedLines);
+        $this->assertSame(
+            [['warning', ['projectId' => self::PROJECT_ID, 'typeId' => 12005, 'reason' => 'contribution_not_refreshed', 'error' => 'Project has no participant for its owner.']]],
+            $this->loggedLevelsAndContexts(),
+        );
+    }
+
+    #[Group('issue-798')]
+    public function testAnswersWithNoFailedLineWhenEveryLineIsMatchedAndRefreshed(): void
+    {
+        $ishtarLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);
+        $this->project->addBomItem($ishtarLine);
+
+        $result = $this->matchJobs();
+
+        $this->assertSame([], $result->failedLines);
+        $this->assertSame([], $this->loggedLevelsAndContexts());
+    }
+
     private function rejectionOfMatchJobs(): HttpExceptionInterface
     {
         try {
@@ -395,13 +515,18 @@ final class MatchJobsProcessorTest extends TestCase
         });
 
         $jobMatcher = $this->createStub(IndustryJobMatcher::class);
-        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project): void {
+        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project): array {
             $this->assertSame($this->project, $project);
             $this->matchEsiJobsCalls++;
+
+            return $this->lineMatchFailures;
         });
 
         $derivedContributionService = $this->createStub(DerivedContributionService::class);
         $derivedContributionService->method('refreshLine')->willReturnCallback(function (IndustryProjectBomLine $line): void {
+            if (isset($this->refreshFailuresByTypeId[$line->getTypeId()])) {
+                throw $this->refreshFailuresByTypeId[$line->getTypeId()];
+            }
             $this->refreshedLines[] = [$line->getId()->toRfc4122(), $this->matchEsiJobsCalls];
         });
 
@@ -420,6 +545,25 @@ final class MatchJobsProcessorTest extends TestCase
             ),
         );
 
+        $characterRepository = $this->createStub(CharacterRepository::class);
+        $characterRepository->method('findByEveCharacterId')->willReturnCallback(
+            fn (int $eveCharacterId): ?Character => \in_array($eveCharacterId, $this->charactersMissingAtReload, true)
+                ? null
+                : array_find($this->user->getCharacters()->toArray(), static fn (Character $character): bool => $character->getEveCharacterId() === $eveCharacterId),
+        );
+
+        $syncIsolation = $this->createStub(CharacterSyncIsolation::class);
+        $syncIsolation->method('run')->willReturnCallback(function (\Closure $work): void {
+            $this->isolatedRuns++;
+            try {
+                $work();
+            } catch (\Throwable $throwable) {
+                $this->managerResets++;
+
+                throw $throwable;
+            }
+        });
+
         $processor = new MatchJobsProcessor(
             $security,
             $projectRepository,
@@ -429,6 +573,8 @@ final class MatchJobsProcessorTest extends TestCase
             $this->logger,
             $derivedContributionService,
             $jobActivityRecorder,
+            $characterRepository,
+            $syncIsolation,
         );
 
         return $processor->process(null, new Post(), ['projectId' => $this->projectIdInUrl]);

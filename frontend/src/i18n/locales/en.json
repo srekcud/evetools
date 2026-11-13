@@ -3229,6 +3229,12 @@
       "matchJobs": "Match jobs",
       "matchError": "Failed to match jobs",
       "matchFailedCharacters": "Some characters could not be synced:",
+      "matchFailedLines": "Some lines could not be matched:",
+      "matchLineReasons": {
+        "producer_missing_from_sde": "Blueprint or reaction missing from the SDE",
+        "no_runs": "No runs set on this line",
+        "contribution_not_refreshed": "Contribution not recalculated"
+      },
       "matchedRuns": "{runs} runs matched",
       "character": "Character",
       "jobCost": "Job cost",

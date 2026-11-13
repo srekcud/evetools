@@ -25,6 +25,7 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(IndustryJobMatcher::class)]
@@ -103,6 +104,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->productRepository,
             $this->jobMatchRepository,
             $this->createStub(EntityManagerInterface::class),
+            new NullLogger(),
         );
 
         $this->owner = new User();
