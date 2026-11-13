@@ -25,18 +25,11 @@ class IndustryProjectActivityRepository extends ServiceEntityRepository
      */
     public function recordedJobIdsOf(IndustryProject $project, ProjectActivityKind $kind): array
     {
-        $recordedData = $this->createQueryBuilder('activity')
-            ->select('activity.data')
-            ->where('activity.project = :project')
-            ->andWhere('activity.kind = :kind')
-            ->setParameter('project', $project)
-            ->setParameter('kind', $kind)
-            ->getQuery()
-            ->getSingleColumnResult();
+        $activities = $this->findBy(['project' => $project, 'kind' => $kind]);
 
         $jobIds = [];
-        foreach ($recordedData as $data) {
-            foreach ($data['jobIds'] as $jobId) {
+        foreach ($activities as $activity) {
+            foreach ($activity->getData()['jobIds'] as $jobId) {
                 $jobIds[] = $jobId;
             }
         }
