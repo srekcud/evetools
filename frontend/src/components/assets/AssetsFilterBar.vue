@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 
 interface LocationOption {
   name: string
+  label: string
   solarSystemName: string | null
 }
 
@@ -111,7 +112,7 @@ const { t } = useI18n()
         >
           <option value="">{{ t('assets.allLocations') }} ({{ props.locations.length }})</option>
           <option v-for="loc in props.locations" :key="loc.name" :value="loc.name">
-            {{ loc.name }}
+            {{ loc.label }}
           </option>
         </select>
       </div>

@@ -2076,6 +2076,20 @@
     "allSystems": "All systems",
     "location": "Location",
     "allLocations": "All locations",
+    "unknownStructure": "Unknown structure ({system})",
+    "unknownStructureNoSystem": "Unknown structure",
+    "unknownLocation": "Unknown location ({system})",
+    "unknownLocationNoSystem": "Unknown location",
+    "locationIssue": {
+      "unresolved": {
+        "badge": "Unresolved structure",
+        "tooltip": "None of your characters can read this structure, so ESI gives no name for it."
+      },
+      "missingName": {
+        "badge": "Missing name",
+        "tooltip": "ESI gave no name for this location, so it is identified by its solar system."
+      }
+    },
     "syncNoAnswer": "The sync did not answer.",
     "refreshFailed": "The asset refresh failed.",
     "refreshAvailableAt": "Refresh available at {time}",
