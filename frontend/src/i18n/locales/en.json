@@ -2107,6 +2107,12 @@
     "itemTypesCount": "{count} item type | {count} item types",
     "itemsCount": "{count} item | {count} items",
     "shipsCount": "{count} ship | {count} ships",
+    "selection": {
+      "selectLocation": "Select {location}",
+      "summary": "{count} location selected | {count} locations selected",
+      "clear": "Clear",
+      "unknownTypes": "{count} type without a name is left out of the multibuy | {count} types without a name are left out of the multibuy"
+    },
     "syncedAt": "Synced {time}",
     "sort": {
       "label": "Sort locations",

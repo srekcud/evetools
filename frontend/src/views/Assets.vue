@@ -14,6 +14,7 @@ import { COLLAPSE_LOCATIONS_ROW_THRESHOLD, FRESHNESS_TICK_MS, SHIP_CATEGORY_ID }
 import { useFormatters } from '@/composables/useFormatters'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
+import { summarizeSelection } from '@/utils/assetSelection'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
@@ -21,6 +22,7 @@ import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
 import AssetSafetyBlock from '@/components/assets/AssetSafetyBlock.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
+import AssetSelectionBar from '@/components/assets/AssetSelectionBar.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
@@ -77,6 +79,7 @@ const selectedLocation = ref<string>(urlFilters.location)
 const selectedDivision = ref<string>(urlFilters.division)
 const expandedContainers = ref<Set<number>>(new Set())
 const collapsedLocations = ref<Set<string>>(new Set())
+const selectedLocationNames = ref<Set<string>>(new Set())
 const locationSort = ref<LocationSort>('items')
 const freshnessNow = ref(new Date())
 
@@ -287,6 +290,18 @@ function toggleContainer(itemId: number) {
   expandedContainers.value = new Set(expandedContainers.value)
 }
 
+function toggleLocationSelection(locationName: string) {
+  const next = new Set(selectedLocationNames.value)
+  if (!next.delete(locationName)) {
+    next.add(locationName)
+  }
+  selectedLocationNames.value = next
+}
+
+function clearLocationSelection() {
+  selectedLocationNames.value = new Set()
+}
+
 function toggleLocation(locationName: string) {
   if (collapsedLocations.value.has(locationName)) {
     collapsedLocations.value.delete(locationName)
@@ -377,6 +392,12 @@ const assetsByLocation = computed(() => {
 
   return Object.values(grouped).sort(compareLocations)
 })
+
+const selectedLocations = computed(() =>
+  assetsByLocation.value.filter(location => selectedLocationNames.value.has(location.locationName)),
+)
+
+const selectionSummary = computed(() => summarizeSelection(selectedLocations.value, visibleContainerContents.value))
 
 const largestLocationQuantity = computed(() =>
   assetsByLocation.value.reduce((largest, location) => Math.max(largest, location.totalQuantity), 0),
@@ -720,6 +741,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
   const previousView = previous?.[1]
   const isFirstOwnerResolution = (previous?.[0] ?? null) === null && (previousView === undefined || previousView === viewMode.value)
   abortPendingAssetsRequest()
+  clearLocationSelection()
   assets.value = []
   nextRefreshAt.value = null
   hasLoadedCurrentOwner.value = false
@@ -938,9 +960,17 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
               :collapsed-locations="collapsedLocations"
               :container-contents="visibleContainerContents"
               :max-quantity="largestLocationQuantity"
+              :selected="selectedLocationNames.has(location.locationName)"
               @toggle-container="toggleContainer"
               @toggle-location="toggleLocation"
+              @toggle-selection="toggleLocationSelection"
               @item-name-resolved="applyResolvedItemName"
+            />
+            <AssetSelectionBar
+              v-if="selectedLocations.length > 0"
+              :location-count="selectedLocations.length"
+              :summary="selectionSummary"
+              @clear="clearLocationSelection"
             />
           </div>
 
