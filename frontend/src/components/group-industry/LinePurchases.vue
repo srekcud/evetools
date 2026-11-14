@@ -7,6 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import WalletReadingChips from '@/components/group-industry/WalletReadingChips.vue'
+import WalletRefreshButton from '@/components/group-industry/WalletRefreshButton.vue'
 import type { BomItem, PurchaseSuggestion, WalletReading } from '@/stores/group-industry/types'
 
 const props = defineProps<{
@@ -226,6 +227,7 @@ async function deletePurchase(purchaseId: string): Promise<void> {
           <h3 class="text-sm font-semibold text-slate-200 mb-3">{{ t('groupIndustry.purchases.suggestionsTitle') }}</h3>
           <div class="mb-3 space-y-2">
             <WalletReadingChips :readings="walletReadings" :empty-hint="!isLoadingSuggestions && purchaseError === null && lineSuggestions.length === 0" />
+            <WalletRefreshButton v-if="projectStore.currentProject !== null" :project-id="projectStore.currentProject.id" :readings="walletReadings" />
             <p v-if="isReadingWallet" data-testid="wallet-reading-in-progress" class="text-xs text-cyan-400">{{ t('groupIndustry.walletReading.inProgress') }}</p>
           </div>
           <div v-if="isLoadingSuggestions" class="py-6 text-center text-slate-500 text-sm">

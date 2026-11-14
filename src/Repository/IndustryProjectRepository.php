@@ -119,4 +119,20 @@ class IndustryProjectRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return list<IndustryProject>
+     */
+    public function findOpenOwnedByCorporation(int $corporationId): array
+    {
+        return $this->createQueryBuilder('p')
+            ->join('p.owner', 'owner')
+            ->join('owner.mainCharacter', 'mc')
+            ->where('mc.corporationId = :corporationId')
+            ->andWhere('p.status != :completed')
+            ->setParameter('corporationId', $corporationId)
+            ->setParameter('completed', ProjectStatus::Completed)
+            ->getQuery()
+            ->getResult();
+    }
 }

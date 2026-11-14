@@ -24,6 +24,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Assets\AssetSyncChangeRecorder;
+use App\Service\Industry\Project\ContainerDeliveryConfirmer;
 use App\Service\Sync\AssetsSyncService;
 use App\Service\TypeNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -139,6 +140,7 @@ final class SyncCharacterAssetsHandlerTest extends TestCase
             new NullLogger(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             $this->createStub(AssetSyncChangeRecorder::class),
+            $this->createStub(ContainerDeliveryConfirmer::class),
         );
         $handler = new SyncCharacterAssetsHandler($characterRepository, $assetsSyncService, $this->createStub(MessageBusInterface::class), new NullLogger());
 

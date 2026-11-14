@@ -520,6 +520,11 @@ export type WalletReading = {
   nextReadAt: string | null
 }
 
+export type WalletRefreshResult = {
+  queuedCharacters: number
+  notDueCharacters: number
+}
+
 export type PurchaseSuggestions = {
   suggestions: PurchaseSuggestion[]
   totalCount: number

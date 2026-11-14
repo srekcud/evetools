@@ -8,7 +8,7 @@ Principle: **a contribution is worth a real price, never a BOM estimate**. When 
 
 | Contribution type | Value | Source | Freshness |
 |---|---|---|---|
-| **Materials bought by the owner** (derived contribution) | **Paid price**: sum of the total price of the purchases linked to the line | ESI wallet transaction linked to the line, or a purchase entered by hand (quantity and unit price) | Purchases are linked or entered; the wallet is re-read every 5 minutes for characters whose ESI cache has expired |
+| **Materials bought by the owner** (derived contribution) | **Paid price**: sum of the total price of the purchases linked to the line | ESI wallet transaction linked to the line, or a purchase entered by hand (quantity and unit price) | Purchases are linked or entered; the wallet is re-read every 5 minutes for characters whose ESI cache has expired, or on demand with "Refresh wallet" (same condition). In a group project the purchase is first a contribution proposal (see below) |
 | **Materials declared by a participant** | **Jita deposit-day price** | 5th percentile of the Jita station sell orders (see below) | Read at submission, then frozen |
 | **Job installation** (derived contribution) | **Real ESI cost** of the linked job, one contribution per participant who started the job | The `cost` field of the job returned by ESI | Jobs synced every 30 minutes |
 | **Declared job installation** | **Entered value** (greater than 0) | The participant | Frozen at entry |
@@ -31,9 +31,22 @@ Freshness: the Jita market is re-synced every hour and the order book stays cach
 
 ### Derived contributions: computed, not declared
 
-The owner's linked purchases and the linked jobs produce contributions that are **approved automatically** and recomputed after every link change. If a participant had declared the same contribution (same line, same type), the declaration still pending is rejected and replaced. A declaration that was already approved stays, and both count: it is a **duplicate contribution**, which reviewers can reject.
+Linked jobs produce contributions that are **approved automatically**, and so do the owner's linked purchases when they are the only reviewer of the project. In a group project, a linked purchase gives a **contribution proposal** (see below). All of them are recomputed after every link change. If a participant had declared the same contribution (same line, same type), the declaration still pending is rejected and replaced. A declaration that was already approved stays, and both count: it is a **duplicate contribution**, which reviewers can reject.
 
 A job started by another participant is counted in their name, at the cost paid in game. If ESI gives no cost for that job, the value of the contribution is **unknown**.
+
+### Contribution proposal and delivery confirmation
+
+In a project where another owner or administrator can review, a purchase linked to a material line does not count right away: it creates a **contribution proposal**, pending, unverified, at the paid price. It enters the served quantity of the line and the distribution only at its **delivery confirmation**, in one of two ways:
+
+- **By the project container.** The proposal is confirmed when the stock of the type in the container named on the project covers it. The proposals of a line are taken from the oldest to the most recent, with a running total that starts at the quantity already served, in strict order: the first one that is not covered stops the line. *Example: two proposals, 60 (the oldest) then 50, and 100 units in the container: the first is confirmed, the second waits (60 + 50 exceeds 100).* The contribution is then marked **verified**, with no reviewer. A contribution declared by hand is never confirmed this way, nor is a job line.
+- **By hand.** Another owner or administrator clicks "Confirm delivery" in the "Contributions" tab. The contribution counts but stays **unverified** and carries the "Delivery confirmed by hand" badge. You cannot confirm your own proposal. Use it, for example, when the goods were already consumed by a started job and so left the container.
+
+The container confirmation is attempted after the assets sync of the owner's corporation (that of their main character) and after an automatic link of a wallet purchase. A purchase entered by hand does not trigger it: its proposal waits for the next sync.
+
+When the container cannot be read, **nothing is confirmed** and the proposal stays pending: never a fallback to "zero" or to "delivered". The cases: no container name on the project, owner without a corporation, no director of the corporation connected with the assets scope, corporation assets never synced, no division visible to the owner (hidden division), container not found.
+
+The "Refresh wallet" button, in the owner's "Purchases" window, starts reading the wallet of your characters (wallet scope, valid authorization) without waiting for the next 5-minute pass, but **only for those whose ESI cache has expired**. If none has, it makes no ESI call and tells you the time of the next read.
 
 ## 2. Why an approved contribution no longer moves
 
@@ -103,4 +116,4 @@ Each seller keeps the net revenue of their sales; the application computes the s
 
 ## Glossary terms
 
-Contribution, derived contribution, deposit-day price, duplicate contribution, payout, undistributable distribution, awaiting sales, transfer, margin.
+Contribution, derived contribution, contribution proposal, delivery confirmation, deposit-day price, duplicate contribution, payout, undistributable distribution, awaiting sales, transfer, margin.

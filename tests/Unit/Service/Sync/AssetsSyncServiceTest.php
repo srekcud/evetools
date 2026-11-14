@@ -13,6 +13,7 @@ use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
 use App\Service\Assets\AssetSyncChangeRecorder;
+use App\Service\Industry\Project\ContainerDeliveryConfirmer;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationRoleReader;
@@ -29,6 +30,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Mercure\HubInterface;
@@ -50,12 +52,15 @@ class AssetsSyncServiceTest extends TestCase
     private CharacterRepository&Stub $characterRepository;
     private AssetSyncChangeRecorder&MockObject $changeRecorder;
     private EntityManagerInterface&MockObject $em;
+    private ContainerDeliveryConfirmer&MockObject $containerDeliveryConfirmer;
     private AssetsSyncService $service;
 
     /** @var list<CachedAsset> */
     private array $persistedAssets = [];
 
     private array $publishedSyncEvents = [];
+
+    private array $loggedRecords = [];
 
     private CorporationRoleReader $corporationRoleReader;
 
@@ -84,6 +89,17 @@ class AssetsSyncServiceTest extends TestCase
         });
         $this->corporationRoleReader = new CorporationRoleReader(new CharacterService($esiClient), new ArrayAdapter(), new NullLogger());
         $this->em = $this->createMock(EntityManagerInterface::class);
+        $this->containerDeliveryConfirmer = $this->createMock(ContainerDeliveryConfirmer::class);
+        $recordingLogger = new class($this->loggedRecords) extends AbstractLogger {
+            public function __construct(private array &$records)
+            {
+            }
+
+            public function log($level, string|\Stringable $message, array $context = []): void
+            {
+                $this->records[] = [$level, (string) $message, $context];
+            }
+        };
 
         $mercureHub = $this->createStub(HubInterface::class);
         $mercureHub->method('publish')->willReturnCallback(
@@ -110,9 +126,10 @@ class AssetsSyncServiceTest extends TestCase
             $this->characterRepository,
             $this->corporationRoleReader,
             $this->em,
-            new NullLogger(),
+            $recordingLogger,
             $mercurePublisher,
             $this->changeRecorder,
+            $this->containerDeliveryConfirmer,
         );
     }
 
@@ -701,6 +718,73 @@ class AssetsSyncServiceTest extends TestCase
             [$topic, 'in_progress', 50, 'Processing 3 assets...', null],
             [$topic, 'completed', 100, 'Sync completed', ['count' => 3]],
         ], $this->publishedSyncEvents);
+    }
+
+    #[Group('issue-953')]
+    public function testSuccessfulCorporationAssetsSyncConfirmsTheOpenProjectsOfTheSyncedCorporationOnceTheAssetsAreFlushed(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAsset(itemId: 2001, locationFlag: 'CorpSAG1'),
+        ]);
+        $syncCalls = $this->recordCacheDeletionsAndWrites();
+        $this->containerDeliveryConfirmer->expects($this->once())->method('confirmOpenProjectsOfCorporation')->with(98000001)->willReturnCallback(
+            static function () use ($syncCalls): int {
+                $syncCalls[] = 'confirmOpenProjectsOfCorporation';
+
+                return 2;
+            },
+        );
+
+        $this->service->syncCorporationAssets($character);
+
+        $this->assertSame(['deleteByCorporationId:98000001', 'persist:2001', 'flush', 'confirmOpenProjectsOfCorporation'], $syncCalls->getArrayCopy());
+    }
+
+    #[Group('issue-953')]
+    public function testFailedCorporationAssetsSyncConfirmsNoProject(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->assetsService->method('getCorporationAssets')->willThrowException(EsiApiException::fromResponse(502, 'Bad Gateway', '/corporations/98000001/assets/'));
+        $this->containerDeliveryConfirmer->expects($this->never())->method('confirmOpenProjectsOfCorporation');
+
+        $this->catchThrowable(fn () => $this->service->syncCorporationAssets($character));
+    }
+
+    #[Group('issue-953')]
+    public function testCharacterAssetsSyncConfirmsNoProject(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->assetsService->method('getCharacterAssets')->willReturn([
+            $this->createAsset(itemId: 1001, locationFlag: 'Hangar'),
+        ]);
+        $this->containerDeliveryConfirmer->expects($this->never())->method('confirmOpenProjectsOfCorporation');
+
+        $this->service->syncCharacterAssets($character);
+    }
+
+    #[Group('issue-953')]
+    public function testContainerConfirmationFailureIsLoggedAndDoesNotFailTheCorporationAssetsSync(): void
+    {
+        $userId = Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a7a');
+        $character = $this->createCharacterOfUser($userId);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAsset(itemId: 2001, locationFlag: 'CorpSAG1'),
+        ]);
+        $this->recordCacheDeletionsAndWrites();
+        $this->containerDeliveryConfirmer->method('confirmOpenProjectsOfCorporation')->willThrowException(new \RuntimeException('Container stock unreadable'));
+
+        $caught = $this->catchThrowable(fn () => $this->service->syncCorporationAssets($character));
+
+        $this->assertNull($caught);
+        $this->assertCount(1, $this->loggedRecords);
+        $this->assertContains($this->loggedRecords[0][0], ['warning', 'error', 'critical']);
+        $this->assertContains('Container stock unreadable', array_map(
+            static fn (mixed $value): string => $value instanceof \Throwable ? $value->getMessage() : (string) $value,
+            array_merge([$this->loggedRecords[0][1]], array_values($this->loggedRecords[0][2])),
+        ));
+        $topic = '/user/0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a7a/sync/corporation-assets';
+        $this->assertSame([$topic, 'completed', 100, 'Sync completed', ['count' => 1]], $this->publishedSyncEvents[2]);
     }
 
     public function testSyncCorporationAssetsPublishesStartProgressAndCompletionToTheUser(): void

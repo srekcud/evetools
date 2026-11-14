@@ -407,6 +407,28 @@ final class GroupContributionApiTest extends WebTestCase
         self::getContainer()->set(JitaMarketService::class, $jitaMarket);
     }
 
+    #[Group('issue-953')]
+    public function testContributionConfirmedByTheContainerIsListedVerifiedWithoutAReviewer(): void
+    {
+        $confirmedProposal = $this->addContribution($this->memberMembership, $this->nocxiumLine, ContributionType::Material, 250, 1_250.0, ContributionStatus::Approved)
+            ->setIsAutoDetected(true)
+            ->setIsVerified(true)
+            ->setVerifiedAt(new \DateTimeImmutable('2026-11-12T09:30:00+00:00'))
+            ->setReviewedBy(null);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->contributionsUri());
+
+        self::assertResponseStatusCodeSame(200);
+        $listed = array_values(array_filter($this->responseJson(), fn (array $contribution): bool => $contribution['id'] === $this->idOf($confirmedProposal)));
+        self::assertCount(1, $listed);
+        self::assertSame(['approved', true, true], [$listed[0]['status'], $listed[0]['isAutoDetected'], $listed[0]['isVerified']]);
+        self::assertArrayHasKey('reviewedAt', $listed[0]);
+        self::assertNotNull($listed[0]['reviewedAt']);
+        self::assertNull($listed[0]['reviewedByCharacterName'] ?? null);
+    }
+
     private function contributionsUri(): string
     {
         return $this->projectUri($this->ishtarBatch).'/contributions';

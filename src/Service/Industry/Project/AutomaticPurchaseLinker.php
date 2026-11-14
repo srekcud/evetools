@@ -19,6 +19,7 @@ class AutomaticPurchaseLinker
         private readonly IndustryProjectPurchaseRepository $purchaseRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly DerivedContributionService $derivedContributionService,
+        private readonly ContainerDeliveryConfirmer $containerDeliveryConfirmer,
     ) {
     }
 
@@ -40,6 +41,7 @@ class AutomaticPurchaseLinker
         usort($transactions, static fn (CachedWalletTransaction $first, CachedWalletTransaction $second): int => $first->getDate() <=> $second->getDate());
 
         $linkedCount = 0;
+        $touchedProjects = [];
         foreach ($transactions as $transaction) {
             if (!$transaction->isBuy() || $this->purchaseRepository->findOneBy(['transaction' => $transaction]) !== null) {
                 continue;
@@ -54,11 +56,16 @@ class AutomaticPurchaseLinker
             $candidateLines[0]->addPurchase($purchase);
             $this->entityManager->persist($purchase);
             $this->derivedContributionService->refreshLine($candidateLines[0]);
+            $touchedProjects[$candidateLines[0]->getProject()->getId()->toRfc4122()] = $candidateLines[0]->getProject();
             ++$linkedCount;
         }
 
         if ($linkedCount > 0) {
             $this->entityManager->flush();
+        }
+
+        foreach ($touchedProjects as $project) {
+            $this->containerDeliveryConfirmer->confirmProject($project);
         }
     }
 

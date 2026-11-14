@@ -14,6 +14,7 @@ import type {
   CreatePurchaseInput,
   ProjectCockpit,
   UpdateGroupProjectInput,
+  WalletRefreshResult,
 } from './types'
 
 export const useGroupProjectStore = defineStore('group-project', () => {
@@ -216,6 +217,13 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     await fetchBom(projectId)
   }
 
+  async function refreshWallet(projectId: string): Promise<WalletRefreshResult> {
+    return apiRequest<WalletRefreshResult>(`/industry/projects/${projectId}/wallet-refresh`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+  }
+
   async function reserveLine(projectId: string, lineId: string, quantity: number): Promise<void> {
     await apiRequest(`/industry/projects/${projectId}/bom/${lineId}/reservation`, {
       method: 'POST',
@@ -272,6 +280,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     unlinkJob,
     fetchPurchaseSuggestions,
     createPurchase,
+    refreshWallet,
     deletePurchase,
     reserveLine,
     releaseLine,

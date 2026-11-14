@@ -3427,6 +3427,11 @@
       "missingScope": "Scope wallet manquant",
       "noToken": "Pas de token",
       "inProgress": "Lecture du wallet…",
+      "refresh": "Actualiser le wallet",
+      "refreshing": "Actualisation…",
+      "noneToLaunch": "Aucune lecture à lancer, prochaine lecture à {time}",
+      "noneToLaunchUnbounded": "Aucune lecture à lancer, l'heure de la prochaine lecture n'est pas encore connue",
+      "refreshError": "Échec de l'actualisation du wallet",
       "newTransaction": "Nouveau",
       "emptyHintBounded": "Une transaction faite en jeu apparaît ici au plus tard à {time}. Si tu ne peux pas attendre, utilise la saisie manuelle.",
       "emptyHintUnbounded": "Aucun wallet n'a encore été lu. Utilise la saisie manuelle pour l'enregistrer maintenant."

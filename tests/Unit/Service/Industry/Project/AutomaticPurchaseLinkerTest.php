@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Repository\IndustryProjectPurchaseRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\AutomaticPurchaseLinker;
+use App\Service\Industry\Project\ContainerDeliveryConfirmer;
 use App\Service\Industry\Project\DerivedContributionService;
 use App\Tests\Unit\State\Processor\Industry\TracksJobsAndPurchasesOnIshtarBom;
 use Doctrine\ORM\EntityManagerInterface;
@@ -39,6 +40,8 @@ final class AutomaticPurchaseLinkerTest extends TestCase
     private int $flushCount = 0;
 
     private array $storedPurchases = [];
+
+    private array $confirmedProjects = [];
 
     protected function setUp(): void
     {
@@ -178,6 +181,37 @@ final class AutomaticPurchaseLinkerTest extends TestCase
         self::assertSame([[], 0], [$this->persistedEntities, $this->flushCount]);
     }
 
+    #[Group('issue-953')]
+    public function testProjectOfALinkedBuyIsConfirmedAgainstTheContainerOnceTheLinksAreFlushed(): void
+    {
+        $buy = $this->buy($this->ownerAltCharacter, 6_750_000_015, self::RAM_TYPE_ID, self::RAM_BUY_QUANTITY, self::RAM_UNIT_PRICE);
+
+        $this->linkNew($this->ownerAltCharacter, [$buy]);
+
+        self::assertSame([[$this->ishtarProject->getId()->toRfc4122(), 1]], $this->confirmedProjects);
+    }
+
+    #[Group('issue-953')]
+    public function testProjectWithTwoLinkedBuysIsConfirmedAgainstTheContainerOnce(): void
+    {
+        $ramBuy = $this->buy($this->ownerAltCharacter, 6_750_000_016, self::RAM_TYPE_ID, self::RAM_BUY_QUANTITY, self::RAM_UNIT_PRICE);
+        $tritaniumBuy = $this->buy($this->ownerAltCharacter, 6_750_000_017, self::TRITANIUM_TYPE_ID, 2_500, 4.2);
+
+        $this->linkNew($this->ownerAltCharacter, [$ramBuy, $tritaniumBuy]);
+
+        self::assertSame([[$this->ishtarProject->getId()->toRfc4122(), 1]], $this->confirmedProjects);
+    }
+
+    #[Group('issue-953')]
+    public function testNothingIsConfirmedAgainstTheContainerWhenNoBuyIsLinked(): void
+    {
+        $buy = $this->buy($this->ownerAltCharacter, 6_750_000_018, self::RAM_TYPE_ID, self::RAM_LINE_QUANTITY + 1, self::RAM_UNIT_PRICE);
+
+        $this->linkNew($this->ownerAltCharacter, [$buy]);
+
+        self::assertSame([], $this->confirmedProjects);
+    }
+
     private function linkNew(Character $character, array $transactions): void
     {
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
@@ -210,7 +244,14 @@ final class AutomaticPurchaseLinkerTest extends TestCase
             $this->refreshedLines[] = [$line->getId()->toRfc4122(), $line->getPurchasedQuantity()];
         });
 
-        (new AutomaticPurchaseLinker($projectRepository, $purchaseRepository, $entityManager, $derivedContributionService))
+        $containerDeliveryConfirmer = $this->createStub(ContainerDeliveryConfirmer::class);
+        $containerDeliveryConfirmer->method('confirmProject')->willReturnCallback(function (IndustryProject $project): int {
+            $this->confirmedProjects[] = [$project->getId()->toRfc4122(), $this->flushCount];
+
+            return 0;
+        });
+
+        (new AutomaticPurchaseLinker($projectRepository, $purchaseRepository, $entityManager, $derivedContributionService, $containerDeliveryConfirmer))
             ->linkNewPurchases($character, $transactions);
     }
 
