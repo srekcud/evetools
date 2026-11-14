@@ -15,6 +15,7 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
+use App\Enum\ParticipantRole;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\CharacterWalletReadingRepository;
 use App\Repository\IndustryProjectPurchaseRepository;
@@ -44,9 +45,20 @@ final class PurchaseSuggestionProviderTest extends TestCase
 
     private array $storedWalletReadings = [];
 
+    private User $member;
+
+    private Character $memberCharacter;
+
+    private User $outsider;
+
     protected function setUp(): void
     {
         $this->setUpIshtarProject();
+        $this->member = new User();
+        $this->memberCharacter = $this->characterOf($this->member, 'Cora Vance');
+        $this->participate($this->ishtarProject, $this->member, ParticipantRole::Member);
+        $this->outsider = new User();
+        $this->characterOf($this->outsider, 'Elia Varr');
     }
 
     public function testBuysOfTheComponentLinesAndOfTheMaterialLinesAreBothSuggested(): void
@@ -153,11 +165,50 @@ final class PurchaseSuggestionProviderTest extends TestCase
         self::assertSame([1, ['Aria Solberg', 'Aria Alt']], [$result->totalCount, array_column($this->walletReadingFieldsOf($result->walletReadings), 0)]);
     }
 
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedWithoutReadingTheWallet(): void
+    #[Group('issue-981')]
+    public function testAcceptedMemberIsSuggestedOnlyTheBuysOfHisOwnCharacters(): void
+    {
+        $this->buy($this->ownerMainCharacter, 6_981_000_001, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
+        $this->buy($this->memberCharacter, 6_981_000_002, self::TRITANIUM_TYPE_ID, 2_500, 4.2);
+
+        $result = null;
+        self::assertSame(
+            self::GRANTED,
+            $this->outcomeOf(function () use (&$result): void {
+                $result = $this->suggestionsFor($this->member, $this->ishtarProject);
+            }),
+        );
+
+        self::assertSame(
+            [1, [[6_981_000_002, self::TRITANIUM_TYPE_ID, 'Tritanium', 2_500, 10_500.0, 'Cora Vance', false]]],
+            [$result->totalCount, $this->fieldsOf($result->suggestions)],
+        );
+        self::assertSame(['Cora Vance'], array_column($this->buyLookups, 0));
+    }
+
+    #[Group('issue-981')]
+    public function testBuyOfAMemberLinkedToALineOfTheProjectIsMarkedAlreadyLinkedForHim(): void
+    {
+        $buy = $this->buy($this->memberCharacter, 6_981_000_003, self::TRITANIUM_TYPE_ID, 2_500, 4.2);
+        $this->linkInAPurchase($this->tritaniumLine, $buy);
+
+        $result = null;
+        self::assertSame(
+            self::GRANTED,
+            $this->outcomeOf(function () use (&$result): void {
+                $result = $this->suggestionsFor($this->member, $this->ishtarProject);
+            }),
+        );
+
+        self::assertSame([[6_981_000_003, self::TRITANIUM_TYPE_ID, 'Tritanium', 2_500, 10_500.0, 'Cora Vance', true]], $this->fieldsOf($result->suggestions));
+    }
+
+    #[Group('issue-981')]
+    public function testUserWhoIsNotAParticipantIsDeniedWithoutReadingTheWallet(): void
     {
         self::assertSame(
-            [self::OWNER_ONLY, []],
-            [$this->outcomeOf(fn () => $this->suggestionsFor($this->admin, $this->ishtarProject)), $this->buyLookups],
+            ['403 You do not have access to this project', []],
+            [$this->outcomeOf(fn () => $this->suggestionsFor($this->outsider, $this->ishtarProject)), $this->buyLookups],
         );
     }
 

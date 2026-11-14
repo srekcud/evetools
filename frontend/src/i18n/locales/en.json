@@ -3456,6 +3456,7 @@
       "add": "Add purchase",
       "sourceTransaction": "Wallet",
       "sourceManual": "Manual",
+      "boughtBy": "Bought by {name}",
       "loadError": "Failed to load the purchase suggestions",
       "linkError": "Failed to link the transaction",
       "addError": "Failed to add the purchase",

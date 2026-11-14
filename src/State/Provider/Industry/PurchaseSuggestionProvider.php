@@ -52,7 +52,7 @@ class PurchaseSuggestionProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $result = new PurchaseSuggestionListResource();
         $result->id = $uriVariables['projectId'];

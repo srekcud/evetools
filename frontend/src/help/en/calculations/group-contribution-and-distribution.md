@@ -44,6 +44,8 @@ In a project where another owner or administrator can review, a purchase linked 
 
 The container confirmation is attempted after the assets sync of the owner's corporation (that of their main character) and after an automatic link of a wallet purchase. A purchase entered by hand does not trigger it: its proposal waits for the next sync.
 
+A participant who is not the owner links the wallet purchases of their own characters themselves, from the "Purchases" button of a line. Their purchase creates their own contribution proposal, always pending (even if the owner is the only reviewer), at the price they paid, and follows the same delivery confirmations. Entering a purchase by hand stays reserved to the owner. A participant deletes their own purchases, the owner deletes any purchase of the project.
+
 When the container cannot be read, **nothing is confirmed** and the proposal stays pending: never a fallback to "zero" or to "delivered". The cases: no container name on the project, owner without a corporation, no director of the corporation connected with the assets scope, corporation assets never synced, no division visible to the owner (hidden division), container not found.
 
 The "Refresh wallet" button, in the owner's "Purchases" window, starts reading the wallet of your characters (wallet scope, valid authorization) without waiting for the next 5-minute pass, but **only for those whose ESI cache has expired**. If none has, it makes no ESI call and tells you the time of the next read.

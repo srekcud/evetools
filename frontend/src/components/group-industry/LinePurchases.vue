@@ -20,6 +20,7 @@ const syncStore = useSyncStore()
 const { formatIsk, formatDateTime, formatNumber } = useFormatters()
 
 const isProjectOwner = computed(() => projectStore.currentProject?.myRole === 'owner')
+const isParticipant = computed(() => projectStore.currentProject?.myRole !== null)
 const isOpen = ref(false)
 const isLoadingSuggestions = ref(false)
 const suggestions = ref<PurchaseSuggestion[]>([])
@@ -151,7 +152,7 @@ async function deletePurchase(purchaseId: string): Promise<void> {
 </script>
 
 <template>
-  <div v-if="item.purchases.length > 0 || isProjectOwner" class="mt-1">
+  <div v-if="item.purchases.length > 0 || isParticipant" class="mt-1">
     <ul v-if="item.purchases.length > 0" class="space-y-0.5">
       <li
         v-for="purchase in item.purchases"
@@ -162,9 +163,10 @@ async function deletePurchase(purchaseId: string): Promise<void> {
         <span>
           {{ formatNumber(purchase.quantity, 0) }} &times; {{ formatIsk(purchase.unitPrice, 1) }}
           &middot; {{ purchase.transactionId !== null ? t('groupIndustry.purchases.sourceTransaction') : t('groupIndustry.purchases.sourceManual') }}
+          <template v-if="!purchase.isMine && purchase.buyerName !== null">&middot; {{ t('groupIndustry.purchases.boughtBy', { name: purchase.buyerName }) }}</template>
         </span>
         <button
-          v-if="isProjectOwner"
+          v-if="isProjectOwner || purchase.isMine"
           data-testid="purchase-delete"
           class="text-slate-500 hover:text-red-400 disabled:opacity-50"
           :disabled="isSubmitting"
@@ -187,14 +189,14 @@ async function deletePurchase(purchaseId: string): Promise<void> {
     >{{ purchaseError }}</p>
 
     <button
-      v-if="isProjectOwner"
+      v-if="isParticipant"
       data-testid="purchases-open"
       class="mt-1 px-2 py-0.5 rounded-sm text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
       @click="openPanel"
     >{{ t('groupIndustry.purchases.open') }}</button>
 
     <BaseModal
-      v-if="isProjectOwner"
+      v-if="isParticipant"
       :show="isOpen"
       :title="t('groupIndustry.purchases.modalTitle', { name: item.typeName })"
       panel-class="border-slate-700 max-w-3xl max-h-[90vh] overflow-y-auto"
@@ -283,7 +285,7 @@ async function deletePurchase(purchaseId: string): Promise<void> {
           </div>
         </section>
 
-        <section>
+        <section v-if="isProjectOwner">
           <h3 class="text-sm font-semibold text-slate-200 mb-3">{{ t('groupIndustry.purchases.manualTitle') }}</h3>
           <div class="flex items-end gap-3">
             <label class="block text-xs text-slate-500">

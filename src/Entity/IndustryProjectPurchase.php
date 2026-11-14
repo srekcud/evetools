@@ -29,6 +29,10 @@ class IndustryProjectPurchase
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?CachedWalletTransaction $transaction = null;
 
+    #[ORM\ManyToOne(targetEntity: IndustryProjectParticipant::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
+    private ?IndustryProjectParticipant $buyer = null;
+
     #[ORM\Column(type: 'integer')]
     private int $typeId;
 
@@ -77,6 +81,18 @@ class IndustryProjectPurchase
     public function setTransaction(?CachedWalletTransaction $transaction): static
     {
         $this->transaction = $transaction;
+
+        return $this;
+    }
+
+    public function getBuyer(): ?IndustryProjectParticipant
+    {
+        return $this->buyer;
+    }
+
+    public function setBuyer(?IndustryProjectParticipant $buyer): static
+    {
+        $this->buyer = $buyer;
 
         return $this;
     }

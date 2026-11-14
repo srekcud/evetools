@@ -44,6 +44,8 @@ Dans un projet où un autre propriétaire ou administrateur peut relire, l'achat
 
 La confirmation par le container est tentée après la synchro des assets de la corporation du propriétaire (celle de son personnage principal) et après le rattachement automatique d'un achat du wallet. Un achat saisi à la main n'en déclenche pas : sa proposition attend la synchro suivante.
 
+Un participant qui n'est pas le propriétaire lie lui-même, depuis le bouton « Achats » d'une ligne, les achats du wallet de ses propres personnages. Son achat crée sa propre proposition d'apport, toujours en attente (même si le propriétaire est seul relecteur), au prix qu'il a payé, et suit les mêmes confirmations de livraison. La saisie manuelle d'un achat reste réservée au propriétaire. Un participant supprime ses achats, le propriétaire supprime tous ceux du projet.
+
 Quand le container ne peut pas être lu, **rien n'est confirmé** et la proposition reste en attente : jamais de repli sur « zéro » ni sur « livré ». Les cas : aucun nom de container sur le projet, propriétaire sans corporation, aucun directeur de la corporation connecté avec le scope des assets, assets de la corporation jamais synchronisés, aucune division visible du propriétaire (division masquée), container introuvable.
 
 Le bouton « Actualiser le wallet », dans la fenêtre « Achats » du propriétaire, lance la lecture du wallet de vos personnages (scope wallet, autorisation valide) sans attendre le prochain passage de 5 minutes, mais **seulement pour ceux dont le cache ESI est échu**. Si aucun ne l'est, il n'appelle pas l'ESI et indique l'heure de la prochaine lecture.

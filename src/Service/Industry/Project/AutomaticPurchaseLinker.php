@@ -53,6 +53,7 @@ class AutomaticPurchaseLinker
             }
 
             $purchase = ProjectPurchaseFactory::fromTransaction($transaction, null);
+            $purchase->setBuyer($candidateLines[0]->getProject()->getOwnerParticipant());
             $candidateLines[0]->addPurchase($purchase);
             $this->entityManager->persist($purchase);
             $this->derivedContributionService->refreshLine($candidateLines[0]);

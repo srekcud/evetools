@@ -13,6 +13,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -42,11 +43,16 @@ class PurchaseDeleteProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $purchase = $this->purchaseRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Purchase not found'));
         if ($purchase === null || $purchase->getBomLine()->getProject() !== $project) {
             throw new NotFoundHttpException('Purchase not found');
+        }
+
+        $buyer = $purchase->getBuyer() ?? $project->getOwnerParticipant();
+        if ($project->getOwner() !== $user && $buyer->getUser() !== $user) {
+            throw new AccessDeniedHttpException('Only the buyer or the project owner can delete this purchase');
         }
 
         return ProjectPurchaseResource::fromEntity($purchase);
