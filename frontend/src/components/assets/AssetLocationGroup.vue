@@ -7,10 +7,12 @@ import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import AssetItemNameResolveControl from '@/components/assets/AssetItemNameResolveControl.vue'
 import AssetShipGroups from '@/components/assets/AssetShipGroups.vue'
 import AssetBlueprintBadge from '@/components/assets/AssetBlueprintBadge.vue'
+import AssetVolumeBadge from '@/components/assets/AssetVolumeBadge.vue'
 import { apiRequest } from '@/services/api'
 import { SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
 import { locationIssue } from '@/utils/assetLocation'
 import { isFittedFlag, isGroupableShip } from '@/utils/shipFit'
+import { summarizeVolume, type PackagedVolumeCatalog, type VolumeSummary } from '@/utils/assetVolume'
 import type { Asset, ItemNameAnswer, ItemNameResolution } from '@/types'
 
 const DESTINATION_LOCATION_TYPES = ['station', 'solar_system', 'other']
@@ -25,6 +27,7 @@ const props = defineProps<{
     totalQuantity: number
     shipCount?: number
     divisions?: { name: string; count: number }[]
+    volume?: VolumeSummary | null
   }
   maxQuantity?: number
   selected?: boolean
@@ -35,6 +38,7 @@ const props = defineProps<{
   canPin?: boolean
   pinnedItemIds?: Set<number>
   projectPinnedItemIds?: Set<number>
+  packagedVolumes?: PackagedVolumeCatalog | null
 }>()
 
 const emit = defineEmits<{
@@ -58,6 +62,10 @@ const plainAssets = computed(() => props.location.assets.filter(asset => !isGrou
 
 function fullContentsOf(itemId: number): Asset[] {
   return (props.fitContents ?? props.containerContents).get(itemId) ?? []
+}
+
+function containerVolume(asset: Asset): VolumeSummary | null {
+  return props.packagedVolumes && isContainer(asset) ? summarizeVolume([asset], fullContentsOf, props.packagedVolumes) : null
 }
 
 function isAssembledShip(asset: Asset): boolean {
@@ -208,7 +216,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
               v-if="issue"
               data-testid="location-badge"
               :title="t(`assets.locationIssue.${issue}.tooltip`)"
-              class="px-2 py-0.5 rounded-sm text-[10px] font-medium uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/30"
+              class="px-2 py-0.5 rounded-sm text-xs font-medium uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/30"
             >{{ t(`assets.locationIssue.${issue}.badge`) }}</span>
           </div>
           <div class="flex items-center gap-2">
@@ -232,6 +240,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
       </div>
       <div class="flex flex-col items-end gap-1 min-w-32">
         <span class="text-sm text-cyan-400 font-mono">{{ t('assets.itemsCount', { count: formatNumber(props.location.totalQuantity) }, props.location.totalQuantity) }}</span>
+        <AssetVolumeBadge v-if="props.location.volume" :volume="props.location.volume" test-id="location-volume" />
         <div v-if="quantityBarWidth" class="h-1 w-full rounded-full bg-slate-700/60 overflow-hidden">
           <div data-testid="location-quantity-bar" class="h-full rounded-full bg-cyan-500" :style="{ width: quantityBarWidth }"></div>
         </div>
@@ -240,7 +249,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
 
     <!-- Items (collapsible) -->
     <div v-if="!props.collapsedLocations.has(props.location.locationName)" class="divide-y divide-slate-800">
-      <AssetShipGroups :ships="groupedShips" :contents-of="fullContentsOf" />
+      <AssetShipGroups :ships="groupedShips" :contents-of="fullContentsOf" :packaged-volumes="props.packagedVolumes" />
       <template v-for="asset in plainAssets" :key="asset.id">
         <!-- Regular item or container header -->
         <div
@@ -280,6 +289,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
               </span>
+              <AssetVolumeBadge v-if="containerVolume(asset)" :volume="containerVolume(asset)!" test-id="container-volume" />
               <button
                 v-if="props.canPin && isContainer(asset)"
                 type="button"

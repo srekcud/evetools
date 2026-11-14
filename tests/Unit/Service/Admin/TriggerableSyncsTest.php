@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Admin;
 
 use App\Message\CheckSdeBuild;
 use App\Message\SyncCostIndices;
+use App\Message\SyncPackagedVolumes;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerStructureMarketSync;
@@ -67,6 +68,12 @@ class TriggerableSyncsTest extends TestCase
     {
         $this->assertEquals([new TriggerJitaMarketSync()], TriggerableSyncs::messagesFor('market-jita'));
         $this->assertEquals([new TriggerStructureMarketSync()], TriggerableSyncs::messagesFor('market-structure'));
+    }
+
+    #[Group('issue-890')]
+    public function testPackagedVolumesDispatchesItsOwnMessage(): void
+    {
+        $this->assertEquals([new SyncPackagedVolumes()], TriggerableSyncs::messagesFor('packaged-volumes'));
     }
 
     public function testSdeBuildDispatchesItsOwnMessage(): void

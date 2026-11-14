@@ -94,6 +94,7 @@ class SyncTrackerTest extends TestCase
                 ['market-history-purge', 86400, false],
                 ['shared-lists-purge', 86400, false],
                 ['sde-build', 86400, false],
+                ['packaged-volumes', 604800, false],
                 ['assets', null, true],
                 ['corporation-assets', null, true],
                 ['market-alerts', null, true],

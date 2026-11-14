@@ -42,6 +42,7 @@ class SyncTracker
         'market-history-purge' => 86400,
         'shared-lists-purge' => 86400,
         'sde-build' => 86400,
+        'packaged-volumes' => 604800,
     ];
 
     /** Not scheduled, only triggered manually: their last run is shown but no health is computed. */

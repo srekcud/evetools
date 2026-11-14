@@ -20,6 +20,8 @@ import { filterTypeGroups, groupAssetsByType } from '@/utils/assetsByType'
 import { summarizeSelection } from '@/utils/assetSelection'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 import { usePinnedContainers } from '@/composables/usePinnedContainers'
+import { usePackagedVolumes } from '@/composables/usePackagedVolumes'
+import { summarizeVolume, type VolumeSummary } from '@/utils/assetVolume'
 import { locateContainer, projectPinnedFirst } from '@/utils/pinnedContainers'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
@@ -50,6 +52,7 @@ interface LocationSummary {
   totalQuantity: number
   shipCount: number
   divisions: DivisionCount[]
+  volume: VolumeSummary | null
 }
 import { useFlash } from '@/composables/useUpdateFlash'
 import { formatEveClock } from '@/views/MiningOperation/miningOperationTime'
@@ -96,6 +99,7 @@ const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError,
 const isCorpView = computed(() => viewMode.value === 'corporation')
 const isTypeView = computed(() => !isCorpView.value && groupBy.value === 'type')
 
+const { catalog: packagedVolumeCatalog, unavailable: packagedVolumesUnavailable, fetchPackagedVolumes } = usePackagedVolumes()
 const { entries: pinnedEntries, pinnedItemIds, projectPinnedItemIds, fetchPinned, pin: pinContainer, unpin: unpinContainer, clearPinned } = usePinnedContainers()
 
 const refreshBlockedUntil = computed(() =>
@@ -288,6 +292,10 @@ const visibleContainerContents = computed(() => {
   return visible
 })
 
+function getContentsOfItem(itemId: number): Asset[] {
+  return visibleContainerContents.value.get(itemId) ?? []
+}
+
 function getContainerContents(asset: Asset): Asset[] {
   return visibleContainerContents.value.get(asset.itemId) || []
 }
@@ -348,7 +356,10 @@ function compareDivisions(a: DivisionCount, b: DivisionCount): number {
 }
 
 function compareLocations(a: LocationSummary, b: LocationSummary): number {
-  if (locationSort.value === 'items') {
+  if (locationSort.value === 'volume' && a.volume !== null && b.volume !== null) {
+    return b.volume.cubicMeters - a.volume.cubicMeters || a.locationName.localeCompare(b.locationName)
+  }
+  if (locationSort.value !== 'name') {
     return b.totalQuantity - a.totalQuantity || a.locationName.localeCompare(b.locationName)
   }
   return a.locationName.localeCompare(b.locationName)
@@ -374,6 +385,7 @@ const assetsByLocation = computed(() => {
         totalQuantity: 0,
         shipCount: 0,
         divisions: [],
+        volume: null,
       }
       divisionCounts[key] = new Map()
     }
@@ -406,6 +418,13 @@ const assetsByLocation = computed(() => {
     }
   }
 
+  const catalog = packagedVolumeCatalog.value
+  if (catalog !== null) {
+    for (const location of Object.values(grouped)) {
+      location.volume = summarizeVolume(location.assets, getContentsOfItem, catalog)
+    }
+  }
+
   return Object.values(grouped).sort(compareLocations)
 })
 
@@ -424,6 +443,12 @@ const selectedLocations = computed(() =>
 )
 
 const selectionSummary = computed(() => summarizeSelection(selectedLocations.value, visibleContainerContents.value))
+
+const selectionVolume = computed(() =>
+  packagedVolumeCatalog.value === null
+    ? null
+    : summarizeVolume(selectedLocations.value.flatMap(location => location.assets), getContentsOfItem, packagedVolumeCatalog.value),
+)
 
 const largestLocationQuantity = computed(() =>
   assetsByLocation.value.reduce((largest, location) => Math.max(largest, location.totalQuantity), 0),
@@ -460,6 +485,9 @@ function stopFreshnessClock() {
 }
 
 onMounted(startFreshnessClock)
+onMounted(() => {
+  void fetchPackagedVolumes()
+})
 onUnmounted(stopFreshnessClock)
 
 function revealSearchMatches() {
@@ -1027,8 +1055,14 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
               >
                 <option value="items">{{ t('assets.sort.items') }}</option>
                 <option value="name">{{ t('assets.sort.name') }}</option>
+                <option v-if="packagedVolumeCatalog !== null" value="volume">{{ t('assets.sort.volume') }}</option>
               </select>
             </div>
+            <p
+              v-if="packagedVolumesUnavailable"
+              data-testid="packaged-volumes-notice"
+              class="text-xs text-amber-400"
+            >{{ t('assets.volume.notLoaded') }}</p>
             <AssetLocationGroup
               v-for="location in assetsByLocation"
               :key="location.locationName"
@@ -1042,6 +1076,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
               :can-pin="isCorpView"
               :pinned-item-ids="pinnedItemIds"
               :project-pinned-item-ids="projectPinnedItemIds"
+              :packaged-volumes="packagedVolumeCatalog"
               @toggle-pin="onTogglePin"
               @toggle-container="toggleContainer"
               @toggle-location="toggleLocation"
@@ -1051,7 +1086,9 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             <AssetSelectionBar
               v-if="selectedLocations.length > 0"
               :location-count="selectedLocations.length"
+              :location-names="selectedLocations.map(location => location.locationName)"
               :summary="selectionSummary"
+              :volume="selectionVolume"
               @clear="clearLocationSelection"
             />
           </div>

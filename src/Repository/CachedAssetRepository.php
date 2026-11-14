@@ -126,6 +126,20 @@ class CachedAssetRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return list<int>
+     */
+    public function findDistinctTypeIds(): array
+    {
+        $rows = $this->createQueryBuilder('a')
+            ->select('DISTINCT a.typeId AS typeId')
+            ->orderBy('a.typeId', 'ASC')
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_values(array_map(static fn (array $row): int => (int) $row['typeId'], $rows));
+    }
+
+    /**
      * @return CachedAsset[]
      */
     public function findByCorporationId(int $corporationId): array

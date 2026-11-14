@@ -17,6 +17,7 @@ use App\Message\SyncBlueprints;
 use App\Message\SyncCharacterOrders;
 use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
+use App\Message\SyncPackagedVolumes;
 use App\Message\SyncPublicContracts;
 use App\Message\SyncRegionalMarketVolumes;
 use App\Message\SyncWalletTransactions;
@@ -62,6 +63,7 @@ final class TriggerableSyncs
         'market-history-purge' => [PurgeOldMarketHistory::class],
         'shared-lists-purge' => [PurgeExpiredSharedLists::class],
         'sde-build' => [CheckSdeBuild::class],
+        'packaged-volumes' => [SyncPackagedVolumes::class],
         'assets' => [TriggerAssetsSync::class],
         'corporation-assets' => [TriggerCorporationAssetsSync::class],
         self::SYNCHRONOUS_TYPE => [],

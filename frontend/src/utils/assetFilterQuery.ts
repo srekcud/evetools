@@ -2,7 +2,7 @@ import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 
 export type AssetViewMode = 'character' | 'corporation'
 
-export type AssetLocationSort = 'items' | 'name'
+export type AssetLocationSort = 'items' | 'name' | 'volume'
 
 export interface AssetFilterState {
   viewMode: AssetViewMode
@@ -17,7 +17,7 @@ export interface AssetFilterState {
 const OWNED_QUERY_KEYS = ['view', 'character', 'q', 'system', 'location', 'division', 'sort'] as const
 const CORPORATION_VIEW = 'corporation'
 const DEFAULT_LOCATION_SORT: AssetLocationSort = 'items'
-const NAME_LOCATION_SORT: AssetLocationSort = 'name'
+const LOCATION_SORTS: readonly AssetLocationSort[] = ['items', 'name', 'volume']
 const LAST_CHARACTER_STORAGE_PREFIX = 'assetsLastCharacterId:'
 
 function textOf(value: LocationQuery[string] | undefined): string {
@@ -32,7 +32,7 @@ export function readAssetFilterQuery(query: LocationQuery): AssetFilterState {
     solarSystem: textOf(query.system),
     location: textOf(query.location),
     division: textOf(query.division),
-    locationSort: query.sort === NAME_LOCATION_SORT ? NAME_LOCATION_SORT : DEFAULT_LOCATION_SORT,
+    locationSort: LOCATION_SORTS.find(sort => sort === query.sort) ?? DEFAULT_LOCATION_SORT,
   }
 }
 
