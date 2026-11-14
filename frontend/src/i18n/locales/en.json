@@ -2184,6 +2184,7 @@
     "byType": {
       "sortName": "Name",
       "sortQuantity": "Quantity",
+      "sortVolume": "Volume",
       "locationsCount": "{count} location | {count} locations",
       "locationsListLabel": "Items of a type, by location",
       "toggleLocations": "Show the locations of {type}"
