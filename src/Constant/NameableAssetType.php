@@ -25,4 +25,15 @@ final class NameableAssetType
         return \in_array($categoryId, self::CATEGORY_IDS, true)
             || \in_array($groupId, self::GROUP_IDS, true);
     }
+
+    public static function mayHoldCustomName(
+        ?bool $isSingleton,
+        int $quantity,
+        ?string $itemName,
+        ?string $locationFlag,
+    ): bool {
+        return ($isSingleton ?? $quantity === 1)
+            && $itemName === null
+            && $locationFlag !== EveConstants::OFFICE_LOCATION_FLAG;
+    }
 }
