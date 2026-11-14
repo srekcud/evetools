@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace App\Service\Help;
 
-use App\Scheduler\SyncScheduler;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Messenger\Message\RedispatchMessage;
 use Symfony\Component\Scheduler\Generator\MessageContext;
+use Symfony\Component\Scheduler\RecurringMessage;
+use Symfony\Component\Scheduler\ScheduleProviderInterface;
 
 final readonly class ScheduledSyncReader
 {
     private const string REFERENCE_RUN = '2026-01-01 00:00:00';
 
+    /**
+     * @param iterable<ScheduleProviderInterface> $scheduleProviders
+     */
     public function __construct(
-        private SyncScheduler $scheduler,
+        #[AutowireIterator('scheduler.schedule_provider')]
+        private iterable $scheduleProviders,
     ) {
     }
 
@@ -25,7 +31,7 @@ final readonly class ScheduledSyncReader
         $referenceRun = new \DateTimeImmutable(self::REFERENCE_RUN);
         $scheduledSyncs = [];
 
-        foreach ($this->scheduler->getSchedule()->getRecurringMessages() as $recurringMessage) {
+        foreach ($this->recurringMessages() as $recurringMessage) {
             $trigger = $recurringMessage->getTrigger();
             $nextRun = $trigger->getNextRunDate($referenceRun);
             if (null === $nextRun) {
@@ -45,5 +51,15 @@ final readonly class ScheduledSyncReader
         }
 
         return $scheduledSyncs;
+    }
+
+    /**
+     * @return iterable<RecurringMessage>
+     */
+    private function recurringMessages(): iterable
+    {
+        foreach ($this->scheduleProviders as $scheduleProvider) {
+            yield from $scheduleProvider->getSchedule()->getRecurringMessages();
+        }
     }
 }

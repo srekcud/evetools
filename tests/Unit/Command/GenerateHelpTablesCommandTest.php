@@ -86,6 +86,6 @@ final class GenerateHelpTablesCommandTest extends TestCase
 
     private function reader(): ScheduledSyncReader
     {
-        return new ScheduledSyncReader(new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore())));
+        return new ScheduledSyncReader([new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore()))]);
     }
 }

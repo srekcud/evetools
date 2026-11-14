@@ -21,7 +21,7 @@ final class GeneratedHelpTablesUpToDateTest extends TestCase
     public function testCommittedHelpTablesMatchTheCode(): void
     {
         $helpDirectory = \dirname(__DIR__, 4).'/frontend/src/help';
-        $reader = new ScheduledSyncReader(new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore())));
+        $reader = new ScheduledSyncReader([new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore()))]);
         $pages = (new HelpTablesRenderer(new HelpDescriptions()))->pages(AuthenticationService::getRequiredScopes(), $reader->read());
 
         foreach ($pages as $page => $expectedContent) {

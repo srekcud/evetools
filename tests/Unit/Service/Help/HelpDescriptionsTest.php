@@ -108,7 +108,7 @@ final class HelpDescriptionsTest extends TestCase
     /** @return list<string> */
     private function scheduledMessageClasses(): array
     {
-        $reader = new ScheduledSyncReader(new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore())));
+        $reader = new ScheduledSyncReader([new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore()))]);
 
         return array_map(static fn ($sync): string => $sync->messageClass, $reader->read());
     }
