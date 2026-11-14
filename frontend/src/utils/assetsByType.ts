@@ -77,6 +77,27 @@ export function typeGroupVolume(group: TypeGroup, catalog: PackagedVolumeCatalog
   return { cubicMeters: unitVolume * group.totalQuantity, unknownTypeCount: 0 }
 }
 
+export function summarizeTypeGroupsVolume(groups: readonly TypeGroup[], catalog: PackagedVolumeCatalog): VolumeSummary {
+  let cubicMeters = 0
+  let unknownTypeCount = 0
+  for (const group of groups) {
+    const volume = typeGroupVolume(group, catalog)
+    if (volume !== null) {
+      cubicMeters += volume.cubicMeters
+      unknownTypeCount += volume.unknownTypeCount
+    }
+  }
+  return { cubicMeters, unknownTypeCount }
+}
+
+export function typeGroupLocationNames(groups: readonly TypeGroup[]): string[] {
+  const names = new Set<string>()
+  for (const group of groups) {
+    group.locations.forEach(location => names.add(location.locationName))
+  }
+  return Array.from(names).sort((a, b) => a.localeCompare(b))
+}
+
 function knownVolume(group: TypeGroup, catalog: PackagedVolumeCatalog | null): number | null {
   const volume = catalog === null ? null : typeGroupVolume(group, catalog)
   return volume === null || volume.unknownTypeCount > 0 ? null : volume.cubicMeters

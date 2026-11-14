@@ -1,4 +1,5 @@
 import type { Asset } from '@/types'
+import type { TypeGroup } from '@/utils/assetsByType'
 
 export interface SelectionLine {
   typeName: string
@@ -9,6 +10,27 @@ export interface SelectionSummary {
   lines: SelectionLine[]
   itemCount: number
   unknownTypeCount: number
+}
+
+export function summarizeTypeSelection(
+  groups: readonly TypeGroup[],
+  unnamedTypeIds: ReadonlySet<number>,
+): SelectionSummary {
+  const lines: SelectionLine[] = []
+  let itemCount = 0
+  let unknownTypeCount = 0
+
+  for (const group of groups) {
+    itemCount += group.totalQuantity
+    if (unnamedTypeIds.has(group.typeId)) {
+      unknownTypeCount += 1
+    } else {
+      lines.push({ typeName: group.typeName, quantity: group.totalQuantity })
+    }
+  }
+
+  lines.sort((a, b) => a.typeName.localeCompare(b.typeName))
+  return { lines, itemCount, unknownTypeCount }
 }
 
 export function summarizeSelection(

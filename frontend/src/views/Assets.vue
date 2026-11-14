@@ -17,8 +17,8 @@ import { useTypeNames } from '@/composables/useTypeNames'
 import { useAssetChanges } from '@/composables/useAssetChanges'
 import { useAssetBrowse, type AssetSearchState } from '@/composables/useAssetBrowse'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
-import { filterTypeGroups, groupAssetsByType } from '@/utils/assetsByType'
-import { summarizeSelection } from '@/utils/assetSelection'
+import { filterTypeGroups, groupAssetsByType, summarizeTypeGroupsVolume, typeGroupLocationNames } from '@/utils/assetsByType'
+import { summarizeSelection, summarizeTypeSelection } from '@/utils/assetSelection'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 import { usePinnedContainers } from '@/composables/usePinnedContainers'
 import { usePackagedVolumes } from '@/composables/usePackagedVolumes'
@@ -95,6 +95,7 @@ const selectedDivision = ref<string>(urlFilters.division)
 const expandedContainers = ref<Set<number>>(new Set())
 const collapsedLocations = ref<Set<string>>(new Set())
 const selectedLocationNames = ref<Set<string>>(new Set())
+const selectedTypeIds = ref<Set<number>>(new Set())
 const locationSort = ref<AssetLocationSort>(urlFilters.locationSort)
 const freshnessNow = ref(new Date())
 
@@ -331,6 +332,18 @@ function clearLocationSelection() {
   selectedLocationNames.value = new Set()
 }
 
+function toggleTypeSelection(typeId: number) {
+  const next = new Set(selectedTypeIds.value)
+  if (!next.delete(typeId)) {
+    next.add(typeId)
+  }
+  selectedTypeIds.value = next
+}
+
+function clearTypeSelection() {
+  selectedTypeIds.value = new Set()
+}
+
 async function loadExpandedLocations() {
   const pending = summaryLocations.value.filter(location => !collapsedLocations.value.has(location.locationName))
   try {
@@ -439,6 +452,22 @@ const selectionVolume = computed(() =>
     ? null
     : summarizeVolume(selectedLocations.value.flatMap(location => location.assets), getContentsOfItem, packagedVolumeCatalog.value),
 )
+
+const selectedTypeGroups = computed(() =>
+  typeGroups.value.filter(group => selectedTypeIds.value.has(group.typeId)),
+)
+
+const unnamedTypeIds = computed(() =>
+  new Set(poolAssets.value.filter(asset => asset.typeName === null).map(asset => asset.typeId)),
+)
+
+const typeSelectionSummary = computed(() => summarizeTypeSelection(selectedTypeGroups.value, unnamedTypeIds.value))
+
+const typeSelectionVolume = computed(() =>
+  packagedVolumeCatalog.value === null ? null : summarizeTypeGroupsVolume(selectedTypeGroups.value, packagedVolumeCatalog.value),
+)
+
+const typeSelectionLocationNames = computed(() => typeGroupLocationNames(selectedTypeGroups.value))
 
 const largestLocationQuantity = computed(() =>
   assetsByLocation.value.reduce((largest, location) => Math.max(largest, location.totalQuantity), 0),
@@ -908,6 +937,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
   resetBrowse()
   stopSearchTimeout()
   clearLocationSelection()
+  clearTypeSelection()
   nextRefreshAt.value = null
   hasLoadedCurrentOwner.value = false
   isReloading.value = false
@@ -1116,7 +1146,23 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
           </div>
 
           <!-- Assets by type -->
-          <AssetTypeView v-else-if="isTypeView" :groups="typeGroups" :packaged-volumes="packagedVolumeCatalog" />
+          <div v-else-if="isTypeView" class="space-y-4">
+            <AssetTypeView
+              :groups="typeGroups"
+              :packaged-volumes="packagedVolumeCatalog"
+              :selected-type-ids="selectedTypeIds"
+              @toggle-selection="toggleTypeSelection"
+            />
+            <AssetSelectionBar
+              v-if="selectedTypeGroups.length > 0"
+              kind="type"
+              :count="selectedTypeGroups.length"
+              :location-names="typeSelectionLocationNames"
+              :summary="typeSelectionSummary"
+              :volume="typeSelectionVolume"
+              @clear="clearTypeSelection"
+            />
+          </div>
 
           <!-- Assets by location -->
           <div v-else class="relative rounded-xl space-y-4" :class="{ 'hud-updated': assetsUpdated }">
@@ -1161,7 +1207,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             />
             <AssetSelectionBar
               v-if="selectedLocations.length > 0 && selectionSummary !== null"
-              :location-count="selectedLocations.length"
+              :count="selectedLocations.length"
               :location-names="selectedLocations.map(location => location.locationName)"
               :summary="selectionSummary"
               :volume="selectionVolume"

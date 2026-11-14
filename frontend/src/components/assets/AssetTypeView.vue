@@ -10,9 +10,15 @@ import type { PackagedVolumeCatalog } from '@/utils/assetVolume'
 const props = withDefaults(defineProps<{
   groups: TypeGroup[]
   packagedVolumes?: PackagedVolumeCatalog | null
+  selectedTypeIds?: ReadonlySet<number>
 }>(), {
   packagedVolumes: null,
+  selectedTypeIds: () => new Set<number>(),
 })
+
+const emit = defineEmits<{
+  'toggle-selection': [typeId: number]
+}>()
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -91,33 +97,43 @@ function formatNumber(value: number): string {
     <div class="divide-y divide-slate-800">
       <div v-for="group in sortedGroups" :key="group.typeId">
         <div data-testid="asset-type-row" class="px-5 py-3 flex items-center justify-between gap-4 hover:bg-slate-800/30 transition-colors">
-          <button
-            type="button"
-            class="flex items-center gap-3 min-w-0 text-left"
-            :aria-expanded="expandedTypeIds.has(group.typeId)"
-            :aria-label="t('assets.byType.toggleLocations', { type: group.typeName })"
-            @click="toggleType(group.typeId)"
-          >
-            <img
-              :src="getTypeIconUrl(group.typeId, 32, group.categoryId ?? undefined)"
-              :alt="group.typeName"
-              class="w-8 h-8 rounded-sm shrink-0"
-              loading="lazy"
-              @error="onImageError"
+          <div class="flex items-center gap-3 min-w-0">
+            <input
+              type="checkbox"
+              data-testid="type-select"
+              :checked="props.selectedTypeIds.has(group.typeId)"
+              :aria-label="t('assets.selection.selectType', { type: group.typeName })"
+              class="w-4 h-4 rounded-sm accent-cyan-500 cursor-pointer shrink-0"
+              @click="emit('toggle-selection', group.typeId)"
             />
-            <span class="text-slate-200 truncate">{{ group.typeName }}</span>
-            <span class="flex items-center gap-1 text-xs text-amber-400 shrink-0">
-              {{ t('assets.byType.locationsCount', { count: group.locations.length }, group.locations.length) }}
-              <svg
-                :class="['w-3 h-3 transition-transform', expandedTypeIds.has(group.typeId) && 'rotate-180']"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </span>
-          </button>
+            <button
+              type="button"
+              class="flex items-center gap-3 min-w-0 text-left"
+              :aria-expanded="expandedTypeIds.has(group.typeId)"
+              :aria-label="t('assets.byType.toggleLocations', { type: group.typeName })"
+              @click="toggleType(group.typeId)"
+            >
+              <img
+                :src="getTypeIconUrl(group.typeId, 32, group.categoryId ?? undefined)"
+                :alt="group.typeName"
+                class="w-8 h-8 rounded-sm shrink-0"
+                loading="lazy"
+                @error="onImageError"
+              />
+              <span class="text-slate-200 truncate">{{ group.typeName }}</span>
+              <span class="flex items-center gap-1 text-xs text-amber-400 shrink-0">
+                {{ t('assets.byType.locationsCount', { count: group.locations.length }, group.locations.length) }}
+                <svg
+                  :class="['w-3 h-3 transition-transform', expandedTypeIds.has(group.typeId) && 'rotate-180']"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </span>
+            </button>
+          </div>
           <div class="flex items-center gap-3 shrink-0">
             <AssetVolumeBadge v-if="volumeOf(group)" :volume="volumeOf(group)!" test-id="type-volume" />
             <OpenInGameButton type="market" :targetId="group.typeId" />

@@ -2140,7 +2140,9 @@
     },
     "selection": {
       "selectLocation": "Sélectionner {location}",
+      "selectType": "Sélectionner {type}",
       "summary": "{count} emplacement sélectionné | {count} emplacements sélectionnés",
+      "typeSummary": "{count} type sélectionné | {count} types sélectionnés",
       "clear": "Effacer",
       "unknownTypes": "{count} type sans nom est exclu du multibuy | {count} types sans nom sont exclus du multibuy"
     },
