@@ -90,7 +90,7 @@ async function mountAssets(query: LocationQuery = {}) {
 type Wrapper = Awaited<ReturnType<typeof mountAssets>>
 
 function requestedEndpoints(): string[] {
-  return fetchMock.mock.calls.map(call => String(call[0])).filter(url => url.startsWith('/api/me/') && !url.endsWith('/visibility') && !url.endsWith('/assets/changes') && !url.endsWith('/packaged-volumes'))
+  return fetchMock.mock.calls.map(call => String(call[0])).filter(url => url.startsWith('/api/me/') && !url.endsWith('/visibility') && !url.endsWith('/packaged-volumes') && !url.endsWith('/assets/changes'))
 }
 
 function selectLabelled(wrapper: Wrapper, label: string) {
