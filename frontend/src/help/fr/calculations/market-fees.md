@@ -9,7 +9,7 @@ Les frais de vente sont la somme de deux taux : le **courtage** (frais de l'ordr
 - **Menu « Industrie », onglet « Analyse », sous-onglet « Marges ».** L'en-tête du tableau « Comparaison prix de vente » affiche « Courtage » suivi du taux, et la colonne « Frais » le montant par lieu de vente. La carte « Où vendre » donne les « Frais », le « Net / u » de chaque marché et le « Net » de la « Vente immédiate · ordres d'achat Jita ».
 - **Sous-onglets « Scan », « Achat vs Prod » et « Pivot ».** La marge de chaque ligne est nette des frais.
 - **Onglet « Atelier », carte « Quoi produire ».** Le profit par semaine est net des frais du vendeur.
-- **Un projet, onglet « Distribution ».** Le « Résumé financier » affiche « Frais courtier (x %) » et « Taxe de vente (x %) ». Ces deux taux sont ceux du projet, copiés à sa création (voir plus bas).
+- **Un projet, onglet « Finances ».** Le « Résumé financier » affiche « Frais courtier (x %) » et « Taxe de vente (x %) ». Ces deux taux sont ceux du projet, copiés à sa création (voir plus bas).
 
 ## Qui est le vendeur
 

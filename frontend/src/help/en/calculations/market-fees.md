@@ -9,7 +9,7 @@ The sale fees are the sum of two rates: the **broker fee** (charged on a sell or
 - **"Industry" menu, "Analysis" tab, "Margins" sub-tab.** The header of the "Sell Price Comparison" table shows "Broker fee" followed by the rate, and the "Fees" column gives the amount per venue. The "Where to sell" card gives the "Fees", the "Net / unit" of each market and the "Net" of the "Immediate sale · Jita buy orders".
 - **"Batch Scan", "Buy vs Build" and "Pivot" sub-tabs.** The margin of each row is net of the fees.
 - **"Workshop" tab, "What to produce" card.** The weekly profit is net of the seller fees.
-- **A project, "Distribution" tab.** The "Financial Summary" shows "Broker Fee (x%)" and "Sales Tax (x%)". These two rates belong to the project, copied when it was created (see below).
+- **A project, "Finances" tab.** The "Financial Summary" shows "Broker Fee (x%)" and "Sales Tax (x%)". These two rates belong to the project, copied when it was created (see below).
 
 ## Who the seller is
 
