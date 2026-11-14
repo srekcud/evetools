@@ -1,7 +1,8 @@
 import type { Asset } from '@/types'
+import type { PackagedVolumeCatalog, VolumeSummary } from '@/utils/assetVolume'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 
-export type TypeSortKey = 'quantity' | 'name'
+export type TypeSortKey = 'quantity' | 'name' | 'volume'
 export type SortDirection = 'asc' | 'desc'
 
 export interface TypeGroupLocation {
@@ -65,11 +66,48 @@ export function groupAssetsByType(assets: Asset[], typeLabel: (asset: Asset) => 
   return sortTypeGroups(Array.from(groups.values()), 'quantity', 'desc')
 }
 
-export function sortTypeGroups(groups: TypeGroup[], key: TypeSortKey, direction: SortDirection): TypeGroup[] {
+export function typeGroupVolume(group: TypeGroup, catalog: PackagedVolumeCatalog): VolumeSummary | null {
+  if (catalog.excludedTypeIds.has(group.typeId)) {
+    return null
+  }
+  const unitVolume = catalog.volumes.get(group.typeId)
+  if (unitVolume === undefined) {
+    return { cubicMeters: 0, unknownTypeCount: 1 }
+  }
+  return { cubicMeters: unitVolume * group.totalQuantity, unknownTypeCount: 0 }
+}
+
+function knownVolume(group: TypeGroup, catalog: PackagedVolumeCatalog | null): number | null {
+  const volume = catalog === null ? null : typeGroupVolume(group, catalog)
+  return volume === null || volume.unknownTypeCount > 0 ? null : volume.cubicMeters
+}
+
+function compareByName(a: TypeGroup, b: TypeGroup): number {
+  return a.typeName.localeCompare(b.typeName)
+}
+
+export function sortTypeGroups(
+  groups: TypeGroup[],
+  key: TypeSortKey,
+  direction: SortDirection,
+  catalog: PackagedVolumeCatalog | null = null,
+): TypeGroup[] {
   const sign = direction === 'asc' ? 1 : -1
+
+  if (key === 'volume') {
+    return groups.slice().sort((a, b) => {
+      const volumeA = knownVolume(a, catalog)
+      const volumeB = knownVolume(b, catalog)
+      if (volumeA === null || volumeB === null) {
+        return volumeA === volumeB ? compareByName(a, b) : volumeA === null ? 1 : -1
+      }
+      return sign * (volumeA - volumeB) || compareByName(a, b)
+    })
+  }
+
   const compare = key === 'name'
-    ? (a: TypeGroup, b: TypeGroup) => a.typeName.localeCompare(b.typeName)
-    : (a: TypeGroup, b: TypeGroup) => a.totalQuantity - b.totalQuantity || a.typeName.localeCompare(b.typeName)
+    ? compareByName
+    : (a: TypeGroup, b: TypeGroup) => a.totalQuantity - b.totalQuantity || compareByName(a, b)
   return groups.slice().sort((a, b) => sign * compare(a, b))
 }
 

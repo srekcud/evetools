@@ -3,22 +3,31 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
-import { sortTypeGroups, type SortDirection, type TypeGroup, type TypeSortKey } from '@/utils/assetsByType'
+import AssetVolumeBadge from '@/components/assets/AssetVolumeBadge.vue'
+import { sortTypeGroups, typeGroupVolume, type SortDirection, type TypeGroup, type TypeSortKey } from '@/utils/assetsByType'
+import type { PackagedVolumeCatalog } from '@/utils/assetVolume'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   groups: TypeGroup[]
-}>()
+  packagedVolumes?: PackagedVolumeCatalog | null
+}>(), {
+  packagedVolumes: null,
+})
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
 
-const DEFAULT_DIRECTION: Record<TypeSortKey, SortDirection> = { quantity: 'desc', name: 'asc' }
+const DEFAULT_DIRECTION: Record<TypeSortKey, SortDirection> = { quantity: 'desc', name: 'asc', volume: 'desc' }
 
 const sortKey = ref<TypeSortKey>('quantity')
 const sortDirection = ref<SortDirection>(DEFAULT_DIRECTION.quantity)
 const expandedTypeIds = ref<Set<number>>(new Set())
 
-const sortedGroups = computed(() => sortTypeGroups(props.groups, sortKey.value, sortDirection.value))
+const sortedGroups = computed(() => sortTypeGroups(props.groups, sortKey.value, sortDirection.value, props.packagedVolumes))
+
+function volumeOf(group: TypeGroup) {
+  return props.packagedVolumes === null ? null : typeGroupVolume(group, props.packagedVolumes)
+}
 
 function chooseSort(key: TypeSortKey): void {
   if (sortKey.value === key) {
@@ -61,6 +70,15 @@ function formatNumber(value: number): string {
         {{ t('assets.byType.sortName') }} {{ sortIndicator('name') }}
       </button>
       <button
+        v-if="packagedVolumes !== null"
+        type="button"
+        class="hover:text-slate-200 transition-colors"
+        :aria-pressed="sortKey === 'volume'"
+        @click="chooseSort('volume')"
+      >
+        {{ t('assets.byType.sortVolume') }} {{ sortIndicator('volume') }}
+      </button>
+      <button
         type="button"
         class="hover:text-slate-200 transition-colors"
         :aria-pressed="sortKey === 'quantity'"
@@ -101,6 +119,7 @@ function formatNumber(value: number): string {
             </span>
           </button>
           <div class="flex items-center gap-3 shrink-0">
+            <AssetVolumeBadge v-if="volumeOf(group)" :volume="volumeOf(group)!" test-id="type-volume" />
             <OpenInGameButton type="market" :targetId="group.typeId" />
             <span class="font-mono text-slate-300">{{ formatNumber(group.totalQuantity) }}</span>
           </div>

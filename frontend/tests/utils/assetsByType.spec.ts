@@ -1,4 +1,5 @@
-import { filterTypeGroups, groupAssetsByType, sortTypeGroups } from '@/utils/assetsByType'
+import { filterTypeGroups, groupAssetsByType, sortTypeGroups, typeGroupVolume, type TypeGroup } from '@/utils/assetsByType'
+import type { PackagedVolumeCatalog } from '@/utils/assetVolume'
 import type { Asset } from '@/types'
 
 const HOME_STATION = 'Home Station'
@@ -158,5 +159,56 @@ describe('filterTypeGroups', () => {
 
   it('returns nothing when no type matches', () => {
     expect(filterTypeGroups(groups, { ...noFilter, searchQuery: 'zzz' })).toEqual([])
+  })
+})
+
+describe('type volume', () => {
+  const EXCLUDED_TYPE = 17368
+  const UNLISTED_TYPE = 999001
+  const catalog: PackagedVolumeCatalog = {
+    volumes: new Map([[TRITANIUM, 0.01], [PYERITE, 0.5]]),
+    excludedTypeIds: new Set([EXCLUDED_TYPE]),
+  }
+
+  function group(typeId: number, typeName: string, totalQuantity: number): TypeGroup {
+    return { typeId, typeName, categoryId: 4, totalQuantity, locations: [] }
+  }
+
+  it('multiplies the unit volume by the total quantity of the row', () => {
+    expect(typeGroupVolume(group(PYERITE, 'Pyerite', 10), catalog)).toEqual({ cubicMeters: 5, unknownTypeCount: 0 })
+  })
+
+  it('flags a type absent from the catalogue instead of inventing a volume', () => {
+    expect(typeGroupVolume(group(UNLISTED_TYPE, 'Mystery Crate', 4), catalog)).toEqual({ cubicMeters: 0, unknownTypeCount: 1 })
+  })
+
+  it('returns no volume for an excluded type', () => {
+    expect(typeGroupVolume(group(EXCLUDED_TYPE, 'Station Warehouse Container', 1), catalog)).toBeNull()
+  })
+
+  it('sorts by volume, descending then ascending', () => {
+    const groups = [group(TRITANIUM, 'Tritanium', 100), group(PYERITE, 'Pyerite', 10), group(36, 'Mexallon', 1)]
+    const withMexallon: PackagedVolumeCatalog = { ...catalog, volumes: new Map([...catalog.volumes, [36, 0.25]]) }
+
+    expect(sortTypeGroups(groups, 'volume', 'desc', withMexallon).map(entry => entry.typeName)).toEqual(['Pyerite', 'Tritanium', 'Mexallon'])
+    expect(sortTypeGroups(groups, 'volume', 'asc', withMexallon).map(entry => entry.typeName)).toEqual(['Mexallon', 'Tritanium', 'Pyerite'])
+  })
+
+  it('keeps types without volume last in both directions, ordered by name', () => {
+    const groups = [
+      group(UNLISTED_TYPE, 'Mystery Crate', 4),
+      group(PYERITE, 'Pyerite', 10),
+      group(EXCLUDED_TYPE, 'Station Warehouse Container', 1),
+      group(TRITANIUM, 'Tritanium', 100),
+    ]
+
+    expect(sortTypeGroups(groups, 'volume', 'desc', catalog).map(entry => entry.typeName)).toEqual(['Pyerite', 'Tritanium', 'Mystery Crate', 'Station Warehouse Container'])
+    expect(sortTypeGroups(groups, 'volume', 'asc', catalog).map(entry => entry.typeName)).toEqual(['Tritanium', 'Pyerite', 'Mystery Crate', 'Station Warehouse Container'])
+  })
+
+  it('leaves the quantity sort untouched', () => {
+    const groups = [group(TRITANIUM, 'Tritanium', 100), group(PYERITE, 'Pyerite', 10)]
+
+    expect(sortTypeGroups(groups, 'quantity', 'desc').map(entry => entry.typeName)).toEqual(['Tritanium', 'Pyerite'])
   })
 })

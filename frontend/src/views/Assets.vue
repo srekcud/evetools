@@ -1116,7 +1116,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
           </div>
 
           <!-- Assets by type -->
-          <AssetTypeView v-else-if="isTypeView" :groups="typeGroups" />
+          <AssetTypeView v-else-if="isTypeView" :groups="typeGroups" :packaged-volumes="packagedVolumeCatalog" />
 
           <!-- Assets by location -->
           <div v-else class="relative rounded-xl space-y-4" :class="{ 'hud-updated': assetsUpdated }">
