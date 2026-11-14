@@ -127,7 +127,23 @@
     "menu": "Menu de navigation",
     "account": "Compte",
     "planetary": "Planétaire",
-    "patrimoine": "Patrimoine"
+    "patrimoine": "Patrimoine",
+    "help": "Aide"
+  },
+  "help": {
+    "title": "Aide",
+    "backToApp": "Retour à l'application",
+    "backToIndex": "Retour à l'index de l'aide",
+    "breadcrumbLabel": "Fil d'Ariane",
+    "emptySection": "Aucune page dans cette section pour le moment.",
+    "pageNotFound": "Cette page d'aide n'existe pas.",
+    "sections": {
+      "faq": { "title": "Questions fréquentes" },
+      "playbooks": { "title": "Guides pas à pas" },
+      "calculations": { "title": "Calculs" },
+      "data": { "title": "Données" },
+      "limits": { "title": "Limites" }
+    }
   },
   "commandPalette": {
     "open": "Ouvrir la palette de commandes (Ctrl+K)",
