@@ -99,6 +99,47 @@ services:
       - app
       - rabbitmq
 
+  worker-on-demand:
+    image: evetools-app
+    entrypoint: ["php"]
+    command: ["bin/console", "messenger:consume", "on_demand", "--time-limit=3600", "--memory-limit=256M"]
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      evetools_net:
+        ipv4_address: 10.169.0.7
+    environment:
+      - APP_SECRET=${APP_SECRET:-!ChangeMe!}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-eve_user}:${POSTGRES_PASSWORD:-eve_pass}@postgres:5432/${POSTGRES_DB:-eve_app}?serverVersion=16&charset=utf8
+      - MESSENGER_TRANSPORT_DSN=amqp://${RABBITMQ_USER:-eve_user}:${RABBITMQ_PASSWORD:-eve_pass}@rabbitmq:5672/%2f/messages
+      - REDIS_URL=redis://redis:6379
+      - LOCK_DSN=redis://redis:6379
+      - EVE_CLIENT_ID=${EVE_CLIENT_ID:-}
+      - EVE_CLIENT_SECRET=${EVE_CLIENT_SECRET:-}
+      - ESI_BASE_URL=https://esi.evetech.net/latest
+      - ESI_TOKEN_ENCRYPTION_KEY=${ESI_TOKEN_ENCRYPTION_KEY:-}
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-https://evetools.local}
+      - DEFAULT_URI=${DEFAULT_URI:-https://evetools.local}
+      - MERCURE_URL=${MERCURE_URL:-http://app/.well-known/mercure}
+      - MERCURE_PUBLIC_URL=${MERCURE_PUBLIC_URL:-/.well-known/mercure}
+      - MERCURE_RESOURCE_IDENTIFIER=${MERCURE_RESOURCE_IDENTIFIER:-https://${DOMAIN:-evetools.local}/.well-known/mercure}
+      - MERCURE_JWT_SECRET=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
+      - MERCURE_PUBLISHER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
+      - MERCURE_SUBSCRIBER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-}
+      - ADMIN_CHARACTER_IDS=${ADMIN_CHARACTER_IDS:-}
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep messenger:consume || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      - app
+      - rabbitmq
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped

@@ -11,6 +11,7 @@ use App\Security\AdminChecker;
 use App\Service\Admin\MessengerQueueService;
 use App\State\Provider\Admin\QueueStatusProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -39,13 +40,43 @@ class QueueStatusProviderTest extends TestCase
         $security->method('getUser')->willReturn($this->adminUser());
         $provider = new QueueStatusProvider(
             $security,
-            new MessengerQueueService($asyncTransport, new InMemoryTransport()),
+            new MessengerQueueService($asyncTransport, new InMemoryTransport(), new InMemoryTransport()),
             new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID),
         );
 
         $resource = $provider->provide(new Get());
 
-        $this->assertSame(['async' => 5, 'failed' => null], $resource->queues);
+        $this->assertSame(5, $resource->queues['async']);
+        $this->assertArrayHasKey('failed', $resource->queues);
+        $this->assertNull($resource->queues['failed']);
+    }
+
+    #[Group('issue-838')]
+    public function testQueuesExposeTheOnDemandDepthNextToTheOthers(): void
+    {
+        $onDemandTransport = new class(2) extends InMemoryTransport implements MessageCountAwareInterface {
+            public function __construct(private readonly int $messageCount)
+            {
+                parent::__construct();
+            }
+
+            public function getMessageCount(): int
+            {
+                return $this->messageCount;
+            }
+        };
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->adminUser());
+        $provider = new QueueStatusProvider(
+            $security,
+            new MessengerQueueService(new InMemoryTransport(), new InMemoryTransport(), $onDemandTransport),
+            new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID),
+        );
+
+        $resource = $provider->provide(new Get());
+
+        $this->assertArrayHasKey('on_demand', $resource->queues);
+        $this->assertSame(2, $resource->queues['on_demand']);
     }
 
     private function adminUser(): User

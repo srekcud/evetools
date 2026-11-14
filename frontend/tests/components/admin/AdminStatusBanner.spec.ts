@@ -66,11 +66,23 @@ describe('AdminStatusBanner', () => {
   })
 
   it('has a French text for every rule key', () => {
-    const keys = ['scheduler_stale', 'scheduler_error', 'failed_messages', 'async_queue_backlog', 'async_queue_unreachable', 'failed_queue_unreachable', 'tokens_invalid']
+    const keys = ['scheduler_stale', 'scheduler_error', 'failed_messages', 'async_queue_backlog', 'async_queue_unreachable', 'failed_queue_unreachable', 'tokens_invalid', 'message_unacked_too_long']
     const wrapper = mountBanner({ level: 'degraded', rules: keys.map(key => rule({ key })) }, 'fr')
 
     wrapper.findAll('[data-testid="admin-status-rule"]').forEach(line => {
       expect(line.text()).not.toContain('admin.status')
     })
+  })
+
+  it.each(['en', 'fr'] as const)('shows the running time and the threshold of a message running too long in %s', locale => {
+    const wrapper = mountBanner(
+      { level: 'degraded', rules: [rule({ key: 'message_unacked_too_long', value: 39600, threshold: 3600, section: 'maintenance' })] },
+      locale,
+    )
+
+    const text = wrapper.get('[data-testid="admin-status-rule"]').text()
+    expect(text).not.toContain('admin.status')
+    expect(text).toContain('39600')
+    expect(text).toContain('3600')
   })
 })

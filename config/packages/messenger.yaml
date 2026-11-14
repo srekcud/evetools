@@ -10,14 +10,26 @@ framework:
                     delay: 1000
                     multiplier: 2
                     max_delay: 0
+            on_demand:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    exchange:
+                        name: on_demand
+                    queues:
+                        on_demand: ~
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 0
             failed:
                 dsn: 'doctrine://default?queue_name=failed&auto_setup=false'
 
         routing:
-            App\Message\SyncCharacterAssets: async
-            App\Message\SyncCorporationAssets: async
-            App\Message\TriggerAssetsSync: async
-            App\Message\TriggerCorporationAssetsSync: async
+            App\Message\SyncCharacterAssets: on_demand
+            App\Message\SyncCorporationAssets: on_demand
+            App\Message\TriggerAssetsSync: on_demand
+            App\Message\TriggerCorporationAssetsSync: on_demand
             App\Message\TriggerPlanetarySync: async
             App\Message\SyncPlanetaryColonies: async
             App\Message\SyncCharacterPlanetaryColonies: async
@@ -62,3 +74,4 @@ when@test:
         messenger:
             transports:
                 async: 'in-memory://'
+                on_demand: 'in-memory://'

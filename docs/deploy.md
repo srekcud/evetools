@@ -112,3 +112,16 @@ Le hub est celui de FrankenPHP (`frankenphp/Caddyfile`), protocole Mercure 1.0.
 - `MERCURE_JWT_SECRET` : secret HMAC du hub et du bundle, 32 octets au moins (en dessous, le hub démarre avec un avertissement).
 - `MERCURE_RESOURCE_IDENTIFIER` : identifiant du hub, porté par `iss` et `aud` des JWT. Défaut du compose : `https://${DOMAIN}/.well-known/mercure`. Il doit être identique pour `app` et `worker`.
 - Les navigateurs reçoivent leur JWT dans le cookie `__Secure-mercure_access_token` (`GET /api/mercure/token`) et s'abonnent avec `?match=<topic>`. Le paramètre `?topic=` et le JWT en query string répondent 400.
+
+## Worker des syncs à la demande
+
+Deux workers consomment les messages Messenger :
+
+- `worker` : transports `async` et `scheduler_default` (tâches planifiées et syncs des autres modules). Il garde `async` pour consommer les messages d'assets publiés avant le déploiement de #838.
+- `worker-on-demand` : transport `on_demand` seul (exchange et file `on_demand`), qui porte `SyncCharacterAssets`, `SyncCorporationAssets`, `TriggerAssetsSync` et `TriggerCorporationAssetsSync`. Une sync d'assets longue ne bloque plus les tâches planifiées.
+
+Démarrage : `docker compose -f docker-compose.yaml -f docker-compose.prod.yml up -d worker-on-demand` (avec `APP_VERSION` exporté). Commande du conteneur : `bin/console messenger:consume on_demand --time-limit=3600 --memory-limit=256M`.
+
+- `bin/deploy` ne connaît que `app` et `worker` : tant que `worker-on-demand` n'est pas ajouté à ses commandes d'arrêt, de démarrage et de `up --wait`, ce service garde l'ancienne image après une release.
+- La limite de conteneur (512M, comme `worker`) est une valeur par défaut : lire `free -m` sur le serveur avant le premier démarrage.
+- L'état admin lève `message_unacked_too_long` (dégradé) quand un message reste en cours plus de 3600 s ; `GET /api/admin/queues` expose aussi `queues.on_demand`.

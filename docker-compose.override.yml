@@ -66,5 +66,12 @@ services:
     environment:
       - APP_ENV=dev
 
+  worker-on-demand:
+    command: ["bin/console", "messenger:consume", "on_demand", "--time-limit=3600", "--memory-limit=256M", "-vv"]
+    volumes:
+      - .:/app
+    environment:
+      - APP_ENV=dev
+
   rabbitmq:
     image: rabbitmq:4-management-alpine
