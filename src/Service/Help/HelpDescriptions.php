@@ -17,6 +17,7 @@ use App\Message\SyncBlueprints;
 use App\Message\SyncCharacterOrders;
 use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
+use App\Message\SyncPackagedVolumes;
 use App\Message\SyncPublicContracts;
 use App\Message\SyncRegionalMarketVolumes;
 use App\Message\SyncWalletTransactions;
@@ -94,6 +95,7 @@ final readonly class HelpDescriptions
         PurgeOldMarketHistory::class => ['fr' => 'Purge de l\'historique de marché', 'en' => 'Purge of market history'],
         PurgeExpiredSharedLists::class => ['fr' => 'Purge des listes d\'achats partagées expirées', 'en' => 'Purge of expired shared shopping lists'],
         CheckSdeBuild::class => ['fr' => 'Version du SDE (alerte aux admins, aucun import automatique)', 'en' => 'SDE build (admin alert, no automatic import)'],
+        SyncPackagedVolumes::class => ['fr' => 'Volumes reconditionnés des types présents dans les inventaires', 'en' => 'Packaged volumes of the types found in inventories'],
     ];
 
     private const array ON_DEMAND_SYNC_LABELS = [
