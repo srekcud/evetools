@@ -22,7 +22,7 @@ const FILLER_STATION_COUNT = 11
 const SEARCH_DEBOUNCE_MS = 300
 const OWNER = `/api/me/characters/${CHARACTER_ID}/assets`
 
-function asset(overrides: Record<string, unknown>) {
+function asset(overrides: Record<string, unknown>): Record<string, unknown> {
   return {
     categoryId: 4,
     locationId: HOME_STATION_ID,

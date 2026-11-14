@@ -55,7 +55,7 @@ const rawAssets = [
 
 const writeText = vi.fn<(text: string) => Promise<void>>()
 
-async function mountAssets(items: unknown[] = rawAssets) {
+async function mountAssets(items: Record<string, unknown>[] = rawAssets) {
   const pinia = createPinia()
   setActivePinia(pinia)
   const authStore = useAuthStore()

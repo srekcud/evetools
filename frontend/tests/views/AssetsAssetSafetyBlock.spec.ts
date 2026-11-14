@@ -63,7 +63,7 @@ const volumesAnswer = {
 
 let volumesResponse: (() => Response) | null = null
 
-async function mountAssets(rawAssets: unknown[]) {
+async function mountAssets(rawAssets: Record<string, unknown>[]) {
   const pinia = createPinia()
   setActivePinia(pinia)
   const authStore = useAuthStore()
