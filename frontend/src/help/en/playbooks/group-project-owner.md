@@ -4,7 +4,7 @@ This playbook follows a group project from the side of the person who created it
 
 Labels in quotation marks are the ones on screen. Several are in English in the application whatever the language, or worded oddly, and are quoted as they appear.
 
-An admin sees the same screens as you and can review contributions, handle requests, record sales and change the status. Two things stay with the owner: appointing an admin, and matching your ESI jobs to the project lines ("Match jobs" in "Sourcing & jobs").
+An admin sees the same screens as you and can review contributions, handle requests, record sales and change the status. These stay with the owner: appointing an admin, purchases ("Purchases", "Link a job", "Unlink") and the matching of your ESI jobs to the project lines ("Match jobs" in "Sourcing & jobs").
 
 ## Before you start
 

@@ -4,7 +4,7 @@ Ce playbook suit un projet de groupe du côté de la personne qui l'a créé : p
 
 Les libellés entre guillemets « » sont ceux de l'écran. Plusieurs sont en anglais dans l'application, quelle que soit la langue (« Approve », « Reject », « Record Sale », « Promote », « Kick », « Profit Distribution »), ou écrits sans accent (« Publie », « Termine »). Ils sont repris tels quels.
 
-Un admin voit les mêmes écrans que vous et peut relire les contributions, traiter les demandes, enregistrer les ventes et changer le statut. Deux choses restent au propriétaire : nommer un admin, et associer vos jobs ESI aux lignes du projet (« Associer les jobs » dans « Approvisionnement & jobs »).
+Un admin voit les mêmes écrans que vous et peut relire les contributions, traiter les demandes, enregistrer les ventes et changer le statut. Restent au propriétaire : nommer un admin, les achats (« Achats », « Lier un job », « Délier ») et l'association de vos jobs ESI aux lignes du projet (« Associer les jobs » dans « Approvisionnement & jobs »).
 
 ## Avant de commencer
 
