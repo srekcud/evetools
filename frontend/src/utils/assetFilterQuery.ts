@@ -2,6 +2,8 @@ import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 
 export type AssetViewMode = 'character' | 'corporation'
 
+export type AssetLocationSort = 'items' | 'name' | 'volume'
+
 export interface AssetFilterState {
   viewMode: AssetViewMode
   characterId: string | null
@@ -9,10 +11,13 @@ export interface AssetFilterState {
   solarSystem: string
   location: string
   division: string
+  locationSort: AssetLocationSort
 }
 
-const OWNED_QUERY_KEYS = ['view', 'character', 'q', 'system', 'location', 'division'] as const
+const OWNED_QUERY_KEYS = ['view', 'character', 'q', 'system', 'location', 'division', 'sort'] as const
 const CORPORATION_VIEW = 'corporation'
+const DEFAULT_LOCATION_SORT: AssetLocationSort = 'items'
+const LOCATION_SORTS: readonly AssetLocationSort[] = ['items', 'name', 'volume']
 const LAST_CHARACTER_STORAGE_PREFIX = 'assetsLastCharacterId:'
 
 function textOf(value: LocationQuery[string] | undefined): string {
@@ -27,6 +32,7 @@ export function readAssetFilterQuery(query: LocationQuery): AssetFilterState {
     solarSystem: textOf(query.system),
     location: textOf(query.location),
     division: textOf(query.division),
+    locationSort: LOCATION_SORTS.find(sort => sort === query.sort) ?? DEFAULT_LOCATION_SORT,
   }
 }
 
@@ -44,6 +50,7 @@ export function writeAssetFilterQuery(current: LocationQuery, filters: AssetFilt
   if (filters.solarSystem) query.system = filters.solarSystem
   if (filters.location) query.location = filters.location
   if (filters.division) query.division = filters.division
+  if (filters.locationSort !== DEFAULT_LOCATION_SORT) query.sort = filters.locationSort
   return query
 }
 

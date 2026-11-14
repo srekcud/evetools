@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
+use App\Service\Assets\AssetSyncChangeRecorder;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationRoleReader;
@@ -47,6 +48,7 @@ class AssetsSyncServiceTest extends TestCase
     private CorporationService&Stub $corporationService;
     private CachedAssetRepository&MockObject $cachedAssetRepository;
     private CharacterRepository&Stub $characterRepository;
+    private AssetSyncChangeRecorder&MockObject $changeRecorder;
     private EntityManagerInterface&MockObject $em;
     private AssetsSyncService $service;
 
@@ -69,6 +71,7 @@ class AssetsSyncServiceTest extends TestCase
         $this->corporationService = $this->createStub(CorporationService::class);
         $this->cachedAssetRepository = $this->createMock(CachedAssetRepository::class);
         $this->characterRepository = $this->createStub(CharacterRepository::class);
+        $this->changeRecorder = $this->createMock(AssetSyncChangeRecorder::class);
         $esiClient = $this->createStub(EsiClient::class);
         $esiClient->method('get')->willReturnCallback(function (string $endpoint): array {
             $eveCharacterId = (int) preg_replace('#\D#', '', $endpoint);
@@ -109,6 +112,7 @@ class AssetsSyncServiceTest extends TestCase
             $this->em,
             new NullLogger(),
             $mercurePublisher,
+            $this->changeRecorder,
         );
     }
 
@@ -482,6 +486,60 @@ class AssetsSyncServiceTest extends TestCase
             static fn (CachedAsset $cachedAsset): ?string => $cachedAsset->getDivisionName(),
             $this->persistedAssets,
         ));
+    }
+
+    #[Group('issue-888')]
+    public function testSyncCharacterAssetsRecordsTheChangesBetweenTheCachedAndTheFreshAssets(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $before = [(new CachedAsset())->setItemId(1)->setTypeId(34)->setQuantity(5)];
+        $this->cachedAssetRepository->method('findByCharacter')->with($character)->willReturn($before);
+        $this->assetsService->method('getCharacterAssets')->willReturn([
+            $this->createAsset(itemId: 1001, locationFlag: 'Hangar'),
+        ]);
+
+        $this->changeRecorder->expects($this->once())->method('recordForCharacter')->with(
+            $character,
+            $before,
+            $this->callback(fn (array $after): bool => count($after) === 1 && $after[0] === $this->persistedAssets[0]),
+            $this->isInstanceOf(\DateTimeImmutable::class),
+        );
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCharacterAssets($character);
+    }
+
+    #[Group('issue-888')]
+    public function testSyncCorporationAssetsRecordsTheChangesBetweenTheCachedAndTheFreshAssets(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $before = [(new CachedAsset())->setItemId(1)->setTypeId(34)->setQuantity(5)];
+        $this->cachedAssetRepository->method('findByCorporationId')->with(98000001)->willReturn($before);
+        $this->corporationService->method('getDivisions')->willReturn([1 => 'Minerals']);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAsset(itemId: 2001, locationFlag: 'CorpSAG1'),
+        ]);
+
+        $this->changeRecorder->expects($this->once())->method('recordForCorporation')->with(
+            98000001,
+            $before,
+            $this->callback(fn (array $after): bool => count($after) === 1 && $after[0]->getDivisionName() === 'Minerals'),
+            $this->isInstanceOf(\DateTimeImmutable::class),
+        );
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character);
+    }
+
+    #[Group('issue-888')]
+    public function testAnEsiFailureRecordsNoChange(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->assetsService->method('getCharacterAssets')->willThrowException(new \RuntimeException('ESI down'));
+
+        $this->changeRecorder->expects($this->never())->method('recordForCharacter');
+
+        $this->catchThrowable(fn () => $this->service->syncCharacterAssets($character));
     }
 
     // ===========================================

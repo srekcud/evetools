@@ -90,6 +90,25 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     }
   }
 
+  async function reopenContribution(projectId: string, id: string): Promise<void> {
+    error.value = null
+    try {
+      const updated = await apiRequest<GroupContribution>(
+        `/industry/projects/${projectId}/contributions/${id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'pending' }),
+        },
+      )
+      const idx = contributions.value.findIndex(c => c.id === id)
+      if (idx !== -1) {
+        contributions.value[idx] = updated
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to reopen contribution'
+    }
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -103,6 +122,7 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     fetchLineRentalSuggestion,
     approveContribution,
     rejectContribution,
+    reopenContribution,
     clearError,
   }
 })

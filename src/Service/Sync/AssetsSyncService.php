@@ -11,6 +11,7 @@ use App\Entity\Character;
 use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
+use App\Service\Assets\AssetSyncChangeRecorder;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\CorporationService;
@@ -33,6 +34,7 @@ class AssetsSyncService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly AssetSyncChangeRecorder $changeRecorder,
     ) {
     }
 
@@ -49,6 +51,7 @@ class AssetsSyncService
             // Fetch before deleting: an ESI failure must keep the cached assets
             $assets = $this->assetsService->getCharacterAssets($character);
 
+            $previousAssets = $this->cachedAssetRepository->findByCharacter($character);
             $this->cachedAssetRepository->deleteByCharacter($character);
 
             // Notify progress
@@ -62,6 +65,7 @@ class AssetsSyncService
             }
 
             // Cache the assets
+            $cachedAssets = [];
             foreach ($assets as $assetDto) {
                 $cachedAsset = new CachedAsset();
                 $cachedAsset->setItemId($assetDto->itemId);
@@ -80,7 +84,10 @@ class AssetsSyncService
                 $cachedAsset->setIsCorporationAsset(false);
 
                 $this->entityManager->persist($cachedAsset);
+                $cachedAssets[] = $cachedAsset;
             }
+
+            $this->changeRecorder->recordForCharacter($character, $previousAssets, $cachedAssets, new \DateTimeImmutable());
 
             // Update character last sync time
             $character->updateLastSync();
@@ -136,6 +143,7 @@ class AssetsSyncService
             $divisions = $this->corporationService->getDivisions($character);
             $assets = $this->assetsService->getCorporationAssets($character);
 
+            $previousAssets = $this->cachedAssetRepository->findByCorporationId($corporationId);
             $this->cachedAssetRepository->deleteByCorporationId($corporationId);
 
             // Notify progress
@@ -154,6 +162,7 @@ class AssetsSyncService
             }
 
             // Cache the assets with division names
+            $cachedAssets = [];
             foreach ($assets as $assetDto) {
                 $cachedAsset = new CachedAsset();
                 $cachedAsset->setItemId($assetDto->itemId);
@@ -177,7 +186,10 @@ class AssetsSyncService
                 }
 
                 $this->entityManager->persist($cachedAsset);
+                $cachedAssets[] = $cachedAsset;
             }
+
+            $this->changeRecorder->recordForCorporation($corporationId, $previousAssets, $cachedAssets, new \DateTimeImmutable());
 
             $this->entityManager->flush();
 

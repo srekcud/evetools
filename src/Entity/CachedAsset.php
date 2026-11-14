@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Constant\EveConstants;
 use App\Constant\NameableAssetType;
 use App\Repository\CachedAssetRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -250,14 +249,7 @@ class CachedAsset
     public function canResolveItemName(?int $categoryId = null, ?int $groupId = null): bool
     {
         return NameableAssetType::accepts($categoryId, $groupId)
-            && $this->mayBeSingleton()
-            && $this->itemName === null
-            && $this->locationFlag !== EveConstants::OFFICE_LOCATION_FLAG;
-    }
-
-    private function mayBeSingleton(): bool
-    {
-        return $this->isSingleton ?? $this->quantity === 1;
+            && NameableAssetType::mayHoldCustomName($this->isSingleton, $this->quantity, $this->itemName, $this->locationFlag);
     }
 
     public function getCharacter(): ?Character

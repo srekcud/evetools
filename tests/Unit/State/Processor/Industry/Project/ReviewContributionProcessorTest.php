@@ -22,6 +22,7 @@ use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\JitaMarketService;
@@ -105,6 +106,7 @@ class ReviewContributionProcessorTest extends TestCase
                 $this->createStub(JitaMarketService::class),
                 $this->createStub(LineReservationService::class),
                 $this->createStub(IndustryProjectService::class),
+                $this->createStub(ContributorPaidPurchaseReader::class),
             ),
             new ProjectAccessChecker($this->memberRepository),
             new ProjectResourceMapper(),
@@ -440,6 +442,75 @@ class ReviewContributionProcessorTest extends TestCase
 
         self::assertSame(ContributionStatus::Approved, $declared->getStatus());
         self::assertSame(self::ALREADY_FULFILLED_QUANTITY, $this->bomItem->getFulfilledQuantity());
+    }
+
+    #[Group('issue-953')]
+    public function testOwnerReopensAnApprovedContributionOfAMemberAndTheLineIsDowngraded(): void
+    {
+        $contributor = $this->addMember($this->createStub(User::class), ParticipantRole::Member);
+        $contribution = $this->pendingContributionOf($contributor)->setStatus(ContributionStatus::Approved);
+        $payloads = $this->capturePublishedPayloads();
+
+        $resource = $this->review($this->owner, $contribution, 'pending');
+
+        self::assertSame('pending', $resource->status);
+        self::assertSame(ContributionStatus::Pending, $contribution->getStatus());
+        self::assertNull($contribution->getReviewedBy());
+        self::assertSame(self::ALREADY_FULFILLED_QUANTITY - self::CONTRIBUTED_QUANTITY, $this->bomItem->getFulfilledQuantity());
+        self::assertSame('contribution_synced', $payloads[0]['action']);
+        self::assertSame($contribution->getId()->toRfc4122(), $payloads[0]['data']['contributionId']);
+    }
+
+    #[Group('issue-953')]
+    public function testAdminCannotReopenHisOwnApprovedContribution(): void
+    {
+        $admin = $this->createStub(User::class);
+        $adminMember = $this->addMember($admin, ParticipantRole::Admin);
+        $contribution = $this->pendingContributionOf($adminMember)->setStatus(ContributionStatus::Approved);
+        $this->entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->review($admin, $contribution, 'pending');
+            self::fail('A user must not be able to reopen his own contribution');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame('You cannot review your own contribution', $refusal->getMessage());
+        }
+
+        self::assertSame(ContributionStatus::Approved, $contribution->getStatus());
+        self::assertSame(self::ALREADY_FULFILLED_QUANTITY, $this->bomItem->getFulfilledQuantity());
+    }
+
+    #[Group('issue-953')]
+    public function testReopeningIsRefusedAsABadRequestOnceTheProjectIsSelling(): void
+    {
+        $contributor = $this->addMember($this->createStub(User::class), ParticipantRole::Member);
+        $contribution = $this->pendingContributionOf($contributor)->setStatus(ContributionStatus::Approved);
+        $this->project->setStatus(ProjectStatus::Selling);
+        $this->hub->expects($this->never())->method('publish');
+
+        try {
+            $this->review($this->owner, $contribution, 'pending');
+            self::fail('A contribution cannot be reopened once the project is selling');
+        } catch (BadRequestHttpException) {
+            self::assertSame(ContributionStatus::Approved, $contribution->getStatus());
+            self::assertSame(self::ALREADY_FULFILLED_QUANTITY, $this->bomItem->getFulfilledQuantity());
+        }
+    }
+
+    #[Group('issue-953')]
+    public function testReviewInputAcceptsTheThreeDecisions(): void
+    {
+        $validator = \Symfony\Component\Validator\Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
+
+        foreach (['approved', 'rejected', 'pending'] as $decision) {
+            $input = new ReviewContributionInput();
+            $input->status = $decision;
+            self::assertCount(0, $validator->validate($input), $decision);
+        }
+
+        $input = new ReviewContributionInput();
+        $input->status = 'reopened';
+        self::assertCount(1, $validator->validate($input));
     }
 
     // --- Helpers --------------------------------------------------------------------------

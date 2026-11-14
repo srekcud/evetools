@@ -58,7 +58,7 @@ use App\State\Provider\Industry\Project\ProjectContributionItemProvider;
             input: ReviewContributionInput::class,
             openapi: new Model\Operation(
                 summary: 'Review a contribution',
-                description: 'Approve or reject a pending contribution (admin/owner only)',
+                description: 'Approve or reject a pending contribution, or reopen an approved material contribution before the selling phase (admin/owner only)',
                 tags: ['Group Industry - Contributions'],
             ),
         ),
@@ -95,6 +95,10 @@ class ProjectContributionResource
     public bool $duplicatesDerived = false;
 
     public bool $isVerified;
+
+    public bool $valuedAtJitaPrice = false;
+
+    public bool $reopenable = false;
 
     public ?string $reviewedByCharacterName = null;
 

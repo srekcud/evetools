@@ -122,7 +122,7 @@ class DerivedContributionService
             return null;
         }
 
-        $this->shiftFulfillment($line, $type, $quantity - $existing->getQuantity());
+        $this->shiftFulfillment($line, $existing, $quantity - $existing->getQuantity());
         $existing->setQuantity($quantity);
         $existing->setEstimatedValue($value);
 
@@ -136,11 +136,11 @@ class DerivedContributionService
         int $quantity,
         ?float $value,
     ): string {
-        $contribution = $this->approvedDerivedContribution($line->getProject(), $contributingParticipant, $type, $quantity, $value)->setBomItem($line);
+        $contribution = $this->derivedContribution($line->getProject(), $contributingParticipant, $type, $quantity, $value, $line)->setBomItem($line);
         $hasApprovedDeclared = $this->hasApprovedDeclared($line, $contributingParticipant, $type);
         $hasRejectedPendingDeclared = $this->rejectPendingDeclared($line, $contributingParticipant, $type);
         $this->persistDerived($contribution);
-        $this->shiftFulfillment($line, $type, $quantity);
+        $this->shiftFulfillment($line, $contribution, $quantity);
         if ($hasApprovedDeclared || $hasRejectedPendingDeclared) {
             $this->duplicateNotifier->notifyReviewers($contribution);
         }
@@ -200,7 +200,7 @@ class DerivedContributionService
     private function countCourierReward(IndustryProject $project, ?IndustryProjectContribution $existing, ?float $reward): ?string
     {
         if (null === $existing) {
-            $contribution = $this->approvedDerivedContribution($project, $this->ownerParticipantOf($project), ContributionType::Courier, self::COURIER_QUANTITY, $reward);
+            $contribution = $this->derivedContribution($project, $this->ownerParticipantOf($project), ContributionType::Courier, self::COURIER_QUANTITY, $reward);
             $this->persistDerived($contribution);
 
             return $contribution->getId()->toRfc4122();
@@ -227,27 +227,39 @@ class DerivedContributionService
         return $existing->getId()->toRfc4122();
     }
 
-    private function approvedDerivedContribution(
+    private function derivedContribution(
         IndustryProject $project,
         IndustryProjectParticipant $contributingParticipant,
         ContributionType $type,
         int $quantity,
         ?float $value,
+        ?IndustryProjectBomLine $line = null,
     ): IndustryProjectContribution {
-        $now = new \DateTimeImmutable();
-
-        return (new IndustryProjectContribution())
+        $contribution = (new IndustryProjectContribution())
             ->setProject($project)
             ->setMember($contributingParticipant)
             ->setType($type)
             ->setQuantity($quantity)
             ->setEstimatedValue($value)
+            ->setIsAutoDetected(true);
+
+        if ($this->isProposalOnly($project, $type, $line)) {
+            return $contribution->setStatus(ContributionStatus::Pending)->setIsVerified(false);
+        }
+
+        $now = new \DateTimeImmutable();
+
+        return $contribution
             ->setStatus(ContributionStatus::Approved)
-            ->setIsAutoDetected(true)
             ->setIsVerified(true)
             ->setVerifiedAt($now)
             ->setReviewedBy($contributingParticipant->getUser())
             ->setReviewedAt($now);
+    }
+
+    private function isProposalOnly(IndustryProject $project, ContributionType $type, ?IndustryProjectBomLine $line): bool
+    {
+        return ContributionType::Material === $type && null !== $line && !$line->isJob() && !$project->isSoleReviewingOwner($project->getOwner());
     }
 
     private function persistDerived(IndustryProjectContribution $contribution): void
@@ -258,16 +270,16 @@ class DerivedContributionService
 
     private function remove(IndustryProjectBomLine $line, IndustryProjectContribution $contribution): string
     {
-        $this->shiftFulfillment($line, $contribution->getType(), -$contribution->getQuantity());
+        $this->shiftFulfillment($line, $contribution, -$contribution->getQuantity());
         $line->getProject()->getContributions()->removeElement($contribution);
         $this->entityManager->remove($contribution);
 
         return $contribution->getId()->toRfc4122();
     }
 
-    private function shiftFulfillment(IndustryProjectBomLine $line, ContributionType $type, int $quantityDifference): void
+    private function shiftFulfillment(IndustryProjectBomLine $line, IndustryProjectContribution $contribution, int $quantityDifference): void
     {
-        if ($type !== ContributionType::Material) {
+        if ($contribution->getType() !== ContributionType::Material || $contribution->getStatus() !== ContributionStatus::Approved) {
             return;
         }
 
