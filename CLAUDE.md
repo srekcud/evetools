@@ -77,6 +77,9 @@ make deptrac            # rapport de couches (n'échoue jamais)
 # Messenger
 make messenger
 
+# Aide : tables des scopes ESI et des fréquences de sync (frontend/src/help/{fr,en}/data/), à relancer après un changement de scope, de tâche planifiée ou de description
+docker compose exec app php bin/console app:help:generate-tables
+
 # Deploy : pousser un tag V0.x lance .github/workflows/release.yml (CI → images GHCR → bin/deploy en SSH)
 make deploy VERSION=V0.x   # sur le serveur uniquement, voir docs/deploy.md
 make base-build            # image de base locale (dev)
