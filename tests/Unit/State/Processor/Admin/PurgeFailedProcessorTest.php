@@ -82,7 +82,7 @@ class PurgeFailedProcessorTest extends TestCase
 
         return new PurgeFailedProcessor(
             $security,
-            new MessengerQueueService(new InMemoryTransport(), $failedTransport),
+            new MessengerQueueService(new InMemoryTransport(), $failedTransport, new InMemoryTransport()),
             new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID),
             $this->adminHealthPublisher(),
         );

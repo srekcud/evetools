@@ -2435,6 +2435,7 @@
         "scheduler_error": "{count} tâche(s) planifiée(s) en erreur",
         "failed_messages": "{count} message(s) en échec dans la file",
         "async_queue_backlog": "File async engorgée : {count} messages (au-dessus de {threshold})",
+        "message_unacked_too_long": "Un message est en cours depuis {count} s (au-dessus de {threshold} s)",
         "async_queue_unreachable": "File async injoignable",
         "failed_queue_unreachable": "File des échecs injoignable",
         "tokens_invalid": "{count} utilisateur(s) avec un token invalide"

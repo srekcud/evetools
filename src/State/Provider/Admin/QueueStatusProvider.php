@@ -40,6 +40,7 @@ class QueueStatusProvider implements ProviderInterface
         $resource->queues = [
             'async' => $this->queueService->getDepth('async'),
             'failed' => $this->queueService->getDepth('failed'),
+            'on_demand' => $this->queueService->getDepth('on_demand'),
         ];
 
         return $resource;

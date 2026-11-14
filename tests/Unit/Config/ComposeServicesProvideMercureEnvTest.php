@@ -26,6 +26,7 @@ final class ComposeServicesProvideMercureEnvTest extends TestCase
     {
         yield 'app' => ['app'];
         yield 'worker' => ['worker'];
+        yield 'worker-on-demand' => ['worker-on-demand'];
     }
 
     public function testTheMercureConfigurationReadsTheJwtSecretFromTheEnvironment(): void

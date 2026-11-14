@@ -12,6 +12,7 @@ class AdminStatusEvaluator
     public const ASYNC_QUEUE_DEGRADED_DEPTH = 1000;
     public const ASYNC_QUEUE_DOWN_DEPTH = 10000;
     public const FAILED_MESSAGES_THRESHOLD = 0;
+    public const IN_FLIGHT_MESSAGE_DEGRADED_SECONDS = 3600;
 
     private const LEVEL_OK = 'ok';
     private const SEVERITY_DEGRADED = 'degraded';
@@ -23,7 +24,7 @@ class AdminStatusEvaluator
     private const STATUS_ERROR = 'error';
 
     /** @param list<array<string, mixed>> $schedulerHealth */
-    public function evaluate(array $schedulerHealth, int $usersWithInvalidAuth, ?int $asyncDepth, ?int $failedDepth): AdminStatus
+    public function evaluate(array $schedulerHealth, int $usersWithInvalidAuth, ?int $asyncDepth, ?int $failedDepth, ?int $oldestRunningSeconds): AdminStatus
     {
         $scheduledEntries = array_filter($schedulerHealth, static fn (array $entry): bool => $entry['on_demand'] !== true);
 
@@ -42,6 +43,7 @@ class AdminStatusEvaluator
             $failedDepth === null
                 ? new AdminStatusRule('failed_queue_unreachable', self::SEVERITY_DEGRADED, 0, null, self::SECTION_MAINTENANCE)
                 : $this->countRule('failed_messages', self::SECTION_MAINTENANCE, $failedDepth, self::FAILED_MESSAGES_THRESHOLD),
+            $this->inFlightMessageRule($oldestRunningSeconds),
             $this->countRule('tokens_invalid', self::SECTION_KPIS, $usersWithInvalidAuth),
         ]));
 
@@ -72,6 +74,15 @@ class AdminStatusEvaluator
         }
 
         return null;
+    }
+
+    private function inFlightMessageRule(?int $oldestRunningSeconds): ?AdminStatusRule
+    {
+        if ($oldestRunningSeconds === null || $oldestRunningSeconds <= self::IN_FLIGHT_MESSAGE_DEGRADED_SECONDS) {
+            return null;
+        }
+
+        return new AdminStatusRule('message_unacked_too_long', self::SEVERITY_DEGRADED, $oldestRunningSeconds, self::IN_FLIGHT_MESSAGE_DEGRADED_SECONDS, self::SECTION_MAINTENANCE);
     }
 
     /** @param list<AdminStatusRule> $rules */

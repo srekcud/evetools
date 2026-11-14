@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Admin;
 use App\Service\Admin\AdminStatusEvaluator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(AdminStatusEvaluator::class)]
@@ -21,7 +22,7 @@ class AdminStatusEvaluatorTest extends TestCase
 
     public function testEverythingHealthyIsOkWithoutRules(): void
     {
-        $status = $this->evaluator->evaluate([$this->entry('healthy', 'ok')], 0, 0, 0);
+        $status = $this->evaluator->evaluate([$this->entry('healthy', 'ok')], 0, 0, 0, null);
 
         $this->assertSame('ok', $status->level);
         $this->assertSame([], $status->rules);
@@ -34,6 +35,7 @@ class AdminStatusEvaluatorTest extends TestCase
             0,
             0,
             0,
+            null,
         );
 
         $this->assertSame('degraded', $status->level);
@@ -45,7 +47,7 @@ class AdminStatusEvaluatorTest extends TestCase
 
     public function testScheduledTasksInErrorAreCountedAndDegrade(): void
     {
-        $status = $this->evaluator->evaluate([$this->entry('healthy', 'error'), $this->entry('healthy', 'ok')], 0, 0, 0);
+        $status = $this->evaluator->evaluate([$this->entry('healthy', 'error'), $this->entry('healthy', 'ok')], 0, 0, 0, null);
 
         $this->assertSame('degraded', $status->level);
         $this->assertSame(['scheduler_error'], $this->ruleKeys($status));
@@ -54,7 +56,7 @@ class AdminStatusEvaluatorTest extends TestCase
 
     public function testOnDemandEntriesNeverFireASchedulerRule(): void
     {
-        $status = $this->evaluator->evaluate([$this->entry('on-demand', 'error', true), $this->entry('stale', 'error', true)], 0, 0, 0);
+        $status = $this->evaluator->evaluate([$this->entry('on-demand', 'error', true), $this->entry('stale', 'error', true)], 0, 0, 0, null);
 
         $this->assertSame('ok', $status->level);
         $this->assertSame([], $status->rules);
@@ -62,7 +64,7 @@ class AdminStatusEvaluatorTest extends TestCase
 
     public function testFailedMessagesDegrade(): void
     {
-        $status = $this->evaluator->evaluate([], 0, 0, 3);
+        $status = $this->evaluator->evaluate([], 0, 0, 3, null);
 
         $this->assertSame('degraded', $status->level);
         $this->assertSame(['failed_messages'], $this->ruleKeys($status));
@@ -83,7 +85,7 @@ class AdminStatusEvaluatorTest extends TestCase
     #[DataProvider('asyncDepthProvider')]
     public function testAsyncBacklogSeverityFollowsTheDepthThresholds(int $depth, string $expectedLevel, ?int $expectedThreshold): void
     {
-        $status = $this->evaluator->evaluate([], 0, $depth, 0);
+        $status = $this->evaluator->evaluate([], 0, $depth, 0, null);
 
         $this->assertSame($expectedLevel, $status->level);
         if ($expectedThreshold === null) {
@@ -99,7 +101,7 @@ class AdminStatusEvaluatorTest extends TestCase
 
     public function testUnknownAsyncDepthIsDownAndNeverReadAsZero(): void
     {
-        $status = $this->evaluator->evaluate([], 0, null, 0);
+        $status = $this->evaluator->evaluate([], 0, null, 0, null);
 
         $this->assertSame('down', $status->level);
         $this->assertSame(['async_queue_unreachable'], $this->ruleKeys($status));
@@ -107,7 +109,7 @@ class AdminStatusEvaluatorTest extends TestCase
 
     public function testUnknownFailedDepthDegradesWithoutTriggeringFailedMessages(): void
     {
-        $status = $this->evaluator->evaluate([], 0, 0, null);
+        $status = $this->evaluator->evaluate([], 0, 0, null, null);
 
         $this->assertSame('degraded', $status->level);
         $this->assertSame(['failed_queue_unreachable'], $this->ruleKeys($status));
@@ -115,7 +117,7 @@ class AdminStatusEvaluatorTest extends TestCase
 
     public function testUsersWithInvalidAuthDegrade(): void
     {
-        $status = $this->evaluator->evaluate([], 4, 0, 0);
+        $status = $this->evaluator->evaluate([], 4, 0, 0, null);
 
         $this->assertSame('degraded', $status->level);
         $this->assertSame(['tokens_invalid'], $this->ruleKeys($status));
@@ -125,13 +127,53 @@ class AdminStatusEvaluatorTest extends TestCase
 
     public function testADownRuleWinsAndRulesKeepTheSchedulerQueueTokensOrder(): void
     {
-        $status = $this->evaluator->evaluate([$this->entry('stale', 'ok')], 2, null, 5);
+        $status = $this->evaluator->evaluate([$this->entry('stale', 'ok')], 2, null, 5, null);
 
         $this->assertSame('down', $status->level);
         $this->assertSame(
             ['scheduler_stale', 'async_queue_unreachable', 'failed_messages', 'tokens_invalid'],
             $this->ruleKeys($status),
         );
+    }
+
+    /** @return iterable<string, array{?int, bool}> */
+    public static function oldestRunningSecondsProvider(): iterable
+    {
+        yield 'no message running' => [null, false];
+        yield 'just started' => [0, false];
+        yield 'one second under the threshold' => [3599, false];
+        yield 'at the threshold' => [AdminStatusEvaluator::IN_FLIGHT_MESSAGE_DEGRADED_SECONDS, false];
+        yield 'one second over the threshold' => [3601, true];
+        yield 'eleven hours as in the 2026-11-13 incident' => [39600, true];
+    }
+
+    #[Group('issue-838')]
+    #[DataProvider('oldestRunningSecondsProvider')]
+    public function testMessageRunningLongerThanTheThresholdDegradesTheStatus(?int $oldestRunningSeconds, bool $expectedRule): void
+    {
+        $status = $this->evaluator->evaluate([], 0, 0, 0, $oldestRunningSeconds);
+
+        if (!$expectedRule) {
+            $this->assertSame('ok', $status->level);
+            $this->assertSame([], $status->rules);
+
+            return;
+        }
+        $this->assertSame('degraded', $status->level);
+        $this->assertSame(['message_unacked_too_long'], $this->ruleKeys($status));
+        $this->assertSame($oldestRunningSeconds, $status->rules[0]->value);
+        $this->assertSame(3600, $status->rules[0]->threshold);
+        $this->assertSame('degraded', $status->rules[0]->severity);
+        $this->assertSame('maintenance', $status->rules[0]->section);
+    }
+
+    #[Group('issue-838')]
+    public function testMessageRunningTooLongDoesNotLiftAnUnreachableAsyncQueueAboveDown(): void
+    {
+        $status = $this->evaluator->evaluate([], 0, null, 0, 39600);
+
+        $this->assertSame('down', $status->level);
+        $this->assertEqualsCanonicalizing(['async_queue_unreachable', 'message_unacked_too_long'], $this->ruleKeys($status));
     }
 
     /** @return array<string, mixed> */

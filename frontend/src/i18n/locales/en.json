@@ -2435,6 +2435,7 @@
         "scheduler_error": "{count} scheduled task(s) in error",
         "failed_messages": "{count} failed message(s) in the queue",
         "async_queue_backlog": "Async queue backlog: {count} messages (above {threshold})",
+        "message_unacked_too_long": "A message has been running for {count} s (above {threshold} s)",
         "async_queue_unreachable": "Async queue unreachable",
         "failed_queue_unreachable": "Failed queue unreachable",
         "tokens_invalid": "{count} user(s) with an invalid token"

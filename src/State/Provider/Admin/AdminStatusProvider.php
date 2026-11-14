@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
 use App\Service\Admin\AdminStatusEvaluator;
+use App\Service\Admin\InFlightMessageRegistry;
 use App\Service\Admin\MessengerQueueService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -25,6 +26,7 @@ class AdminStatusProvider implements ProviderInterface
         private readonly Security $security,
         private readonly AdminService $adminService,
         private readonly MessengerQueueService $queueService,
+        private readonly InFlightMessageRegistry $inFlightMessages,
         private readonly AdminStatusEvaluator $evaluator,
         private readonly AdminChecker $adminChecker,
     ) {
@@ -49,6 +51,7 @@ class AdminStatusProvider implements ProviderInterface
             $stats['users']['invalid'],
             $this->queueService->getDepth('async'),
             $this->queueService->getDepth('failed'),
+            $this->inFlightMessages->oldestRunningSeconds(),
         );
 
         $resource = new AdminStatusResource();

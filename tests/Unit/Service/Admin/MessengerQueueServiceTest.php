@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Admin;
 
 use App\Service\Admin\MessengerQueueService;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -17,12 +18,14 @@ class MessengerQueueServiceTest extends TestCase
 {
     private const ASYNC_MESSAGE_COUNT = 7;
     private const FAILED_MESSAGE_COUNT = 3;
+    private const ON_DEMAND_MESSAGE_COUNT = 4;
 
     public function testAsyncDepthIsTheMessageCountOfTheAsyncTransport(): void
     {
         $service = new MessengerQueueService(
             $this->countableTransport(self::ASYNC_MESSAGE_COUNT),
             $this->countableTransport(11),
+            new InMemoryTransport(),
         );
 
         $this->assertSame(7, $service->getDepth('async'));
@@ -33,6 +36,7 @@ class MessengerQueueServiceTest extends TestCase
         $service = new MessengerQueueService(
             $this->countableTransport(self::ASYNC_MESSAGE_COUNT),
             $this->countableTransport(0),
+            new InMemoryTransport(),
         );
 
         $this->assertSame(0, $service->getDepth('failed'));
@@ -43,6 +47,7 @@ class MessengerQueueServiceTest extends TestCase
         $service = new MessengerQueueService(
             new InMemoryTransport(),
             $this->countableTransport(11),
+            new InMemoryTransport(),
         );
 
         $this->assertNull($service->getDepth('async'));
@@ -53,9 +58,34 @@ class MessengerQueueServiceTest extends TestCase
         $service = new MessengerQueueService(
             $this->countableTransport(self::ASYNC_MESSAGE_COUNT),
             $this->failingCountTransport(),
+            new InMemoryTransport(),
         );
 
         $this->assertNull($service->getDepth('failed'));
+    }
+
+    #[Group('issue-838')]
+    public function testOnDemandDepthIsTheMessageCountOfTheOnDemandTransport(): void
+    {
+        $service = new MessengerQueueService(
+            $this->countableTransport(self::ASYNC_MESSAGE_COUNT),
+            $this->countableTransport(11),
+            $this->countableTransport(self::ON_DEMAND_MESSAGE_COUNT),
+        );
+
+        $this->assertSame(4, $service->getDepth('on_demand'));
+    }
+
+    #[Group('issue-838')]
+    public function testOnDemandDepthIsUnknownWhenTheTransportCannotCountItsMessages(): void
+    {
+        $service = new MessengerQueueService(
+            $this->countableTransport(self::ASYNC_MESSAGE_COUNT),
+            $this->countableTransport(11),
+            new InMemoryTransport(),
+        );
+
+        $this->assertNull($service->getDepth('on_demand'));
     }
 
     public function testDepthOfAnUnknownTransportNameIsRejected(): void
@@ -63,6 +93,7 @@ class MessengerQueueServiceTest extends TestCase
         $service = new MessengerQueueService(
             $this->countableTransport(self::ASYNC_MESSAGE_COUNT),
             $this->countableTransport(0),
+            new InMemoryTransport(),
         );
 
         $this->expectException(\InvalidArgumentException::class);
@@ -76,7 +107,7 @@ class MessengerQueueServiceTest extends TestCase
         foreach (range(1, self::FAILED_MESSAGE_COUNT) as $unused) {
             $failedTransport->send(new Envelope(new \stdClass()));
         }
-        $service = new MessengerQueueService(new InMemoryTransport(), $failedTransport);
+        $service = new MessengerQueueService(new InMemoryTransport(), $failedTransport, new InMemoryTransport());
 
         $purged = $service->purgeFailed();
 
@@ -88,7 +119,7 @@ class MessengerQueueServiceTest extends TestCase
 
     public function testPurgingAnEmptyFailedTransportRemovesNothing(): void
     {
-        $service = new MessengerQueueService(new InMemoryTransport(), new InMemoryTransport());
+        $service = new MessengerQueueService(new InMemoryTransport(), new InMemoryTransport(), new InMemoryTransport());
 
         $this->assertSame(0, $service->purgeFailed());
     }
@@ -99,7 +130,7 @@ class MessengerQueueServiceTest extends TestCase
         $asyncTransport->send(new Envelope(new \stdClass()));
         $failedTransport = new InMemoryTransport();
         $failedTransport->send(new Envelope(new \stdClass()));
-        $service = new MessengerQueueService($asyncTransport, $failedTransport);
+        $service = new MessengerQueueService($asyncTransport, $failedTransport, new InMemoryTransport());
 
         $service->purgeFailed();
 
@@ -110,7 +141,7 @@ class MessengerQueueServiceTest extends TestCase
     {
         $failedTransport = $this->createStub(TransportInterface::class);
         $failedTransport->method('get')->willThrowException(new \RuntimeException('AMQP connection lost'));
-        $service = new MessengerQueueService(new InMemoryTransport(), $failedTransport);
+        $service = new MessengerQueueService(new InMemoryTransport(), $failedTransport, new InMemoryTransport());
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('AMQP connection lost');

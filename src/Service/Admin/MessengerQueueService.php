@@ -12,12 +12,15 @@ class MessengerQueueService
 {
     private const ASYNC_TRANSPORT = 'async';
     private const FAILED_TRANSPORT = 'failed';
+    private const ON_DEMAND_TRANSPORT = 'on_demand';
 
     public function __construct(
         #[Autowire(service: 'messenger.transport.async')]
         private readonly TransportInterface $asyncTransport,
         #[Autowire(service: 'messenger.transport.failed')]
         private readonly TransportInterface $failedTransport,
+        #[Autowire(service: 'messenger.transport.on_demand')]
+        private readonly TransportInterface $onDemandTransport,
     ) {
     }
 
@@ -26,6 +29,7 @@ class MessengerQueueService
         $transport = match ($transportName) {
             self::ASYNC_TRANSPORT => $this->asyncTransport,
             self::FAILED_TRANSPORT => $this->failedTransport,
+            self::ON_DEMAND_TRANSPORT => $this->onDemandTransport,
             default => throw new \InvalidArgumentException(sprintf('Unknown transport "%s"', $transportName)),
         };
 
