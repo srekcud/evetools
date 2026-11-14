@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import AssetVolumeBadge from '@/components/assets/AssetVolumeBadge.vue'
 import type { AssetSafetyLocation } from '@/utils/assetSafety'
+import type { VolumeSummary } from '@/utils/assetVolume'
 
 defineProps<{
   locations: AssetSafetyLocation[]
+  volumes?: ReadonlyMap<string, VolumeSummary> | null
 }>()
 
 const emit = defineEmits<{
@@ -43,6 +46,11 @@ function formatNumber(n: number): string {
           <span data-testid="asset-safety-ships" class="font-mono text-sm text-indigo-400">
             {{ t('assets.assetSafety.ships', { count: formatNumber(location.shipCount) }) }}
           </span>
+          <AssetVolumeBadge
+            v-if="volumes?.get(location.locationName)"
+            :volume="volumes.get(location.locationName)!"
+            test-id="asset-safety-volume"
+          />
         </div>
         <button
           type="button"

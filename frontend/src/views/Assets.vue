@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { readAssetFilterQuery, readLastCharacterId, rememberLastCharacterId, writeAssetFilterQuery } from '@/utils/assetFilterQuery'
 import type { AssetLocationSort } from '@/utils/assetFilterQuery'
 import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/assetLocation'
-import { summarizeAssetSafetyLocations } from '@/utils/assetSafety'
+import { summarizeAssetSafetyLocations, summarizeAssetSafetyVolumes } from '@/utils/assetSafety'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
@@ -556,8 +556,27 @@ watch(searchQuery, (query) => {
 
 onUnmounted(stopSearchTimeout)
 
-watch([isTypeView, selectedLocationNames, locationSort], () => {
-  const needsWholeList = isTypeView.value || selectedLocationNames.value.size > 0 || locationSort.value === 'volume'
+const assetSafetyLocations = computed(() => summarizeAssetSafetyLocations(summaryLocations.value))
+const assetSafetyNeedsVolume = computed(() => assetSafetyLocations.value.length > 0 && packagedVolumeCatalog.value !== null)
+
+const assetSafetyVolumes = computed(() => {
+  const catalog = packagedVolumeCatalog.value
+  if (!fullListLoaded.value || catalog === null) {
+    return null
+  }
+  return summarizeAssetSafetyVolumes(
+    summaryLocations.value,
+    locationId => {
+      const rows = rootRows.value.get(locationId) ?? []
+      return selectedDivision.value ? rows.filter(isInSelectedDivision) : rows
+    },
+    itemId => childRows.value.get(itemId) ?? [],
+    catalog,
+  )
+})
+
+watch([isTypeView, selectedLocationNames, locationSort, assetSafetyNeedsVolume], () => {
+  const needsWholeList = isTypeView.value || selectedLocationNames.value.size > 0 || locationSort.value === 'volume' || assetSafetyNeedsVolume.value
   if (needsWholeList) {
     void ensureFullList()
   }
@@ -567,8 +586,6 @@ watch([isTypeView, selectedLocationNames, locationSort], () => {
 watch(selectedSolarSystem, () => {
   selectedLocation.value = ''
 })
-
-const assetSafetyLocations = computed(() => summarizeAssetSafetyLocations(summaryLocations.value))
 
 async function showAssetSafetyContent(locationName: string) {
   const location = assetSafetyLocations.value.find(candidate => candidate.locationName === locationName)
@@ -1030,6 +1047,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
           <AssetSafetyBlock
             v-if="assetSafetyLocations.length > 0"
             :locations="assetSafetyLocations"
+            :volumes="assetSafetyVolumes"
             @show-content="showAssetSafetyContent"
           />
 

@@ -51,6 +51,18 @@ const safetyShip = asset(3, {
   solarSystemName: 'Amarr',
 })
 
+const RIFTER = 587
+const TRITANIUM = 34
+
+const volumesAnswer = {
+  id: 'packaged-volumes',
+  volumes: { [RIFTER]: 2500, [TRITANIUM]: 0.01, 17738: 15000 },
+  excludedTypeIds: [17366, 17367, 17368],
+  refreshedAt: '2026-11-10T04:00:00+00:00',
+}
+
+let volumesResponse: (() => Response) | null = null
+
 async function mountAssets(rawAssets: unknown[]) {
   const pinia = createPinia()
   setActivePinia(pinia)
@@ -75,7 +87,7 @@ async function mountAssets(rawAssets: unknown[]) {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(rawAssets)))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(rawAssets, url => (volumesResponse !== null && url.includes('/me/assets/packaged-volumes') ? volumesResponse() : null))))
   const i18n = createI18n({ legacy: false, locale: 'fr', messages: { fr } })
   const wrapper = mount(Assets, {
     global: {
@@ -93,6 +105,10 @@ async function mountAssets(rawAssets: unknown[]) {
 }
 
 describe('Assets Asset Safety block', () => {
+  beforeEach(() => {
+    volumesResponse = null
+  })
+
   afterEach(() => {
     vi.unstubAllGlobals()
   })
@@ -145,5 +161,30 @@ describe('Assets Asset Safety block', () => {
     const headings = wrapper.findAll('h3').map(heading => heading.text())
 
     expect(headings).toEqual([ASSET_SAFETY, NAMED_STATION])
+  })
+
+  it('shows the packaged volume of the Asset Safety location', async () => {
+    volumesResponse = () => new Response(JSON.stringify(volumesAnswer), { status: 200 })
+    const wrapper = await mountAssets([stationAsset, safetyItem, safetyShip])
+
+    const volume = wrapper.find('[data-testid="asset-safety-block"] [data-testid="asset-safety-volume"]')
+
+    expect(volume.exists()).toBe(true)
+    expect(volume.text()).toContain('15,002.5 m³')
+  })
+
+  it('shows no volume in the block while the packaged volumes are not available', async () => {
+    volumesResponse = () => new Response('{}', { status: 500 })
+    const wrapper = await mountAssets([stationAsset, safetyItem, safetyShip])
+
+    expect(wrapper.find('[data-testid="asset-safety-block"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="asset-safety-volume"]').exists()).toBe(false)
+  })
+
+  it('says how many types of the Asset Safety location have no volume', async () => {
+    volumesResponse = () => new Response(JSON.stringify({ ...volumesAnswer, volumes: { 17738: 15000 } }), { status: 200 })
+    const wrapper = await mountAssets([stationAsset, safetyItem, safetyShip])
+
+    expect(wrapper.find('[data-testid="asset-safety-block"] [data-testid="volume-unknown"]').text()).toContain('1 type sans volume')
   })
 })
