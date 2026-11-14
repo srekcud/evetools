@@ -88,7 +88,11 @@ const STATUS_LABELS: Record<ContributionStatus, string> = {
 function methodLabelKey(contribution: GroupContribution): string {
   if (contribution.isAutoDetected && contribution.type === 'material') return 'groupIndustry.contributions.methods.paidPrice'
   if (contribution.isAutoDetected && contribution.type === 'job_install') return 'groupIndustry.contributions.methods.esiCost'
-  if (contribution.type === 'material') return 'groupIndustry.contributions.methods.depositDayPrice'
+  if (contribution.type === 'material') {
+    return contribution.valuedAtJitaPrice
+      ? 'groupIndustry.contributions.methods.depositDayPrice'
+      : 'groupIndustry.contributions.methods.paidPrice'
+  }
   return 'groupIndustry.contributions.methods.enteredValue'
 }
 
@@ -102,6 +106,10 @@ async function handleApprove(id: string): Promise<void> {
 
 async function handleReject(id: string): Promise<void> {
   await store.rejectContribution(props.projectId, id)
+}
+
+async function handleReopen(id: string): Promise<void> {
+  await store.reopenContribution(props.projectId, id)
 }
 
 onMounted(() => {
@@ -255,7 +263,7 @@ onMounted(() => {
                   class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
                 >Auto-detected</span>
                 <span
-                  v-else-if="!contrib.isVerified && isPending(contrib.status)"
+                  v-if="!contrib.isVerified && (contrib.isAutoDetected || isPending(contrib.status))"
                   class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
                 >Unverified</span>
                 <span
@@ -277,6 +285,15 @@ onMounted(() => {
                     class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
                     @click="handleReject(contrib.id)"
                   >Reject</button>
+                </div>
+                <div
+                  v-else-if="isAdmin && contrib.reopenable"
+                  class="flex items-center justify-center gap-1.5"
+                >
+                  <button
+                    class="px-2.5 py-1 rounded bg-slate-600/20 text-slate-300 text-xs font-medium hover:bg-slate-600/30 transition-colors border border-slate-600/30"
+                    @click="handleReopen(contrib.id)"
+                  >Reopen</button>
                 </div>
                 <div
                   v-else-if="isAdmin && contrib.duplicatesDerived"

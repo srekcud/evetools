@@ -3448,7 +3448,7 @@
       "submit": "Submit Contribution",
       "pendingNote": "Your contribution will be reviewed by a project admin.",
       "depositDayPrice": "Jita price of the deposit day (5th percentile)",
-      "depositDayPriceNote": "Read from the market when the contribution is submitted and kept as is when it is reviewed.",
+      "depositDayPriceNote": "Units you bought since the project was created are valued at the price you paid, read from your wallet; this Jita price only covers the other units. Read when the contribution is submitted and kept as is when it is reviewed.",
       "lineRentalSuggestion": {
         "title": "Suggested from your rate schedule",
         "category": "Category",

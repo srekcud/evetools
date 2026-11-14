@@ -3448,7 +3448,7 @@
       "submit": "Soumettre la contribution",
       "pendingNote": "Votre contribution sera examinee par un admin du projet.",
       "depositDayPrice": "Prix Jita du jour d'apport (percentile 5 %)",
-      "depositDayPriceNote": "Lu sur le marché au dépôt de la contribution et conservé tel quel lors de sa revue.",
+      "depositDayPriceNote": "Les unités achetées depuis la création du projet sont valorisées au prix que vous avez payé, lu dans votre wallet ; ce prix Jita ne couvre que les autres unités. Lu au dépôt de la contribution et conservé tel quel lors de sa revue.",
       "lineRentalSuggestion": {
         "title": "Suggestion issue de votre barème",
         "category": "Catégorie",

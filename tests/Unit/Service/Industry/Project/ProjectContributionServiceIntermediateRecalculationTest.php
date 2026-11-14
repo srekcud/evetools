@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\ProjectContributionService;
@@ -66,6 +67,7 @@ final class ProjectContributionServiceIntermediateRecalculationTest extends Test
             $jitaMarket,
             $this->createStub(LineReservationService::class),
             $this->projectService,
+            $this->createStub(ContributorPaidPurchaseReader::class),
         );
 
         $this->owner = $this->createStub(User::class);
