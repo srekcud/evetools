@@ -52,6 +52,22 @@ export interface PinnedContainer {
   projectName: string | null
 }
 
+export interface AssetChange {
+  typeId: number
+  typeName: string | null
+  locationId: number
+  locationName: string
+  divisionName: string | null
+  quantityDelta: number
+}
+
+export interface AssetChanges {
+  syncedAt: string | null
+  previousSyncedAt: string | null
+  total: number
+  changes: AssetChange[]
+}
+
 export type ItemNameResolution =
   | { status: 'loading' }
   | { status: 'named'; itemName: string }
