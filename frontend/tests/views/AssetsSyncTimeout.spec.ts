@@ -11,6 +11,7 @@ import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore, type SyncProgress, type SyncStatus } from '@/stores/sync'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 import { present } from '../present'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
@@ -23,7 +24,7 @@ vi.mock(import('vue-router'), async importOriginal => ({
 
 const NO_ANSWER_MESSAGE = 'The sync did not answer.'
 const REFRESH_ENDPOINT = '/api/me/corporation/assets/refresh'
-const ASSETS_ENDPOINT = '/api/me/corporation/assets'
+const LOCATIONS_ENDPOINT = '/api/me/corporation/assets/locations'
 const VISIBILITY_ENDPOINT = '/api/me/corporation/assets/visibility'
 const CORPORATION_SYNC_TYPE = 'corporation-assets'
 const JUST_BEFORE_TIMEOUT_MS = SYNC_EVENT_TIMEOUT_MS - 1
@@ -56,13 +57,13 @@ async function mountCorporationAssetsRefreshing() {
   } as unknown as User
   const syncStore = useSyncStore()
   syncStore.isConnected = true
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+  const fetchMock = vi.fn(assetBrowseFetch([], url => {
     const answers: Record<string, Record<string, unknown>> = {
       [REFRESH_ENDPOINT]: { status: 'pending' },
       [VISIBILITY_ENDPOINT]: { isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null },
     }
-    return new Response(JSON.stringify(answers[String(input)] ?? { items: [] }), { status: 200 })
-  })
+    return url in answers ? new Response(JSON.stringify(answers[url]), { status: 200 }) : null
+  }))
   vi.stubGlobal('fetch', fetchMock)
   const wrapper = mount(Assets, {
     global: {
@@ -90,8 +91,8 @@ async function advance(milliseconds: number) {
   await flushPromises()
 }
 
-function assetsFetchCount(fetchMock: ReturnType<typeof vi.fn>) {
-  return fetchMock.mock.calls.filter(([input]) => String(input) === ASSETS_ENDPOINT).length
+function summaryFetchCount(fetchMock: ReturnType<typeof vi.fn>) {
+  return fetchMock.mock.calls.filter(([input]) => String(input) === LOCATIONS_ENDPOINT).length
 }
 
 describe('Assets refresh with Mercure connected and no sync event', () => {
@@ -106,12 +107,12 @@ describe('Assets refresh with Mercure connected and no sync event', () => {
 
   it('stops the spinner, reloads the assets and says the sync did not answer once the delay is over', async () => {
     const { wrapper, fetchMock, button } = await mountCorporationAssetsRefreshing()
-    const fetchesBeforeTimeout = assetsFetchCount(fetchMock)
+    const fetchesBeforeTimeout = summaryFetchCount(fetchMock)
 
     await advance(SYNC_EVENT_TIMEOUT_MS)
 
     expect(button.attributes('disabled')).toBeUndefined()
-    expect(assetsFetchCount(fetchMock)).toBe(fetchesBeforeTimeout + 1)
+    expect(summaryFetchCount(fetchMock)).toBe(fetchesBeforeTimeout + 1)
     expect(wrapper.text()).toContain(NO_ANSWER_MESSAGE)
   })
 
@@ -139,10 +140,10 @@ describe('Assets refresh with Mercure connected and no sync event', () => {
 
     syncStore.syncStatus[CORPORATION_SYNC_TYPE] = progressEvent('completed')
     await flushPromises()
-    const fetchesAfterCompleted = assetsFetchCount(fetchMock)
+    const fetchesAfterCompleted = summaryFetchCount(fetchMock)
     await advance(SYNC_EVENT_TIMEOUT_MS)
 
     expect(wrapper.text()).not.toContain(NO_ANSWER_MESSAGE)
-    expect(assetsFetchCount(fetchMock)).toBe(fetchesAfterCompleted)
+    expect(summaryFetchCount(fetchMock)).toBe(fetchesAfterCompleted)
   })
 })

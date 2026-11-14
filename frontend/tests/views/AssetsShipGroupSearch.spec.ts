@@ -5,6 +5,7 @@ import fr from '@/i18n/locales/fr.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -16,6 +17,7 @@ const CHARACTER_ID = '00000000-0000-4000-8000-0000000000c1'
 const JITA_NAME = 'Jita IV - Moon 4 - Caldari Navy Assembly Plant'
 const AMARR_NAME = 'Amarr VIII (Oris) - Emperor Family Academy'
 const SHIP_CATEGORY_ID = 6
+const SEARCH_DEBOUNCE_MS = 300
 const COLLAPSE_THRESHOLD_FILLER_COUNT = 201
 
 let nextItemId = 1080000000000
@@ -104,7 +106,7 @@ async function mountAssets(items: Record<string, unknown>[]) {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items }), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(items)))
   const i18n = createI18n({ legacy: false, locale: 'fr', messages: { fr } })
   const wrapper = mount(Assets, {
     global: {
@@ -122,13 +124,16 @@ async function mountAssets(items: Record<string, unknown>[]) {
 }
 
 async function searchFor(wrapper: Awaited<ReturnType<typeof mountAssets>>, query: string): Promise<string> {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   await wrapper.find('input[type="text"]').setValue(query)
+  await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS)
   await flushPromises()
   return wrapper.text().replace(/\s+/g, ' ')
 }
 
 describe('Assets search on ship groups', () => {
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 

@@ -7,6 +7,7 @@ import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore, type SyncProgress } from '@/stores/sync'
 import type { User } from '@/types'
+import { assetBrowseFetch, type AssetBrowseFetch } from '../assetBrowseApi'
 import { deferred, type Deferred } from '../deferred'
 
 vi.mock(import('vue-router'), async importOriginal => ({
@@ -19,6 +20,10 @@ const CHARACTER_A_ID = '00000000-0000-4000-8000-0000000000c1'
 const CHARACTER_B_ID = '00000000-0000-4000-8000-0000000000c2'
 const ENDPOINT_A = `/api/me/characters/${CHARACTER_A_ID}/assets`
 const ENDPOINT_B = `/api/me/characters/${CHARACTER_B_ID}/assets`
+const SUMMARY_A = `${ENDPOINT_A}/locations`
+const SUMMARY_B = `${ENDPOINT_B}/locations`
+const SUMMARY_PATTERN = /\/assets\/locations(\?.*)?$/
+const SEARCH_DEBOUNCE_MS = 300
 const STATION_NAME = 'Jita IV - Moon 4 - Caldari Navy Assembly Plant'
 const OTHER_STATION_NAME = 'Amarr VIII (Oris) - Emperor Family Academy'
 const CONTAINER_ITEM_ID = 1050000000201
@@ -32,6 +37,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -78,11 +84,17 @@ const characterBAssets = [
   assetAt(OTHER_STATION_NAME, 'Amarr', { id: '00000000-0000-4000-8000-000000000011', itemId: 1050000000201, typeId: 37, typeName: 'Isogen', quantity: 4200 }),
 ]
 
-type AssetsPayload = { items: unknown[] }
-type PendingRequest = { deferredResponse: Deferred<Response>; signal: AbortSignal | undefined }
+type PendingRequest = { deferredResponse: Deferred<Response>; signal: AbortSignal | undefined; endpoint: string; init: RequestInit | undefined }
 
-function jsonResponse(items: unknown[]): Response {
-  return new Response(JSON.stringify({ items }), { status: 200 })
+let servedByOwner = new Map<string, AssetBrowseFetch>()
+
+function ownerOf(endpoint: string): string | undefined {
+  return [ENDPOINT_A, ENDPOINT_B].find(candidate => endpoint.startsWith(candidate))
+}
+
+function servedFor(endpoint: string): AssetBrowseFetch | undefined {
+  const owner = ownerOf(endpoint)
+  return owner === undefined ? undefined : servedByOwner.get(owner)
 }
 
 function characterIdentity(id: string, name: string, isMain: boolean) {
@@ -114,9 +126,14 @@ async function mountAssetsWithPendingRequests() {
     corporationName: 'Test Corp',
   } as User
   const requests = new Map<string, PendingRequest[]>()
+  servedByOwner = new Map()
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const pending: PendingRequest = { deferredResponse: deferred<Response>(), signal: init?.signal ?? undefined }
     const endpoint = String(input)
+    const served = servedFor(endpoint)
+    if (served !== undefined && !SUMMARY_PATTERN.test(endpoint)) {
+      return served(input, init)
+    }
+    const pending: PendingRequest = { deferredResponse: deferred<Response>(), signal: init?.signal ?? undefined, endpoint, init }
     requests.set(endpoint, [...(requests.get(endpoint) ?? []), pending])
     return pending.deferredResponse.promise
   })
@@ -137,17 +154,32 @@ async function mountAssetsWithPendingRequests() {
   return { wrapper, requestsTo, syncStore: useSyncStore() }
 }
 
-async function answer(request: PendingRequest | undefined, payload: AssetsPayload['items']) {
+async function answer(request: PendingRequest | undefined, inventory: Record<string, unknown>[]) {
   if (!request) {
     throw new Error('request was not sent')
   }
-  request.deferredResponse.resolve(jsonResponse(payload))
+  const served = assetBrowseFetch(inventory)
+  const owner = ownerOf(request.endpoint)
+  if (owner !== undefined) {
+    servedByOwner.set(owner, served)
+  }
+  request.deferredResponse.resolve(await served(request.endpoint, request.init))
+  await flushPromises()
+}
+
+async function openLocation(wrapper: Awaited<ReturnType<typeof mountAssetsWithPendingRequests>>['wrapper'], locationName: string) {
+  const group = wrapper.findAll('[data-testid="location-group"]').find(candidate => candidate.find('h3').text() === locationName)
+  if (!group) {
+    throw new Error(`location "${locationName}" not rendered`)
+  }
+  await group.get('[aria-expanded]').trigger('click')
   await flushPromises()
 }
 
 async function loadCharacterA() {
   const context = await mountAssetsWithPendingRequests()
-  await answer(context.requestsTo(ENDPOINT_A)[0], characterAAssets)
+  await answer(context.requestsTo(SUMMARY_A)[0], characterAAssets)
+  await openLocation(context.wrapper, STATION_NAME)
   return context
 }
 
@@ -170,7 +202,9 @@ function visibleText(wrapper: Awaited<ReturnType<typeof loadCharacterA>>['wrappe
 }
 
 async function typeSearch(wrapper: Awaited<ReturnType<typeof loadCharacterA>>['wrapper'], query: string) {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   await wrapper.find('input[type="text"]').setValue(query)
+  await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS)
   await flushPromises()
 }
 
@@ -189,7 +223,7 @@ describe('Assets reload after a finished sync', () => {
 
     await finishSync(context)
 
-    expect(context.requestsTo(ENDPOINT_A)).toHaveLength(2)
+    expect(context.requestsTo(SUMMARY_A)).toHaveLength(2)
     expect(visibleText(context.wrapper)).toContain('Tritanium')
     expect(visibleText(context.wrapper)).not.toContain(LOADING_TEXT)
     expect(context.wrapper.find(RELOADING_INDICATOR).exists()).toBe(true)
@@ -210,12 +244,13 @@ describe('Assets reload after a finished sync', () => {
     const context = await loadCharacterA()
     const containerRow = context.wrapper.findAll('[role="button"]').find(row => row.text().includes('Station Container'))
     await containerRow?.trigger('click')
+    await flushPromises()
     expect(visibleText(context.wrapper)).toContain('Hydrogen Fuel Block')
 
     await finishSync(context)
     expect(visibleText(context.wrapper)).toContain('Hydrogen Fuel Block')
 
-    await answer(context.requestsTo(ENDPOINT_A)[1], characterAAssetsAfterSync)
+    await answer(context.requestsTo(SUMMARY_A)[1], characterAAssetsAfterSync)
     expect(visibleText(context.wrapper)).toContain('Hydrogen Fuel Block')
     expect(visibleText(context.wrapper)).toContain('Mexallon')
   })
@@ -225,7 +260,7 @@ describe('Assets reload after a finished sync', () => {
     await finishSync(context)
     expect(visibleText(context.wrapper)).not.toContain('Mexallon')
 
-    await answer(context.requestsTo(ENDPOINT_A)[1], characterAAssetsAfterSync)
+    await answer(context.requestsTo(SUMMARY_A)[1], characterAAssetsAfterSync)
 
     expect(visibleText(context.wrapper)).toContain('Mexallon')
     expect(context.wrapper.find(RELOADING_INDICATOR).exists()).toBe(false)
@@ -237,7 +272,7 @@ describe('Assets reload after a finished sync', () => {
     await flushPromises()
 
     await finishSync(context)
-    await answer(context.requestsTo(ENDPOINT_A)[1], characterAAssetsAfterSync)
+    await answer(context.requestsTo(SUMMARY_A)[1], characterAAssetsAfterSync)
 
     expect(context.wrapper.findComponent(AssetsFilterBar).props('selectedSolarSystem')).toBe('Jita')
     expect(visibleText(context.wrapper)).toContain('Mexallon')
@@ -250,7 +285,7 @@ describe('Assets reload after a finished sync', () => {
     await flushPromises()
 
     await finishSync(context)
-    await answer(context.requestsTo(ENDPOINT_A)[1], characterAAssetsWithoutAmarr)
+    await answer(context.requestsTo(SUMMARY_A)[1], characterAAssetsWithoutAmarr)
 
     expect(context.wrapper.findComponent(AssetsFilterBar).props('selectedSolarSystem')).toBe('')
     expect(visibleText(context.wrapper)).toContain('Tritanium')
@@ -270,23 +305,24 @@ describe('Assets character switch', () => {
 
   it('aborts the request of the previous character', async () => {
     const context = await mountAssetsWithPendingRequests()
-    const [firstRequestOfA] = context.requestsTo(ENDPOINT_A)
+    const [firstRequestOfA] = context.requestsTo(SUMMARY_A)
     expect(firstRequestOfA?.signal?.aborted).toBe(false)
 
     await switchToCharacterB(context.wrapper)
 
     expect(firstRequestOfA?.signal?.aborted).toBe(true)
-    expect(context.requestsTo(ENDPOINT_B)[0]?.signal?.aborted).toBe(false)
+    expect(context.requestsTo(SUMMARY_B)[0]?.signal?.aborted).toBe(false)
   })
 
   it('shows character B when the older answer of A arrives first', async () => {
     const context = await mountAssetsWithPendingRequests()
-    const [requestOfA] = context.requestsTo(ENDPOINT_A)
+    const [requestOfA] = context.requestsTo(SUMMARY_A)
     await switchToCharacterB(context.wrapper)
-    const [requestOfB] = context.requestsTo(ENDPOINT_B)
+    const [requestOfB] = context.requestsTo(SUMMARY_B)
 
     await answer(requestOfA, characterAAssets)
     await answer(requestOfB, characterBAssets)
+    await openLocation(context.wrapper, OTHER_STATION_NAME)
 
     expect(visibleText(context.wrapper)).toContain('Isogen')
     expect(visibleText(context.wrapper)).not.toContain('Tritanium')
@@ -294,12 +330,13 @@ describe('Assets character switch', () => {
 
   it('keeps character B when the older answer of A arrives last', async () => {
     const context = await mountAssetsWithPendingRequests()
-    const [requestOfA] = context.requestsTo(ENDPOINT_A)
+    const [requestOfA] = context.requestsTo(SUMMARY_A)
     await switchToCharacterB(context.wrapper)
-    const [requestOfB] = context.requestsTo(ENDPOINT_B)
+    const [requestOfB] = context.requestsTo(SUMMARY_B)
 
     await answer(requestOfB, characterBAssets)
     await answer(requestOfA, characterAAssets)
+    await openLocation(context.wrapper, OTHER_STATION_NAME)
 
     expect(visibleText(context.wrapper)).toContain('Isogen')
     expect(visibleText(context.wrapper)).not.toContain('Tritanium')
@@ -307,12 +344,13 @@ describe('Assets character switch', () => {
 
   it('does not show an error when the aborted request of A is rejected', async () => {
     const context = await mountAssetsWithPendingRequests()
-    const [requestOfA] = context.requestsTo(ENDPOINT_A)
+    const [requestOfA] = context.requestsTo(SUMMARY_A)
     await switchToCharacterB(context.wrapper)
-    const [requestOfB] = context.requestsTo(ENDPOINT_B)
+    const [requestOfB] = context.requestsTo(SUMMARY_B)
 
     requestOfA?.deferredResponse.reject(new DOMException('The operation was aborted.', 'AbortError'))
     await answer(requestOfB, characterBAssets)
+    await openLocation(context.wrapper, OTHER_STATION_NAME)
 
     expect(visibleText(context.wrapper)).toContain('Isogen')
     expect(visibleText(context.wrapper)).not.toContain('Failed to load assets')

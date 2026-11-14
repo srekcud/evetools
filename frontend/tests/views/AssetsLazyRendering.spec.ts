@@ -8,6 +8,7 @@ import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore, type SyncProgress } from '@/stores/sync'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -18,6 +19,7 @@ vi.mock(import('vue-router'), async importOriginal => ({
 const CHARACTER_ID = '00000000-0000-4000-8000-0000000000c1'
 const ENDPOINT = `/api/me/characters/${CHARACTER_ID}/assets`
 const COLLAPSE_THRESHOLD = 200
+const ROW_QUANTITY = 1
 const STATIONS = [
   { locationId: 60003760, name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', system: 'Jita' },
   { locationId: 60008494, name: 'Amarr VIII (Oris) - Emperor Family Academy', system: 'Amarr' },
@@ -39,7 +41,7 @@ function rowAt(stationIndex: number, rowIndex: number, overrides: Record<string,
     typeId: 34,
     typeName: 'Tritanium',
     categoryId: 4,
-    quantity: 10,
+    quantity: ROW_QUANTITY,
     locationId: station.locationId,
     locationName: station.name,
     locationType: 'station',
@@ -92,14 +94,19 @@ async function mountAssets(responses: unknown[][]) {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  let call = 0
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-    if (String(input) !== ENDPOINT) {
+  const browses = responses.map(items => assetBrowseFetch(items as Record<string, unknown>[]))
+  let summaryCalls = 0
+  let currentBrowse = browses[0]
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (!url.startsWith(ENDPOINT)) {
       return new Response('{}', { status: 404 })
     }
-    const items = responses[Math.min(call, responses.length - 1)]
-    call++
-    return new Response(JSON.stringify({ items }), { status: 200 })
+    if (url.endsWith('/assets/locations')) {
+      currentBrowse = browses[Math.min(summaryCalls, browses.length - 1)]
+      summaryCalls++
+    }
+    return currentBrowse(input, init)
   }))
   const wrapper = mount(Assets, {
     global: {
@@ -155,6 +162,7 @@ describe('Assets lazy rendering of large inventories', () => {
     const { wrapper } = await mountAssets([inventoryAboveThreshold])
 
     await headerOfStation(wrapper, 0).trigger('click')
+    await flushPromises()
 
     expect(expandedStates(wrapper)).toEqual({ Jita: 'true', Amarr: 'false', Dodixie: 'false' })
     expect(wrapper.findAll('img')).toHaveLength(100)
@@ -170,6 +178,7 @@ describe('Assets lazy rendering of large inventories', () => {
   it('keeps the location the user expanded when a reload brings new data', async () => {
     const { wrapper, syncStore } = await mountAssets([inventoryAboveThreshold])
     await headerOfStation(wrapper, 1).trigger('click')
+    await flushPromises()
 
     syncStore.syncStatus['character-assets'] = completedSync()
     await flushPromises()
