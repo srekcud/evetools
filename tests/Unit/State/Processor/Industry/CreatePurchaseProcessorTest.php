@@ -11,10 +11,13 @@ use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
+use App\Enum\ParticipantRole;
 use App\Repository\IndustryProjectPurchaseRepository;
+use App\Service\Industry\Project\ContainerDeliveryConfirmer;
 use App\State\Processor\Industry\CreatePurchaseProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -34,7 +37,12 @@ final class CreatePurchaseProcessorTest extends TestCase
     private const string RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-362000000101';
     private const string LINKED_TRITANIUM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-362000000102';
     private const string ADMIN_RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-362000000109';
+    private const string MEMBER_RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-981000000101';
+    private const string OUTSIDER_RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-981000000102';
     private const float RAM_UNIT_PRICE = 3_040.5;
+    private const float MEMBER_RAM_UNIT_PRICE = 2_980.25;
+    private const string NO_ACCESS = '403 You do not have access to this project';
+    private const string MANUAL_PURCHASE_OWNER_ONLY = '403 Only the project owner can add a manual purchase';
 
     private array $walletTransactionsByUuid = [];
 
@@ -42,9 +50,24 @@ final class CreatePurchaseProcessorTest extends TestCase
 
     private array $persistedEntities = [];
 
+    private array $events = [];
+
+    private array $confirmedProjects = [];
+
+    private User $member;
+
+    private User $outsider;
+
     protected function setUp(): void
     {
         $this->setUpIshtarProject();
+        $this->member = new User();
+        $memberCharacter = $this->characterOf($this->member, 'Cora Vance');
+        $this->participate($this->ishtarProject, $this->member, ParticipantRole::Member);
+        $this->outsider = new User();
+        $outsiderCharacter = $this->characterOf($this->outsider, 'Elia Varr');
+        $this->walletTransaction(self::MEMBER_RAM_BUY_UUID, $memberCharacter, 981_000_001, self::RAM_TYPE_ID, 35, self::MEMBER_RAM_UNIT_PRICE);
+        $this->walletTransaction(self::OUTSIDER_RAM_BUY_UUID, $outsiderCharacter, 981_000_002, self::RAM_TYPE_ID, 10, 3_300.0);
         $this->walletTransaction(self::RAM_BUY_UUID, $this->ownerAltCharacter, 6_362_000_001, self::RAM_TYPE_ID, 50, self::RAM_UNIT_PRICE);
         $linkedTritaniumBuy = $this->walletTransaction(self::LINKED_TRITANIUM_BUY_UUID, $this->ownerMainCharacter, 6_362_000_002, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
         $this->walletTransaction(self::ADMIN_RAM_BUY_UUID, $this->adminCharacter, 6_362_000_009, self::RAM_TYPE_ID, 30, 3_100.0);
@@ -64,6 +87,8 @@ final class CreatePurchaseProcessorTest extends TestCase
         );
         self::assertSame([50, 0], [$this->ramLine->getPurchasedQuantity(), $this->ramLine->getFulfilledQuantity()]);
         self::assertSame([[$this->ramLine->getId()->toRfc4122(), 50, 0]], $this->refreshedLines);
+        self::assertSame($this->participantOf($this->owner), $purchase->getBuyer());
+        self::assertSame([$this->ishtarProject], $this->confirmedProjects);
         self::assertInstanceOf(ProjectPurchaseResource::class, $resource);
         self::assertSame(
             [$this->ramLine->getId()->toRfc4122(), self::RAM_TYPE_ID, 50, 152_025.0, 'esi_wallet'],
@@ -87,6 +112,61 @@ final class CreatePurchaseProcessorTest extends TestCase
         );
         self::assertSame([2_500, 0], [$this->tritaniumLine->getPurchasedQuantity(), $this->tritaniumLine->getFulfilledQuantity()]);
         self::assertSame([[$this->tritaniumLine->getId()->toRfc4122(), 2_500, 0]], $this->refreshedLines);
+        self::assertSame($this->participantOf($this->owner), $purchase->getBuyer());
+    }
+
+    #[Group('issue-981')]
+    public function testAcceptedMemberLinksHisWalletBuyAsItsBuyerThenTheProjectIsConfirmedAgainstTheContainerAfterTheFlush(): void
+    {
+        self::assertSame(
+            self::GRANTED,
+            $this->outcomeOf(fn () => $this->create($this->member, $this->ishtarProject, $this->ramLine, $this->transactionInput(self::MEMBER_RAM_BUY_UUID))),
+        );
+
+        self::assertCount(1, $this->persistedEntities);
+        $purchase = $this->persistedEntities[0];
+        self::assertSame(
+            [self::RAM_TYPE_ID, 35, 104_308.75, 'esi_wallet', $this->participantOf($this->member)],
+            [$purchase->getTypeId(), $purchase->getQuantity(), $purchase->getTotalPrice(), $purchase->getSource(), $purchase->getBuyer()],
+        );
+        self::assertSame([[$this->ramLine->getId()->toRfc4122(), 35, 0]], $this->refreshedLines);
+        self::assertSame([$this->ishtarProject], $this->confirmedProjects);
+        self::assertSame(['flush', 'confirm'], $this->events);
+    }
+
+    #[Group('issue-981')]
+    public function testAcceptedMemberCannotLinkTheWalletBuyOfAnotherPlayer(): void
+    {
+        self::assertSame(
+            '404 Transaction not found',
+            $this->outcomeOf(fn () => $this->create($this->member, $this->ishtarProject, $this->ramLine, $this->transactionInput(self::RAM_BUY_UUID))),
+        );
+        self::assertSame([[], [], []], [$this->persistedEntities, $this->refreshedLines, $this->confirmedProjects]);
+    }
+
+    #[Group('issue-981')]
+    public function testAcceptedMemberIsRefusedAManualPurchase(): void
+    {
+        $input = new CreatePurchaseInput();
+        $input->typeId = self::TRITANIUM_TYPE_ID;
+        $input->quantity = 2_500;
+        $input->unitPrice = 4.2;
+
+        self::assertSame(
+            self::MANUAL_PURCHASE_OWNER_ONLY,
+            $this->outcomeOf(fn () => $this->create($this->member, $this->ishtarProject, $this->tritaniumLine, $input)),
+        );
+        self::assertSame([[], [], []], [$this->persistedEntities, $this->refreshedLines, $this->confirmedProjects]);
+    }
+
+    #[Group('issue-981')]
+    public function testUserWhoIsNotAParticipantIsDeniedEvenWithHisOwnWalletBuy(): void
+    {
+        self::assertSame(
+            self::NO_ACCESS,
+            $this->outcomeOf(fn () => $this->create($this->outsider, $this->ishtarProject, $this->ramLine, $this->transactionInput(self::OUTSIDER_RAM_BUY_UUID))),
+        );
+        self::assertSame([[], [], []], [$this->persistedEntities, $this->refreshedLines, $this->confirmedProjects]);
     }
 
     public function testWalletBuyAlreadyLinkedIsAConflictAndNoPurchaseIsCreated(): void
@@ -104,16 +184,6 @@ final class CreatePurchaseProcessorTest extends TestCase
         self::assertSame(
             '404 Transaction not found',
             $this->outcomeOf(fn () => $this->create($this->owner, $this->ishtarProject, $this->ramLine, $this->transactionInput(self::ADMIN_RAM_BUY_UUID))),
-        );
-        self::assertSame([], $this->persistedEntities);
-        self::assertSame([], $this->refreshedLines);
-    }
-
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedAndNoPurchaseIsCreated(): void
-    {
-        self::assertSame(
-            self::OWNER_ONLY,
-            $this->outcomeOf(fn () => $this->create($this->admin, $this->ishtarProject, $this->ramLine, $this->transactionInput(self::ADMIN_RAM_BUY_UUID))),
         );
         self::assertSame([], $this->persistedEntities);
         self::assertSame([], $this->refreshedLines);
@@ -196,6 +266,16 @@ final class CreatePurchaseProcessorTest extends TestCase
         $entityManager->method('persist')->willReturnCallback(function (object $entity): void {
             $this->persistedEntities[] = $entity;
         });
+        $entityManager->method('flush')->willReturnCallback(function (): void {
+            $this->events[] = 'flush';
+        });
+        $containerDeliveryConfirmer = $this->createStub(ContainerDeliveryConfirmer::class);
+        $containerDeliveryConfirmer->method('confirmProject')->willReturnCallback(function (IndustryProject $confirmed): int {
+            $this->events[] = 'confirm';
+            $this->confirmedProjects[] = $confirmed;
+
+            return 0;
+        });
 
         return (new CreatePurchaseProcessor(
             $this->securityOf($user),
@@ -206,7 +286,16 @@ final class CreatePurchaseProcessorTest extends TestCase
             $this->accessChecker(),
             $entityManager,
             $this->derivedContributionService(),
+            $containerDeliveryConfirmer,
         ))->process($input, new Post(), $this->lineUriVariables($project, $line));
+    }
+
+    private function participantOf(User $user): IndustryProjectParticipant
+    {
+        return array_find(
+            $this->ishtarProject->getMembers()->toArray(),
+            static fn (IndustryProjectParticipant $participant): bool => $participant->getUser() === $user,
+        );
     }
 
     private function transactionInput(string $transactionUuid): CreatePurchaseInput

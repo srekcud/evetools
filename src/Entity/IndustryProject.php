@@ -515,6 +515,17 @@ class IndustryProject
         return $this->members;
     }
 
+    public function getOwnerParticipant(): IndustryProjectParticipant
+    {
+        foreach ($this->members as $member) {
+            if ($member->getUser() === $this->owner) {
+                return $member;
+            }
+        }
+
+        throw new \LogicException(sprintf('Project %s has no participant for its owner.', $this->id->toRfc4122()));
+    }
+
     public function enrolOwner(): static
     {
         return $this->addMember(

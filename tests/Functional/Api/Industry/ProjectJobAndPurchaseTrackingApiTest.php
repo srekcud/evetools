@@ -198,7 +198,7 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
     }
 
     #[DataProvider('ownerOnlyTrackingOperations')]
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedTheTrackingOfJobsAndPurchases(string $uriAfterTheProject, array $body): void
+    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedTheTrackingOfJobs(string $uriAfterTheProject, array $body): void
     {
         $this->client->loginUser($this->member, 'api');
         $this->request('POST', $this->ishtarUri().str_replace(
@@ -209,7 +209,6 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(403);
         self::assertSame([403, 'Only the project owner can perform this action'], $this->errorDetail());
-        self::assertSame([], $this->storedPurchasesOf($this->ramJobLine));
         self::assertSame([self::ISHTAR_JOB_ID], $this->storedJobIdsOf($this->ishtarJobLine));
     }
 
@@ -217,7 +216,17 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
     {
         yield 'match the jobs' => ['/match-jobs', []];
         yield 'link a job' => ['/bom/{ishtarLineId}/link-job', ['esiJobId' => 7_362_799]];
-        yield 'record a purchase' => ['/bom/{ramLineId}/purchases', ['typeId' => self::RAM_STARSHIP_TECH_TYPE_ID, 'quantity' => 50, 'unitPrice' => self::RAM_UNIT_PRICE]];
+    }
+
+    #[Group('issue-981')]
+    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedAManualPurchase(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('POST', $this->lineUri($this->ramJobLine).'/purchases', ['typeId' => self::RAM_STARSHIP_TECH_TYPE_ID, 'quantity' => 50, 'unitPrice' => self::RAM_UNIT_PRICE]);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame([403, 'Only the project owner can add a manual purchase'], $this->errorDetail());
+        self::assertSame([], $this->storedPurchasesOf($this->ramJobLine));
     }
 
     private function ishtarUri(): string

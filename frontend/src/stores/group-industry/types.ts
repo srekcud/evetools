@@ -139,6 +139,8 @@ export type ProjectPurchase = {
   source: string
   transactionId: string | null
   createdAt: string
+  isMine: boolean
+  buyerName: string | null
 }
 
 export type CharacterMatchFailure = {

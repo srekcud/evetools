@@ -8,6 +8,7 @@ use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Repository\IndustryProjectPurchaseRepository;
@@ -64,6 +65,21 @@ final class AutomaticPurchaseLinkerTest extends TestCase
         );
         self::assertSame([[$this->ramLine->getId()->toRfc4122(), self::RAM_BUY_QUANTITY]], $this->refreshedLines);
         self::assertSame(1, $this->flushCount);
+    }
+
+    #[Group('issue-981')]
+    public function testAutomaticallyLinkedPurchaseHasTheOwnerParticipantOfTheProjectAsItsBuyer(): void
+    {
+        $buy = $this->buy($this->ownerAltCharacter, 6_981_000_001, self::RAM_TYPE_ID, self::RAM_BUY_QUANTITY, self::RAM_UNIT_PRICE);
+
+        $this->linkNew($this->ownerAltCharacter, [$buy]);
+
+        $ownerParticipant = array_find(
+            $this->ishtarProject->getMembers()->toArray(),
+            fn (IndustryProjectParticipant $participant): bool => $participant->getUser() === $this->owner,
+        );
+        self::assertNotNull($ownerParticipant);
+        self::assertSame($ownerParticipant, $this->persistedEntities[0]->getBuyer());
     }
 
     public function testBuyEqualToTheRemainingOfTheLineIsLinked(): void

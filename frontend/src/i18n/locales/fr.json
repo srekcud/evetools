@@ -3456,6 +3456,7 @@
       "add": "Ajouter un achat",
       "sourceTransaction": "Wallet",
       "sourceManual": "Manuel",
+      "boughtBy": "Acheté par {name}",
       "loadError": "Échec du chargement des suggestions d'achat",
       "linkError": "Échec du lien de la transaction",
       "addError": "Échec de l'ajout de l'achat",

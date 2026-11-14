@@ -168,7 +168,15 @@ class ProjectBomProvider implements ProviderInterface
         )->toArray());
         $resource->matchedRuns = $item->getMatchedRuns();
         $resource->purchases = array_values($item->getPurchases()->map(
-            static fn (IndustryProjectPurchase $purchase): array => get_object_vars(ProjectPurchaseResource::fromEntity($purchase)),
+            static function (IndustryProjectPurchase $purchase) use ($project, $viewer): array {
+                $buyerUser = ($purchase->getBuyer() ?? $project->getOwnerParticipant())->getUser();
+
+                return [
+                    ...get_object_vars(ProjectPurchaseResource::fromEntity($purchase)),
+                    'isMine' => $buyerUser === $viewer,
+                    'buyerName' => PilotName::of($buyerUser),
+                ];
+            },
         )->toArray());
         $resource->purchasedQuantity = $item->getPurchasedQuantity();
 

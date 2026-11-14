@@ -11,6 +11,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectPurchase;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
@@ -208,6 +209,41 @@ class ProjectBomProviderTest extends TestCase
         $this->assertSame(['O-Main', 'O-Alt'], $installersByViewer);
     }
 
+
+    #[Group('issue-981')]
+    public function testPurchasesCarryTheNameOfTheirBuyerAndWhetherTheViewerBoughtThem(): void
+    {
+        $ownerMain = (new Character())->setEveCharacterId(2981000001)->setName('Aria Solberg');
+        $owner = (new User())->addCharacter($ownerMain)->setMainCharacter($ownerMain);
+        $memberMain = (new Character())->setEveCharacterId(2981000002)->setName('Cora Vance');
+        $member = (new User())->addCharacter($memberMain)->setMainCharacter($memberMain);
+        (new \ReflectionProperty(User::class, 'id'))->setValue($owner, Uuid::v4());
+        (new \ReflectionProperty(User::class, 'id'))->setValue($member, Uuid::v4());
+        $project = (new IndustryProject())->setOwner($owner);
+        $project->enrolOwner();
+        $ownerParticipant = $project->getMembers()->first();
+        $memberParticipant = (new IndustryProjectParticipant())->setUser($member)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted);
+        $project->addMember($memberParticipant);
+        $this->projectRepository->method('find')->willReturn($project);
+        $this->memberRepository->method('findOneBy')->willReturn($memberParticipant);
+        $line = $this->createBomItem(35, 'Pyerite', 5000, 0, 6.0, false, null, null, null, null, null, null);
+        $line->addPurchase((new IndustryProjectPurchase())->setBuyer($ownerParticipant)->setTypeId(35)->setQuantity(60)->setUnitPrice(6.0)->setTotalPrice(360.0)->setSource('esi_wallet'));
+        $line->addPurchase((new IndustryProjectPurchase())->setBuyer($memberParticipant)->setTypeId(35)->setQuantity(40)->setUnitPrice(8.5)->setTotalPrice(340.0)->setSource('esi_wallet'));
+        $this->bomItemRepository->method('findBy')->willReturn([$line]);
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($member);
+        $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository), $this->createStub(IndustryProjectLineReservationRepository::class), $this->createStub(ProjectJobLocationResolver::class), $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')), $this->blueprintNames());
+
+        $purchases = $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0]->purchases;
+
+        self::assertCount(2, $purchases);
+        self::assertArrayHasKey('isMine', $purchases[0]);
+        self::assertArrayHasKey('buyerName', $purchases[0]);
+        self::assertSame(
+            [[60, false, 'Aria Solberg'], [40, true, 'Cora Vance']],
+            array_map(static fn (array $purchase): array => [$purchase['quantity'], $purchase['isMine'], $purchase['buyerName']], $purchases),
+        );
+    }
 
     public function testMapsBomItemToResource(): void
     {

@@ -41,18 +41,21 @@ class DerivedContributionService
             return;
         }
 
-        $ownerParticipant = $this->ownerParticipantOf($project);
+        $ownerParticipant = $project->getOwnerParticipant();
 
         $jobMatchesByInstaller = $this->jobMatchesByInstaller($line, $ownerParticipant);
+        $purchasesByBuyer = $this->purchasesByBuyer($line, $ownerParticipant);
 
         $syncedContributionIds = [];
         foreach ($project->getContributions()->toArray() as $contribution) {
-            if ($this->isDerivedOn($contribution, $line) && $contribution->getMember() !== $ownerParticipant && !$this->isKeptJobInstall($contribution, $jobMatchesByInstaller)) {
+            if ($this->isDerivedOn($contribution, $line) && $contribution->getMember() !== $ownerParticipant && !$this->isKeptJobInstall($contribution, $jobMatchesByInstaller) && !$this->isKeptMaterial($contribution, $purchasesByBuyer)) {
                 $syncedContributionIds[] = $this->remove($line, $contribution);
             }
         }
 
-        $syncedContributionIds[] = $this->synchronize($line, $ownerParticipant, ContributionType::Material, $line->getPurchasedQuantity(), $this->paidPriceOf($line));
+        foreach ($purchasesByBuyer as $buyer) {
+            $syncedContributionIds[] = $this->synchronize($line, $buyer['participant'], ContributionType::Material, $buyer['quantity'], $buyer['paidPrice']);
+        }
         foreach ($jobMatchesByInstaller as $installer) {
             $syncedContributionIds[] = $this->synchronize(
                 $line,
@@ -200,7 +203,7 @@ class DerivedContributionService
     private function countCourierReward(IndustryProject $project, ?IndustryProjectContribution $existing, ?float $reward): ?string
     {
         if (null === $existing) {
-            $contribution = $this->derivedContribution($project, $this->ownerParticipantOf($project), ContributionType::Courier, self::COURIER_QUANTITY, $reward);
+            $contribution = $this->derivedContribution($project, $project->getOwnerParticipant(), ContributionType::Courier, self::COURIER_QUANTITY, $reward);
             $this->persistDerived($contribution);
 
             return $contribution->getId()->toRfc4122();
@@ -243,7 +246,7 @@ class DerivedContributionService
             ->setEstimatedValue($value)
             ->setIsAutoDetected(true);
 
-        if ($this->isProposalOnly($project, $type, $line)) {
+        if ($this->isProposalOnly($project, $contributingParticipant, $type, $line)) {
             return $contribution->setStatus(ContributionStatus::Pending)->setIsVerified(false);
         }
 
@@ -257,9 +260,17 @@ class DerivedContributionService
             ->setReviewedAt($now);
     }
 
-    private function isProposalOnly(IndustryProject $project, ContributionType $type, ?IndustryProjectBomLine $line): bool
+    private function isProposalOnly(IndustryProject $project, IndustryProjectParticipant $contributingParticipant, ContributionType $type, ?IndustryProjectBomLine $line): bool
     {
-        return ContributionType::Material === $type && null !== $line && !$line->isJob() && !$project->isSoleReviewingOwner($project->getOwner());
+        if (ContributionType::Material !== $type || null === $line) {
+            return false;
+        }
+
+        if ($contributingParticipant->getUser() !== $project->getOwner()) {
+            return true;
+        }
+
+        return !$line->isJob() && !$project->isSoleReviewingOwner($project->getOwner());
     }
 
     private function persistDerived(IndustryProjectContribution $contribution): void
@@ -286,16 +297,34 @@ class DerivedContributionService
         $line->setFulfilledQuantity($line->getFulfilledQuantity() + $quantityDifference);
     }
 
-    private function paidPriceOf(IndustryProjectBomLine $line): float
+    /**
+     * @return array<int, array{participant: IndustryProjectParticipant, quantity: int, paidPrice: float}>
+     */
+    private function purchasesByBuyer(IndustryProjectBomLine $line, IndustryProjectParticipant $ownerParticipant): array
     {
-        $paidPrice = 0.0;
+        $byBuyer = [spl_object_id($ownerParticipant) => ['participant' => $ownerParticipant, 'quantity' => 0, 'paidPrice' => 0.0]];
         foreach ($line->getPurchases() as $purchase) {
-            if ($purchase->getTypeId() === $line->getTypeId()) {
-                $paidPrice += $purchase->getTotalPrice();
+            if ($purchase->getTypeId() !== $line->getTypeId()) {
+                continue;
             }
+
+            $buyer = $purchase->getBuyer() ?? $ownerParticipant;
+            $byBuyer[spl_object_id($buyer)] ??= ['participant' => $buyer, 'quantity' => 0, 'paidPrice' => 0.0];
+            $byBuyer[spl_object_id($buyer)]['quantity'] += $purchase->getQuantity();
+            $byBuyer[spl_object_id($buyer)]['paidPrice'] += $purchase->getTotalPrice();
         }
 
-        return $paidPrice;
+        return $byBuyer;
+    }
+
+    /**
+     * @param array<int, array{participant: IndustryProjectParticipant, quantity: int, paidPrice: float}> $purchasesByBuyer
+     */
+    private function isKeptMaterial(IndustryProjectContribution $contribution, array $purchasesByBuyer): bool
+    {
+        return ContributionType::Material === $contribution->getType()
+            && isset($purchasesByBuyer[spl_object_id($contribution->getMember())])
+            && $purchasesByBuyer[spl_object_id($contribution->getMember())]['quantity'] > 0;
     }
 
     /**
@@ -352,17 +381,6 @@ class DerivedContributionService
         return ContributionType::JobInstall === $contribution->getType()
             && isset($jobMatchesByInstaller[spl_object_id($member)])
             && $jobMatchesByInstaller[spl_object_id($member)]['matches'] !== [];
-    }
-
-    private function ownerParticipantOf(IndustryProject $project): IndustryProjectParticipant
-    {
-        foreach ($project->getMembers() as $member) {
-            if ($member->getUser() === $project->getOwner()) {
-                return $member;
-            }
-        }
-
-        throw new \LogicException(sprintf('Project %s has no participant for its owner.', $project->getId()->toRfc4122()));
     }
 
     private function isDerivedOn(IndustryProjectContribution $contribution, IndustryProjectBomLine $line): bool

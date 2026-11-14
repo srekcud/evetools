@@ -45,6 +45,8 @@ function purchase(overrides: Partial<ProjectPurchase>): ProjectPurchase {
     source: 'transaction',
     transactionId: null,
     createdAt: '2026-11-06T09:00:00+00:00',
+    isMine: false,
+    buyerName: null,
     ...overrides,
   }
 }
@@ -236,7 +238,7 @@ describe('Component line purchases', () => {
     expect(callsTo(BOM_URL)).toBe(1)
   })
 
-  it('offers the purchase screen and the purchase deletion to the owner only, on component lines and on material lines', () => {
+  it('offers the purchase screen to every participant and the deletion of a purchase to the owner or to its buyer only, on component lines and on material lines', () => {
     const actionsOf = (myRole: GroupMemberRole) => {
       const components = mountComponent(JobsTable, myRole, [CAPITAL_ARMOR_PLATES])
       const materials = mountComponent(BomTable, myRole, [PYERITE])
@@ -250,8 +252,8 @@ describe('Component line purchases', () => {
 
     expect({ owner: actionsOf('owner'), admin: actionsOf('admin'), member: actionsOf('member') }).toEqual({
       owner: { componentOpen: 1, componentDelete: 2, materialOpen: 1, materialDelete: 1 },
-      admin: { componentOpen: 0, componentDelete: 0, materialOpen: 0, materialDelete: 0 },
-      member: { componentOpen: 0, componentDelete: 0, materialOpen: 0, materialDelete: 0 },
+      admin: { componentOpen: 1, componentDelete: 0, materialOpen: 1, materialDelete: 0 },
+      member: { componentOpen: 1, componentDelete: 0, materialOpen: 1, materialDelete: 0 },
     })
   })
 })
