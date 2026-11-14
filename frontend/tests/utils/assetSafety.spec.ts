@@ -1,4 +1,5 @@
-import { summarizeAssetSafety, summarizeAssetSafetyLocations } from '@/utils/assetSafety'
+import { summarizeAssetSafety, summarizeAssetSafetyLocations, summarizeAssetSafetyVolumes } from '@/utils/assetSafety'
+import type { PackagedVolumeCatalog } from '@/utils/assetVolume'
 import type { Asset, AssetLocationSummaryRow } from '@/types'
 
 const SHIP_CATEGORY_ID = 6
@@ -137,5 +138,86 @@ describe('summarizeAssetSafetyLocations', () => {
 
   it('returns nothing when no location is in asset safety', () => {
     expect(summarizeAssetSafetyLocations([summaryRow('Jita IV - Moon 4 - Caldari Navy Assembly Plant', {})])).toEqual([])
+  })
+})
+
+const RIFTER = 587
+const TRITANIUM = 34
+const CARGO_CONTAINER = 3465
+const UNLISTED_TYPE = 999001
+
+const catalog: PackagedVolumeCatalog = {
+  volumes: new Map([[RIFTER, 2500], [TRITANIUM, 0.01], [CARGO_CONTAINER, 100]]),
+  excludedTypeIds: new Set([17368]),
+}
+
+describe('summarizeAssetSafetyVolumes', () => {
+  const noContents = () => []
+
+  it('sums the packaged volume of the assets of an asset safety location', () => {
+    const rows = [summaryRow('Asset Safety (Misaba)', { locationId: 1 })]
+    const assetsByLocation = new Map([[1, [
+      asset(1, { typeId: RIFTER, quantity: 3 }),
+      asset(2, { typeId: TRITANIUM, quantity: 1000 }),
+    ]]])
+
+    const volumes = summarizeAssetSafetyVolumes(rows, id => assetsByLocation.get(id) ?? [], noContents, catalog)
+
+    expect(volumes.get('Asset Safety (Misaba)')).toEqual({ cubicMeters: 7510, unknownTypeCount: 0 })
+  })
+
+  it('includes the contents of the containers held in the location', () => {
+    const rows = [summaryRow('Asset Safety (Misaba)', { locationId: 1 })]
+    const box = asset(10, { itemId: 500, typeId: CARGO_CONTAINER, isSingleton: true })
+    const contents = new Map([[500, [asset(11, { typeId: RIFTER, quantity: 2 })]]])
+
+    const volumes = summarizeAssetSafetyVolumes(rows, () => [box], id => contents.get(id) ?? [], catalog)
+
+    expect(volumes.get('Asset Safety (Misaba)')?.cubicMeters).toBe(5100)
+  })
+
+  it('merges the locations that share an asset safety name into one volume', () => {
+    const rows = [
+      summaryRow('Asset Safety (Misaba)', { locationId: 1 }),
+      summaryRow('Office — Asset Safety (Misaba)', { locationId: 2 }),
+    ]
+    const assetsByLocation = new Map([
+      [1, [asset(1, { typeId: RIFTER, quantity: 1 })]],
+      [2, [asset(2, { typeId: RIFTER, quantity: 2 })]],
+    ])
+
+    const volumes = summarizeAssetSafetyVolumes(rows, id => assetsByLocation.get(id) ?? [], noContents, catalog)
+
+    expect(volumes.get('Asset Safety (Misaba)')?.cubicMeters).toBe(7500)
+  })
+
+  it('counts the types without volume instead of treating them as zero', () => {
+    const rows = [summaryRow('Asset Safety (Misaba)', { locationId: 1 })]
+    const assets = [
+      asset(1, { typeId: RIFTER, quantity: 1 }),
+      asset(2, { typeId: UNLISTED_TYPE, quantity: 4 }),
+    ]
+
+    const volumes = summarizeAssetSafetyVolumes(rows, () => assets, noContents, catalog)
+
+    expect(volumes.get('Asset Safety (Misaba)')).toEqual({ cubicMeters: 2500, unknownTypeCount: 1 })
+  })
+
+  it('reports one volume per solar system and ignores the other locations', () => {
+    const rows = [
+      summaryRow('Asset Safety (Misaba)', { locationId: 1 }),
+      summaryRow('Asset Safety (Jita)', { locationId: 2, solarSystemName: 'Jita' }),
+      summaryRow('Jita IV - Moon 4 - Caldari Navy Assembly Plant', { locationId: 3 }),
+    ]
+    const assetsByLocation = new Map([
+      [1, [asset(1, { typeId: RIFTER, quantity: 1 })]],
+      [2, [asset(2, { typeId: RIFTER, quantity: 2 })]],
+      [3, [asset(3, { typeId: RIFTER, quantity: 9 })]],
+    ])
+
+    const volumes = summarizeAssetSafetyVolumes(rows, id => assetsByLocation.get(id) ?? [], noContents, catalog)
+
+    expect([...volumes.keys()].sort()).toEqual(['Asset Safety (Jita)', 'Asset Safety (Misaba)'])
+    expect(volumes.get('Asset Safety (Jita)')?.cubicMeters).toBe(5000)
   })
 })
