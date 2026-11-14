@@ -30,7 +30,7 @@ Les champs du formulaire :
 | **Type de structure** | **Station NPC (aucun bonus)**, Raitaru, Azbel, Sotiyo (Engineering Complex, pour la fabrication), Athanor, Tatara (raffineries, pour les réactions). |
 | **Sécurité** | **High-Sec (x1.0)**, **Low-Sec (x1.9)**, **Null-Sec (x2.1)**. Le multiplicateur s'applique au bonus des rigs. Les valeurs affichées sont celles de la fabrication ; pour les rigs de réaction, le calcul des projets applique ×1,0, ×1,0 et ×1,1. Valeur par défaut : Null-Sec. |
 | **Rigs (bonus matériaux)** | 3 rigs au plus. Tapez au moins 2 caractères. La liste ne propose que les rigs de la taille de la structure : rigs de fabrication pour un Engineering Complex, rigs de réaction pour une raffinerie. Chaque rig affiche son bonus ME (et TE s'il en a) et les catégories de produits qu'il cible. |
-| **Taxe d'installation (%)** | Facultatif, de 0 à 50 (par exemple `3.5` pour 3,5 %). Hors bornes, le formulaire refuse l'enregistrement. Laissé vide, le champ s'affiche « non saisie » et la taxe compte pour **0 %** dans les calculs. Pour une **Station NPC**, il n'y a pas de champ : le formulaire indique « 0,25 % (fixée par le jeu) ». |
+| **Taxe d'installation (%)** | Facultatif, de 0 à 50 (par exemple `3.5` pour 3,5 %). Hors bornes, le formulaire refuse l'enregistrement. Laissé vide, le champ s'affiche « non saisie » et le coût d'installation reste **inconnu** tant que vous ne la renseignez pas (saisissez 0 si la structure ne prélève rien). Pour une **Station NPC**, il n'y a pas de champ : le formulaire indique « 0,25 % (fixée par le jeu) ». |
 
 Le cadre **Bonus calculé (base structure + rigs x sécurité)** donne un aperçu avant d'enregistrer. Validez avec **Ajouter**.
 
@@ -79,7 +79,7 @@ Le coût d'installation d'un job additionne trois termes calculés sur la même 
 
 - **Étape avec structure associée** : on applique la taxe saisie sur cette structure.
 - **Étape ou outil sans structure associée** : la taxe est celle de la structure retenue dans le système (règles ci-dessus), et à défaut 0,25 %, la taxe d'une station NPC.
-- **Taxe non saisie** : elle compte pour 0 %, ce qui sous-estime le coût réel. Saisissez le taux affiché en jeu pour la structure.
+- **Taxe non saisie** : le coût d'installation est inconnu, jamais compté comme 0 %. Saisissez le taux affiché en jeu pour la structure, ou 0 si elle ne prélève rien.
 
 ## Pièges connus
 
