@@ -10,6 +10,7 @@ framework:
         pools:
             doctrine.result_cache_pool:
                 adapter: cache.adapter.redis
+                default_lifetime: 3600
             doctrine.system_cache_pool:
                 adapter: cache.adapter.system
             esi.cache:

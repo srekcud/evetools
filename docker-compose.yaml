@@ -186,7 +186,7 @@ services:
     networks:
       evetools_net:
         ipv4_address: 10.169.0.12
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy volatile-lru
 
 networks:
   evetools_net:
