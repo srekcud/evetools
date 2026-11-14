@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { readAssetFilterQuery, readLastCharacterId, rememberLastCharacterId, writeAssetFilterQuery } from '@/utils/assetFilterQuery'
 import type { AssetLocationSort } from '@/utils/assetFilterQuery'
 import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/assetLocation'
-import { summarizeAssetSafety } from '@/utils/assetSafety'
+import { summarizeAssetSafetyLocations } from '@/utils/assetSafety'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
 import { ApiError, apiRequest, carriesServerMessage } from '@/services/api'
 import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
-import { COLLAPSE_LOCATIONS_ROW_THRESHOLD, FRESHNESS_TICK_MS, SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
+import { ASSET_SEARCH_DEBOUNCE_MS, ASSET_SEARCH_MIN_LENGTH, AUTO_EXPAND_MAX_LOCATIONS, COLLAPSE_LOCATIONS_ROW_THRESHOLD, FRESHNESS_TICK_MS, SEARCH_REVEAL_CONTAINER_LIMIT } from '@/constants/assetsConstants'
 import { useFormatters } from '@/composables/useFormatters'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useAssetChanges } from '@/composables/useAssetChanges'
+import { useAssetBrowse, type AssetSearchState } from '@/composables/useAssetBrowse'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { filterTypeGroups, groupAssetsByType } from '@/utils/assetsByType'
 import { summarizeSelection } from '@/utils/assetSelection'
@@ -36,7 +37,7 @@ import AssetDistributionChart from '@/components/assets/AssetDistributionChart.v
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import PinnedContainersPanel from '@/components/assets/PinnedContainersPanel.vue'
 import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
-import type { Asset } from '@/types'
+import type { Asset, AssetLocationSummaryRow } from '@/types'
 
 interface DivisionCount {
   name: string
@@ -53,6 +54,8 @@ interface LocationSummary {
   shipCount: number
   divisions: DivisionCount[]
   volume: VolumeSummary | null
+  contentsLoaded: boolean
+  isLoadingContents: boolean
 }
 import { useFlash } from '@/composables/useUpdateFlash'
 import { formatEveClock } from '@/views/MiningOperation/miningOperationTime'
@@ -72,11 +75,12 @@ const urlFilters = readAssetFilterQuery(route.query)
 
 // State
 const selectedCharacterId = ref<string | null>(null)
-const assets = shallowRef<Asset[]>([])
 const isLoading = ref(false)
 const isReloading = ref(false)
 const hasLoadedCurrentOwner = ref(false)
-let pendingAssetsRequest: AbortController | null = null
+let fetchSequence = 0
+let loadedDivision = ''
+let searchTimeoutId: ReturnType<typeof setTimeout> | null = null
 const isRefreshing = ref(false)
 const error = ref('')
 const refreshNotice = ref('')
@@ -98,6 +102,33 @@ const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError,
 
 const isCorpView = computed(() => viewMode.value === 'corporation')
 const isTypeView = computed(() => !isCorpView.value && groupBy.value === 'type')
+
+const ownerPath = computed(() => {
+  if (isCorpView.value) return '/me/corporation/assets'
+  return selectedCharacterId.value ? `/me/characters/${selectedCharacterId.value}/assets` : null
+})
+
+const {
+  summary: fullSummary,
+  divisionSummary,
+  rootRows,
+  childRows,
+  locationOfItem,
+  loadingLocationIds,
+  fullListLoaded,
+  search: serverSearch,
+  loadSummary,
+  loadLocation,
+  loadContainer,
+  loadFullList,
+  runSearch,
+  reloadLoaded,
+  reset: resetBrowse,
+  replaceRow,
+} = useAssetBrowse(ownerPath)
+
+const summary = computed(() => (selectedDivision.value !== '' && divisionSummary.value !== null ? divisionSummary.value : fullSummary.value))
+const summaryLocations = computed(() => summary.value?.locations ?? [])
 
 const { catalog: packagedVolumeCatalog, unavailable: packagedVolumesUnavailable, fetchPackagedVolumes } = usePackagedVolumes()
 const { entries: pinnedEntries, pinnedItemIds, projectPinnedItemIds, fetchPinned, pin: pinContainer, unpin: unpinContainer, clearPinned } = usePinnedContainers()
@@ -157,29 +188,24 @@ const sharedDivisionNames = computed(() => {
     .sort((a, b) => a.localeCompare(b))
 })
 
-// Get unique solar systems
 const solarSystems = computed(() => {
   const systems = new Set<string>()
-  for (const asset of assets.value) {
-    if (asset.solarSystemName) {
-      systems.add(asset.solarSystemName)
+  for (const location of fullSummary.value?.locations ?? []) {
+    if (location.solarSystemName) {
+      systems.add(location.solarSystemName)
     }
   }
   return Array.from(systems).sort()
 })
 
-const rootAssets = computed(() =>
-  assets.value.filter(asset => asset.locationType !== 'item' || !existingItemIds.value.has(asset.locationId)),
-)
-
 const divisions = computed(() => {
-  const rowCounts = new Map<string, number>()
-  for (const asset of assets.value) {
-    if (asset.divisionName !== null) {
-      rowCounts.set(asset.divisionName, (rowCounts.get(asset.divisionName) ?? 0) + 1)
+  const counts = new Map<string, number>()
+  for (const location of fullSummary.value?.locations ?? []) {
+    for (const division of location.divisions) {
+      counts.set(division.name, (counts.get(division.name) ?? 0) + division.count)
     }
   }
-  return Array.from(rowCounts, ([name, rowCount]) => ({ name, rowCount })).sort((a, b) => a.name.localeCompare(b.name))
+  return Array.from(counts, ([name, rowCount]) => ({ name, rowCount })).sort((a, b) => a.name.localeCompare(b.name))
 })
 
 function isInSelectedDivision(asset: Asset): boolean {
@@ -200,12 +226,11 @@ function locationOptionLabel(locationName: string, solarSystemName: string | nul
   return locationName
 }
 
-// Get unique locations (filtered by selected solar system)
 const locations = computed(() => {
   const locs = new Map<string, { solarSystemName: string | null }>()
-  for (const asset of rootAssets.value) {
-    if (!locs.has(asset.locationName)) {
-      locs.set(asset.locationName, { solarSystemName: asset.solarSystemName })
+  for (const location of fullSummary.value?.locations ?? []) {
+    if (!locs.has(location.locationName)) {
+      locs.set(location.locationName, { solarSystemName: location.solarSystemName })
     }
   }
 
@@ -222,41 +247,16 @@ const locations = computed(() => {
   return result.sort((a, b) => a.label.localeCompare(b.label))
 })
 
-// Build a set of all item_ids
-const existingItemIds = computed(() => new Set(assets.value.map(a => a.itemId)))
+const poolAssets = computed(() => [
+  ...Array.from(rootRows.value.values()).flat(),
+  ...Array.from(childRows.value.values()).flat(),
+])
 
-// Build a map of container item_id -> items inside it
-const containerContents = computed(() => {
-  const contents = new Map<number, Asset[]>()
-  for (const asset of assets.value) {
-    if (asset.locationType === 'item' && existingItemIds.value.has(asset.locationId)) {
-      const containerId = asset.locationId
-      const siblings = contents.get(containerId)
-      if (siblings) {
-        siblings.push(asset)
-      } else {
-        contents.set(containerId, [asset])
-      }
-    }
-  }
-  return contents
-})
+const assetsByItemId = computed(() => new Map(poolAssets.value.map(a => [a.itemId, a])))
 
 function applyResolvedItemName(itemId: number, itemName: string): void {
-  const index = assets.value.findIndex(asset => asset.itemId === itemId)
-  if (index === -1) {
-    return
-  }
-  const updated = assets.value.slice()
-  updated[index] = { ...updated[index], itemName, canResolveItemName: false }
-  assets.value = updated
+  replaceRow(itemId, { itemName, canResolveItemName: false })
 }
-
-function isContainer(asset: Asset): boolean {
-  return containerContents.value.has(asset.itemId)
-}
-
-const assetsByItemId = computed(() => new Map(assets.value.map(a => [a.itemId, a])))
 
 const normalizedSearchQuery = computed(() => normalizeSearchText(searchQuery.value))
 
@@ -264,30 +264,34 @@ function containsQuery(text: string, query: string): boolean {
   return normalizeSearchText(text).includes(query)
 }
 
-function matchesItemSearch(asset: Asset, query: string): boolean {
-  return containsQuery(typeNameLabel(asset.typeName, asset.typeId), query) ||
-    (asset.itemName !== null && containsQuery(asset.itemName, query))
+function matchesLocationRow(location: AssetLocationSummaryRow, query: string): boolean {
+  return containsQuery(location.locationName, query) ||
+    (location.solarSystemName !== null && containsQuery(location.solarSystemName, query))
 }
 
-function matchesLocationSearch(asset: Asset, query: string): boolean {
-  return containsQuery(asset.locationName, query) ||
-    (asset.solarSystemName !== null && containsQuery(asset.solarSystemName, query))
+const activeSearch = computed<AssetSearchState | null>(() =>
+  searchQuery.value.trim().length >= ASSET_SEARCH_MIN_LENGTH ? serverSearch.value : null,
+)
+
+const searchIsTruncated = computed(() => activeSearch.value?.truncated === true)
+
+function matchedThroughSearch(rows: Asset[], state: AssetSearchState): Asset[] {
+  return rows.filter(row => state.hitItemIds.has(row.itemId) || state.pathItemIds.has(row.itemId))
 }
 
-function matchesSearch(asset: Asset, query: string): boolean {
-  return matchesItemSearch(asset, query) || matchesLocationSearch(asset, query)
+function showsEverythingInContainer(containerId: number, state: AssetSearchState): boolean {
+  const locationId = locationOfItem.value.get(containerId)
+  return state.hitItemIds.has(containerId) || (locationId !== undefined && state.locationIds.has(locationId))
 }
 
 const visibleContainerContents = computed(() => {
-  const query = normalizedSearchQuery.value
-  if (!query) {
-    return containerContents.value
+  const state = activeSearch.value
+  if (state === null || isTypeView.value) {
+    return childRows.value
   }
   const visible = new Map<number, Asset[]>()
-  for (const [containerId, contents] of containerContents.value) {
-    const container = assetsByItemId.value.get(containerId)
-    const containerMatches = container !== undefined && matchesSearch(container, query)
-    visible.set(containerId, containerMatches ? contents : contents.filter(item => matchesItemSearch(item, query)))
+  for (const [containerId, rows] of childRows.value) {
+    visible.set(containerId, showsEverythingInContainer(containerId, state) ? rows : matchedThroughSearch(rows, state))
   }
   return visible
 })
@@ -296,8 +300,13 @@ function getContentsOfItem(itemId: number): Asset[] {
   return visibleContainerContents.value.get(itemId) ?? []
 }
 
-function getContainerContents(asset: Asset): Asset[] {
-  return visibleContainerContents.value.get(asset.itemId) || []
+async function openContainer(itemId: number) {
+  try {
+    await loadContainer(itemId)
+  } catch (e) {
+    error.value = t('assets.loadFailed')
+    console.error(e)
+  }
 }
 
 function toggleContainer(itemId: number) {
@@ -305,6 +314,7 @@ function toggleContainer(itemId: number) {
     expandedContainers.value.delete(itemId)
   } else {
     expandedContainers.value.add(itemId)
+    void openContainer(itemId)
   }
   expandedContainers.value = new Set(expandedContainers.value)
 }
@@ -321,35 +331,25 @@ function clearLocationSelection() {
   selectedLocationNames.value = new Set()
 }
 
+async function loadExpandedLocations() {
+  const pending = summaryLocations.value.filter(location => !collapsedLocations.value.has(location.locationName))
+  try {
+    await Promise.all(pending.map(location => loadLocation(location.locationId)))
+  } catch (e) {
+    error.value = t('assets.loadFailed')
+    console.error(e)
+  }
+}
+
 function toggleLocation(locationName: string) {
   if (collapsedLocations.value.has(locationName)) {
     collapsedLocations.value.delete(locationName)
+    void loadExpandedLocations()
   } else {
     collapsedLocations.value.add(locationName)
   }
   collapsedLocations.value = new Set(collapsedLocations.value)
 }
-
-// Filter assets
-const filteredAssets = computed(() => {
-  let result = assets.value
-
-  if (selectedSolarSystem.value) {
-    result = result.filter(a => a.solarSystemName === selectedSolarSystem.value)
-  }
-  if (selectedLocation.value) {
-    result = result.filter(a => a.locationName === selectedLocation.value)
-  }
-  if (selectedDivision.value) {
-    result = result.filter(isInSelectedDivision)
-  }
-  if (searchQuery.value.trim()) {
-    const query = normalizedSearchQuery.value
-    result = result.filter(a => matchesSearch(a, query) || getContainerContents(a).length > 0)
-  }
-
-  return result
-})
 
 function compareDivisions(a: DivisionCount, b: DivisionCount): number {
   return b.count - a.count || a.name.localeCompare(b.name)
@@ -365,75 +365,63 @@ function compareLocations(a: LocationSummary, b: LocationSummary): number {
   return a.locationName.localeCompare(b.locationName)
 }
 
-const assetsByLocation = computed(() => {
-  const grouped: Record<string, LocationSummary> = {}
-  const divisionCounts: Record<string, Map<string, number>> = {}
-
-  for (const asset of filteredAssets.value) {
-    if (asset.locationType === 'item' && existingItemIds.value.has(asset.locationId)) {
-      continue
-    }
-
-    const key = asset.locationName || `Location ${asset.locationId}`
-    if (!grouped[key]) {
-      grouped[key] = {
-        locationId: asset.locationId,
-        locationType: asset.locationType,
-        locationName: key,
-        solarSystemName: asset.solarSystemName,
-        assets: [],
-        totalQuantity: 0,
-        shipCount: 0,
-        divisions: [],
-        volume: null,
-      }
-      divisionCounts[key] = new Map()
-    }
-
-    let quantity = asset.quantity
-    if (isContainer(asset)) {
-      for (const item of getContainerContents(asset)) {
-        quantity += item.quantity
-      }
-    }
-
-    grouped[key].assets.push(asset)
-    grouped[key].totalQuantity += quantity
-    if (asset.categoryId === SHIP_CATEGORY_ID && asset.isSingleton === true) {
-      grouped[key].shipCount += asset.quantity
-    }
-    if (asset.divisionName !== null) {
-      const known = divisionCounts[key].get(asset.divisionName)
-      divisionCounts[key].set(asset.divisionName, known === undefined ? quantity : known + quantity)
-    }
+const visibleLocationRows = computed(() => {
+  let rows = summaryLocations.value
+  if (selectedSolarSystem.value) {
+    rows = rows.filter(row => row.solarSystemName === selectedSolarSystem.value)
   }
-
-  for (const location of Object.values(grouped)) {
-    location.assets = projectPinnedFirst(location.assets, projectPinnedItemIds.value)
+  if (selectedLocation.value) {
+    rows = rows.filter(row => row.locationName === selectedLocation.value)
   }
+  const state = activeSearch.value
+  if (state !== null) {
+    return rows.filter(row => state.locationIds.has(row.locationId) || state.rootLocationIds.has(row.locationId))
+  }
+  const query = normalizedSearchQuery.value
+  if (query !== '' && !isTypeView.value) {
+    return rows.filter(row => matchesLocationRow(row, query))
+  }
+  return rows
+})
 
-  if (!selectedDivision.value) {
-    for (const [key, counts] of Object.entries(divisionCounts)) {
-      grouped[key].divisions = Array.from(counts, ([name, count]) => ({ name, count })).sort(compareDivisions)
+function rowsOfLocation(row: AssetLocationSummaryRow): Asset[] {
+  let rows = rootRows.value.get(row.locationId) ?? []
+  if (selectedDivision.value) {
+    rows = rows.filter(isInSelectedDivision)
+  }
+  const state = activeSearch.value
+  if (state !== null && !state.locationIds.has(row.locationId)) {
+    rows = matchedThroughSearch(rows, state)
+  }
+  return projectPinnedFirst(rows, projectPinnedItemIds.value)
+}
+
+const assetsByLocation = computed<LocationSummary[]>(() => {
+  const catalog = fullListLoaded.value ? packagedVolumeCatalog.value : null
+  return visibleLocationRows.value.map((row) => {
+    const locationAssets = rowsOfLocation(row)
+    return {
+      locationId: row.locationId,
+      locationType: row.locationType,
+      locationName: row.locationName,
+      solarSystemName: row.solarSystemName,
+      assets: locationAssets,
+      totalQuantity: row.itemCount,
+      shipCount: row.shipCount,
+      divisions: selectedDivision.value ? [] : [...row.divisions].sort(compareDivisions),
+      volume: catalog === null ? null : summarizeVolume(locationAssets, getContentsOfItem, catalog),
+      contentsLoaded: rootRows.value.has(row.locationId),
+      isLoadingContents: loadingLocationIds.value.has(row.locationId),
     }
-  }
-
-  const catalog = packagedVolumeCatalog.value
-  if (catalog !== null) {
-    for (const location of Object.values(grouped)) {
-      location.volume = summarizeVolume(location.assets, getContentsOfItem, catalog)
-    }
-  }
-
-  return Object.values(grouped).sort(compareLocations)
+  }).sort(compareLocations)
 })
 
 const typeGroups = computed(() => {
-  if (!isTypeView.value) {
+  if (!isTypeView.value || !fullListLoaded.value) {
     return []
   }
   return filterTypeGroups(
-    groupAssetsByType(assets.value, asset => typeNameLabel(asset.typeName, asset.typeId)),
+    groupAssetsByType(poolAssets.value, asset => typeNameLabel(asset.typeName, asset.typeId)),
     { solarSystem: selectedSolarSystem.value, location: selectedLocation.value, searchQuery: searchQuery.value },
   )
 })
@@ -442,10 +430,12 @@ const selectedLocations = computed(() =>
   assetsByLocation.value.filter(location => selectedLocationNames.value.has(location.locationName)),
 )
 
-const selectionSummary = computed(() => summarizeSelection(selectedLocations.value, visibleContainerContents.value))
+const selectionSummary = computed(() =>
+  fullListLoaded.value ? summarizeSelection(selectedLocations.value, visibleContainerContents.value) : null,
+)
 
 const selectionVolume = computed(() =>
-  packagedVolumeCatalog.value === null
+  !fullListLoaded.value || packagedVolumeCatalog.value === null
     ? null
     : summarizeVolume(selectedLocations.value.flatMap(location => location.assets), getContentsOfItem, packagedVolumeCatalog.value),
 )
@@ -454,15 +444,7 @@ const largestLocationQuantity = computed(() =>
   assetsByLocation.value.reduce((largest, location) => Math.max(largest, location.totalQuantity), 0),
 )
 
-const lastSyncedAt = computed(() => {
-  let newest: string | null = null
-  for (const asset of assets.value) {
-    if (newest === null || Date.parse(asset.cachedAt) > Date.parse(newest)) {
-      newest = asset.cachedAt
-    }
-  }
-  return newest
-})
+const lastSyncedAt = computed(() => fullSummary.value?.lastSyncedAt ?? null)
 
 const freshnessLabel = computed(() =>
   lastSyncedAt.value === null
@@ -490,40 +472,103 @@ onMounted(() => {
 })
 onUnmounted(stopFreshnessClock)
 
-function revealSearchMatches() {
-  const query = normalizedSearchQuery.value
-  if (!query) {
-    return
+async function ensureFullList() {
+  try {
+    await loadFullList()
+  } catch (e) {
+    error.value = t('assets.loadFailed')
+    console.error(e)
   }
-  const opened = new Set(expandedContainers.value)
-  for (const [containerId, contents] of containerContents.value) {
-    if (contents.some(item => matchesItemSearch(item, query))) {
-      opened.add(containerId)
-    }
-  }
-  expandedContainers.value = opened
-
-  const reopenedLocations = new Set(collapsedLocations.value)
-  for (const location of assetsByLocation.value) {
-    const matchesThroughContent = location.assets.some(asset =>
-      !matchesLocationSearch(asset, query) &&
-      (matchesItemSearch(asset, query) || getContainerContents(asset).length > 0),
-    )
-    if (matchesThroughContent) {
-      reopenedLocations.delete(location.locationName)
-    }
-  }
-  collapsedLocations.value = reopenedLocations
 }
 
-watch(searchQuery, revealSearchMatches)
+async function openLocationRow(row: AssetLocationSummaryRow) {
+  const reopened = new Set(collapsedLocations.value)
+  reopened.delete(row.locationName)
+  collapsedLocations.value = reopened
+  await loadLocation(row.locationId)
+}
+
+async function openHitContainers(locationId: number, state: AssetSearchState, opened: Set<number>) {
+  const budgetLeft = () => SEARCH_REVEAL_CONTAINER_LIMIT - opened.size
+  for (const path of state.pathsByLocation.get(locationId) ?? []) {
+    for (const containerId of path) {
+      if (opened.has(containerId)) {
+        continue
+      }
+      if (budgetLeft() <= 0) {
+        return
+      }
+      opened.add(containerId)
+      await loadContainer(containerId)
+    }
+  }
+}
+
+async function revealSearchMatches() {
+  const state = activeSearch.value
+  if (state === null) {
+    return
+  }
+  const throughContent = summaryLocations.value
+    .filter(row => state.rootLocationIds.has(row.locationId) && !state.locationIds.has(row.locationId))
+    .slice(0, AUTO_EXPAND_MAX_LOCATIONS)
+  const openedContainers = new Set<number>()
+  try {
+    await Promise.all(throughContent.map(openLocationRow))
+    for (const row of throughContent) {
+      await openHitContainers(row.locationId, state, openedContainers)
+    }
+  } catch (e) {
+    error.value = t('assets.loadFailed')
+    console.error(e)
+    return
+  }
+  expandedContainers.value = new Set([...expandedContainers.value, ...openedContainers])
+}
+
+async function searchOnServer(query: string) {
+  try {
+    await runSearch(query)
+    await revealSearchMatches()
+  } catch (e) {
+    error.value = t('assets.loadFailed')
+    console.error(e)
+  }
+}
+
+function stopSearchTimeout() {
+  if (searchTimeoutId === null) return
+  clearTimeout(searchTimeoutId)
+  searchTimeoutId = null
+}
+
+watch(searchQuery, (query) => {
+  stopSearchTimeout()
+  if (query.trim().length < ASSET_SEARCH_MIN_LENGTH) {
+    void searchOnServer(query)
+    return
+  }
+  searchTimeoutId = setTimeout(() => {
+    searchTimeoutId = null
+    void searchOnServer(query)
+  }, ASSET_SEARCH_DEBOUNCE_MS)
+})
+
+onUnmounted(stopSearchTimeout)
+
+watch([isTypeView, selectedLocationNames, locationSort], () => {
+  const needsWholeList = isTypeView.value || selectedLocationNames.value.size > 0 || locationSort.value === 'volume'
+  if (needsWholeList) {
+    void ensureFullList()
+  }
+}, { immediate: true })
 
 // Reset location filter when solar system changes
 watch(selectedSolarSystem, () => {
   selectedLocation.value = ''
 })
 
-const assetSafetyLocations = computed(() => summarizeAssetSafety(assets.value))
+const assetSafetyLocations = computed(() => summarizeAssetSafetyLocations(summaryLocations.value))
 
 async function showAssetSafetyContent(locationName: string) {
   const location = assetSafetyLocations.value.find(candidate => candidate.locationName === locationName)
@@ -536,22 +581,18 @@ async function showAssetSafetyContent(locationName: string) {
   const reopened = new Set(collapsedLocations.value)
   reopened.delete(locationName)
   collapsedLocations.value = reopened
+  await loadExpandedLocations()
 }
 
 // Stats
-const divisionAssets = computed(() => assets.value.filter(isInSelectedDivision))
-const totalItems = computed(() => divisionAssets.value.reduce((sum, a) => sum + a.quantity, 0))
-const totalTypes = computed(() => new Set(divisionAssets.value.map(a => a.typeId)).size)
-const totalLocations = computed(() => new Set(rootAssets.value.filter(isInSelectedDivision).map(a => a.locationId)).size)
-const totalSystems = computed(() => new Set(divisionAssets.value.filter(a => a.solarSystemName).map(a => a.solarSystemName)).size)
+const totalItems = computed(() => summary.value?.itemCount ?? 0)
+const totalTypes = computed(() => summary.value?.typeCount ?? 0)
+const totalLocations = computed(() => summary.value?.locationCount ?? 0)
+const totalSystems = computed(() => summary.value?.systemCount ?? 0)
+const hasNoAssets = computed(() => (fullSummary.value?.locations.length ?? 0) === 0)
 
 // Fetch assets
-function abortPendingAssetsRequest() {
-  pendingAssetsRequest?.abort()
-  pendingAssetsRequest = null
-}
-
-function dropFiltersMissingFromAssets() {
+function dropFiltersMissingFromSummary() {
   if (selectedSolarSystem.value && !solarSystems.value.includes(selectedSolarSystem.value)) {
     selectedSolarSystem.value = ''
   }
@@ -563,20 +604,19 @@ function dropFiltersMissingFromAssets() {
   }
 }
 
-function collapseLocationsOfLargeInventory() {
-  if (rootAssets.value.length <= COLLAPSE_LOCATIONS_ROW_THRESHOLD) {
+function applyDefaultOpenState() {
+  const rows = fullSummary.value?.locations ?? []
+  const itemCount = fullSummary.value?.itemCount ?? 0
+  if (rows.length <= AUTO_EXPAND_MAX_LOCATIONS && itemCount <= COLLAPSE_LOCATIONS_ROW_THRESHOLD) {
     return
   }
-  collapsedLocations.value = new Set(assetsByLocation.value.map(location => location.locationName))
+  collapsedLocations.value = new Set(rows.map(row => row.locationName))
 }
 
 async function fetchAssets() {
   if (viewMode.value === 'character' && !selectedCharacterId.value) return
 
-  abortPendingAssetsRequest()
-  const request = new AbortController()
-  pendingAssetsRequest = request
-
+  const sequence = ++fetchSequence
   const isReload = hasLoadedCurrentOwner.value
   isLoading.value = !isReload
   isReloading.value = isReload
@@ -588,37 +628,47 @@ async function fetchAssets() {
   }
 
   try {
-    const endpoint = isCorporationRequest
-      ? '/me/corporation/assets'
-      : `/me/characters/${selectedCharacterId.value}/assets`
-
-    const data = await apiRequest<{ items?: Asset[]; nextRefreshAt?: string | null }>(endpoint, {
-      signal: request.signal,
-    })
-    if (request.signal.aborted) return
-    assets.value = data.items || []
-    nextRefreshAt.value = isCorporationRequest ? (data.nextRefreshAt ?? null) : null
+    loadedDivision = selectedDivision.value
+    await loadSummary(loadedDivision)
+    if (sequence !== fetchSequence) return
+    nextRefreshAt.value = isCorporationRequest ? (fullSummary.value?.nextRefreshAt ?? null) : null
     hasLoadedCurrentOwner.value = true
     freshnessNow.value = new Date()
-    dropFiltersMissingFromAssets()
-    if (!isReload) {
-      collapseLocationsOfLargeInventory()
-      revealSearchMatches()
+    dropFiltersMissingFromSummary()
+    if (isReload) {
+      await reloadLoaded()
+    } else {
+      applyDefaultOpenState()
+    }
+    if (sequence !== fetchSequence) return
+    await loadExpandedLocations()
+    if (searchQuery.value.trim().length >= ASSET_SEARCH_MIN_LENGTH) {
+      await searchOnServer(searchQuery.value)
     }
   } catch (e) {
-    if (request.signal.aborted) return
+    if (sequence !== fetchSequence) return
     error.value = t('assets.loadFailed')
     console.error(e)
   } finally {
-    if (pendingAssetsRequest === request) {
-      pendingAssetsRequest = null
+    if (sequence === fetchSequence) {
       isLoading.value = false
       isReloading.value = false
     }
   }
 }
 
-onUnmounted(abortPendingAssetsRequest)
+watch(selectedDivision, async (division) => {
+  if (!hasLoadedCurrentOwner.value || division === loadedDivision) {
+    return
+  }
+  loadedDivision = division
+  try {
+    await loadSummary(division)
+  } catch (e) {
+    error.value = t('assets.loadFailed')
+    console.error(e)
+  }
+})
 
 async function onTogglePin(itemId: number) {
   try {
@@ -633,6 +683,7 @@ async function onTogglePin(itemId: number) {
 }
 
 async function openPinnedContainer(itemId: number) {
+  await ensureFullList()
   const located = locateContainer(itemId, assetsByItemId.value)
   if (!located) {
     return
@@ -762,7 +813,7 @@ async function refreshAssets() {
         const poll = async () => {
           attempts++
           await fetchAssets()
-          const hasRecentData = assets.value.length > 0
+          const hasRecentData = !hasNoAssets.value
           if (hasRecentData || attempts >= maxAttempts) {
             isRefreshing.value = false
           } else {
@@ -836,9 +887,10 @@ watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selected
 watch([selectedCharacterId, viewMode], (_current, previous) => {
   const previousView = previous?.[1]
   const isFirstOwnerResolution = (previous?.[0] ?? null) === null && (previousView === undefined || previousView === viewMode.value)
-  abortPendingAssetsRequest()
+  fetchSequence++
+  resetBrowse()
+  stopSearchTimeout()
   clearLocationSelection()
-  assets.value = []
   nextRefreshAt.value = null
   hasLoadedCurrentOwner.value = false
   isReloading.value = false
@@ -962,7 +1014,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             :selected-location="selectedLocation"
             :divisions="divisions"
             :selected-division="selectedDivision"
-            :all-divisions-row-count="assets.length"
+            :all-divisions-row-count="fullSummary?.itemCount ?? 0"
             @update:view-mode="viewMode = $event"
             @update:group-by="groupBy = $event"
             @update:selected-character-id="selectedCharacterId = $event"
@@ -972,6 +1024,8 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             @update:selected-division="selectedDivision = $event"
             @clear-filters="clearFilters"
           />
+
+          <p v-if="searchIsTruncated" data-testid="assets-search-truncated" class="text-xs text-amber-400">{{ t('assets.searchTruncated') }}</p>
 
           <AssetSafetyBlock
             v-if="assetSafetyLocations.length > 0"
@@ -1014,7 +1068,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
           </div>
 
           <!-- Empty state -->
-          <div v-else-if="assets.length === 0" class="text-center py-20">
+          <div v-else-if="hasNoAssets" class="text-center py-20">
             <template v-if="isRefreshing">
               <svg class="w-16 h-16 mx-auto text-cyan-500 mb-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -1037,6 +1091,10 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
                 {{ t('assets.refreshFromEve') }}
               </button>
             </template>
+          </div>
+
+          <div v-else-if="isTypeView && !fullListLoaded" data-testid="assets-type-loading" class="flex flex-col items-center justify-center py-20">
+            <p class="text-slate-400">{{ t('assets.loading') }}</p>
           </div>
 
           <!-- Assets by type -->
@@ -1070,13 +1128,13 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
               :expanded-containers="expandedContainers"
               :collapsed-locations="collapsedLocations"
               :container-contents="visibleContainerContents"
-              :fit-contents="containerContents"
+              :fit-contents="childRows"
               :max-quantity="largestLocationQuantity"
               :selected="selectedLocationNames.has(location.locationName)"
               :can-pin="isCorpView"
               :pinned-item-ids="pinnedItemIds"
               :project-pinned-item-ids="projectPinnedItemIds"
-              :packaged-volumes="packagedVolumeCatalog"
+              :packaged-volumes="fullListLoaded ? packagedVolumeCatalog : null"
               @toggle-pin="onTogglePin"
               @toggle-container="toggleContainer"
               @toggle-location="toggleLocation"
@@ -1084,17 +1142,22 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
               @item-name-resolved="applyResolvedItemName"
             />
             <AssetSelectionBar
-              v-if="selectedLocations.length > 0"
+              v-if="selectedLocations.length > 0 && selectionSummary !== null"
               :location-count="selectedLocations.length"
               :location-names="selectedLocations.map(location => location.locationName)"
               :summary="selectionSummary"
               :volume="selectionVolume"
               @clear="clearLocationSelection"
             />
+            <p
+              v-else-if="selectedLocations.length > 0"
+              data-testid="selection-loading"
+              class="text-xs text-slate-500"
+            >{{ t('assets.selectionLoading') }}</p>
           </div>
 
           <!-- No results -->
-          <div v-if="!isLoading && assets.length > 0 && (isTypeView ? typeGroups.length === 0 : filteredAssets.length === 0)" class="text-center py-12">
+          <div v-if="!isLoading && !hasNoAssets && (isTypeView ? fullListLoaded && typeGroups.length === 0 : assetsByLocation.length === 0)" class="text-center py-12">
             <p class="text-slate-500">{{ t('assets.noMatchingItems') }}</p>
           </div>
         </template>

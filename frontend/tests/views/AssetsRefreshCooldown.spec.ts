@@ -9,6 +9,7 @@ import Assets from '@/views/Assets.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 import { present } from '../present'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
@@ -21,6 +22,7 @@ vi.mock(import('vue-router'), async importOriginal => ({
 
 const REFRESH_ENDPOINT = '/api/me/corporation/assets/refresh'
 const VISIBILITY_ENDPOINT = '/api/me/corporation/assets/visibility'
+const LOCATIONS_ENDPOINT = '/api/me/corporation/assets/locations'
 const NOW = '2026-11-13T12:10:00+00:00'
 const LAST_SYNC = '2026-11-13T12:00:00+00:00'
 const NEXT_REFRESH = '2026-11-13T13:00:00+00:00'
@@ -29,6 +31,15 @@ const MILLISECONDS_PER_MINUTE = 60_000
 const AVAILABLE_AT_TEXT = 'Refresh available at 13:00'
 const ALREADY_RUNNING_TEXT = 'A sync of the corporation assets is already running'
 const FALLBACK_REFRESH_ERROR = 'The asset refresh failed.'
+const EMPTY_SUMMARY = {
+  id: 'corporation',
+  itemCount: 0,
+  typeCount: 0,
+  systemCount: 0,
+  locationCount: 0,
+  lastSyncedAt: null,
+  locations: [],
+}
 
 enableAutoUnmount(afterEach)
 
@@ -37,7 +48,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-async function mountCorporationAssets(options: { assetsAnswer?: Record<string, unknown>; refreshAnswer?: Record<string, unknown> } = {}) {
+async function mountCorporationAssets(options: { summaryAnswer?: Record<string, unknown>; refreshAnswer?: Record<string, unknown> } = {}) {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
   vi.setSystemTime(new Date(NOW))
   const pinia = createPinia()
@@ -52,13 +63,14 @@ async function mountCorporationAssets(options: { assetsAnswer?: Record<string, u
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as unknown as User
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+  const fetchMock = vi.fn(assetBrowseFetch([], url => {
     const answers: Record<string, Record<string, unknown>> = {
       [REFRESH_ENDPOINT]: options.refreshAnswer ?? { status: 'pending' },
       [VISIBILITY_ENDPOINT]: { isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null },
+      ...(options.summaryAnswer === undefined ? {} : { [LOCATIONS_ENDPOINT]: options.summaryAnswer }),
     }
-    return new Response(JSON.stringify(answers[String(input)] ?? options.assetsAnswer ?? { items: [] }), { status: 200 })
-  })
+    return url in answers ? new Response(JSON.stringify(answers[url]), { status: 200 }) : null
+  }))
   vi.stubGlobal('fetch', fetchMock)
   const wrapper = mount(Assets, {
     global: {
@@ -89,7 +101,7 @@ async function clickRefresh(wrapper: ReturnType<typeof mount>) {
 
 describe('Corporation assets refresh button during the cooldown', () => {
   it('is disabled and tells when the next refresh is possible', async () => {
-    const { wrapper } = await mountCorporationAssets({ assetsAnswer: { items: [], nextRefreshAt: NEXT_REFRESH } })
+    const { wrapper } = await mountCorporationAssets({ summaryAnswer: { ...EMPTY_SUMMARY, nextRefreshAt: NEXT_REFRESH } })
 
     const button = refreshButton(wrapper)
 
@@ -97,7 +109,7 @@ describe('Corporation assets refresh button during the cooldown', () => {
   })
 
   it('is enabled again when the next refresh time comes, without reloading the page', async () => {
-    const { wrapper } = await mountCorporationAssets({ assetsAnswer: { items: [], nextRefreshAt: NEXT_REFRESH } })
+    const { wrapper } = await mountCorporationAssets({ summaryAnswer: { ...EMPTY_SUMMARY, nextRefreshAt: NEXT_REFRESH } })
 
     await vi.advanceTimersByTimeAsync(MINUTES_UNTIL_NEXT_REFRESH * MILLISECONDS_PER_MINUTE)
     await flushPromises()
@@ -107,7 +119,7 @@ describe('Corporation assets refresh button during the cooldown', () => {
   })
 
   it('stays enabled when the server gives no next refresh time', async () => {
-    const { wrapper } = await mountCorporationAssets({ assetsAnswer: { items: [], nextRefreshAt: null } })
+    const { wrapper } = await mountCorporationAssets({ summaryAnswer: { ...EMPTY_SUMMARY, nextRefreshAt: null } })
 
     const button = refreshButton(wrapper)
 

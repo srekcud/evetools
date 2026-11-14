@@ -1,5 +1,5 @@
-import { summarizeAssetSafety } from '@/utils/assetSafety'
-import type { Asset } from '@/types'
+import { summarizeAssetSafety, summarizeAssetSafetyLocations } from '@/utils/assetSafety'
+import type { Asset, AssetLocationSummaryRow } from '@/types'
 
 const SHIP_CATEGORY_ID = 6
 const MODULE_CATEGORY_ID = 7
@@ -107,5 +107,35 @@ describe('summarizeAssetSafety', () => {
     const assets = [asset(1, { locationName: 'Asset Safety Warehouse - Jita' })]
 
     expect(summarizeAssetSafety(assets)).toEqual([])
+  })
+})
+
+function summaryRow(locationName: string, overrides: Partial<AssetLocationSummaryRow>): AssetLocationSummaryRow {
+  return {
+    locationId: 60003760,
+    locationType: 'other',
+    locationName,
+    solarSystemName: 'Misaba',
+    itemCount: 1,
+    shipCount: 0,
+    divisions: [],
+    cachedAt: '2026-11-14T10:00:00+00:00',
+    ...overrides,
+  }
+}
+
+describe('summarizeAssetSafetyLocations', () => {
+  it('reads the asset safety locations from the location summary', () => {
+    const summary = summarizeAssetSafetyLocations([
+      summaryRow('Jita IV - Moon 4 - Caldari Navy Assembly Plant', { itemCount: 900 }),
+      summaryRow('Asset Safety (Misaba)', { itemCount: 250, shipCount: 2 }),
+      summaryRow('Office — Asset Safety (Misaba)', { locationId: 60003761, itemCount: 11, shipCount: 1 }),
+    ])
+
+    expect(summary).toEqual([{ locationName: 'Asset Safety (Misaba)', solarSystemName: 'Misaba', itemCount: 261, shipCount: 3 }])
+  })
+
+  it('returns nothing when no location is in asset safety', () => {
+    expect(summarizeAssetSafetyLocations([summaryRow('Jita IV - Moon 4 - Caldari Navy Assembly Plant', {})])).toEqual([])
   })
 })

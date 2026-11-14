@@ -28,6 +28,8 @@ const props = defineProps<{
     shipCount?: number
     divisions?: { name: string; count: number }[]
     volume?: VolumeSummary | null
+    contentsLoaded?: boolean
+    isLoadingContents?: boolean
   }
   maxQuantity?: number
   selected?: boolean
@@ -72,11 +74,15 @@ function isAssembledShip(asset: Asset): boolean {
   return asset.categoryId === SHIP_CATEGORY_ID && asset.isSingleton === true
 }
 
+function hasUnloadedChildren(asset: Asset): boolean {
+  return (asset.childCount ?? 0) > 0 && !props.containerContents.has(asset.itemId)
+}
+
 function isContainer(asset: Asset): boolean {
   if (isAssembledShip(asset)) {
-    return getContainerContents(asset).length > 0
+    return hasUnloadedChildren(asset) || getContainerContents(asset).length > 0
   }
-  return props.containerContents.has(asset.itemId)
+  return props.containerContents.has(asset.itemId) || hasUnloadedChildren(asset)
 }
 
 function containerToggleAttributes(asset: Asset): Record<string, unknown> {
@@ -221,7 +227,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
           </div>
           <div class="flex items-center gap-2">
             <span v-if="props.location.solarSystemName && !props.location.locationName.startsWith(props.location.solarSystemName)" class="text-xs text-cyan-400">{{ props.location.solarSystemName }}</span>
-            <span class="text-xs text-slate-500">{{ t('assets.itemTypesCount', { count: props.location.assets.length }, props.location.assets.length) }}</span>
+            <span v-if="props.location.contentsLoaded !== false" class="text-xs text-slate-500">{{ t('assets.itemTypesCount', { count: props.location.assets.length }, props.location.assets.length) }}</span>
             <span
               v-if="props.location.shipCount"
               data-testid="location-ship-count"
@@ -249,6 +255,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
 
     <!-- Items (collapsible) -->
     <div v-if="!props.collapsedLocations.has(props.location.locationName)" class="divide-y divide-slate-800">
+      <p v-if="props.location.isLoadingContents" data-testid="location-loading" class="px-5 py-3 text-xs text-slate-500">{{ t('assets.loadingContents') }}</p>
       <AssetShipGroups :ships="groupedShips" :contents-of="fullContentsOf" :packaged-volumes="props.packagedVolumes" />
       <template v-for="asset in plainAssets" :key="asset.id">
         <!-- Regular item or container header -->

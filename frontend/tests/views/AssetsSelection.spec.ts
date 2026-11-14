@@ -6,6 +6,7 @@ import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppraisalHandoffStore } from '@/stores/appraisalHandoff'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 const push = vi.fn()
 
@@ -20,6 +21,7 @@ const ALPHA = 'Alpha Station'
 const BRAVO = 'Bravo Station'
 const CHARLIE = 'Charlie Station'
 const CAN_ITEM_ID = 1050000000090
+const SEARCH_DEBOUNCE_MS = 300
 
 function asset(id: number, overrides: Record<string, unknown>) {
   return {
@@ -77,7 +79,7 @@ async function mountAssets(items: unknown[] = rawAssets) {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items }), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(items)))
   const wrapper = mount(Assets, {
     global: {
       plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })],
@@ -97,6 +99,12 @@ type MountedAssets = Awaited<ReturnType<typeof mountAssets>>
 
 async function selectLocation(wrapper: MountedAssets, locationName: string): Promise<void> {
   await wrapper.get(`[aria-label="Select ${locationName}"]`).trigger('click')
+  await flushPromises()
+}
+
+async function openLocation(wrapper: MountedAssets, locationName: string): Promise<void> {
+  await wrapper.get(`[aria-label="Select ${locationName}"]`).element.closest('[role="button"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  await flushPromises()
 }
 
 const bar = (wrapper: MountedAssets) => wrapper.find('[data-testid="asset-selection-bar"]')
@@ -110,6 +118,7 @@ describe('Assets row selection', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -174,6 +183,7 @@ describe('Assets row selection', () => {
 
   it('does not collapse a location when its checkbox is clicked', async () => {
     const wrapper = await mountAssets()
+    await openLocation(wrapper, ALPHA)
 
     await selectLocation(wrapper, ALPHA)
 
@@ -186,7 +196,10 @@ describe('Assets row selection', () => {
     await selectLocation(wrapper, ALPHA)
     await selectLocation(wrapper, BRAVO)
 
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     await wrapper.get('input[type="search"], input[type="text"]').setValue('Pyerite')
+    await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS)
+    await flushPromises()
 
     expect(bar(wrapper).text()).toContain('1 location selected')
     expect(bar(wrapper).text()).toContain('200 items')

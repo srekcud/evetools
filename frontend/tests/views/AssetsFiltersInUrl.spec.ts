@@ -7,6 +7,7 @@ import en from '@/i18n/locales/en.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
 const routerReplace = vi.fn()
@@ -24,7 +25,7 @@ const FOREIGN_CHARACTER_ID = '00000000-0000-4000-8000-0000000000c9'
 const HOME_STATION = 'Home Station'
 const MARKET_STATION = 'Jita IV - Moon 4'
 const LAST_CHARACTER_STORAGE_KEY = `assetsLastCharacterId:${USER_ID}`
-const CORPORATION_ENDPOINT = '/api/me/corporation/assets'
+const CORPORATION_LOCATIONS_ENDPOINT = '/api/me/corporation/assets/locations'
 
 const rawAssets = [
   { id: '00000000-0000-4000-8000-000000000001', itemId: 1, typeId: 587, typeName: 'Rifter', quantity: 1, categoryId: 6, locationId: 1035466617946, locationName: HOME_STATION, locationType: 'other', locationFlag: 'Hangar', solarSystemId: 30004711, solarSystemName: 'Home System', itemName: null, cachedAt: '2026-11-12T10:00:00+00:00' },
@@ -64,12 +65,11 @@ async function mountAssets(query: LocationQuery = {}) {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    if (String(input).endsWith('/visibility')) {
-      return new Response(JSON.stringify({ isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null }), { status: 200 })
-    }
-    return new Response(JSON.stringify({ items: rawAssets }), { status: 200 })
-  })
+  fetchMock = vi.fn(assetBrowseFetch(rawAssets, url => (
+    url.endsWith('/visibility')
+      ? new Response(JSON.stringify({ isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null }), { status: 200 })
+      : null
+  )))
   vi.stubGlobal('fetch', fetchMock)
   const wrapper = mount(Assets, {
     global: {
@@ -91,6 +91,15 @@ type Wrapper = Awaited<ReturnType<typeof mountAssets>>
 
 function requestedEndpoints(): string[] {
   return fetchMock.mock.calls.map(call => String(call[0])).filter(url => url.startsWith('/api/me/') && !url.endsWith('/visibility') && !url.endsWith('/packaged-volumes') && !url.endsWith('/assets/changes'))
+}
+
+async function openLocation(wrapper: Wrapper, locationName: string): Promise<void> {
+  const group = wrapper.findAll('[data-testid="location-group"]').find(candidate => candidate.find('h3').text() === locationName)
+  if (!group) {
+    throw new Error(`location "${locationName}" not rendered`)
+  }
+  await group.get('[aria-expanded]').trigger('click')
+  await flushPromises()
 }
 
 function selectLabelled(wrapper: Wrapper, label: string) {
@@ -128,19 +137,19 @@ describe('Assets filters read from the URL', () => {
   it('opens the corporation view when the URL says view=corporation', async () => {
     await mountAssets({ view: 'corporation' })
 
-    expect(requestedEndpoints()).toEqual(['/api/me/pinned-containers', CORPORATION_ENDPOINT])
+    expect(requestedEndpoints()).toEqual(['/api/me/pinned-containers', CORPORATION_LOCATIONS_ENDPOINT])
   })
 
   it('opens the character named in the URL', async () => {
     await mountAssets({ character: ALT_CHARACTER_ID })
 
-    expect(requestedEndpoints()).toEqual([`/api/me/characters/${ALT_CHARACTER_ID}/assets`])
+    expect(requestedEndpoints()).toEqual([`/api/me/characters/${ALT_CHARACTER_ID}/assets/locations`])
   })
 
   it('ignores a character that does not belong to the user', async () => {
     await mountAssets({ character: FOREIGN_CHARACTER_ID })
 
-    expect(requestedEndpoints()).toEqual([`/api/me/characters/${MAIN_CHARACTER_ID}/assets`])
+    expect(requestedEndpoints()).toEqual([`/api/me/characters/${MAIN_CHARACTER_ID}/assets/locations`])
   })
 
   it('fills the search box and filters the list with q', async () => {
@@ -159,14 +168,17 @@ describe('Assets filters read from the URL', () => {
 
   it('applies the solar system and the location of the URL', async () => {
     const wrapper = await mountAssets({ system: 'Jita', location: MARKET_STATION })
+    await openLocation(wrapper, MARKET_STATION)
 
     expect((selectLabelled(wrapper, en.assets.solarSystem).element as HTMLSelectElement).value).toBe('Jita')
     expect((selectLabelled(wrapper, en.assets.location).element as HTMLSelectElement).value).toBe(MARKET_STATION)
+    expect(wrapper.text()).toContain('Tritanium')
     expect(wrapper.text()).not.toContain('Rifter')
   })
 
   it('drops a system that the loaded assets do not contain', async () => {
     const wrapper = await mountAssets({ system: 'Nowhere' })
+    await openLocation(wrapper, HOME_STATION)
 
     expect((selectLabelled(wrapper, en.assets.solarSystem).element as HTMLSelectElement).value).toBe('')
     expect(wrapper.text()).toContain('Rifter')
@@ -292,7 +304,7 @@ describe('Assets remembers the last character', () => {
 
     await mountAssets()
 
-    expect(requestedEndpoints()).toEqual([`/api/me/characters/${ALT_CHARACTER_ID}/assets`])
+    expect(requestedEndpoints()).toEqual([`/api/me/characters/${ALT_CHARACTER_ID}/assets/locations`])
   })
 
   it('prefers the character of the URL over the remembered one', async () => {
@@ -300,7 +312,7 @@ describe('Assets remembers the last character', () => {
 
     await mountAssets({ character: MAIN_CHARACTER_ID })
 
-    expect(requestedEndpoints()).toEqual([`/api/me/characters/${MAIN_CHARACTER_ID}/assets`])
+    expect(requestedEndpoints()).toEqual([`/api/me/characters/${MAIN_CHARACTER_ID}/assets/locations`])
   })
 
   it('falls back to the main character when the remembered one is gone', async () => {
@@ -308,6 +320,6 @@ describe('Assets remembers the last character', () => {
 
     await mountAssets()
 
-    expect(requestedEndpoints()).toEqual([`/api/me/characters/${MAIN_CHARACTER_ID}/assets`])
+    expect(requestedEndpoints()).toEqual([`/api/me/characters/${MAIN_CHARACTER_ID}/assets/locations`])
   })
 })

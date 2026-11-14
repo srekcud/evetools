@@ -7,6 +7,7 @@ import en from '@/i18n/locales/en.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { PinnedContainer, User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
 const routerReplace = vi.fn()
@@ -90,16 +91,15 @@ async function mountAssets(query: LocationQuery = { view: 'corporation' }) {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const url = String(input)
+  fetchMock = vi.fn(assetBrowseFetch(rawCorporationAssets, url => {
     if (url.includes('/me/pinned-containers')) {
       return new Response(JSON.stringify(pinnedEntries), { status: 200 })
     }
     if (url.endsWith('/visibility')) {
       return new Response(JSON.stringify({ isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null }), { status: 200 })
     }
-    return new Response(JSON.stringify({ items: rawCorporationAssets }), { status: 200 })
-  })
+    return null
+  }))
   vi.stubGlobal('fetch', fetchMock)
   const wrapper = mount(Assets, {
     global: {
@@ -118,6 +118,14 @@ async function mountAssets(query: LocationQuery = { view: 'corporation' }) {
 }
 
 type Wrapper = Awaited<ReturnType<typeof mountAssets>>
+
+async function openHomeLocation(wrapper: Wrapper): Promise<void> {
+  const header = wrapper.get('[data-testid="location-group"] [aria-expanded]')
+  if (header.attributes('aria-expanded') === 'false') {
+    await header.trigger('click')
+    await flushPromises()
+  }
+}
 
 function stars(wrapper: Wrapper) {
   return wrapper.findAll('[data-testid="container-pin"]')
@@ -179,6 +187,7 @@ describe('Assets pinned containers', () => {
     pinnedEntries = [pinned({})]
 
     const wrapper = await mountAssets()
+    await openHomeLocation(wrapper)
 
     const rowTexts = wrapper.get('[data-testid="location-group"]').text()
     expect(rowTexts.indexOf('Project Box')).toBeLessThan(rowTexts.indexOf('Alpha Box'))
@@ -186,6 +195,7 @@ describe('Assets pinned containers', () => {
 
   it('pins a container from its star and reloads the pins', async () => {
     const wrapper = await mountAssets()
+    await openHomeLocation(wrapper)
     expect(starOf(wrapper, 'Alpha Box').attributes('aria-pressed')).toBe('false')
     pinnedEntries = [pinned({ id: String(ALPHA_BOX_ITEM_ID), itemId: ALPHA_BOX_ITEM_ID, name: 'Alpha Box', projectId: null, projectName: null })]
 
@@ -201,6 +211,7 @@ describe('Assets pinned containers', () => {
   it('unpins a pinned container from its star', async () => {
     pinnedEntries = [pinned({ id: String(ALPHA_BOX_ITEM_ID), itemId: ALPHA_BOX_ITEM_ID, name: 'Alpha Box', projectId: null, projectName: null })]
     const wrapper = await mountAssets()
+    await openHomeLocation(wrapper)
     pinnedEntries = []
 
     await starOf(wrapper, 'Alpha Box').trigger('click')
@@ -213,6 +224,7 @@ describe('Assets pinned containers', () => {
   it('does not let a container pinned by a project be unpinned', async () => {
     pinnedEntries = [pinned({})]
     const wrapper = await mountAssets()
+    await openHomeLocation(wrapper)
 
     const star = starOf(wrapper, 'Project Box')
     await star.trigger('click')
