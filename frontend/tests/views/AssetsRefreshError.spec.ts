@@ -9,6 +9,7 @@ import Assets from '@/views/Assets.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 import { present } from '../present'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
@@ -22,7 +23,7 @@ vi.mock(import('vue-router'), async importOriginal => ({
 const NO_DIRECTOR_MESSAGE = 'No Director connected. A Director of the corporation must link a character.'
 const FALLBACK_REFRESH_ERROR = 'The asset refresh failed.'
 const REFRESH_ENDPOINT = '/api/me/corporation/assets/refresh'
-const ASSETS_ENDPOINT = '/api/me/corporation/assets'
+const LOCATIONS_ENDPOINT = '/api/me/corporation/assets/locations'
 const VISIBILITY_ENDPOINT = '/api/me/corporation/assets/visibility'
 
 enableAutoUnmount(afterEach)
@@ -44,15 +45,13 @@ async function mountCorporationAssets(refreshAnswer: Record<string, unknown>, lo
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as unknown as User
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const url = String(input)
+  const fetchMock = vi.fn(assetBrowseFetch([], url => {
     const answers: Record<string, Record<string, unknown>> = {
       [REFRESH_ENDPOINT]: refreshAnswer,
       [VISIBILITY_ENDPOINT]: { isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null },
     }
-    const body = answers[url] ?? { items: [] }
-    return new Response(JSON.stringify(body), { status: 200 })
-  })
+    return url in answers ? new Response(JSON.stringify(answers[url]), { status: 200 }) : null
+  }))
   vi.stubGlobal('fetch', fetchMock)
   const wrapper = mount(Assets, {
     global: {
@@ -80,8 +79,8 @@ async function clickRefresh(wrapper: ReturnType<typeof mount>) {
   return present(button)
 }
 
-function assetsFetchCount(fetchMock: ReturnType<typeof vi.fn>) {
-  return fetchMock.mock.calls.filter(([input]) => String(input) === ASSETS_ENDPOINT).length
+function summaryFetchCount(fetchMock: ReturnType<typeof vi.fn>) {
+  return fetchMock.mock.calls.filter(([input]) => String(input) === LOCATIONS_ENDPOINT).length
 }
 
 describe('Corporation assets refresh answered with an error status', () => {
@@ -125,11 +124,11 @@ describe('Corporation assets refresh answered with an error status', () => {
 describe('Corporation assets refresh answered with a completed status', () => {
   it('shows no error and reloads the list', async () => {
     const { wrapper, fetchMock } = await mountCorporationAssets({ status: 'completed' })
-    const fetchesBeforeRefresh = assetsFetchCount(fetchMock)
+    const fetchesBeforeRefresh = summaryFetchCount(fetchMock)
 
     await clickRefresh(wrapper)
 
     expect(wrapper.text()).not.toContain(FALLBACK_REFRESH_ERROR)
-    expect(assetsFetchCount(fetchMock)).toBe(fetchesBeforeRefresh + 1)
+    expect(summaryFetchCount(fetchMock)).toBe(fetchesBeforeRefresh + 1)
   })
 })

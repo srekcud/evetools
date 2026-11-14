@@ -7,6 +7,7 @@ import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -16,7 +17,6 @@ vi.mock(import('vue-router'), async importOriginal => ({
 
 const CHARACTER_A_ID = '00000000-0000-4000-8000-0000000000c1'
 const CHARACTER_B_ID = '00000000-0000-4000-8000-0000000000c2'
-const ASSETS_A = `/api/me/characters/${CHARACTER_A_ID}/assets`
 const CHANGES_A = `/api/me/characters/${CHARACTER_A_ID}/assets/changes`
 const CHANGES_B = `/api/me/characters/${CHARACTER_B_ID}/assets/changes`
 const CORPORATION_CHANGES = '/api/me/corporation/assets/changes'
@@ -70,15 +70,14 @@ async function mountAssets(answers: Record<string, () => Response>) {
     corporationName: 'Test Corp',
   } as User
   const requested: string[] = []
-  const fetchMock = vi.fn((input: RequestInfo | URL) => {
-    const endpoint = String(input)
+  const fetchMock = vi.fn(assetBrowseFetch([], endpoint => {
     requested.push(endpoint)
     if (endpoint.endsWith('/visibility')) {
-      return Promise.resolve(new Response(JSON.stringify({ isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null }), { status: 200 }))
+      return new Response(JSON.stringify({ isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null }), { status: 200 })
     }
     const answer = answers[endpoint]
-    return Promise.resolve(answer ? answer() : new Response(JSON.stringify({ items: [] }), { status: 200 }))
-  })
+    return answer ? answer() : null
+  }))
   vi.stubGlobal('fetch', fetchMock)
   const wrapper = mount(Assets, {
     global: {
@@ -101,7 +100,7 @@ function ok(payload: unknown) {
 
 describe('Assets view: changes since the previous sync', () => {
   it('reads the diff of the selected character and shows the panel', async () => {
-    const { wrapper, requested } = await mountAssets({ [ASSETS_A]: ok({ items: [] }), [CHANGES_A]: ok(changesPayload('Drake')) })
+    const { wrapper, requested } = await mountAssets({ [CHANGES_A]: ok(changesPayload('Drake')) })
 
     expect(requested).toContain(CHANGES_A)
     expect(wrapper.find(PANEL).exists()).toBe(true)

@@ -10,6 +10,7 @@ import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 import { present } from '../present'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
@@ -21,7 +22,7 @@ vi.mock(import('vue-router'), async importOriginal => ({
 }))
 
 const REFRESH_ENDPOINT = '/api/me/corporation/assets/refresh'
-const ASSETS_ENDPOINT = '/api/me/corporation/assets'
+const LOCATIONS_ENDPOINT = '/api/me/corporation/assets/locations'
 const VISIBILITY_ENDPOINT = '/api/me/corporation/assets/visibility'
 const CORPORATION_SYNC_TYPE = 'corporation-assets'
 const ENGLISH_LOAD_FAILURE = 'Failed to load assets'
@@ -56,13 +57,12 @@ async function mountCorporationAssets(answers: Record<string, Answer>, locale: '
   syncStore.isConnected = true
   const defaults: Record<string, Answer> = {
     [VISIBILITY_ENDPOINT]: { status: 200, body: { isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null } },
-    [ASSETS_ENDPOINT]: { status: 200, body: { items: [] } },
   }
   const merged = { ...defaults, ...answers }
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-    const answer = merged[String(input)] ?? { status: 200, body: { items: [] } }
-    return new Response(JSON.stringify(answer.body), { status: answer.status })
-  }))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch([], url => {
+    const answer = merged[url]
+    return answer === undefined ? null : new Response(JSON.stringify(answer.body), { status: answer.status })
+  })))
   const wrapper = mount(Assets, {
     global: {
       plugins: [pinia, createI18n({ legacy: false, locale, messages: { en, fr } })],
@@ -90,14 +90,14 @@ async function clickRefresh(wrapper: ReturnType<typeof mount>) {
 
 describe('Assets error messages come from the translations', () => {
   it('shows the load failure in French when the list cannot be fetched', async () => {
-    const { wrapper } = await mountCorporationAssets({ [ASSETS_ENDPOINT]: { status: 500, body: {} } }, 'fr')
+    const { wrapper } = await mountCorporationAssets({ [LOCATIONS_ENDPOINT]: { status: 500, body: {} } }, 'fr')
 
     expect(wrapper.text()).toContain(fr.assets.loadFailed)
     expect(wrapper.text()).not.toContain(ENGLISH_LOAD_FAILURE)
   })
 
   it('shows the load failure in English when the list cannot be fetched', async () => {
-    const { wrapper } = await mountCorporationAssets({ [ASSETS_ENDPOINT]: { status: 500, body: {} } }, 'en')
+    const { wrapper } = await mountCorporationAssets({ [LOCATIONS_ENDPOINT]: { status: 500, body: {} } }, 'en')
 
     expect(wrapper.text()).toContain(en.assets.loadFailed)
   })

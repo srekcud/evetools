@@ -5,6 +5,7 @@ import en from '@/i18n/locales/en.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -70,12 +71,11 @@ async function mountAssets() {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-    if (String(input).endsWith('/visibility')) {
-      return new Response(JSON.stringify({ isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null }), { status: 200 })
-    }
-    return new Response(JSON.stringify({ items: rawAssets }), { status: 200 })
-  }))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(rawAssets, url => (
+    url.endsWith('/visibility')
+      ? new Response(JSON.stringify({ isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null }), { status: 200 })
+      : null
+  ))))
   const wrapper = mount(Assets, {
     global: {
       plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })],
@@ -104,6 +104,7 @@ async function openTypeView(wrapper: Wrapper) {
     throw new Error('the By type toggle is not rendered')
   }
   await toggle.trigger('click')
+  await flushPromises()
 }
 
 function typeRows(wrapper: Wrapper) {

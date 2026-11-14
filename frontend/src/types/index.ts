@@ -36,7 +36,41 @@ export interface Asset {
   isSingleton: boolean | null
   canResolveItemName: boolean
   blueprint?: AssetBlueprint | null
+  childCount?: number
   cachedAt: string
+}
+
+export interface AssetLocationSummaryRow {
+  locationId: number
+  locationType: string
+  locationName: string
+  solarSystemName: string | null
+  itemCount: number
+  shipCount: number
+  divisions: { name: string; count: number }[]
+  cachedAt: string | null
+}
+
+export interface AssetSummary {
+  itemCount: number
+  typeCount: number
+  systemCount: number
+  locationCount: number
+  lastSyncedAt: string | null
+  nextRefreshAt?: string | null
+  locations: AssetLocationSummaryRow[]
+}
+
+export interface AssetSearchHit extends Asset {
+  rootLocationId: number
+  containerPath: number[]
+}
+
+export interface AssetSearchAnswer {
+  query: string
+  truncated: boolean
+  locationIds: number[]
+  hits: AssetSearchHit[]
 }
 
 export interface PackagedVolumesAnswer {
