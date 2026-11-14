@@ -228,6 +228,56 @@ describe('Assets filters written to the URL', () => {
   })
 })
 
+describe('Assets location sort in the URL', () => {
+  function locationOrder(wrapper: Wrapper): string[] {
+    return wrapper.findAll('[data-testid="location-group"] h3').map(heading => heading.text())
+  }
+
+  it('sorts by item count when the URL has no sort', async () => {
+    const wrapper = await mountAssets()
+
+    expect(locationOrder(wrapper)).toEqual([MARKET_STATION, HOME_STATION])
+  })
+
+  it('sorts by name when the URL says sort=name', async () => {
+    const wrapper = await mountAssets({ sort: 'name' })
+
+    expect((wrapper.get('[data-testid="location-sort"]').element as HTMLSelectElement).value).toBe('name')
+    expect(locationOrder(wrapper)).toEqual([HOME_STATION, MARKET_STATION])
+  })
+
+  it('ignores an unknown sort value', async () => {
+    const wrapper = await mountAssets({ sort: 'price' })
+
+    expect((wrapper.get('[data-testid="location-sort"]').element as HTMLSelectElement).value).toBe('items')
+    expect(locationOrder(wrapper)).toEqual([MARKET_STATION, HOME_STATION])
+  })
+
+  it('writes sort=name when the sort changes', async () => {
+    const wrapper = await mountAssets()
+
+    await wrapper.get('[data-testid="location-sort"]').setValue('name')
+
+    expect(lastReplacedQuery().sort).toBe('name')
+  })
+
+  it('removes sort when the default sort comes back', async () => {
+    const wrapper = await mountAssets({ sort: 'name' })
+
+    await wrapper.get('[data-testid="location-sort"]').setValue('items')
+
+    expect(lastReplacedQuery()).not.toHaveProperty('sort')
+  })
+
+  it('keeps the other filters when the sort changes', async () => {
+    const wrapper = await mountAssets({ q: 'trit' })
+
+    await wrapper.get('[data-testid="location-sort"]').setValue('name')
+
+    expect(lastReplacedQuery()).toMatchObject({ q: 'trit', sort: 'name' })
+  })
+})
+
 describe('Assets remembers the last character', () => {
   it('stores the selected character for the user', async () => {
     const wrapper = await mountAssets()
