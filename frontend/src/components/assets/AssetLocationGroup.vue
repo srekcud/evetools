@@ -216,7 +216,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
               v-if="issue"
               data-testid="location-badge"
               :title="t(`assets.locationIssue.${issue}.tooltip`)"
-              class="px-2 py-0.5 rounded-sm text-[10px] font-medium uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/30"
+              class="px-2 py-0.5 rounded-sm text-xs font-medium uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/30"
             >{{ t(`assets.locationIssue.${issue}.badge`) }}</span>
           </div>
           <div class="flex items-center gap-2">

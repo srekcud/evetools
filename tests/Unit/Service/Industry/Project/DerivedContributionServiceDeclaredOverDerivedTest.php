@@ -124,13 +124,13 @@ final class DerivedContributionServiceDeclaredOverDerivedTest extends TestCase
         $this->service->refreshLine($this->tritaniumLine);
 
         $derived = $this->singleDerivedOf($this->tritaniumLine);
-        $this->assertSame([ContributionType::Material, self::PURCHASED_TRITANIUM_QUANTITY, ContributionStatus::Approved], [$derived->getType(), $derived->getQuantity(), $derived->getStatus()]);
+        $this->assertSame([ContributionType::Material, self::PURCHASED_TRITANIUM_QUANTITY, ContributionStatus::Pending], [$derived->getType(), $derived->getQuantity(), $derived->getStatus()]);
         $this->assertSame(ContributionStatus::Rejected, $declared->getStatus());
         $this->assertSame(self::REPLACED_NOTE, $declared->getNote());
         $this->assertSame($this->owner, $declared->getReviewedBy());
         $this->assertNotNull($declared->getReviewedAt());
         $this->assertSame(self::DECLARED_TRITANIUM_QUANTITY, $declared->getQuantity());
-        $this->assertSame(self::PURCHASED_TRITANIUM_QUANTITY, $this->tritaniumLine->getFulfilledQuantity());
+        $this->assertSame(0, $this->tritaniumLine->getFulfilledQuantity());
     }
 
     public function testRejectionOfThePendingDeclaredNotifiesTheOwnerAndTheAdminOnceEachWithTheDerivedContributionAsData(): void
@@ -194,7 +194,7 @@ final class DerivedContributionServiceDeclaredOverDerivedTest extends TestCase
             [ContributionStatus::Approved, self::DECLARED_TRITANIUM_QUANTITY, $this->admin, 'hangar stock', null],
             [$declared->getStatus(), $declared->getQuantity(), $declared->getReviewedBy(), $declared->getNote(), $declared->getReviewedAt()],
         );
-        $this->assertSame(self::TRITANIUM_LINE_QUANTITY, $this->tritaniumLine->getFulfilledQuantity());
+        $this->assertSame(self::DECLARED_TRITANIUM_QUANTITY, $this->tritaniumLine->getFulfilledQuantity());
         $this->assertSame([$this->owner, $this->admin], array_column($this->dispatched, 'user'));
     }
 
@@ -266,7 +266,7 @@ final class DerivedContributionServiceDeclaredOverDerivedTest extends TestCase
         $this->service->refreshLine($this->tritaniumLine);
 
         $this->assertSame([ContributionStatus::Rejected, ContributionStatus::Rejected], [$first->getStatus(), $second->getStatus()]);
-        $this->assertSame(self::PURCHASED_TRITANIUM_QUANTITY, $this->tritaniumLine->getFulfilledQuantity());
+        $this->assertSame(0, $this->tritaniumLine->getFulfilledQuantity());
     }
 
     public function testPendingDeclaredOfARemovedParticipantIsRejectedAndTheReviewersNotifiedAreTheAcceptedOnes(): void

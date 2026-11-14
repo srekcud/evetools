@@ -30,6 +30,7 @@ class ProjectContributionService
         private readonly JitaMarketService $jitaMarket,
         private readonly LineReservationService $lineReservations,
         private readonly IndustryProjectService $projectService,
+        private readonly ContributorPaidPurchaseReader $paidPurchases,
     ) {
     }
 
@@ -71,10 +72,10 @@ class ProjectContributionService
             throw new \DomainException('The contribution exceeds the remaining quantity of the line');
         }
 
-        $estimatedValue = match ($type) {
-            ContributionType::Material => $this->resolveMaterialValue($bomItem, $quantity, $estimatedValue),
-            ContributionType::JobInstall, ContributionType::Bpc => $this->requirePositiveEnteredValue($type, $estimatedValue),
-            ContributionType::LineRental => $this->requireEnteredValue($type, $estimatedValue),
+        $value = match ($type) {
+            ContributionType::Material => $this->resolveMaterialValue($member, $bomItem, $quantity, $estimatedValue),
+            ContributionType::JobInstall, ContributionType::Bpc => new ContributionValue($this->requirePositiveEnteredValue($type, $estimatedValue)),
+            ContributionType::LineRental => new ContributionValue($this->requireEnteredValue($type, $estimatedValue)),
             ContributionType::Courier => throw new \DomainException('The courier reward is derived from the linked courier contract and cannot be submitted'),
         };
 
@@ -84,10 +85,11 @@ class ProjectContributionService
         $contribution->setBomItem($bomItem);
         $contribution->setType($type);
         $contribution->setQuantity($quantity);
-        $contribution->setEstimatedValue($estimatedValue);
+        $contribution->setEstimatedValue($value->value);
         $contribution->setStatus(ContributionStatus::Pending);
         $contribution->setIsAutoDetected(false);
         $contribution->setIsVerified(false);
+        $contribution->setValuedAtJitaPrice($value->valuedAtJitaPrice);
         $contribution->setNote($note);
 
         $this->entityManager->persist($contribution);
@@ -197,6 +199,21 @@ class ProjectContributionService
         $this->entityManager->flush();
     }
 
+    public function reopen(IndustryProjectContribution $contribution): void
+    {
+        $bomItem = $contribution->getBomItem();
+        if (!$contribution->isReopenable() || null === $bomItem) {
+            throw new \DomainException('Only an approved material contribution of a material line can be reopened, before the selling phase');
+        }
+
+        $bomItem->setFulfilledQuantity(max(0, $bomItem->getFulfilledQuantity() - $contribution->getQuantity()));
+        $contribution->setStatus(ContributionStatus::Pending);
+        $contribution->setReviewedBy(null);
+        $contribution->setReviewedAt(null);
+
+        $this->entityManager->flush();
+    }
+
     private function isIntermediateContribution(IndustryProjectBomLine $bomItem, ContributionType $type): bool
     {
         return ContributionType::Material === $type && $bomItem->isJob();
@@ -243,20 +260,29 @@ class ProjectContributionService
         }
     }
 
-    private function resolveMaterialValue(IndustryProjectBomLine $bomItem, int $quantity, ?float $enteredValue): float
+    private function resolveMaterialValue(IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, int $quantity, ?float $enteredValue): ContributionValue
     {
         if ($enteredValue !== null) {
             throw new \DomainException('A material contribution takes no entered value: it is valued at the Jita price of the deposit day.');
         }
 
         $typeId = $bomItem->getTypeId();
+        $paid = $this->paidPurchases->read($member, $typeId);
+        $paidUnits = null === $paid ? 0 : min($quantity, $paid->quantity);
+        $paidValue = null === $paid ? 0.0 : $paid->averageUnitPrice() * $paidUnits;
+        $jitaUnits = $quantity - $paidUnits;
+
+        if (0 === $jitaUnits) {
+            return new ContributionValue($paidValue, false);
+        }
+
         $jitaPrice = $this->jitaMarket->getCheapestPercentilePrices([$typeId], self::DEPOSIT_DAY_PERCENTILE)[$typeId] ?? null;
 
         if ($jitaPrice === null || $jitaPrice <= 0) {
             throw new \DomainException(sprintf('No market price for type %d: no Jita price for the deposit day.', $typeId));
         }
 
-        return $jitaPrice * $quantity;
+        return new ContributionValue($paidValue + $jitaPrice * $jitaUnits, true);
     }
 
     private function requireEnteredValue(ContributionType $type, ?float $enteredValue): float

@@ -43,4 +43,22 @@ class VisibleCorporationAssetsFinder
 
         return [...$hangarAssets, ...$containerContents];
     }
+
+    /**
+     * @return list<string>
+     */
+    public function visibleDivisionNames(int $corporationId, ?User $viewer): array
+    {
+        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
+        if ($visibility === null) {
+            return [];
+        }
+
+        $divisionNamesByNumber = $this->cachedAssetRepository->findDistinctDivisions($corporationId);
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn (int $division): ?string => $divisionNamesByNumber[$division] ?? null,
+            $visibility->divisionsVisibleTo($viewer),
+        ))));
+    }
 }

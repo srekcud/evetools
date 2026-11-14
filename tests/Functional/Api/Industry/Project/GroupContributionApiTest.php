@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry\Project;
 
+use App\Entity\CachedWalletTransaction;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\User;
@@ -11,6 +12,7 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use App\Service\JitaMarketService;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -88,6 +90,86 @@ final class GroupContributionApiTest extends WebTestCase
             $this->contributionRows([$this->responseJson()]),
         );
         self::assertSame([4, 0], [$this->storedContributionCount(), $this->storedFulfilledQuantityOf($this->tritaniumLine)]);
+    }
+
+    #[Group('issue-953')]
+    public function testMaterialContributionOfAMemberWhoBoughtTheGoodsIsValuedAtThePaidPriceAndNotFlaggedAsJitaValued(): void
+    {
+        $this->givenAWalletBuyOfTheMember(34, 2_500, 5.0);
+        $this->givenJitaPercentilePrices([34 => 7.0]);
+        $this->client->loginUser($this->member, 'api');
+        $this->request('POST', $this->contributionsUri(), ['type' => 'material', 'bomItemId' => $this->idOf($this->tritaniumLine), 'quantity' => 2_500]);
+
+        self::assertResponseStatusCodeSame(201);
+        $contribution = $this->responseJson();
+        self::assertSame([12_500.0, false, null], [(float) $contribution['estimatedValue'], $contribution['valuedAtJitaPrice'], $contribution['estimatedValueSource'] ?? null]);
+    }
+
+    #[Group('issue-953')]
+    public function testMaterialContributionWithoutPurchaseIsFlaggedAsJitaValuedAndKeepsItsPercentileSource(): void
+    {
+        $this->givenJitaPercentilePrices([34 => 7.0]);
+        $this->client->loginUser($this->member, 'api');
+        $this->request('POST', $this->contributionsUri(), ['type' => 'material', 'bomItemId' => $this->idOf($this->tritaniumLine), 'quantity' => 10]);
+
+        self::assertResponseStatusCodeSame(201);
+        $contribution = $this->responseJson();
+        self::assertSame([70.0, true, 5.0], [(float) $contribution['estimatedValue'], $contribution['valuedAtJitaPrice'], $contribution['estimatedValueSource']['percentile']]);
+    }
+
+    #[Group('issue-953')]
+    public function testListFlagsOnlyTheApprovedMaterialContributionsOfAMaterialLineAsReopenable(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->contributionsUri());
+
+        self::assertResponseStatusCodeSame(200);
+        $reopenableByType = [];
+        foreach ($this->responseJson() as $contribution) {
+            $reopenableByType[] = [$contribution['type'], $contribution['status'], $contribution['reopenable']];
+        }
+        sort($reopenableByType);
+        self::assertSame(
+            [['job_install', 'approved', false], ['job_install', 'pending', false], ['material', 'approved', true]],
+            $reopenableByType,
+        );
+    }
+
+    #[Group('issue-953')]
+    public function testAdminReopensAnApprovedMaterialContributionAndTheLineIsDowngraded(): void
+    {
+        $admin = $this->givenAnAcceptedAdmin();
+        $this->client->loginUser($admin, 'api');
+        $this->request('PATCH', $this->contributionUri($this->memberMorphiteContribution), ['status' => 'pending']);
+
+        self::assertResponseStatusCodeSame(200);
+        $contribution = $this->responseJson();
+        self::assertSame(['pending', null], [$contribution['status'], $contribution['reviewedByCharacterName'] ?? null]);
+        self::assertSame(['pending', 0], [$this->storedStatusOf($this->memberMorphiteContribution), $this->storedFulfilledQuantityOf($this->morphiteLine)]);
+    }
+
+    #[Group('issue-953')]
+    public function testReopeningIsRefusedOnceTheProjectIsSelling(): void
+    {
+        $admin = $this->givenAnAcceptedAdmin();
+        $this->ishtarBatch->setStatus(ProjectStatus::Selling);
+        $this->em->flush();
+
+        $this->client->loginUser($admin, 'api');
+        $this->request('PATCH', $this->contributionUri($this->memberMorphiteContribution), ['status' => 'pending']);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(['approved', 3], [$this->storedStatusOf($this->memberMorphiteContribution), $this->storedFulfilledQuantityOf($this->morphiteLine)]);
+    }
+
+    #[Group('issue-953')]
+    public function testPlainMemberCannotReopenAContribution(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('PATCH', $this->contributionUri($this->memberMorphiteContribution), ['status' => 'pending']);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('approved', $this->storedStatusOf($this->memberMorphiteContribution));
     }
 
     #[Group('issue-363')]
@@ -301,6 +383,21 @@ final class GroupContributionApiTest extends WebTestCase
         $this->em->flush();
 
         return $declared;
+    }
+
+    private function givenAWalletBuyOfTheMember(int $typeId, int $quantity, float $unitPrice): void
+    {
+        $transaction = (new CachedWalletTransaction())
+            ->setCharacter($this->member->getMainCharacter())
+            ->setTransactionId(953_000_001)
+            ->setTypeId($typeId)
+            ->setQuantity($quantity)
+            ->setUnitPrice($unitPrice)
+            ->setIsBuy(true)
+            ->setLocationId(60_003_760)
+            ->setDate(new \DateTimeImmutable('+1 hour'));
+        $this->em->persist($transaction);
+        $this->em->flush();
     }
 
     private function givenJitaPercentilePrices(array $pricesByTypeId): void

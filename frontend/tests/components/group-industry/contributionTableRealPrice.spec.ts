@@ -27,6 +27,8 @@ function contribution(overrides: Partial<GroupContribution>): GroupContribution 
     status: 'approved',
     isAutoDetected: false,
     isVerified: false,
+    valuedAtJitaPrice: false,
+    reopenable: false,
     duplicatesDerived: false,
     reviewedByCharacterName: null,
     reviewedAt: null,
@@ -38,7 +40,7 @@ function contribution(overrides: Partial<GroupContribution>): GroupContribution 
 
 const DERIVED_MATERIAL = contribution({ id: 'derived-material', bomItemTypeName: 'Tritanium', quantity: 1_000, estimatedValue: 6_200, isAutoDetected: true, isVerified: true })
 const DERIVED_JOB_WITHOUT_COST = contribution({ id: 'derived-job', bomItemTypeName: 'Ishtar', type: 'job_install', quantity: 5, estimatedValue: null, isAutoDetected: true, isVerified: true })
-const DEPOSITED_MATERIAL = contribution({ id: 'deposited-material', bomItemTypeName: 'Mexallon', quantity: 330, estimatedValue: 16_087.5, status: 'pending' })
+const DEPOSITED_MATERIAL = contribution({ id: 'deposited-material', bomItemTypeName: 'Mexallon', quantity: 330, estimatedValue: 16_087.5, status: 'pending', valuedAtJitaPrice: true })
 const DECLARED_BPC = contribution({ id: 'declared-bpc', bomItemTypeName: 'Orca', type: 'bpc', quantity: 1, estimatedValue: 36_000, status: 'pending' })
 
 async function mountTable(contributions: GroupContribution[], locale: 'en' | 'fr'): Promise<VueWrapper> {

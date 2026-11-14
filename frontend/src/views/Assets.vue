@@ -3,6 +3,7 @@ import { ref, shallowRef, computed, nextTick, onMounted, onUnmounted, watch } fr
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { readAssetFilterQuery, readLastCharacterId, rememberLastCharacterId, writeAssetFilterQuery } from '@/utils/assetFilterQuery'
+import type { AssetLocationSort } from '@/utils/assetFilterQuery'
 import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/assetLocation'
 import { summarizeAssetSafety } from '@/utils/assetSafety'
 import { useAuthStore } from '@/stores/auth'
@@ -13,6 +14,7 @@ import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
 import { COLLAPSE_LOCATIONS_ROW_THRESHOLD, FRESHNESS_TICK_MS, SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
 import { useFormatters } from '@/composables/useFormatters'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { useAssetChanges } from '@/composables/useAssetChanges'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { filterTypeGroups, groupAssetsByType } from '@/utils/assetsByType'
 import { summarizeSelection } from '@/utils/assetSelection'
@@ -26,6 +28,7 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
 import AssetSafetyBlock from '@/components/assets/AssetSafetyBlock.vue'
+import AssetChangesPanel from '@/components/assets/AssetChangesPanel.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
 import AssetTypeView from '@/components/assets/AssetTypeView.vue'
 import AssetSelectionBar from '@/components/assets/AssetSelectionBar.vue'
@@ -34,8 +37,6 @@ import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import PinnedContainersPanel from '@/components/assets/PinnedContainersPanel.vue'
 import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
 import type { Asset } from '@/types'
-
-type LocationSort = 'items' | 'name' | 'volume'
 
 interface DivisionCount {
   name: string
@@ -90,7 +91,7 @@ const selectedDivision = ref<string>(urlFilters.division)
 const expandedContainers = ref<Set<number>>(new Set())
 const collapsedLocations = ref<Set<string>>(new Set())
 const selectedLocationNames = ref<Set<string>>(new Set())
-const locationSort = ref<LocationSort>('items')
+const locationSort = ref<AssetLocationSort>(urlFilters.locationSort)
 const freshnessNow = ref(new Date())
 
 const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError, fetchVisibility, saveVisibility, clearVisibility } = useCorporationAssetVisibility()
@@ -649,8 +650,15 @@ async function openPinnedContainer(itemId: number) {
   document.querySelector(`[data-asset-item-id="${itemId}"]`)?.scrollIntoView?.({ block: 'center' })
 }
 
+const changesEndpoint = computed(() => {
+  if (isCorpView.value) return '/me/corporation/assets/changes'
+  return selectedCharacterId.value ? `/me/characters/${selectedCharacterId.value}/assets/changes` : null
+})
+const { changes: assetChanges, hasError: assetChangesFailed, load: loadAssetChanges } = useAssetChanges(changesEndpoint)
+
 async function onSaveVisibility(payload: CorporationVisibilityPayload) {
   if (await saveVisibility(payload)) {
+    void loadAssetChanges()
     await fetchAssets()
   } else {
     error.value = visibilitySaveError.value
@@ -705,6 +713,7 @@ watch(
     if (progress.status === 'completed') {
       stopSyncTimeout()
       fetchAssets().then(flashAssets)
+      void loadAssetChanges()
       isRefreshing.value = false
       syncStore.clearSyncStatus(currentSyncType.value)
     } else if (progress.status === 'error') {
@@ -810,7 +819,7 @@ watch(selectedCharacterId, (characterId) => {
   }
 }, { immediate: true })
 
-watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selectedLocation, selectedDivision], () => {
+watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selectedLocation, selectedDivision, locationSort], () => {
   router.replace({
     query: writeAssetFilterQuery(route.query, {
       viewMode: viewMode.value,
@@ -819,6 +828,7 @@ watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selected
       solarSystem: selectedSolarSystem.value,
       location: selectedLocation.value,
       division: selectedDivision.value,
+      locationSort: locationSort.value,
     }),
   })
 }, { immediate: true })
@@ -968,6 +978,8 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
             :locations="assetSafetyLocations"
             @show-content="showAssetSafetyContent"
           />
+
+          <AssetChangesPanel :changes="assetChanges" :error="assetChangesFailed" />
 
           <!-- Stats -->
           <AssetsStatsCards
