@@ -29,4 +29,5 @@ This table is generated from the code by `app:help:generate-tables`: do not edit
 | Purge of market history | 1 day |
 | Purge of old notifications | 1 day |
 | SDE build (admin alert, no automatic import) | 1 day |
+| Packaged volumes of the types found in inventories | 7 days |
 | Character and corporation assets | On demand |
