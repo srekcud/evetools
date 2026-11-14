@@ -30,7 +30,7 @@ Form fields:
 | **Structure type** | **NPC Station (no bonus)**, Raitaru, Azbel, Sotiyo (Engineering Complexes, for manufacturing), Athanor, Tatara (refineries, for reactions). |
 | **Security** | **High-Sec (x1.0)**, **Low-Sec (x1.9)**, **Null-Sec (x2.1)**. The multiplier applies to the rig bonus. The values shown are the manufacturing ones; for reaction rigs, project calculations apply ×1.0, ×1.0 and ×1.1. Default: Null-Sec. |
 | **Rigs (material bonus)** | Up to 3 rigs. Type at least 2 characters. The list only offers rigs matching the structure size: manufacturing rigs for an Engineering Complex, reaction rigs for a refinery. Each rig shows its ME bonus (and TE if it has one) and the product categories it targets. |
-| **Facility tax (%)** | Optional, from 0 to 50 (for example `3.5` for 3.5%). Out of range, the form refuses to save. Left empty, the field reads "not set" and the tax counts as **0%** in calculations. An **NPC Station** has no field: the form shows "0.25% (set by the game)". |
+| **Facility tax (%)** | Optional, from 0 to 50 (for example `3.5` for 3.5%). Out of range, the form refuses to save. Left empty, the field reads "not set" and the install cost stays **unknown** until you enter it (enter 0 if the structure takes nothing). An **NPC Station** has no field: the form shows "0.25% (set by the game)". |
 
 The **Calculated bonus (base structure + rigs x security)** box gives a preview before saving. Confirm with **Add**.
 
@@ -79,7 +79,7 @@ A job's install cost adds three terms computed on the same base (the job's estim
 
 - **Step with an attached structure**: the tax entered on that structure applies.
 - **Step or tool without an attached structure**: the tax is the one of the structure picked in the system (rules above), and failing that 0.25%, the NPC station tax.
-- **Tax not set**: it counts as 0%, which underestimates the real cost. Enter the rate shown in game for the structure.
+- **Tax not set**: the install cost is unknown, never counted as 0%. Enter the rate shown in game for the structure, or 0 if it takes nothing.
 
 ## Known pitfalls
 
