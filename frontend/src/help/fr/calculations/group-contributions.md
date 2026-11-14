@@ -32,7 +32,7 @@ L'onglet « Contributions » est masqué tant que vous êtes seul sur le projet,
 ### Quand une valeur ne bouge plus
 
 - **Contribution déclarée** : sa valeur est fixée au dépôt. Une fois « Approved », elle ne se rejette plus, sauf si elle double une contribution détectée (« Doublon avec un apport ESI »).
-- **Contribution détectée** (achat lié, job lié, courrier) : elle arrive « Approved » et suit ses liens. Lier ou supprimer un achat, lier ou délier un job la recalcule ; la synchro des jobs (toutes les 30 minutes) recopie le coût ESI. Le courrier est relu à l'affichage du courrier du projet : livré, la récompense compte ; en attente, en route, échoué ou délié, il est retiré ; statut illisible, la dernière valeur reste.
+- **Contribution détectée** (achat lié, job lié, courrier) : elle arrive « Approved » et suit ses liens, sauf l'achat lié d'un projet où un autre propriétaire ou admin peut relire : c'est une proposition d'apport « Pending », qui compte à la confirmation de livraison (voir [valeur des apports](/help?page=calculations/group-contribution-and-distribution)). Lier ou supprimer un achat, lier ou délier un job la recalcule ; la synchro des jobs (toutes les 30 minutes) recopie le coût ESI. Le courrier est relu à l'affichage du courrier du projet : livré, la récompense compte ; en attente, en route, échoué ou délié, il est retiré ; statut illisible, la dernière valeur reste.
 - **Projet « Termine »** : plus aucun recalcul. Les valeurs sont figées.
 - Quand une contribution détectée apparaît, une contribution déclarée encore « Pending » du même participant, sur la même ligne et du même type, est rejetée d'office (note « Replaced by the ESI/wallet contribution »).
 
@@ -85,7 +85,7 @@ Chaque virement porte en motif la **référence de paiement** du projet : `IP-` 
 | Terme | Source | Fraîcheur |
 |---|---|---|
 | Prix Jita du jour d'apport | Ordres de vente de Jita (ESI) ; un type absent du cache est lu à la demande | Cache synchronisé toutes les heures ; lu à la soumission, puis figé |
-| Prix payé | Transaction wallet d'un personnage du propriétaire (ESI), ou « Achat manuel » | Au rattachement ; wallet relu par tick de 5 minutes |
+| Prix payé | Transaction wallet d'un personnage du propriétaire (ESI), ou « Achat manuel » | Au rattachement ; wallet relu par tick de 5 minutes, ou à la demande (« Actualiser le wallet ») |
 | Coût d'un job lié | Jobs industriels du personnage (ESI) | Synchro des jobs toutes les 30 minutes, jusqu'à la fin du projet |
 | « Valeur estimee » | Votre saisie | À la soumission |
 | Récompense du courrier | Contrats du personnage (ESI) | À l'affichage du courrier du projet |

@@ -301,6 +301,31 @@ class ProjectContributionService
         return $value;
     }
 
+    /**
+     * @throws \DomainException if contribution is not pending
+     */
+    public function confirmDelivery(IndustryProjectContribution $contribution): void
+    {
+        if ($contribution->getStatus() !== ContributionStatus::Pending) {
+            throw new \DomainException(
+                sprintf('Cannot confirm the delivery of a contribution with status "%s"', $contribution->getStatus()->value),
+            );
+        }
+
+        $now = new \DateTimeImmutable();
+        $contribution->setStatus(ContributionStatus::Approved);
+        $contribution->setReviewedBy(null);
+        $contribution->setReviewedAt($now);
+        $contribution->setIsVerified(true);
+        $contribution->setVerifiedAt($now);
+
+        $bomItem = $contribution->getBomItem();
+        if ($bomItem !== null) {
+            $this->incrementFulfillment($bomItem, $contribution->getQuantity());
+            $this->lineReservations->settleApproval($bomItem, $contribution->getMember(), $contribution->getQuantity());
+        }
+    }
+
     private function incrementFulfillment(IndustryProjectBomLine $bomItem, int $quantity): void
     {
         $bomItem->setFulfilledQuantity($bomItem->getFulfilledQuantity() + $quantity);

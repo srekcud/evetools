@@ -11,7 +11,7 @@
 
 **Approving.** Every contribution (materials, job installation, BPC, line rental) is submitted for approval: pending, approved or rejected. The owner and the admins review, but nobody reviews their own contribution, except the owner when they are the only possible reviewer. In a solo project, your contributions are therefore approved as soon as you submit them.
 
-**Approved = locked.** An approved contribution never decreases. The only exception is a contribution you declared as a duplicate of an automatically detected one, which the reviewers can reject. When the project moves to **Completed**, all the accounts are frozen: no more contributions, reviews, sales or fee changes.
+**Approved = locked, except corrections before the sale.** An approved contribution never decreases. The exceptions are a contribution you declared as a duplicate of an automatically detected one, which the reviewers can reject, and a material contribution on a material line, which an owner or admin can reopen (it goes back to pending) until the project reaches the selling phase. When the project moves to **Completed**, all the accounts are frozen: no more contributions, reviews, sales or fee changes.
 
 ## How is a contribution valued?
 

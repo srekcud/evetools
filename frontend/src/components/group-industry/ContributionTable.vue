@@ -100,6 +100,14 @@ function isPending(status: ContributionStatus): boolean {
   return status === 'pending'
 }
 
+function isDeliveryProposal(contrib: GroupContribution): boolean {
+  return contrib.isAutoDetected && contrib.type === 'material'
+}
+
+function isDeliveryConfirmedByHand(contrib: GroupContribution): boolean {
+  return contrib.status === 'approved' && isDeliveryProposal(contrib) && !contrib.isVerified
+}
+
 async function handleApprove(id: string): Promise<void> {
   await store.approveContribution(props.projectId, id)
 }
@@ -267,6 +275,10 @@ onMounted(() => {
                   class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
                 >Unverified</span>
                 <span
+                  v-if="isDeliveryConfirmedByHand(contrib)"
+                  class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
+                >Delivery confirmed by hand</span>
+                <span
                   v-if="contrib.duplicatesDerived"
                   class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
                 >{{ t('groupIndustry.contributions.duplicatesDerived') }}</span>
@@ -280,7 +292,7 @@ onMounted(() => {
                   <button
                     class="px-2.5 py-1 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30"
                     @click="handleApprove(contrib.id)"
-                  >Approve</button>
+                  >{{ isDeliveryProposal(contrib) ? 'Confirm delivery' : 'Approve' }}</button>
                   <button
                     class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
                     @click="handleReject(contrib.id)"

@@ -32,7 +32,7 @@ The "Contributions" tab is hidden while you are alone on the project, with no re
 ### When a value stops moving
 
 - **Declared contribution**: its value is set at submission. Once "Approved", it can no longer be rejected, unless it doubles a detected contribution ("Duplicate of an ESI contribution").
-- **Detected contribution** (linked purchase, linked job, courier): it arrives "Approved" and follows its links. Linking or deleting a purchase, linking or unlinking a job recomputes it; the jobs sync (every 30 minutes) copies the ESI cost again. The courier is read again when the project's courier is displayed: delivered, the reward counts; outstanding, in transit, failed or unlinked, it is removed; unreadable status, the last value stays.
+- **Detected contribution** (linked purchase, linked job, courier): it arrives "Approved" and follows its links, except the linked purchase of a project where another owner or admin can review: that is a "Pending" contribution proposal, which counts at its delivery confirmation (see [contribution value](/help?page=calculations/group-contribution-and-distribution)). Linking or deleting a purchase, linking or unlinking a job recomputes it; the jobs sync (every 30 minutes) copies the ESI cost again. The courier is read again when the project's courier is displayed: delivered, the reward counts; outstanding, in transit, failed or unlinked, it is removed; unreadable status, the last value stays.
 - **"Completed" project**: no more recomputation. Values are frozen.
 - When a detected contribution appears, a declared contribution still "Pending" from the same participant, on the same line and of the same type, is rejected automatically (note "Replaced by the ESI/wallet contribution").
 
@@ -85,7 +85,7 @@ Each transfer carries the project's **payment reference** in its reason: `IP-` f
 | Term | Source | Freshness |
 |---|---|---|
 | Jita price of the deposit day | Jita sell orders (ESI); a type missing from the cache is read on demand | Cache synced every hour; read at submission, then frozen |
-| Paid price | Wallet transaction of one of the owner's characters (ESI), or "Manual purchase" | When linked; wallet read again on a 5-minute tick |
+| Paid price | Wallet transaction of one of the owner's characters (ESI), or "Manual purchase" | When linked; wallet read again on a 5-minute tick, or on demand ("Refresh wallet") |
 | Cost of a linked job | Character industry jobs (ESI) | Jobs sync every 30 minutes, until the project is completed |
 | "Estimated Value" | Your entry | At submission |
 | Courier reward | Character contracts (ESI) | When the project's courier is displayed |

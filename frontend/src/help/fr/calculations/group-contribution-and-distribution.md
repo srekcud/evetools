@@ -8,7 +8,7 @@ Principe : **un apport vaut un prix réel, jamais une estimation de la BOM**. Si
 
 | Type d'apport | Valeur | Source | Fraîcheur |
 |---|---|---|---|
-| **Matériau acheté par le propriétaire** (apport dérivé) | **Prix payé** : somme du prix total des achats liés à la ligne | Transaction wallet ESI liée à la ligne, ou achat saisi à la main (quantité et prix unitaire) | Les achats sont liés ou saisis ; le wallet se relit toutes les 5 minutes pour les personnages dont le cache ESI est expiré |
+| **Matériau acheté par le propriétaire** (apport dérivé) | **Prix payé** : somme du prix total des achats liés à la ligne | Transaction wallet ESI liée à la ligne, ou achat saisi à la main (quantité et prix unitaire) | Les achats sont liés ou saisis ; le wallet se relit toutes les 5 minutes pour les personnages dont le cache ESI est expiré, ou à la demande avec « Actualiser le wallet » (même condition). Dans un projet de groupe, l'achat est d'abord une proposition d'apport (voir plus bas) |
 | **Matériau déclaré par un participant** | **Prix Jita du jour d'apport** | Percentile 5 % des ordres de vente de la station de Jita (voir plus bas) | Lu à la soumission, puis figé |
 | **Installation d'un job** (apport dérivé) | **Coût réel ESI** du job lié, un apport par participant qui a lancé le job | Champ `cost` du job renvoyé par l'ESI | Jobs synchronisés toutes les 30 minutes |
 | **Installation de job déclarée** | **Valeur saisie** (supérieure à 0) | Le participant | Figée à la saisie |
@@ -31,9 +31,22 @@ Fraîcheur : le marché de Jita est resynchronisé toutes les heures et le carne
 
 ### Apports dérivés : calculés, pas déclarés
 
-Les achats liés du propriétaire et les jobs liés produisent des apports **approuvés d'office**, recalculés après chaque changement de lien. Si un participant avait déclaré le même apport (même ligne, même type), la déclaration encore en attente est rejetée et remplacée. Une déclaration déjà approuvée reste, et les deux comptent : c'est un **doublon d'apport**, que les relecteurs peuvent rejeter.
+Les jobs liés produisent des apports **approuvés d'office**, et les achats liés du propriétaire aussi quand il est le seul relecteur du projet. Dans un projet de groupe, un achat lié donne une **proposition d'apport** (voir plus bas). Tous sont recalculés après chaque changement de lien. Si un participant avait déclaré le même apport (même ligne, même type), la déclaration encore en attente est rejetée et remplacée. Une déclaration déjà approuvée reste, et les deux comptent : c'est un **doublon d'apport**, que les relecteurs peuvent rejeter.
 
 Un job lancé par un autre participant est compté à son nom, au coût payé en jeu. Si l'ESI ne donne aucun coût pour ce job, la valeur de l'apport est **inconnue**.
+
+### Proposition d'apport et confirmation de livraison
+
+Dans un projet où un autre propriétaire ou administrateur peut relire, l'achat lié à une ligne de matériau ne compte pas tout de suite : il crée une **proposition d'apport**, en attente, non vérifiée, au prix payé. Elle n'entre dans la quantité servie de la ligne et dans la répartition qu'à sa **confirmation de livraison**, de deux façons :
+
+- **Par le container du projet.** La proposition est confirmée quand le stock du type dans le container nommé sur le projet la couvre. Les propositions d'une ligne sont prises de la plus ancienne à la plus récente, avec un cumul qui démarre à la quantité déjà servie, dans un ordre strict : la première qui n'est pas couverte arrête la ligne. *Exemple : deux propositions, 60 (la plus ancienne) puis 50, et 100 unités dans le container : la première est confirmée, la seconde attend (60 + 50 dépasse 100).* L'apport est alors marqué **vérifié**, sans relecteur. Un apport déclaré à la main n'est jamais confirmé ainsi, ni une ligne de job.
+- **À la main.** Un autre propriétaire ou administrateur clique « Confirm delivery » dans l'onglet « Contributions ». L'apport compte mais reste **non vérifié** et porte le badge « Delivery confirmed by hand ». Vous ne confirmez pas votre propre proposition. À utiliser par exemple quand les biens ont déjà été consommés par un job lancé et ont donc quitté le container.
+
+La confirmation par le container est tentée après la synchro des assets de la corporation du propriétaire (celle de son personnage principal) et après le rattachement automatique d'un achat du wallet. Un achat saisi à la main n'en déclenche pas : sa proposition attend la synchro suivante.
+
+Quand le container ne peut pas être lu, **rien n'est confirmé** et la proposition reste en attente : jamais de repli sur « zéro » ni sur « livré ». Les cas : aucun nom de container sur le projet, propriétaire sans corporation, aucun directeur de la corporation connecté avec le scope des assets, assets de la corporation jamais synchronisés, aucune division visible du propriétaire (division masquée), container introuvable.
+
+Le bouton « Actualiser le wallet », dans la fenêtre « Achats » du propriétaire, lance la lecture du wallet de vos personnages (scope wallet, autorisation valide) sans attendre le prochain passage de 5 minutes, mais **seulement pour ceux dont le cache ESI est échu**. Si aucun ne l'est, il n'appelle pas l'ESI et indique l'heure de la prochaine lecture.
 
 ## 2. Pourquoi un apport approuvé ne bouge plus
 
@@ -103,4 +116,4 @@ Chaque vendeur garde le revenu net de ses ventes ; l'application calcule le plus
 
 ## Termes du glossaire
 
-Contribution (apport), apport dérivé, prix du jour d'apport, doublon d'apport, payout, répartition impossible, en attente des ventes, virement, marge.
+Contribution (apport), apport dérivé, proposition d'apport, confirmation de livraison, prix du jour d'apport, doublon d'apport, payout, répartition impossible, en attente des ventes, virement, marge.

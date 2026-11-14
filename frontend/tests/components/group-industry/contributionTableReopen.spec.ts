@@ -104,7 +104,7 @@ describe('ContributionTable proposals and valuation method', () => {
 
     expect(rowOf(wrapper, 'Pyerite').text()).toContain('Unverified')
     expect(rowOf(wrapper, 'Mexallon').text()).not.toContain('Unverified')
-    expect(buttonLabels(rowOf(wrapper, 'Pyerite'))).toEqual(['Approve', 'Reject'])
+    expect(buttonLabels(rowOf(wrapper, 'Pyerite'))).toEqual(['Confirm delivery', 'Reject'])
   })
 
   it('reads the paid price for a deposit valued at the paid price and the deposit-day Jita price for one valued at Jita', async () => {

@@ -11,7 +11,7 @@
 
 **Approuver.** Chaque contribution (matériaux, installation de job, BPC, location de ligne) est soumise à approbation : en attente, approuvée ou rejetée. Le propriétaire et les admins relisent, mais personne ne relit sa propre contribution, sauf le propriétaire quand il est le seul relecteur possible. Dans un projet solo, vos contributions sont donc approuvées dès le dépôt.
 
-**Approuvé = figé.** Une contribution approuvée ne diminue plus. Seule exception : une contribution que vous avez déclarée en doublon d'une contribution détectée automatiquement, que les relecteurs peuvent rejeter. Quand le projet passe à **Terminé**, tous les comptes sont figés : plus de contribution, de revue, de vente ni de changement de frais.
+**Approuvé = figé, sauf correction avant la vente.** Une contribution approuvée ne diminue plus. Exceptions : une contribution que vous avez déclarée en doublon d'une contribution détectée automatiquement, que les relecteurs peuvent rejeter, et une contribution de matériau d'une ligne de matériau, qu'un propriétaire ou administrateur peut rouvrir (elle repasse en attente) tant que le projet n'est pas en phase de vente. Quand le projet passe à **Terminé**, tous les comptes sont figés : plus de contribution, de revue, de vente ni de changement de frais.
 
 ## Comment un apport est-il valorisé ?
 

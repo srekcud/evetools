@@ -187,6 +187,8 @@ deptrac:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\RemoveBomLineMarkProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\RefreshProjectWalletProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\UpdateSaleProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\UpdateProjectProcessor:

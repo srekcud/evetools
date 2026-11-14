@@ -170,7 +170,7 @@ An approved contribution enters the real cost and the payouts, and it also locks
 By its type.
 
 - **Declared material**: Jita price of the deposit day, 5th percentile of the sell orders, read at submission and frozen. You enter no value. With no Jita price that day, the contribution is refused.
-- **Linked purchase** (owner): the price paid, read from wallet transactions. Approved automatically.
+- **Linked purchase** (owner): the price paid, read from wallet transactions. Approved automatically if you are the only reviewer of the project; otherwise it is a contribution proposal, waiting for its delivery confirmation (by the project container, or by hand by another owner or administrator).
 - **Linked job**: the job's ESI cost, in the name of its installer. With no cost from the ESI, the value is unknown.
 - **Job install, BPC, line rental**: entered value, strictly positive for job install and BPC. Line rental offers a suggestion drawn from your rate schedule.
 - **Courier**: the reward of the linked contract, once delivered.

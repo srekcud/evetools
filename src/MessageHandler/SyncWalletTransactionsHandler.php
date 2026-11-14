@@ -10,6 +10,7 @@ use App\Message\SyncWalletTransactions;
 use App\Repository\CharacterRepository;
 use App\Repository\CharacterWalletReadingRepository;
 use App\Service\Admin\SyncTracker;
+use App\Service\Sync\WalletReadingDueness;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -38,7 +39,7 @@ final readonly class SyncWalletTransactionsHandler
 
         try {
             $characters = $this->characterRepository->findActiveWithValidTokens();
-            $walletCharacters = $this->walletCharactersById($characters);
+            $walletCharacters = WalletReadingDueness::walletCharactersById($characters);
             $targets = $message->dueOnly ? $this->dueCharacters($walletCharacters) : $walletCharacters;
 
             foreach (array_keys($targets) as $characterId) {
@@ -60,39 +61,13 @@ final readonly class SyncWalletTransactionsHandler
     }
 
     /**
-     * @param array<Character> $characters
-     * @return array<string, Character>
-     */
-    private function walletCharactersById(array $characters): array
-    {
-        $walletCharacters = [];
-        foreach ($characters as $character) {
-            $characterId = $character->getId()?->toRfc4122();
-            if ($characterId === null || $character->getEveToken()?->hasScope('esi-wallet.read_character_wallet.v1') !== true) {
-                continue;
-            }
-
-            $walletCharacters[$characterId] = $character;
-        }
-
-        return $walletCharacters;
-    }
-
-    /**
      * @param array<string, Character> $walletCharacters
      * @return array<string, Character>
      */
     private function dueCharacters(array $walletCharacters): array
     {
-        $now = $this->clock->now();
-        $notDue = [];
-        foreach ($this->readingRepository->findByCharacters(array_values($walletCharacters)) as $reading) {
-            $characterId = $reading->getCharacter()->getId()?->toRfc4122();
-            if ($characterId !== null && $reading->getNextReadAt() > $now) {
-                $notDue[$characterId] = true;
-            }
-        }
+        $readings = $this->readingRepository->findByCharacters(array_values($walletCharacters));
 
-        return array_diff_key($walletCharacters, $notDue);
+        return array_diff_key($walletCharacters, WalletReadingDueness::notDueAmong($walletCharacters, $readings, $this->clock->now()));
     }
 }

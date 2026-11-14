@@ -170,7 +170,7 @@ Une contribution approuvée entre dans le coût réel et dans les payouts, et ve
 Selon son type.
 
 - **Matériau déclaré** : prix Jita du jour d'apport, percentile 5 % des ordres de vente, lu au dépôt et figé. Vous ne saisissez aucune valeur. Sans prix Jita ce jour-là, la contribution est refusée.
-- **Achat lié** (propriétaire) : le prix payé, lu dans les transactions wallet. Approuvé d'office.
+- **Achat lié** (propriétaire) : le prix payé, lu dans les transactions wallet. Approuvé d'office si vous êtes le seul relecteur du projet ; sinon c'est une proposition d'apport, en attente de la confirmation de livraison (par le container du projet, ou à la main par un autre propriétaire ou administrateur).
 - **Job lié** : le coût ESI du job, au nom de son installateur. Sans coût donné par l'ESI, la valeur est inconnue.
 - **Installation de job, BPC, location de ligne** : valeur saisie, strictement positive pour l'installation et le BPC. La location propose une suggestion tirée de votre barème.
 - **Courrier** : la récompense du contrat lié, une fois livré.

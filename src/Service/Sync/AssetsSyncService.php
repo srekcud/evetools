@@ -15,6 +15,7 @@ use App\Service\Assets\AssetSyncChangeRecorder;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\CorporationService;
+use App\Service\Industry\Project\ContainerDeliveryConfirmer;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -35,6 +36,7 @@ class AssetsSyncService
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly AssetSyncChangeRecorder $changeRecorder,
+        private readonly ContainerDeliveryConfirmer $containerDeliveryConfirmer,
     ) {
     }
 
@@ -197,6 +199,8 @@ class AssetsSyncService
             foreach ($recipientUserIds as $userId) {
                 $this->publishCompletion($userId, 'corporation-assets', count($assets));
             }
+
+            $this->confirmContainerDeliveries($corporationId);
         } catch (\Throwable $e) {
             $errorMessage = $e->getMessage();
             if ($e instanceof EsiApiException && $e->statusCode === Response::HTTP_FORBIDDEN) {
@@ -207,6 +211,18 @@ class AssetsSyncService
                 $this->mercurePublisher->syncError($userId, 'corporation-assets', $errorMessage);
             }
             throw $e;
+        }
+    }
+
+    private function confirmContainerDeliveries(int $corporationId): void
+    {
+        try {
+            $this->containerDeliveryConfirmer->confirmOpenProjectsOfCorporation($corporationId);
+        } catch (\Throwable $e) {
+            $this->logger->error('Container delivery confirmation failed after the corporation assets sync', [
+                'corporationId' => $corporationId,
+                'exception' => $e,
+            ]);
         }
     }
 
