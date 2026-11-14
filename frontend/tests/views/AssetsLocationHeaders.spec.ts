@@ -52,7 +52,7 @@ const rawAssets = [
   asset(7, { locationName: CHARLIE, locationId: 60000003, quantity: 5, typeId: 587, typeName: 'Rifter', categoryId: SHIP_CATEGORY_ID, isSingleton: false }),
 ]
 
-async function mountAssets(items: unknown[] = rawAssets) {
+async function mountAssets(items: Record<string, unknown>[] = rawAssets) {
   const pinia = createPinia()
   setActivePinia(pinia)
   const authStore = useAuthStore()
