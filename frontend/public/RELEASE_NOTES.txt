@@ -3,6 +3,61 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.22 (2026-11-14)
+--------------------------------------------------------------------------------
+
+### A lire avant tout
+- Une nouvelle autorisation du jeu est demandee (placer une destination) :
+  reconnectez vos personnages pour utiliser "Definir comme destination"
+- Projets de groupe : un achat relie a une ligne de materiau devient une
+  proposition, comptee une fois validee par un autre proprietaire ou un admin
+
+### Assets
+- Inventaire plus rapide : le resume des emplacements s'affiche d'abord, le
+  contenu se charge a l'ouverture, la liste reste a l'ecran pendant un
+  rechargement
+- Volume reconditionne par emplacement, conteneur, groupe de vaisseaux et
+  selection, tri par volume, et brouillon de contrat de courrier
+- Selection d'emplacements : copie en multibuy ou envoi vers Appraisal
+- Bloc Asset Safety en tete de l'inventaire : systeme, objets, vaisseaux,
+  volume, et rappel que la livraison se demande en jeu
+- Panneau "Changements depuis la synchro precedente"
+- Vue "Par type" sur l'inventaire d'un personnage
+- Vaisseaux assembles regroupes par fit, fit copiable au format EFT
+- Blueprints : BPC ou BPO, runs et ME/TE affiches sur la ligne
+- Corporation : filtre par division de hangar, noms "Hangar - <nom>", et
+  emplacements sans nom de structure nommes
+- Conteneurs de corporation epinglables ; ceux des projets en cours sont
+  epingles d'office
+- Emplacements tries par nombre d'objets ou par nom, avec barre de
+  remplissage, vaisseaux, divisions et "Synchro il y a 12 min"
+- Recherche insensible aux accents ; un emplacement trouve par son contenu
+  s'ouvre tout seul
+- Filtres, tri et dernier personnage gardes dans l'adresse de la page
+- Boutons "Definir comme destination" et "Ouvrir l'info en jeu"
+- Textes de l'inventaire traduits
+
+### Industrie
+- Projets de groupe : livraisons confirmees d'elles-memes quand le stock du
+  conteneur les couvre ; un depot manuel est valorise au prix paye
+- Un projet peut surveiller plusieurs conteneurs
+- Bibliotheque de blueprints : selection et creation d'un projet brouillon
+- Nom du blueprint copiable depuis l'arbre de production et la fenetre
+  compagnon du projet
+- Wallets : l'heure de lecture de chaque personnage est affichee, et le
+  wallet est relu des que le jeu le permet ou a la demande
+- Quoi produire : un scan vide explique pourquoi chaque produit est ecarte
+- Ventes : un produit construit par plusieurs BPC n'est liste qu'une fois
+- Pourcentage de couverture des lignes arrondi et tenu dans sa case
+
+### Commerce
+- La liste des structures de marche se charge sans structure preferee
+
+### Aide
+- Nouvelle page Aide publique, en francais et en anglais : FAQ, guides pas a
+  pas, details des calculs, autorisations demandees et frequences de synchro
+
+--------------------------------------------------------------------------------
 Version 0.21 (2026-11-13)
 --------------------------------------------------------------------------------
 
