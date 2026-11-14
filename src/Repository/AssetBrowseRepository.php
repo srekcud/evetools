@@ -15,6 +15,8 @@ class AssetBrowseRepository
     private const int MAX_CONTAINER_DEPTH = 5;
 
     private const string SEARCH_ESCAPE = '!';
+    private const string ACCENTED_LETTERS = 'àáâãäåçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ';
+    private const string PLAIN_LETTERS = 'aaaaaaceeeeiiiinooooouuuuyyAAAAAACEEEEIIIINOOOOOUUUUY';
 
     public function __construct(private readonly Connection $connection)
     {
@@ -141,18 +143,20 @@ class AssetBrowseRepository
     public function search(AssetScope $scope, string $term, int $limit): array
     {
         $escape = self::SEARCH_ESCAPE;
-        $escapedPattern = '%' . preg_replace('/([%_' . preg_quote($escape, '/') . '])/', $escape . '$1', $term) . '%';
+        $foldedTerm = self::foldAccents($term);
+        $escapedPattern = '%' . preg_replace('/([%_' . preg_quote($escape, '/') . '])/', $escape . '$1', $foldedTerm) . '%';
+        $folding = ['accented' => self::ACCENTED_LETTERS, 'plain' => self::PLAIN_LETTERS];
 
         $locationIds = $this->connection->fetchFirstColumn(
             $this->treeCte($scope) . <<<SQL
 
             SELECT root_location_id
             FROM tree
-            WHERE is_root AND (root_location_name ILIKE :pattern ESCAPE '{$escape}' OR root_system_name ILIKE :pattern ESCAPE '{$escape}')
+            WHERE is_root AND (translate(root_location_name, :accented, :plain) ILIKE :pattern ESCAPE '{$escape}' OR translate(root_system_name, :accented, :plain) ILIKE :pattern ESCAPE '{$escape}')
             GROUP BY root_location_id
             ORDER BY MAX(root_location_name) ASC, root_location_id ASC
             SQL,
-            ...$this->bindings($scope, ['pattern' => $escapedPattern]),
+            ...$this->bindings($scope, ['pattern' => $escapedPattern, ...$folding]),
         );
 
         $hitRows = $this->connection->fetchAllAssociative(
@@ -161,11 +165,11 @@ class AssetBrowseRepository
             SELECT tree.root_location_id, to_json(tree.path)::text AS container_path, found.*
             FROM tree
             JOIN ({$this->itemSelect($scope)} WHERE {$this->scopeSql($scope, 'a')}) found ON found.id = tree.id
-            WHERE found.type_name ILIKE :pattern ESCAPE '{$escape}' OR found.item_name ILIKE :pattern ESCAPE '{$escape}'
+            WHERE translate(found.type_name, :accented, :plain) ILIKE :pattern ESCAPE '{$escape}' OR translate(found.item_name, :accented, :plain) ILIKE :pattern ESCAPE '{$escape}'
             ORDER BY found.type_name ASC, found.item_id ASC
             LIMIT :hitLimit
             SQL,
-            ...$this->bindings($scope, ['pattern' => $escapedPattern, 'hitLimit' => $limit + 1]),
+            ...$this->bindings($scope, ['pattern' => $escapedPattern, 'hitLimit' => $limit + 1, ...$folding]),
         );
 
         return [
@@ -301,6 +305,11 @@ class AssetBrowseRepository
         }
 
         return [$values, $types];
+    }
+
+    private static function foldAccents(string $text): string
+    {
+        return strtr($text, array_combine(mb_str_split(self::ACCENTED_LETTERS), mb_str_split(self::PLAIN_LETTERS)));
     }
 
     /**
