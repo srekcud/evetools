@@ -10,6 +10,7 @@ import { AUTH_LOGOUT_EVENT } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useRateLimitStore } from '@/stores/rateLimit'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 import { present } from '../present'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
@@ -23,7 +24,7 @@ vi.mock(import('vue-router'), async importOriginal => ({
 vi.mock('@/router', () => ({ default: { push: vi.fn().mockResolvedValue(undefined) } }))
 
 const REFRESH_ENDPOINT = '/api/me/corporation/assets/refresh'
-const ASSETS_ENDPOINT = '/api/me/corporation/assets'
+const LOCATIONS_ENDPOINT = '/api/me/corporation/assets/locations'
 const VISIBILITY_ENDPOINT = '/api/me/corporation/assets/visibility'
 const STORED_TOKEN = 'stored-token'
 const AJAX_HEADER_VALUE = 'XMLHttpRequest'
@@ -34,6 +35,17 @@ afterEach(() => {
   vi.unstubAllGlobals()
   localStorage.clear()
 })
+
+const EMPTY_SUMMARY = {
+  id: 'corporation',
+  itemCount: 0,
+  typeCount: 0,
+  systemCount: 0,
+  locationCount: 0,
+  lastSyncedAt: null,
+  nextRefreshAt: null,
+  locations: [],
+}
 
 interface Answer {
   status: number
@@ -57,13 +69,12 @@ async function mountCorporationAssets(answers: Record<string, Answer> = {}, befo
   beforeMount()
   const defaults: Record<string, Answer> = {
     [VISIBILITY_ENDPOINT]: { status: 200, body: { isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null } },
-    [ASSETS_ENDPOINT]: { status: 200, body: { items: [] } },
   }
   const merged = { ...defaults, ...answers }
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
-    const answer = merged[String(input)] ?? { status: 200, body: { items: [] } }
-    return new Response(JSON.stringify(answer.body), { status: answer.status })
-  })
+  const fetchMock = vi.fn(assetBrowseFetch([], url => {
+    const answer = merged[url]
+    return answer === undefined ? null : new Response(JSON.stringify(answer.body), { status: answer.status })
+  }))
   vi.stubGlobal('fetch', fetchMock)
   const wrapper = mount(Assets, {
     global: {
@@ -97,7 +108,7 @@ describe('Assets list request goes through apiRequest', () => {
   it('sends the stored session token and the ajax header', async () => {
     const { fetchMock } = await mountCorporationAssets()
 
-    const [, init] = present(requestsTo(fetchMock, ASSETS_ENDPOINT)[0])
+    const [, init] = present(requestsTo(fetchMock, LOCATIONS_ENDPOINT)[0])
     const headers = new Headers(init.headers)
     expect(headers.get('Authorization')).toBe(`Bearer ${STORED_TOKEN}`)
     expect(headers.get('X-Requested-With')).toBe(AJAX_HEADER_VALUE)
@@ -107,7 +118,7 @@ describe('Assets list request goes through apiRequest', () => {
     const logoutListener = vi.fn()
     window.addEventListener(AUTH_LOGOUT_EVENT, logoutListener)
 
-    await mountCorporationAssets({ [ASSETS_ENDPOINT]: { status: 401, body: {} } })
+    await mountCorporationAssets({ [LOCATIONS_ENDPOINT]: { status: 401, body: {} } })
 
     window.removeEventListener(AUTH_LOGOUT_EVENT, logoutListener)
     expect(logoutListener).toHaveBeenCalled()
@@ -116,14 +127,14 @@ describe('Assets list request goes through apiRequest', () => {
   it('does not call the list while the ESI rate limit cooldown is active and shows the load failure', async () => {
     const { wrapper, fetchMock } = await mountCorporationAssets({}, () => useRateLimitStore().setRateLimited())
 
-    expect(requestsTo(fetchMock, ASSETS_ENDPOINT)).toHaveLength(0)
+    expect(requestsTo(fetchMock, LOCATIONS_ENDPOINT)).toHaveLength(0)
     expect(wrapper.text()).toContain(en.assets.loadFailed)
     useRateLimitStore().clearRateLimit()
   })
 
   it('still reads the items of a successful list answer', async () => {
     const { wrapper } = await mountCorporationAssets({
-      [ASSETS_ENDPOINT]: { status: 200, body: { items: [], nextRefreshAt: '2026-11-13T12:00:00+00:00' } },
+      [LOCATIONS_ENDPOINT]: { status: 200, body: { ...EMPTY_SUMMARY, nextRefreshAt: '2026-11-13T12:00:00+00:00' } },
     })
 
     expect(wrapper.text()).not.toContain(en.assets.loadFailed)

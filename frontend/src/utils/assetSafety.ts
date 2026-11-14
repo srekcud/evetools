@@ -1,5 +1,5 @@
 import { SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
-import type { Asset } from '@/types'
+import type { Asset, AssetLocationSummaryRow } from '@/types'
 
 export interface AssetSafetyLocation {
   locationName: string
@@ -24,6 +24,24 @@ export function summarizeAssetSafety(assets: Asset[]): AssetSafetyLocation[] {
     if (asset.categoryId === SHIP_CATEGORY_ID && asset.isSingleton === true) {
       summary.shipCount += 1
     }
+    byLocation.set(locationName, summary)
+  }
+
+  return Array.from(byLocation.values()).sort((a, b) => a.locationName.localeCompare(b.locationName))
+}
+
+export function summarizeAssetSafetyLocations(locations: readonly AssetLocationSummaryRow[]): AssetSafetyLocation[] {
+  const byLocation = new Map<string, AssetSafetyLocation>()
+
+  for (const location of locations) {
+    const match = ASSET_SAFETY_LOCATION_PATTERN.exec(location.locationName)
+    if (match === null) {
+      continue
+    }
+    const [, locationName, solarSystemName] = match
+    const summary = byLocation.get(locationName) ?? { locationName, solarSystemName, itemCount: 0, shipCount: 0 }
+    summary.itemCount += location.itemCount
+    summary.shipCount += location.shipCount
     byLocation.set(locationName, summary)
   }
 

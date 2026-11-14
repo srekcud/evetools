@@ -203,6 +203,21 @@ final class AssetBrowseRepositoryTest extends IntegrationTestCase
         );
     }
 
+    public function testSearchIgnoresAccentsAndCaseInTheTermAndInTheStoredNames(): void
+    {
+        $pilot = $this->createCharacter(null, 'Ilse Varrow');
+        $this->em->persist($this->personal($pilot, self::BOX, self::CONTAINER_TYPE, 'Giant Secure Container', 1, self::JITA_ID, 'Jita IV', 'station', 'Hangar', 'Jita')->setIsSingleton(true)->setItemName('Réserve de Matériaux'));
+        $this->em->persist($this->personal($pilot, self::LOOSE_TRITANIUM, self::TRITANIUM_TYPE, 'Tritanium', 10, self::AMARR_ID, 'Jíta Ñandú', 'station', 'Hangar', 'Amarr'));
+        $this->flushAndClear();
+        $scope = AssetScope::forCharacter($pilot->getId()->toRfc4122());
+
+        self::assertSame([self::BOX], array_column($this->repository->search($scope, 'materiaux', 50)['hits'], 'itemId'));
+        self::assertSame([self::BOX], array_column($this->repository->search($scope, 'MATÉRIAUX', 50)['hits'], 'itemId'));
+        self::assertSame([self::BOX], array_column($this->repository->search($scope, 'réserve de matér', 50)['hits'], 'itemId'));
+        self::assertSame([self::AMARR_ID], $this->repository->search($scope, 'jita nandu', 50)['locationIds']);
+        self::assertSame([], $this->repository->search($scope, 'matiriaux', 50)['hits']);
+    }
+
     private function personalScopeWithInventory(): AssetScope
     {
         $pilot = $this->createCharacter(null, 'Ilse Varrow');

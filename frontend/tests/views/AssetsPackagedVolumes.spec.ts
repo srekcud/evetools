@@ -5,6 +5,7 @@ import en from '@/i18n/locales/en.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -91,12 +92,7 @@ async function mountAssets() {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-    if (String(input).includes('/me/assets/packaged-volumes')) {
-      return volumesResponse()
-    }
-    return new Response(JSON.stringify({ items: rawAssets }), { status: 200 })
-  }))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(rawAssets, url => (url.includes('/me/assets/packaged-volumes') ? volumesResponse() : null))))
   const wrapper = mount(Assets, {
     global: {
       plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })],
@@ -129,6 +125,17 @@ function locationNames(wrapper: MountedAssets): string[] {
 
 async function selectLocation(wrapper: MountedAssets, locationName: string): Promise<void> {
   await wrapper.get(`[aria-label="Select ${locationName}"]`).trigger('click')
+  await flushPromises()
+}
+
+async function sortByVolume(wrapper: MountedAssets): Promise<void> {
+  await wrapper.get('[data-testid="location-sort"]').setValue('volume')
+  await flushPromises()
+}
+
+async function openLocation(wrapper: MountedAssets, locationName: string): Promise<void> {
+  await groupOf(wrapper, locationName).get('[aria-expanded]').trigger('click')
+  await flushPromises()
 }
 
 describe('Assets packaged volumes', () => {
@@ -145,6 +152,7 @@ describe('Assets packaged volumes', () => {
 
   it('shows the packaged volume of each location', async () => {
     const wrapper = await mountAssets()
+    await sortByVolume(wrapper)
 
     expect(groupOf(wrapper, ALPHA).get('[data-testid="location-volume"]').text()).toContain('7,500 m³')
     expect(groupOf(wrapper, BRAVO).get('[data-testid="location-volume"]').text()).toContain('5,110 m³')
@@ -152,12 +160,14 @@ describe('Assets packaged volumes', () => {
 
   it('leaves the station container out of a location total but keeps its contents', async () => {
     const wrapper = await mountAssets()
+    await sortByVolume(wrapper)
 
     expect(groupOf(wrapper, CHARLIE).get('[data-testid="location-volume"]').text()).toContain('1 m³')
   })
 
   it('says how many types have no volume instead of counting them as zero', async () => {
     const wrapper = await mountAssets()
+    await sortByVolume(wrapper)
 
     expect(groupOf(wrapper, DELTA).get('[data-testid="volume-unknown"]').text()).toContain('1 type without volume')
     expect(groupOf(wrapper, ALPHA).find('[data-testid="volume-unknown"]').exists()).toBe(false)
@@ -165,6 +175,8 @@ describe('Assets packaged volumes', () => {
 
   it('shows the volume of a container with its contents', async () => {
     const wrapper = await mountAssets()
+    await sortByVolume(wrapper)
+    await openLocation(wrapper, BRAVO)
 
     const containerRow = groupOf(wrapper, BRAVO).get(`[data-asset-item-id="${BOX_ITEM_ID}"]`)
 
@@ -174,7 +186,7 @@ describe('Assets packaged volumes', () => {
   it('sorts the locations by volume, the largest first', async () => {
     const wrapper = await mountAssets()
 
-    await wrapper.get('[data-testid="location-sort"]').setValue('volume')
+    await sortByVolume(wrapper)
 
     expect(locationNames(wrapper)).toEqual([ALPHA, BRAVO, CHARLIE, DELTA])
   })

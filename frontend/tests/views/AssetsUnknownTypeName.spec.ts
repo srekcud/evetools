@@ -5,6 +5,7 @@ import fr from '@/i18n/locales/fr.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -13,6 +14,7 @@ vi.mock(import('vue-router'), async importOriginal => ({
 }))
 
 const CHARACTER_ID = '00000000-0000-4000-8000-0000000000c1'
+const SEARCH_DEBOUNCE_MS = 300
 
 const rawAssets = [
   {
@@ -89,7 +91,7 @@ async function mountAssets() {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items: rawAssets }), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(rawAssets)))
   const i18n = createI18n({ legacy: false, locale: 'fr', messages: { fr } })
   const wrapper = mount(Assets, {
     global: {
@@ -106,19 +108,28 @@ async function mountAssets() {
   return wrapper
 }
 
+async function switchToTypeView(wrapper: Awaited<ReturnType<typeof mountAssets>>): Promise<void> {
+  await wrapper.findAll('button').find(button => button.text() === fr.assets.groupBy.type)?.trigger('click')
+  await flushPromises()
+}
+
 async function searchFor(wrapper: Awaited<ReturnType<typeof mountAssets>>, query: string): Promise<string> {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   await wrapper.find('input[type="text"]').setValue(query)
+  await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS)
   await flushPromises()
   return wrapper.text().replace(/\s+/g, ' ')
 }
 
 describe('Assets search with an unknown type name', () => {
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
   it('finds the asset without type name by its type id', async () => {
     const wrapper = await mountAssets()
+    await switchToTypeView(wrapper)
 
     const text = await searchFor(wrapper, '9848')
 
@@ -130,6 +141,7 @@ describe('Assets search with an unknown type name', () => {
 
   it('finds the asset without type name by the unknown type name wording', async () => {
     const wrapper = await mountAssets()
+    await switchToTypeView(wrapper)
 
     const text = await searchFor(wrapper, 'inconnu')
 

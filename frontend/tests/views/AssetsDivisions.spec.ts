@@ -7,6 +7,7 @@ import en from '@/i18n/locales/en.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 const route = reactive<{ query: LocationQuery; params: Record<string, string> }>({ query: {}, params: {} })
 const routerReplace = vi.fn()
@@ -78,13 +79,14 @@ async function mountAssets(query: LocationQuery = { view: 'corporation' }) {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+  const corporationBrowse = assetBrowseFetch(rawCorporationAssets)
+  const characterBrowse = assetBrowseFetch(rawCharacterAssets)
+  fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.endsWith('/visibility')) {
       return new Response(JSON.stringify({ isDirector: true, accessibleDivisions: [], allDivisions: {}, updatedAt: null }), { status: 200 })
     }
-    const items = url.includes('/me/corporation/assets') ? rawCorporationAssets : rawCharacterAssets
-    return new Response(JSON.stringify({ items }), { status: 200 })
+    return url.includes('/me/corporation/assets') ? corporationBrowse(input, init) : characterBrowse(input, init)
   })
   vi.stubGlobal('fetch', fetchMock)
   const wrapper = mount(Assets, {
@@ -125,6 +127,19 @@ function locationGroup(wrapper: Wrapper, locationName: string) {
   return group
 }
 
+async function chooseChip(wrapper: Wrapper, text: string): Promise<void> {
+  await chipLabelled(wrapper, text).trigger('click')
+  await flushPromises()
+}
+
+async function openLocation(wrapper: Wrapper, locationName: string): Promise<void> {
+  const header = locationGroup(wrapper, locationName).get('[aria-expanded]')
+  if (header.attributes('aria-expanded') === 'false') {
+    await header.trigger('click')
+    await flushPromises()
+  }
+}
+
 function totalItemsCard(wrapper: Wrapper): string {
   const card = wrapper.findAll('p').find(paragraph => paragraph.text() === en.assets.stats.totalItems)
   if (!card) {
@@ -163,9 +178,9 @@ describe('Assets corporation division chips', () => {
       expect.stringContaining('Hangar - Production'),
       expect.stringContaining('Hangar - Stock'),
     ])
-    expect(chipLabelled(wrapper, 'Hangar - Production').text()).toContain('3')
-    expect(chipLabelled(wrapper, 'Hangar - Stock').text()).toContain('1')
-    expect(chipLabelled(wrapper, 'All').text()).toContain('5')
+    expect(chipLabelled(wrapper, 'Hangar - Production').text()).toContain('8,921')
+    expect(chipLabelled(wrapper, 'Hangar - Stock').text()).toContain('200')
+    expect(chipLabelled(wrapper, 'All').text()).toContain('9,171')
   })
 
   it('does not show the chips in the character view', async () => {
@@ -177,7 +192,8 @@ describe('Assets corporation division chips', () => {
   it('keeps only the rows of the chosen division', async () => {
     const wrapper = await mountAssets()
 
-    await chipLabelled(wrapper, 'Hangar - Stock').trigger('click')
+    await chooseChip(wrapper, 'Hangar - Stock')
+    await openLocation(wrapper, HOME_STATION)
     const text = wrapper.text().replace(/\s+/g, ' ')
 
     expect(text).toContain('Pyerite')
@@ -188,8 +204,10 @@ describe('Assets corporation division chips', () => {
   it('keeps the contents of a container of the chosen division', async () => {
     const wrapper = await mountAssets()
 
-    await chipLabelled(wrapper, 'Hangar - Production').trigger('click')
+    await chooseChip(wrapper, 'Hangar - Production')
+    await openLocation(wrapper, HOME_STATION)
     await wrapper.get('[role="button"][aria-expanded="false"][tabindex="0"]:not([data-testid="division-chip"])').trigger('click')
+    await flushPromises()
 
     expect(wrapper.text()).toContain('Project Box (Large Secure Container)')
   })
@@ -198,7 +216,7 @@ describe('Assets corporation division chips', () => {
     const wrapper = await mountAssets()
     expect(totalItemsCard(wrapper)).toBe('9,171')
 
-    await chipLabelled(wrapper, 'Hangar - Stock').trigger('click')
+    await chooseChip(wrapper, 'Hangar - Stock')
 
     expect(totalItemsCard(wrapper)).toBe('200')
   })
@@ -206,10 +224,12 @@ describe('Assets corporation division chips', () => {
   it('marks the chosen chip as pressed and All again clears the filter', async () => {
     const wrapper = await mountAssets()
 
-    await chipLabelled(wrapper, 'Hangar - Stock').trigger('click')
+    await chooseChip(wrapper, 'Hangar - Stock')
     expect(chipLabelled(wrapper, 'Hangar - Stock').attributes('aria-pressed')).toBe('true')
 
-    await chipLabelled(wrapper, 'All').trigger('click')
+    await chooseChip(wrapper, 'All')
+
+    await openLocation(wrapper, HOME_STATION)
 
     expect(chipLabelled(wrapper, 'All').attributes('aria-pressed')).toBe('true')
     expect(wrapper.text()).toContain('Tritanium')
@@ -217,10 +237,11 @@ describe('Assets corporation division chips', () => {
 
   it('writes the chosen division in the URL and reads it back', async () => {
     const wrapper = await mountAssets()
-    await chipLabelled(wrapper, 'Hangar - Stock').trigger('click')
+    await chooseChip(wrapper, 'Hangar - Stock')
     expect(lastReplacedQuery().division).toBe('Stock')
 
     const reopened = await mountAssets({ view: 'corporation', division: 'Stock' })
+    await openLocation(reopened, HOME_STATION)
 
     expect(reopened.text()).toContain('Pyerite')
     expect(reopened.text()).not.toContain('Tritanium')
@@ -228,6 +249,7 @@ describe('Assets corporation division chips', () => {
 
   it('drops a division of the URL that the corporation does not have', async () => {
     const wrapper = await mountAssets({ view: 'corporation', division: 'Unknown' })
+    await openLocation(wrapper, HOME_STATION)
 
     expect(wrapper.text()).toContain('Tritanium')
     expect(lastReplacedQuery().division).toBeUndefined()
@@ -253,13 +275,14 @@ describe('Assets corporation division display', () => {
   it('drops the breakdown once a division is chosen', async () => {
     const wrapper = await mountAssets()
 
-    await chipLabelled(wrapper, 'Hangar - Stock').trigger('click')
+    await chooseChip(wrapper, 'Hangar - Stock')
 
     expect(wrapper.find('[data-testid="location-division-breakdown"]').exists()).toBe(false)
   })
 
   it('shows the division on each row instead of the raw CorpSAG flag', async () => {
     const wrapper = await mountAssets()
+    await openLocation(wrapper, HOME_STATION)
     const rowDivisions = locationGroup(wrapper, HOME_STATION).findAll('[data-testid="asset-division"]').map(row => row.text())
 
     expect(wrapper.text()).not.toContain('CorpSAG')
@@ -268,6 +291,7 @@ describe('Assets corporation division display', () => {
 
   it('keeps the raw flag of a row that has no division', async () => {
     const wrapper = await mountAssets()
+    await openLocation(wrapper, MARKET_STATION)
 
     expect(locationGroup(wrapper, MARKET_STATION).text()).toContain('(CorpDeliveries)')
   })

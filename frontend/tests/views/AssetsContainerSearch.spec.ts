@@ -5,6 +5,7 @@ import fr from '@/i18n/locales/fr.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -15,6 +16,7 @@ vi.mock(import('vue-router'), async importOriginal => ({
 const CHARACTER_ID = '00000000-0000-4000-8000-0000000000c1'
 const STATION_NAME = 'Jita IV - Moon 4 - Caldari Navy Assembly Plant'
 const CONTAINER_ITEM_ID = 1050000000201
+const SEARCH_DEBOUNCE_MS = 300
 
 function stationAsset(overrides: Record<string, unknown>) {
   return {
@@ -72,7 +74,7 @@ async function mountAssets(items: Record<string, unknown>[] = rawAssets) {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items }), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(items)))
   const i18n = createI18n({ legacy: false, locale: 'fr', messages: { fr } })
   const wrapper = mount(Assets, {
     global: {
@@ -90,7 +92,9 @@ async function mountAssets(items: Record<string, unknown>[] = rawAssets) {
 }
 
 async function searchFor(wrapper: Awaited<ReturnType<typeof mountAssets>>, query: string): Promise<string> {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   await wrapper.find('input[type="text"]').setValue(query)
+  await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS)
   await flushPromises()
   return wrapper.text().replace(/\s+/g, ' ')
 }
@@ -136,6 +140,7 @@ function largeInventoryWithContentInOtherStation(): Record<string, unknown>[] {
 
 describe('Assets search ignoring case and accents', () => {
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -169,6 +174,7 @@ describe('Assets search ignoring case and accents', () => {
 
 describe('Assets search opening locations', () => {
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -194,6 +200,7 @@ describe('Assets search opening locations', () => {
 
 describe('Assets search inside containers', () => {
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -229,6 +236,7 @@ describe('Assets search inside containers', () => {
 
     const text = await searchFor(wrapper, 'project box')
     await containerRow(wrapper).trigger('click')
+    await flushPromises()
 
     expect(text).toContain('Project Box (Station Container)')
     expect(wrapper.text()).toContain('Hydrogen Fuel Block')
@@ -256,6 +264,8 @@ describe('Assets search inside containers', () => {
 
   it('keeps container contents collapsed when nothing is searched', async () => {
     const wrapper = await mountAssets()
+    await wrapper.get('[data-testid="location-group"] [aria-expanded]').trigger('click')
+    await flushPromises()
 
     const text = wrapper.text().replace(/\s+/g, ' ')
 

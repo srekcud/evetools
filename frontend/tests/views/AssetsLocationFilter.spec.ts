@@ -5,6 +5,7 @@ import fr from '@/i18n/locales/fr.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -74,7 +75,7 @@ async function mountAssets() {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items: rawAssets }), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(rawAssets)))
   const i18n = createI18n({ legacy: false, locale: 'fr', messages: { fr } })
   const wrapper = mount(Assets, {
     global: {
@@ -116,6 +117,8 @@ describe('Assets location filter', () => {
     const wrapper = await mountAssets()
 
     await locationSelect(wrapper).setValue(HOME_STATION)
+    await flushPromises()
+    await wrapper.get('[data-testid="location-group"] [aria-expanded]').trigger('click')
     await flushPromises()
     const text = wrapper.text().replace(/\s+/g, ' ')
 

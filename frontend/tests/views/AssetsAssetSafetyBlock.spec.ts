@@ -5,6 +5,7 @@ import fr from '@/i18n/locales/fr.json'
 import Assets from '@/views/Assets.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+import { assetBrowseFetch } from '../assetBrowseApi'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -74,7 +75,7 @@ async function mountAssets(rawAssets: unknown[]) {
     corporationId: 98000001,
     corporationName: 'Test Corp',
   } as User
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items: rawAssets }), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(assetBrowseFetch(rawAssets)))
   const i18n = createI18n({ legacy: false, locale: 'fr', messages: { fr } })
   const wrapper = mount(Assets, {
     global: {
@@ -129,8 +130,6 @@ describe('Assets Asset Safety block', () => {
     const header = () => wrapper.findAll('[data-testid="location-group"]')
       .find(candidate => candidate.text().includes(ASSET_SAFETY))
       ?.find('[role="button"]')
-    await header()?.trigger('click')
-    await flushPromises()
     const expandedWhileCollapsed = header()?.attributes('aria-expanded')
 
     await wrapper.find('[data-testid="asset-safety-show-content"]').trigger('click')
