@@ -2140,7 +2140,9 @@
     },
     "selection": {
       "selectLocation": "Select {location}",
+      "selectType": "Select {type}",
       "summary": "{count} location selected | {count} locations selected",
+      "typeSummary": "{count} type selected | {count} types selected",
       "clear": "Clear",
       "unknownTypes": "{count} type without a name is left out of the multibuy | {count} types without a name are left out of the multibuy"
     },

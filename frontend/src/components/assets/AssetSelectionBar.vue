@@ -7,12 +7,15 @@ import MultibuyBridgeActions from '@/components/appraisal/MultibuyBridgeActions.
 import type { SelectionSummary } from '@/utils/assetSelection'
 import type { VolumeSummary } from '@/utils/assetVolume'
 
-const props = defineProps<{
-  locationCount: number
+const props = withDefaults(defineProps<{
+  count: number
+  kind?: 'location' | 'type'
   locationNames: string[]
   summary: SelectionSummary
   volume: VolumeSummary | null
-}>()
+}>(), {
+  kind: 'location',
+})
 
 defineEmits<{
   clear: []
@@ -43,7 +46,7 @@ function formatNumber(n: number): string {
     <div class="flex flex-col gap-0.5">
       <div class="flex items-center gap-3 text-sm">
         <span data-testid="asset-selection-count" class="text-cyan-300 font-medium">
-          {{ t('assets.selection.summary', { count: formatNumber(locationCount) }, locationCount) }}
+          {{ t(kind === 'type' ? 'assets.selection.typeSummary' : 'assets.selection.summary', { count: formatNumber(count) }, count) }}
         </span>
         <span class="text-slate-400 font-mono">{{ t('assets.itemsCount', { count: formatNumber(summary.itemCount) }, summary.itemCount) }}</span>
         <AssetVolumeBadge v-if="volume !== null" :volume="volume" test-id="asset-selection-volume" />
