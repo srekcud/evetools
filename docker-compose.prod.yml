@@ -88,8 +88,8 @@ services:
           memory: 256M
 
   redis:
-    command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy volatile-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy volatile-lru
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 512M
