@@ -209,7 +209,7 @@ Si votre quantité dépasse les 20 ordres gardés, le prix est **partiel** : cal
 
 La carte « Mes ordres de vente » d'un projet liste les ordres de vente de vos personnages pour ses produits, relus toutes les 5 minutes. « Sous-coté » veut dire qu'au moins un ordre du même lieu est à un prix strictement inférieur au vôtre. À prix égal, vous êtes 1er. Le rang est le nombre d'ordres moins chers, plus un.
 
-« Copier » donne le meilleur prix moins 100 ISK, à coller en modifiant l'ordre en jeu. Rien n'est modifié depuis EVE Tools. « Marché non suivi » ou « Pas de données de marché » veut dire position inconnue, jamais « 1er » par défaut. Le message « Reconnectez-vous … » indique que la permission de lire les ordres du personnage manque.
+« Copier » donne le meilleur prix moins 100 ISK, à coller en modifiant l'ordre en jeu. Rien n'est modifié depuis EVE Tools. « Marché non suivi » ou « Pas de données de marché » veut dire position inconnue, jamais « 1er » par défaut. Le message « Reconnectez-vous … » indique que la permission de lire les ordres du personnage manque ou que son autorisation est invalide.
 
 Voir [ordres de marché](/help?page=playbooks/market-orders).
 

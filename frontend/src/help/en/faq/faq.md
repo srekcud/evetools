@@ -209,7 +209,7 @@ If your quantity exceeds the 20 orders kept, the price is **partial**: computed 
 
 A project's "My sell orders" card lists the sell orders of your characters for its products, re-read every 5 minutes. "Undercut" means at least one order at the same place is at a strictly lower price than yours. At an equal price, you are 1st. The rank is the number of cheaper orders, plus one.
 
-"Copy" gives the best price minus 100 ISK, to paste when you edit the order in game. Nothing is modified from EVE Tools. "Market not followed" or "No market data" means unknown position, never "1st" by default. The "Log in again with …" message means the permission to read the character's orders is missing.
+"Copy" gives the best price minus 100 ISK, to paste when you edit the order in game. Nothing is modified from EVE Tools. "Market not followed" or "No market data" means unknown position, never "1st" by default. The "Log in again with …" message means the permission to read the character's orders is missing or the character's authorization is invalid.
 
 See [market orders](/help?page=playbooks/market-orders).
 
