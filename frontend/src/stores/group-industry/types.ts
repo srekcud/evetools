@@ -213,7 +213,16 @@ export type BomItem = {
 
 // --- Contributions ---
 
-export type ContributionValueSource = 'wallet_purchase' | 'jita_price'
+export type ContributionValueSource = 'wallet_purchase' | 'jita_price' | 'launch_price' | 'donation'
+
+export type UnclaimedStockAllocationMode = 'assign' | 'donate'
+
+export type AllocateUnclaimedStockInput = {
+  bomItemId: string
+  quantity: number
+  mode: UnclaimedStockAllocationMode
+  participantId?: string
+}
 
 export type MaterialValuePreview = {
   matchedQuantity: number

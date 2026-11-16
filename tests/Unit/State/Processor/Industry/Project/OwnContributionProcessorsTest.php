@@ -24,6 +24,8 @@ use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\ProjectContributionService;
+use App\Service\Industry\Project\UnclaimedStockGuard;
+use App\Enum\ContributionValueSource;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\EditContributionProcessor;
@@ -61,6 +63,7 @@ final class OwnContributionProcessorsTest extends TestCase
     private IndustryProjectContributionRepository&Stub $contributionRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
+    private UnclaimedStockGuard&MockObject $unclaimedStockGuard;
     private EditContributionProcessor $editProcessor;
     private WithdrawContributionProcessor $withdrawProcessor;
     private User $owner;
@@ -78,6 +81,7 @@ final class OwnContributionProcessorsTest extends TestCase
         $this->contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
+        $this->unclaimedStockGuard = $this->createMock(UnclaimedStockGuard::class);
         $memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $this->security->method('getUser')->willReturnCallback(fn (): ?User => $this->actingUser);
         $this->contributionRepository->method('find')->willReturnCallback(fn (): ?IndustryProjectContribution => $this->currentContribution);
@@ -94,7 +98,7 @@ final class OwnContributionProcessorsTest extends TestCase
         );
         $accessChecker = new ProjectAccessChecker($memberRepository);
         $publisher = new MercurePublisherService($this->hub, new NullLogger());
-        $this->editProcessor = new EditContributionProcessor($this->security, $projectRepository, $this->contributionRepository, $service, $accessChecker, new ProjectResourceMapper(), $publisher);
+        $this->editProcessor = new EditContributionProcessor($this->security, $projectRepository, $this->contributionRepository, $service, $accessChecker, new ProjectResourceMapper(), $publisher, $this->unclaimedStockGuard);
         $this->withdrawProcessor = new WithdrawContributionProcessor($this->security, $projectRepository, $this->contributionRepository, $service, $accessChecker, $publisher);
 
         $this->owner = new User();
@@ -124,6 +128,42 @@ final class OwnContributionProcessorsTest extends TestCase
         self::assertSame('contribution_updated', $payloads[0]['action']);
         self::assertSame($contribution->getId()->toRfc4122(), $payloads[0]['data']['contributionId']);
         self::assertSame(self::NEW_QUANTITY, $payloads[0]['data']['quantity']);
+    }
+
+    #[Group('issue-1050')]
+    public function testEditingAPendingLaunchPriceClaimIsCheckedAgainstTheUnclaimedStockGivingBackItsOwnQuantity(): void
+    {
+        $this->line->setLaunchPrice(12.5);
+        $contribution = $this->pendingContributionOf($this->contributor)->setValueSource(ContributionValueSource::LaunchPrice);
+        $this->unclaimedStockGuard->expects(self::once())->method('assertWithin')->with($this->line, self::NEW_QUANTITY, self::PENDING_QUANTITY);
+
+        $resource = $this->edit($this->contributorUser, $contribution, quantity: self::NEW_QUANTITY);
+
+        self::assertSame([self::NEW_QUANTITY, 1_875.0], [$resource->quantity, $resource->estimatedValue]);
+    }
+
+    #[Group('issue-1050')]
+    public function testEditingAClaimBeyondTheUnclaimedStockIsABadRequestAndKeepsTheQuantity(): void
+    {
+        $this->line->setLaunchPrice(12.5);
+        $contribution = $this->pendingContributionOf($this->contributor)->setValueSource(ContributionValueSource::LaunchPrice);
+        $this->unclaimedStockGuard->method('assertWithin')->willThrowException(new \DomainException('The quantity exceeds the unclaimed stock of the line (120).'));
+
+        try {
+            $this->edit($this->contributorUser, $contribution, quantity: self::NEW_QUANTITY);
+            self::fail('The edit was accepted');
+        } catch (BadRequestHttpException) {
+            self::assertSame(self::PENDING_QUANTITY, $contribution->getQuantity());
+        }
+    }
+
+    #[Group('issue-1050')]
+    public function testEditingAJitaPricedContributionDoesNotTouchTheUnclaimedStockGuard(): void
+    {
+        $contribution = $this->pendingContributionOf($this->contributor);
+        $this->unclaimedStockGuard->expects(self::never())->method('assertWithin');
+
+        $this->edit($this->contributorUser, $contribution, quantity: self::NEW_QUANTITY);
     }
 
     public function testTheContributorWithdrawsTheirPendingContributionAndTheProjectIsNotified(): void

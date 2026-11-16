@@ -25,7 +25,7 @@ class SubmitContributionInput
     #[Assert\PositiveOrZero]
     public ?float $estimatedValue = null;
 
-    #[Assert\Choice(choices: ['wallet_purchase', 'jita_price'])]
+    #[Assert\Choice(choices: ['wallet_purchase', 'jita_price', 'launch_price'])]
     public ?string $valueSource = null;
 
     #[Assert\Length(max: 500)]

@@ -17,6 +17,7 @@ use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\Industry\Project\PilotName;
+use App\Service\Industry\Project\UnclaimedStockGuard;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\ContributorWalletRefresher;
 use App\Service\UuidOrNotFound;
@@ -42,6 +43,7 @@ class SubmitContributionProcessor implements ProcessorInterface
         private readonly ProjectResourceMapper $mapper,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly ContributorWalletRefresher $walletRefresher,
+        private readonly UnclaimedStockGuard $unclaimedStockGuard,
     ) {
     }
 
@@ -95,7 +97,13 @@ class SubmitContributionProcessor implements ProcessorInterface
             throw new BadRequestHttpException(sprintf('Invalid contribution type "%s"', $data->type));
         }
 
+        $valueSource = null === $data->valueSource ? null : ContributionValueSource::from($data->valueSource);
+
         try {
+            if (true === $valueSource?->drawsOnUnclaimedStock()) {
+                $this->unclaimedStockGuard->assertWithin($bomItem, $data->quantity);
+            }
+
             $contribution = $this->contributionService->submit(
                 $member,
                 $bomItem,
@@ -103,7 +111,7 @@ class SubmitContributionProcessor implements ProcessorInterface
                 $data->quantity,
                 $data->estimatedValue,
                 $data->note,
-                null === $data->valueSource ? null : ContributionValueSource::from($data->valueSource),
+                $valueSource,
             );
         } catch (\DomainException $e) {
             throw new BadRequestHttpException($e->getMessage());

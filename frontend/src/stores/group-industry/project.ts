@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiRequest } from '@/services/api'
 import type {
+  AllocateUnclaimedStockInput,
+  GroupMember,
   GroupProject,
   BomItem,
   ContainerVerification,
@@ -237,6 +239,18 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     await fetchBom(projectId)
   }
 
+  async function fetchMembers(projectId: string): Promise<GroupMember[]> {
+    return apiRequest<GroupMember[]>(`/industry/projects/${projectId}/members`)
+  }
+
+  async function allocateUnclaimedStock(projectId: string, input: AllocateUnclaimedStockInput): Promise<void> {
+    await apiRequest(`/industry/projects/${projectId}/contributions/unclaimed-stock`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    await fetchBom(projectId)
+  }
+
   async function deletePurchase(projectId: string, purchaseId: string): Promise<void> {
     await apiRequest(`/industry/projects/${projectId}/purchases/${purchaseId}`, { method: 'DELETE' })
     await fetchBom(projectId)
@@ -284,6 +298,8 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     deletePurchase,
     reserveLine,
     releaseLine,
+    fetchMembers,
+    allocateUnclaimedStock,
     clearError,
   }
 })

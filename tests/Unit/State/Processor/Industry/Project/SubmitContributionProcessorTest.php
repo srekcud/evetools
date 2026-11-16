@@ -24,6 +24,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
+use App\Service\Industry\Project\UnclaimedStockGuard;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\ContributorWalletRefresher;
@@ -59,6 +60,7 @@ class SubmitContributionProcessorTest extends TestCase
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
     private ContributorWalletRefresher&MockObject $walletRefresher;
+    private UnclaimedStockGuard&MockObject $unclaimedStockGuard;
     private SubmitContributionProcessor $processor;
     private IndustryProject $project;
     private IndustryProject $otherProject;
@@ -149,6 +151,7 @@ class SubmitContributionProcessorTest extends TestCase
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
         $this->walletRefresher = $this->createMock(ContributorWalletRefresher::class);
+        $this->unclaimedStockGuard = $this->createMock(UnclaimedStockGuard::class);
 
         $this->processor = new SubmitContributionProcessor(
             $security,
@@ -159,6 +162,7 @@ class SubmitContributionProcessorTest extends TestCase
             new ProjectResourceMapper(),
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->walletRefresher,
+            $this->unclaimedStockGuard,
         );
     }
 
@@ -214,6 +218,62 @@ class SubmitContributionProcessorTest extends TestCase
             fn (object $entity) => $entity instanceof IndustryProjectContribution ? $this->assignId($entity) : null,
         );
         $this->walletRefresher->expects($this->never())->method('request');
+
+        $this->submitMorphite(40, null);
+    }
+
+    #[Group('issue-1050')]
+    public function testLaunchPriceClaimIsCheckedAgainstTheUnclaimedStockOfTheLineThenValuedAtTheFrozenLaunchPrice(): void
+    {
+        $this->morphite->setLaunchPrice(500.0);
+        $this->entityManager->method('persist')->willReturnCallback(
+            fn (object $entity) => $entity instanceof IndustryProjectContribution ? $this->assignId($entity) : null,
+        );
+        $this->unclaimedStockGuard->expects($this->once())->method('assertWithin')->with($this->morphite, 40);
+
+        $input = $this->materialInput($this->morphite, 40, null);
+        $input->valueSource = 'launch_price';
+        $resource = $this->processor->process($input, new Post(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame([20_000.0, 'launch_price', 'pending'], [$resource->estimatedValue, $resource->valueSource, $resource->status]);
+    }
+
+    #[Group('issue-1050')]
+    public function testLaunchPriceClaimRefusedByTheStockGuardIsABadRequestAndNothingIsPersisted(): void
+    {
+        $this->morphite->setLaunchPrice(500.0);
+        $this->unclaimedStockGuard->method('assertWithin')->willThrowException(new \DomainException('The quantity exceeds the unclaimed stock of the line (30).'));
+        $this->entityManager->expects($this->never())->method('persist');
+        $this->hub->expects($this->never())->method('publish');
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('exceeds the unclaimed stock');
+
+        $input = $this->materialInput($this->morphite, 40, null);
+        $input->valueSource = 'launch_price';
+        $this->processor->process($input, new Post(), ['projectId' => $this->project->getId()->toRfc4122()]);
+    }
+
+    #[Group('issue-1050')]
+    public function testClaimWithoutALaunchPriceIsABadRequestEvenWhenTheStockGuardPasses(): void
+    {
+        $this->entityManager->expects($this->never())->method('persist');
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('launch price');
+
+        $input = $this->materialInput($this->morphite, 40, null);
+        $input->valueSource = 'launch_price';
+        $this->processor->process($input, new Post(), ['projectId' => $this->project->getId()->toRfc4122()]);
+    }
+
+    #[Group('issue-1050')]
+    public function testJitaPriceContributionDoesNotTouchTheUnclaimedStockGuard(): void
+    {
+        $this->entityManager->method('persist')->willReturnCallback(
+            fn (object $entity) => $entity instanceof IndustryProjectContribution ? $this->assignId($entity) : null,
+        );
+        $this->unclaimedStockGuard->expects($this->never())->method('assertWithin');
 
         $this->submitMorphite(40, null);
     }

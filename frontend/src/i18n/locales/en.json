@@ -3427,7 +3427,20 @@
       "unclaimedStock": "Unclaimed stock: {quantity}",
       "unclaimedStockLaunchPriceUnknown": "Launch price unknown",
       "unclaimedStockValue": "{value} at the launch price",
-      "unclaimedStockHint": "Units already in the project containers that nobody has claimed yet"
+      "unclaimedStockHint": "Units already in the project containers that nobody has claimed yet",
+      "unclaimedStockAssign": "Assign",
+      "unclaimedStockDonate": "Donate",
+      "allocation": {
+        "assignTitle": "Assign unclaimed stock",
+        "donateTitle": "Donate unclaimed stock",
+        "assignHint": "The participant is credited with these units at the launch price of the line.",
+        "donateHint": "The units enter the project for no value: nothing is owed to anyone.",
+        "quantity": "Quantity (at most {max})",
+        "participant": "Participant",
+        "participantPlaceholder": "Choose a participant",
+        "submit": "Confirm",
+        "failed": "The unclaimed stock could not be allocated"
+      }
     },
     "reservation": {
       "reservedBy": "Reserved by",
@@ -3565,7 +3578,9 @@
         "walletPurchase": "Wallet purchase",
         "walletPurchaseNote": "I bought these units: they are valued at the price I paid, read from my wallet. Units without a matching transaction wait for it, never at a Jita estimate.",
         "jitaPrice": "Jita price of the deposit day",
-        "jitaPriceNote": "Material taken from my own stock."
+        "jitaPriceNote": "Material taken from my own stock.",
+        "launchPrice": "Unclaimed stock at the launch price",
+        "launchPriceNote": "Units already in the project containers, valued at the launch price frozen when the project started. Limited to the unclaimed stock of the line."
       },
       "valuePreview": {
         "matched": "{count} units matched in your wallet at {value} ISK",

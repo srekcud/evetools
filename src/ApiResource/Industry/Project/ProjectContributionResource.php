@@ -13,9 +13,11 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
+use App\ApiResource\Input\Industry\Project\AllocateUnclaimedStockInput;
 use App\ApiResource\Input\Industry\Project\EditContributionInput;
 use App\ApiResource\Input\Industry\Project\ReviewContributionInput;
 use App\ApiResource\Input\Industry\Project\SubmitContributionInput;
+use App\State\Processor\Industry\Project\AllocateUnclaimedStockProcessor;
 use App\State\Processor\Industry\Project\EditContributionProcessor;
 use App\State\Processor\Industry\Project\ReviewContributionProcessor;
 use App\State\Processor\Industry\Project\SubmitContributionProcessor;
@@ -50,6 +52,19 @@ use App\State\Provider\Industry\Project\ProjectContributionItemProvider;
             openapi: new Model\Operation(
                 summary: 'Submit a contribution',
                 description: 'Submits a new contribution (material, job install, BPC, or line rental)',
+                tags: ['Group Industry - Contributions'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/industry/projects/{projectId}/contributions/unclaimed-stock',
+            uriVariables: [
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+            ],
+            processor: AllocateUnclaimedStockProcessor::class,
+            input: AllocateUnclaimedStockInput::class,
+            openapi: new Model\Operation(
+                summary: 'Assign or donate unclaimed container stock',
+                description: 'Records unclaimed container stock of a material line as an approved contribution: assigned to an accepted participant at the frozen launch price, or donated by the owner for no value (owner only)',
                 tags: ['Group Industry - Contributions'],
             ),
         ),

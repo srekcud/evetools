@@ -20,6 +20,8 @@ class ProjectContributionService
 {
     public const float DEPOSIT_DAY_PERCENTILE = 0.05;
 
+    private const float DONATION_VALUE = 0.0;
+
     public static function materialContributionPriceSource(): PriceSource
     {
         return PriceSource::jitaSellPercentile(self::DEPOSIT_DAY_PERCENTILE * PriceSource::PERCENT_PER_FRACTION);
@@ -51,6 +53,10 @@ class ProjectContributionService
     ): IndustryProjectContribution {
         if (null !== $valueSource && (ContributionType::Material !== $type || $bomItem->isJob())) {
             throw new \DomainException('A value source only applies to a material contribution of a material line');
+        }
+
+        if (ContributionValueSource::Donation === $valueSource) {
+            throw new \DomainException('A donation can only be recorded by the project owner');
         }
 
         if ($this->isIntermediateContribution($bomItem, $type)) {
@@ -125,6 +131,44 @@ class ProjectContributionService
         }
 
         $this->entityManager->flush();
+
+        return $contribution;
+    }
+
+    public function assignUnclaimedStock(IndustryProjectParticipant $recipient, IndustryProjectBomLine $bomItem, int $quantity, User $owner): IndustryProjectContribution
+    {
+        return $this->recordUnclaimedStockAllocation($recipient, $bomItem, $quantity, $owner, ContributionValueSource::LaunchPrice);
+    }
+
+    public function donateUnclaimedStock(IndustryProjectParticipant $ownerParticipant, IndustryProjectBomLine $bomItem, int $quantity, User $owner): IndustryProjectContribution
+    {
+        return $this->recordUnclaimedStockAllocation($ownerParticipant, $bomItem, $quantity, $owner, ContributionValueSource::Donation);
+    }
+
+    private function recordUnclaimedStockAllocation(IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, int $quantity, User $owner, ContributionValueSource $source): IndustryProjectContribution
+    {
+        if ($bomItem->isJob()) {
+            throw new \DomainException('Only the unclaimed stock of a material line can be allocated');
+        }
+
+        $value = $this->resolveMaterialValue($member, $bomItem, $quantity, null, $source);
+
+        $contribution = new IndustryProjectContribution();
+        $contribution->setProject($member->getProject());
+        $contribution->setMember($member);
+        $contribution->setBomItem($bomItem);
+        $contribution->setType(ContributionType::Material);
+        $contribution->setQuantity($quantity);
+        $contribution->setEstimatedValue($value->value);
+        $contribution->setStatus(ContributionStatus::Pending);
+        $contribution->setIsAutoDetected(false);
+        $contribution->setIsVerified(false);
+        $contribution->setValuedAtJitaPrice(false);
+        $contribution->setValueSource($value->source);
+        $contribution->setAwaitingQuantity(0);
+
+        $this->entityManager->persist($contribution);
+        $this->approve($contribution, $owner);
 
         return $contribution;
     }
@@ -412,6 +456,14 @@ class ProjectContributionService
             throw new \DomainException('A material contribution takes no entered value: it is valued at the Jita price of the deposit day.');
         }
 
+        if (ContributionValueSource::LaunchPrice === $source) {
+            return new ContributionValue($quantity * $this->requireLaunchPrice($bomItem), false, 0, $source);
+        }
+
+        if (ContributionValueSource::Donation === $source) {
+            return new ContributionValue(self::DONATION_VALUE, false, 0, $source);
+        }
+
         $typeId = $bomItem->getTypeId();
         $paid = $this->paidPurchases->read($member, $typeId);
         $matches = null === $paid ? [] : $paid->allocate($quantity);
@@ -428,6 +480,12 @@ class ProjectContributionService
         }
 
         return new ContributionValue($matchedValue + $this->depositDayJitaPrice($typeId) * $unmatchedUnits, true, 0, $source, $matches);
+    }
+
+    private function requireLaunchPrice(IndustryProjectBomLine $bomItem): float
+    {
+        return $bomItem->getLaunchPrice()
+            ?? throw new \DomainException(sprintf('No launch price is frozen for %s: its unclaimed stock cannot be valued.', $bomItem->getTypeName()));
     }
 
     private function depositDayJitaPrice(int $typeId): float
