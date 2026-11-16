@@ -27,7 +27,10 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 
 // Filters
-const categoryFilter = ref('all')
+const ALL_CATEGORIES = 'all'
+const FAVORITES_CATEGORY = 'favorites'
+const categoryFilter = ref(ALL_CATEGORIES)
+const scannedCategory = computed((): string => categoryFilter.value === FAVORITES_CATEGORY ? ALL_CATEGORIES : categoryFilter.value)
 const minMarginFilter = ref<number | null>(5)
 const minDailyVolFilter = ref<number | null>(50)
 const sellVenueFilter = ref('structure')
@@ -42,7 +45,7 @@ const appliedMinDailyVolume = computed((): number | null =>
 const filtersChangedSinceScan = computed((): boolean => {
   if (scannerStore.lastScanAt === null || scannerStore.scanLoading) return false
   const scanned = scannerStore.scanFilters
-  return scanned.category !== categoryFilter.value
+  return scanned.category !== scannedCategory.value
     || scanned.minMargin !== appliedMinMargin.value
     || scanned.minDailyVolume !== appliedMinDailyVolume.value
     || scanned.sellVenue !== sellVenueFilter.value
@@ -74,6 +77,8 @@ const CATEGORY_OPTIONS = [
   { value: 'rigs', label: 'Rigs' },
   { value: 'reactions', label: 'Reactions' },
 ]
+
+const SPECIFIC_CATEGORY_OPTIONS = CATEGORY_OPTIONS.filter(o => o.value !== ALL_CATEGORIES)
 
 const CATEGORY_LABEL_MAP: Record<string, string> = Object.fromEntries(
   CATEGORY_OPTIONS.map(o => [o.value, o.label]),
@@ -111,7 +116,9 @@ function sortValue(item: BatchScanItem): BatchScanItem[SortKey] {
 const filteredResults = computed((): BatchScanItem[] => {
   let items = [...(scannerStore.scanResults ?? [])]
 
-  if (categoryFilter.value !== 'all') {
+  if (categoryFilter.value === FAVORITES_CATEGORY) {
+    items = items.filter(i => scannerStore.isFavorite(i.typeId))
+  } else if (categoryFilter.value !== ALL_CATEGORIES) {
     const label = CATEGORY_LABEL_MAP[categoryFilter.value]
     items = items.filter(i => i.categoryLabel === label)
   }
@@ -228,7 +235,7 @@ function toggleSort(key: SortKey): void {
 function onScan(): void {
   currentPage.value = 1
   scannerStore.fetchBatchScan({
-    category: categoryFilter.value,
+    category: scannedCategory.value,
     minMargin: appliedMinMargin.value,
     minDailyVolume: appliedMinDailyVolume.value,
     sellVenue: sellVenueFilter.value,
@@ -415,8 +422,10 @@ onBeforeUnmount(() => {
             :id="`${uid}-category`"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
           >
-            <option v-for="cat in CATEGORY_OPTIONS" :key="cat.value" :value="cat.value">
-              {{ cat.value === 'all' ? t('industry.scanner.batch.allCategories') : cat.label }}
+            <option :value="ALL_CATEGORIES">{{ t('industry.scanner.batch.allCategories') }}</option>
+            <option :value="FAVORITES_CATEGORY" :disabled="scannerStore.favorites.length === 0">{{ t('industry.scanner.batch.favorites') }}</option>
+            <option v-for="cat in SPECIFIC_CATEGORY_OPTIONS" :key="cat.value" :value="cat.value">
+              {{ cat.label }}
             </option>
           </select>
         </div>
