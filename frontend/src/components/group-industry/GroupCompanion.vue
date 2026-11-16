@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { BomItem, JobLocation } from '@/stores/group-industry/types'
 import type { CompanionAlert, CompanionTasks } from './companionTasks'
+import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 
 const FREE_LINES_SHOWN = 6
@@ -262,6 +263,7 @@ function unknownReasonText(output: JobLocation): string | null {
               <p class="flex items-center gap-1">
                 <span class="min-w-0 truncate text-sm text-slate-100" :title="entry.item.typeName">{{ entry.item.typeName }}</span>
                 <BlueprintNameCopyButton :blueprint-name="entry.item.blueprintName ?? null" />
+                <OpenInGameButton v-if="!entry.item.isJob" type="market" :target-id="entry.item.typeId" />
               </p>
               <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(entry.quantity, 0) }}</p>
             </div>
