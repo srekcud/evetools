@@ -95,6 +95,7 @@ export function projectMaterialSourcing(
     structureLastSync: STRUCTURE_SYNCED_AT,
     totals: { jitaWithImport: 2746710, structure: 2619000, best: 2595300 },
     rows,
+    hasReservations: true,
     ...overrides,
   }
 }

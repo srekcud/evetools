@@ -23,7 +23,7 @@ use App\State\Provider\Industry\Project\ProjectMaterialSourcingProvider;
             provider: ProjectMaterialSourcingProvider::class,
             openapi: new Model\Operation(
                 summary: 'Compare Jita with import and the preferred market structure for the remaining materials',
-                description: 'Returns one row per material with a remaining quantity, with the cost at Jita, of the import, at the preferred market structure, the cheaper side and the saving',
+                description: 'Returns one row per material line the reader reserved with a quantity left to source, with the cost at Jita, of the import, at the preferred market structure, the cheaper side and the saving',
                 tags: ['Group Industry - Material sourcing'],
             ),
         ),
@@ -45,6 +45,8 @@ class ProjectMaterialSourcingResource
     public bool $structureSynced = false;
 
     public ?string $structureLastSync = null;
+
+    public bool $hasReservations = false;
 
     /**
      * @var array{jitaWithImport: ?float, structure: ?float, best: ?float}

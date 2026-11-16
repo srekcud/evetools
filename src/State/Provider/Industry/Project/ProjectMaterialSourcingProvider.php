@@ -12,7 +12,12 @@ use App\Industry\Application\JitaPurchase;
 use App\Industry\Application\MaterialSourcing;
 use App\Industry\Application\MaterialSourcingComparator;
 use App\Industry\Application\StructureMarketPrices;
+use App\Entity\IndustryProject;
+use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectBomLineRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectLineReservationRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\MaterialSourcingPresenter;
@@ -38,6 +43,9 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         private MaterialSourcingComparator $comparator,
         private StructureMarketPrices $structureMarketPrices,
         private ProjectContainerFulfillment $containerFulfillment,
+        private IndustryProjectParticipantRepository $participantRepository,
+        private IndustryProjectLineReservationRepository $reservationRepository,
+        private IndustryProjectContributionRepository $contributionRepository,
     ) {
     }
 
@@ -68,9 +76,10 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         }
 
         $bomLines = $this->bomLineRepository->findBy(['project' => $project]);
+        $reservedQuantityByLineId = $this->reservedQuantityByLineIdOf($project, $user);
         $structureId = $user->getEffectiveMarketStructureId();
         $sourcings = $this->comparator->compare(
-            MaterialsToSourceFactory::of($bomLines, $planned->plan, $this->containerFulfillment->of($project)),
+            MaterialsToSourceFactory::reservedOf($bomLines, $planned->plan, $reservedQuantityByLineId, $this->containerFulfillment->of($project)),
             $structureId,
             $this->projectService->favoriteSystemsOf($owner),
         );
@@ -86,6 +95,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         $resource->structureName = null === $structureId ? null : $user->getEffectiveMarketStructureName();
         $resource->structureSynced = null !== $structureId && $this->structureMarketPrices->isSynced($structureId);
         $resource->structureLastSync = null === $structureId ? null : $this->structureMarketPrices->lastSyncOf($structureId)?->format('c');
+        $resource->hasReservations = [] !== $reservedQuantityByLineId;
         $resource->totals = MaterialSourcingPresenter::totalsOf($sourcings);
         $resource->rows = array_map(
             static fn (MaterialSourcing $sourcing): array => MaterialSourcingPresenter::rowOf($sourcing, $typeNames[$sourcing->typeId]),
@@ -93,5 +103,34 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         );
 
         return $resource;
+    }
+
+    /**
+     * @return array<string, int> quantity still to source by line id, for the material lines the reader reserved
+     */
+    private function reservedQuantityByLineIdOf(IndustryProject $project, User $user): array
+    {
+        $participant = $this->participantRepository->findOneBy([
+            'project' => $project,
+            'user' => $user,
+            'status' => ParticipantStatus::Accepted,
+        ]);
+        if (null === $participant) {
+            return [];
+        }
+
+        $pendingQuantities = $this->contributionRepository->sumPendingQuantityByLineAndParticipant($project);
+        $participantId = $participant->getId()->toRfc4122();
+        $reservedQuantityByLineId = [];
+        foreach ($this->reservationRepository->findByProjectAndParticipant($project, $participant) as $reservation) {
+            $line = $reservation->getBomLine();
+            if ($line->isJob()) {
+                continue;
+            }
+            $lineId = $line->getId()->toRfc4122();
+            $reservedQuantityByLineId[$lineId] = max(0, $reservation->getQuantity() - ($pendingQuantities[$lineId][$participantId] ?? 0));
+        }
+
+        return $reservedQuantityByLineId;
     }
 }

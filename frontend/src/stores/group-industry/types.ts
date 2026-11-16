@@ -912,6 +912,7 @@ export interface ProjectMaterialSourcing {
   structureName: string | null
   structureSynced: boolean
   structureLastSync: string | null
+  hasReservations: boolean
   totals: MaterialSourcingTotals
   rows: MaterialSourcingRow[]
 }

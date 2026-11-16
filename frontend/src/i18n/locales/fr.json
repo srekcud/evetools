@@ -3133,6 +3133,7 @@
       "loading": "Comparaison de Jita et de la structure...",
       "loadError": "L'approvisionnement des matériaux n'a pas pu être lu",
       "empty": "Plus aucun matériau à sourcer.",
+      "noReservation": "Vous n'avez pris aucun matériau. Utilisez « Je m'en charge » dans Matériaux à sourcer pour lister ici ce que vous achetez.",
       "importRate": "Import depuis Jita : {rate} ISK / m³ / saut",
       "columns": {
         "material": "Matériau",
