@@ -62,6 +62,11 @@ final readonly class ProjectLineFulfillments
         return \array_key_exists($line->getTypeId(), $this->containerQuantitiesByTypeId) ? $this->containerQuantitiesByTypeId[$line->getTypeId()] : 0;
     }
 
+    public function isKnown(): bool
+    {
+        return ContainerStockState::Known === $this->state;
+    }
+
     public function stateOf(IndustryProjectBomLine $line): ContainerStockState
     {
         return $line->isJob() ? ContainerStockState::None : $this->state;

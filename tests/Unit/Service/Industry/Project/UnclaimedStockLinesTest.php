@@ -70,6 +70,28 @@ final class UnclaimedStockLinesTest extends TestCase
         self::assertSame([], $lines->of($project));
     }
 
+    public function testContainerStockIsNotReadOutsideTheInProgressAndSellingStatuses(): void
+    {
+        $containerFulfillment = $this->createMock(ProjectContainerFulfillment::class);
+        $containerFulfillment->expects(self::never())->method('of');
+        $contributions = $this->createMock(IndustryProjectContributionRepository::class);
+        $contributions->expects(self::never())->method('sumClaimedMaterialQuantityByLine');
+        $project = (new IndustryProject())->setOwner(new User())->setStatus(ProjectStatus::Completed);
+
+        self::assertSame([], (new UnclaimedStockLines($containerFulfillment, $contributions))->of($project));
+    }
+
+    public function testClaimedQuantitiesAreNotReadWithoutAReadableContainerStock(): void
+    {
+        $containerFulfillment = $this->createStub(ProjectContainerFulfillment::class);
+        $containerFulfillment->method('of')->willReturn(ProjectLineFulfillments::none());
+        $contributions = $this->createMock(IndustryProjectContributionRepository::class);
+        $contributions->expects(self::never())->method('sumClaimedMaterialQuantityByLine');
+        $project = (new IndustryProject())->setOwner(new User())->setStatus(ProjectStatus::InProgress);
+
+        self::assertSame([], (new UnclaimedStockLines($containerFulfillment, $contributions))->of($project));
+    }
+
     /**
      * @return array{UnclaimedStockLines, IndustryProject, IndustryProjectBomLine}
      */
