@@ -38,6 +38,10 @@ export interface MercureToken {
   hubUrl: string
 }
 
+function groupProjectTopic(projectId: string): string {
+  return `/group-project/${projectId}/events`
+}
+
 export const useSyncStore = defineStore('sync', () => {
   const authStore = useAuthStore()
 
@@ -53,6 +57,8 @@ export const useSyncStore = defineStore('sync', () => {
   const reconnectAttempts = ref(0)
   const reconnectedAt = ref<number | null>(null)
   let connectionDropped = false
+  let subscribedTopics: string[] = []
+  let subscriptionQueue: Promise<unknown> = Promise.resolve()
 
   // Config
   const maxReconnectAttempts = 5
@@ -83,7 +89,7 @@ export const useSyncStore = defineStore('sync', () => {
   const notificationsProgress = computed(() => getSyncProgress('notifications'))
 
   // Actions
-  async function fetchToken(): Promise<MercureToken | null> {
+  async function fetchToken(reportFailure = true): Promise<MercureToken | null> {
     try {
       const response = await fetch('/api/mercure/token', {
         headers: {
@@ -98,7 +104,7 @@ export const useSyncStore = defineStore('sync', () => {
       return await safeJsonParse(response)
     } catch (error) {
       console.error('Failed to fetch Mercure token:', error)
-      connectionError.value = 'Failed to get subscription token'
+      if (reportFailure) connectionError.value = 'Failed to get subscription token'
       return null
     }
   }
@@ -122,7 +128,12 @@ export const useSyncStore = defineStore('sync', () => {
       return false
     }
 
+    return openEventSource(tokenData)
+  }
+
+  function openEventSource(tokenData: MercureToken): boolean {
     try {
+      subscribedTopics = tokenData.topics
       const url = new URL(tokenData.hubUrl, window.location.origin)
 
       tokenData.topics.forEach((topic) => {
@@ -232,7 +243,27 @@ export const useSyncStore = defineStore('sync', () => {
       eventSource.value = null
     }
 
+    subscribedTopics = []
     isConnected.value = false
+  }
+
+  async function subscribeToGroupProject(projectId: string): Promise<boolean> {
+    const topic = groupProjectTopic(projectId)
+    if (subscribedTopics.includes(topic)) return true
+    if (!authStore.isAuthenticated) return false
+
+    const tokenData = await fetchToken(false)
+    if (tokenData === null || !tokenData.topics.includes(topic)) return false
+
+    disconnect()
+    connectionDropped = true
+    return openEventSource(tokenData)
+  }
+
+  function ensureGroupProjectSubscribed(projectId: string): Promise<boolean> {
+    const subscription = subscriptionQueue.then(() => subscribeToGroupProject(projectId))
+    subscriptionQueue = subscription
+    return subscription
   }
 
   function attemptReconnect() {
@@ -344,6 +375,7 @@ export const useSyncStore = defineStore('sync', () => {
     // Actions
     connect,
     disconnect,
+    ensureGroupProjectSubscribed,
     getSyncProgress,
     getGroupProjectEvent,
     getMiningOperationEvent,

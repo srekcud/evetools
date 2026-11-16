@@ -170,6 +170,7 @@ async function loadCockpit(id: string): Promise<void> {
 }
 
 onMounted(async () => {
+  void syncStore.ensureGroupProjectSubscribed(projectId.value)
   await Promise.all([
     projectStore.fetchProjectDetail(projectId.value),
     projectStore.fetchBom(projectId.value),
