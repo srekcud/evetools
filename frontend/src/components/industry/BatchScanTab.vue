@@ -671,7 +671,7 @@ onBeforeUnmount(() => {
                 ]"
                 :style="idx === 0 && currentPage === 1 ? 'box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.05)' : ''"
               >
-                <td class="py-3 px-2 text-center font-mono text-table-cell text-slate-500">{{ (currentPage - 1) * PAGE_SIZE + idx + 1 }}</td>
+                <td class="py-3 px-2 text-center font-mono text-table-cell whitespace-nowrap text-slate-500">{{ (currentPage - 1) * PAGE_SIZE + idx + 1 }}</td>
                 <td class="py-3 px-3">
                   <img
                     :src="getTypeIconUrl(item.typeId, 32)"
@@ -680,7 +680,7 @@ onBeforeUnmount(() => {
                     @error="onImageError"
                   />
                 </td>
-                <td class="py-3 px-3">
+                <td class="py-3 px-3 min-w-[16rem]">
                   <div class="flex items-center gap-2">
                     <!-- Favorite star -->
                     <button
@@ -694,15 +694,17 @@ onBeforeUnmount(() => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                       </svg>
                     </button>
-                    <span :class="[
-                      'font-semibold',
-                      idx === 0 && currentPage === 1 ? 'text-slate-100' : item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-300' : 'text-slate-200',
-                    ]">{{ typeNameLabel(item.typeName, item.typeId) }}</span>
-                    <span class="text-xs text-slate-500">{{ item.groupName }}</span>
+                    <div class="min-w-0 flex-1">
+                      <div :class="[
+                        'font-semibold',
+                        idx === 0 && currentPage === 1 ? 'text-slate-100' : item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-300' : 'text-slate-200',
+                      ]">{{ typeNameLabel(item.typeName, item.typeId) }}</div>
+                      <div class="text-xs text-slate-500">{{ item.groupName }}</div>
+                    </div>
                     <!-- Skills warning -->
                     <span
                       v-if="!item.hasAllSkills"
-                      class="inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400"
+                      class="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400"
                       :title="t('industry.scanner.batch.missingSkills', { count: item.missingSkillCount })"
                     >
                       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -711,7 +713,7 @@ onBeforeUnmount(() => {
                       {{ item.missingSkillCount }}
                     </span>
                     <!-- Faction BPC badge -->
-                    <div v-if="item.isFactionBlueprint" class="relative" data-bpc-popover>
+                    <div v-if="item.isFactionBlueprint" class="relative shrink-0" data-bpc-popover>
                       <button
                         @click="openBpcPopover($event, item)"
                         :class="[
@@ -763,7 +765,7 @@ onBeforeUnmount(() => {
                     </div>
                   </div>
                 </td>
-                <td class="py-3 px-2 text-center">
+                <td class="py-3 px-2 text-center whitespace-nowrap">
                   <span :class="['text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded', categoryBadgeClasses(item.categoryLabel)]">
                     {{ item.categoryLabel }}
                   </span>
@@ -781,16 +783,16 @@ onBeforeUnmount(() => {
                     {{ formatMargin(item.marginPercent) }}
                   </span>
                 </td>
-                <td v-if="item.profitPerUnit == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                <td v-if="item.profitPerUnit == null" class="py-3 px-3 text-right font-mono whitespace-nowrap text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
-                <td v-else class="py-3 px-3 text-right font-mono" :class="item.profitPerUnit < 0 ? 'text-red-400/70' : 'text-slate-200'">
+                <td v-else class="py-3 px-3 text-right font-mono whitespace-nowrap" :class="item.profitPerUnit < 0 ? 'text-red-400/70' : 'text-slate-200'">
                   {{ formatIsk(item.profitPerUnit) }}
                 </td>
-                <td v-if="item.dailyVolume == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="t('industry.inventionUnknown.missing_daily_volume')">
+                <td v-if="item.dailyVolume == null" class="py-3 px-3 text-right font-mono whitespace-nowrap text-amber-400 cursor-help" :title="t('industry.inventionUnknown.missing_daily_volume')">
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
-                <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-300'">
+                <td v-else class="py-3 px-3 text-right font-mono whitespace-nowrap" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-300'">
                   {{ sellVenueFilter === CONTRACTS_VENUE ? t('industry.scanner.batch.contractMonthlySales', { count: formatNumber(Math.round(item.dailyVolume * DAYS_PER_MONTH), 0) }) : formatNumber(item.dailyVolume, 0) }}
                   <div v-if="sellVenueFilter === CONTRACTS_VENUE && item.contractSales" class="text-xs text-slate-500 whitespace-nowrap">
                     <span>{{ contractSellThroughLabel(item.contractSales) }}</span>
@@ -798,44 +800,44 @@ onBeforeUnmount(() => {
                     <span :class="item.contractSales.confidence === 'low' ? 'text-amber-400' : 'text-slate-400'"> · {{ contractConfidenceLabel(item.contractSales) }}</span>
                   </div>
                 </td>
-                <td v-if="item.iskPerDay == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                <td v-if="item.iskPerDay == null" class="py-3 px-3 text-right font-mono whitespace-nowrap text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
-                <td v-else class="py-3 px-3 text-right font-mono" :class="[
+                <td v-else class="py-3 px-3 text-right font-mono whitespace-nowrap" :class="[
                   item.iskPerDay < 0 ? 'text-red-400/60' : idx === 0 && currentPage === 1 ? 'text-cyan-400 font-bold' : 'text-cyan-400 font-semibold',
                 ]">
                   {{ formatIsk(item.iskPerDay) }}
                 </td>
-                <td v-if="item.materialCost == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                <td v-if="item.materialCost == null" class="py-3 px-3 text-right font-mono whitespace-nowrap text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
-                <td v-else class="py-3 px-3 text-right font-mono max-w-[10rem]" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
+                <td v-else class="py-3 px-3 text-right font-mono whitespace-nowrap" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
                   {{ formatIsk(item.materialCost) }}
                   <div><PriceSourceBadge :source="item.priceSources?.materials" /></div>
                 </td>
-                <td v-if="item.exportCost == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                <td v-if="item.exportCost == null" class="py-3 px-3 text-right font-mono whitespace-nowrap text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
-                <td v-else class="py-3 px-3 text-right font-mono text-slate-400">
+                <td v-else class="py-3 px-3 text-right font-mono whitespace-nowrap text-slate-400">
                   {{ formatIsk(item.exportCost) }}
                 </td>
-                <td v-if="item.importCost == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                <td v-if="item.importCost == null" class="py-3 px-3 text-right font-mono whitespace-nowrap text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
-                <td v-else class="py-3 px-3 text-right font-mono text-slate-400">
+                <td v-else class="py-3 px-3 text-right font-mono whitespace-nowrap text-slate-400">
                   {{ formatIsk(item.importCost) }}
                 </td>
-                <td v-if="item.sellPrice == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
+                <td v-if="item.sellPrice == null" class="py-3 px-3 text-right font-mono whitespace-nowrap text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
-                <td v-else class="py-3 px-3 text-right font-mono max-w-[10rem]" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-200'">
+                <td v-else class="py-3 px-3 text-right font-mono whitespace-nowrap" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-200'">
                   {{ formatIsk(item.sellPrice) }}
                   <div><PriceSourceBadge :source="item.priceSources?.sale" /></div>
                 </td>
-                <td class="py-3 px-2 text-center font-mono text-table-cell" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
+                <td class="py-3 px-2 text-center font-mono text-table-cell whitespace-nowrap" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
                   {{ item.meUsed > 0 ? item.meUsed : '--' }}
                 </td>
-                <td class="py-3 px-3 text-center">
+                <td class="py-3 px-3 text-center whitespace-nowrap">
                   <span :class="['text-xs px-2 py-0.5 rounded', activityBadgeClasses(item.activityType)]">
                     {{ item.activityType.toLowerCase().includes('reaction') ? t('industry.scanner.batch.reaction') : t('industry.scanner.batch.manufacturing') }}
                   </span>
