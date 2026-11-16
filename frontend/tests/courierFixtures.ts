@@ -2,7 +2,9 @@ import type {
   CourierCandidate,
   CourierLine,
   CourierLinkedContract,
+  CourierOriginQuote,
   CourierTransportState,
+  CourierUnknownOriginLine,
   ProjectCourier,
 } from '@/stores/group-industry/types'
 
@@ -10,6 +12,37 @@ export const TRITANIUM_TYPE_ID = 34
 export const NOCXIUM_TYPE_ID = 38
 export const OUTSTANDING_CONTRACT_ID = 351502
 export const IN_TRANSIT_CONTRACT_ID = 351501
+export const MORPHITE_TYPE_ID = 11399
+export const AMARR_SOLAR_SYSTEM_ID = 30002187
+export const RENS_SOLAR_SYSTEM_ID = 30002510
+export const LONG_SYSTEM_NAME = 'Uttindar Prime Annex Outpost Constellation Gateway'
+
+export const AMARR_ORIGIN: CourierOriginQuote = {
+  solarSystemId: AMARR_SOLAR_SYSTEM_ID,
+  solarSystemName: 'Amarr',
+  volumeCubicMeters: 412.5,
+  collateral: 8765000,
+  reward: 556875,
+  jumps: 9,
+  quoteStatus: 'ready',
+  missingVolumeTypeIds: [],
+}
+
+export const RENS_ORIGIN_WITHOUT_VOLUME: CourierOriginQuote = {
+  solarSystemId: RENS_SOLAR_SYSTEM_ID,
+  solarSystemName: LONG_SYSTEM_NAME,
+  volumeCubicMeters: null,
+  collateral: 3210000,
+  reward: null,
+  jumps: 6,
+  quoteStatus: 'volume_unknown',
+  missingVolumeTypeIds: [MORPHITE_TYPE_ID],
+}
+
+export const UNKNOWN_ORIGIN_LINES: CourierUnknownOriginLine[] = [
+  { typeId: TRITANIUM_TYPE_ID, typeName: 'Tritanium', quantity: 3400 },
+  { typeId: NOCXIUM_TYPE_ID, typeName: 'Nocxium', quantity: 75 },
+]
 
 export function courierLines(transportState: CourierTransportState): CourierLine[] {
   return [
@@ -73,6 +106,8 @@ export function readyCourier(projectId: string, overrides: Partial<ProjectCourie
     contract: null,
     lines: courierLines('not_shipped'),
     candidates: [MATCHING_CANDIDATE, OTHER_CANDIDATE],
+    otherOrigins: [],
+    unknownOriginLines: [],
     ...overrides,
   }
 }

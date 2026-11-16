@@ -3144,7 +3144,7 @@
       "title": "Contrat de courrier",
       "loading": "Lecture du devis de courrier...",
       "error": "Le contrat de courrier n'a pas pu être lu ou modifié",
-      "empty": "Aucun achat n'est rattaché à ce projet : rien à expédier, donc aucun contrat n'est chiffré.",
+      "empty": "Aucun achat de ce projet n'est à expédier vers l'atelier, donc aucun contrat n'est chiffré.",
       "days": "{count} jour | {count} jours",
       "contract": {
         "route": "Trajet",
@@ -3177,6 +3177,14 @@
       "linked": {
         "title": "Contrat lié n°{id}",
         "issuedAt": "Émis"
+      },
+      "otherOrigins": {
+        "title": "Autres lieux d'achat",
+        "hint": "Chacun de ces lieux demande son propre contrat de courrier, chiffré depuis son propre système."
+      },
+      "unknownOrigin": {
+        "title": "Origine inconnue",
+        "hint": "Le lieu d'achat de ces objets est inconnu (achat manuel ou lieu non résolu) : ils ne sont inclus dans aucun contrat."
       },
       "lines": "Lignes achetées",
       "candidates": {

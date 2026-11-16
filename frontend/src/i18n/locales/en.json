@@ -3144,7 +3144,7 @@
       "title": "Courier contract",
       "loading": "Reading the courier quote...",
       "error": "The courier contract could not be read or changed",
-      "empty": "No purchase is attached to this project: there is nothing to ship, so no contract is quoted.",
+      "empty": "No purchase of this project has to be shipped to the workshop, so no contract is quoted.",
       "days": "{count} day | {count} days",
       "contract": {
         "route": "Route",
@@ -3177,6 +3177,14 @@
       "linked": {
         "title": "Linked contract #{id}",
         "issuedAt": "Issued"
+      },
+      "otherOrigins": {
+        "title": "Other purchase locations",
+        "hint": "Each of these locations needs its own courier contract, quoted from its own system."
+      },
+      "unknownOrigin": {
+        "title": "Unknown origin",
+        "hint": "The purchase location of these items is unknown (manual purchase or unresolved location): they are included in no contract."
       },
       "lines": "Purchased lines",
       "candidates": {
