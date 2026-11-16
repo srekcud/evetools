@@ -141,6 +141,59 @@ final class IndustryProjectBomLineTest extends TestCase
         self::assertSame([null, 6], [$componentLine->getMark(), $componentLine->getCountedRuns()]);
     }
 
+    #[Group('issue-997')]
+    public function testDeliveredRunsAreTheRunsOfTheDoneMarkWhenNoJobIsLinked(): void
+    {
+        $line = $this->jobLineOfRuns(2)->setMark($this->stepMark(BomLineMarkState::Done, 2));
+
+        self::assertSame(2, $line->getDeliveredRuns());
+    }
+
+    #[Group('issue-997')]
+    public function testDeliveredRunsNeverAddTheDoneMarkToTheDeliveredJobRuns(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setMark($this->stepMark(BomLineMarkState::Done, 10));
+        $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(997_001)->setRuns(6)->setStatus('delivered'));
+
+        self::assertSame(10, $line->getDeliveredRuns());
+    }
+
+    #[Group('issue-997')]
+    public function testDeliveredRunsAreTheDeliveredJobRunsWhenTheyExceedTheDoneMark(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setMark($this->stepMark(BomLineMarkState::Done, 4));
+        $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(997_002)->setRuns(6)->setStatus('delivered'));
+
+        self::assertSame(6, $line->getDeliveredRuns());
+    }
+
+    #[Group('issue-997')]
+    public function testDeliveredRunsCapTheDoneMarkAtTheRunsOfTheLine(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setMark($this->stepMark(BomLineMarkState::Done, 12));
+
+        self::assertSame(10, $line->getDeliveredRuns());
+    }
+
+    #[Group('issue-997')]
+    public function testDeliveredRunsIgnoreALaunchedMark(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setMark($this->stepMark(BomLineMarkState::Launched, 10));
+
+        self::assertSame(0, $line->getDeliveredRuns());
+    }
+
+    #[Group('issue-997')]
+    public function testDeliveredRunsFallBackToTheDeliveredJobRunsOnceTheMarkIsRemoved(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setMark($this->stepMark(BomLineMarkState::Done, 10));
+        $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(997_003)->setRuns(6)->setStatus('delivered'));
+        $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(997_004)->setRuns(3)->setStatus('active'));
+        $line->setMark(null);
+
+        self::assertSame(6, $line->getDeliveredRuns());
+    }
+
     private function jobLineOfRuns(int $runs): IndustryProjectBomLine
     {
         return (new IndustryProjectBomLine())

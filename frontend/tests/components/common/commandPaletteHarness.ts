@@ -63,6 +63,7 @@ export function groupIndustryProject(id: string, name: string | null, status: Gr
     ownerCharacterName: 'Sylvain Duckers',
     ownerCorporationId: 98000001,
     membersCount: 3,
+    contributionsCount: 0,
     items,
     totalBomValue: 1250000000,
     fulfillmentPercent: 40,

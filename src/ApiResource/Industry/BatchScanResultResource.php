@@ -31,6 +31,7 @@ use App\State\Provider\Industry\BatchScanProvider;
             ),
         ),
     ],
+    normalizationContext: ['skip_null_values' => false],
     security: "is_granted('ROLE_USER')",
     paginationEnabled: false,
 )]
@@ -82,6 +83,7 @@ class BatchScanResultResource
 
     /** Why the margins are unknown ("missing_sale_price", "missing_material_price" or "missing_volume"), null when they are known */
     public ?string $unknownReason = null;
+    public ?string $unknownReasonStructureId = null;
 
     /** @var list<int> Material typeIds without a Jita price */
     public array $missingPriceTypeIds = [];

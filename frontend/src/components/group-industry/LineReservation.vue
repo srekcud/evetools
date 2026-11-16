@@ -75,7 +75,8 @@ function release(): Promise<void> {
         :class="reservation.isMine ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300' : 'border-slate-700 bg-slate-800/60 text-slate-300'"
       >
         <span>{{ reservation.characterName }}</span>
-        <span class="font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(reservation.quantity, 0) }}</span>
+        <span class="font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(reservation.quantity - reservation.pendingQuantity, 0) }}</span>
+        <span v-if="reservation.pendingQuantity > 0" data-testid="reservation-awaiting" class="text-amber-300">{{ t('groupIndustry.reservation.awaitingApproval', { quantity: formatNumber(reservation.pendingQuantity, 0) }) }}</span>
         <span v-if="reservation.isMine" class="text-cyan-400/70">({{ t('groupIndustry.reservation.mine') }})</span>
       </li>
     </ul>

@@ -35,6 +35,7 @@ const ISHTAR_BATCH: GroupProject = {
   ownerCharacterName: 'Aria Solberg',
   ownerCorporationId: 98_000_001,
   membersCount: 3,
+  contributionsCount: 0,
   items: [{ typeId: 12_005, typeName: 'Ishtar', meLevel: 10, teLevel: 20, runs: 2 }],
   totalBomValue: 480_000_000,
   fulfillmentPercent: 50,

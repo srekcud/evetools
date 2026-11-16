@@ -87,7 +87,7 @@ class ProjectCourierResource
 
     public int $expirationDays;
 
-    public int $originSolarSystemId;
+    public ?int $originSolarSystemId = null;
 
     public ?string $originSolarSystemName = null;
 
@@ -111,4 +111,14 @@ class ProjectCourierResource
      * @var list<array<string, mixed>>
      */
     public array $candidates = [];
+
+    /**
+     * @var list<array<string, mixed>>
+     */
+    public array $otherOrigins = [];
+
+    /**
+     * @var list<array<string, mixed>>
+     */
+    public array $unknownOriginLines = [];
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry\Project;
 
+use App\Entity\CachedWalletTransaction;
 use App\Entity\EveToken;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectCourierContract;
@@ -16,6 +17,7 @@ use App\Entity\Sde\MapConstellation;
 use App\Entity\Sde\MapRegion;
 use App\Entity\Sde\MapSolarSystem;
 use App\Entity\Sde\MapSolarSystemJump;
+use App\Entity\Sde\StaStation;
 use App\Enum\ParticipantRole;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -32,9 +34,11 @@ final class ProjectCourierApiTest extends WebTestCase
     private const int JITA_SYSTEM_ID = 30_000_142;
     private const int PERIMETER_SYSTEM_ID = 30_000_144;
     private const int URLEN_SYSTEM_ID = 30_000_139;
+    private const int AMARR_SYSTEM_ID = 30_002_187;
     private const int REGION_ID = 10_000_002;
     private const int CONSTELLATION_ID = 20_000_020;
     private const int JITA_STATION = 60_003_760;
+    private const int AMARR_STATION = 60_008_494;
     private const int WORKSHOP_STRUCTURE = 1_035_466_617_946;
     private const int IN_TRANSIT_CONTRACT_ID = 351_501;
     private const int OUTSTANDING_CONTRACT_ID = 351_502;
@@ -44,9 +48,11 @@ final class ProjectCourierApiTest extends WebTestCase
     private const int GROUP_ID = 999_351_002;
     private const float TRITANIUM_VOLUME = 0.01;
     private const float MORPHITE_VOLUME = 0.5;
+    private const float NOCXIUM_VOLUME = 0.05;
 
     private EsiClient&Stub $esiClient;
     private array $contractsByEveCharacterId = [];
+    private int $nextTransactionId = 351_000_001;
 
     protected function setUp(): void
     {
@@ -98,6 +104,67 @@ final class ProjectCourierApiTest extends WebTestCase
                 $candidate['contractId'], $candidate['characterId'], $candidate['state'], $candidate['volume'], $candidate['reward'], $candidate['collateral'],
                 $candidate['startLocationId'], $candidate['endLocationId'], $candidate['matchesQuote'],
             ], $body['candidates']),
+        );
+    }
+
+    #[Group('issue-1022')]
+    public function testPurchasesFromAnotherHubAndManualPurchasesAreQuotedPerOriginAndKeepTheLinkedContractState(): void
+    {
+        $this->purchaseOn($this->nocxiumLine, 100, 5_000_000.0, self::AMARR_STATION);
+        $this->purchaseOn($this->tritaniumLine, 300, 1_290.0, null);
+        $this->em->flush();
+        $this->linkContractDirectly(self::IN_TRANSIT_CONTRACT_ID);
+
+        $this->actAs($this->owner);
+        $this->request('GET', $this->courierUri());
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame(
+            [self::AMARR_SYSTEM_ID, 'Amarr', 5.0, 5_000_000, 750, 1, 'ready', []],
+            [$body['originSolarSystemId'], $body['originSolarSystemName'], $body['volumeCubicMeters'], $body['collateral'], $body['reward'], $body['jumps'], $body['quoteStatus'], $body['missingVolumeTypeIds']],
+        );
+        self::assertSame(
+            [[self::JITA_SYSTEM_ID, 'Jita', 25.0, 376_550, 7_500, 2, 'ready', []]],
+            array_map(static fn (array $origin): array => [
+                $origin['solarSystemId'], $origin['solarSystemName'], $origin['volumeCubicMeters'], $origin['collateral'],
+                $origin['reward'], $origin['jumps'], $origin['quoteStatus'], $origin['missingVolumeTypeIds'],
+            ], $body['otherOrigins']),
+        );
+        self::assertSame(
+            [[self::TRITANIUM_TYPE_ID, 'Tritanium', 300]],
+            array_map(static fn (array $line): array => [$line['typeId'], $line['typeName'], $line['quantity']], $body['unknownOriginLines']),
+        );
+        self::assertSame(
+            [[self::TRITANIUM_TYPE_ID, 1_500, 'in_transit'], [self::NOCXIUM_TYPE_ID, 100, 'in_transit'], [self::MORPHITE_TYPE_ID, 20, 'in_transit']],
+            $this->linesOf($body),
+        );
+        self::assertSame([self::IN_TRANSIT_CONTRACT_ID, 'in_transit'], [$body['contract']['contractId'], $body['contract']['state']]);
+        self::assertSame(
+            [[self::OUTSTANDING_CONTRACT_ID, false], [self::IN_TRANSIT_CONTRACT_ID, false]],
+            array_map(static fn (array $candidate): array => [$candidate['contractId'], $candidate['matchesQuote']], $body['candidates']),
+        );
+    }
+
+    #[Group('issue-1022')]
+    public function testProjectWithOnlyManualPurchasesHasNoOriginAndListsThemAsUnknownOrigin(): void
+    {
+        $this->purchaseOn($this->hecateTritaniumLine, 2_000, 8_800.0, null);
+        $this->em->flush();
+
+        $this->actAs($this->owner);
+        $this->request('GET', $this->projectUri($this->hecateBatch).'/courier');
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertArrayHasKey('originSolarSystemId', $body);
+        self::assertNull($body['originSolarSystemId']);
+        self::assertArrayHasKey('originSolarSystemName', $body);
+        self::assertNull($body['originSolarSystemName']);
+        self::assertSame(['no_purchases', [], []], [$body['quoteStatus'], $body['otherOrigins'], $body['lines']]);
+        self::assertSame(
+            [[self::TRITANIUM_TYPE_ID, 'Tritanium', 2_000]],
+            array_map(static fn (array $line): array => [$line['typeId'], $line['typeName'], $line['quantity']], $body['unknownOriginLines']),
         );
     }
 
@@ -257,14 +324,28 @@ final class ProjectCourierApiTest extends WebTestCase
         $this->em->flush();
     }
 
-    private function purchaseOn(IndustryProjectBomLine $line, int $quantity, float $totalPrice): void
+    private function purchaseOn(IndustryProjectBomLine $line, int $quantity, float $totalPrice, ?int $locationId = self::JITA_STATION): void
     {
-        $line->addPurchase((new IndustryProjectPurchase())
+        $purchase = (new IndustryProjectPurchase())
             ->setTypeId($line->getTypeId())
             ->setQuantity($quantity)
             ->setUnitPrice($totalPrice / $quantity)
             ->setTotalPrice($totalPrice)
-            ->setSource('manual'));
+            ->setSource(null === $locationId ? 'manual' : 'esi_wallet');
+        if (null !== $locationId) {
+            $transaction = (new CachedWalletTransaction())
+                ->setCharacter($this->owner->getMainCharacter())
+                ->setTransactionId($this->nextTransactionId++)
+                ->setTypeId($line->getTypeId())
+                ->setQuantity($quantity)
+                ->setUnitPrice($totalPrice / $quantity)
+                ->setIsBuy(true)
+                ->setLocationId($locationId)
+                ->setDate(new \DateTimeImmutable('-1 hour'));
+            $this->em->persist($transaction);
+            $purchase->setTransaction($transaction);
+        }
+        $line->addPurchase($purchase);
     }
 
     private function contract(int $contractId, string $type, string $status, string $issuedAt, float $volume, float $reward, float $collateral): array
@@ -315,11 +396,22 @@ final class ProjectCourierApiTest extends WebTestCase
             $this->em->persist($staticRow);
         }
         $this->em->persist((new InvType())->setTypeId(self::TRITANIUM_TYPE_ID)->setTypeName('Tritanium')->setGroup($group)->setVolume(self::TRITANIUM_VOLUME));
+        $this->em->persist((new InvType())->setTypeId(self::NOCXIUM_TYPE_ID)->setTypeName('Nocxium')->setGroup($group)->setVolume(self::NOCXIUM_VOLUME));
         $this->em->persist((new InvType())->setTypeId(self::MORPHITE_TYPE_ID)->setTypeName('Morphite')->setGroup($group)->setVolume(self::MORPHITE_VOLUME));
-        foreach ([self::JITA_SYSTEM_ID => 'Jita', self::PERIMETER_SYSTEM_ID => 'Perimeter', self::URLEN_SYSTEM_ID => 'Urlen'] as $solarSystemId => $name) {
-            $this->em->persist((new MapSolarSystem())->setSolarSystemId($solarSystemId)->setSolarSystemName($name)->setConstellation($constellation)->setRegionId(self::REGION_ID));
+        $solarSystems = [];
+        foreach ([self::JITA_SYSTEM_ID => 'Jita', self::PERIMETER_SYSTEM_ID => 'Perimeter', self::URLEN_SYSTEM_ID => 'Urlen', self::AMARR_SYSTEM_ID => 'Amarr'] as $solarSystemId => $name) {
+            $solarSystems[$solarSystemId] = (new MapSolarSystem())->setSolarSystemId($solarSystemId)->setSolarSystemName($name)->setConstellation($constellation)->setRegionId(self::REGION_ID);
+            $this->em->persist($solarSystems[$solarSystemId]);
         }
-        foreach ([[self::JITA_SYSTEM_ID, self::URLEN_SYSTEM_ID], [self::URLEN_SYSTEM_ID, self::PERIMETER_SYSTEM_ID]] as [$from, $to]) {
+        foreach ([self::JITA_STATION => [self::JITA_SYSTEM_ID, 'Jita IV - Moon 4'], self::AMARR_STATION => [self::AMARR_SYSTEM_ID, 'Amarr VIII (Oris)']] as $stationId => [$solarSystemId, $stationName]) {
+            $this->em->persist((new StaStation())
+                ->setStationId($stationId)
+                ->setStationName($stationName)
+                ->setSolarSystem($solarSystems[$solarSystemId])
+                ->setConstellationId(self::CONSTELLATION_ID)
+                ->setRegionId(self::REGION_ID));
+        }
+        foreach ([[self::JITA_SYSTEM_ID, self::URLEN_SYSTEM_ID], [self::URLEN_SYSTEM_ID, self::PERIMETER_SYSTEM_ID], [self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID]] as [$from, $to]) {
             $this->em->persist((new MapSolarSystemJump())
                 ->setFromSolarSystemId($from)
                 ->setToSolarSystemId($to)

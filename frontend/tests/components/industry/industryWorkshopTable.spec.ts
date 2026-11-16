@@ -67,6 +67,7 @@ function groupProject(id: string, name: string, status: GroupProjectStatus, over
     ownerCharacterName: 'Ilyra Castell',
     ownerCorporationId: 98000001,
     membersCount: 1,
+    contributionsCount: 0,
     items: [],
     totalBomValue: null,
     fulfillmentPercent: 0,
@@ -89,6 +90,7 @@ const WIDOW_DRAFT = groupProject(WIDOW_PROJECT_ID, 'Widow draft', 'draft', {
 })
 const HECATE_IN_PROGRESS = groupProject(HECATE_PROJECT_ID, 'Hecate in progress', 'in_progress', {
   membersCount: 7,
+  contributionsCount: 0,
   myRole: 'admin',
   createdAt: '2026-10-01T10:00:00+00:00',
 })
@@ -98,6 +100,7 @@ const ISHTAR_COMPLETED = groupProject(ISHTAR_PROJECT_ID, 'Ishtar completed', 'co
 })
 const SABRE_SELLING = groupProject(SABRE_PROJECT_ID, 'Sabre selling', 'selling', {
   membersCount: 2,
+  contributionsCount: 0,
   myRole: 'member',
   items: [
     { typeId: 22456, typeName: 'Sabre', meLevel: 10, teLevel: 20, runs: 5 },
@@ -522,11 +525,19 @@ describe('IndustryWorkshop header links', () => {
 
     expect(routerPush.mock.calls).toEqual([
       [{ path: '/industry/production', query: { tab: 'blueprints' } }],
-      [{ name: 'pve-revenue', query: { tab: 'industry' } }],
+      [{ name: 'balance', query: { tab: 'industry' } }],
     ])
     expect(useIndustryStore().navigationIntent).toEqual({ target: 'projects', openCreateModal: true })
     expect(wrapper.find('[data-testid="workshop-link-skills"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="workshop-action-queue"]').find('[data-testid="workshop-link-skills"]').exists()).toBe(false)
+  })
+
+  it('opens the industry tab of the balance page from the revenue button and never the pve revenue page', async () => {
+    const wrapper = await mountWorkshop()
+
+    await wrapper.get('[data-testid="workshop-link-revenue"]').trigger('click')
+
+    expect(routerPush).toHaveBeenCalledExactlyOnceWith({ name: 'balance', query: { tab: 'industry' } })
   })
 })
 

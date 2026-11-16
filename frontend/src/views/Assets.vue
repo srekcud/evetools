@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { readAssetFilterQuery, readLastCharacterId, rememberLastCharacterId, writeAssetFilterQuery } from '@/utils/assetFilterQuery'
 import type { AssetLocationSort } from '@/utils/assetFilterQuery'
+import type { AssetItemSort } from '@/utils/assetItemSort'
 import { isUnresolvedLocationName, isUnresolvedStructureName } from '@/utils/assetLocation'
 import { summarizeAssetSafetyLocations, summarizeAssetSafetyVolumes } from '@/utils/assetSafety'
 import { useAuthStore } from '@/stores/auth'
@@ -97,6 +98,7 @@ const collapsedLocations = ref<Set<string>>(new Set())
 const selectedLocationNames = ref<Set<string>>(new Set())
 const selectedTypeIds = ref<Set<number>>(new Set())
 const locationSort = ref<AssetLocationSort>(urlFilters.locationSort)
+const itemSort = ref<AssetItemSort>(urlFilters.itemSort)
 const freshnessNow = ref(new Date())
 
 const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError, fetchVisibility, saveVisibility, clearVisibility } = useCorporationAssetVisibility()
@@ -604,8 +606,8 @@ const assetSafetyVolumes = computed(() => {
   )
 })
 
-watch([isTypeView, selectedLocationNames, locationSort, assetSafetyNeedsVolume], () => {
-  const needsWholeList = isTypeView.value || selectedLocationNames.value.size > 0 || locationSort.value === 'volume' || assetSafetyNeedsVolume.value
+watch([isTypeView, selectedLocationNames, locationSort, itemSort, assetSafetyNeedsVolume], () => {
+  const needsWholeList = isTypeView.value || selectedLocationNames.value.size > 0 || locationSort.value === 'volume' || itemSort.value === 'volume' || assetSafetyNeedsVolume.value
   if (needsWholeList) {
     void ensureFullList()
   }
@@ -916,7 +918,7 @@ watch(selectedCharacterId, (characterId) => {
   }
 }, { immediate: true })
 
-watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selectedLocation, selectedDivision, locationSort], () => {
+watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selectedLocation, selectedDivision, locationSort, itemSort], () => {
   router.replace({
     query: writeAssetFilterQuery(route.query, {
       viewMode: viewMode.value,
@@ -926,6 +928,7 @@ watch([viewMode, selectedCharacterId, searchQuery, selectedSolarSystem, selected
       location: selectedLocation.value,
       division: selectedDivision.value,
       locationSort: locationSort.value,
+      itemSort: itemSort.value,
     }),
   })
 }, { immediate: true })
@@ -1179,6 +1182,17 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
                 <option value="name">{{ t('assets.sort.name') }}</option>
                 <option v-if="packagedVolumeCatalog !== null" value="volume">{{ t('assets.sort.volume') }}</option>
               </select>
+              <label for="assets-item-sort" class="text-xs text-slate-500">{{ t('assets.itemSort.label') }}</label>
+              <select
+                id="assets-item-sort"
+                v-model="itemSort"
+                data-testid="item-sort"
+                class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200"
+              >
+                <option value="name">{{ t('assets.itemSort.name') }}</option>
+                <option value="quantity">{{ t('assets.itemSort.quantity') }}</option>
+                <option v-if="packagedVolumeCatalog !== null" value="volume">{{ t('assets.itemSort.volume') }}</option>
+              </select>
             </div>
             <p
               v-if="packagedVolumesUnavailable"
@@ -1199,6 +1213,7 @@ watch([selectedCharacterId, viewMode], (_current, previous) => {
               :pinned-item-ids="pinnedItemIds"
               :project-pinned-item-ids="projectPinnedItemIds"
               :packaged-volumes="fullListLoaded ? packagedVolumeCatalog : null"
+              :item-sort="itemSort"
               @toggle-pin="onTogglePin"
               @toggle-container="toggleContainer"
               @toggle-location="toggleLocation"

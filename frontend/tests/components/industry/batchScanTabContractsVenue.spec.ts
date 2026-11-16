@@ -39,6 +39,7 @@ const CAPITAL_BY_CONTRACT: BatchScanItem = {
   hasAllSkills: true,
   missingSkillCount: 0,
   unknownReason: null,
+  unknownReasonStructureId: null,
   missingPriceTypeIds: [],
 }
 
@@ -62,6 +63,7 @@ const CAPITAL_WITHOUT_CONTRACT_SALES: BatchScanItem = {
   profitPerUnit: null,
   marginPercent: null,
   unknownReason: 'missing_sale_price',
+  unknownReasonStructureId: null,
 }
 
 const batchLabels = en.industry.scanner.batch

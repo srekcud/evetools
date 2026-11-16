@@ -74,6 +74,41 @@ export interface StructureBonusPreview {
   reactionTimeBonus: number
 }
 
+export const STRUCTURE_LIST_FORMAT = 'evetools.industry-structures'
+
+export const STRUCTURE_LIST_VERSION = 1
+
+export interface StructureListEntry {
+  name: string
+  locationId: number | null
+  solarSystemId: number | null
+  structureType: string
+  securityType: string
+  rigs: string[]
+  facilityTaxRate: number | null
+}
+
+export interface StructureListDocument {
+  format: string
+  version: number
+  structures: StructureListEntry[]
+}
+
+export type StructureImportStatus = 'create' | 'update' | 'skip' | 'invalid'
+
+export interface StructureImportLine {
+  index: number
+  name: string
+  locationId: number | null
+  status: StructureImportStatus
+  errors: string[]
+}
+
+export interface StructureImportOutcome {
+  applied: boolean
+  entries: StructureImportLine[]
+}
+
 export interface RigOptions {
   manufacturing: RigOption[]
   reaction: RigOption[]
@@ -259,6 +294,7 @@ export type BatchScanItem = {
   hasAllSkills: boolean
   missingSkillCount: number
   unknownReason: string | null
+  unknownReasonStructureId: string | null
   missingPriceTypeIds: number[]
   contractSales?: BatchScanContractSales | null
   priceSources?: MaterialsAndSalePriceSources

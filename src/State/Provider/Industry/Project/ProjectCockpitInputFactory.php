@@ -6,11 +6,9 @@ namespace App\State\Provider\Industry\Project;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
-use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
-use App\Enum\ContributionStatus;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\CockpitBomLine;
@@ -30,7 +28,7 @@ final readonly class ProjectCockpitInputFactory
             $project->getItems()->count(),
             array_values($project->getBomItems()->map(fn (IndustryProjectBomLine $line): CockpitBomLine => $this->toCockpitBomLine($line, $fulfillments))->toArray()),
             $this->soldQuantityByTypeId($project),
-            $this->pendingContributionCount($project),
+            $project->pendingContributionCountReviewableBy($user),
             $this->isManager($user, $project),
         );
     }
@@ -67,13 +65,6 @@ final readonly class ProjectCockpitInputFactory
         }
 
         return $soldQuantityByTypeId;
-    }
-
-    private function pendingContributionCount(IndustryProject $project): int
-    {
-        return $project->getContributions()->filter(
-            static fn (IndustryProjectContribution $contribution): bool => $contribution->getStatus() === ContributionStatus::Pending,
-        )->count();
     }
 
     private function isManager(User $user, IndustryProject $project): bool

@@ -87,6 +87,8 @@ export function useIndustryStore() {
     deleteStructure: structuresStore.deleteStructure,
     searchStructures: structuresStore.searchStructures,
     previewStructureBonuses: structuresStore.previewStructureBonuses,
+    exportStructures: structuresStore.exportStructures,
+    importStructures: structuresStore.importStructures,
 
     // Blacklist store - reactive state via getter
     get blacklist() { return blacklistStore.blacklist },

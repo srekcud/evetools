@@ -39,6 +39,7 @@ const SLASHER_WITH_UNKNOWN_IMPORT_COST: BatchScanItem = {
   hasAllSkills: true,
   missingSkillCount: 0,
   unknownReason: 'missing_volume',
+  unknownReasonStructureId: null,
   missingPriceTypeIds: [],
 }
 
@@ -63,6 +64,7 @@ const ROBOTICS_WITH_UNKNOWN_EXPORT_COST: BatchScanItem = {
   hasAllSkills: true,
   missingSkillCount: 0,
   unknownReason: 'missing_volume',
+  unknownReasonStructureId: null,
   missingPriceTypeIds: [],
 }
 
@@ -87,6 +89,7 @@ const RIFTER_WITH_EVERY_VOLUME_KNOWN: BatchScanItem = {
   hasAllSkills: true,
   missingSkillCount: 0,
   unknownReason: null,
+  unknownReasonStructureId: null,
   missingPriceTypeIds: [],
 }
 

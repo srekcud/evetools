@@ -716,6 +716,7 @@
       "missing_material_price": "A material has no Jita price: the manufacturing cost and margins are unknown.",
       "missing_sale_price": "The product has no Jita sale price: the sale price, profit and margins are unknown.",
       "missing_volume": "A product or a material has no volume in the static data (SDE): the transport cost and margins are unknown.",
+      "missing_sales_fees": "The broker fee and the sales tax are unknown: sync your skills and standings from the Skills page. The margins are unknown.",
       "missing_daily_volume": "The product has no daily volume in the market history: the daily volume and the ISK per day are unknown.",
       "missingPriceTypes": "Materials without a price: {types}"
     },
@@ -772,7 +773,16 @@
         "belowMargin": "{count} are under the minimum margin of {min} %.",
         "belowVolume": "{count} are under the minimum daily volume of {min}.",
         "nothingScanned": "The scan returned no product for this category and venue, even without the minimum margin and minimum daily volume.",
-        "failed": "The diagnosis could not be loaded."
+        "failed": "The diagnosis could not be loaded.",
+        "unknownCostIndex": "{count} have no cost index for the production system: the install cost is unknown. Wait for the next cost index sync.",
+        "unknownAdjustedPrice": "{count} have a material without an adjusted price: the install cost is unknown. Wait for the next adjusted prices sync.",
+        "unknownFacilityTax": "{count} use the structure {structure}, which has no facility tax: enter it in the Industry settings (0 if it charges nothing).",
+        "unknownFacilityTaxUnnamed": "{count} use a structure without facility tax: enter it in the Industry settings (0 if it charges nothing).",
+        "unknownSalesFees": "{count} have unknown seller fees (broker fee and sales tax): sync your skills and standings from the Skills page.",
+        "unknownInventionProbability": "{count} have an unknown invention probability: sync your skills from the Skills page.",
+        "unknownMarketPrice": "{count} have an invention material without a market price: the invention cost is unknown. Wait for the next market sync.",
+        "unknownTransportVolume": "{count} have an item without a volume in the SDE: the transport cost is unknown.",
+        "unknownOther": "{count} have an unknown margin for another reason."
       },
       "batch": {
         "title": "Profit Scanner",
@@ -1335,6 +1345,34 @@
     "structures": {
       "title": "Production structures",
       "description": "Configure your production structures to calculate material bonuses applied to projects.",
+      "transfer": {
+        "title": "Share or import a structure list",
+        "hint": "Export your structures as JSON to hand them to another player, or paste a list you received. The corporation flag and the default structure are never carried over.",
+        "exportTitle": "Export",
+        "exportButton": "Export my structures",
+        "download": "Download file",
+        "copied": "Copied",
+        "copyFailed": "The list could not be copied, select the text and copy it by hand.",
+        "importTitle": "Import",
+        "importPlaceholder": "Paste an exported structure list here",
+        "chooseFile": "Or choose a file",
+        "preview": "Preview",
+        "overwrite": "Overwrite rigs and facility tax of structures you already have",
+        "apply": "Import {count} selected",
+        "result": "{created} created, {updated} updated, {skipped} skipped, {invalid} invalid.",
+        "status": {
+          "create": "New",
+          "update": "Will be updated",
+          "skip": "Already in your list",
+          "invalid": "Invalid"
+        },
+        "errors": {
+          "invalidJson": "This text is not valid JSON.",
+          "wrongFormat": "This is not an EVE Tools structure list.",
+          "unsupportedVersion": "This structure list version is not supported.",
+          "request": "The request failed, try again."
+        }
+      },
       "loadError": "Your structures could not be loaded.",
       "saveError": "The structure was not saved.",
       "deleteError": "The structure was not deleted.",
@@ -2178,6 +2216,12 @@
       "name": "Name",
       "volume": "Packaged volume"
     },
+    "itemSort": {
+      "label": "Sort items",
+      "name": "Name",
+      "quantity": "Quantity",
+      "volume": "Packaged volume"
+    },
     "mainCharacterSuffix": "(Main)",
     "refreshAvailableAt": "Refresh available at {time}",
     "syncAlreadyRunning": "A sync of the corporation assets is already running",
@@ -2923,6 +2967,11 @@
         "unknown": "Level unknown",
         "unknownCause": "the production plan could not be computed"
       },
+      "filter": {
+        "label": "Status",
+        "clear": "Clear the filter",
+        "empty": "No step matches the selected statuses."
+      },
       "views": {
         "flow": "Overview",
         "tree": "Job tree"
@@ -3110,7 +3159,7 @@
       "title": "Courier contract",
       "loading": "Reading the courier quote...",
       "error": "The courier contract could not be read or changed",
-      "empty": "No purchase is attached to this project: there is nothing to ship, so no contract is quoted.",
+      "empty": "No purchase of this project has to be shipped to the workshop, so no contract is quoted.",
       "days": "{count} day | {count} days",
       "contract": {
         "route": "Route",
@@ -3143,6 +3192,14 @@
       "linked": {
         "title": "Linked contract #{id}",
         "issuedAt": "Issued"
+      },
+      "otherOrigins": {
+        "title": "Other purchase locations",
+        "hint": "Each of these locations needs its own courier contract, quoted from its own system."
+      },
+      "unknownOrigin": {
+        "title": "Unknown origin",
+        "hint": "The purchase location of these items is unknown (manual purchase or unresolved location): they are included in no contract."
       },
       "lines": "Purchased lines",
       "candidates": {
@@ -3374,6 +3431,7 @@
       "quantity": "Quantity to handle",
       "free": "{quantity} free",
       "mine": "you",
+      "awaitingApproval": "Awaiting approval ×{quantity}",
       "failed": "The reservation could not be saved"
     },
     "jobs": {
@@ -3711,8 +3769,8 @@
       "verifyAll": "Verify All",
       "verifying": "Verifying...",
       "statuses": {
-        "verified": "Verified",
-        "partial": "Partial",
+        "verified": "In container",
+        "partial": "Partly in container",
         "missing": "Missing from container",
         "container_not_found": "Container not found",
         "container_in_hidden_division": "A container with this name exists in a division hidden from the project owner",
@@ -4061,6 +4119,7 @@
       "sections": {
         "free": "To assign",
         "mine": "My lines to deliver",
+        "awaiting": "Awaiting approval",
         "todo": "To do",
         "jobs": "My jobs (ESI)",
         "project": "Project"

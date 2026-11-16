@@ -55,6 +55,7 @@ export function companionProject(overrides: Partial<GroupProject> = {}): GroupPr
     ownerCharacterName: 'Selene Vance',
     ownerCorporationId: 98_000_007,
     membersCount: 3,
+    contributionsCount: 0,
     items: [{ typeId: 12_005, typeName: 'Ishtar', meLevel: 8, teLevel: 16, runs: 2 }],
     totalBomValue: 1_200_000_000,
     fulfillmentPercent: 0,
@@ -97,6 +98,7 @@ export function companionTasksOf(overrides: Partial<CompanionTasks> = {}): Compa
   return {
     free: [],
     mine: [],
+    awaitingApproval: [],
     toReview: null,
     joinRequests: null,
     jobs: [],

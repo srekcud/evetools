@@ -6,8 +6,10 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import MultibuyBridgeActions from '@/components/appraisal/MultibuyBridgeActions.vue'
 import IskAmount from '@/components/common/IskAmount.vue'
+import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
+import ContainerLineStatus from './ContainerLineStatus.vue'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import type { BomItem, ContainerVerification, ContainerVerificationStatus } from '@/stores/group-industry/types'
@@ -154,33 +156,12 @@ function ringStrokeColor(percent: number): string {
 
               <!-- Name + Container verification -->
               <td class="py-2.5 px-3">
-                <span class="text-slate-200">{{ item.typeName }}</span>{{ ' ' }}
+                <span class="inline-flex items-center gap-1.5">
+                  <span class="text-slate-200">{{ item.typeName }}</span>
+                  <OpenInGameButton type="market" :target-id="item.typeId" />
+                </span>{{ ' ' }}
                 <!-- Container verification indicator -->
-                <template v-if="verificationMap.has(item.id)">
-                  <div class="flex items-center gap-1 mt-1">
-                    <!-- Verified -->
-                    <template v-if="verificationMap.get(item.id)!.status === 'verified'">
-                      <svg class="w-3 h-3 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                      <span class="text-xs text-emerald-400">
-                        {{ t('groupIndustry.container.statuses.verified') }}: {{ formatNumber(verificationMap.get(item.id)!.containerQuantity, 0) }} / {{ formatNumber(verificationMap.get(item.id)!.requiredQuantity, 0) }}
-                      </span>
-                    </template>
-                    <!-- Partial -->
-                    <template v-else-if="verificationMap.get(item.id)!.status === 'partial'">
-                      <svg class="w-3 h-3 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                      <span class="text-xs text-amber-400">
-                        {{ t('groupIndustry.container.statuses.partial') }}: {{ formatNumber(verificationMap.get(item.id)!.containerQuantity, 0) }} / {{ formatNumber(verificationMap.get(item.id)!.requiredQuantity, 0) }}
-                      </span>
-                    </template>
-                    <!-- Missing -->
-                    <template v-else-if="verificationMap.get(item.id)!.status === 'missing'">
-                      <svg class="w-3 h-3 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                      <span class="text-xs text-red-400">
-                        {{ t('groupIndustry.container.statuses.missing') }}
-                      </span>
-                    </template>
-                  </div>
-                </template>
+                <ContainerLineStatus v-if="verificationMap.has(item.id)" :verification="verificationMap.get(item.id)!" />
               </td>
 
               <!-- Required -->

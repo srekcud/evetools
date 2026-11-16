@@ -73,8 +73,7 @@ class ReviewContributionProcessor implements ProcessorInterface
         }
 
         // The owner may review his own contribution only when nobody else could ever review it.
-        $isSoleReviewingOwner = $project->isSoleReviewingOwner($user);
-        if ($contribution->getMember()->getUser() === $user && !$isSoleReviewingOwner) {
+        if (!$project->canReviewContribution($contribution, $user)) {
             throw new BadRequestHttpException('You cannot review your own contribution');
         }
 

@@ -61,6 +61,7 @@ class BatchScanProviderTest extends TestCase
             'hasAllSkills' => true,
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_material_price',
+            'unknownReasonStructureId' => null,
             'missingPriceTypeIds' => [self::MORPHITE_TYPE_ID],
             'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
@@ -80,6 +81,44 @@ class BatchScanProviderTest extends TestCase
         $this->assertSame(9.09, $slasher->importCost);
         $this->assertSame(2500.0, $slasher->exportCost);
         $this->assertSame(5000000.0, $slasher->sellPrice);
+    }
+
+    #[Group('issue-884')]
+    public function testMissingFacilityTaxRowIsExposedWithTheIdOfTheStructureWithoutFacilityTax(): void
+    {
+        $slasherWithoutFacilityTax = [
+            'typeId' => self::SLASHER_TYPE_ID,
+            'typeName' => 'Slasher',
+            'groupName' => 'Frigate',
+            'categoryLabel' => 'T1 Ships',
+            'marginPercent' => null,
+            'profitPerUnit' => null,
+            'dailyVolume' => 50.0,
+            'iskPerDay' => null,
+            'materialCost' => 4000000.0,
+            'importCost' => 9.09,
+            'exportCost' => 2500.0,
+            'sellPrice' => 5000000.0,
+            'meUsed' => 10,
+            'activityType' => 'manufacturing',
+            'isFactionBlueprint' => false,
+            'bpcCostPerRun' => null,
+            'hasAllSkills' => true,
+            'missingSkillCount' => 0,
+            'unknownReason' => 'missing_facility_tax',
+            'unknownReasonStructureId' => '0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f91',
+            'missingPriceTypeIds' => [],
+            'contractSales' => null,
+            'priceSources' => self::FULL_PRICE_SOURCES,
+        ];
+        $roboticsWithKnownMargin = [...$slasherWithoutFacilityTax, 'typeId' => self::ROBOTICS_TYPE_ID, 'marginPercent' => 12.5, 'unknownReason' => null, 'unknownReasonStructureId' => null];
+
+        $resources = $this->provideScanReturning([$slasherWithoutFacilityTax, $roboticsWithKnownMargin]);
+
+        $this->assertCount(2, $resources);
+        $this->assertSame('missing_facility_tax', $resources[0]->unknownReason);
+        $this->assertSame('0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f91', $resources[0]->unknownReasonStructureId);
+        $this->assertNull($resources[1]->unknownReasonStructureId);
     }
 
     #[Group('issue-420')]
@@ -106,6 +145,7 @@ class BatchScanProviderTest extends TestCase
             'hasAllSkills' => true,
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_daily_volume',
+            'unknownReasonStructureId' => null,
             'missingPriceTypeIds' => [],
             'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
@@ -144,6 +184,7 @@ class BatchScanProviderTest extends TestCase
             'hasAllSkills' => true,
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_volume',
+            'unknownReasonStructureId' => null,
             'missingPriceTypeIds' => [],
             'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
@@ -169,6 +210,7 @@ class BatchScanProviderTest extends TestCase
             'hasAllSkills' => true,
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_volume',
+            'unknownReasonStructureId' => null,
             'missingPriceTypeIds' => [],
             'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
@@ -209,6 +251,7 @@ class BatchScanProviderTest extends TestCase
             'hasAllSkills' => true,
             'missingSkillCount' => 0,
             'unknownReason' => null,
+            'unknownReasonStructureId' => null,
             'missingPriceTypeIds' => [],
             'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
@@ -255,6 +298,7 @@ class BatchScanProviderTest extends TestCase
             'hasAllSkills' => true,
             'missingSkillCount' => 0,
             'unknownReason' => null,
+            'unknownReasonStructureId' => null,
             'missingPriceTypeIds' => [],
             'contractSales' => null,
             'priceSources' => $priceSources,
@@ -325,6 +369,7 @@ class BatchScanProviderTest extends TestCase
             'hasAllSkills' => true,
             'missingSkillCount' => 0,
             'unknownReason' => null,
+            'unknownReasonStructureId' => null,
             'missingPriceTypeIds' => [],
             'contractSales' => $indicators,
             'priceSources' => [],

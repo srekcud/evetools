@@ -80,6 +80,7 @@ export type GroupProject = {
   ownerCharacterName: string
   ownerCorporationId: number | null
   membersCount: number
+  contributionsCount: number
   items: GroupProjectItem[]
   totalBomValue: number | null
   fulfillmentPercent: number
@@ -171,6 +172,7 @@ export type LineReservation = {
   participantId: string
   characterName: string | null
   quantity: number
+  pendingQuantity: number
   isMine: boolean
 }
 
@@ -1058,6 +1060,23 @@ export interface CourierCandidate extends CourierContractFigures {
   matchesQuote: boolean
 }
 
+export interface CourierOriginQuote {
+  solarSystemId: number
+  solarSystemName: string | null
+  volumeCubicMeters: number | null
+  collateral: number | null
+  reward: number | null
+  jumps: number | null
+  quoteStatus: CourierQuoteStatus
+  missingVolumeTypeIds: number[]
+}
+
+export interface CourierUnknownOriginLine {
+  typeId: number
+  typeName: string | null
+  quantity: number
+}
+
 export interface ProjectCourier {
   id: string
   volumeCubicMeters: number | null
@@ -1068,7 +1087,7 @@ export interface ProjectCourier {
   missingVolumeTypeIds: number[]
   daysToComplete: number
   expirationDays: number
-  originSolarSystemId: number
+  originSolarSystemId: number | null
   originSolarSystemName: string | null
   workshopSolarSystemId: number | null
   workshopSolarSystemName: string | null
@@ -1076,6 +1095,8 @@ export interface ProjectCourier {
   contract: CourierLinkedContract | null
   lines: CourierLine[]
   candidates: CourierCandidate[]
+  otherOrigins: CourierOriginQuote[]
+  unknownOriginLines: CourierUnknownOriginLine[]
 }
 
 export type StructureHealthState = 'ok' | 'low-fuel' | 'offline-service' | 'unknown'

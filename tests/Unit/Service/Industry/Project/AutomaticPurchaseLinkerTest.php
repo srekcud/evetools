@@ -109,6 +109,40 @@ final class AutomaticPurchaseLinkerTest extends TestCase
         self::assertSame([[], [], 0], [$this->persistedEntities, $this->refreshedLines, $this->flushCount]);
     }
 
+    #[Group('issue-1014')]
+    public function testBuyOfTheWholeLineQuantityIsLinkedWhenStockAlreadyCoversPartOfTheLine(): void
+    {
+        $this->ramLine->setFulfilledQuantity(120);
+        $buy = $this->buy($this->ownerAltCharacter, 6_014_000_001, self::RAM_TYPE_ID, self::RAM_LINE_QUANTITY, self::RAM_UNIT_PRICE);
+
+        $this->linkNew($this->ownerAltCharacter, [$buy]);
+
+        self::assertSame([[$buy], self::RAM_LINE_QUANTITY], [array_map(static fn (IndustryProjectPurchase $purchase): ?CachedWalletTransaction => $purchase->getTransaction(), $this->persistedEntities), $this->ramLine->getPurchasedQuantity()]);
+    }
+
+    #[Group('issue-1014')]
+    public function testBuyAboveTheWholeLineQuantityIsNotLinkedEvenWhenStockCoversPartOfTheLine(): void
+    {
+        $this->ramLine->setFulfilledQuantity(120);
+        $buy = $this->buy($this->ownerAltCharacter, 6_014_000_002, self::RAM_TYPE_ID, self::RAM_LINE_QUANTITY + 1, self::RAM_UNIT_PRICE);
+
+        $this->linkNew($this->ownerAltCharacter, [$buy]);
+
+        self::assertSame([[], 0], [$this->persistedEntities, $this->flushCount]);
+    }
+
+    #[Group('issue-1014')]
+    public function testBuyAboveWhatEarlierPurchasesLeftIsNotLinkedWhenStockCoversPartOfTheLine(): void
+    {
+        $this->ramLine->setFulfilledQuantity(120);
+        $firstBuy = $this->buy($this->ownerAltCharacter, 6_014_000_003, self::RAM_TYPE_ID, 300, self::RAM_UNIT_PRICE, '2026-11-02T12:00:00+00:00');
+        $secondBuy = $this->buy($this->ownerAltCharacter, 6_014_000_004, self::RAM_TYPE_ID, 150, self::RAM_UNIT_PRICE, '2026-11-02T13:00:00+00:00');
+
+        $this->linkNew($this->ownerAltCharacter, [$firstBuy, $secondBuy]);
+
+        self::assertSame([[$firstBuy], 300], [array_map(static fn (IndustryProjectPurchase $purchase): ?CachedWalletTransaction => $purchase->getTransaction(), $this->persistedEntities), $this->ramLine->getPurchasedQuantity()]);
+    }
+
     public function testBuyMatchingALineInTwoOpenProjectsIsLeftToTheSuggestions(): void
     {
         $this->openProjects = [$this->ishtarProject, $this->hecateProject];

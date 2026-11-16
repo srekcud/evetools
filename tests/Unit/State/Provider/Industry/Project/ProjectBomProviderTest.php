@@ -9,6 +9,7 @@ use App\ApiResource\Industry\Project\ProjectBomLineResource;
 use App\Entity\Character;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectLineReservation;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectPurchase;
@@ -18,6 +19,7 @@ use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectBomLineRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
@@ -70,6 +72,7 @@ class ProjectBomProviderTest extends TestCase
             $this->bomItemRepository,
             new ProjectAccessChecker($this->memberRepository),
             $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(IndustryProjectContributionRepository::class),
             $this->createStub(ProjectJobLocationResolver::class),
             $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')),
             $this->blueprintNames(),
@@ -202,7 +205,8 @@ class ProjectBomProviderTest extends TestCase
         foreach ([$member, $owner] as $viewer) {
             $security = $this->createStub(Security::class);
             $security->method('getUser')->willReturn($viewer);
-            $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository), $this->createStub(IndustryProjectLineReservationRepository::class), $this->createStub(ProjectJobLocationResolver::class), $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')), $this->blueprintNames());
+            $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository), $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(IndustryProjectContributionRepository::class), $this->createStub(ProjectJobLocationResolver::class), $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')), $this->blueprintNames());
             $installersByViewer[] = $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0]->jobMatches[0]['characterName'];
         }
 
@@ -232,7 +236,8 @@ class ProjectBomProviderTest extends TestCase
         $this->bomItemRepository->method('findBy')->willReturn([$line]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($member);
-        $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository), $this->createStub(IndustryProjectLineReservationRepository::class), $this->createStub(ProjectJobLocationResolver::class), $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')), $this->blueprintNames());
+        $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository), $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(IndustryProjectContributionRepository::class), $this->createStub(ProjectJobLocationResolver::class), $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')), $this->blueprintNames());
 
         $purchases = $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0]->purchases;
 
@@ -388,6 +393,7 @@ class ProjectBomProviderTest extends TestCase
             $bomItemRepository,
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(IndustryProjectContributionRepository::class),
             $this->createStub(ProjectJobLocationResolver::class),
             $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')),
             $this->blueprintNames(),
@@ -447,6 +453,7 @@ class ProjectBomProviderTest extends TestCase
             $this->bomItemRepository,
             new ProjectAccessChecker($this->memberRepository),
             $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(IndustryProjectContributionRepository::class),
             $this->createStub(ProjectJobLocationResolver::class),
             $this->containerFulfillmentOf($stock),
             $this->blueprintNames(),
@@ -507,6 +514,49 @@ class ProjectBomProviderTest extends TestCase
         $this->assertSame(['Ferox Blueprint', 'Nocxium Atoms Reaction Formula', null], $names);
     }
 
+    #[Group('issue-1005')]
+    public function testReservationCarriesTheQuantityOfItsParticipantAwaitingApproval(): void
+    {
+        $viewer = $this->createUserStub();
+        $this->security->method('getUser')->willReturn($viewer);
+        $project = (new IndustryProject())->setOwner($viewer);
+        $this->projectRepository->method('find')->willReturn($project);
+        $line = $this->createBomItem(self::FEROX, 'Ferox', 150, 0, null, false, null, null, null, null, null, null);
+        $this->bomItemRepository->method('findBy')->willReturn([$line]);
+        $mine = (new IndustryProjectParticipant())->setUser($viewer);
+        $other = (new IndustryProjectParticipant())->setUser($this->createUserStub());
+        $reservations = $this->createStub(IndustryProjectLineReservationRepository::class);
+        $reservations->method('findByProject')->willReturn([
+            new IndustryProjectLineReservation($line, $mine, 50),
+            new IndustryProjectLineReservation($line, $other, 30),
+        ]);
+        $contributions = $this->createStub(IndustryProjectContributionRepository::class);
+        $contributions->method('sumPendingQuantityByLineAndParticipant')->willReturn([
+            $line->getId()->toRfc4122() => [$mine->getId()->toRfc4122() => 20],
+        ]);
+        $provider = new ProjectBomProvider(
+            $this->security,
+            $this->projectRepository,
+            $this->bomItemRepository,
+            new ProjectAccessChecker($this->memberRepository),
+            $reservations,
+            $contributions,
+            $this->createStub(ProjectJobLocationResolver::class),
+            $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')),
+            $this->blueprintNames(),
+        );
+
+        $resource = $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0];
+
+        self::assertSame(
+            [['quantity' => 50, 'pendingQuantity' => 20, 'isMine' => true], ['quantity' => 30, 'pendingQuantity' => 0, 'isMine' => false]],
+            array_map(
+                static fn (array $reservation): array => ['quantity' => $reservation['quantity'], 'pendingQuantity' => $reservation['pendingQuantity'], 'isMine' => $reservation['isMine']],
+                $resource->reservations,
+            ),
+        );
+    }
+
     private function readSingleLine(IndustryProjectBomLine $line): ProjectBomLineResource
     {
         $user = $this->createUserStub();
@@ -565,6 +615,7 @@ class ProjectBomProviderTest extends TestCase
             $bomItemRepository,
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(IndustryProjectContributionRepository::class),
             $this->createStub(ProjectJobLocationResolver::class),
             $this->containerFulfillmentOf(new ProjectContainerStock('no_container_name')),
             $this->blueprintNames(),

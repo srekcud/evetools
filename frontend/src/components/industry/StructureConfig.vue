@@ -5,6 +5,7 @@ import { useIndustryStore } from '@/stores/industry'
 import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult, StructureBonusPreview } from '@/stores/industry'
 import FavoriteSystemsConfig from './FavoriteSystemsConfig.vue'
 import RigBonusLabels from './RigBonusLabels.vue'
+import StructureListTransfer from './StructureListTransfer.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ApiError } from '@/services/api'
@@ -76,6 +77,12 @@ onMounted(async () => {
   await store.fetchCorporationStructures()
   corporationStructuresLoaded.value = true
 })
+
+function reloadStructures() {
+  store.fetchStructures().catch(() => {
+    loadFailed.value = true
+  })
+}
 
 // Corporation structure selection
 const selectedCorpStructure = ref<CorporationStructure | null>(null)
@@ -543,6 +550,8 @@ watch(
     <p class="text-sm text-slate-400">
       {{ t('industry.structures.description') }}
     </p>
+
+    <StructureListTransfer @imported="reloadStructures" />
 
     <!-- Add/Edit Form -->
     <div v-if="showAddForm" class="bg-slate-800/50 rounded-lg p-4 border border-slate-700">

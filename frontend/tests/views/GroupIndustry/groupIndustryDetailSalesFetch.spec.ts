@@ -36,6 +36,7 @@ const SABRE_BATCH: GroupProject = {
   ownerCharacterName: 'Aria Solberg',
   ownerCorporationId: 98_000_001,
   membersCount: 3,
+  contributionsCount: 0,
   items: [{ typeId: 22_456, typeName: 'Sabre', meLevel: 10, teLevel: 20, runs: 10 }],
   totalBomValue: 480_000_000,
   fulfillmentPercent: 100,

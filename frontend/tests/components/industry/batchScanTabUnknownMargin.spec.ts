@@ -38,6 +38,7 @@ function scanItem(typeId: number, typeName: string, marginPercent: number | null
     hasAllSkills: true,
     missingSkillCount: 0,
     unknownReason: marginPercent === null ? 'missing_volume' : null,
+    unknownReasonStructureId: null,
     missingPriceTypeIds: [],
   }
 }

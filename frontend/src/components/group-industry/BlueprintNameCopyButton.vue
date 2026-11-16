@@ -19,10 +19,16 @@ const label = computed((): string => {
   return t('groupIndustry.planning.copyBlueprintName', { name: props.blueprintName ?? '' })
 })
 
-async function copy(): Promise<void> {
+function clipboardOf(button: HTMLElement): Clipboard {
+  const renderingWindow = button.ownerDocument.defaultView
+  if (renderingWindow === null) throw new Error('The button is not attached to a window')
+  return renderingWindow.navigator.clipboard
+}
+
+async function copy(event: MouseEvent): Promise<void> {
   if (props.blueprintName === null) return
   try {
-    await navigator.clipboard.writeText(props.blueprintName)
+    await clipboardOf(event.currentTarget as HTMLElement).writeText(props.blueprintName)
     state.value = 'copied'
   } catch {
     state.value = 'failed'

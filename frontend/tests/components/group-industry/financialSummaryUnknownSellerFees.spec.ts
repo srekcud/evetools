@@ -21,6 +21,7 @@ const PROJECT_WITHOUT_SELLER_FEES: GroupProject = {
   ownerCharacterName: 'Aria Solberg',
   ownerCorporationId: null,
   membersCount: 1,
+  contributionsCount: 0,
   items: [],
   totalBomValue: null,
   fulfillmentPercent: 100,

@@ -5,10 +5,11 @@ import { useI18n } from 'vue-i18n'
 import IskAmount from '@/components/common/IskAmount.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
-import type { ChainJob, ChainNode, ChainStage } from '@/stores/group-industry/types'
+import type { ChainJob, ChainNode, ChainStage, ChainStatus } from '@/stores/group-industry/types'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import { chainStatusChipClass, chainStatusDotClass } from './chainStatus'
+import { filterChainNodes } from './chainStatusFilter'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
 type LevelHeader = {
@@ -46,6 +47,7 @@ const props = defineProps<{
   selectedId: string | null
   projectId?: string
   canMark?: boolean
+  statusFilter?: readonly ChainStatus[]
 }>()
 
 defineEmits<{
@@ -89,7 +91,7 @@ function compareJobs(left: ChainNode, right: ChainNode): number {
 const listItems = computed<(LevelHeader | JobRow)[]>(() => {
   const items: (LevelHeader | JobRow)[] = []
   let currentHeader: LevelHeader | null = null
-  for (const node of [...jobNodes.value].sort(compareJobs)) {
+  for (const node of [...filterChainNodes(jobNodes.value, props.statusFilter ?? [])].sort(compareJobs)) {
     if (currentHeader === null || currentHeader.level !== node.level) {
       currentHeader = { kind: 'header', key: `level-${levelKeyOf(node.level)}`, levelKey: levelKeyOf(node.level), level: node.level, jobCount: 0 }
       items.push(currentHeader)
@@ -154,6 +156,9 @@ function plansStructure(node: ChainNode): boolean {
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-800/30">
+        <tr v-if="listItems.length === 0 && jobNodes.length > 0" data-testid="chain-filter-empty">
+          <td :colspan="COLUMN_KEYS.length" class="py-6 px-3 text-center text-slate-500">{{ t('groupIndustry.chain.filter.empty') }}</td>
+        </tr>
         <template v-for="item in listItems" :key="item.key">
           <tr
             v-if="item.kind === 'header'"

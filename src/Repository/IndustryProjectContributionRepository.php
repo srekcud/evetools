@@ -79,6 +79,36 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<IndustryProject> $projects
+     *
+     * @return array<string, int>
+     */
+    public function countByProject(array $projects): array
+    {
+        if ($projects === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('c')
+            ->select('IDENTITY(c.project) AS projectId', 'COUNT(c.id) AS contributionsCount')
+            ->andWhere('c.project IN (:projects)')
+            ->setParameter('projects', $projects)
+            ->groupBy('c.project')
+            ->getQuery()
+            ->getScalarResult();
+
+        $counts = [];
+        foreach ($projects as $project) {
+            $counts[(string) $project->getId()] = 0;
+        }
+        foreach ($rows as $row) {
+            $counts[(string) $row['projectId']] = (int) $row['contributionsCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
      * @return list<string>
      */
     public function findContributedBomItemIds(IndustryProject $project): array
@@ -115,6 +145,32 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
 
         return array_values(array_map(static fn (mixed $id): string => Uuid::fromString((string) $id)->toRfc4122(), $bomItemIds));
+    }
+
+    /**
+     * @return array<string, array<string, int>> pending quantity by line id then participant id
+     */
+    public function sumPendingQuantityByLineAndParticipant(IndustryProject $project): array
+    {
+        $rows = $this->createQueryBuilder('c')
+            ->select('IDENTITY(c.bomItem) AS lineId', 'IDENTITY(c.member) AS participantId', 'SUM(c.quantity) AS pendingQuantity')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.bomItem IS NOT NULL')
+            ->andWhere('c.status = :status')
+            ->groupBy('c.bomItem', 'c.member')
+            ->setParameter('project', $project)
+            ->setParameter('status', ContributionStatus::Pending->value)
+            ->getQuery()
+            ->getArrayResult();
+
+        $pendingQuantities = [];
+        foreach ($rows as $row) {
+            $lineId = Uuid::fromString((string) $row['lineId'])->toRfc4122();
+            $participantId = Uuid::fromString((string) $row['participantId'])->toRfc4122();
+            $pendingQuantities[$lineId][$participantId] = (int) $row['pendingQuantity'];
+        }
+
+        return $pendingQuantities;
     }
 
     /**

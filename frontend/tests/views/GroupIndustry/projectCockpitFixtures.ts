@@ -55,6 +55,7 @@ export function nyxProject(status: GroupProjectStatus, myRole: GroupMemberRole =
     ownerCharacterName: 'Selene Vance',
     ownerCorporationId: 98_000_007,
     membersCount: 1,
+    contributionsCount: 0,
     items: [{ typeId: 23_913, typeName: 'Nyx', meLevel: 8, teLevel: 16, runs: 2 }],
     totalBomValue: 41_000_000_000,
     fulfillmentPercent: 40,

@@ -48,9 +48,37 @@ final class ProjectResourceMapperPendingContributionTest extends TestCase
         self::assertSame(3, $this->mapper->projectToResource($this->project, $this->ownerMembership)->pendingContributionCount);
     }
 
-    public function testAdminSeesEveryPendingContributionOfTheProject(): void
+    public function testAdminSeesEveryPendingContributionOfTheProjectExceptHisOwn(): void
     {
-        self::assertSame(3, $this->mapper->projectToResource($this->project, $this->adminMembership)->pendingContributionCount);
+        self::assertSame(2, $this->mapper->projectToResource($this->project, $this->adminMembership)->pendingContributionCount);
+    }
+
+    #[Group('issue-1021')]
+    public function testOwnerWhoSubmittedThePendingContributionsWhileAnotherAdminCouldReviewSeesNoneToReview(): void
+    {
+        $owner = new User();
+        $project = (new IndustryProject())->setOwner($owner);
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, Uuid::v4());
+        $ownerMembership = (new IndustryProjectParticipant())->setUser($owner)->setRole(ParticipantRole::Owner)->setStatus(ParticipantStatus::Accepted);
+        $project->addMember($ownerMembership);
+        $project->addMember((new IndustryProjectParticipant())->setUser(new User())->setRole(ParticipantRole::Admin)->setStatus(ParticipantStatus::Accepted));
+        $this->contribute($project, $ownerMembership);
+        $this->contribute($project, $ownerMembership);
+
+        self::assertSame(0, $this->mapper->projectToResource($project, $ownerMembership)->pendingContributionCount);
+    }
+
+    #[Group('issue-1021')]
+    public function testSoleReviewingOwnerSeesHisOwnPendingContributionsToReview(): void
+    {
+        $owner = new User();
+        $project = (new IndustryProject())->setOwner($owner);
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, Uuid::v4());
+        $ownerMembership = (new IndustryProjectParticipant())->setUser($owner)->setRole(ParticipantRole::Owner)->setStatus(ParticipantStatus::Accepted);
+        $project->addMember($ownerMembership);
+        $this->contribute($project, $ownerMembership);
+
+        self::assertSame(1, $this->mapper->projectToResource($project, $ownerMembership)->pendingContributionCount);
     }
 
     public function testOwnerOfAProjectWithoutPendingContributionSeesZero(): void
@@ -87,12 +115,55 @@ final class ProjectResourceMapperPendingContributionTest extends TestCase
         self::assertSame(2.0 * 1_000.0, $this->mapper->projectToResource($this->project, $this->ownerMembership)->approvedContributionValue);
     }
 
+    #[Group('issue-1008')]
+    public function testContributionsCountCoversEveryStatusForAReviewer(): void
+    {
+        self::assertSame(5, $this->mapper->projectToResource($this->project, $this->ownerMembership)->contributionsCount);
+    }
+
+    #[Group('issue-1008')]
+    public function testContributionsCountIsExposedToAPlainMemberWhoCannotReview(): void
+    {
+        self::assertSame(5, $this->mapper->projectToResource($this->project, $this->plainMembership)->contributionsCount);
+    }
+
+    #[Group('issue-1008')]
+    public function testContributionsCountIsZeroForAProjectWithoutContribution(): void
+    {
+        $project = (new IndustryProject())->setOwner(new User());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, Uuid::v4());
+        $ownerMembership = (new IndustryProjectParticipant())->setUser(new User())->setRole(ParticipantRole::Owner)->setStatus(ParticipantStatus::Accepted);
+        $project->addMember($ownerMembership);
+
+        self::assertSame(0, $this->mapper->projectToResource($project, $ownerMembership)->contributionsCount);
+    }
+
+    #[Group('issue-1008')]
+    public function testPrecomputedContributionsCountIsUsedAsIs(): void
+    {
+        $resource = $this->mapper->projectToResource($this->project, $this->plainMembership, null, null, false, 12);
+
+        self::assertSame(12, $resource->contributionsCount);
+    }
+
     private function membership(ParticipantRole $role, ParticipantStatus $status): IndustryProjectParticipant
     {
         $membership = (new IndustryProjectParticipant())->setUser(new User())->setRole($role)->setStatus($status);
         $this->project->addMember($membership);
 
         return $membership;
+    }
+
+    private function contribute(IndustryProject $project, IndustryProjectParticipant $member): void
+    {
+        $project->addContribution(
+            (new IndustryProjectContribution())
+                ->setMember($member)
+                ->setType(ContributionType::Material)
+                ->setQuantity(1)
+                ->setEstimatedValue(1_000.0)
+                ->setStatus(ContributionStatus::Pending),
+        );
     }
 
     private function addContribution(IndustryProjectParticipant $member, ContributionStatus $status): void

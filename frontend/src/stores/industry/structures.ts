@@ -7,6 +7,9 @@ import type {
   StructureBonusPreview,
   CorporationStructure,
   StructureSearchResult,
+  StructureListDocument,
+  StructureListEntry,
+  StructureImportOutcome,
   UserSettings,
   CharacterSkill,
   CharacterSyncFailure,
@@ -100,6 +103,22 @@ export const useStructuresStore = defineStore('industry-structures', () => {
     })
   }
 
+  async function exportStructures(): Promise<StructureListDocument> {
+    const data = await apiRequest<StructureListDocument>('/industry/structures/export')
+    return { format: data.format, version: data.version, structures: data.structures }
+  }
+
+  async function importStructures(data: {
+    entries: StructureListEntry[]
+    overwriteExisting: boolean
+    dryRun: boolean
+  }): Promise<StructureImportOutcome> {
+    return apiRequest<StructureImportOutcome>('/industry/structures/import', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   // User settings (favorite systems)
   async function fetchUserSettings() {
     try {
@@ -164,6 +183,8 @@ export const useStructuresStore = defineStore('industry-structures', () => {
     deleteStructure,
     searchStructures,
     previewStructureBonuses,
+    exportStructures,
+    importStructures,
     fetchUserSettings,
     updateUserSettings,
     fetchCharacterSkills,
