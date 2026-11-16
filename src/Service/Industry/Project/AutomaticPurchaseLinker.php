@@ -48,7 +48,7 @@ class AutomaticPurchaseLinker
             }
 
             $candidateLines = $this->candidateLinesOf($openProjects, $transaction);
-            if (\count($candidateLines) !== 1 || $transaction->getQuantity() > $candidateLines[0]->getRemainingQuantity()) {
+            if (\count($candidateLines) !== 1 || $transaction->getQuantity() > $this->quantityLeftToBuy($candidateLines[0])) {
                 continue;
             }
 
@@ -68,6 +68,11 @@ class AutomaticPurchaseLinker
         foreach ($touchedProjects as $project) {
             $this->containerDeliveryConfirmer->confirmProject($project);
         }
+    }
+
+    private function quantityLeftToBuy(IndustryProjectBomLine $line): int
+    {
+        return max(0, $line->getRequiredQuantity() - $line->getPurchasedQuantity());
     }
 
     /**
