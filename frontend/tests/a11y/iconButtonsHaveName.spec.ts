@@ -170,6 +170,7 @@ const GROUP_PROJECT: GroupProject = {
   ownerCharacterName: 'Ilyra Castell',
   ownerCorporationId: 98000001,
   membersCount: 1,
+  contributionsCount: 0,
   items: [],
   totalBomValue: 0,
   fulfillmentPercent: 0,

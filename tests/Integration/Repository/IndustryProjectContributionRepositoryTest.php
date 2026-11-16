@@ -107,6 +107,31 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         self::assertSame($expected, $approvedValues);
     }
 
+    #[Group('issue-1008')]
+    public function testContributionsAreCountedPerProjectWhateverTheirStatusAndMember(): void
+    {
+        $sabre = $this->createProject('Sabre batch');
+        $sabreOwner = $this->addMember($sabre, ParticipantRole::Owner);
+        $sabreAdmin = $this->addMember($sabre, ParticipantRole::Admin);
+        $this->addContribution($sabreOwner, ContributionType::Material, 1_000_000.0, ContributionStatus::Approved);
+        $this->addContribution($sabreAdmin, ContributionType::LineRental, 250_000.0, ContributionStatus::Pending);
+        $this->addContribution($sabreAdmin, ContributionType::JobInstall, null, ContributionStatus::Rejected);
+        $jackdaw = $this->createProject('Jackdaw batch');
+        $this->addContribution($this->addMember($jackdaw, ParticipantRole::Owner), ContributionType::Bpc, 820_000.0, ContributionStatus::Approved);
+        $hurricane = $this->createProject('Hurricane line');
+        $this->addMember($hurricane, ParticipantRole::Owner);
+        $otherProject = $this->createProject('Other project');
+        $this->addContribution($this->addMember($otherProject, ParticipantRole::Owner), ContributionType::Material, 9_900_000.0, ContributionStatus::Approved);
+        $this->em->flush();
+
+        $expected = [(string) $sabre->getId() => 3, (string) $jackdaw->getId() => 1, (string) $hurricane->getId() => 0];
+        ksort($expected);
+        $counts = $this->repository->countByProject([$sabre, $jackdaw, $hurricane]);
+        ksort($counts);
+
+        self::assertSame($expected, $counts);
+    }
+
     #[Group('issue-510')]
     public function testDuplicateLookupOfAMemberOnALineSeesTheDerivedContribution(): void
     {

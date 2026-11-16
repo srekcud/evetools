@@ -53,6 +53,7 @@ function groupProject(id: string, name: string, status: GroupProjectStatus, over
     ownerCharacterName: 'Ilyra Castell',
     ownerCorporationId: 98000001,
     membersCount: 1,
+    contributionsCount: 0,
     items: [],
     totalBomValue: null,
     fulfillmentPercent: 0,
@@ -75,6 +76,7 @@ const WIDOW_DRAFT = groupProject(WIDOW_PROJECT_ID, 'Widow draft', 'draft', {
 })
 const HECATE_IN_PROGRESS = groupProject(HECATE_PROJECT_ID, 'Hecate in progress', 'in_progress', {
   membersCount: 4,
+  contributionsCount: 0,
   myRole: 'admin',
   createdAt: '2026-10-01T10:00:00+00:00',
 })
@@ -84,6 +86,7 @@ const ISHTAR_COMPLETED = groupProject(ISHTAR_PROJECT_ID, 'Ishtar completed', 'co
 })
 const SABRE_SELLING = groupProject(SABRE_PROJECT_ID, 'Sabre selling', 'selling', {
   membersCount: 2,
+  contributionsCount: 0,
   myRole: 'member',
   items: [
     { typeId: 22456, typeName: 'Sabre', meLevel: 10, teLevel: 20, runs: 5 },

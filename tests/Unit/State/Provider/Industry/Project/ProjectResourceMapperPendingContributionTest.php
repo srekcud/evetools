@@ -87,6 +87,37 @@ final class ProjectResourceMapperPendingContributionTest extends TestCase
         self::assertSame(2.0 * 1_000.0, $this->mapper->projectToResource($this->project, $this->ownerMembership)->approvedContributionValue);
     }
 
+    #[Group('issue-1008')]
+    public function testContributionsCountCoversEveryStatusForAReviewer(): void
+    {
+        self::assertSame(5, $this->mapper->projectToResource($this->project, $this->ownerMembership)->contributionsCount);
+    }
+
+    #[Group('issue-1008')]
+    public function testContributionsCountIsExposedToAPlainMemberWhoCannotReview(): void
+    {
+        self::assertSame(5, $this->mapper->projectToResource($this->project, $this->plainMembership)->contributionsCount);
+    }
+
+    #[Group('issue-1008')]
+    public function testContributionsCountIsZeroForAProjectWithoutContribution(): void
+    {
+        $project = (new IndustryProject())->setOwner(new User());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, Uuid::v4());
+        $ownerMembership = (new IndustryProjectParticipant())->setUser(new User())->setRole(ParticipantRole::Owner)->setStatus(ParticipantStatus::Accepted);
+        $project->addMember($ownerMembership);
+
+        self::assertSame(0, $this->mapper->projectToResource($project, $ownerMembership)->contributionsCount);
+    }
+
+    #[Group('issue-1008')]
+    public function testPrecomputedContributionsCountIsUsedAsIs(): void
+    {
+        $resource = $this->mapper->projectToResource($this->project, $this->plainMembership, null, null, false, 12);
+
+        self::assertSame(12, $resource->contributionsCount);
+    }
+
     private function membership(ParticipantRole $role, ParticipantStatus $status): IndustryProjectParticipant
     {
         $membership = (new IndustryProjectParticipant())->setUser(new User())->setRole($role)->setStatus($status);

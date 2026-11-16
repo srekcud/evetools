@@ -14,6 +14,7 @@ const HECATE_PROJECT: GroupProject = {
   ownerCharacterName: 'Cyra Lune',
   ownerCorporationId: 98000002,
   membersCount: 1,
+  contributionsCount: 0,
   items: [{ typeId: 35683, typeName: 'Hecate', meLevel: 8, teLevel: 16, runs: 12 }],
   totalBomValue: 310000000,
   fulfillmentPercent: 0,

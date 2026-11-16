@@ -415,6 +415,7 @@ function onBuyOrBuildSwitched(): void {
 function onContributionSubmitted(): void {
   showContributeModal.value = false
   projectStore.fetchBom(projectId.value)
+  projectStore.fetchProjectDetail(projectId.value)
   loadCockpit(projectId.value)
   if (activeTab.value === 'contributions') {
     contributionStore.fetchContributions(projectId.value)
@@ -456,7 +457,7 @@ const jobCount = computed(() => projectStore.jobs.length)
 const materialsCount = computed(() =>
   `${bomItemCount.value} ${bomItemCount.value === 1 ? 'item' : 'items'} · ${jobCount.value} ${jobCount.value === 1 ? 'job' : 'jobs'}`
 )
-const contributionCount = computed(() => contributionStore.contributions.length)
+const contributionCount = computed(() => project.value?.contributionsCount ?? 0)
 const shareLinkLabel = computed(() => t(isWorkedOnAlone.value ? 'groupIndustry.detail.invite' : 'groupIndustry.detail.shareLink'))
 const memberCount = computed(() => project.value?.membersCount ?? 0)
 </script>

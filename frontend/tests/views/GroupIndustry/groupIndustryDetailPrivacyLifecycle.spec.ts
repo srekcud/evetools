@@ -36,6 +36,7 @@ const FEROX_BATCH: GroupProject = {
   ownerCharacterName: 'Brann Holt',
   ownerCorporationId: 98_000_003,
   membersCount: 1,
+  contributionsCount: 0,
   items: [{ typeId: 16_227, typeName: 'Ferox', meLevel: 6, teLevel: 12, runs: 8 }],
   totalBomValue: 215_000_000,
   fulfillmentPercent: 0,

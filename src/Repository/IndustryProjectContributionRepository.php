@@ -79,6 +79,36 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<IndustryProject> $projects
+     *
+     * @return array<string, int>
+     */
+    public function countByProject(array $projects): array
+    {
+        if ($projects === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('c')
+            ->select('IDENTITY(c.project) AS projectId', 'COUNT(c.id) AS contributionsCount')
+            ->andWhere('c.project IN (:projects)')
+            ->setParameter('projects', $projects)
+            ->groupBy('c.project')
+            ->getQuery()
+            ->getScalarResult();
+
+        $counts = [];
+        foreach ($projects as $project) {
+            $counts[(string) $project->getId()] = 0;
+        }
+        foreach ($rows as $row) {
+            $counts[(string) $row['projectId']] = (int) $row['contributionsCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
      * @return list<string>
      */
     public function findContributedBomItemIds(IndustryProject $project): array

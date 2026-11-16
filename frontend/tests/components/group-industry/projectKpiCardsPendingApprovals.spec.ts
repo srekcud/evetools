@@ -14,6 +14,7 @@ function groupProject(overrides: Partial<GroupProject>): GroupProject {
     ownerCharacterName: 'Aria Solberg',
     ownerCorporationId: 98000001,
     membersCount: 2,
+    contributionsCount: 0,
     items: [],
     totalBomValue: 0,
     fulfillmentPercent: 0,

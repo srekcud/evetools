@@ -84,6 +84,7 @@ function hullRunProject(): GroupProject {
     ownerCharacterName: 'Aria Solberg',
     ownerCorporationId: 98000001,
     membersCount: 2,
+    contributionsCount: 0,
     items: [{ typeId: 22456, typeName: 'Sabre', meLevel: 10, teLevel: 20, runs: 1 }],
     totalBomValue: null,
     fulfillmentPercent: 0,

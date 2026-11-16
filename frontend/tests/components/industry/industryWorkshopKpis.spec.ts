@@ -41,6 +41,7 @@ function groupProject(id: string, status: GroupProjectStatus): GroupProject {
     ownerCharacterName: 'Ilyra Castell',
     ownerCorporationId: 98000001,
     membersCount: 1,
+    contributionsCount: 0,
     items: [],
     totalBomValue: null,
     fulfillmentPercent: 0,
