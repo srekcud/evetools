@@ -13,6 +13,7 @@ import type { CreateGroupProjectInput, GroupProject, ProjectReferenceRow, Projec
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesPanel.vue'
+import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import { containerNamesFromText } from '@/utils/containerNames'
 import {
@@ -153,6 +154,7 @@ const isPersonalUse = ref(false)
 const usedTemplateId = ref<string | null>(null)
 const sellStructureId = ref<number | null>(null)
 const selectableSellStructureIds = ref<number[]>([])
+const producerCharacterIds = ref<number[] | null>(null)
 const acceptsOutsideFavoriteSystem = ref(false)
 const excludesInvention = ref(false)
 const excludesInventionChosen = ref(false)
@@ -323,6 +325,7 @@ function resetForm() {
   containerNames.value = ''
   isPrivate.value = true
   isPersonalUse.value = false
+  producerCharacterIds.value = null
   acceptsOutsideFavoriteSystem.value = false
   excludesInvention.value = false
   excludesInventionChosen.value = false
@@ -479,6 +482,7 @@ async function handleCreate() {
     acceptsOutsideFavoriteSystem: acceptsOutsideFavoriteSystem.value,
     excludesInvention: excludesInvention.value,
     minimumOutsideSaving: minimumOutsideSaving.value,
+    producerCharacterIds: producerCharacterIds.value ?? undefined,
     templateId: usedTemplateId.value ?? undefined,
     sellStructureId: sellStructureId.value ?? undefined,
   }
@@ -906,6 +910,8 @@ function handleClose() {
         v-model="sellStructureId"
         @loaded="selectableSellStructureIds = $event"
       />
+
+      <ProducerCharactersSelect v-model="producerCharacterIds" />
 
       <div>
         <label class="flex items-center gap-2.5 cursor-pointer">

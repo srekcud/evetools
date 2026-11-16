@@ -18,6 +18,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\ProjectProducerCharacters;
 use App\Service\Industry\Project\ProjectSellStructures;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
@@ -99,6 +100,7 @@ class CreateProjectProcessor implements ProcessorInterface
                 minimumOutsideSaving: $data->minimumOutsideSaving,
                 template: $template,
                 excludesInvention: $data->excludesInvention ?? $template?->isExcludesInvention() ?? $user->isIndustryExcludeInvention(),
+                producerCharacterIds: null === $data->producerCharacterIds ? null : ProjectProducerCharacters::chooseAmongTheCharactersOf($user, $data->producerCharacterIds),
                 sellStructure: null === $data->sellStructureId ? $this->sellStructures->defaultFor($user) : $this->sellStructures->choose($user, $data->sellStructureId),
             );
 

@@ -198,11 +198,28 @@ final readonly class ProjectPlanningInputLoader
     }
 
     /**
+     * @return list<Character>
+     */
+    private function producerCharactersOf(IndustryProject $project): array
+    {
+        $ownerCharacters = array_values($this->characterRepository->findByUser($project->getOwner()));
+        $producerCharacterIds = $project->getProducerCharacterIds();
+        if (null === $producerCharacterIds) {
+            return $ownerCharacters;
+        }
+
+        return array_values(array_filter(
+            $ownerCharacters,
+            static fn (Character $character): bool => \in_array($character->getEveCharacterId(), $producerCharacterIds, true),
+        ));
+    }
+
+    /**
      * @return list<PlanningCharacter>
      */
     private function charactersOf(IndustryProject $project): array
     {
-        return array_values(array_map(function (Character $character): PlanningCharacter {
+        return array_map(function (Character $character): PlanningCharacter {
             $skills = $this->skillRepository->findAllSkillsForCharacter($character);
             if ([] === $skills) {
                 return new PlanningCharacter($character->getName(), null, null, null);
@@ -216,6 +233,6 @@ final readonly class ProjectPlanningInputLoader
                 $slots['manufacturing'],
                 $slots['reaction'],
             );
-        }, $this->characterRepository->findByUser($project->getOwner())));
+        }, $this->producerCharactersOf($project));
     }
 }

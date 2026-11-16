@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry;
 
+use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectTemplate;
 use App\Entity\Sde\InvCategory;
@@ -91,6 +92,54 @@ final class ProjectCreationApiTest extends WebTestCase
         self::assertFalse($toSell['personalUse']);
         self::assertTrue($forMe['personalUse']);
         self::assertTrue($read['personalUse']);
+    }
+
+    #[Group('issue-1000')]
+    public function testProducerCharactersAreChosenAtCreationAndDefaultToAllTheCharactersOfTheOwner(): void
+    {
+        $brin = (new Character())
+            ->setEveCharacterId(2_112_100_001)
+            ->setName('Brin Solberg')
+            ->setCorporationId(self::OWNER_CORPORATION_ID)
+            ->setCorporationName(sprintf('Corporation %d', self::OWNER_CORPORATION_ID));
+        $this->owner->addCharacter($brin);
+        $this->em->persist($brin);
+        $this->em->flush();
+        $items = [['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]];
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Everyone', 'items' => $items]);
+        self::assertResponseStatusCodeSame(201);
+        $everyone = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Brin only', 'items' => $items, 'producerCharacterIds' => [2_112_100_001]]);
+        self::assertResponseStatusCodeSame(201);
+        $brinOnly = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('GET', '/api/industry/projects/'.$brinOnly['id']);
+        self::assertResponseIsSuccessful();
+
+        self::assertSame([null, [2_112_100_001], [2_112_100_001]], [$everyone['producerCharacterIds'] ?? null, $brinOnly['producerCharacterIds'], $this->responseJson()['producerCharacterIds']]);
+    }
+
+    #[Group('issue-1000')]
+    public function testCreationWithoutAnyProducerCharacterOrWithACharacterOfAnotherUserCreatesNoProject(): void
+    {
+        $items = [['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]];
+        $projectsBefore = $this->em->getRepository(IndustryProject::class)->count([]);
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Nobody', 'items' => $items, 'producerCharacterIds' => []]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['producerCharacterIds'], $this->violatedPaths());
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Stolen', 'items' => $items, 'producerCharacterIds' => [$this->member->getMainCharacter()->getEveCharacterId()]]);
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame('Unknown producer character', $this->errorDetail()[1]);
+        self::assertSame($projectsBefore, $this->em->getRepository(IndustryProject::class)->count([]));
     }
 
     #[Group('issue-50')]

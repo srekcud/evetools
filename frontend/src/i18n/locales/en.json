@@ -3823,6 +3823,11 @@
     "actions": {
       "createProject": "New Project"
     },
+    "producerCharacters": {
+      "label": "Producing characters",
+      "hint": "Planned jobs are only assigned to the ticked characters. At least one must stay ticked.",
+      "loadFailed": "Your characters could not be loaded: all of them will be used"
+    },
     "sellStructure": {
       "label": "Sell structure",
       "none": "No market structure configured",

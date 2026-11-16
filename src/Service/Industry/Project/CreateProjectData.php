@@ -19,6 +19,7 @@ final readonly class CreateProjectData
      * @param int[] $blacklistTypeIds
      * @param list<string> $containerNames
      * @param array<string, int>|null $lineRentalRatesOverride
+     * @param list<int>|null $producerCharacterIds
      */
     public function __construct(
         public string $name,
@@ -36,6 +37,7 @@ final readonly class CreateProjectData
         public ?SellStructure $sellStructure = null,
         public bool $personalUse = false,
         public bool $excludesInvention = false,
+        public ?array $producerCharacterIds = null,
     ) {
     }
 }

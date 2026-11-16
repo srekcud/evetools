@@ -17,6 +17,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\ProjectProducerCharacters;
 use App\Service\Industry\Project\ProjectSellStructures;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
@@ -94,6 +95,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         $this->changeTheInventionExclusion($project, $data);
         $this->changeTheSelectionPolicy($project, $data);
         $this->changeTheSellStructure($user, $project, $data);
+        $this->changeTheProducerCharacters($project, $data);
 
         if ($data->name !== null) {
             $name = trim($data->name);
@@ -191,6 +193,23 @@ class UpdateProjectProcessor implements ProcessorInterface
         }
 
         $project->setSellStructure($sellStructure->id, $sellStructure->name);
+    }
+
+    private function changeTheProducerCharacters(IndustryProject $project, UpdateProjectInput $data): void
+    {
+        if (null === $data->producerCharacterIds) {
+            return;
+        }
+
+        if ($project->isCompleted()) {
+            throw new BadRequestHttpException('Cannot change the producer characters of a completed project');
+        }
+
+        try {
+            $project->setProducerCharacterIds(ProjectProducerCharacters::chooseAmongTheCharactersOf($project->getOwner(), $data->producerCharacterIds));
+        } catch (\InvalidArgumentException $e) {
+            throw new BadRequestHttpException($e->getMessage());
+        }
     }
 
     private function changeTheInventionExclusion(IndustryProject $project, UpdateProjectInput $data): void

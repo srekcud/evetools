@@ -74,6 +74,7 @@ export type GroupProject = {
   acceptsOutsideFavoriteSystem: boolean
   excludesInvention: boolean
   minimumOutsideSaving: number
+  producerCharacterIds?: number[] | null
   sellStructureId: number | null
   sellStructureName: string | null
   notes: string | null
@@ -499,6 +500,7 @@ export type CreateGroupProjectInput = {
   acceptsOutsideFavoriteSystem: boolean
   excludesInvention?: boolean
   minimumOutsideSaving: number
+  producerCharacterIds?: number[]
   templateId?: string
   sellStructureId?: number
 }
