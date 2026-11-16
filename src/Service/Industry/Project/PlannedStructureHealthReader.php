@@ -13,6 +13,7 @@ use App\Industry\Application\StructureHealthAssessor;
 use App\Repository\CharacterRepository;
 use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\EsiClient;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
 
@@ -24,6 +25,7 @@ final readonly class PlannedStructureHealthReader
         'esi-characters.read_corporation_roles.v1',
     ];
     private const array OFFLINE_SERVICE_STATES = ['offline', 'cleanup'];
+    private const string CACHE_KEY_PREFIX = 'structures_';
 
     public function __construct(
         private EsiClient $esiClient,
@@ -32,6 +34,7 @@ final readonly class PlannedStructureHealthReader
         private StructureHealthAssessor $assessor,
         private ClockInterface $clock,
         private LoggerInterface $logger,
+        private CacheItemPoolInterface $corporationStructuresCache,
     ) {
     }
 
@@ -72,15 +75,69 @@ final readonly class PlannedStructureHealthReader
      */
     private function readCorporation(int $corporationId, array $characters): ?array
     {
+        $cached = $this->corporationStructuresCache->getItem(self::CACHE_KEY_PREFIX.$corporationId);
+        if ($cached->isHit()) {
+            return $cached->get();
+        }
+
+        $rawStructures = $this->readWithViewerCharacters($corporationId, $characters) ?? $this->readWithCorporationDirector($corporationId, $characters);
+        if (null === $rawStructures) {
+            return null;
+        }
+
+        $structures = [];
+        foreach ($rawStructures as $raw) {
+            if (\is_array($raw) && \is_int($raw['structure_id'] ?? null)) {
+                $structures[$raw['structure_id']] = $raw;
+            }
+        }
+        $this->corporationStructuresCache->save($cached->set($structures));
+
+        return $structures;
+    }
+
+    /**
+     * @param list<Character> $characters
+     *
+     * @return list<mixed>|null
+     */
+    private function readWithViewerCharacters(int $corporationId, array $characters): ?array
+    {
         $members = array_values(array_filter(
             $characters,
             static fn (Character $character): bool => $character->getCorporationId() === $corporationId,
         ));
 
+        return $this->readStructuresAs($corporationId, $members, [self::STATION_MANAGER_ROLE]);
+    }
+
+    /**
+     * @param list<Character> $viewerCharacters
+     *
+     * @return list<mixed>|null
+     */
+    private function readWithCorporationDirector(int $corporationId, array $viewerCharacters): ?array
+    {
+        $others = array_values(array_filter(
+            $this->characterRepository->findByCorporationId($corporationId),
+            static fn (Character $character): bool => !\in_array($character, $viewerCharacters, true),
+        ));
+
+        return $this->readStructuresAs($corporationId, $others, []);
+    }
+
+    /**
+     * @param list<Character> $holders
+     * @param list<string>    $roles
+     *
+     * @return list<mixed>|null
+     */
+    private function readStructuresAs(int $corporationId, array $holders, array $roles): ?array
+    {
         $lookup = $this->corporationRoleReader->readAsHolder(
             $corporationId,
-            $members,
-            [self::STATION_MANAGER_ROLE],
+            $holders,
+            $roles,
             self::REQUIRED_SCOPES,
             fn (Character $holder): array => $this->esiClient->getPaginated("/corporations/{$corporationId}/structures/", $holder->getEveToken()),
         );
@@ -88,14 +145,7 @@ final readonly class PlannedStructureHealthReader
             return null;
         }
 
-        $structures = [];
-        foreach ($lookup->value as $raw) {
-            if (\is_array($raw) && \is_int($raw['structure_id'] ?? null)) {
-                $structures[$raw['structure_id']] = $raw;
-            }
-        }
-
-        return $structures;
+        return array_values($lookup->value);
     }
 
     /**
