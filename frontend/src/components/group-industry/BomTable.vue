@@ -6,6 +6,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import MultibuyBridgeActions from '@/components/appraisal/MultibuyBridgeActions.vue'
 import IskAmount from '@/components/common/IskAmount.vue'
+import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
@@ -155,7 +156,10 @@ function ringStrokeColor(percent: number): string {
 
               <!-- Name + Container verification -->
               <td class="py-2.5 px-3">
-                <span class="text-slate-200">{{ item.typeName }}</span>{{ ' ' }}
+                <span class="inline-flex items-center gap-1.5">
+                  <span class="text-slate-200">{{ item.typeName }}</span>
+                  <OpenInGameButton type="market" :target-id="item.typeId" />
+                </span>{{ ' ' }}
                 <!-- Container verification indicator -->
                 <ContainerLineStatus v-if="verificationMap.has(item.id)" :verification="verificationMap.get(item.id)!" />
               </td>
