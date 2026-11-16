@@ -778,6 +778,8 @@
         "title": "Profit Scanner",
         "subtitle": "Analyze profitability of all manufacturable items. Find the best things to build.",
         "scanNow": "Scan Now",
+        "staleFilters": "Results and diagnosis below come from the previous filters. Scan again to apply the current ones.",
+        "rescanStaleFilters": "Scan again",
         "lastScan": "Last scan",
         "itemsScanned": "Items Scanned",
         "allManufacturable": "All manufacturable items",

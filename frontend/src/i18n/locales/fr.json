@@ -778,6 +778,8 @@
         "title": "Scanner de Profits",
         "subtitle": "Analysez la rentabilite de tous les items fabricables. Trouvez les meilleurs items a produire.",
         "scanNow": "Scanner",
+        "staleFilters": "Les resultats et le diagnostic ci-dessous viennent des filtres precedents. Relancez un scan pour appliquer les filtres actuels.",
+        "rescanStaleFilters": "Relancer le scan",
         "lastScan": "Dernier scan",
         "itemsScanned": "Items Scannes",
         "allManufacturable": "Tous les items fabricables",
