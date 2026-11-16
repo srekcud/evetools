@@ -70,7 +70,8 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $owner = $this->pilot();
         $viewer = $this->pilot();
         $project = $this->workshopProject('Sabre batch', ProjectStatus::Selling, $owner);
-        $viewerMembership = $this->membershipOf($project, $viewer, ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->membershipOf($project, $viewer, ParticipantRole::Member, ParticipantStatus::Accepted);
+        $contributorMembership = $this->membershipOf($project, $this->pilot(), ParticipantRole::Member, ParticipantStatus::Accepted);
         $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 5);
         $this->productOf($project, self::GILA_TYPE_ID, 'Gila', 2);
         $tritanium = $this->materialOf($project, self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 38_500);
@@ -79,10 +80,10 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $this->saleOf($project, self::SABRE_TYPE_ID, 'Sabre', 3);
         $this->saleOf($project, self::SABRE_TYPE_ID, 'Sabre', 1);
         $this->saleOf($project, self::ISOGEN_TYPE_ID, 'Isogen', 50);
-        $this->contributionOf($project, $viewerMembership, 1_200, ContributionStatus::Pending);
-        $this->contributionOf($project, $viewerMembership, 800, ContributionStatus::Pending);
-        $this->contributionOf($project, $viewerMembership, 400, ContributionStatus::Approved);
-        $this->contributionOf($project, $viewerMembership, 300, ContributionStatus::Rejected);
+        $this->contributionOf($project, $contributorMembership, 1_200, ContributionStatus::Pending);
+        $this->contributionOf($project, $contributorMembership, 800, ContributionStatus::Pending);
+        $this->contributionOf($project, $contributorMembership, 400, ContributionStatus::Approved);
+        $this->contributionOf($project, $contributorMembership, 300, ContributionStatus::Rejected);
 
         $input = (new ProjectCockpitInputFactory())->create($project, $viewer);
 
@@ -100,6 +101,44 @@ final class ProjectCockpitInputFactoryTest extends TestCase
             ),
             $input,
         );
+    }
+
+    #[Group('issue-1021')]
+    public function testOwnerWithAnotherAcceptedAdminDoesNotCountHisOwnPendingContributionsToReview(): void
+    {
+        $owner = $this->pilot();
+        $admin = $this->pilot();
+        $contributor = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $ownerMembership = $this->membershipOf($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $adminMembership = $this->membershipOf($project, $admin, ParticipantRole::Admin, ParticipantStatus::Accepted);
+        $contributorMembership = $this->membershipOf($project, $contributor, ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->contributionOf($project, $ownerMembership, 1_200, ContributionStatus::Pending);
+        $this->contributionOf($project, $ownerMembership, 800, ContributionStatus::Pending);
+        $this->contributionOf($project, $adminMembership, 500, ContributionStatus::Pending);
+        $this->contributionOf($project, $contributorMembership, 300, ContributionStatus::Pending);
+        $this->contributionOf($project, $contributorMembership, 100, ContributionStatus::Approved);
+
+        $factory = new ProjectCockpitInputFactory();
+
+        self::assertSame(
+            ['owner' => 2, 'admin' => 3],
+            [
+                'owner' => $factory->create($project, $owner)->pendingContributionCount,
+                'admin' => $factory->create($project, $admin)->pendingContributionCount,
+            ],
+        );
+    }
+
+    #[Group('issue-1021')]
+    public function testSoleReviewingOwnerCountsHisOwnPendingContributions(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $ownerMembership = $this->membershipOf($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->contributionOf($project, $ownerMembership, 1_200, ContributionStatus::Pending);
+
+        self::assertSame(1, (new ProjectCockpitInputFactory())->create($project, $owner)->pendingContributionCount);
     }
 
     #[Group('issue-866')]

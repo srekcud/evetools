@@ -86,7 +86,8 @@ class ProjectResourceMapper
         $resource->approvedContributionValue = $approvedContributionValue !== null || $approvedContributionValueIsPrecomputed
             ? $approvedContributionValue
             : $this->approvedValueOf($project);
-        $resource->pendingContributionCount = $this->canReview($myMembership) ? $this->pendingCountOf($project) : null;
+        $reviewer = $this->canReview($myMembership) ? $myMembership?->getUser() : null;
+        $resource->pendingContributionCount = $reviewer !== null ? $project->pendingContributionCountReviewableBy($reviewer) : null;
 
         return $resource;
     }
@@ -96,13 +97,6 @@ class ProjectResourceMapper
         return $membership !== null
             && $membership->getStatus() === ParticipantStatus::Accepted
             && in_array($membership->getRole(), [ParticipantRole::Owner, ParticipantRole::Admin], true);
-    }
-
-    private function pendingCountOf(IndustryProject $project): int
-    {
-        return $project->getContributions()
-            ->filter(static fn (IndustryProjectContribution $contribution) => $contribution->getStatus() === ContributionStatus::Pending)
-            ->count();
     }
 
     private function approvedValueOf(IndustryProject $project): ?float
