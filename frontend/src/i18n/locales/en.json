@@ -2201,6 +2201,12 @@
       "name": "Name",
       "volume": "Packaged volume"
     },
+    "itemSort": {
+      "label": "Sort items",
+      "name": "Name",
+      "quantity": "Quantity",
+      "volume": "Packaged volume"
+    },
     "mainCharacterSuffix": "(Main)",
     "refreshAvailableAt": "Refresh available at {time}",
     "syncAlreadyRunning": "A sync of the corporation assets is already running",

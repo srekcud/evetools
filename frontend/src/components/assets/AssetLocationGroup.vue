@@ -12,6 +12,7 @@ import { apiRequest } from '@/services/api'
 import { SHIP_CATEGORY_ID } from '@/constants/assetsConstants'
 import { locationIssue } from '@/utils/assetLocation'
 import { isFittedFlag, isGroupableShip } from '@/utils/shipFit'
+import { DEFAULT_ASSET_ITEM_SORT, sortAssetItems, type AssetItemSort } from '@/utils/assetItemSort'
 import { summarizeVolume, type PackagedVolumeCatalog, type VolumeSummary } from '@/utils/assetVolume'
 import type { Asset, ItemNameAnswer, ItemNameResolution } from '@/types'
 
@@ -41,6 +42,7 @@ const props = defineProps<{
   pinnedItemIds?: Set<number>
   projectPinnedItemIds?: Set<number>
   packagedVolumes?: PackagedVolumeCatalog | null
+  itemSort?: AssetItemSort
 }>()
 
 const emit = defineEmits<{
@@ -60,7 +62,16 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 
 const groupedShips = computed(() => props.location.assets.filter(isGroupableShip))
-const plainAssets = computed(() => props.location.assets.filter(asset => !isGroupableShip(asset)))
+const plainAssets = computed(() => sortItems(props.location.assets.filter(asset => !isGroupableShip(asset))))
+
+function sortItems(assets: Asset[]): Asset[] {
+  return sortAssetItems(assets, {
+    sort: props.itemSort ?? DEFAULT_ASSET_ITEM_SORT,
+    catalog: props.packagedVolumes ?? null,
+    contentsOf: fullContentsOf,
+    projectPinnedItemIds: props.projectPinnedItemIds ?? new Set<number>(),
+  })
+}
 
 function fullContentsOf(itemId: number): Asset[] {
   return (props.fitContents ?? props.containerContents).get(itemId) ?? []
@@ -132,6 +143,10 @@ function toggleLocation(): void {
 function getContainerContents(asset: Asset): Asset[] {
   const contents = props.containerContents.get(asset.itemId) || []
   return isAssembledShip(asset) ? contents.filter(item => !isFittedFlag(item.locationFlag)) : contents
+}
+
+function getSortedContainerContents(asset: Asset): Asset[] {
+  return sortItems(getContainerContents(asset))
 }
 
 const quantityBarWidth = computed(() =>
@@ -326,7 +341,7 @@ async function resolveItemName(asset: Asset): Promise<void> {
           class="bg-slate-950/50 border-l-2 border-amber-500/30"
         >
           <div
-            v-for="item in getContainerContents(asset)"
+            v-for="item in getSortedContainerContents(asset)"
             :key="item.id"
             class="px-5 py-2 pl-12 flex items-center justify-between hover:bg-slate-800/20 transition-colors"
           >

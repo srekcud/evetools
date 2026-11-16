@@ -2201,6 +2201,12 @@
       "name": "Nom",
       "volume": "Volume reconditionné"
     },
+    "itemSort": {
+      "label": "Trier les items",
+      "name": "Nom",
+      "quantity": "Quantité",
+      "volume": "Volume reconditionné"
+    },
     "mainCharacterSuffix": "(Principal)",
     "refreshAvailableAt": "Actualisation possible à {time}",
     "syncAlreadyRunning": "Une synchro des assets de la corporation est déjà en cours",
