@@ -53,6 +53,17 @@ final readonly class ScheduledSyncReader
         return $scheduledSyncs;
     }
 
+    public function intervalSecondsOf(string $messageClass): int
+    {
+        foreach ($this->read() as $scheduledSync) {
+            if ($scheduledSync->messageClass === $messageClass) {
+                return $scheduledSync->intervalSeconds;
+            }
+        }
+
+        throw new \LogicException(\sprintf('Message %s is not scheduled', $messageClass));
+    }
+
     /**
      * @return iterable<RecurringMessage>
      */

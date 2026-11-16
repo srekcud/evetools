@@ -56,6 +56,7 @@ const KESTREL_JOB_WITHOUT_PROJECT = tableJob(7_539_003, 602, 'Kestrel', null)
 
 const SLOTS: SlotTrackerData = {
   jobsSyncedAt: null,
+  jobsSyncIntervalSeconds: 1800,
   globalKpis: {
     manufacturing: { used: 3, max: 10, percent: 30 },
     reaction: { used: 0, max: 5, percent: 0 },

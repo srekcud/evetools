@@ -1127,6 +1127,8 @@
       "title": "Slot Tracker",
       "refresh": "Refresh",
       "lastSync": "Last sync",
+      "jobsSyncEvery": "Jobs are read every {minutes} minutes",
+      "jobsSyncNext": "next around {time}",
       "noJobs": "No active jobs",
       "projectLinkFallback": "Project",
       "kpi": {

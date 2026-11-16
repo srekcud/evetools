@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Help;
 
 use App\Message\PurgeOldNotifications;
 use App\Message\SyncCostIndices;
+use App\Message\SyncIndustryJobs;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerPveSync;
@@ -41,6 +42,18 @@ final class ScheduledSyncReaderTest extends TestCase
         $scheduler = new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore()));
 
         self::assertCount(\count($scheduler->getSchedule()->getRecurringMessages()), $this->reader()->read());
+    }
+
+    public function testItReadsTheIntervalOfTheIndustryJobsSync(): void
+    {
+        self::assertSame(1800, $this->reader()->intervalSecondsOf(SyncIndustryJobs::class));
+    }
+
+    public function testItRefusesTheIntervalOfAMessageThatIsNotScheduled(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        $this->reader()->intervalSecondsOf(\stdClass::class);
     }
 
     private function reader(): ScheduledSyncReader
