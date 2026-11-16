@@ -63,6 +63,8 @@ class BatchScanResultResource
 
     public int $meUsed = 0;
 
+    public int $teUsed = 0;
+
     /** "manufacturing" or "reaction" */
     public string $activityType = 'manufacturing';
 

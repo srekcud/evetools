@@ -27,6 +27,7 @@ const RIFTER_WITHOUT_DAILY_VOLUME: BatchScanItem = {
   exportCost: 0,
   sellPrice: 520_000,
   meUsed: 10,
+  teUsed: 20,
   activityType: 'manufacturing',
   isFactionBlueprint: false,
   bpcCostPerRun: null,

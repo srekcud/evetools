@@ -32,6 +32,7 @@ const CAPITAL_BY_CONTRACT: BatchScanItem = {
   exportCost: 0,
   sellPrice: 3_000_000_000,
   meUsed: 10,
+  teUsed: 20,
   activityType: 'manufacturing',
   isFactionBlueprint: false,
   bpcCostPerRun: null,
