@@ -102,7 +102,7 @@ function ringStrokeColor(percent: number): string {
       <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">
         {{ t('groupIndustry.bom.materialsToSource') }}
       </h2>
-      <MultibuyBridgeActions :lines="multibuyLines" />
+      <MultibuyBridgeActions :lines="multibuyLines" :show-copy="false" />
     </div>
     <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
       <!-- Loading skeleton -->

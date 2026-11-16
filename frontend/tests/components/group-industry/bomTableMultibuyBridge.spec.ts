@@ -115,23 +115,16 @@ function control(wrapper: VueWrapper, selector: string) {
 enableAutoUnmount(afterEach)
 
 describe('BomTable multibuy bridges', () => {
-  let writeText: ReturnType<typeof vi.fn>
-
-  beforeEach(() => {
-    writeText = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
-  })
-
-  it('copies the required quantity of every material line, covered ones included, and leaves the job lines out', async () => {
+  it('offers no Copy multibuy button in the Materials to Source header, the Where to buy panel owns the copy', () => {
     const { wrapper } = mountBomTable([TRITANIUM_HALF_DELIVERED, RAM_JOB_LINE, MORPHITE_FULLY_COVERED])
 
-    await control(wrapper, COPY).trigger('click')
-    await flushPromises()
-
-    expect(writeText).toHaveBeenCalledWith(TRITANIUM_AND_COVERED_MORPHITE_MULTIBUY)
+    expect({
+      copyButtons: wrapper.findAll(COPY).length,
+      evaluateButtons: wrapper.findAll(EVALUATE).length,
+    }).toEqual({ copyButtons: 0, evaluateButtons: 1 })
   })
 
-  it('sends the multibuy to the Appraisal page, and disables both buttons when there is no material line', async () => {
+  it('sends the multibuy to the Appraisal page, and disables the evaluate button when there is no material line', async () => {
     const { wrapper, router } = mountBomTable([TRITANIUM_HALF_DELIVERED, MORPHITE_FULLY_COVERED])
     const push = vi.spyOn(router, 'push')
 
@@ -147,9 +140,6 @@ describe('BomTable multibuy bridges', () => {
     })
 
     const empty = mountBomTable([RAM_JOB_LINE])
-    expect({
-      copyDisabled: control(empty.wrapper, COPY).attributes('disabled'),
-      evaluateDisabled: control(empty.wrapper, EVALUATE).attributes('disabled'),
-    }).toEqual({ copyDisabled: '', evaluateDisabled: '' })
+    expect(control(empty.wrapper, EVALUATE).attributes('disabled')).toBe('')
   })
 })
