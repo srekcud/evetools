@@ -3501,6 +3501,14 @@
       }
     },
     "contributions": {
+      "own": {
+        "edit": "Modifier",
+        "withdraw": "Retirer",
+        "confirmWithdraw": "Confirmer le retrait",
+        "quantity": "Quantité",
+        "value": "Valeur",
+        "note": "Note"
+      },
       "unknownValueCause": "Un apport n'a pas de prix connu : les totaux qui l'incluent sont inconnus, jamais partiels.",
       "duplicatesDerived": "Doublon avec un apport ESI",
       "methods": {

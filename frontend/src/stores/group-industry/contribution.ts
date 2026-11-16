@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { GroupContribution, LineRentalSuggestion, SubmitContributionInput } from './types'
+import type { EditContributionInput, GroupContribution, LineRentalSuggestion, SubmitContributionInput } from './types'
 
 export const useGroupContributionStore = defineStore('group-contribution', () => {
   const contributions = ref<GroupContribution[]>([])
@@ -109,6 +109,43 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     }
   }
 
+  async function editContribution(
+    projectId: string,
+    id: string,
+    input: EditContributionInput,
+  ): Promise<boolean> {
+    error.value = null
+    try {
+      const updated = await apiRequest<GroupContribution>(
+        `/industry/projects/${projectId}/contributions/${id}/details`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(input),
+        },
+      )
+      const idx = contributions.value.findIndex(c => c.id === id)
+      if (idx !== -1) {
+        contributions.value[idx] = updated
+      }
+      return true
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to edit contribution'
+      return false
+    }
+  }
+
+  async function withdrawContribution(projectId: string, id: string): Promise<boolean> {
+    error.value = null
+    try {
+      await apiRequest<void>(`/industry/projects/${projectId}/contributions/${id}`, { method: 'DELETE' })
+      contributions.value = contributions.value.filter(c => c.id !== id)
+      return true
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to withdraw contribution'
+      return false
+    }
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -123,6 +160,8 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     approveContribution,
     rejectContribution,
     reopenContribution,
+    editContribution,
+    withdrawContribution,
     clearError,
   }
 })
