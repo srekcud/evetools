@@ -15,6 +15,7 @@ use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Repository\IndustryProjectBomLineRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Entity\IndustryProjectLineReservation;
@@ -41,6 +42,7 @@ class ProjectBomProvider implements ProviderInterface
         private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly ProjectAccessChecker $accessChecker,
         private readonly IndustryProjectLineReservationRepository $reservationRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly ProjectJobLocationResolver $jobLocationResolver,
         private readonly ProjectContainerFulfillment $containerFulfillment,
         private readonly PlanningBlueprintNames $blueprintNames,
@@ -78,6 +80,8 @@ class ProjectBomProvider implements ProviderInterface
             $reservationsByLine[$reservation->getBomLine()->getId()->toRfc4122()][] = $reservation;
         }
 
+        $pendingQuantities = $this->contributionRepository->sumPendingQuantityByLineAndParticipant($project);
+
         $locationsByJobId = $this->accessChecker->isAdminOrOwner($user, $project)
             ? $this->jobLocationResolver->locationsOf($project, $this->jobMatchesOf($bomItems))
             : [];
@@ -85,7 +89,7 @@ class ProjectBomProvider implements ProviderInterface
         $blueprintNameByLineId = $this->blueprintNameByLineId($bomItems);
 
         return array_map(
-            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $locationsByJobId, $fulfillments, $blueprintNameByLineId[$item->getId()->toRfc4122()] ?? null),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $pendingQuantities[$item->getId()->toRfc4122()] ?? [], $locationsByJobId, $fulfillments, $blueprintNameByLineId[$item->getId()->toRfc4122()] ?? null),
             $bomItems,
         );
     }
@@ -129,9 +133,10 @@ class ProjectBomProvider implements ProviderInterface
 
     /**
      * @param list<IndustryProjectLineReservation> $reservations
+     * @param array<string, int> $pendingQuantityByParticipantId
      * @param array<int, array{blueprint: array<string, mixed>, output: array<string, mixed>}> $locationsByJobId
      */
-    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $locationsByJobId, ProjectLineFulfillments $fulfillments, ?string $blueprintName): ProjectBomLineResource
+    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $pendingQuantityByParticipantId, array $locationsByJobId, ProjectLineFulfillments $fulfillments, ?string $blueprintName): ProjectBomLineResource
     {
         $resource = new ProjectBomLineResource();
         $resource->id = $item->getId()->toString();
@@ -186,6 +191,7 @@ class ProjectBomProvider implements ProviderInterface
                 'participantId' => $reservation->getParticipant()->getId()->toRfc4122(),
                 'characterName' => PilotName::of($reservation->getParticipant()->getUser()),
                 'quantity' => $reservation->getQuantity(),
+                'pendingQuantity' => $pendingQuantityByParticipantId[$reservation->getParticipant()->getId()->toRfc4122()] ?? 0,
                 'isMine' => $reservation->getParticipant()->getUser()?->getId()?->toRfc4122() === $viewer->getId()?->toRfc4122(),
             ],
             $visibleReservations,

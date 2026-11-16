@@ -73,7 +73,7 @@ describe('LineReservation', () => {
 
   it('names who handles the line and how much, and offers the I will handle it action on an incomplete line', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, pendingQuantity: 0, isMine: false }],
       reservedQuantity: 30,
       freeQuantity: 50,
     }))
@@ -114,7 +114,7 @@ describe('LineReservation', () => {
 
   it('offers Release when the participant holds a reservation and releases it', async () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, pendingQuantity: 0, isMine: true }],
       reservedQuantity: 30,
       freeQuantity: 50,
     }))
@@ -123,6 +123,29 @@ describe('LineReservation', () => {
     await flushPromises()
 
     expect(vi.mocked(apiRequest)).toHaveBeenCalledWith(RESERVATION_URL, { method: 'DELETE' })
+  })
+
+  it('shows the quantity still to deliver and the quantity awaiting approval of a reservation', () => {
+    const wrapper = mountReservation(line({
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, pendingQuantity: 10, isMine: true }],
+      reservedQuantity: 30,
+      freeQuantity: 50,
+    }))
+    const reservation = wrapper.find('[data-testid="reservation"]')
+
+    expect(reservation.text()).toContain('×20')
+    expect(wrapper.find('[data-testid="reservation-awaiting"]').text()).toContain('10')
+  })
+
+  it('shows no awaiting approval mark on a reservation without pending contribution', () => {
+    const wrapper = mountReservation(line({
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, pendingQuantity: 0, isMine: true }],
+      reservedQuantity: 30,
+      freeQuantity: 50,
+    }))
+
+    expect(wrapper.find('[data-testid="reservation"]').text()).toContain('×30')
+    expect(wrapper.find('[data-testid="reservation-awaiting"]').exists()).toBe(false)
   })
 
   it('emits contribute with the line', async () => {
@@ -148,7 +171,7 @@ describe('LineReservation', () => {
 
   it('does not offer to reserve a line without free quantity left', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 80, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 80, pendingQuantity: 0, isMine: false }],
       reservedQuantity: 80,
       freeQuantity: 0,
     }))
@@ -163,7 +186,7 @@ describe('BomTable reservation column', () => {
     setActivePinia(createPinia())
     const store = useGroupProjectStore()
     const item = line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, pendingQuantity: 0, isMine: false }],
       reservedQuantity: 30,
       freeQuantity: 50,
     })

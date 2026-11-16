@@ -284,6 +284,46 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         self::assertSame([], $this->repository->findIntermediateStockByTypeId($project));
     }
 
+    #[Group('issue-1005')]
+    public function testPendingQuantityAddsOnlyThePendingContributionsOfEachMemberOnEachLine(): void
+    {
+        $project = $this->createProject('Ishtar');
+        $owner = $this->addMember($project, ParticipantRole::Owner);
+        $admin = $this->addMember($project, ParticipantRole::Admin);
+        $nocxium = $this->addBomLine($project, 38, 'Nocxium', 150);
+        $isogen = $this->addBomLine($project, 37, 'Isogen', 200);
+        $this->addContributionOn($owner, $nocxium, ContributionStatus::Pending)->setQuantity(20);
+        $this->addContributionOn($owner, $nocxium, ContributionStatus::Pending)->setQuantity(5);
+        $this->addContributionOn($owner, $nocxium, ContributionStatus::Approved)->setQuantity(60);
+        $this->addContributionOn($owner, $nocxium, ContributionStatus::Rejected)->setQuantity(70);
+        $this->addContributionOn($admin, $nocxium, ContributionStatus::Pending)->setQuantity(9);
+        $this->addContributionOn($owner, $isogen, ContributionStatus::Pending)->setQuantity(40);
+        $this->addContribution($owner, ContributionType::LineRental, 100.0, ContributionStatus::Pending);
+
+        $otherProject = $this->createProject('Revenant');
+        $this->addContributionOn($this->addMember($otherProject, ParticipantRole::Owner), $this->addBomLine($otherProject, 38, 'Nocxium', 150), ContributionStatus::Pending)->setQuantity(99);
+        $this->em->flush();
+
+        self::assertEquals(
+            [
+                $nocxium->getId()->toRfc4122() => [$owner->getId()->toRfc4122() => 25, $admin->getId()->toRfc4122() => 9],
+                $isogen->getId()->toRfc4122() => [$owner->getId()->toRfc4122() => 40],
+            ],
+            $this->repository->sumPendingQuantityByLineAndParticipant($project),
+        );
+    }
+
+    #[Group('issue-1005')]
+    public function testProjectWithoutPendingContributionHasNoPendingQuantity(): void
+    {
+        $project = $this->createProject('Ishtar');
+        $owner = $this->addMember($project, ParticipantRole::Owner);
+        $this->addContributionOn($owner, $this->addBomLine($project, 38, 'Nocxium', 150), ContributionStatus::Approved);
+        $this->em->flush();
+
+        self::assertSame([], $this->repository->sumPendingQuantityByLineAndParticipant($project));
+    }
+
     private function addJobLine(IndustryProject $project, int $typeId, string $typeName, string $activityType = 'manufacturing'): IndustryProjectBomLine
     {
         $line = (new IndustryProjectBomLine())

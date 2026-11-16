@@ -67,6 +67,11 @@ function isIntermediateLine(line: BomItem): boolean {
   return line.isJob && line.jobGroup === 'component' && line.activityType !== null && INTERMEDIATE_ACTIVITIES.includes(line.activityType)
 }
 
+function prefilledQuantityOf(item: BomItem): number {
+  const reservation = item.reservations.find(candidate => candidate.isMine)
+  return reservation === undefined ? item.remainingQuantity : Math.max(0, reservation.quantity - reservation.pendingQuantity)
+}
+
 // Reset form when modal opens
 watch(() => props.show, (visible) => {
   if (visible) {
@@ -77,7 +82,7 @@ watch(() => props.show, (visible) => {
     if (props.prefilledBomItem) {
       selectedType.value = contributionTypeOf(props.prefilledBomItem)
       selectedBomItemId.value = props.prefilledBomItem.id
-      quantity.value = props.prefilledBomItem.reservations.find(reservation => reservation.isMine)?.quantity ?? props.prefilledBomItem.remainingQuantity
+      quantity.value = prefilledQuantityOf(props.prefilledBomItem)
       estimatedValue.value = 0
     } else {
       selectedType.value = 'material'

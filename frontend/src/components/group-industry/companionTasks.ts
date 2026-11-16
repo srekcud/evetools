@@ -9,6 +9,7 @@ export type MoveProducts = { quantity: number; jobCount: number; unknownJobCount
 export type CompanionTasks = {
   free: BomItem[]
   mine: { item: BomItem; quantity: number }[]
+  awaitingApproval: { item: BomItem; quantity: number }[]
   toReview: number | null
   joinRequests: number | null
   jobs: { match: JobMatch; item: BomItem }[]
@@ -84,10 +85,18 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
 
   const free = bomItems.filter(isFree)
 
-  const mine = bomItems.flatMap((item) => {
+  const myReservations = bomItems.flatMap((item) => {
     const reservation = item.reservations.find(candidate => candidate.isMine)
-    return !item.isFulfilled && reservation !== undefined ? [{ item, quantity: reservation.quantity }] : []
+    return !item.isFulfilled && reservation !== undefined ? [{ item, reservation }] : []
   })
+
+  const mine = myReservations
+    .map(({ item, reservation }) => ({ item, quantity: reservation.quantity - reservation.pendingQuantity }))
+    .filter(entry => entry.quantity > 0)
+
+  const awaitingApproval = myReservations
+    .filter(({ reservation }) => reservation.pendingQuantity > 0)
+    .map(({ item, reservation }) => ({ item, quantity: reservation.pendingQuantity }))
 
   const jobs = bomItems.flatMap(item => item.jobMatches
     .filter(match => match.characterName !== null
@@ -121,6 +130,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
   return {
     free,
     mine,
+    awaitingApproval,
     toReview,
     joinRequests,
     jobs,

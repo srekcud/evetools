@@ -87,6 +87,26 @@ describe('GroupCompanion', () => {
     })
   })
 
+  it('lists the lines awaiting approval with their quantity and no deliver button', () => {
+    const wrapper = mountCompanion(companionTasksOf({
+      awaitingApproval: [{ item: bomLine({ id: 'bom-isogen', typeId: 37, typeName: 'Isogen', freeQuantity: 0 }), quantity: 50 }],
+    }))
+    const section = wrapper.find('[data-testid="companion-awaiting"]')
+
+    expect({
+      names: section.findAll('[data-testid="companion-awaiting-line"]').map(line => line.text()),
+      deliverButtons: section.findAll('[data-testid="companion-deliver"]').length,
+      mineSectionLines: wrapper.findAll('[data-testid="companion-mine-line"]').length,
+    }).toEqual({ names: [expect.stringContaining('Isogen')], deliverButtons: 0, mineSectionLines: 0 })
+    expect(section.text()).toContain('50')
+  })
+
+  it('hides the awaiting approval section when nothing awaits approval', () => {
+    const wrapper = mountCompanion(companionTasksOf({ awaitingApproval: [] }))
+
+    expect(wrapper.find('[data-testid="companion-awaiting"]').exists()).toBe(false)
+  })
+
   it('shows the move products alert in the column and as the bar pill unless a job ready alert comes first', () => {
     const moveProducts = { quantity: 10, jobCount: 1, unknownJobCount: 0 }
     const moveOnly = companionTasksOf({ alerts: [{ key: 'move_products', kind: 'move_products' }], moveProducts })

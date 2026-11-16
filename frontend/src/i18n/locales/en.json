@@ -3369,6 +3369,7 @@
       "quantity": "Quantity to handle",
       "free": "{quantity} free",
       "mine": "you",
+      "awaitingApproval": "Awaiting approval ×{quantity}",
       "failed": "The reservation could not be saved"
     },
     "jobs": {
@@ -4050,6 +4051,7 @@
       "sections": {
         "free": "To assign",
         "mine": "My lines to deliver",
+        "awaiting": "Awaiting approval",
         "todo": "To do",
         "jobs": "My jobs (ESI)",
         "project": "Project"
