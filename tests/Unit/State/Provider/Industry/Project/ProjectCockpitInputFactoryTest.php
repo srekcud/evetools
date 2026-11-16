@@ -51,7 +51,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
     }
 
     #[Group('issue-807')]
-    public function testJobLineCarriesTheCountedRunsOfItsStepMarkAndItsLinkedJobsWithoutAddingThem(): void
+    public function testJobLineCarriesTheCountedRunsOfItsStepMarkAndTheDeliveredRunsRaisedByItsDoneMark(): void
     {
         $owner = $this->pilot();
         $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
@@ -62,7 +62,35 @@ final class ProjectCockpitInputFactoryTest extends TestCase
 
         $input = (new ProjectCockpitInputFactory())->create($project, $owner);
 
-        self::assertSame([10, 6], [$input->bomLines[0]->matchedRuns, $input->bomLines[0]->deliveredRuns]);
+        self::assertSame([10, 10], [$input->bomLines[0]->matchedRuns, $input->bomLines[0]->deliveredRuns]);
+    }
+
+    #[Group('issue-997')]
+    public function testJobLineWithoutEsiJobCountsItsDoneMarkRunsAsDelivered(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 2);
+        $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 2, 2, 0);
+        $sabreJob->setMark(new IndustryProjectBomLineMark(BomLineMarkState::Done, 2, new \DateTimeImmutable('2026-11-13T09:00:00+00:00')));
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+
+        self::assertSame([2, 2], [$input->bomLines[0]->matchedRuns, $input->bomLines[0]->deliveredRuns]);
+    }
+
+    #[Group('issue-997')]
+    public function testJobLineWithALaunchedMarkIsNotDeliveredYet(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 2);
+        $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 2, 2, 0);
+        $sabreJob->setMark(new IndustryProjectBomLineMark(BomLineMarkState::Launched, 2, new \DateTimeImmutable('2026-11-13T09:00:00+00:00')));
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+
+        self::assertSame([2, 0], [$input->bomLines[0]->matchedRuns, $input->bomLines[0]->deliveredRuns]);
     }
 
     public function testInputCarriesTheStatusTheProductsTheBomLinesTheSoldQuantitiesAndThePendingContributions(): void

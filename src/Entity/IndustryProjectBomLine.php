@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\BomLineMarkState;
 use App\Repository\IndustryProjectBomLineRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -366,12 +367,19 @@ class IndustryProjectBomLine
 
     public function getDeliveredRuns(): int
     {
-        return array_sum(
+        $deliveredJobRuns = array_sum(
             $this->jobMatches
                 ->filter(static fn (IndustryProjectJobMatch $jobMatch): bool => $jobMatch->getStatus() === CachedIndustryJob::STATUS_DELIVERED)
                 ->map(static fn (IndustryProjectJobMatch $jobMatch): int => $jobMatch->getRuns())
                 ->toArray(),
         );
+
+        $mark = $this->getMark();
+        if (null === $mark || BomLineMarkState::Done !== $mark->getState()) {
+            return $deliveredJobRuns;
+        }
+
+        return max($deliveredJobRuns, min($mark->getRuns(), $this->getRuns() ?? throw new \LogicException('A marked job line has no runs.')));
     }
 
     public function hasManualJobMatch(): bool
