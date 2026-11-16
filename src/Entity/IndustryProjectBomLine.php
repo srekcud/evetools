@@ -45,6 +45,9 @@ class IndustryProjectBomLine
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $estimatedPrice = null;
 
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $launchPrice = null;
+
     /** false = raw material, true = job to launch */
     #[ORM\Column(type: 'boolean')]
     private bool $isJob = false;
@@ -167,6 +170,17 @@ class IndustryProjectBomLine
     public function setEstimatedPrice(?float $estimatedPrice): static
     {
         $this->estimatedPrice = $estimatedPrice;
+        return $this;
+    }
+
+    public function getLaunchPrice(): ?float
+    {
+        return $this->launchPrice;
+    }
+
+    public function setLaunchPrice(?float $launchPrice): static
+    {
+        $this->launchPrice = $launchPrice;
         return $this;
     }
 

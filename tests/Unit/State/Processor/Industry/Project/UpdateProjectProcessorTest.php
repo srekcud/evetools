@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Processor\Industry\Project;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Validator\Exception\ValidationException;
 use App\Service\Industry\Project\LineReservationService;
+use App\Service\Industry\Project\ProjectLaunchPriceFreezer;
 use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\ApiResource\Input\Industry\Project\UpdateProjectInput;
 use App\Entity\IndustryProject;
@@ -47,6 +48,7 @@ class UpdateProjectProcessorTest extends TestCase
     private UpdateProjectProcessor $processor;
     private HubInterface&MockObject $hub;
     private IndustryProjectService&MockObject $projectService;
+    private ProjectLaunchPriceFreezer&MockObject $launchPrices;
     private IndustryProject $project;
     private User&Stub $owner;
 
@@ -65,6 +67,7 @@ class UpdateProjectProcessorTest extends TestCase
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
         $this->projectService = $this->createMock(IndustryProjectService::class);
+        $this->launchPrices = $this->createMock(ProjectLaunchPriceFreezer::class);
 
         $this->processor = $this->processorActingAs($this->owner, null);
     }
@@ -483,6 +486,48 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertSame('status_changed', $payloads[0]['action']);
         self::assertSame($this->project->getId()->toRfc4122(), $payloads[0]['projectId']);
         self::assertSame(['oldStatus' => 'published', 'newStatus' => 'in_progress'], $payloads[0]['data']);
+    }
+
+    #[Group('issue-1006')]
+    public function testPublishedProjectStartingFreezesTheLaunchPrices(): void
+    {
+        $this->project->setStatus(ProjectStatus::Published);
+        $input = new UpdateProjectInput();
+        $input->status = 'in_progress';
+        $this->launchPrices->expects($this->once())->method('freeze')->with($this->project);
+
+        $this->update($input);
+    }
+
+    #[Group('issue-1006')]
+    public function testDraftProjectStartingDirectlyFreezesTheLaunchPrices(): void
+    {
+        $input = new UpdateProjectInput();
+        $input->status = 'in_progress';
+        $this->launchPrices->expects($this->once())->method('freeze')->with($this->project);
+
+        $this->update($input);
+    }
+
+    #[Group('issue-1006')]
+    public function testMovingToSellingDoesNotFreezeTheLaunchPricesAgain(): void
+    {
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->status = 'selling';
+        $this->launchPrices->expects($this->never())->method('freeze');
+
+        $this->update($input);
+    }
+
+    #[Group('issue-1006')]
+    public function testPublishingAProjectDoesNotFreezeTheLaunchPrices(): void
+    {
+        $input = new UpdateProjectInput();
+        $input->status = 'published';
+        $this->launchPrices->expects($this->never())->method('freeze');
+
+        $this->update($input);
     }
 
     #[Group('issue-168')]
@@ -1131,6 +1176,7 @@ class UpdateProjectProcessorTest extends TestCase
             $this->projectService,
             new ProjectSellStructures(),
             $this->createStub(LineReservationService::class),
+            $this->launchPrices,
         );
     }
 

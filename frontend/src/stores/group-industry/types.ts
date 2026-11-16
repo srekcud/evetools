@@ -188,6 +188,9 @@ export type BomItem = {
   estimatedPrice: number | null
   estimatedTotal: number | null
   estimatedPriceSource?: PriceSource | null
+  launchPrice?: number | null
+  unclaimedQuantity?: number | null
+  unclaimedValue?: number | null
   isJob: boolean
   jobGroup: JobGroup | null
   activityType: string | null

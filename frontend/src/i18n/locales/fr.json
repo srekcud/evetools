@@ -3422,7 +3422,11 @@
       "totalEstCost": "Cout total est.",
       "overallFulfillment": "Progression globale",
       "purchasedQuantity": "{quantity} achetés",
-      "containerStockUnknown": "Container illisible : son stock est inconnu, seule la quantité déclarée compte"
+      "containerStockUnknown": "Container illisible : son stock est inconnu, seule la quantité déclarée compte",
+      "unclaimedStock": "Stock non réclamé : {quantity}",
+      "unclaimedStockLaunchPriceUnknown": "Prix de lancement inconnu",
+      "unclaimedStockValue": "{value} au prix de lancement",
+      "unclaimedStockHint": "Unités déjà présentes dans les containers du projet que personne n'a encore réclamées"
     },
     "reservation": {
       "reservedBy": "Réservé par",

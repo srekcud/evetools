@@ -18,7 +18,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class ProjectContributionService
 {
-    private const float DEPOSIT_DAY_PERCENTILE = 0.05;
+    public const float DEPOSIT_DAY_PERCENTILE = 0.05;
 
     public static function materialContributionPriceSource(): PriceSource
     {

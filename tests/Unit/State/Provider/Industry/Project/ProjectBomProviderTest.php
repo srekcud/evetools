@@ -18,6 +18,7 @@ use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
@@ -437,6 +438,95 @@ class ProjectBomProviderTest extends TestCase
         self::assertSame(20, $result->fulfilledQuantity);
         self::assertNull($result->containerQuantity);
         self::assertSame('none', $result->containerStockState);
+    }
+
+    #[Group('issue-1006')]
+    public function testContainerStockNobodyClaimedIsUnclaimedAndValuedAtTheLaunchPrice(): void
+    {
+        $result = $this->readUnclaimedLine(ProjectStatus::InProgress, new ProjectContainerStock(null, [11478 => 80]), 100, 0, 12.5);
+
+        self::assertSame(80, $result->unclaimedQuantity);
+        self::assertSame(12.5, $result->launchPrice);
+        self::assertSame(1000.0, $result->unclaimedValue);
+    }
+
+    #[Group('issue-1006')]
+    public function testClaimedUnitsAreSubtractedFromTheUnclaimedQuantity(): void
+    {
+        $result = $this->readUnclaimedLine(ProjectStatus::InProgress, new ProjectContainerStock(null, [11478 => 80]), 100, 30, 12.5);
+
+        self::assertSame(50, $result->unclaimedQuantity);
+        self::assertSame(625.0, $result->unclaimedValue);
+    }
+
+    #[Group('issue-1006')]
+    public function testUnclaimedStockOfAProjectWithoutALaunchPriceHasNoValue(): void
+    {
+        $result = $this->readUnclaimedLine(ProjectStatus::InProgress, new ProjectContainerStock(null, [11478 => 80]), 100, 0, null);
+
+        self::assertSame(80, $result->unclaimedQuantity);
+        self::assertNull($result->launchPrice);
+        self::assertNull($result->unclaimedValue);
+    }
+
+    #[Group('issue-1006')]
+    public function testUnclaimedQuantityIsUnknownWhenTheContainerStockIsUnreadable(): void
+    {
+        $result = $this->readUnclaimedLine(ProjectStatus::InProgress, new ProjectContainerStock('container_not_found'), 100, 0, 12.5);
+
+        self::assertNull($result->unclaimedQuantity);
+        self::assertNull($result->unclaimedValue);
+    }
+
+    #[Group('issue-1006')]
+    public function testUnclaimedQuantityIsNotComputedBeforeTheProjectStarts(): void
+    {
+        $result = $this->readUnclaimedLine(ProjectStatus::Draft, new ProjectContainerStock(null, [11478 => 80]), 100, 0, null);
+
+        self::assertNull($result->unclaimedQuantity);
+    }
+
+    #[Group('issue-1006')]
+    public function testUnclaimedQuantityIsStillReadWhileTheProjectIsSelling(): void
+    {
+        $result = $this->readUnclaimedLine(ProjectStatus::Selling, new ProjectContainerStock(null, [11478 => 80]), 100, 0, 12.5);
+
+        self::assertSame(80, $result->unclaimedQuantity);
+    }
+
+    #[Group('issue-1006')]
+    public function testJobLineHasNoUnclaimedStock(): void
+    {
+        $result = $this->readUnclaimedLine(ProjectStatus::InProgress, new ProjectContainerStock(null, [11478 => 80]), 100, 0, null, true);
+
+        self::assertNull($result->unclaimedQuantity);
+        self::assertNull($result->unclaimedValue);
+    }
+
+    private function readUnclaimedLine(ProjectStatus $status, ProjectContainerStock $stock, int $required, int $claimed, ?float $launchPrice, bool $isJob = false): ProjectBomLineResource
+    {
+        $user = $this->createUserStub();
+        $this->security->method('getUser')->willReturn($user);
+        $project = (new IndustryProject())->setOwner($user)->setStatus($status);
+        $this->projectRepository->method('find')->willReturn($project);
+        $line = $this->createBomItem(11478, 'R.A.M.- Starship Tech', $required, 0, null, $isJob, $isJob ? 'component' : null, null, null, null, null, null);
+        $line->setLaunchPrice($launchPrice);
+        $this->bomItemRepository->method('findBy')->willReturn([$line]);
+        $contributions = $this->createStub(IndustryProjectContributionRepository::class);
+        $contributions->method('sumClaimedMaterialQuantityByLine')->willReturn([$line->getId()->toRfc4122() => $claimed]);
+        $provider = new ProjectBomProvider(
+            $this->security,
+            $this->projectRepository,
+            $this->bomItemRepository,
+            new ProjectAccessChecker($this->memberRepository),
+            $this->createStub(IndustryProjectLineReservationRepository::class),
+            $contributions,
+            $this->createStub(ProjectJobLocationResolver::class),
+            $this->containerFulfillmentOf($stock),
+            $this->blueprintNames(),
+        );
+
+        return $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0];
     }
 
     private function readMaterialLineWith(ProjectContainerStock $stock, int $required, int $contributed, bool $isJob = false): ProjectBomLineResource

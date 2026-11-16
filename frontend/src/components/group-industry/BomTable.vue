@@ -10,6 +10,7 @@ import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
+import UnclaimedStockBadge from './UnclaimedStockBadge.vue'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import type { BomItem, ContainerVerification, ContainerVerificationStatus } from '@/stores/group-industry/types'
@@ -162,6 +163,7 @@ function ringStrokeColor(percent: number): string {
                 </span>{{ ' ' }}
                 <!-- Container verification indicator -->
                 <ContainerLineStatus v-if="verificationMap.has(item.id)" :verification="verificationMap.get(item.id)!" />
+                <UnclaimedStockBadge :item="item" />
               </td>
 
               <!-- Required -->

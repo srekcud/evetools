@@ -54,6 +54,12 @@ class ProjectBomLineResource
 
     public ?float $estimatedPrice = null;
 
+    public ?float $launchPrice = null;
+
+    public ?int $unclaimedQuantity = null;
+
+    public ?float $unclaimedValue = null;
+
     public ?float $estimatedTotal = null;
 
     /** @var array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null */
