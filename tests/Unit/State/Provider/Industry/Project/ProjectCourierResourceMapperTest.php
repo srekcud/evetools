@@ -10,8 +10,10 @@ use App\Service\Industry\Project\Courier\CourierCandidate;
 use App\Service\Industry\Project\Courier\CourierContract;
 use App\Service\Industry\Project\Courier\CourierContractState;
 use App\Service\Industry\Project\Courier\CourierLinkedContract;
+use App\Service\Industry\Project\Courier\CourierOriginQuote;
 use App\Service\Industry\Project\Courier\CourierOverview;
 use App\Service\Industry\Project\Courier\CourierQuote;
+use App\Service\Industry\Project\Courier\CourierUnknownOriginLine;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Industry\Project\ProjectCourierResourceMapper;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -27,6 +29,9 @@ final class ProjectCourierResourceMapperTest extends TestCase
     private const int UNKNOWN_STRUCTURE = 1_035_466_000_001;
     private const string JITA_STATION_NAME = 'Jita IV - Moon 4 - Caldari Navy Assembly Plant';
     private const string WORKSHOP_NAME = 'Perimeter - Ishtar Workshop';
+    private const int TRITANIUM = 34;
+    private const int NOCXIUM = 38;
+    private const int UNNAMED_TYPE = 999_022;
 
     private ProjectCourierResourceMapper $mapper;
 
@@ -41,7 +46,9 @@ final class ProjectCourierResourceMapperTest extends TestCase
             },
         );
         $typeNameResolver = $this->createStub(TypeNameResolver::class);
-        $typeNameResolver->method('findNames')->willReturn([]);
+        $typeNameResolver->method('findNames')->willReturnCallback(
+            static fn (array $typeIds): array => array_intersect_key([self::TRITANIUM => 'Tritanium', self::NOCXIUM => 'Nocxium'], array_flip($typeIds)),
+        );
         $this->mapper = new ProjectCourierResourceMapper($typeNameResolver, $calculationService);
     }
 
@@ -119,6 +126,64 @@ final class ProjectCourierResourceMapperTest extends TestCase
         );
     }
 
+    #[Group('issue-1022')]
+    public function testOtherOriginsAreExposedWithTheirOwnQuote(): void
+    {
+        $resource = $this->mapper->toResource(
+            new IndustryProject(),
+            $this->overview(null, [], [
+                new CourierOriginQuote(30_002_187, 'Amarr', new CourierQuote(5.0, 5_000_000, 6_750, 9, 'ready', [])),
+                new CourierOriginQuote(30_002_510, null, new CourierQuote(null, 3_000_000, null, 6, 'volume_unknown', [self::UNNAMED_TYPE])),
+            ]),
+        );
+
+        self::assertSame(
+            [
+                ['solarSystemId' => 30_002_187, 'solarSystemName' => 'Amarr', 'volumeCubicMeters' => 5.0, 'collateral' => 5_000_000, 'reward' => 6_750, 'jumps' => 9, 'quoteStatus' => 'ready', 'missingVolumeTypeIds' => []],
+                ['solarSystemId' => 30_002_510, 'solarSystemName' => null, 'volumeCubicMeters' => null, 'collateral' => 3_000_000, 'reward' => null, 'jumps' => 6, 'quoteStatus' => 'volume_unknown', 'missingVolumeTypeIds' => [self::UNNAMED_TYPE]],
+            ],
+            $resource->otherOrigins,
+        );
+    }
+
+    #[Group('issue-1022')]
+    public function testUnknownOriginLinesCarryTheTypeNameAndTheQuantity(): void
+    {
+        $resource = $this->mapper->toResource(
+            new IndustryProject(),
+            $this->overview(null, [], [], [
+                new CourierUnknownOriginLine(self::TRITANIUM, 500),
+                new CourierUnknownOriginLine(self::NOCXIUM, 100),
+                new CourierUnknownOriginLine(self::UNNAMED_TYPE, 7),
+            ]),
+        );
+
+        self::assertSame(
+            [
+                ['typeId' => self::TRITANIUM, 'typeName' => 'Tritanium', 'quantity' => 500],
+                ['typeId' => self::NOCXIUM, 'typeName' => 'Nocxium', 'quantity' => 100],
+                ['typeId' => self::UNNAMED_TYPE, 'typeName' => null, 'quantity' => 7],
+            ],
+            $resource->unknownOriginLines,
+        );
+    }
+
+    #[Group('issue-1022')]
+    public function testWithoutAnOriginTheResourceKeepsNullOriginAndEmptyLists(): void
+    {
+        $resource = $this->mapper->toResource(
+            new IndustryProject(),
+            new CourierOverview(
+                new CourierQuote(null, null, null, null, 'no_purchases', []),
+                null, null, 30_000_144, 'Perimeter', true, null, [], [], [], [],
+            ),
+        );
+
+        self::assertNull($resource->originSolarSystemId);
+        self::assertNull($resource->originSolarSystemName);
+        self::assertSame(['no_purchases', [], []], [$resource->quoteStatus, $resource->otherOrigins, $resource->unknownOriginLines]);
+    }
+
     private function contract(?int $startLocationId, ?int $endLocationId): CourierContract
     {
         return new CourierContract(
@@ -136,13 +201,15 @@ final class ProjectCourierResourceMapperTest extends TestCase
     }
 
     /**
-     * @param list<CourierCandidate> $candidates
+     * @param list<CourierCandidate>         $candidates
+     * @param list<CourierOriginQuote>       $otherOrigins
+     * @param list<CourierUnknownOriginLine> $unknownOriginLines
      */
-    private function overview(?CourierLinkedContract $contract, array $candidates): CourierOverview
+    private function overview(?CourierLinkedContract $contract, array $candidates, array $otherOrigins = [], array $unknownOriginLines = []): CourierOverview
     {
         return new CourierOverview(
             new CourierQuote(25.0, 376_550, 7_500, 2, 'ready', []),
-            30_000_142, 'Jita', 30_000_144, 'Perimeter', true, $contract, [], $candidates,
+            30_000_142, 'Jita', 30_000_144, 'Perimeter', true, $contract, [], $candidates, $otherOrigins, $unknownOriginLines,
         );
     }
 }

@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupCourierStore } from '@/stores/group-industry/courier'
-import type { CourierCandidate, CourierLine, CourierQuoteStatus, CourierTransportState } from '@/stores/group-industry/types'
+import type { CourierCandidate, CourierLine, CourierOriginQuote, CourierQuoteStatus, CourierTransportState, CourierUnknownOriginLine } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
@@ -40,6 +40,8 @@ let copiedTimer: ReturnType<typeof setTimeout> | null = null
 const courier = computed(() => courierStore.courier)
 
 const hasQuote = computed(() => courier.value !== null && courier.value.quoteStatus !== 'no_purchases')
+
+const hasUnknownOrigin = computed(() => courier.value !== null && courier.value.unknownOriginLines.length > 0)
 
 const unknownQuoteStatus = computed<CourierQuoteStatus | null>(() => {
   const status = courier.value?.quoteStatus
@@ -92,6 +94,14 @@ function stateLabel(state: CourierTransportState): string {
 
 function lineLabel(line: CourierLine): string {
   return line.typeName ?? `#${line.typeId}`
+}
+
+function unknownOriginLabel(line: CourierUnknownOriginLine): string {
+  return line.typeName ?? `#${line.typeId}`
+}
+
+function originLabel(origin: CourierOriginQuote): string {
+  return origin.solarSystemName ?? `#${origin.solarSystemId}`
 }
 
 function isLinked(candidate: CourierCandidate): boolean {
@@ -169,12 +179,12 @@ onBeforeUnmount(() => {
 
     <template v-else-if="courier !== null">
       <p
-        v-if="!hasQuote"
+        v-if="!hasQuote && !hasUnknownOrigin"
         data-testid="courier-empty"
         class="p-8 text-center text-slate-500"
       >{{ t('groupIndustry.courier.empty') }}</p>
 
-      <template v-else>
+      <template v-if="hasQuote">
         <div class="p-4 grid gap-4 lg:grid-cols-2">
           <div class="min-w-0">
             <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -299,6 +309,51 @@ onBeforeUnmount(() => {
           >{{ courier.contract.unknownReason }}</p>
         </div>
 
+        <div
+          v-if="courier.otherOrigins.length > 0"
+          data-testid="courier-other-origins"
+          class="border-t border-slate-800"
+        >
+          <h3 class="px-4 pt-3 text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.otherOrigins.title') }}</h3>
+          <p class="px-4 pt-1 text-xs text-slate-500">{{ t('groupIndustry.courier.otherOrigins.hint') }}</p>
+          <ul class="p-4 grid gap-2 lg:grid-cols-2">
+            <li
+              v-for="origin in courier.otherOrigins"
+              :key="origin.solarSystemId"
+              :data-testid="`courier-other-origin-${origin.solarSystemId}`"
+              :data-status="origin.quoteStatus"
+              class="min-w-0 p-3 rounded border border-slate-800 bg-slate-800/30"
+            >
+              <p class="font-medium text-slate-100 break-words">{{ originLabel(origin) }}</p>
+              <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <dt class="text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.contract.volume') }}</dt>
+                <dd class="text-right font-mono tabular-nums text-slate-300">
+                  <UnknownContributionValue v-if="origin.volumeCubicMeters === null" />
+                  <template v-else>{{ volumeText(origin.volumeCubicMeters) }}</template>
+                </dd>
+
+                <dt class="text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.contract.collateral') }}</dt>
+                <dd class="text-right font-mono tabular-nums text-slate-300">
+                  <UnknownContributionValue v-if="origin.collateral === null" />
+                  <template v-else>{{ iskText(origin.collateral) }}</template>
+                </dd>
+
+                <dt class="text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.contract.reward') }}</dt>
+                <dd class="text-right font-mono tabular-nums text-slate-300">
+                  <UnknownContributionValue v-if="origin.reward === null" />
+                  <template v-else>{{ iskText(origin.reward) }}</template>
+                </dd>
+
+                <dt class="text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.contract.jumps') }}</dt>
+                <dd class="text-right font-mono tabular-nums text-slate-300">
+                  <UnknownContributionValue v-if="origin.jumps === null" />
+                  <template v-else>{{ origin.jumps }}</template>
+                </dd>
+              </dl>
+            </li>
+          </ul>
+        </div>
+
         <div v-if="courier.lines.length > 0" class="border-t border-slate-800">
           <h3 class="px-4 pt-3 text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.lines') }}</h3>
           <ul class="p-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -325,6 +380,32 @@ onBeforeUnmount(() => {
           </ul>
         </div>
       </template>
+
+      <div
+        v-if="hasUnknownOrigin"
+        data-testid="courier-unknown-origin"
+        class="border-t border-slate-800"
+      >
+        <h3 class="px-4 pt-3 text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.unknownOrigin.title') }}</h3>
+        <p class="px-4 pt-1 text-xs text-violet-300 break-words">{{ t('groupIndustry.courier.unknownOrigin.hint') }}</p>
+        <ul class="p-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <li
+            v-for="line in courier.unknownOriginLines"
+            :key="line.typeId"
+            :data-testid="`courier-unknown-origin-${line.typeId}`"
+            class="flex items-center gap-2 min-w-0 p-2 rounded border border-dashed border-violet-400/60 bg-slate-800/30"
+          >
+            <img
+              :src="getTypeIconUrl(line.typeId, 32)"
+              alt=""
+              class="w-8 h-8 rounded border border-slate-700 bg-slate-800 flex-shrink-0"
+              @error="onImageError"
+            />
+            <span class="truncate font-medium text-slate-100" :title="unknownOriginLabel(line)">{{ unknownOriginLabel(line) }}</span>
+            <span class="ml-auto font-mono tabular-nums text-sm text-slate-300">{{ formatNumber(line.quantity) }}</span>
+          </li>
+        </ul>
+      </div>
 
       <div v-if="courier.canLink" class="border-t border-slate-800">
         <h3 class="px-4 pt-3 text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.candidates.title') }}</h3>

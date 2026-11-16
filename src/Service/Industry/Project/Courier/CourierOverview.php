@@ -9,10 +9,12 @@ final readonly class CourierOverview
     /**
      * @param list<CourierLine>      $lines
      * @param list<CourierCandidate> $candidates
+     * @param list<CourierOriginQuote> $otherOrigins
+     * @param list<CourierUnknownOriginLine> $unknownOriginLines
      */
     public function __construct(
         public CourierQuote $quote,
-        public int $originSolarSystemId,
+        public ?int $originSolarSystemId,
         public ?string $originSolarSystemName,
         public ?int $workshopSolarSystemId,
         public ?string $workshopSolarSystemName,
@@ -20,6 +22,8 @@ final readonly class CourierOverview
         public ?CourierLinkedContract $contract,
         public array $lines,
         public array $candidates,
+        public array $otherOrigins,
+        public array $unknownOriginLines,
     ) {
     }
 }
