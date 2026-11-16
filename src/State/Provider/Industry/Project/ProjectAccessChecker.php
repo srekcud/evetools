@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\State\Provider\Industry\Project;
 
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
@@ -34,6 +35,14 @@ class ProjectAccessChecker
         }
 
         throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
+    }
+
+    public function assertContributionOf(User $user, IndustryProjectContribution $contribution): void
+    {
+        $member = $contribution->getMember();
+        if ($member->getUser() !== $user || ParticipantStatus::Accepted !== $member->getStatus()) {
+            throw new AccessDeniedHttpException('You can only change your own contribution');
+        }
     }
 
     public function assertOwner(User $user, IndustryProject $project): void

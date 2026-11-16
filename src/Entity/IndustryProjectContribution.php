@@ -188,6 +188,13 @@ class IndustryProjectContribution
             && !\in_array($this->project->getStatus(), [ProjectStatus::Selling, ProjectStatus::Completed], true);
     }
 
+    public function isEditableByItsContributor(): bool
+    {
+        return ContributionStatus::Pending === $this->status
+            && !$this->isAutoDetected
+            && !$this->project->isCompleted();
+    }
+
     public function isAutoDetected(): bool
     {
         return $this->isAutoDetected;

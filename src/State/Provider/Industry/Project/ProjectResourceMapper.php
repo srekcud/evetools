@@ -11,6 +11,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
+use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
@@ -133,7 +134,7 @@ class ProjectResourceMapper
         return $total;
     }
 
-    public function contributionToResource(IndustryProjectContribution $contribution): ProjectContributionResource
+    public function contributionToResource(IndustryProjectContribution $contribution, ?User $viewer = null): ProjectContributionResource
     {
         $resource = new ProjectContributionResource();
         $resource->id = $contribution->getId()->toString();
@@ -151,6 +152,7 @@ class ProjectResourceMapper
         $resource->isVerified = $contribution->isVerified();
         $resource->valuedAtJitaPrice = $contribution->isValuedAtJitaPrice();
         $resource->reopenable = $contribution->isReopenable();
+        $resource->editableByViewer = null !== $viewer && $contribution->getMember()->getUser() === $viewer && $contribution->isEditableByItsContributor();
         $resource->reviewedByCharacterName = $contribution->getReviewedBy()?->getMainCharacter()?->getName();
         $resource->reviewedAt = $contribution->getReviewedAt()?->format(\DateTimeInterface::ATOM);
         $resource->note = $contribution->getNote();

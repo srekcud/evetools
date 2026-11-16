@@ -54,6 +54,6 @@ class ProjectContributionItemProvider implements ProviderInterface
             throw new NotFoundHttpException('Contribution not found');
         }
 
-        return $this->mapper->contributionToResource($contribution);
+        return $this->mapper->contributionToResource($contribution, $user);
     }
 }

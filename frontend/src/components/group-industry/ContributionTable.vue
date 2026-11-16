@@ -5,7 +5,7 @@ import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { usePilotName } from '@/composables/usePilotName'
-import type { GroupContribution, ContributionType, ContributionStatus } from '@/stores/group-industry/types'
+import type { GroupContribution, ContributionType, ContributionStatus, EditContributionInput } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
@@ -106,6 +106,61 @@ function isDeliveryProposal(contrib: GroupContribution): boolean {
 
 function isDeliveryConfirmedByHand(contrib: GroupContribution): boolean {
   return contrib.status === 'approved' && isDeliveryProposal(contrib) && !contrib.isVerified
+}
+
+const editingId = ref<string | null>(null)
+const withdrawingId = ref<string | null>(null)
+const editQuantity = ref(0)
+const editValue = ref<number | null>(null)
+const editNote = ref('')
+const isSavingEdit = ref(false)
+
+function hasEnteredValue(contribution: GroupContribution): boolean {
+  return contribution.type !== 'material'
+}
+
+function startEdit(contribution: GroupContribution): void {
+  store.clearError()
+  withdrawingId.value = null
+  editingId.value = contribution.id
+  editQuantity.value = contribution.quantity
+  editValue.value = contribution.estimatedValue
+  editNote.value = contribution.note ?? ''
+}
+
+function cancelEdit(): void {
+  editingId.value = null
+}
+
+function changedFields(contribution: GroupContribution): EditContributionInput {
+  const input: EditContributionInput = {}
+  if (editQuantity.value !== contribution.quantity) input.quantity = editQuantity.value
+  if (hasEnteredValue(contribution) && editValue.value !== null && editValue.value !== contribution.estimatedValue) input.estimatedValue = editValue.value
+  if (editNote.value !== (contribution.note ?? '')) input.note = editNote.value
+  return input
+}
+
+async function saveEdit(contribution: GroupContribution): Promise<void> {
+  const input = changedFields(contribution)
+  if (Object.keys(input).length === 0) {
+    cancelEdit()
+    return
+  }
+  isSavingEdit.value = true
+  const saved = await store.editContribution(props.projectId, contribution.id, input)
+  isSavingEdit.value = false
+  if (saved) cancelEdit()
+}
+
+function askWithdrawal(id: string): void {
+  store.clearError()
+  editingId.value = null
+  withdrawingId.value = id
+}
+
+async function confirmWithdrawal(id: string): Promise<void> {
+  const withdrawn = await store.withdrawContribution(props.projectId, id)
+  if (withdrawn || store.error !== null) withdrawingId.value = null
 }
 
 async function handleApprove(id: string): Promise<void> {
@@ -228,13 +283,31 @@ onMounted(() => {
                   </div>
                   <div>
                     <span class="text-slate-300">{{ contrib.bomItemTypeName || contrib.note || '--' }}</span>
-                    <p v-if="contrib.note && contrib.bomItemTypeName" class="text-xs text-slate-500">{{ contrib.note }}</p>
+                    <input
+                      v-if="editingId === contrib.id"
+                      v-model="editNote"
+                      data-testid="edit-note"
+                      type="text"
+                      maxlength="500"
+                      :aria-label="t('groupIndustry.contributions.own.note')"
+                      class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:border-cyan-500 focus:outline-none"
+                    />
+                    <p v-else-if="contrib.note && contrib.bomItemTypeName" class="text-xs text-slate-500">{{ contrib.note }}</p>
                   </div>
                 </div>
               </td>
               <!-- Quantity -->
               <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                {{ formatNumber(contrib.quantity, 0) }}
+                <input
+                  v-if="editingId === contrib.id"
+                  v-model.number="editQuantity"
+                  data-testid="edit-quantity"
+                  type="number"
+                  min="1"
+                  :aria-label="t('groupIndustry.contributions.own.quantity')"
+                  class="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
+                />
+                <template v-else>{{ formatNumber(contrib.quantity, 0) }}</template>
               </td>
               <!-- Valuation -->
               <td
@@ -242,7 +315,16 @@ onMounted(() => {
                 :class="isPending(contrib.status) ? 'text-amber-400' : 'text-emerald-400'"
                 style="font-variant-numeric: tabular-nums;"
               >
-                <UnknownContributionValue v-if="contrib.estimatedValue === null" />
+                <input
+                  v-if="editingId === contrib.id && hasEnteredValue(contrib)"
+                  v-model.number="editValue"
+                  data-testid="edit-value"
+                  type="number"
+                  min="0"
+                  :aria-label="t('groupIndustry.contributions.own.value')"
+                  class="w-32 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
+                />
+                <UnknownContributionValue v-else-if="contrib.estimatedValue === null" />
                 <template v-else>
                   {{ formatIsk(contrib.estimatedValue) }}
                   <div><PriceSourceBadge :source="contrib.estimatedValueSource" /></div>
@@ -286,7 +368,47 @@ onMounted(() => {
               <!-- Actions -->
               <td class="py-3 px-6 text-center">
                 <div
-                  v-if="isAdmin && isPending(contrib.status)"
+                  v-if="editingId === contrib.id"
+                  class="flex items-center justify-center gap-1.5"
+                >
+                  <button
+                    :disabled="isSavingEdit"
+                    class="px-2.5 py-1 rounded bg-cyan-600/20 text-cyan-400 text-xs font-medium hover:bg-cyan-600/30 transition-colors border border-cyan-600/30 disabled:opacity-50"
+                    @click="saveEdit(contrib)"
+                  >{{ t('common.actions.save') }}</button>
+                  <button
+                    class="px-2.5 py-1 rounded bg-slate-600/20 text-slate-300 text-xs font-medium hover:bg-slate-600/30 transition-colors border border-slate-600/30"
+                    @click="cancelEdit"
+                  >{{ t('common.actions.cancel') }}</button>
+                </div>
+                <div
+                  v-else-if="withdrawingId === contrib.id"
+                  class="flex items-center justify-center gap-1.5"
+                >
+                  <button
+                    class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
+                    @click="confirmWithdrawal(contrib.id)"
+                  >{{ t('groupIndustry.contributions.own.confirmWithdraw') }}</button>
+                  <button
+                    class="px-2.5 py-1 rounded bg-slate-600/20 text-slate-300 text-xs font-medium hover:bg-slate-600/30 transition-colors border border-slate-600/30"
+                    @click="withdrawingId = null"
+                  >{{ t('common.actions.cancel') }}</button>
+                </div>
+                <div
+                  v-else-if="contrib.editableByViewer"
+                  class="flex items-center justify-center gap-1.5"
+                >
+                  <button
+                    class="px-2.5 py-1 rounded bg-slate-600/20 text-slate-300 text-xs font-medium hover:bg-slate-600/30 transition-colors border border-slate-600/30"
+                    @click="startEdit(contrib)"
+                  >{{ t('groupIndustry.contributions.own.edit') }}</button>
+                  <button
+                    class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
+                    @click="askWithdrawal(contrib.id)"
+                  >{{ t('groupIndustry.contributions.own.withdraw') }}</button>
+                </div>
+                <div
+                  v-else-if="isAdmin && isPending(contrib.status)"
                   class="flex items-center justify-center gap-1.5"
                 >
                   <button
