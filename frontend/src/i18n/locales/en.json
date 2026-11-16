@@ -3133,6 +3133,7 @@
       "loading": "Comparing Jita and the structure...",
       "loadError": "The material sourcing could not be read",
       "empty": "No material left to source.",
+      "noReservation": "You have not taken any material yet. Use \"I'll handle it\" in Materials to Source to list here what you buy.",
       "importRate": "Jita import: {rate} ISK / m³ / jump",
       "columns": {
         "material": "Material",

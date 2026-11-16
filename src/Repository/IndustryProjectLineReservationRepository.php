@@ -52,6 +52,21 @@ class IndustryProjectLineReservationRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @return IndustryProjectLineReservation[]
+     */
+    public function findByProjectAndParticipant(IndustryProject $project, IndustryProjectParticipant $participant): array
+    {
+        return $this->createQueryBuilder('reservation')
+            ->innerJoin('reservation.bomLine', 'line')
+            ->andWhere('line.project = :project')
+            ->andWhere('reservation.participant = :participant')
+            ->setParameter('project', $project)
+            ->setParameter('participant', $participant)
+            ->getQuery()
+            ->getResult();
+    }
+
     public function deleteByLine(IndustryProjectBomLine $line): void
     {
         $this->createQueryBuilder('reservation')

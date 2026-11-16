@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry\Project;
 
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectLineReservation;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\InvCategory;
@@ -14,6 +17,8 @@ use App\Entity\Sde\MapRegion;
 use App\Entity\Sde\MapSolarSystem;
 use App\Entity\Sde\MapSolarSystemJump;
 use App\Constant\EveConstants;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
 use App\Tests\Functional\Api\Industry\SeedsJitaOrderBooksAndCostIndices;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\Group;
@@ -67,6 +72,10 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
             self::MORPHITE_TYPE_ID => [['price' => self::MORPHITE_JITA_PRICE, 'volume' => 1_000]],
         ]);
         $this->seedNoJitaSellOrderFor(self::NOCXIUM_TYPE_ID);
+        $this->reserve($this->memberMembership, $this->tritaniumLine, self::TRITANIUM_REQUIRED);
+        $this->reserve($this->memberMembership, $this->morphiteLine, self::MORPHITE_REMAINING);
+        $this->reserve($this->memberMembership, $this->nocxiumLine, self::NOCXIUM_REMAINING);
+        $this->em->flush();
     }
 
     public function testAcceptedParticipantReadsTheRemainingMaterialsComparedBetweenJitaWithImportAndHisPreferredStructure(): void
@@ -163,6 +172,137 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
         self::assertSame(['jita', true], [$tritanium['side'], $tritanium['structureFallback']]);
     }
 
+    #[Group('issue-1011')]
+    public function testParticipantReadsOnlyTheLinesHeReservedAtHisReservedQuantity(): void
+    {
+        $this->clearReservations();
+        $this->reserve($this->memberMembership, $this->morphiteLine, 40);
+        $this->reserve($this->ownerMembership, $this->tritaniumLine, 5_000);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame([[self::MORPHITE_TYPE_ID, 40]], array_map(static fn (array $row): array => [$row['typeId'], $row['quantity']], $body['rows']));
+        self::assertTrue($body['hasReservations']);
+    }
+
+    #[Group('issue-1011')]
+    public function testOwnerReadsOnlyTheLinesHeReservedAndNotTheOnesOfTheMember(): void
+    {
+        $this->clearReservations();
+        $this->reserve($this->memberMembership, $this->morphiteLine, 40);
+        $this->reserve($this->ownerMembership, $this->tritaniumLine, 5_000);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame([[self::TRITANIUM_TYPE_ID, 5_000]], array_map(static fn (array $row): array => [$row['typeId'], $row['quantity']], $body['rows']));
+        self::assertTrue($body['hasReservations']);
+    }
+
+    #[Group('issue-1011')]
+    public function testTotalsAreComputedOnTheReservedLinesOnly(): void
+    {
+        $this->preferTheStructureAndSyncItsMarket();
+        $this->clearReservations();
+        $this->reserve($this->memberMembership, $this->tritaniumLine, self::TRITANIUM_REQUIRED);
+        $this->reserve($this->ownerMembership, $this->morphiteLine, self::MORPHITE_REMAINING);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame([self::TRITANIUM_TYPE_ID], array_column($body['rows'], 'typeId'));
+        self::assertEqualsWithDelta([96_000.0, 120_000.0, 96_000.0], [$body['totals']['jitaWithImport'], $body['totals']['structure'], $body['totals']['best']], 0.01);
+    }
+
+    #[Group('issue-1011')]
+    public function testPendingContributionOfTheReaderIsDeductedAndAFullyDeliveredLineDropsOut(): void
+    {
+        $this->clearReservations();
+        $this->reserve($this->memberMembership, $this->morphiteLine, 100);
+        $this->reserve($this->memberMembership, $this->tritaniumLine, 1_000);
+        $this->addContribution($this->memberMembership, $this->morphiteLine, ContributionType::Material, 30, 540_000.0, ContributionStatus::Pending);
+        $this->addContribution($this->memberMembership, $this->tritaniumLine, ContributionType::Material, 1_000, 4_250.0, ContributionStatus::Pending);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame([[self::MORPHITE_TYPE_ID, 70]], array_map(static fn (array $row): array => [$row['typeId'], $row['quantity']], $body['rows']));
+        self::assertTrue($body['hasReservations']);
+    }
+
+    #[Group('issue-1011')]
+    public function testPendingContributionOfAnotherParticipantDoesNotReduceTheReaderQuantity(): void
+    {
+        $this->clearReservations();
+        $this->reserve($this->memberMembership, $this->morphiteLine, 100);
+        $this->addContribution($this->ownerMembership, $this->morphiteLine, ContributionType::Material, 30, 540_000.0, ContributionStatus::Pending);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([100], array_column($this->responseJson()['rows'], 'quantity'));
+    }
+
+    #[Group('issue-1011')]
+    public function testReservationAboveTheRemainingQuantityOfTheLineIsCapped(): void
+    {
+        $this->clearReservations();
+        $this->reserve($this->memberMembership, $this->morphiteLine, 400);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([self::MORPHITE_REMAINING], array_column($this->responseJson()['rows'], 'quantity'));
+    }
+
+    #[Group('issue-1011')]
+    public function testWithoutAnyReservationTheListIsEmptyAndTheReaderIsToldHeHasNone(): void
+    {
+        $this->clearReservations();
+        $this->reserve($this->ownerMembership, $this->tritaniumLine, 5_000);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame([[], false], [$body['rows'], $body['hasReservations']]);
+        self::assertSame(['jitaWithImport' => 0.0, 'structure' => 0.0, 'best' => 0.0], $body['totals']);
+    }
+
+    #[Group('issue-1011')]
+    public function testReservationOnAJobLineIsNotAMaterialReservation(): void
+    {
+        $this->clearReservations();
+        $this->reserve($this->memberMembership, $this->ramJobLine, 100);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame([[], false], [$body['rows'], $body['hasReservations']]);
+    }
+
     public function testPilotOfAnotherCorporationIsRefusedTheSourcing(): void
     {
         $this->client->loginUser($this->outsider, 'api');
@@ -179,6 +319,16 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(404);
         self::assertSame([404, 'Project not found'], $this->errorDetail());
+    }
+
+    private function reserve(IndustryProjectParticipant $participant, IndustryProjectBomLine $line, int $quantity): void
+    {
+        $this->em->persist(new IndustryProjectLineReservation($line, $participant, $quantity));
+    }
+
+    private function clearReservations(): void
+    {
+        $this->em->createQuery('DELETE FROM '.IndustryProjectLineReservation::class.' reservation')->execute();
     }
 
     private function sourcingUri(string $projectId): string

@@ -64,7 +64,7 @@ When the plan suits you, click "Start" (the project goes "In Progress"). Ignore 
 "Sourcing & jobs" tab. "Materials to Source" lists the materials to buy (the BOM only holds these leaves; components and blueprints are under "Jobs to Launch"), with "Required", "Fulfilled", "Remaining", "Progress" and "Est. Cost".
 
 - **"Est. Cost" is not the analysis price.** It is the 5th percentile Jita price read when the project was created, and it is never refreshed. The analysis uses the weighted price of the quantity. A material without a price shows "---".
-- **"Where to buy the materials"** compares, for the remaining quantity, "Jita + import" and "Structure" (your preferred market structure), and says "Buy at". With no preferred structure, or if its market is not synced, everything goes to Jita; with no favorite system for the activity, the import is unknown. The "Copy Jita (N)" and "Copy <structure> (N)" buttons copy the **remaining** quantities, one "name, tab, quantity" line per material.
+- **"Where to buy the materials"** compares, for the quantity you took with "I'll handle it" (minus what you already delivered), "Jita + import" and "Structure" (your preferred market structure), and says "Buy at". With no preferred structure, or if its market is not synced, everything goes to Jita; with no favorite system for the activity, the import is unknown. The "Copy Jita (N)" and "Copy <structure> (N)" buttons copy the **remaining** quantities, one "name, tab, quantity" line per material.
 - The "Copy multibuy" button at the top of "Materials to Source" copies the **required** quantity of every line, not the remaining one. "Evaluate in Appraisal" sends the same list to the appraisal.
 
 After buying in game, the purchase has to get into the project:

@@ -37,4 +37,31 @@ final class MaterialsToSourceFactory
 
         return $materials;
     }
+
+    /**
+     * @param list<IndustryProjectBomLine> $bomLines
+     * @param array<string, int>           $reservedQuantityByLineId
+     *
+     * @return list<MaterialToSource>
+     */
+    public static function reservedOf(array $bomLines, Plan $plan, array $reservedQuantityByLineId, ?ProjectLineFulfillments $fulfillments = null): array
+    {
+        $fulfillments ??= ProjectLineFulfillments::none();
+        $consumingActivities = ConsumingActivities::of($plan);
+        $materials = [];
+        foreach ($bomLines as $line) {
+            $reservedQuantity = $reservedQuantityByLineId[$line->getId()->toRfc4122()] ?? 0;
+            $quantityToSource = min($reservedQuantity, $fulfillments->remainingOf($line));
+            if ($line->isJob() || $quantityToSource <= 0) {
+                continue;
+            }
+            $materials[] = new MaterialToSource(
+                $line->getTypeId(),
+                new Quantity($quantityToSource),
+                $consumingActivities[$line->getTypeId()] ?? ActivityKind::Manufacturing,
+            );
+        }
+
+        return $materials;
+    }
 }

@@ -164,6 +164,21 @@ describe('MaterialSourcing', () => {
     expect(wrapper.find('[data-testid="material-sourcing-empty"]').exists()).toBe(true)
   })
 
+  it('points to I will handle it when the reader reserved nothing, instead of the empty state', async () => {
+    const wrapper = await mountSourcing([], { hasReservations: false })
+
+    expect(wrapper.get('[data-testid="material-sourcing-no-reservation"]').text()).toContain(text('groupIndustry.materialSourcing.noReservation'))
+    expect(wrapper.find('[data-testid="material-sourcing-empty"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="material-sourcing-copy-jita"]').exists()).toBe(false)
+  })
+
+  it('keeps the empty state when the reader reserved lines that are all delivered', async () => {
+    const wrapper = await mountSourcing([], { hasReservations: true })
+
+    expect(wrapper.find('[data-testid="material-sourcing-empty"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="material-sourcing-no-reservation"]').exists()).toBe(false)
+  })
+
   it('shows the error of a failed read instead of rows', async () => {
     vi.mocked(apiRequest).mockRejectedValue(new Error('boom'))
     setActivePinia(createPinia())

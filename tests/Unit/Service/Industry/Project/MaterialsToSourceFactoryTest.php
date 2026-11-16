@@ -105,6 +105,51 @@ final class MaterialsToSourceFactoryTest extends TestCase
         self::assertEquals([new MaterialToSource(self::TRITANIUM, new Quantity(10_000), ActivityKind::Manufacturing)], $materials);
     }
 
+    #[Group('issue-1011')]
+    public function testOnlyTheReservedLinesAreToSourceForTheirReservedQuantity(): void
+    {
+        $tritanium = $this->material(self::TRITANIUM, 12_000, 2_000);
+        $pyerite = $this->material(self::PYERITE, 500, 0);
+        $morphite = $this->material(self::MORPHITE, 150, 0);
+
+        $materials = MaterialsToSourceFactory::reservedOf(
+            [$tritanium, $pyerite, $morphite],
+            new Plan([], [], []),
+            [$tritanium->getId()->toRfc4122() => 4_000, $morphite->getId()->toRfc4122() => 20],
+        );
+
+        self::assertEquals(
+            [
+                new MaterialToSource(self::TRITANIUM, new Quantity(4_000), ActivityKind::Manufacturing),
+                new MaterialToSource(self::MORPHITE, new Quantity(20), ActivityKind::Manufacturing),
+            ],
+            $materials,
+        );
+    }
+
+    #[Group('issue-1011')]
+    public function testAReservationAboveTheRemainingQuantityIsCappedAndACoveredOrEmptyReservationIsNotToSource(): void
+    {
+        $tritanium = $this->material(self::TRITANIUM, 12_000, 2_000);
+        $pyerite = $this->material(self::PYERITE, 500, 0);
+        $morphite = $this->material(self::MORPHITE, 150, 0);
+        $job = (new IndustryProjectBomLine())->setTypeId(self::RAM_STARSHIP_TECH)->setTypeName('R.A.M.- Starship Tech')->setRequiredQuantity(300)->setIsJob(true);
+
+        $materials = MaterialsToSourceFactory::reservedOf(
+            [$tritanium, $pyerite, $morphite, $job],
+            new Plan([], [], []),
+            [
+                $tritanium->getId()->toRfc4122() => 50_000,
+                $pyerite->getId()->toRfc4122() => 100,
+                $morphite->getId()->toRfc4122() => 0,
+                $job->getId()->toRfc4122() => 300,
+            ],
+            new ProjectLineFulfillments(ContainerStockState::Known, [self::PYERITE => 500]),
+        );
+
+        self::assertEquals([new MaterialToSource(self::TRITANIUM, new Quantity(10_000), ActivityKind::Manufacturing)], $materials);
+    }
+
     private function material(int $typeId, int $required, int $fulfilled): IndustryProjectBomLine
     {
         return (new IndustryProjectBomLine())

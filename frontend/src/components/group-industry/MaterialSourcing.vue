@@ -124,6 +124,12 @@ watch(
     </div>
 
     <p
+      v-else-if="sourcing !== null && rows.length === 0 && !sourcing.hasReservations"
+      data-testid="material-sourcing-no-reservation"
+      class="p-8 text-center text-slate-500"
+    >{{ t('groupIndustry.materialSourcing.noReservation') }}</p>
+
+    <p
       v-else-if="sourcing !== null && rows.length === 0"
       data-testid="material-sourcing-empty"
       class="p-8 text-center text-slate-500"
