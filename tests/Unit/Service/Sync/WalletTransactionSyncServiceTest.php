@@ -14,6 +14,7 @@ use App\Repository\CharacterWalletReadingRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\PaginatedEsiResponse;
 use App\Service\Industry\Project\AutomaticPurchaseLinker;
+use App\Service\Industry\Project\PendingContributionRevaluer;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\WalletTransactionSyncService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,6 +39,7 @@ class WalletTransactionSyncServiceTest extends TestCase
     private EntityManagerInterface&MockObject $em;
     private HubInterface&MockObject $hub;
     private AutomaticPurchaseLinker&MockObject $purchaseLinker;
+    private PendingContributionRevaluer&MockObject $contributionRevaluer;
     private CharacterWalletReadingRepository&MockObject $readingRepository;
     private WalletTransactionSyncService $service;
 
@@ -55,6 +57,7 @@ class WalletTransactionSyncServiceTest extends TestCase
         $this->em = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
         $this->purchaseLinker = $this->createMock(AutomaticPurchaseLinker::class);
+        $this->contributionRevaluer = $this->createMock(PendingContributionRevaluer::class);
         $this->readingRepository = $this->createMock(CharacterWalletReadingRepository::class);
         $this->persisted = [];
         $this->recordedReadings = [];
@@ -83,6 +86,7 @@ class WalletTransactionSyncServiceTest extends TestCase
             $this->purchaseLinker,
             $this->readingRepository,
             new MockClock(new \DateTimeImmutable('2026-11-13T20:04:10+00:00')),
+            $this->contributionRevaluer,
         );
     }
 
@@ -209,6 +213,30 @@ class WalletTransactionSyncServiceTest extends TestCase
                     $transactions,
                 ) === [7002]),
             );
+
+        $this->service->syncCharacterTransactions($character);
+    }
+
+    #[Group('issue-1009')]
+    public function testPendingContributionsOfTheUserAreRevaluedWhenNewTransactionsArrive(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('getWithExpiry')->willReturnOnConsecutiveCalls($this->page([$this->makeTransactionData(7201)]), $this->page([]));
+        $this->transactionRepository->method('findExistingTransactionIds')->willReturn([]);
+
+        $this->contributionRevaluer->expects($this->once())->method('revalueFor')->with($character->getUser());
+
+        $this->service->syncCharacterTransactions($character);
+    }
+
+    #[Group('issue-1009')]
+    public function testPendingContributionsAreNotRevaluedWhenNothingIsNew(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('getWithExpiry')->willReturn($this->page([$this->makeTransactionData(7301)]));
+        $this->transactionRepository->method('findExistingTransactionIds')->willReturn([7301]);
+
+        $this->contributionRevaluer->expects($this->never())->method('revalueFor');
 
         $this->service->syncCharacterTransactions($character);
     }

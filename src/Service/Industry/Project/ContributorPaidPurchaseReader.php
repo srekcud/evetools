@@ -24,35 +24,38 @@ class ContributorPaidPurchaseReader
         }
 
         $project = $member->getProject();
-        $alreadyLinked = $this->transactionsLinkedTo($project);
+        $linkedQuantities = $this->linkedQuantitiesByTransaction($project);
 
-        $quantity = 0;
-        $totalPrice = 0.0;
+        $transactions = [];
         foreach ($user->getCharacters() as $character) {
             foreach ($this->walletTransactions->findBuysByTypeIds($character, [$typeId], $project->getCreatedAt()) as $transaction) {
-                if (\in_array($transaction, $alreadyLinked, true)) {
-                    continue;
-                }
+                $transactions[] = $transaction;
+            }
+        }
+        usort($transactions, static fn (CachedWalletTransaction $first, CachedWalletTransaction $second): int => $first->getDate() <=> $second->getDate());
 
-                $quantity += $transaction->getQuantity();
-                $totalPrice += $transaction->getTotalPrice();
+        $units = [];
+        foreach ($transactions as $transaction) {
+            $remaining = $transaction->getQuantity() - ($linkedQuantities[spl_object_id($transaction)] ?? 0);
+            if ($remaining > 0) {
+                $units[] = new PaidTransactionUnits($transaction, $remaining);
             }
         }
 
-        return 0 === $quantity ? null : new PaidMaterialPurchases($quantity, $totalPrice);
+        return [] === $units ? null : new PaidMaterialPurchases($units);
     }
 
     /**
-     * @return list<CachedWalletTransaction>
+     * @return array<int, int>
      */
-    private function transactionsLinkedTo(IndustryProject $project): array
+    private function linkedQuantitiesByTransaction(IndustryProject $project): array
     {
         $linked = [];
         foreach ($project->getBomItems() as $line) {
             foreach ($line->getPurchases() as $purchase) {
                 $transaction = $purchase->getTransaction();
                 if (null !== $transaction) {
-                    $linked[] = $transaction;
+                    $linked[spl_object_id($transaction)] = ($linked[spl_object_id($transaction)] ?? 0) + $purchase->getQuantity();
                 }
             }
         }

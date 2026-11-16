@@ -256,4 +256,25 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return list<IndustryProjectContribution>
+     */
+    public function findPendingRevaluableOf(User $user): array
+    {
+        return $this->createQueryBuilder('contribution')
+            ->innerJoin('contribution.member', 'participant')
+            ->innerJoin('contribution.bomItem', 'line')
+            ->where('participant.user = :user')
+            ->andWhere('contribution.status = :pending')
+            ->andWhere('contribution.type = :material')
+            ->andWhere('contribution.isAutoDetected = false')
+            ->andWhere('line.isJob = false')
+            ->andWhere('contribution.awaitingQuantity > 0 OR contribution.valuedAtJitaPrice = true')
+            ->setParameter('user', $user)
+            ->setParameter('pending', ContributionStatus::Pending->value)
+            ->setParameter('material', ContributionType::Material->value)
+            ->getQuery()
+            ->getResult();
+    }
 }

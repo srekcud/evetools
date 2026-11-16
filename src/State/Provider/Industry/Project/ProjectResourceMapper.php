@@ -13,6 +13,7 @@ use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
+use App\Enum\ContributionValueSource;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\PilotName;
@@ -151,6 +152,12 @@ class ProjectResourceMapper
         $resource->duplicatesDerived = $contribution->duplicatesDerived();
         $resource->isVerified = $contribution->isVerified();
         $resource->valuedAtJitaPrice = $contribution->isValuedAtJitaPrice();
+        $resource->valueSource = $contribution->getValueSource()?->value;
+        $resource->awaitingQuantity = $contribution->getAwaitingQuantity();
+        $resource->switchableToJitaPrice = $contribution->isContributedBy($viewer)
+            && ContributionStatus::Pending === $contribution->getStatus()
+            && ContributionValueSource::WalletPurchase === $contribution->getValueSource()
+            && $contribution->getAwaitingQuantity() > 0;
         $resource->reopenable = $contribution->isReopenable();
         $resource->editableByViewer = null !== $viewer && $contribution->getMember()->getUser() === $viewer && $contribution->isEditableByItsContributor();
         $resource->reviewedByCharacterName = $contribution->getReviewedBy()?->getMainCharacter()?->getName();

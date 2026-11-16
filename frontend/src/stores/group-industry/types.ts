@@ -209,6 +209,14 @@ export type BomItem = {
 
 // --- Contributions ---
 
+export type ContributionValueSource = 'wallet_purchase' | 'jita_price'
+
+export type MaterialValuePreview = {
+  matchedQuantity: number
+  matchedValue: number | null
+  unmatchedQuantity: number
+}
+
 export type EditContributionInput = {
   quantity?: number
   estimatedValue?: number
@@ -230,6 +238,9 @@ export type GroupContribution = {
   duplicatesDerived: boolean
   isVerified: boolean
   valuedAtJitaPrice: boolean
+  valueSource?: ContributionValueSource | null
+  awaitingQuantity?: number
+  switchableToJitaPrice?: boolean
   reopenable: boolean
   editableByViewer?: boolean
   reviewedByCharacterName: string | null
@@ -565,6 +576,7 @@ export type SubmitContributionInput = {
   bomItemId?: string
   quantity: number
   estimatedValue?: number
+  valueSource?: ContributionValueSource
   note?: string
 }
 

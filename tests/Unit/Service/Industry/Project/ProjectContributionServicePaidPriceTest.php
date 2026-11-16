@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry\Project;
 
+use App\Entity\CachedWalletTransaction;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectParticipant;
@@ -16,6 +17,7 @@ use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\PaidMaterialPurchases;
+use App\Service\Industry\Project\PaidTransactionUnits;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -70,7 +72,7 @@ final class ProjectContributionServicePaidPriceTest extends TestCase
 
     public function testPurchasesCoveringTheWholeDepositValueItAtThePaidPriceWithoutReadingJita(): void
     {
-        $this->paidPurchases->method('read')->willReturn(new PaidMaterialPurchases(100, 500.0));
+        $this->paidPurchases->method('read')->willReturn($this->paid(100, 5.0));
 
         $contribution = $this->service->submit($this->member, $this->line, ContributionType::Material, 100);
 
@@ -80,7 +82,7 @@ final class ProjectContributionServicePaidPriceTest extends TestCase
 
     public function testPurchasesCoveringPartOfTheDepositAreValuedAtThePaidPriceAndTheRestAtJita(): void
     {
-        $this->paidPurchases->method('read')->willReturn(new PaidMaterialPurchases(60, 300.0));
+        $this->paidPurchases->method('read')->willReturn($this->paid(60, 5.0));
 
         $contribution = $this->service->submit($this->member, $this->line, ContributionType::Material, 100);
 
@@ -89,7 +91,7 @@ final class ProjectContributionServicePaidPriceTest extends TestCase
 
     public function testPurchasesLargerThanTheDepositAreValuedAtTheAveragePaidPriceOfTheDepositedUnits(): void
     {
-        $this->paidPurchases->method('read')->willReturn(new PaidMaterialPurchases(200, 1000.0));
+        $this->paidPurchases->method('read')->willReturn($this->paid(200, 5.0));
 
         $contribution = $this->service->submit($this->member, $this->line, ContributionType::Material, 100);
 
@@ -107,7 +109,7 @@ final class ProjectContributionServicePaidPriceTest extends TestCase
 
     public function testPartialPurchasesWithoutAJitaPriceRefuseTheDepositInsteadOfGuessingTheRest(): void
     {
-        $this->paidPurchases->method('read')->willReturn(new PaidMaterialPurchases(60, 300.0));
+        $this->paidPurchases->method('read')->willReturn($this->paid(60, 5.0));
         $this->jitaPrice = null;
 
         $this->expectException(\DomainException::class);
@@ -117,7 +119,7 @@ final class ProjectContributionServicePaidPriceTest extends TestCase
 
     public function testFullyPaidDepositNeedsNoJitaPrice(): void
     {
-        $this->paidPurchases->method('read')->willReturn(new PaidMaterialPurchases(100, 500.0));
+        $this->paidPurchases->method('read')->willReturn($this->paid(100, 5.0));
         $this->jitaPrice = null;
 
         $contribution = $this->service->submit($this->member, $this->line, ContributionType::Material, 100);
@@ -141,5 +143,12 @@ final class ProjectContributionServicePaidPriceTest extends TestCase
         $contribution = $this->service->submit($this->member, $this->line, ContributionType::JobInstall, 2, 900.0);
 
         $this->assertSame([900.0, false], [$contribution->getEstimatedValue(), $contribution->isValuedAtJitaPrice()]);
+    }
+
+    private function paid(int $quantity, float $unitPrice): PaidMaterialPurchases
+    {
+        $transaction = (new CachedWalletTransaction())->setTypeId(self::TRITANIUM_TYPE_ID)->setQuantity($quantity)->setUnitPrice($unitPrice)->setIsBuy(true)->setDate(new \DateTimeImmutable());
+
+        return new PaidMaterialPurchases([new PaidTransactionUnits($transaction, $quantity)]);
     }
 }

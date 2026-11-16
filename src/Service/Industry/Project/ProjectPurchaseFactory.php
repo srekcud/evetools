@@ -5,11 +5,20 @@ declare(strict_types=1);
 namespace App\Service\Industry\Project;
 
 use App\Entity\CachedWalletTransaction;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectPurchase;
 
 final class ProjectPurchaseFactory
 {
     private const string WALLET_SOURCE = 'esi_wallet';
+
+    public static function fromUnits(PaidTransactionUnits $units, IndustryProjectParticipant $buyer, IndustryProjectContribution $contribution): IndustryProjectPurchase
+    {
+        return self::fromTransaction($units->transaction, $units->quantity)
+            ->setBuyer($buyer)
+            ->setContribution($contribution);
+    }
 
     public static function fromTransaction(CachedWalletTransaction $transaction, ?int $quantity): IndustryProjectPurchase
     {

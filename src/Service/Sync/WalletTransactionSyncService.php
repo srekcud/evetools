@@ -10,6 +10,7 @@ use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\CharacterWalletReadingRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\Industry\Project\AutomaticPurchaseLinker;
+use App\Service\Industry\Project\PendingContributionRevaluer;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -29,6 +30,7 @@ class WalletTransactionSyncService
         private readonly AutomaticPurchaseLinker $purchaseLinker,
         private readonly CharacterWalletReadingRepository $readingRepository,
         private readonly ClockInterface $clock,
+        private readonly PendingContributionRevaluer $contributionRevaluer,
     ) {
     }
 
@@ -156,6 +158,11 @@ class WalletTransactionSyncService
 
         if ($newTransactions !== []) {
             $this->purchaseLinker->linkNewPurchases($character, $newTransactions);
+
+            $contributor = $character->getUser();
+            if ($contributor !== null) {
+                $this->contributionRevaluer->revalueFor($contributor);
+            }
         }
 
         if ($userId !== null) {

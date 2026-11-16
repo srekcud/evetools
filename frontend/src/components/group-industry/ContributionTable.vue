@@ -96,6 +96,14 @@ function methodLabelKey(contribution: GroupContribution): string {
   return 'groupIndustry.contributions.methods.enteredValue'
 }
 
+function isAwaitingUnits(contribution: GroupContribution): boolean {
+  return contribution.awaitingQuantity !== undefined && contribution.awaitingQuantity > 0
+}
+
+async function handleValueAtJitaPrice(id: string): Promise<void> {
+  await store.valueContributionAtJitaPrice(props.projectId, id)
+}
+
 function isPending(status: ContributionStatus): boolean {
   return status === 'pending'
 }
@@ -324,6 +332,14 @@ onMounted(() => {
                   :aria-label="t('groupIndustry.contributions.own.value')"
                   class="w-32 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
                 />
+                <template v-else-if="contrib.awaitingQuantity !== undefined && contrib.awaitingQuantity > 0">
+                  <template v-if="contrib.estimatedValue !== null">{{ formatIsk(contrib.estimatedValue) }}</template>
+                  <div class="flex items-center justify-end gap-1.5 text-xs font-sans text-violet-300" data-testid="awaiting-units">
+                    <UnknownContributionValue />
+                    <span>{{ t('groupIndustry.contributions.awaitingUnits', { count: formatNumber(contrib.awaitingQuantity, 0) }) }}</span>
+                    <span class="text-slate-500">{{ t('groupIndustry.contributions.valueUnknown') }}</span>
+                  </div>
+                </template>
                 <UnknownContributionValue v-else-if="contrib.estimatedValue === null" />
                 <template v-else>
                   {{ formatIsk(contrib.estimatedValue) }}
@@ -367,6 +383,11 @@ onMounted(() => {
               </td>
               <!-- Actions -->
               <td class="py-3 px-6 text-center">
+                <button
+                  v-if="contrib.switchableToJitaPrice"
+                  class="mb-1.5 px-2.5 py-1 rounded bg-violet-600/20 text-violet-300 text-xs font-medium hover:bg-violet-600/30 transition-colors border border-violet-600/30"
+                  @click="handleValueAtJitaPrice(contrib.id)"
+                >{{ t('groupIndustry.contributions.valueAtJitaPrice') }}</button>
                 <div
                   v-if="editingId === contrib.id"
                   class="flex items-center justify-center gap-1.5"
@@ -412,7 +433,9 @@ onMounted(() => {
                   class="flex items-center justify-center gap-1.5"
                 >
                   <button
-                    class="px-2.5 py-1 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30"
+                    class="px-2.5 py-1 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                    :disabled="isAwaitingUnits(contrib)"
+                    :title="isAwaitingUnits(contrib) ? t('groupIndustry.contributions.approveBlockedAwaiting') : undefined"
                     @click="handleApprove(contrib.id)"
                   >{{ isDeliveryProposal(contrib) ? 'Confirm delivery' : 'Approve' }}</button>
                   <button
@@ -438,7 +461,7 @@ onMounted(() => {
                     @click="handleReject(contrib.id)"
                   >Reject</button>
                 </div>
-                <span v-else class="text-xs text-slate-500">--</span>
+                <span v-else-if="!contrib.switchableToJitaPrice" class="text-xs text-slate-500">--</span>
               </td>
             </tr>
           </tbody>
