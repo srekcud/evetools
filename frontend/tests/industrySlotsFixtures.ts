@@ -8,5 +8,6 @@ export function slotTrackerWithoutCharacters<Timeline>(timeline: Timeline[] = []
     skillsMayBeStale: false,
     unknownSkillsCharacterCount: 0,
     jobsSyncedAt,
+    jobsSyncIntervalSeconds: 1800,
   }
 }

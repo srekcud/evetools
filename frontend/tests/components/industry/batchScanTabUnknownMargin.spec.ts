@@ -31,6 +31,7 @@ function scanItem(typeId: number, typeName: string, marginPercent: number | null
     exportCost: 25_000,
     sellPrice: 520_000,
     meUsed: 10,
+    teUsed: 20,
     activityType: 'manufacturing',
     isFactionBlueprint: false,
     bpcCostPerRun: null,

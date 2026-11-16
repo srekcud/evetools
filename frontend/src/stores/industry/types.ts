@@ -287,6 +287,7 @@ export type BatchScanItem = {
   importCost: number | null
   sellPrice: number | null
   meUsed: number
+  teUsed: number
   activityType: string
   isFactionBlueprint: boolean
   bpcCostPerRun: number | null
@@ -610,12 +611,13 @@ export type SlotTrackerData = {
   skillsMayBeStale: boolean
   unknownSkillsCharacterCount: number
   jobsSyncedAt: string | null
+  jobsSyncIntervalSeconds: number
 }
 
 // Cross-tab navigation intent for the Industry cockpit
 export type ProjectPrefill = { typeId: number; typeName: string; runs?: number; me?: number; te?: number; isT2?: boolean; excludedTypeIds?: number[] }
 
-export type ProjectPrefillItem = { typeId: number; typeName: string; meLevel: number; teLevel: number; runs: number }
+export type ProjectPrefillItem = { typeId: number; typeName: string; meLevel: number; teLevel: number; runs: number; blueprintSource?: 'owned' | 'assumed' }
 
 export type NavigationIntent =
   | { target: 'projects'; openCreateModal?: boolean; prefill?: ProjectPrefill; prefillItems?: ProjectPrefillItem[] }

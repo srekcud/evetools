@@ -217,6 +217,12 @@ export type MaterialValuePreview = {
   unmatchedQuantity: number
 }
 
+export type EditContributionInput = {
+  quantity?: number
+  estimatedValue?: number
+  note?: string
+}
+
 export type GroupContribution = {
   id: string
   memberCharacterName: string | null
@@ -236,6 +242,7 @@ export type GroupContribution = {
   awaitingQuantity?: number
   switchableToJitaPrice?: boolean
   reopenable: boolean
+  editableByViewer?: boolean
   reviewedByCharacterName: string | null
   reviewedAt: string | null
   note: string | null

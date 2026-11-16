@@ -15,6 +15,8 @@ use App\Repository\CharacterRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\IndustryCalculationService;
+use App\Scheduler\SyncScheduler;
+use App\Service\Help\ScheduledSyncReader;
 use App\Service\Industry\SlotTrackerService;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Industry\SlotTrackerProvider;
@@ -23,6 +25,9 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Lock\Store\InMemoryStore;
 
 #[CoversClass(SlotTrackerProvider::class)]
 #[AllowMockObjectsWithoutExpectations]
@@ -65,7 +70,7 @@ final class SlotTrackerProviderTest extends TestCase
             $stockpileTargetRepository,
             $this->createMock(CachedAssetRepository::class),
             $this->createMock(IndustryProjectJobMatchRepository::class),
-        ));
+        ), new ScheduledSyncReader([new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore()))]));
 
         $resource = $provider->provide(new Get());
 
@@ -74,6 +79,7 @@ final class SlotTrackerProviderTest extends TestCase
         $this->assertSame(['Aurora', 'Borealis'], array_column($resource->characters, 'characterName'));
         $this->assertSame([true, false], array_column($resource->characters, 'skillsUnknown'));
         $this->assertNull($resource->jobsSyncedAt);
+        $this->assertSame(1800, $resource->jobsSyncIntervalSeconds);
         $this->assertSame([false, true], array_column($resource->characters, 'jobsStale'));
         $this->assertSame(
             [['used' => 0, 'max' => null], ['used' => 0, 'max' => 4]],

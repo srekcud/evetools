@@ -4,6 +4,8 @@ const REFRESHES_BY_ACTION: Record<string, GroupProjectRefresh[]> = {
   contribution_submitted: ['bom', 'contributions', 'projectDetail', 'cockpit'],
   contribution_approved: ['bom', 'contributions', 'projectDetail', 'cockpit'],
   contribution_rejected: ['bom', 'contributions', 'projectDetail', 'cockpit'],
+  contribution_updated: ['bom', 'contributions', 'projectDetail', 'cockpit'],
+  contribution_withdrawn: ['bom', 'contributions', 'projectDetail', 'cockpit'],
   contribution_synced: ['bom', 'contributions', 'distribution', 'projectDetail', 'cockpit'],
   contribution_valued: ['bom', 'contributions', 'distribution', 'projectDetail', 'cockpit'],
   line_reserved: ['bom'],

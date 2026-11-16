@@ -138,6 +138,7 @@ type ProjectItem = {
   meLevel: number
   teLevel: number
   runs: number
+  blueprintSource?: 'owned' | 'assumed'
 }
 const items = ref<ProjectItem[]>([])
 const blacklistTypeIds = ref<number[]>([])
@@ -772,7 +773,21 @@ function handleClose() {
                       />
                     </div>
                   </td>
-                  <td class="py-2 px-3 text-slate-200">{{ item.typeName }}</td>
+                  <td class="py-2 px-3 text-slate-200">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span class="truncate" :title="item.typeName">{{ item.typeName }}</span>
+                      <span
+                        v-if="item.blueprintSource"
+                        :data-testid="`item-blueprint-source-${item.typeId}`"
+                        :data-blueprint-source="item.blueprintSource"
+                        :title="t(`groupIndustry.modals.newProject.blueprintSource.${item.blueprintSource}Hint`)"
+                        :class="[
+                          'shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded whitespace-nowrap',
+                          item.blueprintSource === 'owned' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400',
+                        ]"
+                      >{{ t(`groupIndustry.modals.newProject.blueprintSource.${item.blueprintSource}`) }}</span>
+                    </div>
+                  </td>
                   <td class="py-2 px-2 text-center">
                     <input
                       v-model.number="item.meLevel"

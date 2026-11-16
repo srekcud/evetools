@@ -835,6 +835,11 @@
         "reaction": "Reaction",
         "copyMultibuy": "Copy Multibuy",
         "copied": "Copied!",
+        "selectAllRows": "Select all visible products",
+        "selectRow": "Select {name}",
+        "startProject": "Start a project ({count})",
+        "startProjectError": "Blueprint library unavailable, no project started: {error}",
+        "startProjectLibraryMissing": "Blueprint library unavailable, no project started.",
         "selectStructure": "Select a structure...",
         "factionBpc": "Faction BPC",
         "setBpcPrice": "Set BPC price per run",
@@ -1137,6 +1142,8 @@
       "title": "Slot Tracker",
       "refresh": "Refresh",
       "lastSync": "Last sync",
+      "jobsSyncEvery": "Jobs are read every {minutes} minutes",
+      "jobsSyncNext": "next around {time}",
       "noJobs": "No active jobs",
       "projectLinkFallback": "Project",
       "kpi": {
@@ -3573,6 +3580,14 @@
       }
     },
     "contributions": {
+      "own": {
+        "edit": "Edit",
+        "withdraw": "Withdraw",
+        "confirmWithdraw": "Confirm withdrawal",
+        "quantity": "Quantity",
+        "value": "Value",
+        "note": "Note"
+      },
       "unknownValueCause": "A contribution has no known price: the totals that include it are unknown, never partial.",
       "duplicatesDerived": "Duplicate of an ESI contribution",
       "awaitingUnits": "{count} units awaiting wallet transaction",
@@ -3822,6 +3837,12 @@
         "namePlaceholder": "Custom project name (e.g. Fleet Doctrine Build)",
         "optional": "optional",
         "itemsLabel": "Items to Produce",
+        "blueprintSource": {
+          "owned": "Owned blueprint",
+          "assumed": "Scanner assumption",
+          "ownedHint": "ME and TE come from the best blueprint you own for this item.",
+          "assumedHint": "No owned blueprint found: ME and TE are the scanner assumption."
+        },
         "addItem": "Add Item",
         "bulkPaste": "Bulk Paste",
         "searchPlaceholder": "Search item (e.g. Ferox, Ishtar...)",

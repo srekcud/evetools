@@ -835,6 +835,11 @@
         "reaction": "Reaction",
         "copyMultibuy": "Copier Multibuy",
         "copied": "Copie !",
+        "selectAllRows": "Selectionner tous les produits visibles",
+        "selectRow": "Selectionner {name}",
+        "startProject": "Demarrer un projet ({count})",
+        "startProjectError": "Bibliotheque de blueprints indisponible, aucun projet demarre : {error}",
+        "startProjectLibraryMissing": "Bibliotheque de blueprints indisponible, aucun projet demarre.",
         "selectStructure": "Selectionner une structure...",
         "factionBpc": "BPC Faction",
         "setBpcPrice": "Definir le prix du BPC par run",
@@ -1137,6 +1142,8 @@
       "title": "Suivi des Slots",
       "refresh": "Rafraichir",
       "lastSync": "Derniere sync",
+      "jobsSyncEvery": "Les jobs sont lus toutes les {minutes} minutes",
+      "jobsSyncNext": "prochaine lecture vers {time}",
       "noJobs": "Aucun job actif",
       "projectLinkFallback": "Projet",
       "kpi": {
@@ -3573,6 +3580,14 @@
       }
     },
     "contributions": {
+      "own": {
+        "edit": "Modifier",
+        "withdraw": "Retirer",
+        "confirmWithdraw": "Confirmer le retrait",
+        "quantity": "Quantité",
+        "value": "Valeur",
+        "note": "Note"
+      },
       "unknownValueCause": "Un apport n'a pas de prix connu : les totaux qui l'incluent sont inconnus, jamais partiels.",
       "duplicatesDerived": "Doublon avec un apport ESI",
       "awaitingUnits": "{count} unités en attente d'une transaction wallet",
@@ -3822,6 +3837,12 @@
         "namePlaceholder": "Nom personnalise (ex: Build Doctrine Fleet)",
         "optional": "optionnel",
         "itemsLabel": "Items a produire",
+        "blueprintSource": {
+          "owned": "Blueprint possede",
+          "assumed": "Hypothese du scanner",
+          "ownedHint": "ME et TE viennent du meilleur blueprint que vous possedez pour cet item.",
+          "assumedHint": "Aucun blueprint possede : ME et TE sont l'hypothese du scanner."
+        },
         "addItem": "Ajouter un item",
         "bulkPaste": "Coller en lot",
         "searchPlaceholder": "Rechercher un item (ex: Ferox, Ishtar...)",

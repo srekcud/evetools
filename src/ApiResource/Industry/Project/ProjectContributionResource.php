@@ -6,17 +6,21 @@ namespace App\ApiResource\Industry\Project;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
+use App\ApiResource\Input\Industry\Project\EditContributionInput;
 use App\ApiResource\Input\Industry\Project\ReviewContributionInput;
 use App\ApiResource\Input\Industry\Project\SubmitContributionInput;
+use App\State\Processor\Industry\Project\EditContributionProcessor;
 use App\State\Processor\Industry\Project\ReviewContributionProcessor;
 use App\State\Processor\Industry\Project\SubmitContributionProcessor;
 use App\State\Processor\Industry\Project\ValueContributionAtJitaPriceProcessor;
+use App\State\Processor\Industry\Project\WithdrawContributionProcessor;
 use App\State\Provider\Industry\Project\ProjectContributionCollectionProvider;
 use App\State\Provider\Industry\Project\ProjectContributionItemProvider;
 
@@ -80,6 +84,35 @@ use App\State\Provider\Industry\Project\ProjectContributionItemProvider;
                 tags: ['Group Industry - Contributions'],
             ),
         ),
+        new Patch(
+            uriTemplate: '/industry/projects/{projectId}/contributions/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}/details',
+            uriVariables: [
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+                'id' => new Link(fromClass: self::class),
+            ],
+            provider: ProjectContributionItemProvider::class,
+            processor: EditContributionProcessor::class,
+            input: EditContributionInput::class,
+            openapi: new Model\Operation(
+                summary: 'Edit your own pending contribution',
+                description: 'Changes the quantity, note or entered value of a pending contribution (contributor only)',
+                tags: ['Group Industry - Contributions'],
+            ),
+        ),
+        new Delete(
+            uriTemplate: '/industry/projects/{projectId}/contributions/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriVariables: [
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+                'id' => new Link(fromClass: self::class),
+            ],
+            provider: ProjectContributionItemProvider::class,
+            processor: WithdrawContributionProcessor::class,
+            openapi: new Model\Operation(
+                summary: 'Withdraw your own pending contribution',
+                description: 'Removes a pending contribution (contributor only); the line reservation is kept',
+                tags: ['Group Industry - Contributions'],
+            ),
+        ),
     ],
     security: "is_granted('ROLE_USER')",
     paginationEnabled: false,
@@ -123,6 +156,8 @@ class ProjectContributionResource
     public bool $switchableToJitaPrice = false;
 
     public bool $reopenable = false;
+
+    public bool $editableByViewer = false;
 
     public ?string $reviewedByCharacterName = null;
 

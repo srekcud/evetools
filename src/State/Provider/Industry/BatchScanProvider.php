@@ -105,6 +105,7 @@ class BatchScanProvider implements ProviderInterface
         $resource->exportCost = $data['exportCost'];
         $resource->sellPrice = $data['sellPrice'];
         $resource->meUsed = $data['meUsed'];
+        $resource->teUsed = $data['teUsed'];
         $resource->activityType = $data['activityType'];
         $resource->isFactionBlueprint = $data['isFactionBlueprint'];
         $resource->bpcCostPerRun = $data['bpcCostPerRun'];

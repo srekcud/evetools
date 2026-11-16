@@ -159,6 +159,7 @@ class ProjectResourceMapper
             && ContributionValueSource::WalletPurchase === $contribution->getValueSource()
             && $contribution->getAwaitingQuantity() > 0;
         $resource->reopenable = $contribution->isReopenable();
+        $resource->editableByViewer = null !== $viewer && $contribution->getMember()->getUser() === $viewer && $contribution->isEditableByItsContributor();
         $resource->reviewedByCharacterName = $contribution->getReviewedBy()?->getMainCharacter()?->getName();
         $resource->reviewedAt = $contribution->getReviewedAt()?->format(\DateTimeInterface::ATOM);
         $resource->note = $contribution->getNote();

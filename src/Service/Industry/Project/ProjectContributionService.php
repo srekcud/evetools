@@ -267,6 +267,77 @@ class ProjectContributionService
         $this->entityManager->flush();
     }
 
+    /**
+     * @throws \DomainException if the contribution is locked or the change breaks a submission rule
+     */
+    public function edit(IndustryProjectContribution $contribution, ?int $quantity, ?float $estimatedValue, ?string $note): void
+    {
+        $this->assertEditableByItsContributor($contribution);
+
+        if (null === $quantity && null === $estimatedValue && null === $note) {
+            throw new \DomainException('Nothing to change on the contribution');
+        }
+
+        $bomItem = $contribution->getBomItem();
+        if (null !== $quantity && null !== $bomItem && $quantity > $bomItem->getRemainingQuantity()) {
+            throw new \DomainException('The contribution exceeds the remaining quantity of the line');
+        }
+
+        $type = $contribution->getType();
+        $value = match ($type) {
+            ContributionType::Material => $this->revaluedMaterialContribution($contribution, $quantity, $estimatedValue),
+            ContributionType::JobInstall, ContributionType::Bpc => null === $estimatedValue ? null : new ContributionValue($this->requirePositiveEnteredValue($type, $estimatedValue)),
+            ContributionType::LineRental => null === $estimatedValue ? null : new ContributionValue($estimatedValue),
+            ContributionType::Courier => throw new \DomainException('A courier contribution is derived from its contract and cannot be edited'),
+        };
+
+        if (null !== $quantity) {
+            $contribution->setQuantity($quantity);
+        }
+        if (null !== $value) {
+            $contribution->setEstimatedValue($value->value);
+            $contribution->setValuedAtJitaPrice($value->valuedAtJitaPrice);
+        }
+        if (null !== $note) {
+            $contribution->setNote('' === $note ? null : $note);
+        }
+
+        $this->entityManager->flush();
+    }
+
+    /**
+     * @throws \DomainException if the contribution is locked
+     */
+    public function withdraw(IndustryProjectContribution $contribution): void
+    {
+        $this->assertEditableByItsContributor($contribution);
+
+        $contribution->getProject()->getContributions()->removeElement($contribution);
+        $this->entityManager->remove($contribution);
+        $this->entityManager->flush();
+    }
+
+    private function assertEditableByItsContributor(IndustryProjectContribution $contribution): void
+    {
+        if (!$contribution->isEditableByItsContributor()) {
+            throw new \DomainException('Only a pending contribution of a running project that is not auto-detected can be changed by its contributor');
+        }
+    }
+
+    private function revaluedMaterialContribution(IndustryProjectContribution $contribution, ?int $quantity, ?float $estimatedValue): ?ContributionValue
+    {
+        if (null !== $estimatedValue) {
+            throw new \DomainException('A material contribution takes no entered value: it is valued at the Jita price of the deposit day.');
+        }
+
+        $bomItem = $contribution->getBomItem();
+        if (null === $quantity || null === $bomItem) {
+            return null;
+        }
+
+        return $this->resolveMaterialValue($contribution->getMember(), $bomItem, $quantity, null);
+    }
+
     private function isIntermediateContribution(IndustryProjectBomLine $bomItem, ContributionType $type): bool
     {
         return ContributionType::Material === $type && $bomItem->isJob();

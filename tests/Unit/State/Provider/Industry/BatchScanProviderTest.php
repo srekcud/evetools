@@ -54,6 +54,7 @@ class BatchScanProviderTest extends TestCase
             'exportCost' => 2500.0,
             'sellPrice' => 5000000.0,
             'meUsed' => 10,
+            'teUsed' => 20,
             'activityType' => 'manufacturing',
             'isFactionBlueprint' => false,
             'bpcCostPerRun' => null,
@@ -99,6 +100,7 @@ class BatchScanProviderTest extends TestCase
             'exportCost' => 2500.0,
             'sellPrice' => 5000000.0,
             'meUsed' => 10,
+            'teUsed' => 20,
             'activityType' => 'manufacturing',
             'isFactionBlueprint' => false,
             'bpcCostPerRun' => null,
@@ -137,6 +139,7 @@ class BatchScanProviderTest extends TestCase
             'exportCost' => 2500.0,
             'sellPrice' => 5000000.0,
             'meUsed' => 10,
+            'teUsed' => 20,
             'activityType' => 'manufacturing',
             'isFactionBlueprint' => false,
             'bpcCostPerRun' => null,
@@ -175,6 +178,7 @@ class BatchScanProviderTest extends TestCase
             'exportCost' => 3000000.0,
             'sellPrice' => 4800000.0,
             'meUsed' => 10,
+            'teUsed' => 20,
             'activityType' => 'manufacturing',
             'isFactionBlueprint' => false,
             'bpcCostPerRun' => null,
@@ -200,6 +204,7 @@ class BatchScanProviderTest extends TestCase
             'exportCost' => null,
             'sellPrice' => 39500.0,
             'meUsed' => 10,
+            'teUsed' => 20,
             'activityType' => 'manufacturing',
             'isFactionBlueprint' => false,
             'bpcCostPerRun' => null,
@@ -240,6 +245,7 @@ class BatchScanProviderTest extends TestCase
             'exportCost' => 87.25,
             'sellPrice' => 40000.0,
             'meUsed' => 8,
+            'teUsed' => 20,
             'activityType' => 'manufacturing',
             'isFactionBlueprint' => false,
             'bpcCostPerRun' => null,
@@ -286,6 +292,7 @@ class BatchScanProviderTest extends TestCase
             'exportCost' => 87.25,
             'sellPrice' => 40000.0,
             'meUsed' => 8,
+            'teUsed' => 20,
             'activityType' => 'manufacturing',
             'isFactionBlueprint' => false,
             'bpcCostPerRun' => null,
@@ -301,6 +308,42 @@ class BatchScanProviderTest extends TestCase
         $resources = $this->provideScanReturning([$roboticsWithPartialMaterials]);
 
         $this->assertSame($priceSources, $resources[0]->priceSources);
+    }
+
+    #[Group('issue-1003')]
+    public function testTeUsedOfARowReachesTheResourceNextToItsMeUsed(): void
+    {
+        $slasherInventedFromTechOne = [
+            'typeId' => self::SLASHER_TYPE_ID,
+            'typeName' => 'Slasher',
+            'groupName' => 'Frigate',
+            'categoryLabel' => 'T2 Ships',
+            'marginPercent' => 11.0,
+            'profitPerUnit' => 550000.0,
+            'dailyVolume' => 80.0,
+            'iskPerDay' => 44000000.0,
+            'materialCost' => 4450000.0,
+            'importCost' => 2450.0,
+            'exportCost' => 0.0,
+            'sellPrice' => 5000000.0,
+            'meUsed' => 2,
+            'teUsed' => 4,
+            'activityType' => 'manufacturing',
+            'isFactionBlueprint' => false,
+            'bpcCostPerRun' => null,
+            'hasAllSkills' => true,
+            'missingSkillCount' => 0,
+            'unknownReason' => null,
+            'unknownReasonStructureId' => null,
+            'missingPriceTypeIds' => [],
+            'contractSales' => null,
+            'priceSources' => self::FULL_PRICE_SOURCES,
+        ];
+
+        $resources = $this->provideScanReturning([$slasherInventedFromTechOne]);
+
+        $this->assertSame(2, $resources[0]->meUsed);
+        $this->assertSame(4, $resources[0]->teUsed);
     }
 
     #[Group('issue-334')]
@@ -321,6 +364,7 @@ class BatchScanProviderTest extends TestCase
             'exportCost' => 87.25,
             'sellPrice' => 40000.0,
             'meUsed' => 8,
+            'teUsed' => 20,
             'activityType' => 'manufacturing',
             'isFactionBlueprint' => false,
             'bpcCostPerRun' => null,
