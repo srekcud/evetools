@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Get;
 use App\ApiResource\Market\MarketHistoryEntryResource;
 use App\ApiResource\Market\MarketHistoryResource;
 use App\Entity\MarketPriceHistory;
+use App\Entity\StructureMarketSnapshot;
 use App\Entity\User;
 use App\Repository\StructureMarketSnapshotRepository;
 use App\Service\MarketHistoryService;
@@ -208,9 +209,69 @@ class MarketHistoryProviderTest extends TestCase
         $this->assertSame('Test Structure', $result->structureName);
     }
 
+    #[Group('issue-994')]
+    public function testStructureHistoryExposesOnlyTheOrderBookSnapshotFields(): void
+    {
+        $this->security->method('getUser')->willReturn(new User());
+        $this->requestStack->push(new Request(['source' => 'structure']));
+        $snapshot = $this->createSnapshot('2026-11-15', 1200.5, 1100.0, 11861, 632, 7, 3);
+        $this->snapshotRepository->method('findHistory')->willReturn([$snapshot]);
+
+        $entry = $this->provider->provide(new Get(), ['typeId' => 34])->entries[0];
+
+        $this->assertSame('2026-11-15', $entry->date);
+        $this->assertSame(1200.5, $entry->sellMin);
+        $this->assertSame(1100.0, $entry->buyMax);
+        $this->assertSame(11861, $entry->sellVolume);
+        $this->assertSame(632, $entry->buyVolume);
+        $this->assertSame(7, $entry->sellOrderCount);
+        $this->assertSame(3, $entry->buyOrderCount);
+        $this->assertNull($entry->average);
+        $this->assertNull($entry->highest);
+        $this->assertNull($entry->lowest);
+        $this->assertNull($entry->volume);
+        $this->assertNull($entry->orderCount);
+    }
+
+    #[Group('issue-994')]
+    public function testStructureHistoryKeepsTheSellPriceUnknownWhenTheDayHasNoSellOrder(): void
+    {
+        $this->security->method('getUser')->willReturn(new User());
+        $this->requestStack->push(new Request(['source' => 'structure']));
+        $snapshot = $this->createSnapshot('2026-11-15', null, 900.0, 0, 40, 0, 2);
+        $this->snapshotRepository->method('findHistory')->willReturn([$snapshot]);
+
+        $entry = $this->provider->provide(new Get(), ['typeId' => 34])->entries[0];
+
+        $this->assertNull($entry->sellMin);
+        $this->assertNull($entry->average);
+        $this->assertNull($entry->highest);
+        $this->assertNull($entry->lowest);
+        $this->assertSame(900.0, $entry->buyMax);
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function createSnapshot(
+        string $date,
+        ?float $sellMin,
+        ?float $buyMax,
+        int $sellVolume,
+        int $buyVolume,
+        int $sellOrderCount,
+        int $buyOrderCount,
+    ): StructureMarketSnapshot {
+        return (new StructureMarketSnapshot())
+            ->setDate(new \DateTimeImmutable($date))
+            ->setSellMin($sellMin)
+            ->setBuyMax($buyMax)
+            ->setSellVolume($sellVolume)
+            ->setBuyVolume($buyVolume)
+            ->setSellOrderCount($sellOrderCount)
+            ->setBuyOrderCount($buyOrderCount);
+    }
 
     private function createHistoryEntry(
         int $typeId,

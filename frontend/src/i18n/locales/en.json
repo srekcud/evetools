@@ -4168,7 +4168,9 @@
       "noOrders": "No orders",
       "structureSell": "Structure Sell",
       "structureBuy": "Structure Buy",
-      "averagePrice": "Average"
+      "averagePrice": "Average",
+      "volume": "Volume",
+      "listedVolume": "Listed units (sell + buy orders)"
     },
     "favorite": {
       "add": "Add to favorites",

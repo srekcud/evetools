@@ -50,11 +50,11 @@ export interface MarketOrder {
 
 export interface HistoryEntry {
   date: string
-  average: number
-  highest: number
-  lowest: number
-  orderCount: number
-  volume: number
+  average: number | null
+  highest: number | null
+  lowest: number | null
+  orderCount: number | null
+  volume: number | null
   sellMin?: number | null
   buyMax?: number | null
   sellVolume?: number | null

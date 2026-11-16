@@ -8,15 +8,15 @@ class MarketHistoryEntryResource
 {
     public string $date;
 
-    public float $average;
+    public ?float $average = null;
 
-    public float $highest;
+    public ?float $highest = null;
 
-    public float $lowest;
+    public ?float $lowest = null;
 
-    public int $orderCount;
+    public ?int $orderCount = null;
 
-    public int $volume;
+    public ?int $volume = null;
 
     /** Minimum sell price (structure snapshots only). */
     public ?float $sellMin = null;

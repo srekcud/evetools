@@ -88,12 +88,24 @@ const crosshairPlugin: Plugin = {
 
 const isStructure = computed(() => props.source === 'structure')
 
+function listedVolume(entry: HistoryEntry): number | null {
+  if (entry.sellVolume == null || entry.buyVolume == null) return null
+  return entry.sellVolume + entry.buyVolume
+}
+
+function entryVolume(entry: HistoryEntry): number | null {
+  return isStructure.value ? listedVolume(entry) : entry.volume
+}
+
+const volumeLabel = computed(() =>
+  isStructure.value ? t('market.detail.listedVolume') : t('market.detail.volume'),
+)
+
 const maxVolume = computed(() => {
-  if (props.data.length === 0) return 1
-  const getVol = isStructure.value
-    ? (d: HistoryEntry) => (d.sellVolume ?? 0) + (d.buyVolume ?? 0)
-    : (d: HistoryEntry) => d.volume
-  return Math.max(...props.data.map(d => getVol(d)))
+  const volumes = props.data
+    .map(entryVolume)
+    .filter((volume): volume is number => volume !== null)
+  return volumes.length === 0 ? 1 : Math.max(...volumes)
 })
 
 // Chart.js supports mixed chart types at runtime, but vue-chartjs types are strict.
@@ -106,29 +118,22 @@ const chartData = computed((): ChartData<'bar'> => {
 
   // Price reference for trend coloring: sellMin for structure, average for Jita
   const getPrice = isStructure.value
-    ? (d: HistoryEntry) => d.sellMin ?? d.average
+    ? (d: HistoryEntry) => d.sellMin ?? null
     : (d: HistoryEntry) => d.average
 
-  const getVolume = isStructure.value
-    ? (d: HistoryEntry) => (d.sellVolume ?? 0) + (d.buyVolume ?? 0)
-    : (d: HistoryEntry) => d.volume
+  function trendColor(index: number, alpha: number): string {
+    const neutral = `rgba(34, 211, 238, ${alpha})`
+    if (index === 0) return neutral
+    const current = getPrice(props.data[index])
+    const previous = getPrice(props.data[index - 1])
+    if (current == null || previous == null) return neutral
+    return current >= previous
+      ? `rgba(16, 185, 129, ${alpha})`
+      : `rgba(239, 68, 68, ${alpha})`
+  }
 
-  // Color bars based on price trend vs previous day
-  const volumeBackgroundColors = props.data.map((d, i) => {
-    if (i === 0) return 'rgba(34, 211, 238, 0.4)'
-    const prev = getPrice(props.data[i - 1])
-    return getPrice(d) >= prev
-      ? 'rgba(16, 185, 129, 0.4)'
-      : 'rgba(239, 68, 68, 0.4)'
-  })
-
-  const volumeBorderColors = props.data.map((d, i) => {
-    if (i === 0) return 'rgba(34, 211, 238, 0.6)'
-    const prev = getPrice(props.data[i - 1])
-    return getPrice(d) >= prev
-      ? 'rgba(16, 185, 129, 0.6)'
-      : 'rgba(239, 68, 68, 0.6)'
-  })
+  const volumeBackgroundColors = props.data.map((_, i) => trendColor(i, 0.4))
+  const volumeBorderColors = props.data.map((_, i) => trendColor(i, 0.6))
 
   const sellData = isStructure.value
     ? props.data.map(d => d.sellMin ?? null)
@@ -143,8 +148,8 @@ const chartData = computed((): ChartData<'bar'> => {
     datasets: [
       // Volume bars (rendered behind lines due to order: 3)
       {
-        label: 'Volume',
-        data: props.data.map(d => getVolume(d)),
+        label: volumeLabel.value,
+        data: props.data.map(entryVolume),
         backgroundColor: volumeBackgroundColors,
         borderColor: volumeBorderColors,
         borderWidth: 1,
@@ -186,8 +191,7 @@ const chartData = computed((): ChartData<'bar'> => {
         yAxisID: 'y',
         order: 1,
       },
-      // Average dashed line
-      {
+      ...(isStructure.value ? [] : [{
         type: 'line',
         label: t('market.detail.averagePrice'),
         data: props.data.map(d => d.average),
@@ -202,7 +206,7 @@ const chartData = computed((): ChartData<'bar'> => {
         pointHoverBackgroundColor: CHART_COLORS.muted,
         yAxisID: 'y',
         order: 2,
-      },
+      }]),
     ] as ChartData<'bar'>['datasets'],
   }
 })
@@ -234,8 +238,8 @@ const chartOptions = computed((): ChartOptions<'bar'> => {
           label: (context: { dataset: { label?: string }; raw: unknown }) => {
             const value = context.raw as number
             if (value == null) return ''
-            if (context.dataset.label === 'Volume') {
-              return `  Volume:    ${value.toLocaleString()}`
+            if (context.dataset.label === volumeLabel.value) {
+              return `  ${volumeLabel.value}:  ${value.toLocaleString()}`
             }
             return `  ${context.dataset.label}:  ${formatPrice(value)} ISK`
           },
@@ -333,9 +337,13 @@ const chartOptions = computed((): ChartOptions<'bar'> => {
         <span class="inline-block w-3 h-0.5 bg-amber-400 rounded-full"></span>
         {{ t('market.detail.buyPrice') }}
       </span>
-      <span class="flex items-center gap-2 text-xs text-slate-500">
+      <span v-if="!isStructure" class="flex items-center gap-2 text-xs text-slate-500">
         <span class="inline-block w-3 h-0.5 rounded-full border-t-2 border-dashed border-slate-400"></span>
         {{ t('market.detail.averagePrice') }}
+      </span>
+      <span class="flex items-center gap-2 text-xs text-slate-500">
+        <span class="inline-block w-2.5 h-2.5 rounded-sm bg-cyan-400/40"></span>
+        {{ volumeLabel }}
       </span>
       <span class="flex items-center gap-2 text-xs text-slate-500">
         <span class="inline-block w-3 rounded-full bg-cyan-400/20" style="height: 8px"></span>
