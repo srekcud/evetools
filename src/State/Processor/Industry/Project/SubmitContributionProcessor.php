@@ -118,6 +118,6 @@ class SubmitContributionProcessor implements ProcessorInterface
             ],
         );
 
-        return $this->mapper->contributionToResource($contribution);
+        return $this->mapper->contributionToResource($contribution, $user);
     }
 }

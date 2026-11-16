@@ -56,7 +56,7 @@ class ProjectContributionCollectionProvider implements ProviderInterface
         $contributions = $this->contributionRepository->findByProjectForListing($project);
 
         return array_map(
-            fn (IndustryProjectContribution $contribution) => $this->mapper->contributionToResource($contribution),
+            fn (IndustryProjectContribution $contribution) => $this->mapper->contributionToResource($contribution, $user),
             $contributions,
         );
     }
