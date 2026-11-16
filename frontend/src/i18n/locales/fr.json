@@ -3829,6 +3829,11 @@
     "actions": {
       "createProject": "Nouveau projet"
     },
+    "producerCharacters": {
+      "label": "Personnages producteurs",
+      "hint": "Les jobs prévus ne sont attribués qu'aux personnages cochés. Au moins un doit rester coché.",
+      "loadFailed": "Vos personnages n'ont pas pu être chargés : tous seront utilisés"
+    },
     "sellStructure": {
       "label": "Structure de vente",
       "none": "Aucune structure de marché configurée",

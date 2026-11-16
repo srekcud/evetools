@@ -10,6 +10,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 class UpdateProjectInput
 {
     public const int MAXIMUM_NOTES_LENGTH = 5000;
+    public const int MAXIMUM_PRODUCER_CHARACTERS = 50;
     public const int MAXIMUM_BLACKLIST_ENTRIES = 200;
     public const int MAXIMUM_CONTAINER_NAMES = 20;
     public const int MAXIMUM_CONTAINER_NAME_LENGTH = 255;
@@ -42,6 +43,11 @@ class UpdateProjectInput
     public ?bool $acceptsOutsideFavoriteSystem = null;
 
     public ?bool $excludesInvention = null;
+
+    /** @var list<int>|null */
+    #[Assert\Count(min: 1, max: self::MAXIMUM_PRODUCER_CHARACTERS)]
+    #[Assert\All([new Assert\Type('int'), new Assert\Positive()])]
+    public ?array $producerCharacterIds = null;
 
     #[Assert\PositiveOrZero]
     public ?float $minimumOutsideSaving = null;

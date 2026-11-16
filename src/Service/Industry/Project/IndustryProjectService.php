@@ -83,6 +83,7 @@ class IndustryProjectService
         $project->setPersonalUse($data->personalUse);
         $project->setAcceptsOutsideFavoriteSystem($data->acceptsOutsideFavoriteSystem);
         $project->setExcludesInvention($data->excludesInvention);
+        $project->setProducerCharacterIds($data->producerCharacterIds);
         $project->setMinimumOutsideSaving($data->minimumOutsideSaving);
         $project->setTemplate($data->template);
         $project->setSellStructure($data->sellStructure?->id, $data->sellStructure?->name);

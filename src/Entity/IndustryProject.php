@@ -68,6 +68,10 @@ class IndustryProject
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $excludesInvention = false;
 
+    /** @var list<int>|null */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $producerCharacterIds = null;
+
     #[ORM\Column(type: 'float', options: ['default' => self::DEFAULT_MINIMUM_OUTSIDE_SAVING])]
     private float $minimumOutsideSaving = self::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
@@ -329,6 +333,23 @@ class IndustryProject
     public function setExcludesInvention(bool $excludesInvention): static
     {
         $this->excludesInvention = $excludesInvention;
+        return $this;
+    }
+
+    /**
+     * @return list<int>|null
+     */
+    public function getProducerCharacterIds(): ?array
+    {
+        return $this->producerCharacterIds;
+    }
+
+    /**
+     * @param list<int>|null $producerCharacterIds
+     */
+    public function setProducerCharacterIds(?array $producerCharacterIds): static
+    {
+        $this->producerCharacterIds = $producerCharacterIds;
         return $this;
     }
 

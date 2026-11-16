@@ -11,6 +11,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 class CreateProjectInput
 {
     private const int MAXIMUM_TEXT_LENGTH = 255;
+    private const int MAXIMUM_PRODUCER_CHARACTERS = 50;
     private const int MAXIMUM_MATERIAL_EFFICIENCY = 10;
     private const int MAXIMUM_TIME_EFFICIENCY = 20;
     private const int MAXIMUM_RUNS = 100000;
@@ -72,6 +73,11 @@ class CreateProjectInput
     public bool $acceptsOutsideFavoriteSystem = false;
 
     public ?bool $excludesInvention = null;
+
+    /** @var list<int>|null */
+    #[Assert\Count(min: 1, max: self::MAXIMUM_PRODUCER_CHARACTERS)]
+    #[Assert\All([new Assert\Type('int'), new Assert\Positive()])]
+    public ?array $producerCharacterIds = null;
 
     #[Assert\PositiveOrZero]
     public float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING;

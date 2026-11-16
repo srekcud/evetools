@@ -59,6 +59,7 @@ import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
+import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
 import { nextProjectStatuses } from './nextProjectStatus'
@@ -115,6 +116,7 @@ const editForm = ref({
   salesTaxPercent: null as number | null,
   private: true,
   sellStructureId: null as number | null,
+  producerCharacterIds: null as number[] | null,
 })
 const isEditSaving = ref(false)
 const editError = ref<string | null>(null)
@@ -287,6 +289,13 @@ const editFeesUnknown = computed(() => feeOrNull(editForm.value.brokerFeePercent
 
 const sellStructureChanged = computed(() => editForm.value.sellStructureId !== null && editForm.value.sellStructureId !== project.value?.sellStructureId)
 
+const producerCharactersChanged = computed(() => {
+  const chosen = editForm.value.producerCharacterIds
+  if (chosen === null) return false
+  const stored = project.value?.producerCharacterIds ?? null
+  return stored === null || chosen.length !== stored.length || chosen.some(eveCharacterId => !stored.includes(eveCharacterId))
+})
+
 const currentSellStructure = computed(() => {
   const current = project.value
   if (!current || current.sellStructureId === null) return null
@@ -302,6 +311,7 @@ function openEditModal(): void {
     salesTaxPercent: project.value.salesTaxPercent,
     private: project.value.private,
     sellStructureId: project.value.sellStructureId,
+    producerCharacterIds: project.value.producerCharacterIds ?? null,
   }
   editError.value = null
   isEditSaving.value = false
@@ -319,6 +329,7 @@ async function handleEditSave(): Promise<void> {
       salesTaxPercent: feeOrNull(editForm.value.salesTaxPercent),
       private: editForm.value.private,
       ...(sellStructureChanged.value ? { sellStructureId: editForm.value.sellStructureId } : {}),
+      ...(producerCharactersChanged.value ? { producerCharacterIds: editForm.value.producerCharacterIds } : {}),
     } as Partial<GroupProject>)
     showEditModal.value = false
   } catch (e) {
@@ -911,6 +922,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           :preselect-preferred="false"
         />
         <p v-if="editForm.sellStructureId === null" data-testid="sell-structure-unset" class="text-xs text-slate-500">{{ t('groupIndustry.sellStructure.notSet') }}</p>
+        <ProducerCharactersSelect v-model="editForm.producerCharacterIds" :disabled="isCompleted" />
         <div>
           <label class="flex items-center gap-2.5 cursor-pointer">
             <input

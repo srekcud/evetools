@@ -132,6 +132,9 @@ class IndustryProjectResource
 
     public bool $excludesInvention = false;
 
+    /** @var list<int>|null */
+    public ?array $producerCharacterIds = null;
+
     public float $minimumOutsideSaving;
 
     public ?string $notes = null;
