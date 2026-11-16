@@ -33,6 +33,7 @@ const RIFTER_WITHOUT_DAILY_VOLUME: BatchScanItem = {
   hasAllSkills: true,
   missingSkillCount: 0,
   unknownReason: 'missing_daily_volume',
+  unknownReasonStructureId: null,
   missingPriceTypeIds: [],
 }
 

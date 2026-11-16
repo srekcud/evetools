@@ -89,6 +89,7 @@ function scanItem(typeId: number, typeName: string, marginPercent: number, daily
     hasAllSkills: true,
     missingSkillCount: 0,
     unknownReason: null,
+    unknownReasonStructureId: null,
     missingPriceTypeIds: [],
   }
 }

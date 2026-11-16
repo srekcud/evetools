@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, useId } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore } from '@/stores/industry'
+import { useStructuresStore } from '@/stores/industry/structures'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -22,6 +23,7 @@ const { t } = useI18n()
 const uid = useId()
 const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
+const structuresStore = useStructuresStore()
 const { formatIsk, formatNumber, formatDateTime } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
@@ -149,23 +151,61 @@ const filteredResults = computed((): BatchScanItem[] => {
   return items
 })
 
-const scanDiagnosisLines = computed((): string[] => {
+type ScanDiagnosisLine = { text: string; linksToIndustrySettings: boolean }
+
+const UNKNOWN_MARGIN_LINE_KEYS: Record<string, string> = {
+  missing_cost_index: 'unknownCostIndex',
+  missing_adjusted_price: 'unknownAdjustedPrice',
+  missing_sales_fees: 'unknownSalesFees',
+  missing_invention_probability: 'unknownInventionProbability',
+  missing_market_price: 'unknownMarketPrice',
+  missing_volume: 'unknownTransportVolume',
+}
+
+function plainLine(text: string): ScanDiagnosisLine {
+  return { text, linksToIndustrySettings: false }
+}
+
+const scanDiagnosisLines = computed((): ScanDiagnosisLine[] => {
   if (filtersChangedSinceScan.value) return []
-  if (scannerStore.scanDiagnosisFailed) return [t('industry.scanner.batchDiagnosis.failed')]
+  if (scannerStore.scanDiagnosisFailed) return [plainLine(t('industry.scanner.batchDiagnosis.failed'))]
   const rows = scannerStore.scanDiagnosisRows
   if (rows === null) return []
 
   const diagnosis = diagnoseBatchScan(rows, scannerStore.scanFilters.minMargin, scannerStore.scanFilters.minDailyVolume)
-  if (diagnosis.scanned === 0) return [t('industry.scanner.batchDiagnosis.nothingScanned')]
+  if (diagnosis.scanned === 0) return [plainLine(t('industry.scanner.batchDiagnosis.nothingScanned'))]
 
   const prefix = 'industry.scanner.batchDiagnosis.'
-  const lines = [t(`${prefix}scanned`, { count: diagnosis.scanned })]
-  if (diagnosis.withoutSalePrice > 0) lines.push(t(`${prefix}noSalePrice`, { count: diagnosis.withoutSalePrice }))
-  if (diagnosis.withoutMaterialPrice > 0) lines.push(t(`${prefix}noMaterialPrice`, { count: diagnosis.withoutMaterialPrice }))
-  if (diagnosis.withoutDailyVolume > 0) lines.push(t(`${prefix}noDailyVolume`, { count: diagnosis.withoutDailyVolume }))
-  if (diagnosis.belowMinMargin > 0) lines.push(t(`${prefix}belowMargin`, { count: diagnosis.belowMinMargin, min: scannerStore.scanFilters.minMargin }))
-  if (diagnosis.belowMinDailyVolume > 0) lines.push(t(`${prefix}belowVolume`, { count: diagnosis.belowMinDailyVolume, min: scannerStore.scanFilters.minDailyVolume }))
+  const lines = [plainLine(t(`${prefix}scanned`, { count: diagnosis.scanned }))]
+  if (diagnosis.withoutSalePrice > 0) lines.push(plainLine(t(`${prefix}noSalePrice`, { count: diagnosis.withoutSalePrice })))
+  if (diagnosis.withoutMaterialPrice > 0) lines.push(plainLine(t(`${prefix}noMaterialPrice`, { count: diagnosis.withoutMaterialPrice })))
+  if (diagnosis.withoutDailyVolume > 0) lines.push(plainLine(t(`${prefix}noDailyVolume`, { count: diagnosis.withoutDailyVolume })))
+  if (diagnosis.belowMinMargin > 0) lines.push(plainLine(t(`${prefix}belowMargin`, { count: diagnosis.belowMinMargin, min: scannerStore.scanFilters.minMargin })))
+  if (diagnosis.belowMinDailyVolume > 0) lines.push(plainLine(t(`${prefix}belowVolume`, { count: diagnosis.belowMinDailyVolume, min: scannerStore.scanFilters.minDailyVolume })))
+
+  for (const [reason, lineKey] of Object.entries(UNKNOWN_MARGIN_LINE_KEYS)) {
+    const count = diagnosis.unknownMargin.byReason[reason] ?? 0
+    if (count > 0) lines.push(plainLine(t(`${prefix}${lineKey}`, { count })))
+  }
+  for (const [structureId, count] of Object.entries(diagnosis.unknownMargin.facilityTaxByStructure)) {
+    const structureName = structuresStore.structures.find(structure => structure.id === structureId)?.name
+    const text = structureName === undefined
+      ? t(`${prefix}unknownFacilityTaxUnnamed`, { count })
+      : t(`${prefix}unknownFacilityTax`, { count, structure: structureName })
+    lines.push({ text, linksToIndustrySettings: true })
+  }
+  if (diagnosis.unknownMargin.other > 0) lines.push(plainLine(t(`${prefix}unknownOther`, { count: diagnosis.unknownMargin.other })))
   return lines
+})
+
+watch(() => scannerStore.scanDiagnosisRows, async rows => {
+  const hasMissingFacilityTax = rows?.some(row => row.marginPercent === null && row.unknownReason === 'missing_facility_tax') ?? false
+  if (!hasMissingFacilityTax || structuresStore.structures.length > 0) return
+  try {
+    await structuresStore.fetchStructures()
+  } catch (error) {
+    console.error('Failed to fetch structures for the scan diagnosis:', error)
+  }
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredResults.value.length / PAGE_SIZE)))
@@ -957,7 +997,10 @@ onBeforeUnmount(() => {
       <div v-if="scanDiagnosisLines.length > 0" data-test="scan-diagnosis" class="mt-4 text-left max-w-xl mx-auto">
         <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.scanner.batchDiagnosis.title') }}</p>
         <ul class="space-y-1 text-sm text-amber-400">
-          <li v-for="line in scanDiagnosisLines" :key="line">{{ line }}</li>
+          <li v-for="line in scanDiagnosisLines" :key="line.text">
+            <router-link v-if="line.linksToIndustrySettings" :to="{ name: 'settings', params: { section: 'industry' } }" class="underline hover:text-amber-300">{{ line.text }}</router-link>
+            <template v-else>{{ line.text }}</template>
+          </li>
         </ul>
       </div>
     </div>

@@ -7,6 +7,40 @@ export type BatchScanDiagnosis = {
   withoutDailyVolume: number
   belowMinMargin: number
   belowMinDailyVolume: number
+  unknownMargin: {
+    byReason: Record<string, number>
+    facilityTaxByStructure: Record<string, number>
+    other: number
+  }
+}
+
+const UNKNOWN_MARGIN_REASONS = [
+  'missing_cost_index',
+  'missing_adjusted_price',
+  'missing_facility_tax',
+  'missing_sales_fees',
+  'missing_invention_probability',
+  'missing_market_price',
+  'missing_volume',
+]
+const FACILITY_TAX_REASON = 'missing_facility_tax'
+const REASONS_CARRIED_BY_OTHER_LINES = ['missing_sale_price', 'missing_material_price', 'missing_daily_volume']
+
+function diagnoseUnknownMargins(rows: BatchScanItem[]): BatchScanDiagnosis['unknownMargin'] {
+  const unknownMargin: BatchScanDiagnosis['unknownMargin'] = { byReason: {}, facilityTaxByStructure: {}, other: 0 }
+  for (const row of rows) {
+    if (row.marginPercent !== null || row.unknownReason === null) continue
+    if (REASONS_CARRIED_BY_OTHER_LINES.includes(row.unknownReason)) continue
+    if (!UNKNOWN_MARGIN_REASONS.includes(row.unknownReason)) {
+      unknownMargin.other += 1
+      continue
+    }
+    unknownMargin.byReason[row.unknownReason] = (unknownMargin.byReason[row.unknownReason] ?? 0) + 1
+    if (row.unknownReason === FACILITY_TAX_REASON && row.unknownReasonStructureId !== null) {
+      unknownMargin.facilityTaxByStructure[row.unknownReasonStructureId] = (unknownMargin.facilityTaxByStructure[row.unknownReasonStructureId] ?? 0) + 1
+    }
+  }
+  return unknownMargin
 }
 
 export function diagnoseBatchScan(
@@ -25,5 +59,6 @@ export function diagnoseBatchScan(
     belowMinDailyVolume: minDailyVolume === null
       ? 0
       : rows.filter(row => row.dailyVolume !== null && row.dailyVolume < minDailyVolume).length,
+    unknownMargin: diagnoseUnknownMargins(rows),
   }
 }
