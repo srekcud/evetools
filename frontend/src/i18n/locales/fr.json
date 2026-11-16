@@ -3745,8 +3745,8 @@
       "verifyAll": "Tout verifier",
       "verifying": "Verification...",
       "statuses": {
-        "verified": "Vérifié",
-        "partial": "Partiel",
+        "verified": "Dans le container",
+        "partial": "En partie dans le container",
         "missing": "Absent du container",
         "container_not_found": "Container introuvable",
         "container_in_hidden_division": "Un container de ce nom existe dans une division masquée au propriétaire du projet",

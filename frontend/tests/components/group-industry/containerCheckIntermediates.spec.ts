@@ -77,16 +77,16 @@ describe('Container check of the intermediates', () => {
 
     const statuses = mount(JobsTable, { global: { plugins: [i18n()] } }).findAll(CONTAINER_STATUS).map(status => status.text())
 
-    expect(statuses).toEqual(['Partial: 30 / 80'])
+    expect(statuses).toEqual(['Partly in container: 30 / 80'])
   })
 
-  it('shows a verified and a missing intermediate with their own wording', () => {
+  it('shows an in-container and a missing intermediate with their own wording', () => {
     prepareStore([verification(FUEL_BLOCK, 'missing', 0)])
     const missing = mount(JobsTable, { global: { plugins: [i18n()] } }).findAll(CONTAINER_STATUS).map(status => status.text())
     prepareStore([verification(FUEL_BLOCK, 'verified', 80)])
     const verified = mount(JobsTable, { global: { plugins: [i18n()] } }).findAll(CONTAINER_STATUS).map(status => status.text())
 
-    expect([missing, verified]).toEqual([['Missing from container'], ['Verified: 80 / 80']])
+    expect([missing, verified]).toEqual([['Missing from container'], ['In container: 80 / 80']])
   })
 
   it('shows no container state on a final job line or when nothing was verified', () => {
