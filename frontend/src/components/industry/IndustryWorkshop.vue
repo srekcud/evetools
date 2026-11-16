@@ -379,7 +379,7 @@ function productSubline(project: GroupProject): string | null {
         type="button"
         data-testid="workshop-link-revenue"
         class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-400"
-        @click="router.push({ name: 'pve-revenue', query: { tab: 'industry' } })"
+        @click="router.push({ name: 'balance', query: { tab: 'industry' } })"
       >
         {{ t('industry.workshop.header.revenue') }}
       </button>

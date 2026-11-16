@@ -525,11 +525,19 @@ describe('IndustryWorkshop header links', () => {
 
     expect(routerPush.mock.calls).toEqual([
       [{ path: '/industry/production', query: { tab: 'blueprints' } }],
-      [{ name: 'pve-revenue', query: { tab: 'industry' } }],
+      [{ name: 'balance', query: { tab: 'industry' } }],
     ])
     expect(useIndustryStore().navigationIntent).toEqual({ target: 'projects', openCreateModal: true })
     expect(wrapper.find('[data-testid="workshop-link-skills"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="workshop-action-queue"]').find('[data-testid="workshop-link-skills"]').exists()).toBe(false)
+  })
+
+  it('opens the industry tab of the balance page from the revenue button and never the pve revenue page', async () => {
+    const wrapper = await mountWorkshop()
+
+    await wrapper.get('[data-testid="workshop-link-revenue"]').trigger('click')
+
+    expect(routerPush).toHaveBeenCalledExactlyOnceWith({ name: 'balance', query: { tab: 'industry' } })
   })
 })
 
