@@ -232,6 +232,19 @@ class IndustryProject
         return true;
     }
 
+    public function canReviewContribution(IndustryProjectContribution $contribution, User $reviewer): bool
+    {
+        return $contribution->getMember()->getUser() !== $reviewer || $this->isSoleReviewingOwner($reviewer);
+    }
+
+    public function pendingContributionCountReviewableBy(User $reviewer): int
+    {
+        return $this->contributions->filter(
+            fn (IndustryProjectContribution $contribution): bool => $contribution->getStatus() === ContributionStatus::Pending
+                && $this->canReviewContribution($contribution, $reviewer),
+        )->count();
+    }
+
     public function transferOwnershipTo(IndustryProjectParticipant $member): void
     {
         $newOwner = $member->getUser();
