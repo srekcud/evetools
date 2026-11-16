@@ -59,6 +59,7 @@ final class PlannedStructureHealthReaderTest extends TestCase
             new StructureHealthAssessor(),
             new MockClock(self::NOW, 'UTC'),
             new NullLogger(),
+            new ArrayAdapter(),
         );
     }
 
@@ -273,6 +274,133 @@ final class PlannedStructureHealthReaderTest extends TestCase
         );
     }
 
+    #[Group('issue-1019')]
+    public function testDirectorOfAnotherUserIsReadWhenTheViewerHoldsNoStructureRole(): void
+    {
+        $raitaru = $this->structure(self::RAITARU_ID, self::CORPORATION_A);
+        $accountant = $this->character(1, self::CORPORATION_A);
+        $director = $this->character(2, self::CORPORATION_A);
+        $this->charactersOfTheReader($accountant);
+        $this->charactersOfTheCorporation(self::CORPORATION_A, $accountant, $director);
+        $this->respondWithRoles(static fn (int $eveCharacterId): array => 2 === $eveCharacterId ? ['Director'] : ['Accountant']);
+        $this->esiClient->expects(self::once())
+            ->method('getPaginated')
+            ->with('/corporations/'.self::CORPORATION_A.'/structures/', $director->getEveToken())
+            ->willReturn([$this->esiStructure(self::RAITARU_ID, '2026-11-09T23:12:00Z', ['Invention' => 'offline'])]);
+
+        $health = $this->healthReader->read($this->reader, [$raitaru]);
+
+        $row = $health[$raitaru->getId()->toRfc4122()];
+        self::assertSame(StructureHealthState::OfflineService, $row->state);
+        self::assertSame(['Invention'], $row->offlineServices);
+    }
+
+    #[Group('issue-1019')]
+    public function testCorporationCharactersAreNotLoadedWhenTheViewerHoldsTheRole(): void
+    {
+        $raitaru = $this->structure(self::RAITARU_ID, self::CORPORATION_A);
+        $manager = $this->character(1, self::CORPORATION_A);
+        $this->charactersOfTheReader($manager);
+        $this->characterRepository->expects(self::never())->method('findByCorporationId');
+        $this->respondWithRoles(static fn (int $eveCharacterId): array => [self::STATION_MANAGER]);
+        $this->esiClient->expects(self::once())
+            ->method('getPaginated')
+            ->with(self::anything(), $manager->getEveToken())
+            ->willReturn([$this->esiStructure(self::RAITARU_ID, '2026-12-18T12:00:00Z', [])]);
+
+        $health = $this->healthReader->read($this->reader, [$raitaru]);
+
+        self::assertSame(StructureHealthState::Ok, $health[$raitaru->getId()->toRfc4122()]->state);
+    }
+
+    #[Group('issue-1019')]
+    public function testStationManagerOfAnotherUserIsNotAcceptedByTheFallback(): void
+    {
+        $raitaru = $this->structure(self::RAITARU_ID, self::CORPORATION_A);
+        $accountant = $this->character(1, self::CORPORATION_A);
+        $stationManager = $this->character(2, self::CORPORATION_A);
+        $this->charactersOfTheReader($accountant);
+        $this->charactersOfTheCorporation(self::CORPORATION_A, $accountant, $stationManager);
+        $this->respondWithRoles(static fn (int $eveCharacterId): array => 2 === $eveCharacterId ? [self::STATION_MANAGER] : ['Accountant']);
+        $this->esiClient->expects(self::never())->method('getPaginated');
+
+        $health = $this->healthReader->read($this->reader, [$raitaru]);
+
+        self::assertEquals(StructureHealth::unknown(), $health[$raitaru->getId()->toRfc4122()]);
+    }
+
+    #[Group('issue-1019')]
+    public function testDirectorWithoutTheStructuresScopeLeavesTheStructureUnknown(): void
+    {
+        $raitaru = $this->structure(self::RAITARU_ID, self::CORPORATION_A);
+        $director = $this->character(2, self::CORPORATION_A, [self::ROLES_SCOPE]);
+        $this->charactersOfTheReader();
+        $this->charactersOfTheCorporation(self::CORPORATION_A, $director);
+        $this->respondWithRoles(static fn (int $eveCharacterId): array => ['Director']);
+        $this->esiClient->expects(self::never())->method('getPaginated');
+
+        $health = $this->healthReader->read($this->reader, [$raitaru]);
+
+        self::assertEquals(StructureHealth::unknown(), $health[$raitaru->getId()->toRfc4122()]);
+    }
+
+    #[Group('issue-1019')]
+    public function testForbiddenDirectorReadMakesTheStructureUnknownNeverOk(): void
+    {
+        $raitaru = $this->structure(self::RAITARU_ID, self::CORPORATION_A);
+        $this->charactersOfTheReader();
+        $this->charactersOfTheCorporation(self::CORPORATION_A, $this->character(2, self::CORPORATION_A));
+        $this->respondWithRoles(static fn (int $eveCharacterId): array => ['Director']);
+        $this->esiClient->method('getPaginated')->willThrowException(new EsiApiException('Forbidden', 403));
+
+        $health = $this->healthReader->read($this->reader, [$raitaru]);
+
+        self::assertEquals(StructureHealth::unknown(), $health[$raitaru->getId()->toRfc4122()]);
+    }
+
+    #[Group('issue-1019')]
+    public function testSecondViewerWithinTheCacheWindowCostsNoEsiRead(): void
+    {
+        $raitaru = $this->structure(self::RAITARU_ID, self::CORPORATION_A);
+        $this->characterRepository->method('findByUser')->willReturn([]);
+        $this->charactersOfTheCorporation(self::CORPORATION_A, $this->character(2, self::CORPORATION_A));
+        $this->respondWithRoles(static fn (int $eveCharacterId): array => ['Director']);
+        $this->esiClient->expects(self::once())
+            ->method('getPaginated')
+            ->willReturn([$this->esiStructure(self::RAITARU_ID, '2026-12-18T12:00:00Z', [])]);
+
+        $first = $this->healthReader->read($this->reader, [$raitaru]);
+        $second = $this->healthReader->read(new User(), [$raitaru]);
+
+        self::assertSame(
+            [StructureHealthState::Ok, StructureHealthState::Ok],
+            [$first[$raitaru->getId()->toRfc4122()]->state, $second[$raitaru->getId()->toRfc4122()]->state],
+        );
+    }
+
+    #[Group('issue-1019')]
+    public function testFailedReadIsNotCachedAndTheNextReadRetriesTheEsi(): void
+    {
+        $raitaru = $this->structure(self::RAITARU_ID, self::CORPORATION_A);
+        $this->charactersOfTheReader();
+        $this->charactersOfTheCorporation(self::CORPORATION_A, $this->character(2, self::CORPORATION_A));
+        $this->respondWithRoles(static fn (int $eveCharacterId): array => ['Director']);
+        $this->esiClient->expects(self::exactly(2))
+            ->method('getPaginated')
+            ->willReturnOnConsecutiveCalls(
+                self::throwException(new EsiApiException('Service unavailable', 503)),
+                [$this->esiStructure(self::RAITARU_ID, '2026-12-18T12:00:00Z', [])],
+            );
+
+        $first = $this->healthReader->read($this->reader, [$raitaru]);
+        $second = $this->healthReader->read($this->reader, [$raitaru]);
+
+        self::assertSame(
+            [StructureHealthState::Unknown, StructureHealthState::Ok],
+            [$first[$raitaru->getId()->toRfc4122()]->state, $second[$raitaru->getId()->toRfc4122()]->state],
+        );
+    }
+
     private function structure(int $locationId, int $corporationId): IndustryStructureConfig
     {
         return (new IndustryStructureConfig())
@@ -303,6 +431,11 @@ final class PlannedStructureHealthReaderTest extends TestCase
         $this->esiClient->method('get')->willReturnCallback(
             static fn (string $endpoint): array => ['roles' => $rolesOf((int) preg_replace('#\D#', '', $endpoint))],
         );
+    }
+
+    private function charactersOfTheCorporation(int $corporationId, Character ...$characters): void
+    {
+        $this->characterRepository->method('findByCorporationId')->with($corporationId)->willReturn(array_values($characters));
     }
 
     private function charactersOfTheReader(Character ...$characters): void

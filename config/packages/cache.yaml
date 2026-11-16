@@ -35,6 +35,9 @@ framework:
             corporation_role_holder.cache:
                 adapter: cache.adapter.redis
                 default_lifetime: 900
+            corporation_structures.cache:
+                adapter: cache.adapter.redis
+                default_lifetime: 300
 
 when@test:
     framework:
@@ -59,4 +62,6 @@ when@test:
                 public_contracts.cache:
                     adapter: cache.adapter.array
                 corporation_role_holder.cache:
+                    adapter: cache.adapter.array
+                corporation_structures.cache:
                     adapter: cache.adapter.array
