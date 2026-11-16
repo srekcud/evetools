@@ -83,6 +83,7 @@ function scanItem(typeId: number, typeName: string, marginPercent: number, daily
     exportCost: 25_000,
     sellPrice,
     meUsed: 10,
+    teUsed: 20,
     activityType: 'manufacturing',
     isFactionBlueprint: false,
     bpcCostPerRun: null,

@@ -4,11 +4,13 @@ import { useI18n } from 'vue-i18n'
 import { useScannerStore } from '@/stores/industry/scanner'
 import { useIndustryStore } from '@/stores/industry'
 import { useStructuresStore } from '@/stores/industry/structures'
+import { useBlueprintsStore } from '@/stores/industry/blueprints'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
 import { diagnoseBatchScan } from '@/utils/batchScanDiagnosis'
+import { buildScanPrefillItems } from '@/utils/scanProjectPrefill'
 import type { BatchScanContractSales, BatchScanItem } from '@/stores/industry/types'
 import PriceSourceBadge from './PriceSourceBadge.vue'
 import ProductionCalculator from './ProductionCalculator.vue'
@@ -24,6 +26,7 @@ const uid = useId()
 const scannerStore = useScannerStore()
 const industryStore = useIndustryStore()
 const structuresStore = useStructuresStore()
+const blueprintsStore = useBlueprintsStore()
 const { formatIsk, formatNumber, formatDateTime } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
@@ -295,6 +298,57 @@ async function copyToMultibuy(): Promise<void> {
     setTimeout(() => { copied.value = false }, 2000)
   } catch {
     // silently fail
+  }
+}
+
+const selectedTypeIds = ref<Set<number>>(new Set())
+const startProjectError = ref<string | null>(null)
+
+const selectedProducts = computed((): BatchScanItem[] =>
+  filteredResults.value.filter(item => selectedTypeIds.value.has(item.typeId)),
+)
+const allVisibleSelected = computed((): boolean =>
+  filteredResults.value.length > 0 && selectedProducts.value.length === filteredResults.value.length,
+)
+
+watch(() => scannerStore.scanResults, () => {
+  selectedTypeIds.value = new Set()
+  startProjectError.value = null
+})
+
+function toggleRowSelection(typeId: number): void {
+  const next = new Set(selectedTypeIds.value)
+  if (next.has(typeId)) next.delete(typeId)
+  else next.add(typeId)
+  selectedTypeIds.value = next
+}
+
+function toggleAllVisibleSelection(): void {
+  const next = new Set(selectedTypeIds.value)
+  for (const item of filteredResults.value) {
+    if (allVisibleSelected.value) next.delete(item.typeId)
+    else next.add(item.typeId)
+  }
+  selectedTypeIds.value = next
+}
+
+async function startProjectFromSelection(): Promise<void> {
+  startProjectError.value = null
+  if (blueprintsStore.library === null) {
+    await blueprintsStore.fetchLibrary()
+    if (blueprintsStore.error !== null) {
+      startProjectError.value = t('industry.scanner.batch.startProjectError', { error: blueprintsStore.error })
+      return
+    }
+  }
+  const library = blueprintsStore.library
+  if (library === null) {
+    startProjectError.value = t('industry.scanner.batch.startProjectLibraryMissing')
+    return
+  }
+  industryStore.navigationIntent = {
+    target: 'projects',
+    prefillItems: buildScanPrefillItems(selectedProducts.value, library.blueprints, product => typeNameLabel(product.typeName, product.typeId)),
   }
 }
 
@@ -689,6 +743,16 @@ onBeforeUnmount(() => {
             <span class="text-xs px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-full font-mono">{{ formatNumber(filteredResults.length, 0) }}</span>
           </div>
           <div class="flex items-center gap-3">
+            <span v-if="startProjectError" class="text-xs text-red-400" data-testid="scan-start-project-error">{{ startProjectError }}</span>
+            <button
+              type="button"
+              class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-table-cell font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="selectedProducts.length === 0 || blueprintsStore.loading"
+              data-testid="scan-start-project"
+              @click="startProjectFromSelection"
+            >
+              {{ t('industry.scanner.batch.startProject', { count: selectedProducts.length }) }}
+            </button>
             <button
               class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-table-cell font-medium rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700"
               @click="copyToMultibuy"
@@ -707,6 +771,16 @@ onBeforeUnmount(() => {
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
+                <th class="text-center py-2.5 px-2 w-8">
+                  <input
+                    type="checkbox"
+                    class="accent-cyan-500 cursor-pointer"
+                    :checked="allVisibleSelected"
+                    :aria-label="t('industry.scanner.batch.selectAllRows')"
+                    data-testid="scan-select-all"
+                    @click.stop="toggleAllVisibleSelection"
+                  />
+                </th>
                 <th class="text-center py-2.5 px-2 w-8">{{ t('industry.scanner.batch.rank') }}</th>
                 <th class="text-left py-2.5 px-3 w-10"></th>
                 <th class="text-left py-2.5 px-3 cursor-pointer select-none hover:text-slate-200" @click="toggleSort('typeName')">
@@ -749,6 +823,16 @@ onBeforeUnmount(() => {
                 ]"
                 :style="idx === 0 && currentPage === 1 ? 'box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.05)' : ''"
               >
+                <td class="py-3 px-2 text-center" @click.stop>
+                  <input
+                    type="checkbox"
+                    class="accent-cyan-500 cursor-pointer"
+                    :checked="selectedTypeIds.has(item.typeId)"
+                    :aria-label="t('industry.scanner.batch.selectRow', { name: typeNameLabel(item.typeName, item.typeId) })"
+                    :data-testid="`scan-select-row-${item.typeId}`"
+                    @click.stop="toggleRowSelection(item.typeId)"
+                  />
+                </td>
                 <td class="py-3 px-2 text-center font-mono text-table-cell whitespace-nowrap text-slate-500">{{ (currentPage - 1) * PAGE_SIZE + idx + 1 }}</td>
                 <td class="py-3 px-3">
                   <img
@@ -773,8 +857,8 @@ onBeforeUnmount(() => {
                       </svg>
                     </button>
                     <div class="min-w-0 flex-1">
-                      <div :class="[
-                        'font-semibold',
+                      <div :title="typeNameLabel(item.typeName, item.typeId)" :class="[
+                        'font-semibold truncate',
                         idx === 0 && currentPage === 1 ? 'text-slate-100' : item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-300' : 'text-slate-200',
                       ]">{{ typeNameLabel(item.typeName, item.typeId) }}</div>
                       <div class="text-xs text-slate-500">{{ item.groupName }}</div>

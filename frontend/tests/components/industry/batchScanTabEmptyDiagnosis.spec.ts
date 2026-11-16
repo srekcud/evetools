@@ -41,6 +41,7 @@ function scannedProduct(typeId: number, overrides: Partial<BatchScanItem> = {}):
     exportCost: 0,
     sellPrice: 5_000_000,
     meUsed: 10,
+    teUsed: 20,
     activityType: 'manufacturing',
     isFactionBlueprint: false,
     bpcCostPerRun: null,
