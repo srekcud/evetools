@@ -1,6 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+prod=()
+
+classify_services() {
+    awk -v app_image="$1" -v proxy_image="$2" '
+        /^[^ #]/ { in_services = ($0 == "services:"); next }
+        in_services && /^  [A-Za-z0-9_.-]+:[ ]*$/ { service = $1; sub(/:$/, "", service); next }
+        in_services && service != "" && /^    image:/ {
+            image = $2
+            gsub(/["\047]/, "", image)
+            role = "infra"
+            if (index(image, app_image) == 1) { role = "app" }
+            else if (index(image, proxy_image) == 1) { role = "proxy" }
+            print role, service
+            service = ""
+        }
+    '
+}
+
+container_id_of() {
+    "${prod[@]}" ps -aq "$1"
+}
+
 main() {
     local version="${1:-${SSH_ORIGINAL_COMMAND:-}}"
     if [[ ! "$version" =~ ^V[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
@@ -27,8 +49,20 @@ main() {
     docker pull "${image_repository}/evetools-app:${version}"
     docker pull "${image_repository}/evetools-proxy:${version}"
 
-    local prod=(docker compose -f docker-compose.yaml -f docker-compose.prod.yml)
+    prod=(docker compose -f docker-compose.yaml -f docker-compose.prod.yml)
     export APP_VERSION="$version"
+
+    local app_services=() infra_services=() role service
+    while read -r role service; do
+        case "$role" in
+            app) app_services+=("$service") ;;
+            infra) infra_services+=("$service") ;;
+        esac
+    done < <("${prod[@]}" config | classify_services "${image_repository}/evetools-app:" "${image_repository}/evetools-proxy:")
+    if (( ${#app_services[@]} == 0 )); then
+        echo "!! no compose service uses ${image_repository}/evetools-app: nothing was touched" >&2
+        exit 1
+    fi
 
     mkdir -p "$backup_dir"
     local backup_file
@@ -37,8 +71,35 @@ main() {
     "${prod[@]}" exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' > "$backup_file"
     ls -1t "$backup_dir"/evetools-*.dump | tail -n +"$((backups_kept + 1))" | xargs -r rm --
 
-    echo "==> stopping worker and app (the proxy serves the maintenance page)"
-    "${prod[@]}" stop worker app
+    local existing_app_services=()
+    for service in "${app_services[@]}"; do
+        if [[ -n "$(container_id_of "$service")" ]]; then
+            existing_app_services+=("$service")
+        fi
+    done
+    if (( ${#existing_app_services[@]} > 0 )); then
+        echo "==> stopping ${existing_app_services[*]} (the proxy serves the maintenance page)"
+        "${prod[@]}" stop "${existing_app_services[@]}"
+    fi
+
+    if (( ${#infra_services[@]} > 0 )); then
+        echo "==> bringing ${infra_services[*]} to their compose definition"
+        local -A infra_container_before=()
+        for service in "${infra_services[@]}"; do
+            infra_container_before[$service]="$(container_id_of "$service")"
+        done
+        "${prod[@]}" up -d --no-build --pull never --wait "${infra_services[@]}"
+        for service in "${infra_services[@]}"; do
+            local infra_container_after infra_state="unchanged"
+            infra_container_after="$(container_id_of "$service")"
+            if [[ -z "${infra_container_before[$service]}" ]]; then
+                infra_state="created"
+            elif [[ "${infra_container_before[$service]}" != "$infra_container_after" ]]; then
+                infra_state="recreated"
+            fi
+            echo "==> infra ${service}: ${infra_state}"
+        done
+    fi
 
     echo "==> running migrations"
     if ! "${prod[@]}" run --rm --no-deps --entrypoint php app \
@@ -48,12 +109,14 @@ main() {
         if [[ "$previous_version" != none ]]; then
             git checkout --quiet --detach "refs/tags/${previous_version}"
         fi
-        "${prod[@]}" start app worker
+        if (( ${#existing_app_services[@]} > 0 )); then
+            "${prod[@]}" start "${existing_app_services[@]}"
+        fi
         exit 1
     fi
 
     echo "==> starting ${version}"
-    "${prod[@]}" up -d --no-build --pull never --force-recreate --remove-orphans --wait --wait-timeout 180 app worker
+    "${prod[@]}" up -d --no-build --pull never --force-recreate --remove-orphans --wait --wait-timeout 180 "${app_services[@]}"
     "${prod[@]}" up -d --no-build --pull never --force-recreate --wait proxy
 
     echo "$version" > .deployed-version
