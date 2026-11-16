@@ -157,8 +157,8 @@ describe('BomTable state of each material line in the container', () => {
     const wrapper = mountBomTable('en', CHECKED_LINES)
 
     expect([nameCellOf(wrapper, TRITANIUM), nameCellOf(wrapper, PYERITE), nameCellOf(wrapper, MEXALLON)]).toEqual([
-      expect.stringMatching(/^Tritanium Partial\b.*\b450 \/ 500\b/),
-      expect.stringMatching(/^Pyerite Verified\b.*\b800 \/ 800\b/),
+      expect.stringMatching(/^Tritanium Partly in container\b.*\b450 \/ 500\b/),
+      expect.stringMatching(/^Pyerite In container\b.*\b800 \/ 800\b/),
       expect.stringMatching(/^Mexallon Missing from container\b/),
     ])
   })
@@ -167,16 +167,28 @@ describe('BomTable state of each material line in the container', () => {
     const wrapper = mountBomTable('fr', CHECKED_LINES)
 
     expect([nameCellOf(wrapper, TRITANIUM), nameCellOf(wrapper, PYERITE), nameCellOf(wrapper, MEXALLON)]).toEqual([
-      expect.stringMatching(/^Tritanium Partiel\b.*\b450 \/ 500\b/),
-      expect.stringMatching(/^Pyerite Vérifié.*\b800 \/ 800\b/),
+      expect.stringMatching(/^Tritanium En partie dans le container\b.*\b450 \/ 500\b/),
+      expect.stringMatching(/^Pyerite Dans le container\b.*\b800 \/ 800\b/),
       expect.stringMatching(/^Mexallon Absent du container\b/),
     ])
   })
 
-  it('shows a missing line without the label of a verified or partial line', () => {
+  it('shows a missing line without the label of a found or partial line', () => {
     const wrapper = mountBomTable('en', CHECKED_LINES)
 
-    expect(nameCellOf(wrapper, MEXALLON)).not.toMatch(/Verified|Partial/)
+    expect(nameCellOf(wrapper, MEXALLON)).not.toMatch(/In container|Partly/)
+  })
+
+  it.each<Locale>(['en', 'fr'])('never words a container quantity as a verification in %s', (locale) => {
+    const wrapper = mountBomTable(locale, CHECKED_LINES)
+
+    expect([nameCellOf(wrapper, TRITANIUM), nameCellOf(wrapper, PYERITE)].join(' ')).not.toMatch(/Verified|Vérifié/)
+  })
+
+  it('renders each checked line through the shared container line status', () => {
+    const wrapper = mountBomTable('en', CHECKED_LINES)
+
+    expect(wrapper.findAll('[data-testid="container-line-status"]').map(status => status.attributes('data-status'))).toEqual(['partial', 'verified', 'missing'])
   })
 
   it.each<[string, ContainerVerification[]]>([
