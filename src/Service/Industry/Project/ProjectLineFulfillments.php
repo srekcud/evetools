@@ -55,7 +55,7 @@ final readonly class ProjectLineFulfillments
 
     public function containerQuantityOf(IndustryProjectBomLine $line): ?int
     {
-        if ($line->isJob() || ContainerStockState::Known !== $this->state) {
+        if (!$line->isPurchasable() || ContainerStockState::Known !== $this->state) {
             return null;
         }
 
@@ -69,6 +69,6 @@ final readonly class ProjectLineFulfillments
 
     public function stateOf(IndustryProjectBomLine $line): ContainerStockState
     {
-        return $line->isJob() ? ContainerStockState::None : $this->state;
+        return $line->isPurchasable() ? $this->state : ContainerStockState::None;
     }
 }

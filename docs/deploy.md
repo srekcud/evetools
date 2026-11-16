@@ -15,8 +15,9 @@ Release (.github/workflows/release.yml)
         │
         ▼
 Serveur : bin/deploy V0.14 (commande forcée de la clé SSH)
-  checkout du tag → pull des images → pg_dump → arrêt worker + app (page de maintenance)
-  → migrations dans un conteneur jetable → démarrage app + worker (attente healthcheck) → proxy
+  checkout du tag → pull des images → pg_dump → arrêt des services applicatifs (page de maintenance)
+  → up de l'infra (postgres, rabbitmq, redis, recréés seulement si leur définition a changé)
+  → migrations dans un conteneur jetable → démarrage des services applicatifs (attente healthcheck) → proxy
 ```
 
 Aucun build sur le serveur. Une image par version : revenir en arrière consiste à redéployer un tag précédent.
@@ -50,10 +51,16 @@ Si l'environnement `production` a un *required reviewer*, le job `deploy` attend
 | `git checkout` du tag (compose et scripts alignés sur la version) | arrêt, rien n'est touché (ex. modifications locales sur le serveur) |
 | `docker pull` des deux images | arrêt, rien n'est touché |
 | `pg_dump` (format custom) dans `$BACKUP_DIR` (défaut `~/backups/evetools`), 10 derniers gardés (`BACKUPS_KEPT`) | arrêt, rien n'est touché |
-| Arrêt de `worker` puis `app` : le proxy sert `maintenance.html` | — |
-| `doctrine:migrations:migrate` avec la nouvelle image, conteneur `--rm` | redémarre les anciens conteneurs, affiche le chemin de la sauvegarde, sort en erreur |
-| `up --wait` de `app` et `worker` (healthchecks), puis `proxy` | sort en erreur, le site reste en maintenance : voir *Rollback* |
+| Classement des services d'après `docker compose config` : image `evetools-app` = services applicatifs (`app`, `worker`, `worker-on-demand`, tout futur worker), image `evetools-proxy` = proxy, le reste = infra. Aucune liste en dur | arrêt, rien n'est touché (aucun service n'utilise l'image `evetools-app`) |
+| Arrêt de tous les services applicatifs dont un conteneur existe : le proxy sert `maintenance.html` | — |
+| `up -d --wait` des services d'infra, sans `--force-recreate` : Compose ne recrée qu'un conteneur dont la configuration a changé, le log dit `==> infra <service>: recreated\|created\|unchanged` | sort en erreur, le site reste en maintenance |
+| `doctrine:migrations:migrate` avec la nouvelle image, conteneur `--rm` | redémarre les anciens conteneurs applicatifs qui existaient, affiche le chemin de la sauvegarde, sort en erreur |
+| `up --force-recreate --wait` de tous les services applicatifs (healthchecks, un nouveau service est créé ici), puis `proxy` | sort en erreur, le site reste en maintenance : voir *Rollback* |
 | Écrit la version dans `.deployed-version`, purge les images orphelines | — |
+
+Recréer `postgres` coupe la base quelques secondes : cela arrive pendant la maintenance, après la sauvegarde.
+
+Recréer `rabbitmq` (changement de sa définition dans `docker-compose*.yml`) : files, exchanges et messages sont durables, mais RabbitMQ range ses données sous son nom de nœud, par défaut le hostname du conteneur, qui change à chaque recréation. Sans `hostname:` fixe dans le compose, le nouveau conteneur repart d'un nœud vide : Symfony redéclare les files, les messages encore en file sont perdus. Vider les files avant un changement de définition de `rabbitmq`, ou fixer le hostname.
 
 Une migration Doctrine sur PostgreSQL tourne dans une transaction, mais plusieurs migrations d'un même déploiement ne sont pas atomiques entre elles : après un échec, la base peut contenir une partie des migrations.
 
@@ -65,7 +72,7 @@ Une migration Doctrine sur PostgreSQL tourne dans une transaction, mais plusieur
 ```bash
 export APP_VERSION=$(cat .deployed-version)
 PROD="docker compose -f docker-compose.yaml -f docker-compose.prod.yml"
-$PROD stop worker app
+$PROD stop worker worker-on-demand app
 $PROD exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < ~/backups/evetools/<fichier>.dump
 bin/deploy V0.13
 ```
@@ -120,8 +127,7 @@ Deux workers consomment les messages Messenger :
 - `worker` : transports `async` et `scheduler_default` (tâches planifiées et syncs des autres modules). Il garde `async` pour consommer les messages d'assets publiés avant le déploiement de #838.
 - `worker-on-demand` : transport `on_demand` seul (exchange et file `on_demand`), qui porte `SyncCharacterAssets`, `SyncCorporationAssets`, `TriggerAssetsSync` et `TriggerCorporationAssetsSync`. Une sync d'assets longue ne bloque plus les tâches planifiées.
 
-Démarrage : `docker compose -f docker-compose.yaml -f docker-compose.prod.yml up -d worker-on-demand` (avec `APP_VERSION` exporté). Commande du conteneur : `bin/console messenger:consume on_demand --time-limit=3600 --memory-limit=256M`.
+Démarrage : `bin/deploy` arrête, recrée et crée `worker-on-demand` comme `app` et `worker` (tout service construit sur l'image `evetools-app` est pris en compte). Commande du conteneur : `bin/console messenger:consume on_demand --time-limit=3600 --memory-limit=256M`.
 
-- `bin/deploy` ne connaît que `app` et `worker` : tant que `worker-on-demand` n'est pas ajouté à ses commandes d'arrêt, de démarrage et de `up --wait`, ce service garde l'ancienne image après une release.
 - La limite de conteneur (512M, comme `worker`) est une valeur par défaut : lire `free -m` sur le serveur avant le premier démarrage.
 - L'état admin lève `message_unacked_too_long` (dégradé) quand un message reste en cours plus de 3600 s ; `GET /api/admin/queues` expose aussi `queues.on_demand`.
