@@ -98,6 +98,7 @@ export function companionTasksOf(overrides: Partial<CompanionTasks> = {}): Compa
   return {
     free: [],
     mine: [],
+    awaitingApproval: [],
     toReview: null,
     joinRequests: null,
     jobs: [],

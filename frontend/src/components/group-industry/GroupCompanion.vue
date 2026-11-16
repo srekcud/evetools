@@ -281,6 +281,27 @@ function unknownReasonText(output: JobLocation): string | null {
         </ul>
       </section>
 
+      <section v-if="tasks.awaitingApproval.length > 0" data-testid="companion-awaiting" class="flex flex-col gap-1.5">
+        <h2 class="text-xs uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.companion.sections.awaiting') }}</h2>
+        <ul class="flex flex-col gap-1">
+          <li
+            v-for="entry in tasks.awaitingApproval"
+            :key="entry.item.id"
+            data-testid="companion-awaiting-line"
+            class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/60 px-2 py-1"
+          >
+            <div class="min-w-0 flex-1">
+              <p class="flex items-center gap-1">
+                <span class="min-w-0 truncate text-sm text-slate-100" :title="entry.item.typeName">{{ entry.item.typeName }}</span>
+                <BlueprintNameCopyButton :blueprint-name="entry.item.blueprintName ?? null" />
+              </p>
+              <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(entry.quantity, 0) }}</p>
+            </div>
+            <span class="flex-shrink-0 rounded border border-amber-500/40 px-1.5 py-0.5 text-xs text-amber-300">{{ t('groupIndustry.companion.sections.awaiting') }}</span>
+          </li>
+        </ul>
+      </section>
+
       <section v-if="hasTodo" data-testid="companion-todo" class="flex flex-col gap-1.5">
         <h2 class="text-xs uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.companion.sections.todo') }}</h2>
         <p v-if="tasks.toReview !== null" class="text-sm text-slate-300">{{ t('groupIndustry.companion.todo.contributions', { count: tasks.toReview }) }}</p>

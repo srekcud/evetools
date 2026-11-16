@@ -172,6 +172,7 @@ export type LineReservation = {
   participantId: string
   characterName: string | null
   quantity: number
+  pendingQuantity: number
   isMine: boolean
 }
 

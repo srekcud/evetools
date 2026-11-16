@@ -3426,6 +3426,7 @@
       "quantity": "Quantité à prendre",
       "free": "{quantity} libres",
       "mine": "vous",
+      "awaitingApproval": "En attente d'approbation ×{quantity}",
       "failed": "La réservation n'a pas pu être enregistrée"
     },
     "jobs": {
@@ -4107,6 +4108,7 @@
       "sections": {
         "free": "À attribuer",
         "mine": "Mes lignes à livrer",
+        "awaiting": "En attente d'approbation",
         "todo": "À faire",
         "jobs": "Mes jobs (ESI)",
         "project": "Projet"
