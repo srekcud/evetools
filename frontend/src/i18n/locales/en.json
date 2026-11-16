@@ -3542,6 +3542,20 @@
       "pendingNote": "Your contribution will be reviewed by a project admin.",
       "depositDayPrice": "Jita price of the deposit day (5th percentile)",
       "depositDayPriceNote": "Units you bought since the project was created are valued at the price you paid, read from your wallet; this Jita price only covers the other units. Read when the contribution is submitted and kept as is when it is reviewed.",
+      "valueSource": {
+        "title": "Value source",
+        "walletPurchase": "Wallet purchase",
+        "walletPurchaseNote": "I bought these units: they are valued at the price I paid, read from my wallet. Units without a matching transaction wait for it, never at a Jita estimate.",
+        "jitaPrice": "Jita price of the deposit day",
+        "jitaPriceNote": "Material taken from my own stock."
+      },
+      "valuePreview": {
+        "matched": "{count} units matched in your wallet at {value} ISK",
+        "noneMatched": "No matching purchase read in your wallet yet.",
+        "awaiting": "{count} units awaiting a wallet transaction",
+        "atJita": "{count} units valued at the Jita price",
+        "loadError": "The wallet purchases could not be read: the value will be known at submission."
+      },
       "lineRentalSuggestion": {
         "title": "Suggested from your rate schedule",
         "category": "Category",
@@ -3561,6 +3575,10 @@
     "contributions": {
       "unknownValueCause": "A contribution has no known price: the totals that include it are unknown, never partial.",
       "duplicatesDerived": "Duplicate of an ESI contribution",
+      "awaitingUnits": "{count} units awaiting wallet transaction",
+      "valueUnknown": "Value unknown",
+      "approveBlockedAwaiting": "Cannot be approved while units await a wallet transaction",
+      "valueAtJitaPrice": "Value at Jita price",
       "methods": {
         "paidPrice": "paid price (wallet)",
         "esiCost": "real cost (ESI)",

@@ -6,6 +6,7 @@ namespace App\Entity;
 
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Enum\ContributionValueSource;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectContributionRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -56,6 +57,12 @@ class IndustryProjectContribution
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $valuedAtJitaPrice = false;
+
+    #[ORM\Column(type: 'string', length: 20, nullable: true, enumType: ContributionValueSource::class)]
+    private ?ContributionValueSource $valueSource = null;
+
+    #[ORM\Column(type: 'integer', options: ['default' => 0])]
+    private int $awaitingQuantity = 0;
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $verifiedAt = null;
@@ -179,6 +186,19 @@ class IndustryProjectContribution
         return false;
     }
 
+    public function isContributedBy(?User $user): bool
+    {
+        $contributor = $this->member->getUser();
+        if (null === $user || null === $contributor) {
+            return false;
+        }
+
+        $userId = $user->getId();
+        $contributorId = $contributor->getId();
+
+        return $contributor === $user || (null !== $userId && null !== $contributorId && $userId->equals($contributorId));
+    }
+
     public function isReopenable(): bool
     {
         return ContributionStatus::Approved === $this->status
@@ -218,6 +238,28 @@ class IndustryProjectContribution
     public function setValuedAtJitaPrice(bool $valuedAtJitaPrice): static
     {
         $this->valuedAtJitaPrice = $valuedAtJitaPrice;
+        return $this;
+    }
+
+    public function getValueSource(): ?ContributionValueSource
+    {
+        return $this->valueSource;
+    }
+
+    public function setValueSource(?ContributionValueSource $valueSource): static
+    {
+        $this->valueSource = $valueSource;
+        return $this;
+    }
+
+    public function getAwaitingQuantity(): int
+    {
+        return $this->awaitingQuantity;
+    }
+
+    public function setAwaitingQuantity(int $awaitingQuantity): static
+    {
+        $this->awaitingQuantity = $awaitingQuantity;
         return $this;
     }
 

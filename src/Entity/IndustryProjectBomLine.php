@@ -393,6 +393,13 @@ class IndustryProjectBomLine
         return $this->purchases;
     }
 
+    public function removePurchase(IndustryProjectPurchase $purchase): static
+    {
+        $this->purchases->removeElement($purchase);
+
+        return $this;
+    }
+
     public function addPurchase(IndustryProjectPurchase $purchase): static
     {
         if (!$this->purchases->contains($purchase)) {

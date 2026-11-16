@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { GroupContribution, LineRentalSuggestion, SubmitContributionInput } from './types'
+import type { GroupContribution, LineRentalSuggestion, MaterialValuePreview, SubmitContributionInput } from './types'
 
 export const useGroupContributionStore = defineStore('group-contribution', () => {
   const contributions = ref<GroupContribution[]>([])
@@ -50,6 +50,32 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     return apiRequest<LineRentalSuggestion>(
       `/industry/projects/${projectId}/line-rental-suggestions/${bomItemId}`,
     )
+  }
+
+  async function fetchMaterialValuePreview(
+    projectId: string,
+    bomItemId: string,
+    quantity: number,
+  ): Promise<MaterialValuePreview> {
+    return apiRequest<MaterialValuePreview>(
+      `/industry/projects/${projectId}/material-value-previews/${bomItemId}?quantity=${quantity}`,
+    )
+  }
+
+  async function valueContributionAtJitaPrice(projectId: string, id: string): Promise<void> {
+    error.value = null
+    try {
+      const updated = await apiRequest<GroupContribution>(
+        `/industry/projects/${projectId}/contributions/${id}/value-at-jita-price`,
+        { method: 'POST', body: JSON.stringify({}) },
+      )
+      const idx = contributions.value.findIndex(c => c.id === id)
+      if (idx !== -1) {
+        contributions.value[idx] = updated
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to value the contribution at the Jita price'
+    }
   }
 
   async function approveContribution(projectId: string, id: string): Promise<void> {
@@ -120,6 +146,8 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     fetchContributions,
     submitContribution,
     fetchLineRentalSuggestion,
+    fetchMaterialValuePreview,
+    valueContributionAtJitaPrice,
     approveContribution,
     rejectContribution,
     reopenContribution,

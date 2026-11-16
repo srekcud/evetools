@@ -33,6 +33,10 @@ class IndustryProjectPurchase
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     private ?IndustryProjectParticipant $buyer = null;
 
+    #[ORM\ManyToOne(targetEntity: IndustryProjectContribution::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
+    private ?IndustryProjectContribution $contribution = null;
+
     #[ORM\Column(type: 'integer')]
     private int $typeId;
 
@@ -93,6 +97,18 @@ class IndustryProjectPurchase
     public function setBuyer(?IndustryProjectParticipant $buyer): static
     {
         $this->buyer = $buyer;
+
+        return $this;
+    }
+
+    public function getContribution(): ?IndustryProjectContribution
+    {
+        return $this->contribution;
+    }
+
+    public function setContribution(?IndustryProjectContribution $contribution): static
+    {
+        $this->contribution = $contribution;
 
         return $this;
     }

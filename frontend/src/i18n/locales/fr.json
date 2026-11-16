@@ -3542,6 +3542,20 @@
       "pendingNote": "Votre contribution sera examinee par un admin du projet.",
       "depositDayPrice": "Prix Jita du jour d'apport (percentile 5 %)",
       "depositDayPriceNote": "Les unités achetées depuis la création du projet sont valorisées au prix que vous avez payé, lu dans votre wallet ; ce prix Jita ne couvre que les autres unités. Lu au dépôt de la contribution et conservé tel quel lors de sa revue.",
+      "valueSource": {
+        "title": "Source de la valeur",
+        "walletPurchase": "Achat wallet",
+        "walletPurchaseNote": "J'ai acheté ces unités : elles sont valorisées au prix que j'ai payé, lu dans mon wallet. Les unités sans transaction correspondante l'attendent, jamais à une estimation Jita.",
+        "jitaPrice": "Prix Jita du jour du dépôt",
+        "jitaPriceNote": "Matériau pris dans mon propre stock."
+      },
+      "valuePreview": {
+        "matched": "{count} unités retrouvées dans votre wallet à {value} ISK",
+        "noneMatched": "Aucun achat correspondant lu dans votre wallet pour l'instant.",
+        "awaiting": "{count} unités en attente d'une transaction wallet",
+        "atJita": "{count} unités valorisées au prix Jita",
+        "loadError": "Les achats du wallet n'ont pas pu être lus : la valeur sera connue à l'envoi."
+      },
       "lineRentalSuggestion": {
         "title": "Suggestion issue de votre barème",
         "category": "Catégorie",
@@ -3561,6 +3575,10 @@
     "contributions": {
       "unknownValueCause": "Un apport n'a pas de prix connu : les totaux qui l'incluent sont inconnus, jamais partiels.",
       "duplicatesDerived": "Doublon avec un apport ESI",
+      "awaitingUnits": "{count} unités en attente d'une transaction wallet",
+      "valueUnknown": "Valeur inconnue",
+      "approveBlockedAwaiting": "Ne peut pas être approuvée tant que des unités attendent une transaction wallet",
+      "valueAtJitaPrice": "Valoriser au prix Jita",
       "methods": {
         "paidPrice": "prix payé (wallet)",
         "esiCost": "coût réel (ESI)",

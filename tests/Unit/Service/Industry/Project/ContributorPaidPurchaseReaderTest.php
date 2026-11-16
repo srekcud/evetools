@@ -13,6 +13,7 @@ use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Service\Industry\Project\ContributorPaidPurchaseReader;
+use App\Service\Industry\Project\PaidTransactionUnits;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -80,6 +81,31 @@ final class ContributorPaidPurchaseReaderTest extends TestCase
 
         $this->assertNotNull($paid);
         $this->assertSame([60, 300.0], [$paid->quantity, $paid->totalPrice]);
+    }
+
+    #[Group('issue-1009')]
+    public function testTransactionsAreOfferedOldestFirstWhateverTheOrderOfTheRepository(): void
+    {
+        $newer = $this->buy(50, 6.0)->setDate(new \DateTimeImmutable('2026-11-15 10:00:00'));
+        $older = $this->buy(50, 4.0)->setDate(new \DateTimeImmutable('2026-11-14 10:00:00'));
+
+        $paid = $this->readerReturning([$newer], [$older])->read($this->member, self::TRITANIUM_TYPE_ID);
+
+        $this->assertNotNull($paid);
+        $this->assertSame([$older, $newer], array_map(static fn (PaidTransactionUnits $units): CachedWalletTransaction => $units->transaction, $paid->transactions));
+    }
+
+    #[Group('issue-1009')]
+    public function testPartlyLinkedTransactionIsOfferedForItsRemainingQuantityOnly(): void
+    {
+        $transaction = $this->buy(100, 5.0);
+        $this->line->addPurchase((new IndustryProjectPurchase())->setTransaction($transaction)->setTypeId(self::TRITANIUM_TYPE_ID)->setQuantity(40)->setUnitPrice(5.0)->setTotalPrice(200.0)->setSource('esi_wallet'));
+
+        $paid = $this->readerReturning([$transaction], [])->read($this->member, self::TRITANIUM_TYPE_ID);
+
+        $this->assertNotNull($paid);
+        $this->assertSame([60, 300.0], [$paid->quantity, $paid->totalPrice]);
+        $this->assertSame([60], array_map(static fn (PaidTransactionUnits $units): int => $units->quantity, $paid->transactions));
     }
 
     public function testMemberWithoutUserHasNoPaidPrice(): void

@@ -26,6 +26,8 @@ use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Sync\ContributorWalletRefresher;
+use App\Service\Sync\WalletRefreshRequest;
 use App\State\Processor\Industry\Project\SubmitContributionProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -56,6 +58,7 @@ class SubmitContributionProcessorTest extends TestCase
 
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
+    private ContributorWalletRefresher&MockObject $walletRefresher;
     private SubmitContributionProcessor $processor;
     private IndustryProject $project;
     private IndustryProject $otherProject;
@@ -145,6 +148,7 @@ class SubmitContributionProcessorTest extends TestCase
 
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
+        $this->walletRefresher = $this->createMock(ContributorWalletRefresher::class);
 
         $this->processor = new SubmitContributionProcessor(
             $security,
@@ -154,6 +158,7 @@ class SubmitContributionProcessorTest extends TestCase
             new ProjectContributionService($contributionRepository, $this->entityManager, $jitaMarket, $this->createStub(LineReservationService::class), $this->createStub(IndustryProjectService::class), $this->createStub(ContributorPaidPurchaseReader::class)),
             new ProjectResourceMapper(),
             new MercurePublisherService($this->hub, new NullLogger()),
+            $this->walletRefresher,
         );
     }
 
@@ -185,6 +190,32 @@ class SubmitContributionProcessorTest extends TestCase
         self::assertSame(40, $resource->quantity);
         self::assertSame(21_250.0, $resource->estimatedValue);
         self::assertSame('pending', $resource->status);
+    }
+
+    #[Group('issue-1009')]
+    public function testWalletPurchaseContributionAwaitingATransactionRequestsAWalletRefreshOfTheContributor(): void
+    {
+        $this->entityManager->method('persist')->willReturnCallback(
+            fn (object $entity) => $entity instanceof IndustryProjectContribution ? $this->assignId($entity) : null,
+        );
+        $this->walletRefresher->expects($this->once())->method('request')->with($this->contributor)->willReturn(new WalletRefreshRequest(1, 0));
+
+        $input = $this->materialInput($this->morphite, 100, null);
+        $input->valueSource = 'wallet_purchase';
+        $resource = $this->processor->process($input, new Post(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame([100, null, 'pending'], [$resource->awaitingQuantity, $resource->estimatedValue, $resource->status]);
+    }
+
+    #[Group('issue-1009')]
+    public function testJitaPriceContributionRequestsNoWalletRefresh(): void
+    {
+        $this->entityManager->method('persist')->willReturnCallback(
+            fn (object $entity) => $entity instanceof IndustryProjectContribution ? $this->assignId($entity) : null,
+        );
+        $this->walletRefresher->expects($this->never())->method('request');
+
+        $this->submitMorphite(40, null);
     }
 
     public function testMaterialContributionOnACompletedProjectIsABadRequestAndNoContributionIsCreated(): void

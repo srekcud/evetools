@@ -12,6 +12,7 @@ use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Enum\ContributionValueSource;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
@@ -160,6 +161,41 @@ class ProjectResourceMapperTest extends TestCase
             ['market' => 'jita', 'side' => 'sell', 'method' => 'percentile', 'coveragePercent' => null, 'percentile' => 5.0],
             $resource->estimatedValueSource,
         );
+    }
+
+    #[Group('issue-1009')]
+    public function testContributionExposesItsValueSourceAndTheUnitsStillAwaitingATransaction(): void
+    {
+        $contribution = $this->contributionOf(ContributionType::Material, null)->setValueSource(ContributionValueSource::WalletPurchase)->setAwaitingQuantity(40);
+
+        $resource = $this->mapper->contributionToResource($contribution);
+
+        $this->assertSame(['wallet_purchase', 40], [$resource->valueSource, $resource->awaitingQuantity]);
+    }
+
+    #[Group('issue-1009')]
+    public function testOnlyTheContributorOfAPendingContributionAwaitingUnitsCanSwitchItToTheJitaPrice(): void
+    {
+        $contributor = new User();
+        $contribution = $this->contributionOf(ContributionType::Material, null)->setValueSource(ContributionValueSource::WalletPurchase)->setAwaitingQuantity(40)->setStatus(ContributionStatus::Pending);
+        $contribution->getMember()->setUser($contributor);
+
+        $this->assertSame(
+            [true, false, false],
+            [
+                $this->mapper->contributionToResource($contribution, $contributor)->switchableToJitaPrice,
+                $this->mapper->contributionToResource($contribution, new User())->switchableToJitaPrice,
+                $this->mapper->contributionToResource($contribution->setAwaitingQuantity(0), $contributor)->switchableToJitaPrice,
+            ],
+        );
+    }
+
+    #[Group('issue-1009')]
+    public function testContributionWithoutValueSourceExposesNoneAndNothingAwaiting(): void
+    {
+        $resource = $this->mapper->contributionToResource($this->contributionOf(ContributionType::JobInstall, 500.0));
+
+        $this->assertSame([null, 0], [$resource->valueSource, $resource->awaitingQuantity]);
     }
 
     #[Group('issue-538')]

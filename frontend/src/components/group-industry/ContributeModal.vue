@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, useId } from 'vue'
+import { ref, computed, watch, useId, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
@@ -9,11 +9,15 @@ import { useFormatters } from '@/composables/useFormatters'
 import type {
   BomItem,
   ContributionType,
+  ContributionValueSource,
+  MaterialValuePreview,
   LineRentalCategory,
   LineRentalSuggestion,
   SubmitContributionInput,
 } from '@/stores/group-industry/types'
 
+const PREVIEW_DEBOUNCE_MILLISECONDS = 300
+const VALUE_SOURCES: ContributionValueSource[] = ['jita_price', 'wallet_purchase']
 const BPC_ACTIVITIES = ['invention', 'copy']
 const INTERMEDIATE_ACTIVITIES = ['manufacturing', 'reaction']
 
@@ -57,6 +61,11 @@ const lineRentalSuggestion = ref<LineRentalSuggestion | null>(null)
 const isSuggestionLoadFailed = ref(false)
 const note = ref('')
 const isSubmitting = ref(false)
+const valueSource = ref<ContributionValueSource>('jita_price')
+const valuePreview = ref<MaterialValuePreview | null>(null)
+const isValuePreviewFailed = ref(false)
+let previewTimer: ReturnType<typeof setTimeout> | null = null
+let previewRequestNumber = 0
 
 function contributionTypeOf(line: BomItem): ContributionType {
   if (!line.isJob) return 'material'
@@ -79,6 +88,7 @@ watch(() => props.show, (visible) => {
     isSuggestionLoadFailed.value = false
     note.value = ''
     isSubmitting.value = false
+    valueSource.value = 'jita_price'
     if (props.prefilledBomItem) {
       selectedType.value = contributionTypeOf(props.prefilledBomItem)
       selectedBomItemId.value = props.prefilledBomItem.id
@@ -110,6 +120,64 @@ const availableBomItems = computed(() => {
 const selectedBomItem = computed(() =>
   projectStore.bomItems.find(i => i.id === selectedBomItemId.value) ?? null
 )
+
+const isMaterialValuedFromTheWallet = computed(() =>
+  selectedType.value === 'material' && selectedBomItem.value !== null && !selectedBomItem.value.isJob
+)
+
+function clearPreviewTimer(): void {
+  if (previewTimer !== null) {
+    clearTimeout(previewTimer)
+    previewTimer = null
+  }
+}
+
+async function loadValuePreview(bomItemId: string, requestedQuantity: number): Promise<void> {
+  const requestNumber = ++previewRequestNumber
+  try {
+    const preview = await contributionStore.fetchMaterialValuePreview(props.projectId, bomItemId, requestedQuantity)
+    if (requestNumber !== previewRequestNumber) return
+    valuePreview.value = preview
+    isValuePreviewFailed.value = false
+  } catch {
+    if (requestNumber !== previewRequestNumber) return
+    valuePreview.value = null
+    isValuePreviewFailed.value = true
+  }
+}
+
+watch([() => props.show, isMaterialValuedFromTheWallet, selectedBomItemId, quantity], () => {
+  clearPreviewTimer()
+  previewRequestNumber++
+  valuePreview.value = null
+  isValuePreviewFailed.value = false
+  if (!props.show || !isMaterialValuedFromTheWallet.value || !Number.isInteger(quantity.value) || quantity.value <= 0) return
+  const bomItemId = selectedBomItemId.value
+  const requestedQuantity = quantity.value
+  previewTimer = setTimeout(() => {
+    previewTimer = null
+    void loadValuePreview(bomItemId, requestedQuantity)
+  }, PREVIEW_DEBOUNCE_MILLISECONDS)
+})
+
+onBeforeUnmount(clearPreviewTimer)
+
+const previewMatchedLabel = computed(() => {
+  const preview = valuePreview.value
+  if (preview === null) return ''
+  if (preview.matchedQuantity === 0 || preview.matchedValue === null) return t('groupIndustry.contribute.valuePreview.noneMatched')
+  return t('groupIndustry.contribute.valuePreview.matched', {
+    count: formatNumber(preview.matchedQuantity, 0),
+    value: formatNumber(preview.matchedValue, 0),
+  })
+})
+
+const previewUnmatchedLabel = computed(() => {
+  const preview = valuePreview.value
+  if (preview === null || preview.unmatchedQuantity === 0) return ''
+  const key = valueSource.value === 'wallet_purchase' ? 'awaiting' : 'atJita'
+  return t(`groupIndustry.contribute.valuePreview.${key}`, { count: formatNumber(preview.unmatchedQuantity, 0) })
+})
 
 const requiresEnteredValue = computed(() =>
   selectedType.value === 'job_install' || selectedType.value === 'bpc' || selectedType.value === 'line_rental'
@@ -207,6 +275,10 @@ async function submit(): Promise<void> {
 
   if (requiresEnteredValue.value) {
     input.estimatedValue = enteredValue.value
+  }
+
+  if (isMaterialValuedFromTheWallet.value && valueSource.value === 'wallet_purchase') {
+    input.valueSource = valueSource.value
   }
 
   if (note.value.trim()) {
@@ -347,8 +419,39 @@ async function submit(): Promise<void> {
           />
         </div>
 
+        <fieldset v-if="isMaterialValuedFromTheWallet" class="space-y-2">
+          <legend class="text-sm font-medium text-slate-300 mb-1.5">{{ t('groupIndustry.contribute.valueSource.title') }}</legend>
+          <label
+            v-for="source in VALUE_SOURCES"
+            :key="source"
+            class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors"
+            :class="valueSource === source ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-slate-700 hover:bg-slate-800/80'"
+          >
+            <input
+              v-model="valueSource"
+              type="radio"
+              name="contribution-value-source"
+              :value="source"
+              :data-testid="`value-source-${source}`"
+              class="mt-1"
+            />
+            <span>
+              <span class="block text-sm text-slate-200">{{ source === 'wallet_purchase' ? t('groupIndustry.contribute.valueSource.walletPurchase') : t('groupIndustry.contribute.valueSource.jitaPrice') }}</span>
+              <span class="block text-xs text-slate-500">{{ source === 'wallet_purchase' ? t('groupIndustry.contribute.valueSource.walletPurchaseNote') : t('groupIndustry.contribute.valueSource.jitaPriceNote') }}</span>
+            </span>
+          </label>
+
+          <div v-if="valuePreview !== null" data-testid="value-preview" class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3 text-xs text-slate-300 space-y-1">
+            <p>{{ previewMatchedLabel }}</p>
+            <p v-if="previewUnmatchedLabel" class="text-amber-400">{{ previewUnmatchedLabel }}</p>
+          </div>
+          <p v-else-if="isValuePreviewFailed" data-testid="value-preview-error" class="text-xs text-amber-400">
+            {{ t('groupIndustry.contribute.valuePreview.loadError') }}
+          </p>
+        </fieldset>
+
         <!-- Auto-calculated price for materials -->
-        <div v-if="selectedType === 'material'" class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4">
+        <div v-if="selectedType === 'material' && (!isMaterialValuedFromTheWallet || valueSource === 'jita_price')" class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4">
           <p class="text-xs font-medium uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.contribute.depositDayPrice') }}</p>
           <p class="mt-1.5 text-xs text-slate-500">{{ t('groupIndustry.contribute.depositDayPriceNote') }}</p>
         </div>

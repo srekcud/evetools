@@ -11,7 +11,9 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
+use App\Entity\User;
 use App\Enum\ContributionStatus;
+use App\Enum\ContributionValueSource;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\PilotName;
@@ -133,7 +135,7 @@ class ProjectResourceMapper
         return $total;
     }
 
-    public function contributionToResource(IndustryProjectContribution $contribution): ProjectContributionResource
+    public function contributionToResource(IndustryProjectContribution $contribution, ?User $viewer = null): ProjectContributionResource
     {
         $resource = new ProjectContributionResource();
         $resource->id = $contribution->getId()->toString();
@@ -150,6 +152,12 @@ class ProjectResourceMapper
         $resource->duplicatesDerived = $contribution->duplicatesDerived();
         $resource->isVerified = $contribution->isVerified();
         $resource->valuedAtJitaPrice = $contribution->isValuedAtJitaPrice();
+        $resource->valueSource = $contribution->getValueSource()?->value;
+        $resource->awaitingQuantity = $contribution->getAwaitingQuantity();
+        $resource->switchableToJitaPrice = $contribution->isContributedBy($viewer)
+            && ContributionStatus::Pending === $contribution->getStatus()
+            && ContributionValueSource::WalletPurchase === $contribution->getValueSource()
+            && $contribution->getAwaitingQuantity() > 0;
         $resource->reopenable = $contribution->isReopenable();
         $resource->reviewedByCharacterName = $contribution->getReviewedBy()?->getMainCharacter()?->getName();
         $resource->reviewedAt = $contribution->getReviewedAt()?->format(\DateTimeInterface::ATOM);

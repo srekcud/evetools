@@ -167,6 +167,26 @@ final class DerivedContributionServiceMemberBuyerTest extends TestCase
         self::assertSame(100, $this->line->getFulfilledQuantity());
     }
 
+    #[Group('issue-1009')]
+    public function testPurchasesLinkedToADeclaredContributionBuildNoDerivedProposalAndKeepTheDeclaredOne(): void
+    {
+        $declared = (new IndustryProjectContribution())
+            ->setProject($this->project)
+            ->setMember($this->memberParticipant)
+            ->setBomItem($this->line)
+            ->setType(ContributionType::Material)
+            ->setQuantity(100)
+            ->setEstimatedValue(750.0)
+            ->setStatus(ContributionStatus::Pending);
+        $this->project->addContribution($declared);
+        $this->linkPurchase($this->memberParticipant, 100, 7.5)->setContribution($declared);
+
+        $this->service->refreshLine($this->line);
+
+        self::assertSame([], $this->derivedContributions());
+        self::assertSame(ContributionStatus::Pending, $declared->getStatus());
+    }
+
     private function linkPurchase(?IndustryProjectParticipant $buyer, int $quantity, float $unitPrice): IndustryProjectPurchase
     {
         $purchase = (new IndustryProjectPurchase())

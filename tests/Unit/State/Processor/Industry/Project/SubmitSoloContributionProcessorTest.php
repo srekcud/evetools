@@ -26,6 +26,7 @@ use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Sync\ContributorWalletRefresher;
 use App\State\Processor\Industry\Project\SubmitContributionProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\State\Provider\Industry\Project\ProjectDeleteProvider;
@@ -124,6 +125,7 @@ class SubmitSoloContributionProcessorTest extends TestCase
             new ProjectContributionService($contributionRepository, $this->entityManager, $jitaMarket, $this->createStub(LineReservationService::class), $this->createStub(IndustryProjectService::class), $this->createStub(ContributorPaidPurchaseReader::class)),
             new ProjectResourceMapper(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            $this->createStub(ContributorWalletRefresher::class),
         );
     }
 

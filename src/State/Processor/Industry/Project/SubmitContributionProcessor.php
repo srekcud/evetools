@@ -10,6 +10,7 @@ use App\ApiResource\Industry\Project\ProjectContributionResource;
 use App\ApiResource\Input\Industry\Project\SubmitContributionInput;
 use App\Entity\User;
 use App\Enum\ContributionType;
+use App\Enum\ContributionValueSource;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectParticipantRepository;
@@ -17,6 +18,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\Industry\Project\PilotName;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Sync\ContributorWalletRefresher;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -39,6 +41,7 @@ class SubmitContributionProcessor implements ProcessorInterface
         private readonly ProjectContributionService $contributionService,
         private readonly ProjectResourceMapper $mapper,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly ContributorWalletRefresher $walletRefresher,
     ) {
     }
 
@@ -100,6 +103,7 @@ class SubmitContributionProcessor implements ProcessorInterface
                 $data->quantity,
                 $data->estimatedValue,
                 $data->note,
+                null === $data->valueSource ? null : ContributionValueSource::from($data->valueSource),
             );
         } catch (\DomainException $e) {
             throw new BadRequestHttpException($e->getMessage());
@@ -118,6 +122,10 @@ class SubmitContributionProcessor implements ProcessorInterface
             ],
         );
 
-        return $this->mapper->contributionToResource($contribution);
+        if ($contribution->getAwaitingQuantity() > 0) {
+            $this->walletRefresher->request($user);
+        }
+
+        return $this->mapper->contributionToResource($contribution, $user);
     }
 }

@@ -25,6 +25,12 @@ describe('groupProjectRefreshes', () => {
   })
 })
 
+describe('groupProjectRefreshes on a contribution valued by a wallet transaction', () => {
+  it('refreshes the BOM, the cockpit, the contributions, the distribution and the project detail on contribution_valued', () => {
+    expect(sortedRefreshesFor('contribution_valued')).toEqual(['bom', 'cockpit', 'contributions', 'distribution', 'projectDetail'])
+  })
+})
+
 describe('groupProjectRefreshes on a derived contribution', () => {
   it('refreshes the BOM, the cockpit, the contributions, the distribution and the project detail on contribution_synced', () => {
     expect(sortedRefreshesFor('contribution_synced')).toEqual(['bom', 'cockpit', 'contributions', 'distribution', 'projectDetail'])

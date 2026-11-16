@@ -304,7 +304,7 @@ class DerivedContributionService
     {
         $byBuyer = [spl_object_id($ownerParticipant) => ['participant' => $ownerParticipant, 'quantity' => 0, 'paidPrice' => 0.0]];
         foreach ($line->getPurchases() as $purchase) {
-            if ($purchase->getTypeId() !== $line->getTypeId()) {
+            if ($purchase->getTypeId() !== $line->getTypeId() || null !== $purchase->getContribution()) {
                 continue;
             }
 

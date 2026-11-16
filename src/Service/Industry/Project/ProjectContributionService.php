@@ -10,6 +10,7 @@ use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Enum\ContributionValueSource;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Service\Industry\PriceSource;
 use App\Service\JitaMarketService;
@@ -46,16 +47,21 @@ class ProjectContributionService
         int $quantity,
         ?float $estimatedValue = null,
         ?string $note = null,
+        ?ContributionValueSource $valueSource = null,
     ): IndustryProjectContribution {
+        if (null !== $valueSource && (ContributionType::Material !== $type || $bomItem->isJob())) {
+            throw new \DomainException('A value source only applies to a material contribution of a material line');
+        }
+
         if ($this->isIntermediateContribution($bomItem, $type)) {
             $this->assertSoloProject($member);
 
             return $this->entityManager->wrapInTransaction(
-                fn (): IndustryProjectContribution => $this->submitContribution($member, $bomItem, $type, $quantity, $estimatedValue, $note),
+                fn (): IndustryProjectContribution => $this->submitContribution($member, $bomItem, $type, $quantity, $estimatedValue, $note, $valueSource),
             );
         }
 
-        return $this->submitContribution($member, $bomItem, $type, $quantity, $estimatedValue, $note);
+        return $this->submitContribution($member, $bomItem, $type, $quantity, $estimatedValue, $note, $valueSource);
     }
 
     private function submitContribution(
@@ -65,6 +71,7 @@ class ProjectContributionService
         int $quantity,
         ?float $estimatedValue,
         ?string $note,
+        ?ContributionValueSource $valueSource,
     ): IndustryProjectContribution {
         $this->validateAntiDuplicate($member, $bomItem, $type);
 
@@ -73,7 +80,7 @@ class ProjectContributionService
         }
 
         $value = match ($type) {
-            ContributionType::Material => $this->resolveMaterialValue($member, $bomItem, $quantity, $estimatedValue),
+            ContributionType::Material => $this->resolveMaterialValue($member, $bomItem, $quantity, $estimatedValue, $valueSource ?? ContributionValueSource::JitaPrice),
             ContributionType::JobInstall, ContributionType::Bpc => new ContributionValue($this->requirePositiveEnteredValue($type, $estimatedValue)),
             ContributionType::LineRental => new ContributionValue($this->requireEnteredValue($type, $estimatedValue)),
             ContributionType::Courier => throw new \DomainException('The courier reward is derived from the linked courier contract and cannot be submitted'),
@@ -90,12 +97,19 @@ class ProjectContributionService
         $contribution->setIsAutoDetected(false);
         $contribution->setIsVerified(false);
         $contribution->setValuedAtJitaPrice($value->valuedAtJitaPrice);
+        $contribution->setValueSource($value->source);
+        $contribution->setAwaitingQuantity($value->awaitingQuantity);
         $contribution->setNote($note);
 
         $this->entityManager->persist($contribution);
+        foreach ($value->matches as $units) {
+            $purchase = ProjectPurchaseFactory::fromUnits($units, $member, $contribution);
+            $bomItem->addPurchase($purchase);
+            $this->entityManager->persist($purchase);
+        }
 
         $contributor = $member->getUser();
-        if ($contributor !== null && $member->getProject()->isSoloProjectOf($contributor)) {
+        if (0 === $contribution->getAwaitingQuantity() && $contributor !== null && $member->getProject()->isSoloProjectOf($contributor)) {
             if ($this->isIntermediateContribution($bomItem, $type)) {
                 $this->approveContribution($contribution, $contributor, $bomItem);
                 $this->recalculateBomOf($contribution);
@@ -108,7 +122,7 @@ class ProjectContributionService
             return $contribution;
         }
 
-        if ($contributor !== null && $member->getProject()->isSoleReviewingOwner($contributor)) {
+        if (0 === $contribution->getAwaitingQuantity() && $contributor !== null && $member->getProject()->isSoleReviewingOwner($contributor)) {
             $this->approve($contribution, $contributor);
 
             return $contribution;
@@ -130,6 +144,10 @@ class ProjectContributionService
             throw new \DomainException(
                 sprintf('Cannot approve a contribution with status "%s"', $contribution->getStatus()->value),
             );
+        }
+
+        if ($contribution->getAwaitingQuantity() > 0) {
+            throw new \DomainException('Cannot approve a contribution while some of its units still await a wallet transaction');
         }
 
         $bomItem = $contribution->getBomItem();
@@ -192,9 +210,44 @@ class ProjectContributionService
             $bomItem->setFulfilledQuantity(max(0, $bomItem->getFulfilledQuantity() - $contribution->getQuantity()));
         }
 
+        if ($bomItem !== null) {
+            foreach ($bomItem->getPurchases()->toArray() as $purchase) {
+                if ($purchase->getContribution() === $contribution) {
+                    $bomItem->removePurchase($purchase);
+                    $this->entityManager->remove($purchase);
+                }
+            }
+        }
+
         $contribution->setStatus(ContributionStatus::Rejected);
         $contribution->setReviewedBy($reviewer);
         $contribution->setReviewedAt(new \DateTimeImmutable());
+
+        $this->entityManager->flush();
+    }
+
+    public function valueAtJitaPrice(IndustryProjectContribution $contribution): void
+    {
+        $bomItem = $contribution->getBomItem();
+        if (null === $bomItem
+            || ContributionStatus::Pending !== $contribution->getStatus()
+            || ContributionValueSource::WalletPurchase !== $contribution->getValueSource()
+            || $contribution->getAwaitingQuantity() <= 0) {
+            throw new \DomainException('Only a pending wallet purchase contribution with units awaiting a transaction can be valued at the Jita price');
+        }
+
+        $jitaPrice = $this->depositDayJitaPrice($bomItem->getTypeId());
+        $linkedValue = 0.0;
+        foreach ($bomItem->getPurchases() as $purchase) {
+            if ($purchase->getContribution() === $contribution) {
+                $linkedValue += $purchase->getTotalPrice();
+            }
+        }
+
+        $contribution->setEstimatedValue($linkedValue + $jitaPrice * $contribution->getAwaitingQuantity());
+        $contribution->setAwaitingQuantity(0);
+        $contribution->setValueSource(ContributionValueSource::JitaPrice);
+        $contribution->setValuedAtJitaPrice(true);
 
         $this->entityManager->flush();
     }
@@ -260,7 +313,7 @@ class ProjectContributionService
         }
     }
 
-    private function resolveMaterialValue(IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, int $quantity, ?float $enteredValue): ContributionValue
+    private function resolveMaterialValue(IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, int $quantity, ?float $enteredValue, ContributionValueSource $source): ContributionValue
     {
         if ($enteredValue !== null) {
             throw new \DomainException('A material contribution takes no entered value: it is valued at the Jita price of the deposit day.');
@@ -268,21 +321,31 @@ class ProjectContributionService
 
         $typeId = $bomItem->getTypeId();
         $paid = $this->paidPurchases->read($member, $typeId);
-        $paidUnits = null === $paid ? 0 : min($quantity, $paid->quantity);
-        $paidValue = null === $paid ? 0.0 : $paid->averageUnitPrice() * $paidUnits;
-        $jitaUnits = $quantity - $paidUnits;
+        $matches = null === $paid ? [] : $paid->allocate($quantity);
+        $matchedUnits = array_sum(array_map(static fn (PaidTransactionUnits $units): int => $units->quantity, $matches));
+        $matchedValue = (float) array_sum(array_map(static fn (PaidTransactionUnits $units): float => $units->totalPrice(), $matches));
+        $unmatchedUnits = $quantity - $matchedUnits;
 
-        if (0 === $jitaUnits) {
-            return new ContributionValue($paidValue, false);
+        if (ContributionValueSource::WalletPurchase === $source) {
+            return new ContributionValue([] === $matches ? null : $matchedValue, false, $unmatchedUnits, $source, $matches);
         }
 
+        if (0 === $unmatchedUnits) {
+            return new ContributionValue($matchedValue, false, 0, $source, $matches);
+        }
+
+        return new ContributionValue($matchedValue + $this->depositDayJitaPrice($typeId) * $unmatchedUnits, true, 0, $source, $matches);
+    }
+
+    private function depositDayJitaPrice(int $typeId): float
+    {
         $jitaPrice = $this->jitaMarket->getCheapestPercentilePrices([$typeId], self::DEPOSIT_DAY_PERCENTILE)[$typeId] ?? null;
 
         if ($jitaPrice === null || $jitaPrice <= 0) {
             throw new \DomainException(sprintf('No market price for type %d: no Jita price for the deposit day.', $typeId));
         }
 
-        return new ContributionValue($paidValue + $jitaPrice * $jitaUnits, true);
+        return $jitaPrice;
     }
 
     private function requireEnteredValue(ContributionType $type, ?float $enteredValue): float
