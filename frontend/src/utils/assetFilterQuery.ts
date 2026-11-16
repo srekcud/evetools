@@ -1,4 +1,5 @@
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
+import { ASSET_ITEM_SORTS, DEFAULT_ASSET_ITEM_SORT, type AssetItemSort } from '@/utils/assetItemSort'
 
 export type AssetViewMode = 'character' | 'corporation'
 
@@ -12,9 +13,10 @@ export interface AssetFilterState {
   location: string
   division: string
   locationSort: AssetLocationSort
+  itemSort: AssetItemSort
 }
 
-const OWNED_QUERY_KEYS = ['view', 'character', 'q', 'system', 'location', 'division', 'sort'] as const
+const OWNED_QUERY_KEYS = ['view', 'character', 'q', 'system', 'location', 'division', 'sort', 'itemSort'] as const
 const CORPORATION_VIEW = 'corporation'
 const DEFAULT_LOCATION_SORT: AssetLocationSort = 'items'
 const LOCATION_SORTS: readonly AssetLocationSort[] = ['items', 'name', 'volume']
@@ -33,6 +35,7 @@ export function readAssetFilterQuery(query: LocationQuery): AssetFilterState {
     location: textOf(query.location),
     division: textOf(query.division),
     locationSort: LOCATION_SORTS.find(sort => sort === query.sort) ?? DEFAULT_LOCATION_SORT,
+    itemSort: ASSET_ITEM_SORTS.find(sort => sort === query.itemSort) ?? DEFAULT_ASSET_ITEM_SORT,
   }
 }
 
@@ -51,6 +54,7 @@ export function writeAssetFilterQuery(current: LocationQuery, filters: AssetFilt
   if (filters.location) query.location = filters.location
   if (filters.division) query.division = filters.division
   if (filters.locationSort !== DEFAULT_LOCATION_SORT) query.sort = filters.locationSort
+  if (filters.itemSort !== DEFAULT_ASSET_ITEM_SORT) query.itemSort = filters.itemSort
   return query
 }
 
