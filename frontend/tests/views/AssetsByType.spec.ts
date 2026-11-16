@@ -197,14 +197,14 @@ describe('Assets "By type" view', () => {
     expect(typeRows(wrapper).map(rowWrapper => rowWrapper.text().includes('Pyerite'))).toEqual([true, false])
   })
 
-  it('does not offer the toggle in the corporation view', async () => {
+  it('offers the toggle in the corporation view and keeps the By type choice', async () => {
     const wrapper = await mountAssets()
     await openTypeView(wrapper)
 
     await groupingButton(wrapper, en.assets.corporationAssets)?.trigger('click')
     await flushPromises()
 
-    expect(groupingButton(wrapper, en.assets.groupBy.type)).toBeUndefined()
-    expect(typeRows(wrapper)).toHaveLength(0)
+    expect(groupingButton(wrapper, en.assets.groupBy.type)).toBeDefined()
+    expect(groupingButton(wrapper, en.assets.groupBy.location)).toBeDefined()
   })
 })

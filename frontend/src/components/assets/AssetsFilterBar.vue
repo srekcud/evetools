@@ -79,7 +79,6 @@ const chipIdleClass = 'bg-slate-900 border-slate-700 text-slate-400 hover:text-s
       </div>
 
       <div
-        v-if="props.viewMode === 'character'"
         role="group"
         :aria-label="t('assets.groupBy.label')"
         class="flex bg-slate-900 rounded-lg p-1"

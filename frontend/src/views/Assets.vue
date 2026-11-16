@@ -104,7 +104,7 @@ const freshnessNow = ref(new Date())
 const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError, fetchVisibility, saveVisibility, clearVisibility } = useCorporationAssetVisibility()
 
 const isCorpView = computed(() => viewMode.value === 'corporation')
-const isTypeView = computed(() => !isCorpView.value && groupBy.value === 'type')
+const isTypeView = computed(() => groupBy.value === 'type')
 
 const ownerPath = computed(() => {
   if (isCorpView.value) return '/me/corporation/assets'
@@ -254,6 +254,22 @@ const poolAssets = computed(() => [
   ...Array.from(rootRows.value.values()).flat(),
   ...Array.from(childRows.value.values()).flat(),
 ])
+
+const typeViewAssets = computed(() => {
+  if (selectedDivision.value === '') {
+    return poolAssets.value
+  }
+  const assets = Array.from(rootRows.value.values()).flat().filter(isInSelectedDivision)
+  const queue = [...assets]
+  for (let index = 0; index < queue.length; index++) {
+    const contents = childRows.value.get(queue[index].itemId)
+    if (contents !== undefined) {
+      assets.push(...contents)
+      queue.push(...contents)
+    }
+  }
+  return assets
+})
 
 const assetsByItemId = computed(() => new Map(poolAssets.value.map(a => [a.itemId, a])))
 
@@ -436,7 +452,7 @@ const typeGroups = computed(() => {
     return []
   }
   return filterTypeGroups(
-    groupAssetsByType(poolAssets.value, asset => typeNameLabel(asset.typeName, asset.typeId)),
+    groupAssetsByType(typeViewAssets.value, asset => typeNameLabel(asset.typeName, asset.typeId)),
     { solarSystem: selectedSolarSystem.value, location: selectedLocation.value, searchQuery: searchQuery.value },
   )
 })
@@ -460,7 +476,7 @@ const selectedTypeGroups = computed(() =>
 )
 
 const unnamedTypeIds = computed(() =>
-  new Set(poolAssets.value.filter(asset => asset.typeName === null).map(asset => asset.typeId)),
+  new Set(typeViewAssets.value.filter(asset => asset.typeName === null).map(asset => asset.typeId)),
 )
 
 const typeSelectionSummary = computed(() => summarizeTypeSelection(selectedTypeGroups.value, unnamedTypeIds.value))
