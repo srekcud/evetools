@@ -24,6 +24,8 @@ use App\Service\Industry\Project\JobInstallerName;
 use App\Service\Industry\Project\PlanningBlueprintNames;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectLineFulfillments;
+use App\Service\Industry\Project\UnclaimedStock;
+use App\Enum\ProjectStatus;
 use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\Service\Industry\Project\PilotName;
 use App\Service\UuidOrNotFound;
@@ -81,6 +83,7 @@ class ProjectBomProvider implements ProviderInterface
         }
 
         $pendingQuantities = $this->contributionRepository->sumPendingQuantityByLineAndParticipant($project);
+        $claimedQuantities = $this->contributionRepository->sumClaimedMaterialQuantityByLine($project);
 
         $locationsByJobId = $this->accessChecker->isAdminOrOwner($user, $project)
             ? $this->jobLocationResolver->locationsOf($project, $this->jobMatchesOf($bomItems))
@@ -89,9 +92,18 @@ class ProjectBomProvider implements ProviderInterface
         $blueprintNameByLineId = $this->blueprintNameByLineId($bomItems);
 
         return array_map(
-            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $pendingQuantities[$item->getId()->toRfc4122()] ?? [], $locationsByJobId, $fulfillments, $blueprintNameByLineId[$item->getId()->toRfc4122()] ?? null),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $pendingQuantities[$item->getId()->toRfc4122()] ?? [], $locationsByJobId, $fulfillments, $blueprintNameByLineId[$item->getId()->toRfc4122()] ?? null, $claimedQuantities[$item->getId()->toRfc4122()] ?? 0),
             $bomItems,
         );
+    }
+
+    private function unclaimedQuantityOf(IndustryProjectBomLine $item, IndustryProject $project, ProjectLineFulfillments $fulfillments, int $claimedQuantity): ?int
+    {
+        if (!\in_array($project->getStatus(), [ProjectStatus::InProgress, ProjectStatus::Selling], true)) {
+            return null;
+        }
+
+        return UnclaimedStock::quantityOf($fulfillments->containerQuantityOf($item), $item->getRequiredQuantity(), $claimedQuantity);
     }
 
     /**
@@ -136,7 +148,7 @@ class ProjectBomProvider implements ProviderInterface
      * @param array<string, int> $pendingQuantityByParticipantId
      * @param array<int, array{blueprint: array<string, mixed>, output: array<string, mixed>}> $locationsByJobId
      */
-    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $pendingQuantityByParticipantId, array $locationsByJobId, ProjectLineFulfillments $fulfillments, ?string $blueprintName): ProjectBomLineResource
+    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $pendingQuantityByParticipantId, array $locationsByJobId, ProjectLineFulfillments $fulfillments, ?string $blueprintName, int $claimedQuantity): ProjectBomLineResource
     {
         $resource = new ProjectBomLineResource();
         $resource->id = $item->getId()->toString();
@@ -148,6 +160,9 @@ class ProjectBomProvider implements ProviderInterface
         $resource->fulfillmentPercent = $fulfillments->percentOf($item);
         $resource->containerQuantity = $fulfillments->containerQuantityOf($item);
         $resource->containerStockState = $fulfillments->stateOf($item)->value;
+        $resource->launchPrice = $item->getLaunchPrice();
+        $resource->unclaimedQuantity = $this->unclaimedQuantityOf($item, $project, $fulfillments, $claimedQuantity);
+        $resource->unclaimedValue = UnclaimedStock::valueOf($resource->unclaimedQuantity, $item->getLaunchPrice());
         $resource->estimatedPrice = $item->getEstimatedPrice();
         $resource->estimatedTotal = $item->getEstimatedPrice() !== null
             ? $item->getEstimatedPrice() * $item->getRequiredQuantity()

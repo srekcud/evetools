@@ -3422,7 +3422,11 @@
       "totalEstCost": "Total Est. Cost",
       "overallFulfillment": "Overall Fulfillment",
       "purchasedQuantity": "{quantity} purchased",
-      "containerStockUnknown": "Container unreadable: the container stock is unknown, only the declared quantity counts"
+      "containerStockUnknown": "Container unreadable: the container stock is unknown, only the declared quantity counts",
+      "unclaimedStock": "Unclaimed stock: {quantity}",
+      "unclaimedStockLaunchPriceUnknown": "Launch price unknown",
+      "unclaimedStockValue": "{value} at the launch price",
+      "unclaimedStockHint": "Units already in the project containers that nobody has claimed yet"
     },
     "reservation": {
       "reservedBy": "Reserved by",

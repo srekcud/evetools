@@ -174,6 +174,32 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return array<string, int> pending and approved material quantity by line id
+     */
+    public function sumClaimedMaterialQuantityByLine(IndustryProject $project): array
+    {
+        $rows = $this->createQueryBuilder('c')
+            ->select('IDENTITY(c.bomItem) AS lineId', 'SUM(c.quantity) AS claimedQuantity')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.bomItem IS NOT NULL')
+            ->andWhere('c.type = :type')
+            ->andWhere('c.status IN (:statuses)')
+            ->groupBy('c.bomItem')
+            ->setParameter('project', $project)
+            ->setParameter('type', ContributionType::Material->value)
+            ->setParameter('statuses', [ContributionStatus::Pending->value, ContributionStatus::Approved->value])
+            ->getQuery()
+            ->getArrayResult();
+
+        $claimedQuantities = [];
+        foreach ($rows as $row) {
+            $claimedQuantities[Uuid::fromString((string) $row['lineId'])->toRfc4122()] = (int) $row['claimedQuantity'];
+        }
+
+        return $claimedQuantities;
+    }
+
+    /**
      * @return array<int, int> by typeId
      */
     public function findIntermediateStockByTypeId(IndustryProject $project): array
