@@ -58,7 +58,7 @@ describe('AssetTypeView packaged volume', () => {
     const wrapper = mountView(catalog)
     const mystery = wrapper.findAll('[data-testid="asset-type-row"]').find(row => row.text().includes('Mystery Crate'))
 
-    expect(mystery?.get('[data-testid="volume-unknown"]').exists()).toBe(true)
+    expect(mystery?.find('[data-testid="volume-unknown"]').exists()).toBe(true)
   })
 
   it('shows no volume for an excluded type', () => {

@@ -46,6 +46,7 @@ function scannedProduct(typeId: number, overrides: Partial<ScannedProduct>): Sca
     hasAllSkills: true,
     missingSkillCount: 0,
     unknownReason: null,
+    unknownReasonStructureId: null,
     missingPriceTypeIds: [],
     ...overrides,
   }
