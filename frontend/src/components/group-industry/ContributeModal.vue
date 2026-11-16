@@ -17,7 +17,13 @@ import type {
 } from '@/stores/group-industry/types'
 
 const PREVIEW_DEBOUNCE_MILLISECONDS = 300
-const VALUE_SOURCES: ContributionValueSource[] = ['jita_price', 'wallet_purchase']
+const MATERIAL_VALUE_SOURCES: ContributionValueSource[] = ['jita_price', 'wallet_purchase']
+const LAUNCH_PRICE_VALUE_SOURCES: ContributionValueSource[] = ['jita_price', 'wallet_purchase', 'launch_price']
+const VALUE_SOURCE_LABEL_KEYS: Partial<Record<ContributionValueSource, string>> = {
+  wallet_purchase: 'walletPurchase',
+  jita_price: 'jitaPrice',
+  launch_price: 'launchPrice',
+}
 const BPC_ACTIVITIES = ['invention', 'copy']
 const INTERMEDIATE_ACTIVITIES = ['manufacturing', 'reaction']
 
@@ -124,6 +130,19 @@ const selectedBomItem = computed(() =>
 const isMaterialValuedFromTheWallet = computed(() =>
   selectedType.value === 'material' && selectedBomItem.value !== null && !selectedBomItem.value.isJob
 )
+
+const isLaunchPriceClaimable = computed(() => {
+  const line = selectedBomItem.value
+  return isMaterialValuedFromTheWallet.value && line !== null && (line.unclaimedQuantity ?? 0) > 0 && line.launchPrice != null
+})
+
+const valueSources = computed(() => isLaunchPriceClaimable.value ? LAUNCH_PRICE_VALUE_SOURCES : MATERIAL_VALUE_SOURCES)
+
+watch(valueSources, (sources) => {
+  if (!sources.includes(valueSource.value)) {
+    valueSource.value = 'jita_price'
+  }
+})
 
 function clearPreviewTimer(): void {
   if (previewTimer !== null) {
@@ -277,7 +296,7 @@ async function submit(): Promise<void> {
     input.estimatedValue = enteredValue.value
   }
 
-  if (isMaterialValuedFromTheWallet.value && valueSource.value === 'wallet_purchase') {
+  if (isMaterialValuedFromTheWallet.value && (valueSource.value === 'wallet_purchase' || valueSource.value === 'launch_price')) {
     input.valueSource = valueSource.value
   }
 
@@ -422,7 +441,7 @@ async function submit(): Promise<void> {
         <fieldset v-if="isMaterialValuedFromTheWallet" class="space-y-2">
           <legend class="text-sm font-medium text-slate-300 mb-1.5">{{ t('groupIndustry.contribute.valueSource.title') }}</legend>
           <label
-            v-for="source in VALUE_SOURCES"
+            v-for="source in valueSources"
             :key="source"
             class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors"
             :class="valueSource === source ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-slate-700 hover:bg-slate-800/80'"
@@ -436,16 +455,16 @@ async function submit(): Promise<void> {
               class="mt-1"
             />
             <span>
-              <span class="block text-sm text-slate-200">{{ source === 'wallet_purchase' ? t('groupIndustry.contribute.valueSource.walletPurchase') : t('groupIndustry.contribute.valueSource.jitaPrice') }}</span>
-              <span class="block text-xs text-slate-500">{{ source === 'wallet_purchase' ? t('groupIndustry.contribute.valueSource.walletPurchaseNote') : t('groupIndustry.contribute.valueSource.jitaPriceNote') }}</span>
+              <span class="block text-sm text-slate-200">{{ t(`groupIndustry.contribute.valueSource.${VALUE_SOURCE_LABEL_KEYS[source]}`) }}</span>
+              <span class="block text-xs text-slate-500">{{ t(`groupIndustry.contribute.valueSource.${VALUE_SOURCE_LABEL_KEYS[source]}Note`) }}</span>
             </span>
           </label>
 
-          <div v-if="valuePreview !== null" data-testid="value-preview" class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3 text-xs text-slate-300 space-y-1">
+          <div v-if="valuePreview !== null && valueSource !== 'launch_price'" data-testid="value-preview" class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3 text-xs text-slate-300 space-y-1">
             <p>{{ previewMatchedLabel }}</p>
             <p v-if="previewUnmatchedLabel" class="text-amber-400">{{ previewUnmatchedLabel }}</p>
           </div>
-          <p v-else-if="isValuePreviewFailed" data-testid="value-preview-error" class="text-xs text-amber-400">
+          <p v-else-if="isValuePreviewFailed && valueSource !== 'launch_price'" data-testid="value-preview-error" class="text-xs text-amber-400">
             {{ t('groupIndustry.contribute.valuePreview.loadError') }}
           </p>
         </fieldset>

@@ -8,6 +8,7 @@ const REFRESHES_BY_ACTION: Record<string, GroupProjectRefresh[]> = {
   contribution_withdrawn: ['bom', 'contributions', 'projectDetail', 'cockpit'],
   contribution_synced: ['bom', 'contributions', 'distribution', 'projectDetail', 'cockpit'],
   contribution_valued: ['bom', 'contributions', 'distribution', 'projectDetail', 'cockpit'],
+  unclaimed_stock_allocated: ['bom', 'contributions', 'projectDetail', 'cockpit'],
   line_reserved: ['bom'],
   member_joined: ['members', 'projectDetail'],
   member_accepted: ['members', 'projectDetail'],

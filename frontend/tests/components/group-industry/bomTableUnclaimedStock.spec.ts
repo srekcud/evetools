@@ -44,9 +44,9 @@ function materialLine(overrides: Partial<BomItem>): BomItem {
   }
 }
 
-function mountBomWith(lines: BomItem[]) {
+function mountBomWith(lines: BomItem[], role: 'owner' | 'member' = 'owner') {
   const projectStore = useGroupProjectStore()
-  projectStore.currentProject = { id: PROJECT_ID, name: 'RAM batch', status: 'in_progress', myRole: 'owner', items: [] } as unknown as GroupProject
+  projectStore.currentProject = { id: PROJECT_ID, name: 'RAM batch', status: 'in_progress', myRole: role, items: [] } as unknown as GroupProject
   projectStore.bomItems = lines
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
   return mount(BomTable, { global: { plugins: [i18n] } })
@@ -87,8 +87,8 @@ describe('BomTable unclaimed stock badge', () => {
     expect(absent.find(BADGE).exists()).toBe(false)
   })
 
-  it('is read only: the badge carries no button', () => {
-    const wrapper = mountBomWith([materialLine({ unclaimedQuantity: 80, launchPrice: 12.5, unclaimedValue: 1000 })])
+  it('is read only for a participant who does not own the project: the badge carries no button', () => {
+    const wrapper = mountBomWith([materialLine({ unclaimedQuantity: 80, launchPrice: 12.5, unclaimedValue: 1000 })], 'member')
 
     expect(wrapper.get(BADGE).find('button').exists()).toBe(false)
   })

@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\PilotName;
+use App\Service\Industry\Project\UnclaimedStockGuard;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
@@ -36,6 +37,7 @@ class EditContributionProcessor implements ProcessorInterface
         private readonly ProjectAccessChecker $accessChecker,
         private readonly ProjectResourceMapper $mapper,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly UnclaimedStockGuard $unclaimedStockGuard,
     ) {
     }
 
@@ -69,6 +71,11 @@ class EditContributionProcessor implements ProcessorInterface
         $this->accessChecker->assertContributionOf($user, $contribution);
 
         try {
+            $bomItem = $contribution->getBomItem();
+            if (null !== $data->quantity && null !== $bomItem && true === $contribution->getValueSource()?->drawsOnUnclaimedStock()) {
+                $this->unclaimedStockGuard->assertWithin($bomItem, $data->quantity, $contribution->getQuantity());
+            }
+
             $this->contributionService->edit($contribution, $data->quantity, $data->estimatedValue, $data->note);
         } catch (\DomainException $e) {
             throw new BadRequestHttpException($e->getMessage());

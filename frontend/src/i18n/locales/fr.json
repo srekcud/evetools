@@ -3426,7 +3426,20 @@
       "unclaimedStock": "Stock non réclamé : {quantity}",
       "unclaimedStockLaunchPriceUnknown": "Prix de lancement inconnu",
       "unclaimedStockValue": "{value} au prix de lancement",
-      "unclaimedStockHint": "Unités déjà présentes dans les containers du projet que personne n'a encore réclamées"
+      "unclaimedStockHint": "Unités déjà présentes dans les containers du projet que personne n'a encore réclamées",
+      "unclaimedStockAssign": "Attribuer",
+      "unclaimedStockDonate": "Donner",
+      "allocation": {
+        "assignTitle": "Attribuer le stock non réclamé",
+        "donateTitle": "Donner le stock non réclamé",
+        "assignHint": "Le participant est crédité de ces unités au prix de lancement de la ligne.",
+        "donateHint": "Les unités entrent dans le projet sans valeur : rien n'est dû à personne.",
+        "quantity": "Quantité (au plus {max})",
+        "participant": "Participant",
+        "participantPlaceholder": "Choisir un participant",
+        "submit": "Confirmer",
+        "failed": "Le stock non réclamé n'a pas pu être attribué"
+      }
     },
     "reservation": {
       "reservedBy": "Réservé par",
@@ -3564,7 +3577,9 @@
         "walletPurchase": "Achat wallet",
         "walletPurchaseNote": "J'ai acheté ces unités : elles sont valorisées au prix que j'ai payé, lu dans mon wallet. Les unités sans transaction correspondante l'attendent, jamais à une estimation Jita.",
         "jitaPrice": "Prix Jita du jour du dépôt",
-        "jitaPriceNote": "Matériau pris dans mon propre stock."
+        "jitaPriceNote": "Matériau pris dans mon propre stock.",
+        "launchPrice": "Stock non réclamé au prix de lancement",
+        "launchPriceNote": "Unités déjà présentes dans les containers du projet, valorisées au prix de lancement figé au démarrage du projet. Limité au stock non réclamé de la ligne."
       },
       "valuePreview": {
         "matched": "{count} unités retrouvées dans votre wallet à {value} ISK",

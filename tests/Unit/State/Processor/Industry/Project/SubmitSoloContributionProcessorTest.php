@@ -24,6 +24,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
+use App\Service\Industry\Project\UnclaimedStockGuard;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\ContributorWalletRefresher;
@@ -126,6 +127,7 @@ class SubmitSoloContributionProcessorTest extends TestCase
             new ProjectResourceMapper(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             $this->createStub(ContributorWalletRefresher::class),
+            $this->createStub(UnclaimedStockGuard::class),
         );
     }
 

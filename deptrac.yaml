@@ -180,6 +180,9 @@ deptrac:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\WithdrawContributionProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\AllocateUnclaimedStockProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+      - App\State\Provider\Industry\Project\ProjectResourceMapper
     App\State\Processor\Industry\Project\SubmitContributionProcessor:
       - App\State\Provider\Industry\Project\ProjectResourceMapper
     App\State\Processor\Industry\Project\ValueContributionAtJitaPriceProcessor:
