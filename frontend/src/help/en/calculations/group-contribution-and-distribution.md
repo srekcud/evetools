@@ -108,13 +108,14 @@ The application shows "—" or a banner rather than a plausible number in each o
 | Project broker fee or sales tax rate missing, with a market sale | Net revenue, margin, payouts | Unknown fees |
 | Fees of a sale contract missing from the seller's wallet journal | Net revenue, margin, payouts | Unknown fees |
 | An approved contribution without a value (ESI cost of a job missing, courier reward unknown) | Production cost, shares, profit and payouts of everyone; a participant's contributed cost stays known if all their contributions have a price | "An approved contribution has no known price…" |
+| Container stock not yet claimed (a material line holds units that no contribution covers, once the project is in progress) | Production cost, break-even, cost per unit, margin, shares, profit and payouts of everyone, and the transfers | A notice listing the lines still holding unclaimed stock; claim it, have the owner assign it to a participant, or donate it, and the cost becomes known again |
 | Production cost equal to 0 (no approved contribution, or contributions at 0 ISK) | Margin, shares, payouts | "Undistributable distribution: no approved contribution has a cost" |
 
 From the first sale, the margin is computed on what is already sold: the profit is shown as **provisional**, and often negative while products remain unsold. The projected margin values the unsold products at the price of the most recent sale, net of the same fees; a product that was never sold makes it unknown.
 
 ### Transfers
 
-Each seller keeps the net revenue of their sales; the application computes the smallest number of transfers so that everyone holds their payout. Transfers are **unavailable**, with their reason, as long as: no sale exists, a product remains unsold, fees are unknown, a cost is unknown, or a seller is not an accepted participant of the project. The recipient ticks the transfer as "received"; receipt is also recognised when the wallet journal shows a donation of the right amount.
+Each seller keeps the net revenue of their sales; the application computes the smallest number of transfers so that everyone holds their payout. Transfers are **unavailable**, with their reason, as long as: no sale exists, a product remains unsold, container stock is still unclaimed, fees are unknown, a cost is unknown, or a seller is not an accepted participant of the project. The recipient ticks the transfer as "received"; receipt is also recognised when the wallet journal shows a donation of the right amount.
 
 ## Glossary terms
 

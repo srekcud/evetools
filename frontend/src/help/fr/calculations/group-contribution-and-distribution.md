@@ -108,13 +108,14 @@ L'application affiche « — » ou un bandeau plutôt qu'un chiffre plausible da
 | Taux de courtage ou de taxe du projet absent, avec une vente marché | Revenu net, marge, payouts | Frais inconnus |
 | Frais d'un contrat de vente absents du journal wallet du vendeur | Revenu net, marge, payouts | Frais inconnus |
 | Un apport approuvé sans valeur (coût ESI d'un job absent, récompense de courrier inconnue) | Coût de production, parts, profit et payouts de tout le monde ; le coût apporté d'un participant reste connu si tous ses apports ont un prix | « Un apport approuvé n'a pas de prix connu… » |
+| Stock en container non réclamé (une ligne matériau porte des unités qu'aucun apport ne couvre, une fois le projet en cours) | Coût de production, point mort, coût unitaire, marge, parts, profit et payouts de tout le monde, et les virements | Un message qui liste les lignes qui portent encore du stock non réclamé ; le réclamer, le faire attribuer à un participant par le propriétaire, ou le donner, et le coût redevient connu |
 | Coût de production égal à 0 (aucun apport approuvé, ou apports à 0 ISK) | Marge, parts, payouts | « Répartition impossible : aucune contribution approuvée n'a de coût » |
 
 Dès la première vente, la marge se calcule avec ce qui est déjà vendu : le profit est affiché comme **provisoire**, et souvent négatif tant qu'il reste des invendus. La marge projetée valorise les invendus au prix de la vente la plus récente, nette des mêmes frais ; un produit jamais vendu la rend inconnue.
 
 ### Les virements
 
-Chaque vendeur garde le revenu net de ses ventes ; l'application calcule le plus petit nombre de virements pour que chacun détienne son payout. Les virements sont **indisponibles**, avec leur raison, tant que : aucune vente n'existe, un produit reste invendu, des frais sont inconnus, un coût est inconnu, ou un vendeur n'est pas un participant accepté du projet. Le destinataire coche le virement « reçu » ; la réception est aussi reconnue quand le journal wallet montre le don du bon montant.
+Chaque vendeur garde le revenu net de ses ventes ; l'application calcule le plus petit nombre de virements pour que chacun détienne son payout. Les virements sont **indisponibles**, avec leur raison, tant que : aucune vente n'existe, un produit reste invendu, du stock en container reste non réclamé, des frais sont inconnus, un coût est inconnu, ou un vendeur n'est pas un participant accepté du projet. Le destinataire coche le virement « reçu » ; la réception est aussi reconnue quand le journal wallet montre le don du bon montant.
 
 ## Termes du glossaire
 

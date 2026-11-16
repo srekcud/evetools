@@ -5,6 +5,7 @@ import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import UnclaimedStockNotice from '@/components/group-industry/UnclaimedStockNotice.vue'
 import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
 import AwaitingSalesValue from '@/components/group-industry/AwaitingSalesValue.vue'
 
@@ -141,7 +142,10 @@ const salesTaxLabel = computed(() => {
               {{ formatIsk(courierCosts) }}
             </span>
           </div>
-          <p v-if="dist.totalProjectCost === null" class="text-xs text-violet-300">{{ t('groupIndustry.financialSummary.unknownContributionValue') }}</p>
+          <div v-if="dist.totalProjectCost === null && (dist.unclaimedStockLines ?? []).length > 0" class="text-xs text-violet-300">
+            <UnclaimedStockNotice :lines="dist.unclaimedStockLines ?? []" />
+          </div>
+          <p v-else-if="dist.totalProjectCost === null" class="text-xs text-violet-300">{{ t('groupIndustry.financialSummary.unknownContributionValue') }}</p>
         </div>
 
         <!-- Profit ring -->

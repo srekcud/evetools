@@ -371,6 +371,13 @@ export type SellForecast = {
   }
 }
 
+export type UnclaimedStockLine = {
+  bomLineId: string
+  typeId: number
+  typeName: string
+  quantity: number
+}
+
 export type Distribution = {
   id: string
   totalRevenue: number
@@ -386,6 +393,7 @@ export type Distribution = {
   breakEvenUnknownReason?: string | null
   costPerUnit?: number | null
   costPerUnitUnknownReason?: string | null
+  unclaimedStockLines?: UnclaimedStockLine[]
   marketRevenue?: number
   contractRevenue?: number
   contractFees?: number | null
@@ -413,7 +421,7 @@ export type ContractSaleSuggestions = {
 
 // --- Settlement ---
 
-export type TransfersUnavailableReason = 'awaiting_sales' | 'unsold_products' | 'unknown_fees' | 'unknown_cost' | 'unknown_seller'
+export type TransfersUnavailableReason = 'awaiting_sales' | 'unsold_products' | 'unclaimed_stock' | 'unknown_fees' | 'unknown_cost' | 'unknown_seller'
 
 export type ProjectTransfer = {
   fromParticipantId: string

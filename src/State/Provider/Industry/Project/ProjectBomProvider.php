@@ -25,7 +25,6 @@ use App\Service\Industry\Project\PlanningBlueprintNames;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectLineFulfillments;
 use App\Service\Industry\Project\UnclaimedStock;
-use App\Enum\ProjectStatus;
 use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\Service\Industry\Project\PilotName;
 use App\Service\UuidOrNotFound;
@@ -97,15 +96,6 @@ class ProjectBomProvider implements ProviderInterface
         );
     }
 
-    private function unclaimedQuantityOf(IndustryProjectBomLine $item, IndustryProject $project, ProjectLineFulfillments $fulfillments, int $claimedQuantity): ?int
-    {
-        if (!\in_array($project->getStatus(), [ProjectStatus::InProgress, ProjectStatus::Selling], true)) {
-            return null;
-        }
-
-        return UnclaimedStock::quantityOf($fulfillments->containerQuantityOf($item), $item->getRequiredQuantity(), $claimedQuantity);
-    }
-
     /**
      * @param IndustryProjectBomLine[] $bomItems
      *
@@ -161,7 +151,7 @@ class ProjectBomProvider implements ProviderInterface
         $resource->containerQuantity = $fulfillments->containerQuantityOf($item);
         $resource->containerStockState = $fulfillments->stateOf($item)->value;
         $resource->launchPrice = $item->getLaunchPrice();
-        $resource->unclaimedQuantity = $this->unclaimedQuantityOf($item, $project, $fulfillments, $claimedQuantity);
+        $resource->unclaimedQuantity = UnclaimedStock::ofLine($project, $item, $fulfillments, $claimedQuantity);
         $resource->unclaimedValue = UnclaimedStock::valueOf($resource->unclaimedQuantity, $item->getLaunchPrice());
         $resource->estimatedPrice = $item->getEstimatedPrice();
         $resource->estimatedTotal = $item->getEstimatedPrice() !== null

@@ -71,6 +71,11 @@ class ProjectDistributionResource
     public ?string $costPerUnitUnknownReason = null;
 
     /**
+     * @var list<array{bomLineId: string, typeId: int, typeName: string, quantity: int}>
+     */
+    public array $unclaimedStockLines = [];
+
+    /**
      * @var list<array{
      *     memberId: string,
      *     characterName: string|null,

@@ -17,6 +17,7 @@ use App\Repository\IndustryProjectSaleRepository;
 use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Industry\Project\ParticipantDistribution;
+use App\Service\Industry\Project\UnclaimedStockLine;
 use App\Service\Industry\Project\UnsoldProduct;
 use App\State\Provider\Industry\Project\ProjectDistributionProvider;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -153,6 +154,39 @@ class ProjectDistributionProviderTest extends TestCase
                 ],
             ],
             $resource->members,
+        );
+    }
+
+    #[Group('issue-1051')]
+    public function testDistributionCarriesTheLinesStillHoldingUnclaimedStock(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+        $distributionService = $this->createStub(ProjectDistributionService::class);
+        $distributionService->method('calculateDistribution')->willReturn(new DistributionResult(
+            totalRevenue: 5_000.0,
+            brokerFee: 100.0,
+            salesTax: 150.0,
+            netRevenue: 4_750.0,
+            totalProjectCost: null,
+            marginPercent: null,
+            members: [],
+            breakEvenUnknownReason: 'unclaimed_stock',
+            unclaimedStockLines: [new UnclaimedStockLine('00000000-0000-0000-0000-000000105101', 34, 'Tritanium', 50)],
+        ));
+        $provider = new ProjectDistributionProvider(
+            $this->security,
+            $this->sabreBatchProjectRepository(),
+            new ProjectAccessChecker($this->sabreBatchMemberRepository()),
+            $distributionService,
+        );
+
+        $resource = $provider->provide(new Get(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertNull($resource->totalProjectCost);
+        self::assertSame('unclaimed_stock', $resource->breakEvenUnknownReason);
+        self::assertSame(
+            [['bomLineId' => '00000000-0000-0000-0000-000000105101', 'typeId' => 34, 'typeName' => 'Tritanium', 'quantity' => 50]],
+            $resource->unclaimedStockLines,
         );
     }
 

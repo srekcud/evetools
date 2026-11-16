@@ -108,4 +108,16 @@ final class ProjectLineFulfillmentsTest extends TestCase
             ->setFulfilledQuantity($contributed)
             ->setIsJob(false);
     }
+
+    public function testOnlyAReadableContainerStockIsKnown(): void
+    {
+        self::assertSame(
+            [true, false, false],
+            [
+                (new ProjectLineFulfillments(ContainerStockState::Known, [self::TRITANIUM => 500]))->isKnown(),
+                (new ProjectLineFulfillments(ContainerStockState::Unknown))->isKnown(),
+                ProjectLineFulfillments::none()->isKnown(),
+            ],
+        );
+    }
 }

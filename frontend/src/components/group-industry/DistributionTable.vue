@@ -2,6 +2,7 @@
 import DataTable from '@/components/common/DataTable.vue'
 import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import UnclaimedStockNotice from '@/components/group-industry/UnclaimedStockNotice.vue'
 import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
 import AwaitingSalesValue from '@/components/group-industry/AwaitingSalesValue.vue'
 import { ref, computed } from 'vue'
@@ -68,6 +69,7 @@ const ringSegments = computed(() => {
 // Totals
 const totalCosts = computed(() => dist.value?.totalProjectCost ?? null)
 
+const unclaimedStockLines = computed(() => dist.value?.unclaimedStockLines ?? [])
 const isContributionValueUnknown = computed(() => dist.value?.totalProjectCost === null)
 
 function sumOrUnknown(values: (number | null)[]): number | null {
@@ -121,6 +123,12 @@ const BREAKDOWN_COLORS: Record<string, string> = {
     >
       <p class="font-semibold">{{ t('groupIndustry.distribution.awaitingSales') }}</p>
       <p class="text-xs text-cyan-300/80 mt-1">{{ t('groupIndustry.distribution.awaitingSalesBanner') }}</p>
+    </div>
+    <div
+      v-else-if="unclaimedStockLines.length > 0"
+      class="bg-violet-500/5 rounded-xl border border-dashed border-violet-400/40 p-4 mb-4 text-sm text-violet-300"
+    >
+      <UnclaimedStockNotice :lines="unclaimedStockLines" />
     </div>
     <div
       v-else-if="isContributionValueUnknown"
