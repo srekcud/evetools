@@ -42,6 +42,7 @@ function scannedProduct(typeId: number, overrides: Partial<BatchScanItem> = {}):
     hasAllSkills: true,
     missingSkillCount: 0,
     unknownReason: null,
+    unknownReasonStructureId: null,
     missingPriceTypeIds: [],
     ...overrides,
   }

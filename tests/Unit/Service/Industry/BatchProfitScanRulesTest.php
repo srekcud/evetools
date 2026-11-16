@@ -139,6 +139,7 @@ class BatchProfitScanRulesTest extends TestCase
             'hasAllSkills' => true,
             'missingSkillCount' => 0,
             'unknownReason' => null,
+            'unknownReasonStructureId' => null,
             'missingPriceTypeIds' => [],
             'contractSales' => null,
             'blueprintTypeId' => self::SHIELD_EXTENDER_BLUEPRINT_ID,
@@ -458,6 +459,192 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertCount(1, $result);
         $this->assertNull($result[0]['unknownReason']);
         $this->assertIsFloat($result[0]['profitPerUnit']);
+    }
+
+    #[Group('issue-884')]
+    public function testUnknownSellerSalesFeesGiveTheReasonMissingSalesFeesNextToAKnownSalePriceAndCost(): void
+    {
+        $this->givenModuleSoldAt(5801, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+
+        $result = $this->scan(salesFees: null);
+
+        $this->assertCount(1, $result);
+        $this->assertSame(BatchProfitScannerService::UNKNOWN_REASON_MISSING_SALES_FEES, $result[0]['unknownReason']);
+        $this->assertSame('missing_sales_fees', $result[0]['unknownReason']);
+        $this->assertNull($result[0]['marginPercent']);
+        $this->assertSame(100.0, $result[0]['sellPrice']);
+        $this->assertSame(45.0, $result[0]['materialCost']);
+        $this->assertArrayHasKey('unknownReasonStructureId', $result[0]);
+        $this->assertNull($result[0]['unknownReasonStructureId']);
+    }
+
+    #[Group('issue-884')]
+    public function testMissingSalesFeesComesBeforeMissingDailyVolume(): void
+    {
+        $this->givenModuleSoldAt(5802, 100.0, 10.0);
+        unset($this->jitaDailyVolumes[5802]);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+
+        $result = $this->scan(salesFees: null);
+
+        $this->assertSame('missing_sales_fees', $result[0]['unknownReason']);
+        $this->assertNull($result[0]['dailyVolume']);
+    }
+
+    #[Group('issue-884')]
+    public function testMissingSalesFeesComesAfterTheCostReasons(): void
+    {
+        $this->givenModuleSoldAt(5803, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => null, 'reaction' => 0.0711];
+
+        $result = $this->scan(salesFees: null);
+
+        $this->assertSame('missing_cost_index', $result[0]['unknownReason']);
+    }
+
+    #[Group('issue-884')]
+    public function testMissingSalesFeesComesAfterTheMissingSalePrice(): void
+    {
+        $this->givenModuleSoldAt(5804, null, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+
+        $result = $this->scan(salesFees: null);
+
+        $this->assertSame('missing_sale_price', $result[0]['unknownReason']);
+    }
+
+    #[Group('issue-884')]
+    public function testContractVenueNeedsNoSalesFeesSoTheMarginStaysKnownWithoutMissingSalesFees(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+
+        $row = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID, salesFees: null)[0];
+
+        $this->assertNull($row['unknownReason']);
+        $this->assertSame(1455.0, $row['profitPerUnit']);
+        $this->assertIsFloat($row['marginPercent']);
+    }
+
+    #[Group('issue-884')]
+    public function testMissingFacilityTaxRowReportsTheIdOfTheManufacturingStructureItUsed(): void
+    {
+        $this->givenModuleSoldAt(5811, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru-home', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, null),
+        ]];
+
+        $result = $this->scan(user: $this->userWithCharacterSkills([]));
+
+        $this->assertSame('missing_facility_tax', $result[0]['unknownReason']);
+        $this->assertSame('raitaru-home', $result[0]['unknownReasonStructureId']);
+    }
+
+    #[Group('issue-884')]
+    public function testMissingFacilityTaxRowOfAReactionReportsTheIdOfTheReactionStructureAndNotTheManufacturingOne(): void
+    {
+        $this->givenModuleSoldAt(5812, 100.0, 10.0);
+        $this->givenFerrogelReactionPricedAsInTheReactionCostIndexExample();
+        $this->jitaPrices[self::TRITANIUM_TYPE_ID] = 5.0;
+        $this->jitaPrices[5812] = 100.0;
+        $this->adjustedPrices[self::TRITANIUM_TYPE_ID] = 4.0;
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0211];
+        $this->reactionSystemCostIndices = ['manufacturing' => 0.0911, 'reaction' => 0.0713];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru-home', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, null),
+            ProductionStructures::tataraWithFacilityTax('tatara-reactions', SecurityClass::NullSec, self::REACTION_SOLAR_SYSTEM_ID, null),
+        ]];
+
+        $result = $this->scan(user: $this->userWithCharacterSkills([]), reactionSolarSystemId: self::REACTION_SOLAR_SYSTEM_ID);
+
+        $ferrogel = $this->rowOfType(self::FERROGEL_TYPE_ID, $result);
+        $module = $this->rowOfType(5812, $result);
+        $this->assertSame('missing_facility_tax', $ferrogel['unknownReason']);
+        $this->assertSame('tatara-reactions', $ferrogel['unknownReasonStructureId']);
+        $this->assertSame('missing_facility_tax', $module['unknownReason']);
+        $this->assertSame('raitaru-home', $module['unknownReasonStructureId']);
+    }
+
+    #[Group('issue-884')]
+    public function testMissingFacilityTaxRowOfAT2ProductReportsTheIdOfTheManufacturingStructure(): void
+    {
+        $this->givenProduct(self::SHIELD_EXTENDER_II_BLUEPRINT_ID, self::SHIELD_EXTENDER_II_TYPE_ID, self::MANUFACTURING, 1, [
+            self::TRITANIUM_TYPE_ID => 50,
+            self::MORPHITE_TYPE_ID => 7,
+        ]);
+        $this->givenType(self::SHIELD_EXTENDER_II_TYPE_ID, '38', 'Shield Extender', '7', '5.0');
+        $this->t2ProductIds = [self::SHIELD_EXTENDER_II_TYPE_ID => true];
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 6.0, self::MORPHITE_TYPE_ID => 9750.0, self::SHIELD_EXTENDER_II_TYPE_ID => 95000.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru-t2', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, null),
+        ]];
+
+        $result = $this->scan(user: $this->userWithCharacterSkills([]));
+
+        $this->assertSame('missing_facility_tax', $result[0]['unknownReason']);
+        $this->assertSame('raitaru-t2', $result[0]['unknownReasonStructureId']);
+    }
+
+    #[Group('issue-884')]
+    public function testRowsWhoseReasonIsNotMissingFacilityTaxHaveNoStructureIdEvenWithAStructureWithoutFacilityTax(): void
+    {
+        $this->givenModuleSoldAt(5821, null, 10.0);
+        $this->givenModuleSoldAt(5822, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => null, 'reaction' => 0.0711];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru-home', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, null),
+        ]];
+
+        $result = $this->scan(user: $this->userWithCharacterSkills([]));
+
+        $withoutSalePrice = $this->rowOfType(5821, $result);
+        $withoutCostIndex = $this->rowOfType(5822, $result);
+        $this->assertSame('missing_sale_price', $withoutSalePrice['unknownReason']);
+        $this->assertArrayHasKey('unknownReasonStructureId', $withoutSalePrice);
+        $this->assertNull($withoutSalePrice['unknownReasonStructureId']);
+        $this->assertSame('missing_cost_index', $withoutCostIndex['unknownReason']);
+        $this->assertArrayHasKey('unknownReasonStructureId', $withoutCostIndex);
+        $this->assertNull($withoutCostIndex['unknownReasonStructureId']);
+    }
+
+    #[Group('issue-884')]
+    public function testKnownMarginRowAndNpcStationRowHaveNoStructureId(): void
+    {
+        $this->givenModuleSoldAt(5831, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+
+        $withoutStructure = $this->scan(user: $this->userWithCharacterSkills([]))[0];
+        $this->structuresByUserId = [self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru-taxed', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.05),
+        ]];
+        $withTaxedStructure = $this->scan(user: $this->userWithCharacterSkills([]))[0];
+
+        $this->assertNull($withoutStructure['unknownReason']);
+        $this->assertArrayHasKey('unknownReasonStructureId', $withoutStructure);
+        $this->assertNull($withoutStructure['unknownReasonStructureId']);
+        $this->assertNull($withTaxedStructure['unknownReason']);
+        $this->assertArrayHasKey('unknownReasonStructureId', $withTaxedStructure);
+        $this->assertNull($withTaxedStructure['unknownReasonStructureId']);
+    }
+
+    private function rowOfType(int $typeId, array $result): array
+    {
+        foreach ($result as $row) {
+            if ($row['typeId'] === $typeId) {
+                return $row;
+            }
+        }
+
+        $this->fail("Type {$typeId} is missing from the scan result");
     }
 
     public function testMinimumMarginExcludesAProductOfASystemWithoutCostIndex(): void

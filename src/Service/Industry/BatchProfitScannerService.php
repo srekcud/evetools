@@ -53,6 +53,7 @@ class BatchProfitScannerService
     public const UNKNOWN_REASON_MISSING_SALE_PRICE = 'missing_sale_price';
     public const UNKNOWN_REASON_MISSING_VOLUME = 'missing_volume';
     public const UNKNOWN_REASON_MISSING_DAILY_VOLUME = 'missing_daily_volume';
+    public const UNKNOWN_REASON_MISSING_SALES_FEES = 'missing_sales_fees';
 
     private const CAPITAL_GROUP_IDS = [
         30,   // Titan
@@ -155,7 +156,7 @@ class BatchProfitScannerService
      * profitPerUnit and iskPerDay are null, unknownReason and missingPriceTypeIds explain why.
      * Products with a known cost are ranked first, by iskPerDay descending.
      *
-     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, iskPerDay: float|null, materialCost: float|null, importCost: float|null, exportCost: float|null, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>, blueprintTypeId: int, outputPerRun: int, unitCost: float|null, teUsed: int, priceSources: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float}, assumptions: array{runs: int, materialEfficiency: int}}}>
+     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, iskPerDay: float|null, materialCost: float|null, importCost: float|null, exportCost: float|null, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, unknownReasonStructureId: string|null, missingPriceTypeIds: list<int>, blueprintTypeId: int, outputPerRun: int, unitCost: float|null, teUsed: int, priceSources: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float}, assumptions: array{runs: int, materialEfficiency: int}}}>
      */
     public function scan(
         ?string $category,
@@ -444,6 +445,20 @@ class BatchProfitScannerService
             $meta = $typeMetadata[$typeId] ?? null;
             $categoryLabel = $this->resolveCategoryLabel($isT2, $isReaction, $meta);
 
+            $unknownReason = match (true) {
+                $isSalePriceUnknown => self::UNKNOWN_REASON_MISSING_SALE_PRICE,
+                $isMaterialCostUnknown => self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
+                $jobInstallCost === null => $jobInstallEstimate['unknownReason'],
+                $isInventionCostUnknown => $inventionUnknownReason,
+                $isTransportCostUnknown => self::UNKNOWN_REASON_MISSING_VOLUME,
+                $feeRate === null => self::UNKNOWN_REASON_MISSING_SALES_FEES,
+                $dailyVolume === null => self::UNKNOWN_REASON_MISSING_DAILY_VOLUME,
+                default => null,
+            };
+            $unknownReasonStructureId = $unknownReason === EsiCostIndexService::UNKNOWN_REASON_MISSING_FACILITY_TAX
+                ? ($isReaction ? $reactionStructure : $manufacturingStructure)?->id
+                : null;
+
             $results[] = [
                 'typeId' => $typeId,
                 'typeName' => $typeNames[$typeId] ?? null,
@@ -463,15 +478,8 @@ class BatchProfitScannerService
                 'bpcCostPerRun' => $bpcCostPerRun,
                 'hasAllSkills' => $this->checkSkills($blueprintTypeId, $requiredSkillsByBlueprint, $userSkillsByCharacter),
                 'missingSkillCount' => $this->countMissingSkills($blueprintTypeId, $requiredSkillsByBlueprint, $userSkillsByCharacter),
-                'unknownReason' => match (true) {
-                    $isSalePriceUnknown => self::UNKNOWN_REASON_MISSING_SALE_PRICE,
-                    $isMaterialCostUnknown => self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
-                    $jobInstallCost === null => $jobInstallEstimate['unknownReason'],
-                    $isInventionCostUnknown => $inventionUnknownReason,
-                    $isTransportCostUnknown => self::UNKNOWN_REASON_MISSING_VOLUME,
-                    $dailyVolume === null => self::UNKNOWN_REASON_MISSING_DAILY_VOLUME,
-                    default => null,
-                },
+                'unknownReason' => $unknownReason,
+                'unknownReasonStructureId' => $unknownReasonStructureId,
                 'missingPriceTypeIds' => array_keys($missingPriceTypeIds),
                 'contractSales' => $this->contractSalesOf($sellVenue === self::VENUE_CONTRACTS ? ($contractIndicators[$typeId] ?? null) : null),
                 'blueprintTypeId' => $blueprintTypeId,

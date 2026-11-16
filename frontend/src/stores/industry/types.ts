@@ -258,6 +258,7 @@ export type BatchScanItem = {
   hasAllSkills: boolean
   missingSkillCount: number
   unknownReason: string | null
+  unknownReasonStructureId: string | null
   missingPriceTypeIds: number[]
   contractSales?: BatchScanContractSales | null
   priceSources?: MaterialsAndSalePriceSources
