@@ -85,16 +85,16 @@ const spreadPercent = computed(() => {
 })
 
 const change30dIsPositive = computed(() => {
-  return props.detail.change30d !== null && props.detail.change30d >= 0
+  return props.detail.change30d != null && props.detail.change30d >= 0
 })
 
 const change30dIsNegative = computed(() => {
-  return props.detail.change30d !== null && props.detail.change30d < 0
+  return props.detail.change30d != null && props.detail.change30d < 0
 })
 
 // Estimate the "from" price for 30d change sublabel
 const price30dAgo = computed(() => {
-  if (props.detail.change30d === null || props.detail.jitaSell === null) return null
+  if (props.detail.change30d == null || props.detail.jitaSell == null) return null
   if (props.detail.change30d === 0) return props.detail.jitaSell
   return props.detail.jitaSell / (1 + props.detail.change30d / 100)
 })
@@ -226,10 +226,10 @@ const price30dAgo = computed(() => {
           :class="{
             'text-emerald-400': change30dIsPositive,
             'text-red-400': change30dIsNegative,
-            'text-slate-500': detail.change30d === null
+            'text-slate-500': detail.change30d == null
           }"
         >
-          <template v-if="detail.change30d !== null">
+          <template v-if="detail.change30d != null">
             <!-- Arrow icon -->
             <svg v-if="change30dIsPositive" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
