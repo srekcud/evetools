@@ -431,13 +431,47 @@ class ProjectBomProviderTest extends TestCase
     }
 
     #[Group('issue-866')]
-    public function testJobLineIgnoresTheContainerStock(): void
+    public function testFinalJobLineIgnoresTheContainerStock(): void
     {
-        $result = $this->readMaterialLineWith(new ProjectContainerStock(null, [11478 => 300]), 300, 20, true);
+        $result = $this->readMaterialLineWith(new ProjectContainerStock(null, [11478 => 300]), 300, 20, true, 'final');
 
         self::assertSame(20, $result->fulfilledQuantity);
         self::assertNull($result->containerQuantity);
         self::assertSame('none', $result->containerStockState);
+    }
+
+    #[Group('issue-1013')]
+    public function testComponentJobLineReadsTheContainerStockAsFulfilled(): void
+    {
+        $result = $this->readMaterialLineWith(new ProjectContainerStock(null, [11478 => 300]), 300, 20, true);
+
+        self::assertSame(300, $result->fulfilledQuantity);
+        self::assertSame(0, $result->remainingQuantity);
+        self::assertTrue($result->isFulfilled);
+        self::assertSame(300, $result->containerQuantity);
+        self::assertSame('known', $result->containerStockState);
+    }
+
+    #[Group('issue-1013')]
+    public function testComponentJobLinePartlyCoveredByTheContainerKeepsTheRemainingQuantityToLaunch(): void
+    {
+        $result = $this->readMaterialLineWith(new ProjectContainerStock(null, [11478 => 120]), 300, 0, true);
+
+        self::assertSame(120, $result->fulfilledQuantity);
+        self::assertSame(180, $result->remainingQuantity);
+        self::assertFalse($result->isFulfilled);
+        self::assertSame(120, $result->containerQuantity);
+    }
+
+    #[Group('issue-1013')]
+    public function testComponentJobLineOfAnUnreadableContainerIsNeverCoveredAndFlagsTheStockUnknown(): void
+    {
+        $result = $this->readMaterialLineWith(new ProjectContainerStock('container_not_found'), 300, 20, true);
+
+        self::assertSame(20, $result->fulfilledQuantity);
+        self::assertFalse($result->isFulfilled);
+        self::assertNull($result->containerQuantity);
+        self::assertSame('unknown', $result->containerStockState);
     }
 
     #[Group('issue-1006')]
@@ -495,21 +529,30 @@ class ProjectBomProviderTest extends TestCase
     }
 
     #[Group('issue-1006')]
-    public function testJobLineHasNoUnclaimedStock(): void
+    public function testFinalJobLineHasNoUnclaimedStock(): void
     {
-        $result = $this->readUnclaimedLine(ProjectStatus::InProgress, new ProjectContainerStock(null, [11478 => 80]), 100, 0, null, true);
+        $result = $this->readUnclaimedLine(ProjectStatus::InProgress, new ProjectContainerStock(null, [11478 => 80]), 100, 0, null, true, 'final');
 
         self::assertNull($result->unclaimedQuantity);
         self::assertNull($result->unclaimedValue);
     }
 
-    private function readUnclaimedLine(ProjectStatus $status, ProjectContainerStock $stock, int $required, int $claimed, ?float $launchPrice, bool $isJob = false): ProjectBomLineResource
+    #[Group('issue-1013')]
+    public function testComponentJobLineCarriesTheUnclaimedStockValuedAtTheLaunchPrice(): void
+    {
+        $result = $this->readUnclaimedLine(ProjectStatus::InProgress, new ProjectContainerStock(null, [11478 => 80]), 100, 30, 12.5, true);
+
+        self::assertSame(50, $result->unclaimedQuantity);
+        self::assertSame(625.0, $result->unclaimedValue);
+    }
+
+    private function readUnclaimedLine(ProjectStatus $status, ProjectContainerStock $stock, int $required, int $claimed, ?float $launchPrice, bool $isJob = false, string $jobGroup = 'component'): ProjectBomLineResource
     {
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
         $project = (new IndustryProject())->setOwner($user)->setStatus($status);
         $this->projectRepository->method('find')->willReturn($project);
-        $line = $this->createBomItem(11478, 'R.A.M.- Starship Tech', $required, 0, null, $isJob, $isJob ? 'component' : null, null, null, null, null, null);
+        $line = $this->createBomItem(11478, 'R.A.M.- Starship Tech', $required, 0, null, $isJob, $isJob ? $jobGroup : null, null, null, null, null, null);
         $line->setLaunchPrice($launchPrice);
         $this->bomItemRepository->method('findBy')->willReturn([$line]);
         $contributions = $this->createStub(IndustryProjectContributionRepository::class);
@@ -529,13 +572,13 @@ class ProjectBomProviderTest extends TestCase
         return $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0];
     }
 
-    private function readMaterialLineWith(ProjectContainerStock $stock, int $required, int $contributed, bool $isJob = false): ProjectBomLineResource
+    private function readMaterialLineWith(ProjectContainerStock $stock, int $required, int $contributed, bool $isJob = false, string $jobGroup = 'component'): ProjectBomLineResource
     {
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
         $project = (new IndustryProject())->setOwner($user);
         $this->projectRepository->method('find')->willReturn($project);
-        $line = $this->createBomItem(11478, 'R.A.M.- Starship Tech', $required, $contributed, null, $isJob, $isJob ? 'component' : null, null, null, null, null, null);
+        $line = $this->createBomItem(11478, 'R.A.M.- Starship Tech', $required, $contributed, null, $isJob, $isJob ? $jobGroup : null, null, null, null, null, null);
         $this->bomItemRepository->method('findBy')->willReturn([$line]);
         $provider = new ProjectBomProvider(
             $this->security,
