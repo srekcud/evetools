@@ -82,6 +82,10 @@ final readonly class ProjectSettlementCalculator
             return TransfersUnavailableReason::UnsoldProducts;
         }
 
+        if ($distribution->unclaimedStockLines !== []) {
+            return TransfersUnavailableReason::UnclaimedStock;
+        }
+
         $hasMarketSale = array_filter($sales, static fn (IndustryProjectSale $sale): bool => $sale->getChannel() === SaleChannel::Market) !== [];
         if ($hasMarketSale && $this->marketNetFactor($project) === null) {
             return TransfersUnavailableReason::UnknownFees;

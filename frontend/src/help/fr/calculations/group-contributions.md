@@ -130,6 +130,7 @@ Une donnée manquante rend le résultat **inconnu**, jamais 0. Un montant inconn
 |---|---|---|
 | Prix Jita d'un matériau au dépôt | La contribution est refusée | « No market price for type N: no Jita price for the deposit day. » |
 | Coût ESI d'un job lié | Valeur du « Job Install » inconnue, donc coût total, marge et **tous** les payouts inconnus, pas seulement celui de l'installateur | « Un apport approuvé n'a pas de prix connu : … » ; virements : « Un coût est inconnu ou le coût total est nul : … » |
+| Stock en container non réclamé | Coût total, point mort, coût unitaire, marge et **tous** les payouts inconnus, virements indisponibles | Un message qui liste les lignes qui portent encore du stock non réclamé ; virements : « Du stock en container n'est pas encore réclamé : … » |
 | Aucune vente | Revenu net, marge, payouts inconnus | « En attente des ventes » |
 | Frais du projet, avec une vente au marché | Revenu net, marge, payouts inconnus | « Répartition impossible : … » (voir Pièges) ; virements : « Le courtage ou la taxe de vente du projet est inconnu : … » |
 | Frais d'un contrat rattaché, absents du journal wallet | Revenu net, marge, payouts inconnus | Comme la ligne précédente |

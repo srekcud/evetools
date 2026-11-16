@@ -130,6 +130,7 @@ Missing data makes the result **unknown**, never 0. An unknown amount shows as "
 |---|---|---|
 | Jita price of a material at submission | The contribution is refused | "No market price for type N: no Jita price for the deposit day." |
 | ESI cost of a linked job | "Job Install" value unknown, so total cost, margin and **every** payout unknown, not only the installer's | "An approved contribution has no known price: …"; transfers: "A cost is unknown or the total cost is zero: …" |
+| Container stock not yet claimed | Total cost, break-even, cost per unit, margin and **every** payout unknown, transfers unavailable | A notice listing the lines still holding unclaimed stock; transfers: "Container stock is still unclaimed: …" |
 | No sale | Net revenue, margin, payouts unknown | "Awaiting sales" |
 | Project fees, with a market sale | Net revenue, margin, payouts unknown | "Undistributable distribution: …" (see Traps); transfers: "The broker fee or the sales tax of the project is unknown: …" |
 | Fees of an attached contract, missing from the wallet journal | Net revenue, margin, payouts unknown | Same as the row above |

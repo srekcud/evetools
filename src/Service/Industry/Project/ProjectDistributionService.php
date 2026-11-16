@@ -22,6 +22,7 @@ class ProjectDistributionService
         private readonly UnsoldProductsOfProject $unsoldProducts = new UnsoldProductsOfProject(),
         private readonly ?ContractSaleFees $contractSaleFees = null,
         private readonly ProjectBreakEven $projectBreakEven = new ProjectBreakEven(),
+        private readonly ?UnclaimedStockLines $unclaimedStockLines = null,
     ) {}
 
     public function calculateDistribution(IndustryProject $project): DistributionResult
@@ -40,7 +41,8 @@ class ProjectDistributionService
         $netRevenue = $brokerFee === null || $salesTax === null || $contractFees === null ? null : $totalRevenue - $brokerFee - $salesTax - $contractFees;
 
         $approvedContributions = $this->contributionRepository->findApprovedByProject($project);
-        $totalProjectCost = $this->sumOfValues(...$approvedContributions);
+        $unclaimedStockLines = $this->unclaimedStockLines?->of($project) ?? [];
+        $totalProjectCost = $unclaimedStockLines === [] ? $this->sumOfValues(...$approvedContributions) : null;
 
         $awaitingSales = $sales === [];
         $marginRatio = !$awaitingSales && $netRevenue !== null && $totalProjectCost !== null && $totalProjectCost > 0
@@ -74,10 +76,19 @@ class ProjectDistributionService
             contractRevenue: $contractRevenue,
             contractFees: $contractFees,
             breakEvenPerUnit: $breakEven->perUnit,
-            breakEvenUnknownReason: $breakEven->unknownReason,
+            breakEvenUnknownReason: $this->unknownReasonWith($breakEven->unknownReason, $unclaimedStockLines),
             costPerUnit: $costPerUnit->perUnit,
-            costPerUnitUnknownReason: $costPerUnit->unknownReason,
+            costPerUnitUnknownReason: $this->unknownReasonWith($costPerUnit->unknownReason, $unclaimedStockLines),
+            unclaimedStockLines: $unclaimedStockLines,
         );
+    }
+
+    /**
+     * @param list<UnclaimedStockLine> $unclaimedStockLines
+     */
+    private function unknownReasonWith(?string $unknownReason, array $unclaimedStockLines): ?string
+    {
+        return $unknownReason === ProjectBreakEven::COST_UNKNOWN && $unclaimedStockLines !== [] ? ProjectBreakEven::UNCLAIMED_STOCK : $unknownReason;
     }
 
     /**

@@ -3630,6 +3630,8 @@
     "distribution": {
       "undistributable": "Undistributable distribution: no approved contribution has a cost, the net revenue cannot be split",
       "unknownContributionValue": "An approved contribution has no known price: the production cost, the profit and the payouts stay unknown until it has one.",
+      "unclaimedStockNotice": "Container stock is still unclaimed: the project cost, the profit and the payouts stay unknown until it is claimed, assigned or donated.",
+      "unclaimedStockLines": "Lines still holding unclaimed stock:",
       "awaitingSales": "Awaiting sales",
       "awaitingSalesBanner": "No sale recorded yet: the revenue, the profit, the margin and the payouts will be known at the first sale.",
       "noSale": "No sale",
@@ -3735,6 +3737,7 @@
           "several_final_products": "The break-even per unit needs a single final product.",
           "jobs_not_delivered": "Final jobs are not all delivered yet.",
           "cost_unknown": "A contribution has an unknown value.",
+          "unclaimed_stock": "Container stock is still unclaimed.",
           "no_cost": "No contribution is approved yet.",
           "fees_unknown": "The sales fees are unknown."
         }
@@ -4155,6 +4158,7 @@
         "unsold_products": "Some products are still unsold: transfers are computed once every product is sold.",
         "unknown_fees": "The broker fee or the sales tax of the project is unknown: transfers cannot be computed.",
         "unknown_cost": "A cost is unknown or the total cost is zero: payouts, and so transfers, cannot be computed.",
+        "unclaimed_stock": "Container stock is still unclaimed: the transfers can be computed once it is claimed, assigned or donated.",
         "unknown_seller": "A sale was recorded by someone who is no longer an accepted participant: transfers cannot be computed."
       }
     },

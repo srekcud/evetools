@@ -3630,6 +3630,8 @@
     "distribution": {
       "undistributable": "Répartition impossible : aucune contribution approuvée n'a de coût, le revenu net ne peut pas être réparti",
       "unknownContributionValue": "Un apport approuvé n'a pas de prix connu : le coût de production, le profit et les payouts restent inconnus tant qu'il n'en a pas.",
+      "unclaimedStockNotice": "Du stock en container n'est pas encore réclamé : le coût du projet, le profit et les payouts restent inconnus tant qu'il n'est pas réclamé, attribué ou donné.",
+      "unclaimedStockLines": "Lignes qui portent encore du stock non réclamé :",
       "awaitingSales": "En attente des ventes",
       "awaitingSalesBanner": "Aucune vente enregistrée : le revenu, le profit, la marge et les payouts seront connus à la première vente.",
       "noSale": "Aucune vente",
@@ -3735,6 +3737,7 @@
           "several_final_products": "Le seuil par unité demande un seul produit final.",
           "jobs_not_delivered": "Les jobs finaux ne sont pas tous livrés.",
           "cost_unknown": "La valeur d'un apport est inconnue.",
+          "unclaimed_stock": "Du stock en container n'est pas encore réclamé.",
           "no_cost": "Aucun apport n'est encore approuvé.",
           "fees_unknown": "Les frais de vente sont inconnus."
         }
@@ -4155,6 +4158,7 @@
         "unsold_products": "Des produits sont encore invendus : les virements se calculent une fois tous les produits vendus.",
         "unknown_fees": "Le courtage ou la taxe de vente du projet est inconnu : les virements ne peuvent pas être calculés.",
         "unknown_cost": "Un coût est inconnu ou le coût total est nul : les payouts, donc les virements, ne peuvent pas être calculés.",
+        "unclaimed_stock": "Du stock en container n'est pas encore réclamé : les virements se calculent une fois qu'il est réclamé, attribué ou donné.",
         "unknown_seller": "Une vente a été enregistrée par quelqu'un qui n'est plus participant accepté : les virements ne peuvent pas être calculés."
       }
     },

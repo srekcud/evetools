@@ -12,6 +12,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Industry\Project\ParticipantDistribution;
+use App\Service\Industry\Project\UnclaimedStockLine;
 use App\Service\Industry\Project\UnsoldProduct;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -84,6 +85,15 @@ class ProjectDistributionProvider implements ProviderInterface
         $resource->breakEvenUnknownReason = $result->breakEvenUnknownReason;
         $resource->costPerUnit = $result->costPerUnit;
         $resource->costPerUnitUnknownReason = $result->costPerUnitUnknownReason;
+        $resource->unclaimedStockLines = array_map(
+            static fn (UnclaimedStockLine $line): array => [
+                'bomLineId' => $line->bomLineId,
+                'typeId' => $line->typeId,
+                'typeName' => $line->typeName,
+                'quantity' => $line->quantity,
+            ],
+            $result->unclaimedStockLines,
+        );
         $resource->members = array_values(array_map(
             fn (ParticipantDistribution $member) => [
                 'memberId' => $member->memberId,

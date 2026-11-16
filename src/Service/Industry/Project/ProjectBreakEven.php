@@ -16,6 +16,7 @@ final readonly class ProjectBreakEven
     public const string SEVERAL_FINAL_PRODUCTS = 'several_final_products';
     public const string JOBS_NOT_DELIVERED = 'jobs_not_delivered';
     public const string COST_UNKNOWN = 'cost_unknown';
+    public const string UNCLAIMED_STOCK = 'unclaimed_stock';
     public const string NO_COST = 'no_cost';
     public const string FEES_UNKNOWN = 'fees_unknown';
 
