@@ -30,14 +30,33 @@ Version 0.23 (2026-11-16)
   compte
 - Scanner : filtre des favoris dans la liste des categories ; resultats
   signales quand les filtres ont change depuis le calcul
-- Marges inconnues expliquees, avec la structure sans taxe renseignee
 - Slot Tracker : frequence et prochaine synchro des jobs affichees
 - Etat des structures lu avec le jeton du directeur de corporation
-- Contrat de courrier propose depuis le lieu d'achat des biens
-- Corrections : compteur Produire, badge des contributions, lignes livrees
-  en attente de validation, copie du nom de blueprint, bouton multibuy en
-  double, bouton revenus de l'atelier, mise a jour en direct de la page
-  projet, affichage de Quoi produire
+
+### Industrie - corrections
+- Le compteur Produire du cockpit compte les etapes marquees "Fait" a la
+  main
+- Le badge de l'onglet Contributions affiche le bon nombre sans ouvrir
+  l'onglet
+- "Contributions a valider" ne compte plus vos propres contributions, que
+  vous ne pouvez pas valider
+- Une ligne livree ne reste plus dans "Mes lignes a livrer" pendant que sa
+  contribution attend la validation
+- Une reservation prise dans la fenetre compagnon met a jour la page du
+  projet sans la recharger
+- Le nom du blueprint se copie aussi depuis la fenetre compagnon
+- Un achat du wallet couvrant toute une ligne se relie meme quand le stock
+  en couvre deja une partie
+- Le statut du conteneur indique la quantite trouvee dans le conteneur, au
+  lieu d'un "Verifie" confondu avec un achat
+- Le contrat de courrier part du lieu d'achat, plus toujours de Jita
+- Le bouton "Copier le multibuy" en double est retire de "Materiaux a
+  acheter"
+- Le bouton revenus de l'atelier ouvre l'onglet Industrie de la page Bilan
+- Quoi produire : nom de l'objet lisible et cellules de prix entieres, sans
+  colonne coupee a droite
+- Scanner : un resultat vide ou une marge inconnue est explique, et la
+  structure sans taxe d'installation est nommee
 
 ### Assets
 - Vue "Par type" : volume reconditionne, tri par volume, selection de types
@@ -46,9 +65,9 @@ Version 0.23 (2026-11-16)
 - Tri des objets dans un emplacement ou un conteneur
 
 ### Commerce
-- Les instantanes des ordres de structure ne sont plus comptes comme
-  historique de ventes
-- "---" affiche quand la variation sur 30 jours est inconnue
+- Historique d'une structure : les ordres affiches ne sont plus comptes
+  comme des ventes, ni le plus bas prix de vente comme prix moyen
+- Fiche d'un objet : "---" quand la variation sur 30 jours est inconnue
 
 --------------------------------------------------------------------------------
 Version 0.22 (2026-11-14)
