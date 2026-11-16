@@ -112,11 +112,15 @@ watch(() => props.show, (visible) => {
 // BOM items for dropdown, filtered by type
 const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
 
+function isClaimableIntermediateLine(line: BomItem): boolean {
+  return isIntermediateLine(line) && (line.unclaimedQuantity ?? 0) > 0 && line.launchPrice != null
+}
+
 const availableBomItems = computed(() => {
   if (selectedType.value === 'material') {
     const ownedIntermediates = isSoloProject.value
       ? projectStore.jobs.filter(job => !job.isFulfilled && isIntermediateLine(job))
-      : []
+      : projectStore.jobs.filter(isClaimableIntermediateLine)
     return [...projectStore.materials.filter(m => !m.isFulfilled), ...ownedIntermediates]
   }
   // For job_install, bpc, line_rental: show jobs
@@ -130,6 +134,17 @@ const selectedBomItem = computed(() =>
 const isMaterialValuedFromTheWallet = computed(() =>
   selectedType.value === 'material' && selectedBomItem.value !== null && !selectedBomItem.value.isJob
 )
+
+const isGroupIntermediateClaim = computed(() => {
+  const line = selectedBomItem.value
+  return selectedType.value === 'material' && line !== null && !isSoloProject.value && line.isJob
+})
+
+watch([selectedType, selectedBomItemId], () => {
+  if (isGroupIntermediateClaim.value) {
+    quantity.value = selectedBomItem.value?.unclaimedQuantity ?? 0
+  }
+})
 
 const isLaunchPriceClaimable = computed(() => {
   const line = selectedBomItem.value
@@ -298,6 +313,10 @@ async function submit(): Promise<void> {
 
   if (isMaterialValuedFromTheWallet.value && (valueSource.value === 'wallet_purchase' || valueSource.value === 'launch_price')) {
     input.valueSource = valueSource.value
+  }
+
+  if (isGroupIntermediateClaim.value) {
+    input.valueSource = 'launch_price'
   }
 
   if (note.value.trim()) {
@@ -469,8 +488,13 @@ async function submit(): Promise<void> {
           </p>
         </fieldset>
 
+        <div v-if="isGroupIntermediateClaim" data-testid="intermediate-claim-note" class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4">
+          <p class="text-xs font-medium uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.contribute.valueSource.launchPrice') }}</p>
+          <p class="mt-1.5 text-xs text-slate-500">{{ t('groupIndustry.contribute.valueSource.launchPriceNote') }}</p>
+        </div>
+
         <!-- Auto-calculated price for materials -->
-        <div v-if="selectedType === 'material' && (!isMaterialValuedFromTheWallet || valueSource === 'jita_price')" class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4">
+        <div v-else-if="selectedType === 'material' && (!isMaterialValuedFromTheWallet || valueSource === 'jita_price')" class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4">
           <p class="text-xs font-medium uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.contribute.depositDayPrice') }}</p>
           <p class="mt-1.5 text-xs text-slate-500">{{ t('groupIndustry.contribute.depositDayPriceNote') }}</p>
         </div>

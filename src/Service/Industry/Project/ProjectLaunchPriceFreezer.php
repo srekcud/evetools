@@ -18,7 +18,7 @@ class ProjectLaunchPriceFreezer
     {
         $materialLines = array_values(array_filter(
             $project->getBomItems()->toArray(),
-            static fn (IndustryProjectBomLine $line): bool => !$line->isJob(),
+            static fn (IndustryProjectBomLine $line): bool => $line->isPurchasable(),
         ));
 
         if ([] === $materialLines) {

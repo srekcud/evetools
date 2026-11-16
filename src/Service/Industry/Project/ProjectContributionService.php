@@ -51,7 +51,7 @@ class ProjectContributionService
         ?string $note = null,
         ?ContributionValueSource $valueSource = null,
     ): IndustryProjectContribution {
-        if (null !== $valueSource && (ContributionType::Material !== $type || $bomItem->isJob())) {
+        if (null !== $valueSource && (ContributionType::Material !== $type || !$this->acceptsAValueSource($bomItem, $valueSource))) {
             throw new \DomainException('A value source only applies to a material contribution of a material line');
         }
 
@@ -60,7 +60,9 @@ class ProjectContributionService
         }
 
         if ($this->isIntermediateContribution($bomItem, $type)) {
-            $this->assertSoloProject($member);
+            if (ContributionValueSource::LaunchPrice !== $valueSource) {
+                $this->assertSoloProject($member);
+            }
 
             return $this->entityManager->wrapInTransaction(
                 fn (): IndustryProjectContribution => $this->submitContribution($member, $bomItem, $type, $quantity, $estimatedValue, $note, $valueSource),
@@ -147,8 +149,8 @@ class ProjectContributionService
 
     private function recordUnclaimedStockAllocation(IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, int $quantity, User $owner, ContributionValueSource $source): IndustryProjectContribution
     {
-        if ($bomItem->isJob()) {
-            throw new \DomainException('Only the unclaimed stock of a material line can be allocated');
+        if (!$bomItem->isPurchasable()) {
+            throw new \DomainException('Only the unclaimed stock of a material or component line can be allocated');
         }
 
         $value = $this->resolveMaterialValue($member, $bomItem, $quantity, null, $source);
@@ -407,6 +409,11 @@ class ProjectContributionService
     private function isIntermediateContribution(IndustryProjectBomLine $bomItem, ContributionType $type): bool
     {
         return ContributionType::Material === $type && $bomItem->isJob();
+    }
+
+    private function acceptsAValueSource(IndustryProjectBomLine $bomItem, ContributionValueSource $valueSource): bool
+    {
+        return !$bomItem->isJob() || (ContributionValueSource::LaunchPrice === $valueSource && $bomItem->isPurchasable());
     }
 
     private function assertSoloProject(IndustryProjectParticipant $member): void

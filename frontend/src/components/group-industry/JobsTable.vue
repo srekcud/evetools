@@ -10,6 +10,7 @@ import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import JobLocationBadge from './JobLocationBadge.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
+import UnclaimedStockBadge from './UnclaimedStockBadge.vue'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import type { AvailableJob, BomItem, CharacterMatchFailure, ContainerVerification, ContainerVerificationStatus, LineMatchFailure } from '@/stores/group-industry/types'
 
@@ -140,20 +141,18 @@ type JobStatusCounts = {
   active: number
   delivered: number
   bpcContributed: number
+  covered: number
 }
 
 const statusCounts = computed<JobStatusCounts>(() => {
-  const counts: JobStatusCounts = { toLaunch: 0, active: 0, delivered: 0, bpcContributed: 0 }
+  const counts: JobStatusCounts = { toLaunch: 0, active: 0, delivered: 0, bpcContributed: 0, covered: 0 }
   for (const job of allJobs.value) {
-    if (job.isFulfilled && job.jobGroup === 'blueprint') {
-      counts.bpcContributed++
-    } else if (job.isFulfilled) {
-      counts.delivered++
-    } else if (job.fulfilledQuantity > 0) {
-      counts.active++
-    } else {
-      counts.toLaunch++
-    }
+    const status = jobStatus(job)
+    if (status === 'bpc_contributed') counts.bpcContributed++
+    else if (status === 'delivered') counts.delivered++
+    else if (status === 'covered') counts.covered++
+    else if (status === 'active') counts.active++
+    else counts.toLaunch++
   }
   return counts
 })
@@ -220,11 +219,28 @@ function activityLabel(activityType: string | null): string {
   return activityType.charAt(0).toUpperCase() + activityType.slice(1)
 }
 
-type JobStatus = 'bpc_contributed' | 'delivered' | 'active' | 'to_launch'
+type JobStatus = 'bpc_contributed' | 'delivered' | 'covered' | 'active' | 'to_launch'
+
+function isReadFromTheContainer(job: BomItem): boolean {
+  return job.jobGroup === COMPONENT_JOB_GROUP
+    && job.containerStockState === 'known'
+    && job.containerQuantity != null
+    && job.jobMatches.length === 0
+}
+
+function isCoveredByTheContainer(job: BomItem): boolean {
+  return isReadFromTheContainer(job) && (job.containerQuantity ?? 0) >= job.requiredQuantity
+}
+
+function isPartlyCoveredByTheContainer(job: BomItem): boolean {
+  return isReadFromTheContainer(job) && (job.containerQuantity ?? 0) > 0 && !isCoveredByTheContainer(job)
+}
 
 function jobStatus(job: BomItem): JobStatus {
   if (job.isFulfilled && job.jobGroup === 'blueprint') return 'bpc_contributed'
+  if (isCoveredByTheContainer(job)) return 'covered'
   if (job.isFulfilled) return 'delivered'
+  if (isPartlyCoveredByTheContainer(job)) return 'to_launch'
   if (job.fulfilledQuantity > 0) return 'active'
   return 'to_launch'
 }
@@ -253,6 +269,10 @@ function isJobDimmed(job: BomItem): boolean {
         <span class="text-cyan-400">{{ statusCounts.active }} active</span>
         <span class="text-slate-500">&middot;</span>
         <span class="text-emerald-400">{{ statusCounts.delivered }} delivered</span>
+        <template v-if="statusCounts.covered > 0">
+          <span class="text-slate-500">&middot;</span>
+          <span class="text-sky-400">{{ t('groupIndustry.jobs.coveredCount', { count: statusCounts.covered }) }}</span>
+        </template>
         <template v-if="statusCounts.bpcContributed > 0">
           <span class="text-slate-500">&middot;</span>
           <span class="text-violet-400">{{ statusCounts.bpcContributed }} BPC contributed</span>
@@ -370,6 +390,12 @@ function isJobDimmed(job: BomItem): boolean {
                     <td class="py-2.5 px-3 text-slate-200">
                       {{ job.typeName }}
                       <ContainerLineStatus v-if="containerLineOf(job) !== undefined" :verification="containerLineOf(job)!" />
+                      <p
+                        v-if="isPartlyCoveredByTheContainer(job)"
+                        data-testid="job-container-remaining"
+                        class="mt-1 text-xs text-sky-400"
+                      >{{ t('groupIndustry.jobs.containerRemaining', { covered: formatNumber(job.containerQuantity ?? 0, 0), required: formatNumber(job.requiredQuantity, 0), remaining: formatNumber(job.remainingQuantity, 0) }) }}</p>
+                      <UnclaimedStockBadge v-if="job.jobGroup === 'component'" :item="job" />
                       <ul v-if="job.jobMatches !== undefined && job.jobMatches.length > 0" class="mt-1 space-y-0.5">
                         <li
                           v-for="jobMatch in job.jobMatches"
@@ -432,11 +458,16 @@ function isJobDimmed(job: BomItem): boolean {
                     </td>
 
                     <!-- Status -->
-                    <td class="py-2.5 px-3 text-center">
+                    <td class="py-2.5 px-3 text-center" data-testid="job-status" :data-status="jobStatus(job)">
                       <!-- BPC Contributed -->
                       <span v-if="jobStatus(job) === 'bpc_contributed'" class="text-xs px-2 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20 font-medium inline-flex items-center gap-1.5">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                         BPC Contributed
+                      </span>
+                      <!-- Covered by the container -->
+                      <span v-else-if="jobStatus(job) === 'covered'" class="text-xs px-2 py-0.5 rounded border bg-sky-500/15 text-sky-400 border-sky-500/20 font-medium inline-flex items-center gap-1.5">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                        {{ t('groupIndustry.jobs.coveredByContainer') }}
                       </span>
                       <!-- Delivered -->
                       <span v-else-if="jobStatus(job) === 'delivered'" class="text-xs px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-400 border-emerald-500/20 font-medium inline-flex items-center gap-1.5">
