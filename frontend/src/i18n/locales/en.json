@@ -1330,6 +1330,34 @@
     "structures": {
       "title": "Production structures",
       "description": "Configure your production structures to calculate material bonuses applied to projects.",
+      "transfer": {
+        "title": "Share or import a structure list",
+        "hint": "Export your structures as JSON to hand them to another player, or paste a list you received. The corporation flag and the default structure are never carried over.",
+        "exportTitle": "Export",
+        "exportButton": "Export my structures",
+        "download": "Download file",
+        "copied": "Copied",
+        "copyFailed": "The list could not be copied, select the text and copy it by hand.",
+        "importTitle": "Import",
+        "importPlaceholder": "Paste an exported structure list here",
+        "chooseFile": "Or choose a file",
+        "preview": "Preview",
+        "overwrite": "Overwrite rigs and facility tax of structures you already have",
+        "apply": "Import {count} selected",
+        "result": "{created} created, {updated} updated, {skipped} skipped, {invalid} invalid.",
+        "status": {
+          "create": "New",
+          "update": "Will be updated",
+          "skip": "Already in your list",
+          "invalid": "Invalid"
+        },
+        "errors": {
+          "invalidJson": "This text is not valid JSON.",
+          "wrongFormat": "This is not an EVE Tools structure list.",
+          "unsupportedVersion": "This structure list version is not supported.",
+          "request": "The request failed, try again."
+        }
+      },
       "loadError": "Your structures could not be loaded.",
       "saveError": "The structure was not saved.",
       "deleteError": "The structure was not deleted.",
