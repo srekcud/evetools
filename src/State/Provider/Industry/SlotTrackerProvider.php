@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\SlotTrackerResource;
 use App\Entity\User;
-use App\Message\SyncIndustryJobs;
 use App\Service\Help\ScheduledSyncReader;
 use App\Service\Industry\SlotTrackerService;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -43,7 +42,7 @@ class SlotTrackerProvider implements ProviderInterface
         $resource->skillsMayBeStale = $status['skillsMayBeStale'];
         $resource->unknownSkillsCharacterCount = $status['unknownSkillsCharacterCount'];
         $resource->jobsSyncedAt = $status['jobsSyncedAt'];
-        $resource->jobsSyncIntervalSeconds = $this->scheduledSyncReader->intervalSecondsOf(SyncIndustryJobs::class);
+        $resource->jobsSyncIntervalSeconds = $this->scheduledSyncReader->industryJobsIntervalSeconds();
 
         return $resource;
     }

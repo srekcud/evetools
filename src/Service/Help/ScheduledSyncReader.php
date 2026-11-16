@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Help;
 
+use App\Message\SyncIndustryJobs;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Messenger\Message\RedispatchMessage;
 use Symfony\Component\Scheduler\Generator\MessageContext;
@@ -51,6 +52,11 @@ final readonly class ScheduledSyncReader
         }
 
         return $scheduledSyncs;
+    }
+
+    public function industryJobsIntervalSeconds(): int
+    {
+        return $this->intervalSecondsOf(SyncIndustryJobs::class);
     }
 
     public function intervalSecondsOf(string $messageClass): int

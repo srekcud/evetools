@@ -49,6 +49,11 @@ final class ScheduledSyncReaderTest extends TestCase
         self::assertSame(1800, $this->reader()->intervalSecondsOf(SyncIndustryJobs::class));
     }
 
+    public function testItReadsTheIndustryJobsSyncIntervalByName(): void
+    {
+        self::assertSame(1800, $this->reader()->industryJobsIntervalSeconds());
+    }
+
     public function testItRefusesTheIntervalOfAMessageThatIsNotScheduled(): void
     {
         $this->expectException(\LogicException::class);
