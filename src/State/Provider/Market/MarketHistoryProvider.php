@@ -91,13 +91,6 @@ class MarketHistoryProvider implements ProviderInterface
         $resource->entries = array_map(static function ($snapshot) {
             $item = new MarketHistoryEntryResource();
             $item->date = $snapshot->getDate()->format('Y-m-d');
-            // For structure snapshots, use sellMin as the primary price indicators
-            $item->average = $snapshot->getSellMin() ?? 0.0;
-            $item->highest = $snapshot->getSellMin() ?? 0.0;
-            $item->lowest = $snapshot->getSellMin() ?? 0.0;
-            $item->orderCount = $snapshot->getSellOrderCount() + $snapshot->getBuyOrderCount();
-            $item->volume = $snapshot->getSellVolume() + $snapshot->getBuyVolume();
-            // Structure-specific fields
             $item->sellMin = $snapshot->getSellMin();
             $item->buyMax = $snapshot->getBuyMax();
             $item->sellOrderCount = $snapshot->getSellOrderCount();

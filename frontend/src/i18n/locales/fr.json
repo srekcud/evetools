@@ -4168,7 +4168,9 @@
       "noOrders": "Aucun ordre",
       "structureSell": "Structure Sell",
       "structureBuy": "Structure Buy",
-      "averagePrice": "Moyenne"
+      "averagePrice": "Moyenne",
+      "volume": "Volume",
+      "listedVolume": "Unites listees (ordres de vente + achat)"
     },
     "favorite": {
       "add": "Ajouter aux favoris",
