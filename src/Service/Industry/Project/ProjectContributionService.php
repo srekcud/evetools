@@ -102,11 +102,7 @@ class ProjectContributionService
         $contribution->setNote($note);
 
         $this->entityManager->persist($contribution);
-        foreach ($value->matches as $units) {
-            $purchase = ProjectPurchaseFactory::fromUnits($units, $member, $contribution);
-            $bomItem->addPurchase($purchase);
-            $this->entityManager->persist($purchase);
-        }
+        $this->linkPaidPurchases($contribution, $bomItem, $value);
 
         $contributor = $member->getUser();
         if (0 === $contribution->getAwaitingQuantity() && $contributor !== null && $member->getProject()->isSoloProjectOf($contributor)) {
@@ -298,6 +294,11 @@ class ProjectContributionService
             $contribution->setEstimatedValue($value->value);
             $contribution->setValuedAtJitaPrice($value->valuedAtJitaPrice);
         }
+        if (null !== $value && null !== $bomItem && ContributionType::Material === $type) {
+            $contribution->setValueSource($value->source);
+            $contribution->setAwaitingQuantity($value->awaitingQuantity);
+            $this->linkPaidPurchases($contribution, $bomItem, $value);
+        }
         if (null !== $note) {
             $contribution->setNote('' === $note ? null : $note);
         }
@@ -335,7 +336,28 @@ class ProjectContributionService
             return null;
         }
 
-        return $this->resolveMaterialValue($contribution->getMember(), $bomItem, $quantity, null);
+        $this->unlinkPaidPurchases($contribution, $bomItem);
+
+        return $this->resolveMaterialValue($contribution->getMember(), $bomItem, $quantity, null, $contribution->getValueSource() ?? ContributionValueSource::JitaPrice);
+    }
+
+    private function linkPaidPurchases(IndustryProjectContribution $contribution, IndustryProjectBomLine $bomItem, ContributionValue $value): void
+    {
+        foreach ($value->matches as $units) {
+            $purchase = ProjectPurchaseFactory::fromUnits($units, $contribution->getMember(), $contribution);
+            $bomItem->addPurchase($purchase);
+            $this->entityManager->persist($purchase);
+        }
+    }
+
+    private function unlinkPaidPurchases(IndustryProjectContribution $contribution, IndustryProjectBomLine $bomItem): void
+    {
+        foreach ($bomItem->getPurchases()->toArray() as $purchase) {
+            if ($purchase->getContribution() === $contribution) {
+                $bomItem->removePurchase($purchase);
+                $this->entityManager->remove($purchase);
+            }
+        }
     }
 
     private function isIntermediateContribution(IndustryProjectBomLine $bomItem, ContributionType $type): bool

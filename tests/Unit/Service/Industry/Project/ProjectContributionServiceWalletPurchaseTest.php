@@ -134,6 +134,26 @@ final class ProjectContributionServiceWalletPurchaseTest extends TestCase
         $this->service->submit($this->member, $this->line, ContributionType::Material, 100, null, null, ContributionValueSource::JitaPrice);
     }
 
+    public function testEditingTheQuantityOfAWalletPurchaseRelinksItsTransactionUnitsAtThePaidPrice(): void
+    {
+        $this->paidPurchases->method('read')->willReturn($this->paid($this->buy(200, 5.0)));
+        $contribution = $this->submitWalletPurchase(100);
+
+        $this->service->edit($contribution, 150, null, null);
+
+        self::assertSame([750.0, 0, ContributionValueSource::WalletPurchase, false, 150, 1, 0], [$contribution->getEstimatedValue(), $contribution->getAwaitingQuantity(), $contribution->getValueSource(), $contribution->isValuedAtJitaPrice(), $this->line->getPurchasedQuantity(), $this->line->getPurchases()->count(), $this->jitaLookups]);
+    }
+
+    public function testEditingAWalletPurchaseBeyondItsTransactionsKeepsTheExtraUnitsAwaiting(): void
+    {
+        $this->paidPurchases->method('read')->willReturn($this->paid($this->buy(100, 5.0)));
+        $contribution = $this->submitWalletPurchase(100);
+
+        $this->service->edit($contribution, 120, null, null);
+
+        self::assertSame([500.0, 20, 100, 0], [$contribution->getEstimatedValue(), $contribution->getAwaitingQuantity(), $this->line->getPurchasedQuantity(), $this->jitaLookups]);
+    }
+
     public function testAValueSourceOnAJobInstallIsRefused(): void
     {
         $this->expectException(\DomainException::class);
