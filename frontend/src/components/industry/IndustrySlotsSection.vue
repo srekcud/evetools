@@ -5,6 +5,7 @@ import UnknownValue from '@/components/common/UnknownValue.vue'
 import CharacterSyncFailuresAlert from '@/components/industry/CharacterSyncFailuresAlert.vue'
 import SyncErrorAlert from '@/components/industry/SyncErrorAlert.vue'
 import { useEveImages } from '@/composables/useEveImages'
+import { useFormatters } from '@/composables/useFormatters'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useSlotsStore } from '@/stores/industry/slots'
@@ -17,6 +18,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { formatTime } = useFormatters()
 const { getTypeIconUrl, getCharacterPortraitUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 const slotsStore = useSlotsStore()
@@ -147,6 +149,20 @@ const lastSyncLabel = computed(() => {
   return t('industry.slots.minutesAgo', { n: minutes })
 })
 
+const SECONDS_PER_MINUTE = 60
+const MILLISECONDS_PER_SECOND = 1000
+
+const jobsSyncEveryMinutes = computed(() =>
+  slotsStore.data ? slotsStore.data.jobsSyncIntervalSeconds / SECONDS_PER_MINUTE : null,
+)
+
+const nextJobsSyncAt = computed<string | null>(() => {
+  const data = slotsStore.data
+  if (!data || data.jobsSyncedAt === null) return null
+  const next = new Date(new Date(data.jobsSyncedAt).getTime() + data.jobsSyncIntervalSeconds * MILLISECONDS_PER_SECOND)
+  return next.getTime() > Date.now() ? next.toISOString() : null
+})
+
 // Timeline groups: group timeline jobs by characterName
 const timelineGroups = computed(() => {
   if (!slotsStore.data?.timeline) return []
@@ -271,6 +287,10 @@ onMounted(() => {
       <div class="flex items-center gap-4">
         <span v-if="slotsStore.lastFetchAt" class="text-xs text-slate-500">
           {{ t('industry.slots.lastSync') }}: <span class="text-slate-400">{{ lastSyncLabel }}</span>
+        </span>
+        <span v-if="jobsSyncEveryMinutes !== null" data-testid="jobs-sync-cadence" class="text-xs text-slate-500">
+          {{ t('industry.slots.jobsSyncEvery', { minutes: jobsSyncEveryMinutes }) }}
+          <span v-if="nextJobsSyncAt !== null" data-testid="jobs-sync-next" class="text-slate-400">&middot; {{ t('industry.slots.jobsSyncNext', { time: formatTime(nextJobsSyncAt) }) }}</span>
         </span>
         <button
           class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"

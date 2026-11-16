@@ -610,6 +610,7 @@ export type SlotTrackerData = {
   skillsMayBeStale: boolean
   unknownSkillsCharacterCount: number
   jobsSyncedAt: string | null
+  jobsSyncIntervalSeconds: number
 }
 
 // Cross-tab navigation intent for the Industry cockpit

@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\SlotTrackerResource;
 use App\Entity\User;
+use App\Service\Help\ScheduledSyncReader;
 use App\Service\Industry\SlotTrackerService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -20,6 +21,7 @@ class SlotTrackerProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly SlotTrackerService $slotTrackerService,
+        private readonly ScheduledSyncReader $scheduledSyncReader,
     ) {
     }
 
@@ -40,6 +42,7 @@ class SlotTrackerProvider implements ProviderInterface
         $resource->skillsMayBeStale = $status['skillsMayBeStale'];
         $resource->unknownSkillsCharacterCount = $status['unknownSkillsCharacterCount'];
         $resource->jobsSyncedAt = $status['jobsSyncedAt'];
+        $resource->jobsSyncIntervalSeconds = $this->scheduledSyncReader->industryJobsIntervalSeconds();
 
         return $resource;
     }
