@@ -31,6 +31,9 @@ const purchaseError = ref<string | null>(null)
 const isSubmitting = ref(false)
 const manualQuantity = ref<number | null>(null)
 const manualUnitPrice = ref<number | null>(null)
+const isConfirmingLinkAll = ref(false)
+
+const MIN_TRANSACTIONS_FOR_LINK_ALL = 2
 
 const lineSuggestions = computed(() => suggestions.value.filter(suggestion => suggestion.typeId === props.item.typeId))
 const canSubmitManualPurchase = computed(() =>
@@ -38,6 +41,29 @@ const canSubmitManualPurchase = computed(() =>
   && manualQuantity.value !== null && Number.isInteger(manualQuantity.value) && manualQuantity.value > 0
   && manualUnitPrice.value !== null && manualUnitPrice.value >= 0,
 )
+
+const quantityLeftToBuy = computed(() => Math.max(0, props.item.requiredQuantity - props.item.purchasedQuantity))
+
+const linkAllPlan = computed(() => {
+  const unlinkedOldestFirst = lineSuggestions.value
+    .filter(suggestion => !suggestion.alreadyLinked)
+    .sort((first, second) => Date.parse(first.date) - Date.parse(second.date) || first.transactionId - second.transactionId)
+  const selected: PurchaseSuggestion[] = []
+  let selectedQuantity = 0
+  for (const suggestion of unlinkedOldestFirst) {
+    if (selectedQuantity + suggestion.quantity <= quantityLeftToBuy.value) {
+      selected.push(suggestion)
+      selectedQuantity += suggestion.quantity
+    }
+  }
+  return {
+    selected,
+    quantity: selectedQuantity,
+    totalPrice: selected.reduce((sum, suggestion) => sum + suggestion.totalPrice, 0),
+    leftOut: unlinkedOldestFirst.length - selected.length,
+  }
+})
+const canLinkAll = computed(() => linkAllPlan.value.selected.length >= MIN_TRANSACTIONS_FOR_LINK_ALL)
 
 function failureMessage(error: unknown, fallbackKey: string): string {
   return error instanceof Error ? error.message : t(fallbackKey)
@@ -76,6 +102,7 @@ async function openPanel(): Promise<void> {
   isReadingWallet.value = false
   newTransactionIds.value = new Set()
   purchaseError.value = null
+  isConfirmingLinkAll.value = false
   isLoadingSuggestions.value = true
   await loadSuggestions(project.id, false)
   isLoadingSuggestions.value = false
@@ -83,6 +110,7 @@ async function openPanel(): Promise<void> {
 
 function closePanel(): void {
   isOpen.value = false
+  isConfirmingLinkAll.value = false
   isReadingWallet.value = false
 }
 
@@ -118,7 +146,7 @@ async function submitPurchase(
   }
 }
 
-async function linkSuggestion(suggestion: PurchaseSuggestion): Promise<void> {
+async function linkSuggestion(suggestion: PurchaseSuggestion): Promise<boolean> {
   const isLinked = await submitPurchase(
     projectId => projectStore.createPurchase(projectId, props.item.id, { transactionId: suggestion.transactionUuid }),
     'groupIndustry.purchases.linkError',
@@ -127,6 +155,15 @@ async function linkSuggestion(suggestion: PurchaseSuggestion): Promise<void> {
     suggestions.value = suggestions.value.map(candidate =>
       candidate.transactionId === suggestion.transactionId ? { ...candidate, alreadyLinked: true } : candidate,
     )
+  }
+  return isLinked
+}
+
+async function linkAllSelected(): Promise<void> {
+  const toLink = [...linkAllPlan.value.selected]
+  isConfirmingLinkAll.value = false
+  for (const suggestion of toLink) {
+    if (!await linkSuggestion(suggestion)) return
   }
 }
 
@@ -239,50 +276,90 @@ async function deletePurchase(purchaseId: string): Promise<void> {
           <p v-else-if="lineSuggestions.length === 0" class="py-4 text-center text-slate-500 text-sm">
             {{ t('groupIndustry.purchases.suggestionsEmpty') }}
           </p>
-          <div v-else class="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
-                  <th class="text-left py-2.5 px-4">{{ t('groupIndustry.purchases.date') }}</th>
-                  <th class="text-left py-2.5 px-3">{{ t('groupIndustry.jobs.character') }}</th>
-                  <th class="text-right py-2.5 px-3">{{ t('groupIndustry.purchases.quantity') }}</th>
-                  <th class="text-right py-2.5 px-3">{{ t('groupIndustry.purchases.unitPrice') }}</th>
-                  <th class="text-right py-2.5 px-3">{{ t('groupIndustry.purchases.totalPrice') }}</th>
-                  <th class="text-right py-2.5 px-4"></th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-700/50">
-                <tr v-for="suggestion in lineSuggestions" :key="suggestion.transactionId" data-testid="purchase-suggestion" class="hover:bg-slate-800/30">
-                  <td class="py-2.5 px-4 text-xs text-slate-400">{{ formatDateTime(suggestion.date) }}</td>
-                  <td class="py-2.5 px-3 text-slate-200">
-                    {{ suggestion.characterName }}
-                    <span
-                      v-if="newTransactionIds.has(suggestion.transactionId)"
-                      data-testid="purchase-suggestion-new"
-                      class="ml-2 px-1.5 py-0.5 rounded-sm text-xs bg-cyan-500/10 text-cyan-300 border border-cyan-500/30"
-                    >{{ t('groupIndustry.walletReading.newTransaction') }}</span>
-                  </td>
-                  <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">{{ formatNumber(suggestion.quantity, 0) }}</td>
-                  <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">{{ formatIsk(suggestion.unitPrice, 1) }}</td>
-                  <td class="py-2.5 px-3 text-right font-mono text-slate-200" style="font-variant-numeric: tabular-nums;">{{ formatIsk(suggestion.totalPrice, 1) }}</td>
-                  <td class="py-2.5 px-4 text-right">
-                    <span
-                      v-if="suggestion.alreadyLinked"
-                      data-testid="purchase-suggestion-linked"
-                      class="px-2 py-0.5 rounded-sm text-xs bg-emerald-500/10 text-emerald-400"
-                    >{{ t('groupIndustry.purchases.alreadyLinked') }}</span>
-                    <button
-                      v-else
-                      data-testid="purchase-suggestion-link"
-                      class="px-2 py-0.5 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 disabled:opacity-50"
-                      :disabled="isSubmitting"
-                      @click="linkSuggestion(suggestion)"
-                    >{{ t('groupIndustry.purchases.link') }}</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <template v-else>
+            <div v-if="canLinkAll" class="mb-3">
+              <div
+                v-if="isConfirmingLinkAll"
+                data-testid="purchases-link-all-confirmation"
+                class="px-3 py-3 bg-cyan-500/5 border border-cyan-500/30 rounded-lg space-y-2"
+              >
+                <p class="text-sm text-slate-200">
+                  <span data-testid="purchases-link-all-count">{{ t('groupIndustry.purchases.linkAllCount', { count: linkAllPlan.selected.length }) }}</span>
+                  &middot; <span data-testid="purchases-link-all-quantity">{{ t('groupIndustry.purchases.linkAllQuantity', { quantity: formatNumber(linkAllPlan.quantity, 0) }) }}</span>
+                  &middot; <span data-testid="purchases-link-all-total" class="font-mono">{{ t('groupIndustry.purchases.linkAllTotal', { amount: formatIsk(linkAllPlan.totalPrice, 1) }) }}</span>
+                </p>
+                <p
+                  v-if="linkAllPlan.leftOut > 0"
+                  data-testid="purchases-link-all-left-out"
+                  class="text-xs text-amber-400"
+                >{{ t('groupIndustry.purchases.linkAllLeftOut', { count: linkAllPlan.leftOut }, linkAllPlan.leftOut) }}</p>
+                <div class="flex gap-2">
+                  <button
+                    data-testid="purchases-link-all-confirm"
+                    class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-xs font-medium transition-colors disabled:opacity-50"
+                    :disabled="isSubmitting"
+                    @click="linkAllSelected"
+                  >{{ t('groupIndustry.purchases.linkAllConfirm') }}</button>
+                  <button
+                    data-testid="purchases-link-all-cancel"
+                    class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-xs transition-colors"
+                    @click="isConfirmingLinkAll = false"
+                  >{{ t('common.actions.cancel') }}</button>
+                </div>
+              </div>
+              <button
+                v-else
+                data-testid="purchases-link-all"
+                class="px-3 py-1 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 disabled:opacity-50"
+                :disabled="isSubmitting"
+                @click="isConfirmingLinkAll = true"
+              >{{ t('groupIndustry.purchases.linkAll') }} ({{ linkAllPlan.selected.length }})</button>
+            </div>
+            <div class="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
+                    <th class="text-left py-2.5 px-4">{{ t('groupIndustry.purchases.date') }}</th>
+                    <th class="text-left py-2.5 px-3">{{ t('groupIndustry.jobs.character') }}</th>
+                    <th class="text-right py-2.5 px-3">{{ t('groupIndustry.purchases.quantity') }}</th>
+                    <th class="text-right py-2.5 px-3">{{ t('groupIndustry.purchases.unitPrice') }}</th>
+                    <th class="text-right py-2.5 px-3">{{ t('groupIndustry.purchases.totalPrice') }}</th>
+                    <th class="text-right py-2.5 px-4"></th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/50">
+                  <tr v-for="suggestion in lineSuggestions" :key="suggestion.transactionId" data-testid="purchase-suggestion" class="hover:bg-slate-800/30">
+                    <td class="py-2.5 px-4 text-xs text-slate-400">{{ formatDateTime(suggestion.date) }}</td>
+                    <td class="py-2.5 px-3 text-slate-200">
+                      {{ suggestion.characterName }}
+                      <span
+                        v-if="newTransactionIds.has(suggestion.transactionId)"
+                        data-testid="purchase-suggestion-new"
+                        class="ml-2 px-1.5 py-0.5 rounded-sm text-xs bg-cyan-500/10 text-cyan-300 border border-cyan-500/30"
+                      >{{ t('groupIndustry.walletReading.newTransaction') }}</span>
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">{{ formatNumber(suggestion.quantity, 0) }}</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">{{ formatIsk(suggestion.unitPrice, 1) }}</td>
+                    <td class="py-2.5 px-3 text-right font-mono text-slate-200" style="font-variant-numeric: tabular-nums;">{{ formatIsk(suggestion.totalPrice, 1) }}</td>
+                    <td class="py-2.5 px-4 text-right">
+                      <span
+                        v-if="suggestion.alreadyLinked"
+                        data-testid="purchase-suggestion-linked"
+                        class="px-2 py-0.5 rounded-sm text-xs bg-emerald-500/10 text-emerald-400"
+                      >{{ t('groupIndustry.purchases.alreadyLinked') }}</span>
+                      <button
+                        v-else
+                        data-testid="purchase-suggestion-link"
+                        class="px-2 py-0.5 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 disabled:opacity-50"
+                        :disabled="isSubmitting"
+                        @click="linkSuggestion(suggestion)"
+                      >{{ t('groupIndustry.purchases.link') }}</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
         </section>
 
         <section v-if="isProjectOwner">
