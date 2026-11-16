@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ChainNode, ChainStage } from '@/stores/group-industry/types'
+import type { ChainNode, ChainStage, ChainStatus } from '@/stores/group-industry/types'
+import { filterChainNodes } from './chainStatusFilter'
 import ProductionChainFlowNode from './ProductionChainFlowNode.vue'
 
 type FlowColumnKey = 'inventionMaterials' | 'components' | 'product' | 'sale'
@@ -15,6 +16,7 @@ const FLOW_COLUMNS: readonly { key: FlowColumnKey; stages: readonly ChainStage[]
 
 const props = defineProps<{
   nodes: ChainNode[]
+  statusFilter?: readonly ChainStatus[]
 }>()
 
 const emit = defineEmits<{
@@ -24,7 +26,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const columns = computed(() => FLOW_COLUMNS.map((column) => {
-  const nodes = props.nodes.filter(node => column.stages.includes(node.stage))
+  const nodes = filterChainNodes(props.nodes, props.statusFilter ?? []).filter(node => column.stages.includes(node.stage))
   const isFolded = (node: ChainNode): boolean => column.foldsDone && node.status === 'done'
   return {
     key: column.key,

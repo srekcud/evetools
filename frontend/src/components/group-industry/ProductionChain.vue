@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import type { ChainStatus } from '@/stores/group-industry/types'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { useGroupT2BlueprintsToProvideStore } from '@/stores/group-industry/t2BlueprintsToProvide'
 import { useSyncStore } from '@/stores/sync'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import ChainStatusFilter from './ChainStatusFilter.vue'
 import { CHAIN_STATUSES, chainStatusDotClass } from './chainStatus'
+import { recallChainStatusFilter, rememberChainStatusFilter } from './chainStatusFilter'
 import ProductionChainFlow from './ProductionChainFlow.vue'
 import ProductionChainJobTree from './ProductionChainJobTree.vue'
 import ProjectReactionSteps from './ProjectReactionSteps.vue'
@@ -35,6 +38,9 @@ const toProvideStore = useGroupT2BlueprintsToProvideStore()
 
 const view = ref<ChainView>('flow')
 const selectedNodeId = ref<string | null>(null)
+const statusFilter = ref<ChainStatus[]>(recallChainStatusFilter())
+
+watch(statusFilter, statuses => rememberChainStatusFilter(statuses))
 
 function openInTree(nodeId: string): void {
   selectedNodeId.value = nodeId
@@ -110,14 +116,17 @@ watch(
     </div>
 
     <template v-else-if="chainStore.nodes.length > 0">
+      <ChainStatusFilter v-model="statusFilter" :nodes="chainStore.nodes" />
       <ProductionChainFlow
         v-if="view === 'flow'"
         :nodes="chainStore.nodes"
+        :status-filter="statusFilter"
         @select="openInTree"
       />
       <ProductionChainJobTree
         v-else
         :nodes="chainStore.nodes"
+        :status-filter="statusFilter"
         :selected-id="selectedNodeId"
         :project-id="projectId"
         :can-mark="canMark === true"

@@ -2918,6 +2918,11 @@
         "unknown": "Level unknown",
         "unknownCause": "the production plan could not be computed"
       },
+      "filter": {
+        "label": "Status",
+        "clear": "Clear the filter",
+        "empty": "No step matches the selected statuses."
+      },
       "views": {
         "flow": "Overview",
         "tree": "Job tree"
