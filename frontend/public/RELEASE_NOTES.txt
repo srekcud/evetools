@@ -3,6 +3,54 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.23 (2026-11-16)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Projets de groupe : le prix Jita de chaque materiau est fige au lancement
+  du projet
+- Stock non reclame d'un conteneur affiche avec sa valeur ; il peut etre
+  reclame, attribue ou donne au prix de lancement
+- Tant que du stock reste non reclame, le cout du projet est marque
+  incomplet et la repartition est bloquee
+- Le stock des conteneurs couvre aussi les etapes intermediaires, et le
+  stock reclame alimente le plan
+- Un achat declare est valorise au prix paye depuis le wallet du
+  contributeur ; un participant relie ses propres achats
+- Toutes les transactions d'une ligne se relient en une seule action
+- Une contribution en attente peut etre modifiee ou retiree par son auteur
+- "Ou acheter" se limite aux materiaux reserves par le participant
+- Ouverture du marche en jeu depuis les materiaux a acheter et la fenetre
+  compagnon
+- Choix des personnages qui produisent pour un projet
+- Quoi produire : selection de plusieurs produits pour lancer un seul
+  projet, avec le ME/TE des blueprints possedes
+- Chaine de production filtrable par statut d'etape
+- Liste de structures de production exportable et importable sur un autre
+  compte
+- Scanner : filtre des favoris dans la liste des categories ; resultats
+  signales quand les filtres ont change depuis le calcul
+- Marges inconnues expliquees, avec la structure sans taxe renseignee
+- Slot Tracker : frequence et prochaine synchro des jobs affichees
+- Etat des structures lu avec le jeton du directeur de corporation
+- Contrat de courrier propose depuis le lieu d'achat des biens
+- Corrections : compteur Produire, badge des contributions, lignes livrees
+  en attente de validation, copie du nom de blueprint, bouton multibuy en
+  double, bouton revenus de l'atelier, mise a jour en direct de la page
+  projet, affichage de Quoi produire
+
+### Assets
+- Vue "Par type" : volume reconditionne, tri par volume, selection de types
+  avec volume total
+- Vue "Par type" disponible sur l'inventaire de corporation
+- Tri des objets dans un emplacement ou un conteneur
+
+### Commerce
+- Les instantanes des ordres de structure ne sont plus comptes comme
+  historique de ventes
+- "---" affiche quand la variation sur 30 jours est inconnue
+
+--------------------------------------------------------------------------------
 Version 0.22 (2026-11-14)
 --------------------------------------------------------------------------------
 
