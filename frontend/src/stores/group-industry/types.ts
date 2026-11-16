@@ -80,6 +80,7 @@ export type GroupProject = {
   ownerCharacterName: string
   ownerCorporationId: number | null
   membersCount: number
+  contributionsCount: number
   items: GroupProjectItem[]
   totalBomValue: number | null
   fulfillmentPercent: number

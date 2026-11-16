@@ -146,6 +146,8 @@ class IndustryProjectResource
 
     public int $membersCount = 0;
 
+    public int $contributionsCount = 0;
+
     /** @var list<array{typeId: int, typeName: string, meLevel: int, teLevel: int, runs: int}> */
     public array $items = [];
 

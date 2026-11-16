@@ -49,6 +49,7 @@ function sabreProject(overrides: Partial<GroupProject>): GroupProject {
     ownerCharacterName: 'Aria Solberg',
     ownerCorporationId: 98000001,
     membersCount: 3,
+    contributionsCount: 0,
     items: [{ typeId: 22456, typeName: 'Sabre', meLevel: 10, teLevel: 20, runs: 10 }],
     totalBomValue: 0,
     fulfillmentPercent: 0,

@@ -21,6 +21,7 @@ class ProjectResourceMapper
 {
     /**
      * @param int|null $acceptedMembersCount precomputed by collection providers; counted from the members otherwise
+     * @param int|null $contributionsCount precomputed by collection providers; counted from the contributions otherwise
      * @param float|null $approvedContributionValue precomputed by collection providers; summed from the approved contributions otherwise
      */
     public function projectToResource(
@@ -29,6 +30,7 @@ class ProjectResourceMapper
         ?int $acceptedMembersCount = null,
         ?float $approvedContributionValue = null,
         bool $approvedContributionValueIsPrecomputed = false,
+        ?int $contributionsCount = null,
     ): IndustryProjectResource
     {
         $resource = new IndustryProjectResource();
@@ -73,6 +75,8 @@ class ProjectResourceMapper
         $resource->membersCount = $acceptedMembersCount ?? $project->getMembers()
             ->filter(fn (IndustryProjectParticipant $m) => $m->getStatus() === ParticipantStatus::Accepted)
             ->count();
+
+        $resource->contributionsCount = $contributionsCount ?? $project->getContributions()->count();
 
         $materialItems = $project->getBomItems()->filter(static fn (IndustryProjectBomLine $bomItem) => !$bomItem->isJob());
         $resource->totalBomValue = $this->totalBomValueOf($materialItems->toArray());

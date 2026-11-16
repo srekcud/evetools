@@ -31,6 +31,7 @@ function groupProject(id: string, name: string, status: GroupProjectStatus): Gro
     ownerCharacterName: 'Ilyra Castell',
     ownerCorporationId: 98000001,
     membersCount: 1,
+    contributionsCount: 0,
     items: [{ typeId: 22436, typeName: 'Widow', meLevel: 10, teLevel: 20, runs: 4 }],
     totalBomValue: null,
     fulfillmentPercent: 0,

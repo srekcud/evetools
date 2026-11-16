@@ -20,6 +20,7 @@ export function completedProject(overrides: Partial<GroupProject> = {}): GroupPr
     ownerCharacterName: 'Aria Solberg',
     ownerCorporationId: null,
     membersCount: 2,
+    contributionsCount: 0,
     items: [HAMMERHEAD],
     totalBomValue: 1_200_000,
     fulfillmentPercent: 100,

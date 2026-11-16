@@ -40,6 +40,7 @@ class ProjectCollectionProvider implements ProviderInterface
         $projects = array_values(array_map(static fn (IndustryProjectParticipant $membership) => $membership->getProject(), $memberships));
         $membersCountByProject = $this->memberRepository->countAcceptedByProject($projects);
         $approvedValueByProject = $this->contributionRepository->sumApprovedValueByProject($projects);
+        $contributionsCountByProject = $this->contributionRepository->countByProject($projects);
 
         $resources = [];
         foreach ($memberships as $membership) {
@@ -50,6 +51,7 @@ class ProjectCollectionProvider implements ProviderInterface
                 $membersCountByProject[(string) $project->getId()],
                 $approvedValueByProject[(string) $project->getId()],
                 true,
+                $contributionsCountByProject[(string) $project->getId()],
             );
         }
 

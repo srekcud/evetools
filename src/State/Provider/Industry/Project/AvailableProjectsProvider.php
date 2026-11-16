@@ -73,6 +73,7 @@ class AvailableProjectsProvider implements ProviderInterface
         $this->memberRepository->loadListedCollections($availableProjects);
         $membersCountByProject = $this->memberRepository->countAcceptedByProject($availableProjects);
         $approvedValueByProject = $this->contributionRepository->sumApprovedValueByProject($availableProjects);
+        $contributionsCountByProject = $this->contributionRepository->countByProject($availableProjects);
 
         $resources = [];
         foreach ($availableProjects as $project) {
@@ -82,6 +83,7 @@ class AvailableProjectsProvider implements ProviderInterface
                 $membersCountByProject[(string) $project->getId()],
                 $approvedValueByProject[(string) $project->getId()],
                 true,
+                $contributionsCountByProject[(string) $project->getId()],
             );
         }
 

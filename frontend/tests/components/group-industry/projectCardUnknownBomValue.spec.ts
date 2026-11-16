@@ -14,6 +14,7 @@ const JACKDAW_PROJECT: GroupProject = {
   ownerCharacterName: 'Brann Holt',
   ownerCorporationId: 98000001,
   membersCount: 4,
+  contributionsCount: 0,
   items: [{ typeId: 34828, typeName: 'Jackdaw', meLevel: 10, teLevel: 20, runs: 20 }],
   totalBomValue: null,
   fulfillmentPercent: 16.67,
