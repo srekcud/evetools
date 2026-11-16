@@ -36,6 +36,18 @@ const marketStructures = ref<Array<{ id: number; name: string }>>([])
 const appliedMinMargin = computed((): number | null =>
   typeof minMarginFilter.value === 'number' && Number.isFinite(minMarginFilter.value) ? minMarginFilter.value : null,
 )
+const appliedMinDailyVolume = computed((): number | null =>
+  typeof minDailyVolFilter.value === 'number' && Number.isFinite(minDailyVolFilter.value) ? minDailyVolFilter.value : null,
+)
+const filtersChangedSinceScan = computed((): boolean => {
+  if (scannerStore.lastScanAt === null || scannerStore.scanLoading) return false
+  const scanned = scannerStore.scanFilters
+  return scanned.category !== categoryFilter.value
+    || scanned.minMargin !== appliedMinMargin.value
+    || scanned.minDailyVolume !== appliedMinDailyVolume.value
+    || scanned.sellVenue !== sellVenueFilter.value
+    || scanned.structureId !== structureIdFilter.value
+})
 
 // Sorting
 type SortKey = 'typeName' | 'categoryLabel' | 'marginPercent' | 'profitPerUnit' | 'dailyVolume' | 'iskPerDay' | 'materialCost' | 'exportCost' | 'importCost' | 'sellPrice' | 'meUsed' | 'activityType'
@@ -131,6 +143,7 @@ const filteredResults = computed((): BatchScanItem[] => {
 })
 
 const scanDiagnosisLines = computed((): string[] => {
+  if (filtersChangedSinceScan.value) return []
   if (scannerStore.scanDiagnosisFailed) return [t('industry.scanner.batchDiagnosis.failed')]
   const rows = scannerStore.scanDiagnosisRows
   if (rows === null) return []
@@ -217,7 +230,7 @@ function onScan(): void {
   scannerStore.fetchBatchScan({
     category: categoryFilter.value,
     minMargin: appliedMinMargin.value,
-    minDailyVolume: minDailyVolFilter.value,
+    minDailyVolume: appliedMinDailyVolume.value,
     sellVenue: sellVenueFilter.value,
     structureId: structureIdFilter.value,
   })
@@ -481,6 +494,22 @@ onBeforeUnmount(() => {
           </label>
         </div>
       </div>
+    </div>
+
+    <div
+      v-if="filtersChangedSinceScan"
+      data-test="stale-filters"
+      class="flex flex-wrap items-center justify-between gap-3 p-3 bg-amber-500/10 border border-amber-500/40 rounded-lg text-sm text-amber-300"
+    >
+      <span>{{ t('industry.scanner.batch.staleFilters') }}</span>
+      <button
+        type="button"
+        data-test="rescan-stale-filters"
+        @click="onScan"
+        class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-white text-xs font-semibold transition-colors"
+      >
+        {{ t('industry.scanner.batch.rescanStaleFilters') }}
+      </button>
     </div>
 
     <!-- Error -->
