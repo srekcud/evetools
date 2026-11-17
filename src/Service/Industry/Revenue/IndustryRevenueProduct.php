@@ -12,6 +12,8 @@ final readonly class IndustryRevenueProduct
         public int $projectCount,
         public int $unknownProjectCount,
         public float $profit,
+        public float $capital,
+        public ?float $marginPercent,
     ) {
     }
 }

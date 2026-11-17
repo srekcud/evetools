@@ -201,6 +201,47 @@ final class IndustryRevenueAggregatorTest extends TestCase
         );
     }
 
+    public function testEachProductLineCarriesItsCapitalAndItsMarginOverItsKnownProjects(): void
+    {
+        $report = $this->aggregate([
+            $this->project('2026-11-03T14:00:00+00:00', 30_000_000.0, 100_000_000.0, 10.0, self::SABRE, 'Sabre'),
+            $this->project('2026-11-04T14:00:00+00:00', 20_000_000.0, 100_000_000.0, 10.0, self::SABRE, 'Sabre'),
+            $this->project('2026-11-05T14:00:00+00:00', null, null, 10.0, self::SABRE, 'Sabre'),
+            $this->project('2026-11-06T14:00:00+00:00', 5_000_000.0, 0.0, 10.0, self::ISHTAR, 'Ishtar'),
+            $this->project('2026-11-07T14:00:00+00:00', null, null, 10.0, self::HECATE, 'Hecate'),
+        ]);
+
+        self::assertSame(
+            [
+                [self::SABRE, 200_000_000.0, 25.0],
+                [self::ISHTAR, 0.0, null],
+                [self::HECATE, 0.0, null],
+            ],
+            array_map(static fn (IndustryRevenueProduct $product): array => [$product->typeId, $product->capital, $product->marginPercent], $report->products),
+        );
+    }
+
+    public function testDailyProfitAddsTheKnownProjectsOfEachUtcDayInDateOrder(): void
+    {
+        $report = $this->aggregate([
+            $this->project('2026-11-12T09:30:00+00:00', 30_000_000.0, 100_000_000.0, 50.0),
+            $this->project('2026-11-03T23:30:00+00:00', 120_000_000.0, 400_000_000.0, 100.0),
+            $this->project('2026-11-12T20:00:00+00:00', -5_000_000.0, 50_000_000.0, 10.0),
+            $this->project('2026-11-04T01:30:00+02:00', 1_000_000.0, 10_000_000.0, 5.0),
+            $this->project('2026-11-20T21:00:00+00:00', null, null, 40.0),
+        ]);
+
+        self::assertSame(
+            ['2026-11-03' => 121_000_000.0, '2026-11-12' => 25_000_000.0],
+            $report->dailyProfit,
+        );
+    }
+
+    public function testNoCompletedProjectGivesNoDailyProfit(): void
+    {
+        self::assertSame([], $this->aggregate([])->dailyProfit);
+    }
+
     /**
      * @param list<CompletedProjectFigures> $figures
      */

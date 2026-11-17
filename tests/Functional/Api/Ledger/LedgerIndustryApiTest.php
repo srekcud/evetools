@@ -62,13 +62,14 @@ final class LedgerIndustryApiTest extends WebTestCase
 
         $industry = $this->fetch('/api/ledger/industry?days=30');
 
-        self::assertSame(['id', 'period', 'totals', 'months', 'products'], array_slice(array_keys($industry), -5));
+        self::assertSame(['id', 'period', 'totals', 'daily', 'months', 'products'], array_slice(array_keys($industry), -6));
         self::assertSame(['from', 'to', 'days'], array_keys($industry['period']));
         self::assertSame(30, $industry['period']['days']);
         self::assertSame(
-            ['profit' => 0.0, 'projectCount' => 1, 'unknownProjectCount' => 1, 'capital' => 0.0, 'slotHours' => null, 'iskPerHour' => null],
+            ['profit' => 0.0, 'projectCount' => 1, 'unknownProjectCount' => 1, 'capital' => 0.0, 'slotHours' => null, 'iskPerHour' => null, 'change' => null],
             $industry['totals'],
         );
+        self::assertSame([], $industry['daily']);
         self::assertSame(
             [[
                 'month' => (new \DateTimeImmutable('-5 days', new \DateTimeZone('UTC')))->format('Y-m'),
@@ -83,7 +84,7 @@ final class LedgerIndustryApiTest extends WebTestCase
             $industry['months'],
         );
         self::assertSame(
-            [['typeId' => self::HECATE, 'typeName' => 'Hecate', 'projectCount' => 1, 'unknownProjectCount' => 1, 'profit' => 0.0]],
+            [['typeId' => self::HECATE, 'typeName' => 'Hecate', 'projectCount' => 1, 'unknownProjectCount' => 1, 'profit' => 0.0, 'capital' => 0.0, 'marginPercent' => null]],
             $industry['products'],
         );
     }
@@ -102,6 +103,11 @@ final class LedgerIndustryApiTest extends WebTestCase
         self::assertEqualsWithDelta(5_000_000.0, $industry['totals']['capital'], self::AMOUNT_TOLERANCE);
         self::assertEqualsWithDelta(4_300_000.0, $industry['months'][0]['profit'], self::AMOUNT_TOLERANCE);
         self::assertEqualsWithDelta(86.0, $industry['months'][0]['marginPercent'], self::AMOUNT_TOLERANCE);
+        self::assertEqualsWithDelta(5_000_000.0, $industry['products'][0]['capital'], self::AMOUNT_TOLERANCE);
+        self::assertEqualsWithDelta(86.0, $industry['products'][0]['marginPercent'], self::AMOUNT_TOLERANCE);
+        self::assertSame([(new \DateTimeImmutable('-5 days', new \DateTimeZone('UTC')))->format('Y-m-d')], array_keys($industry['daily']));
+        self::assertEqualsWithDelta(4_300_000.0, array_sum($industry['daily']), self::AMOUNT_TOLERANCE);
+        self::assertNull($industry['totals']['change']);
     }
 
     public function testDashboardExposesTheIndustryProfitItsBreakdownAndItsShare(): void
