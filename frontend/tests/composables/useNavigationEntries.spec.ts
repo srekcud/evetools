@@ -212,8 +212,8 @@ describe('useNavigationEntries', () => {
 
     const entries = listNavigationEntries({ isAdmin: true })
 
-    expect(entries).toHaveLength(43)
-    expect(entries[42]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
+    expect(entries).toHaveLength(44)
+    expect(entries[43]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
   })
 
   it('leaves the admin screen out for a user who is not an administrator', () => {
@@ -280,7 +280,7 @@ describe('useNavigationEntries', () => {
     const routes = routesOf(listNavigationEntries({ isAdmin: false }))
 
     expect(routes).toEqual(expect.arrayContaining(['/market', '/market?tab=alerts', '/appraisal', '/contracts']))
-    expect(routes).toHaveLength(42)
+    expect(routes).toHaveLength(43)
   })
 
   it.each([
@@ -294,7 +294,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route === '/contracts' || route === '/appraisal' || route.startsWith('/market'))).toEqual([])
     expect(routes).toContain('/assets')
-    expect(routes).toHaveLength(37)
+    expect(routes).toHaveLength(38)
   })
 
   it('hides the pages of Wealth when the former ledger and assets ids are both hidden', () => {
@@ -305,7 +305,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route === '/balance' || route === '/assets')).toEqual([])
     expect(routes).toContain('/market')
-    expect(routes).toHaveLength(40)
+    expect(routes).toHaveLength(41)
   })
 
   it('removes the screen, the tabs and the projects of each hidden module', () => {
@@ -342,7 +342,7 @@ describe('useNavigationEntries', () => {
     expect(routes).toContain('/industry')
     expect(routes).toContain('/industry/production?tab=stockpile')
     expect(routes.filter(route => route.startsWith('/industry/projects'))).toEqual([])
-    expect(routes).toHaveLength(40)
+    expect(routes).toHaveLength(41)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["group-industry"]')
   })
 
@@ -354,7 +354,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route.startsWith('/mining/'))).toEqual([])
     expect(routes).toContain('/planetary')
-    expect(routes).toHaveLength(33)
+    expect(routes).toHaveLength(34)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["mining-operations"]')
   })
 
