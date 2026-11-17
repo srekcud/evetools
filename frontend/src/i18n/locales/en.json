@@ -362,6 +362,34 @@
     "subtitle": "PI colony management",
     "lastSync": "Last sync:",
     "syncTooltip": "Updates the local cache from ESI. Data reflects your last in-game interaction.",
+    "tabs": {
+      "colonies": "Colonies",
+      "revenue": "Revenue"
+    },
+    "revenue": {
+      "period": "Period",
+      "days": "{n} days",
+      "realisedTitle": "Planetary revenue · realised sales",
+      "estimateTitle": "Planetary revenue · theoretical production",
+      "rowLabel": "Planetary",
+      "rowSub": "wallet sales of PI products",
+      "estimateSub": "production valued at Jita sell, never added to the sales",
+      "realisedNet": "Realised",
+      "estimateNet": "Estimate",
+      "estimateColumn": "Production estimate",
+      "offMarket": "Off-market sales (not tracked)",
+      "tiers": {
+        "P1": "P1 · Basic",
+        "P2": "P2 · Refined",
+        "P3": "P3 · Specialized",
+        "P4": "P4 · Advanced"
+      },
+      "todo": {
+        "text": "{character}: {n} producing colony with no PI sale over the period ({planets}) | {character}: {n} producing colonies with no PI sale over the period ({planets})",
+        "effect": "Stock may be building up or sold elsewhere, realised revenue can be under-reported",
+        "action": "Colonies"
+      }
+    },
     "loadingColonies": "Loading colonies...",
     "noColonies": "No PI colonies",
     "noColoniesDescription": "No colonies detected. Click \"Sync\" to load your PI data from ESI, or verify your characters have the Planetary Interaction scope.",
