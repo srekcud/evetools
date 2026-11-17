@@ -78,6 +78,34 @@ class CachedWalletTransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param Character[] $characters
+     * @param int[] $typeIds
+     * @return CachedWalletTransaction[]
+     */
+    public function findSalesByTypeIdsBetween(array $characters, array $typeIds, \DateTimeImmutable $from, \DateTimeImmutable $until): array
+    {
+        if ($characters === [] || $typeIds === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('t')
+            ->addSelect('c')
+            ->innerJoin('t.character', 'c')
+            ->where('t.character IN (:characters)')
+            ->andWhere('t.isBuy = false')
+            ->andWhere('t.typeId IN (:typeIds)')
+            ->andWhere('t.date >= :from')
+            ->andWhere('t.date < :until')
+            ->setParameter('characters', $characters)
+            ->setParameter('typeIds', $typeIds)
+            ->setParameter('from', $from)
+            ->setParameter('until', $until)
+            ->orderBy('t.date', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Check which transaction IDs already exist in the database.
      *
      * @param int[] $transactionIds
