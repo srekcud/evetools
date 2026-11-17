@@ -8,6 +8,7 @@ import AccountSettings from '@/components/settings/AccountSettings.vue'
 import DisplaySettings from '@/components/settings/DisplaySettings.vue'
 import MarketStructuresSettings from '@/components/settings/MarketStructuresSettings.vue'
 import MiningSettings from '@/components/settings/MiningSettings.vue'
+import PatrimoineSettings from '@/components/settings/PatrimoineSettings.vue'
 import PveSettings from '@/components/settings/PveSettings.vue'
 import IndustrySettings from '@/components/industry/IndustrySettings.vue'
 import NotificationSettings from '@/components/notifications/NotificationSettings.vue'
@@ -46,6 +47,7 @@ const currentSection = computed(() => isSettingsSection(route.params.section) ? 
           <IndustrySettings v-else-if="currentSection === 'industry'" />
           <MiningSettings v-else-if="currentSection === 'mining'" />
           <PveSettings v-else-if="currentSection === 'pve'" />
+          <PatrimoineSettings v-else-if="currentSection === 'patrimoine'" />
           <NotificationSettings v-else inline />
         </div>
       </section>

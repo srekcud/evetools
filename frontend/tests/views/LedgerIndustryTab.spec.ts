@@ -65,12 +65,12 @@ beforeEach(() => {
 })
 
 describe('Balance industry tab', () => {
-  it('lists only the overview, industry and settings tabs, in French and in English', async () => {
+  it('lists only the overview and industry tabs, in French and in English', async () => {
     const french = tabLabels(await mountLedger('fr'))
     const english = tabLabels(await mountLedger('en'))
 
-    expect(french).toEqual([fr.ledger.tabs.dashboard, 'Industrie', fr.ledger.tabs.settings])
-    expect(english).toEqual([en.ledger.tabs.dashboard, 'Industry', en.ledger.tabs.settings])
+    expect(french).toEqual([fr.ledger.tabs.dashboard, 'Industrie'])
+    expect(english).toEqual([en.ledger.tabs.dashboard, 'Industry'])
   })
 
   it('shows the industry tab with the selected period when it is the active tab', async () => {
