@@ -6,7 +6,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import MoonChunksTab from '@/components/ledger/MoonChunksTab.vue'
 import MoonTaxTab from '@/components/ledger/moon-tax/MoonTaxTab.vue'
 import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
-import MiningSubTabs from '@/components/mining-module/MiningSubTabs.vue'
+import SubTabs from '@/components/common/SubTabs.vue'
 import NewMiningOperationModal from '@/components/mining-operation/NewMiningOperationModal.vue'
 import { moonChunkStatusAt, useCorporationMiningExtractions, type CorporationMiningExtraction } from '@/composables/useCorporationMiningExtractions'
 import { useTabQuery } from '@/composables/useTabQuery'
@@ -65,7 +65,7 @@ onMounted(async () => {
 
       <h1 class="sr-only">{{ t('miningModule.pages.moons') }}</h1>
 
-      <MiningSubTabs v-model="activeTab" :tabs="subTabs" />
+      <SubTabs v-model="activeTab" :tabs="subTabs" />
 
       <p v-if="chunkUnavailable" class="mb-4 rounded-md border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200" role="status" data-testid="moons-chunk-unavailable">{{ t('miningOperation.list.chunkUnavailable') }}</p>
 

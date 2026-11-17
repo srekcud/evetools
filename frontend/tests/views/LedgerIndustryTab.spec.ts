@@ -50,7 +50,7 @@ async function mountLedger(locale: 'en' | 'fr'): Promise<VueWrapper> {
 }
 
 function tabLabels(wrapper: VueWrapper): string[] {
-  return wrapper.findAll('nav button').map(button => button.text())
+  return wrapper.findAll('[role="tab"]').map(button => button.text())
 }
 
 enableAutoUnmount(afterEach)
