@@ -2,9 +2,9 @@
 
 Ce guide suit une opération de minage dans l'ordre où on la mène : planifier, inviter, démarrer, terminer, lire les parts, régler. Il suit ensuite votre ledger personnel, puis la taxe lunaire d'une raffinerie, côté gestionnaire et côté mineur. Chaque étape nomme l'écran et le bouton tels qu'ils s'affichent.
 
-Tout se passe dans le module **Minage** du menu latéral, qui a cinq onglets : **Opérations**, **Lunes**, **Sites**, **Valeur du minerai**, **Mon minage**. Les heures de l'application sont en EVE time (UTC).
+Tout se passe dans le module **Minage** du menu latéral, qui a cinq onglets : **Opérations**, **Lunes**, **Sites**, **Valeur du minerai**, **Revenus**. Les heures de l'application sont en EVE time (UTC).
 
-> Quelques libellés de l'onglet **Mon minage** s'affichent sans accent en français (**Derniere sync :**, **Jamais synchronise**). Ils sont cités tels quels.
+> Quelques libellés de l'onglet **Revenus** s'affichent sans accent en français (**Derniere sync :**, **Jamais synchronise**). Ils sont cités tels quels.
 
 ## La règle qui traverse tout le guide : inconnu n'est jamais 0
 
@@ -129,9 +129,9 @@ L'onglet **Archive** de la liste montre vos opérations réglées ou terminées 
 
 ## Partie 2. Suivre son ledger personnel
 
-Onglet **Mon minage**, vue **Ledger**. Le ledger ESI de vos personnages est synchronisé toutes les heures ; la ligne **Derniere sync :** donne l'heure, et **Actualiser** relance la lecture. Les boutons de période (et **YTD**) filtrent ce que vous lisez.
+Onglet **Revenus**, vue **Ledger**. Le ledger ESI de vos personnages est synchronisé toutes les heures ; la ligne **Derniere sync :** donne l'heure, et **Actualiser** relance la lecture. Les boutons de période (et **YTD**) filtrent ce que vous lisez.
 
-La valeur affichée (**Valeur totale**, **ISK / jour actif**) vient de vos réglages de l'onglet **Valeur du minerai** (structure, taxe d'export). Un minerai sans prix rend la valeur inconnue et il est nommé (**Minerais sans prix : …**), jamais compté pour 0. La vue **Saison** donne, pour votre corporation, les opérations terminées sur la période (**30 jours**, **90 jours**, **Tout**) : heures minées par joueur et ISK/h par vaisseau. Une opération dont les parts ne sont pas figées compte ses heures mais pas son ISK (**Valeur de la saison inconnue**).
+La grille montre le minerai de la période en trois colonnes, **Vendu**, **Projet corpo** et **Non classé**, chacune avec son évolution par rapport à la période précédente, sa régularité et les personnages qui l'ont miné. Le **Net** additionne **Vendu** et **Projet corpo** ; **Non classé** est hachuré et hors du net, de même que **Projet corpo** quand vos réglages comptent le minerai de projet corpo en PVE. Les valeurs (et **ISK / jour actif**) viennent de vos réglages de l'onglet **Valeur du minerai** (structure, taxe d'export). Un minerai sans prix rend sa colonne inconnue (hachurée, affichée —) et il est nommé sous **À traiter** (**Minerais sans prix : …**), jamais compté pour 0 ; **Classer** mène aux lignes à classer en vendu ou projet corpo. La vue **Saison** donne, pour votre corporation, les opérations terminées sur la période (**30 jours**, **90 jours**, **Tout**) : heures minées par joueur et ISK/h par vaisseau. Une opération dont les parts ne sont pas figées compte ses heures mais pas son ISK (**Valeur de la saison inconnue**).
 
 ## Partie 3. La taxe lunaire d'une raffinerie
 

@@ -4395,13 +4395,13 @@
       "moons": "Lunes",
       "sites": "Sites",
       "oreValue": "Valeur du minerai",
-      "myMining": "Mon minage"
+      "myMining": "Revenus"
     },
     "pages": {
       "moons": "Lunes",
       "sites": "Sites de minage",
       "oreValue": "Valeur du minerai",
-      "myMining": "Mon minage"
+      "myMining": "Revenus"
     },
     "moons": {
       "tabs": {
@@ -5356,6 +5356,27 @@
         "neverSynced": {
           "text": "Aucune donnée PVE synchronisée pour le moment",
           "effect": "Tous les chiffres sont vides tant que le premier rafraîchissement n'a pas eu lieu"
+        }
+      }
+    },
+    "mining": {
+      "title": "Revenus de minage",
+      "rowLabel": "Minage",
+      "columns": {
+        "sold": "Vendu",
+        "corpProject": "Projet corpo",
+        "uncategorised": "Non classé"
+      },
+      "todo": {
+        "missingPrice": {
+          "text": "Minerais sans prix : {types}",
+          "effect": "Les colonnes qui les contiennent sont hachurées et hors du net tant qu'ils n'ont pas de prix",
+          "action": "Valeur du minerai"
+        },
+        "uncategorised": {
+          "text": "{quantity} unités de minerai ne sont pas classées",
+          "effect": "Elles restent hors du net tant que chaque ligne n'est pas classée en vendu ou projet corpo",
+          "action": "Classer"
         }
       }
     },

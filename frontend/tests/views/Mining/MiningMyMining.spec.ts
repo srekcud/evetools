@@ -102,10 +102,12 @@ describe('MiningMyMining', () => {
     }).toEqual({
       requestsAtStart: [
         `/ledger/mining/entries?days=${STORED_PERIOD_DAYS}`,
+        `/ledger/mining/stats/grid?days=${STORED_PERIOD_DAYS}`,
         `/ledger/mining/stats?days=${STORED_PERIOD_DAYS}`,
       ],
       requestsAfterChoice: [
         `/ledger/mining/entries?days=${CHOSEN_PERIOD_DAYS}`,
+        `/ledger/mining/stats/grid?days=${CHOSEN_PERIOD_DAYS}`,
         `/ledger/mining/stats?days=${CHOSEN_PERIOD_DAYS}`,
       ],
       storedPeriod: String(CHOSEN_PERIOD_DAYS),
