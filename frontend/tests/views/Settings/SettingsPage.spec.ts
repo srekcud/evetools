@@ -46,12 +46,12 @@ describe('Settings page', () => {
     const marketShown = wrapper.text().includes(PERIMETER_STRUCTURE_NAME)
     const ledgerRadioShownOnMarket = wrapper.find('input[name="corpProjectAccounting"]').exists()
 
-    await router.push('/settings/pve')
+    await router.push('/settings/patrimoine')
     await flushPromises()
 
     expect({ marketShown, ledgerRadioShownOnMarket }).toEqual({ marketShown: true, ledgerRadioShownOnMarket: false })
     expect(wrapper.text()).not.toContain(PERIMETER_STRUCTURE_NAME)
     expect(wrapper.find('input[name="corpProjectAccounting"]').exists()).toBe(true)
-    expect(wrapper.findAll('a[aria-current="page"][href^="/settings/"]').map(link => link.attributes('href'))).toEqual(['/settings/pve'])
+    expect(wrapper.findAll('a[aria-current="page"][href^="/settings/"]').map(link => link.attributes('href'))).toEqual(['/settings/patrimoine'])
   })
 })

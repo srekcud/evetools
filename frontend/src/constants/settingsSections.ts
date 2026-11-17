@@ -1,4 +1,4 @@
-export const SETTINGS_SECTIONS = ['account', 'display', 'market', 'industry', 'mining', 'pve', 'notifications'] as const
+export const SETTINGS_SECTIONS = ['account', 'display', 'market', 'industry', 'mining', 'pve', 'patrimoine', 'notifications'] as const
 
 export type SettingsSection = typeof SETTINGS_SECTIONS[number]
 

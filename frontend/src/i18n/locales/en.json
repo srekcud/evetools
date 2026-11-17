@@ -193,6 +193,7 @@
       "industry": "Industry",
       "mining": "Mining",
       "pve": "PVE",
+      "patrimoine": "Wealth",
       "notifications": "Notifications"
     },
     "account": {
@@ -1678,7 +1679,6 @@
       "mining": "Mining",
       "industry": "Industry",
       "pve": "PVE",
-      "settings": "Settings",
       "escalations": "Escalations"
     },
     "period": {

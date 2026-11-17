@@ -63,12 +63,9 @@ beforeEach(() => {
 })
 
 describe('Balance tabs', () => {
-  it('lists only the overview and settings tabs, in French and in English', async () => {
-    const french = tabLabels(await mountLedger('fr'))
-    const english = tabLabels(await mountLedger('en'))
-
-    expect(french).toEqual([fr.ledger.tabs.dashboard, fr.ledger.tabs.settings])
-    expect(english).toEqual([en.ledger.tabs.dashboard, en.ledger.tabs.settings])
+  it('shows the overview alone, without tab bar, in French and in English', async () => {
+    expect(tabLabels(await mountLedger('fr'))).toEqual([])
+    expect(tabLabels(await mountLedger('en'))).toEqual([])
   })
 
   it('has no industry tab any more, the real profit lives in Industry › Revenue', async () => {
