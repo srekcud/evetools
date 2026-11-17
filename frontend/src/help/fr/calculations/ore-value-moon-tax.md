@@ -13,11 +13,11 @@ Deux règles de prix coexistent :
 |---|---|
 | Menu « Minage », onglet « Valeur du minerai », tableau « Valeur au m³ extrait » | Par minerai : « Brut », « Compressé », « Retraité », « Meilleur » et « Écart au meilleur », en ISK/m³ |
 | Même page, panneau « Rendement de retraitement » | Le rendement utilisé pour la colonne « Retraité » |
-| Onglet « Mon minage » | « Valeur totale » du minerai miné sur la période, avec sa source de valorisation |
+| Onglet « Revenus » | Colonnes « Vendu », « Projet corpo » et « Non classé » : valeur du minerai miné sur la période, avec sa source de valorisation |
 | Onglet « Lunes », sous-onglet « Chunks », colonne « Valeur » | « Valeur estimée » d'un chunk et sa part « À 4 », « À 6 », « À 8 participants » |
 | Onglet « Lunes », sous-onglet « Taxe lunaire » | « Dû », « Payé », « Reste » et « Statut » de chaque relevé |
 
-Les réglages en haut de la page « Valeur du minerai » (« Taxe export », « Structure », « Marché », « Base de valorisation ») sont enregistrés sur votre compte : ils valorisent aussi « Mon minage » et les chunks (« La structure et la taxe d'export valorisent aussi les lignes de Mon minage. »).
+Les réglages en haut de la page « Valeur du minerai » (« Taxe export », « Structure », « Marché », « Base de valorisation ») sont enregistrés sur votre compte : ils valorisent aussi « Revenus » et les chunks (« La structure et la taxe d'export valorisent aussi les lignes de Mon minage. »).
 
 ## La formule
 
@@ -64,9 +64,9 @@ rendement = base × (1 + 0,03 × Reprocessing) × (1 + 0,02 × Reprocessing Effi
 
 Le rig et la sécurité ne comptent qu'en structure. Le résultat n'est pas plafonné par EVE Tools. Le rendement est recalculé quand vous enregistrez le panneau ou cliquez sur « Recalculer ».
 
-### Valeur du minerai miné (« Mon minage »)
+### Valeur du minerai miné (« Revenus »)
 
-Valeur totale = Σ (quantité minée du type × prix unitaire du type selon votre profil)
+Valeur d'une colonne = Σ (quantité minée du type × prix unitaire du type selon votre profil)
 
 La quantité vient de votre ledger de minage, sommée sur la période. La base de valorisation du profil (« Brut », « Compressé » ou « Retraité ») choisit lequel des trois prix unitaires est pris ; « Retraité » utilise le rendement de votre panneau. Une opération de minage a sa propre base, qui remplace votre profil (playbook, étape 3).
 
@@ -115,7 +115,7 @@ Statut d'un relevé non annulé et non marqué payé : « Payé » si le reste e
 | Volume, taille de lot, minéraux de retraitement, groupe (rareté, famille) | SDE | À chaque import du SDE |
 | Niveaux de compétences | ESI, compétences du personnage du panneau | À l'enregistrement ou à « Recalculer » |
 | Lieu, rig, sécurité, implant, taxe d'export, marché, base, structure | Vos réglages | Enregistrés sur votre compte |
-| Quantités de « Mon minage » | ESI, ledger de minage de vos personnages | Voir [fraîcheur et confidentialité](/help?page=data/freshness-privacy) |
+| Quantités de « Revenus » | ESI, ledger de minage de vos personnages | Voir [fraîcheur et confidentialité](/help?page=data/freshness-privacy) |
 | Début d'extraction et arrivée du chunk | ESI, extractions de la corporation | Toutes les 30 minutes |
 | Parts du minerai d'une lune | Scan collé par un joueur | Jusqu'au collage suivant |
 | Ledger de la raffinerie | ESI `/corporation/{id}/mining/observers/{observer_id}/`, une ligne par personnage, type et jour, remplacée à chaque lecture | Toutes les heures, ou « Synchroniser » |
@@ -141,7 +141,7 @@ Valeurs d'exemple, rondes, qui ne viennent pas du jeu.
 | « Retraité » en ISK/m³ | 630 ÷ 10 | 63 |
 | « Meilleur » | la plus haute | 109,9 (compressé) |
 
-Si c'est la meilleure ligne du tableau, son écart vaut 0,0 % ; une autre ligne à 100 ISK/m³ affiche (109,9 − 100) ÷ 109,9 × 100 = 9,0 %. Avec la base « Compressé », 1 000 unités minées valent 1 000 × 1 099 = 1 099 000 ISK dans « Mon minage ».
+Si c'est la meilleure ligne du tableau, son écart vaut 0,0 % ; une autre ligne à 100 ISK/m³ affiche (109,9 − 100) ÷ 109,9 × 100 = 9,0 %. Avec la base « Compressé », 1 000 unités minées valent 1 000 × 1 099 = 1 099 000 ISK dans « Revenus ».
 
 **Valeur d'un chunk.** Extraction de 100 h : 100 × 25 000 = 2 500 000 m³. Scan : minerai A 40 %, minerai B 60 %, tous deux à 10 m³ par unité, prix du profil 500 ISK et 100 ISK.
 
@@ -183,8 +183,8 @@ L'inconnu s'affiche « — » (infobulle « Valeur inconnue ») ou « inconnue �
 | Minerai sans minéraux de retraitement dans le SDE | Pas de retraité | « — » avec « Ne peut pas être retraité » pour les lecteurs d'écran |
 | Volume du minerai absent ou nul | Toutes ses valeurs au m³ inconnues | « — » |
 | Aucune des trois valeurs connue | « Meilleur » et « Écart au meilleur » inconnus | « — », ligne en bas du tableau |
-| Un type miné sans prix sur votre profil | « Valeur totale » inconnue, pas une somme partielle | « Minerais sans prix : … » |
-| Aucun minage sur la période | Valeur totale 0 : il n'y a rien à valoriser | 0 |
+| Un type miné sans prix sur votre profil | La colonne qui le contient est inconnue (hachurée, —), pas une somme partielle | « Minerais sans prix : … » |
+| Aucun minage sur la période | Colonnes à 0 : il n'y a rien à valoriser | 0 |
 | Pas de scan de la lune | Chunk non valorisé | « valeur inconnue · coller le scan de la lune » |
 | Un minerai du scan sans prix | Chunk non valorisé | « valeur inconnue · prix manquant » |
 | Un minerai du scan sans volume | Chunk non valorisé | « valeur inconnue · volume du minerai manquant » |
@@ -192,7 +192,7 @@ L'inconnu s'affiche « — » (infobulle « Valeur inconnue ») ou « inconnue �
 
 ## Pièges
 
-- **Deux prix différents pour le même minerai lunaire.** La valeur d'un chunk et « Mon minage » suivent votre profil ; la taxe lunaire prend toujours Jita achat compressé. Avec un profil « Jita vente » ou « Retraité », la taxe ne se déduit pas de la valeur affichée.
+- **Deux prix différents pour le même minerai lunaire.** La valeur d'un chunk et « Revenus » suivent votre profil ; la taxe lunaire prend toujours Jita achat compressé. Avec un profil « Jita vente » ou « Retraité », la taxe ne se déduit pas de la valeur affichée.
 - **Le message d'un chunk sans prix est trompeur.** Le détail dit « Au moins un minerai du scan n'a pas de prix d'achat Jita compressé. » alors que le prix manquant est celui de votre profil.
 - **La taxe d'export est partielle.** Elle n'est retirée qu'aux prix Jita bruts et compressés. Le retraité et les prix de structure sont bruts de toute taxe d'export, ce qui avantage la colonne « Retraité » face au compressé quand vous saisissez une taxe.
 - **Un prix ramené à 0 n'est pas inconnu.** Si la taxe d'export dépasse le prix, le brut ou le compressé affiche 0 au lieu d'un « — ».

@@ -2,7 +2,7 @@
 
 This guide follows a mining operation in the order you run it: plan, invite, start, end, read the shares, settle. It then covers your personal ledger, and the moon tax of a refinery, from the manager's side and the miner's side. Each step names the screen and the button as they appear.
 
-Everything happens in the **Mining** module of the side menu, which has five tabs: **Operations**, **Moons**, **Sites**, **Ore value**, **My mining**. Times in the application are in EVE time (UTC).
+Everything happens in the **Mining** module of the side menu, which has five tabs: **Operations**, **Moons**, **Sites**, **Ore value**, **Revenue**. Times in the application are in EVE time (UTC).
 
 ## The rule that runs through this guide: unknown is never 0
 
@@ -127,9 +127,9 @@ The **Archive** tab of the list shows your settled or completed operations and t
 
 ## Part 2. Following your personal ledger
 
-**My mining** tab, **Ledger** view. The ESI ledger of your characters is synced every hour; the **Last sync:** line gives the time, and **Refresh** triggers a read. The period buttons (and **YTD**) filter what you read.
+**Revenue** tab, **Ledger** view. The ESI ledger of your characters is synced every hour; the **Last sync:** line gives the time, and **Refresh** triggers a read. The period buttons (and **YTD**) filter what you read.
 
-The value shown (**Total value**, **ISK / active day**) comes from your settings in the **Ore value** tab (structure, export tax). An ore without a price makes the value unknown and it is named (**Ores without a price: …**), never counted as 0. The **Season** view gives, for your corporation, the operations completed over the period (**30 days**, **90 days**, **All**): mined hours per player and ISK/h per ship. An operation whose shares are not frozen counts its hours but not its ISK (**Season value unknown**).
+The grid shows the ore of the period in three columns, **Sold**, **Corp project** and **Uncategorised**, each with its change against the previous period, its regularity and the characters that mined it. The **Net** adds **Sold** and **Corp project**; **Uncategorised** is hatched and left out, and so is **Corp project** when your settings count corp project ore as PVE. The values (and **ISK / active day**) come from your settings in the **Ore value** tab (structure, export tax). An ore without a price makes its column unknown (hatched, shown as —) and it is named under **To fix** (**Ores without a price: …**), never counted as 0; **Categorise** takes you to the lines to set as sold or corp project. The **Season** view gives, for your corporation, the operations completed over the period (**30 days**, **90 days**, **All**): mined hours per player and ISK/h per ship. An operation whose shares are not frozen counts its hours but not its ISK (**Season value unknown**).
 
 ## Part 3. The moon tax of a refinery
 

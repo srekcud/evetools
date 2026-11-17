@@ -12,9 +12,7 @@ import {
   miningEntry,
   mountTab,
   respondWith,
-  type MiningTabWrapper,
 } from './miningLedgerHarness'
-import { present } from '../../present'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -32,11 +30,6 @@ const KNOWN_MINING_STATS: MiningStats = {
   missingPriceTypeIds: [],
 }
 
-function oreBreakdownTotal(wrapper: MiningTabWrapper) {
-  const breakdown = card(wrapper, en.ledger.mining.oreBreakdown)
-  return present(breakdown.findAll('span').find(span => span.text().endsWith('total')))
-}
-
 enableAutoUnmount(afterEach)
 
 beforeEach(() => {
@@ -49,14 +42,6 @@ describe('MiningTab stats cards while the mining stats are unknown', () => {
       () => Promise.reject(new Error('stats unavailable')),
       () => Promise.resolve([SOLD_VELDSPAR_ENTRY, CORP_SCORDITE_ENTRY]),
     )
-  })
-
-  it('shows the total value as unknown instead of 0', async () => {
-    const wrapper = await mountTab()
-
-    const totalValue = cardValue(wrapper, en.ledger.mining.totalValue)
-    expect(totalValue.textContent?.trim()).toBe('—')
-    expect(card(wrapper, en.ledger.mining.totalValue).get('[title]').attributes('title')).toBe('Unknown value')
   })
 
   it('shows the ISK per active day as unknown instead of 0', async () => {
@@ -80,30 +65,15 @@ describe('MiningTab stats cards while the mining stats are unknown', () => {
     expect(mainSystem.text()).not.toContain('0% of volume')
     expect(mainSystem.text()).toContain('—')
   })
-
-  it('shows the ore breakdown total as unknown instead of 0', async () => {
-    const wrapper = await mountTab()
-
-    const total = oreBreakdownTotal(wrapper)
-    expect(total.text()).toContain('—')
-    expect(total.text()).not.toMatch(/\d/)
-  })
-
-  it('still shows the known personal and corp values computed from the entries', async () => {
-    const wrapper = await mountTab()
-
-    expect(cardValue(wrapper, en.ledger.mining.personal).textContent?.trim()).toBe('2.40 M')
-    expect(cardValue(wrapper, en.ledger.mining.corp).textContent?.trim()).toBe('900.00 K')
-  })
 })
 
 describe('MiningTab stats cards while the ledger is loading', () => {
-  it('shows busy skeletons without digits for the total value and the ISK per active day', async () => {
+  it('shows a busy skeleton without digits for the ISK per active day', async () => {
     respondWith(() => new Promise(() => {}), () => new Promise(() => {}))
 
     const wrapper = await mountTab()
 
-    for (const label of [en.ledger.mining.totalValue, en.ledger.mining.iskPerActiveDay]) {
+    for (const label of [en.ledger.mining.iskPerActiveDay]) {
       const value = card(wrapper, label)
       expect(value.find('[aria-busy="true"]').exists()).toBe(true)
       expect(value.element.children[1].textContent).not.toMatch(/\d/)
@@ -119,13 +89,11 @@ describe('MiningTab stats cards once the mining stats are known', () => {
     )
   })
 
-  it('shows the known totals, ISK per active day and main system share', async () => {
+  it('shows the ISK per active day, the mined volume and the main system share', async () => {
     const wrapper = await mountTab()
 
-    expect(cardValue(wrapper, en.ledger.mining.totalValue).textContent?.trim()).toBe('3.30 M')
     expect(cardValue(wrapper, en.ledger.mining.iskPerActiveDay).textContent?.trim()).toBe('1.65 M')
     expect(cardValue(wrapper, en.ledger.mining.minedVolume).textContent?.trim()).toBe('16,500')
     expect(card(wrapper, en.ledger.mining.mainSystem).text()).toContain('73% of volume')
-    expect(oreBreakdownTotal(wrapper).text()).toBe('3.30 M total')
   })
 })

@@ -23,3 +23,10 @@ describe('PVE revenue tab labels', () => {
     expect([fr.pveModule.tabs.revenue, fr.pveModule.pages.revenue, fr.nav.revenue]).toEqual(['Revenus', 'Revenus', 'Revenus'])
   })
 })
+
+describe('Mining revenue tab labels', () => {
+  it('names the tab and the page Revenue in English and Revenus in French', () => {
+    expect([en.miningModule.tabs.myMining, en.miningModule.pages.myMining]).toEqual(['Revenue', 'Revenue'])
+    expect([fr.miningModule.tabs.myMining, fr.miningModule.pages.myMining]).toEqual(['Revenus', 'Revenus'])
+  })
+})
