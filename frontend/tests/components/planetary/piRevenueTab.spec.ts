@@ -1,0 +1,98 @@
+import { enableAutoUnmount, flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { createI18n } from 'vue-i18n'
+import en from '@/i18n/locales/en.json'
+import fr from '@/i18n/locales/fr.json'
+import PiRevenueTab from '@/components/planetary/PiRevenueTab.vue'
+import type { PlanetaryRevenue } from '@/stores/planetary'
+import { apiRequest } from '@/services/api'
+
+vi.mock(import('@/services/api'), async importOriginal => ({
+  ...(await importOriginal()),
+  apiRequest: vi.fn(),
+}))
+
+const REVENUE: PlanetaryRevenue = {
+  periodEnd: '2026-11-17',
+  days: 30,
+  tiers: [
+    { tier: 'P1', realisedIsk: 0, change: null, daily: [], contributors: [] },
+    { tier: 'P2', realisedIsk: 4_000_000, change: 12.5, daily: [{ date: '2026-11-16', amount: 4_000_000 }], contributors: [{ characterId: 7, characterName: 'Ilyra Castell', value: 4_000_000 }] },
+    { tier: 'P3', realisedIsk: 0, change: null, daily: [], contributors: [] },
+    { tier: 'P4', realisedIsk: 0, change: null, daily: [], contributors: [] },
+  ],
+  realisedIsk: 4_000_000,
+  realisedChange: 12.5,
+  realisedDaily: [{ date: '2026-11-16', amount: 4_000_000 }],
+  realisedContributors: [{ characterId: 7, characterName: 'Ilyra Castell', value: 4_000_000 }],
+  estimate: { dailyIsk: 500_000, periodIsk: 15_000_000, contributors: [{ characterId: 7, characterName: 'Ilyra Castell', value: 15_000_000 }] },
+  toFix: [
+    { characterId: 8, characterName: 'Doran Vex', planetId: 40009081, planetName: 'Perimeter II', solarSystemName: 'Perimeter' },
+    { characterId: 8, characterName: 'Doran Vex', planetId: 40009082, planetName: 'Perimeter III', solarSystemName: 'Perimeter' },
+  ],
+}
+
+async function mountTab(revenue: PlanetaryRevenue = REVENUE, locale: 'en' | 'fr' = 'en') {
+  setActivePinia(createPinia())
+  vi.mocked(apiRequest).mockReset()
+  vi.mocked(apiRequest).mockResolvedValue(revenue as never)
+  const wrapper = mount(PiRevenueTab, {
+    global: {
+      plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
+      stubs: { RouterLink: RouterLinkStub },
+    },
+  })
+  await flushPromises()
+  return wrapper
+}
+
+enableAutoUnmount(afterEach)
+
+describe('PiRevenueTab', () => {
+  it('requests the thirty day revenue when it opens and again for another period', async () => {
+    const wrapper = await mountTab()
+
+    await wrapper.findAll('button').find(button => button.text() === '90 days')?.trigger('click')
+    await flushPromises()
+
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0])).toEqual(['/planetary/revenue?days=30', '/planetary/revenue?days=90'])
+  })
+
+  it('shows the realised grid with one column per tier, the off-market column as unknown and the net of the sales only', async () => {
+    const wrapper = await mountTab()
+    const realised = wrapper.findAll('[data-testid="revenue-line-grid"]')[0]
+
+    expect(realised?.findAll('th[data-column]').map(header => header.attributes('data-column'))).toEqual(['P1', 'P2', 'P3', 'P4', 'off-market'])
+    expect(realised?.get('[data-cell="off-market"] > div').attributes('data-state')).toBe('unknown')
+    expect(realised?.get('[data-testid="net-value"]').text()).toBe('4.00 M')
+  })
+
+  it('shows the production estimate in its own grid and never in the net of the sales', async () => {
+    const wrapper = await mountTab()
+    const grids = wrapper.findAll('[data-testid="revenue-line-grid"]')
+
+    expect(grids).toHaveLength(2)
+    expect(grids[1]?.get('[data-cell="estimate"] > div').attributes('data-state')).toBe('estimate')
+    expect(grids[1]?.get('[data-testid="net-value"]').text()).toBe('~15.00 M')
+    expect(grids[0]?.text()).not.toContain('15.00 M')
+  })
+
+  it('lists the colonies producing without any sale per character in the to fix panel', async () => {
+    const wrapper = await mountTab()
+
+    expect(wrapper.get('[data-testid="revenue-todo-panel"]').text()).toContain('Doran Vex: 2 producing colonies with no PI sale over the period (Perimeter II, Perimeter III)')
+  })
+
+  it('shows no to fix panel when every producing colony sold', async () => {
+    const wrapper = await mountTab({ ...REVENUE, toFix: [] })
+
+    expect(wrapper.find('[data-testid="revenue-todo-panel"]').exists()).toBe(false)
+  })
+
+  it('labels the tiers and the unknown column in French', async () => {
+    const wrapper = await mountTab(REVENUE, 'fr')
+
+    expect(wrapper.text()).toContain('P2 · Raffiné')
+    expect(wrapper.text()).toContain('Ventes hors marché (non suivies)')
+  })
+})

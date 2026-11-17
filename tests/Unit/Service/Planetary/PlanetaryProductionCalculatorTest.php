@@ -219,6 +219,35 @@ class PlanetaryProductionCalculatorTest extends TestCase
         $this->assertSame(14400.0, $result['totalDailyIsk']);
     }
 
+    public function testFindProductTierWalksUpTheMarketGroupHierarchy(): void
+    {
+        $tierGroup = (new InvMarketGroup())->setMarketGroupId(1337);
+        $subGroup = (new InvMarketGroup())->setMarketGroupId(2800)->setParentGroup($tierGroup);
+        $type = (new InvType())->setTypeId(2358)->setMarketGroup($subGroup);
+        $this->invTypeRepository->method('find')->willReturn($type);
+
+        $this->assertSame('P4', $this->calculator->findProductTier(2358));
+    }
+
+    public function testFindProductTierIsNullForARawMaterial(): void
+    {
+        $rawGroup = (new InvMarketGroup())->setMarketGroupId(self::RAW_MATERIALS_MARKET_GROUP_ID);
+        $type = (new InvType())->setTypeId(2268)->setMarketGroup($rawGroup);
+        $this->invTypeRepository->method('find')->willReturn($type);
+
+        $this->assertNull($this->calculator->findProductTier(2268));
+    }
+
+    public function testFindProductTierIsNullForAnUnknownTypeOrATypeWithoutMarketGroup(): void
+    {
+        $this->invTypeRepository->method('find')->willReturnMap([
+            [1, null, null, null],
+            [2, null, null, (new InvType())->setTypeId(2)],
+        ]);
+
+        $this->assertSame([null, null], [$this->calculator->findProductTier(1), $this->calculator->findProductTier(2)]);
+    }
+
     public function testTierClassificationP1(): void
     {
         $marketGroup = new InvMarketGroup();

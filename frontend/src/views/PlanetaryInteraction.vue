@@ -13,12 +13,21 @@ import PiColonyCard from '@/components/planetary/PiColonyCard.vue'
 import PiTierLegend from '@/components/planetary/PiTierLegend.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
+import { useTabQuery } from '@/composables/useTabQuery'
+import SubTabs from '@/components/common/SubTabs.vue'
+import PiRevenueTab from '@/components/planetary/PiRevenueTab.vue'
+
+type PlanetaryTab = 'colonies' | 'revenue'
+
+const PLANETARY_TABS = ['colonies', 'revenue'] as const satisfies readonly PlanetaryTab[]
 
 const { t } = useI18n()
 const planetaryStore = usePlanetaryStore()
 const coloniesUpdated = useUpdateFlash(() => planetaryStore.colonies)
 const syncStore = useSyncStore()
 const { formatTimeSince } = useFormatters()
+const activeTab = useTabQuery<PlanetaryTab>(PLANETARY_TABS, 'colonies')
+const subTabs = computed(() => PLANETARY_TABS.map(tab => ({ id: tab, label: t(`pi.tabs.${tab}`) })))
 
 // ========== Mercure sync tracking ==========
 
@@ -135,6 +144,12 @@ async function toggleColony(colonyId: string): Promise<void> {
         </div>
       </div>
 
+      <SubTabs v-model="activeTab" :tabs="subTabs" />
+
+      <PiRevenueTab v-if="activeTab === 'revenue'" />
+
+      <template v-else>
+
       <!-- ============ ERROR BANNER ============ -->
       <ErrorBanner v-if="planetaryStore.error" :message="planetaryStore.error" @dismiss="planetaryStore.clearError()" />
 
@@ -222,6 +237,8 @@ async function toggleColony(colonyId: string): Promise<void> {
         </div>
 
         <PiTierLegend />
+
+      </template>
 
       </template>
 
