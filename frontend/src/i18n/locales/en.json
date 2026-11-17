@@ -5326,6 +5326,42 @@
     "extractedHint": "measured between the first and the last scan"
   },
   "revenue": {
+    "balance": {
+      "title": "Revenue · all activities",
+      "rowLabel": "Account",
+      "hint": "Click a column to open the Revenue page of its module",
+      "accountProjects": "Account projects",
+      "columns": {
+        "pve": "PVE",
+        "mining": "Mining",
+        "industry": "Industry",
+        "planetary": "Planetary",
+        "planetaryEstimate": "Planetary (estimate)",
+        "unknown": "Not valued"
+      },
+      "todo": {
+        "missingPrice": {
+          "text": "{count} ore type without a price | {count} ore types without a price",
+          "effect": "Mining value unknown, left out of the net",
+          "action": "Open Mining"
+        },
+        "uncategorised": {
+          "text": "{count} unit of uncategorised ore | {count} units of uncategorised ore",
+          "effect": "Shown as not valued, never added to the net",
+          "action": "Open Mining"
+        },
+        "unknownProfit": {
+          "text": "{count} industry project with an unknown profit | {count} industry projects with an unknown profit",
+          "effect": "Left out of the Industry profit, never counted as 0",
+          "action": "Open projects"
+        },
+        "piWithoutSale": {
+          "text": "{count} producing colony with no PI sale over the period | {count} producing colonies with no PI sale over the period",
+          "effect": "The Planetary figure may be an estimate or miss sales made elsewhere",
+          "action": "Open Planetary"
+        }
+      }
+    },
     "industry": {
       "title": "Real profit",
       "rowLabel": "Industry",

@@ -33,7 +33,7 @@ async function mountLedger(locale: 'en' | 'fr'): Promise<VueWrapper> {
       plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
       stubs: {
         MainLayout: MainLayoutStub,
-        LedgerDashboardTab: true,
+        BalanceRevenueGrid: true,
         PveTab: true,
         MiningTab: true,
         EscalationsTab: true,

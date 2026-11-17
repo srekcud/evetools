@@ -5326,6 +5326,42 @@
     "extractedHint": "mesurée entre le premier et le dernier scan"
   },
   "revenue": {
+    "balance": {
+      "title": "Revenus · toutes activités",
+      "rowLabel": "Compte",
+      "hint": "Clic sur une colonne : page Revenus de son module",
+      "accountProjects": "Projets du compte",
+      "columns": {
+        "pve": "PVE",
+        "mining": "Minage",
+        "industry": "Industrie",
+        "planetary": "Planétaire",
+        "planetaryEstimate": "Planétaire (estimation)",
+        "unknown": "Non valorisé"
+      },
+      "todo": {
+        "missingPrice": {
+          "text": "{count} minerai sans prix | {count} minerais sans prix",
+          "effect": "Valeur du minage inconnue, hors du net",
+          "action": "Ouvrir le Minage"
+        },
+        "uncategorised": {
+          "text": "{count} unité de minerai non catégorisée | {count} unités de minerai non catégorisées",
+          "effect": "Affiché non valorisé, jamais ajouté au net",
+          "action": "Ouvrir le Minage"
+        },
+        "unknownProfit": {
+          "text": "{count} projet industrie à profit inconnu | {count} projets industrie à profit inconnu",
+          "effect": "Hors du profit Industrie, jamais compté à 0",
+          "action": "Ouvrir les projets"
+        },
+        "piWithoutSale": {
+          "text": "{count} colonie productrice sans vente PI sur la période | {count} colonies productrices sans vente PI sur la période",
+          "effect": "Le chiffre Planétaire peut être une estimation ou manquer des ventes faites ailleurs",
+          "action": "Ouvrir le Planétaire"
+        }
+      }
+    },
     "industry": {
       "title": "Profit réel",
       "rowLabel": "Industrie",
