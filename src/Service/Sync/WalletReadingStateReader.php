@@ -16,6 +16,7 @@ final readonly class WalletReadingStateReader
     public const string STATUS_MISSING_SCOPE = 'missing_scope';
     public const string STATUS_NEVER_READ = 'never_read';
     public const string STATUS_READ = 'read';
+    public const string STATUS_INVALID_AUTH = 'invalid_auth';
 
     private const string WALLET_SCOPE = 'esi-wallet.read_character_wallet.v1';
 
@@ -34,15 +35,48 @@ final readonly class WalletReadingStateReader
             return [];
         }
 
-        $readingsByCharacter = [];
-        foreach ($this->readingRepository->findByCharacters($characters) as $reading) {
-            $readingsByCharacter[spl_object_id($reading->getCharacter())] = $reading;
-        }
+        $readingsByCharacter = $this->readingsByCharacter($characters);
 
         return array_map(
             fn (Character $character): WalletReadingResource => $this->stateOf($character, $readingsByCharacter[spl_object_id($character)] ?? null),
             $this->mainFirst($characters, $user->getMainCharacter()),
         );
+    }
+
+    /**
+     * @return array<int, string> status of every character whose wallet is not being read, by EVE character id
+     */
+    public function unsyncedStatusByEveCharacterId(User $user): array
+    {
+        $characters = array_values($user->getCharacters()->toArray());
+        $readingsByCharacter = $this->readingsByCharacter($characters);
+
+        $unsynced = [];
+        foreach ($characters as $character) {
+            $status = $this->statusOf($character, $readingsByCharacter[spl_object_id($character)] ?? null);
+            if ($status === self::STATUS_READ && !$character->isAuthValid()) {
+                $status = self::STATUS_INVALID_AUTH;
+            }
+            if ($status !== self::STATUS_READ) {
+                $unsynced[$character->getEveCharacterId()] = $status;
+            }
+        }
+
+        return $unsynced;
+    }
+
+    /**
+     * @param list<Character> $characters
+     * @return array<int, CharacterWalletReading>
+     */
+    private function readingsByCharacter(array $characters): array
+    {
+        $readingsByCharacter = [];
+        foreach ($this->readingRepository->findByCharacters($characters) as $reading) {
+            $readingsByCharacter[spl_object_id($reading->getCharacter())] = $reading;
+        }
+
+        return $readingsByCharacter;
     }
 
     /**

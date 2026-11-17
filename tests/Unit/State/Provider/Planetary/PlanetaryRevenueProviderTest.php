@@ -8,10 +8,12 @@ use ApiPlatform\Metadata\Get;
 use App\ApiResource\Planetary\PlanetaryRevenueResource;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
+use App\Repository\CharacterWalletReadingRepository;
 use App\Repository\PlanetaryColonyRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\Planetary\PlanetaryRevenueCalculator;
+use App\Service\Sync\WalletReadingStateReader;
 use App\State\Provider\Planetary\PlanetaryRevenueProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -45,7 +47,7 @@ final class PlanetaryRevenueProviderTest extends TestCase
     {
         $resource = $this->provide(new User(), []);
 
-        $this->assertSame([0.0, null, [], []], [$resource->realisedIsk, $resource->realisedChange, $resource->toFix, $resource->estimate['contributors']]);
+        $this->assertSame([0.0, null, [], [], []], [$resource->realisedIsk, $resource->realisedChange, $resource->toFix, $resource->unsyncedWallets, $resource->estimate['contributors']]);
         $this->assertSame(['P1', 'P2', 'P3', 'P4'], array_column($resource->tiers, 'tier'));
     }
 
@@ -98,6 +100,7 @@ final class PlanetaryRevenueProviderTest extends TestCase
             $colonyRepository,
             $schematicTypeRepository,
             $productionCalculator,
+            new WalletReadingStateReader($this->createStub(CharacterWalletReadingRepository::class)),
         );
 
         return (new PlanetaryRevenueProvider($security, $requestStack, $calculator))->provide(new Get());
