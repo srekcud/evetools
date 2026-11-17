@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Pve\StatsDailyProvider;
+use App\State\Provider\Pve\StatsGridProvider;
 use App\State\Provider\Pve\StatsProvider;
 
 #[ApiResource(
@@ -32,6 +33,18 @@ use App\State\Provider\Pve\StatsProvider;
             output: StatsDailyResource::class,
             openapi: new Model\Operation(
                 summary: 'Get daily PVE statistics',
+                tags: ['Revenue - PVE'],
+                parameters: [
+                    new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
+                ],
+            ),
+        ),
+        new Get(
+            uriTemplate: '/pve/stats/grid',
+            provider: StatsGridProvider::class,
+            output: StatsGridResource::class,
+            openapi: new Model\Operation(
+                summary: 'Get PVE revenue per source with change, daily amounts and contributors',
                 tags: ['Revenue - PVE'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
