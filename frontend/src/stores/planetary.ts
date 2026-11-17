@@ -17,6 +17,49 @@ export interface SchematicIO {
   quantity: number
 }
 
+export interface PlanetaryRevenueContributor {
+  characterId: number
+  characterName: string
+  value: number
+}
+
+export interface PlanetaryRevenueDay {
+  date: string
+  amount: number
+}
+
+export interface PlanetaryRevenueTier {
+  tier: string
+  realisedIsk: number
+  change: number | null
+  daily: PlanetaryRevenueDay[]
+  contributors: PlanetaryRevenueContributor[]
+}
+
+export interface PlanetaryRevenueToFix {
+  characterId: number
+  characterName: string
+  planetId: number
+  planetName: string | null
+  solarSystemName: string | null
+}
+
+export interface PlanetaryRevenue {
+  periodEnd: string
+  days: number
+  tiers: PlanetaryRevenueTier[]
+  realisedIsk: number
+  realisedChange: number | null
+  realisedDaily: PlanetaryRevenueDay[]
+  realisedContributors: PlanetaryRevenueContributor[]
+  estimate: {
+    dailyIsk: number
+    periodIsk: number
+    contributors: PlanetaryRevenueContributor[]
+  }
+  toFix: PlanetaryRevenueToFix[]
+}
+
 export interface Pin {
   pinId: number
   typeId: number
@@ -128,6 +171,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
   const colonies = ref<Colony[]>([])
   const stats = ref<PlanetaryStats | null>(null)
   const production = ref<ProductionTier[]>([])
+  const revenue = ref<PlanetaryRevenue | null>(null)
   const isLoading = ref(false)
   const isSyncing = ref(false)
   const error = ref<string | null>(null)
@@ -211,6 +255,17 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     }
   }
 
+  async function fetchRevenue(days: number): Promise<void> {
+    error.value = null
+
+    try {
+      revenue.value = await apiRequest<PlanetaryRevenue>(`/planetary/revenue?days=${days}`)
+    } catch (e) {
+      revenue.value = null
+      error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des revenus'
+    }
+  }
+
   async function fetchProduction(): Promise<void> {
     error.value = null
 
@@ -256,6 +311,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     colonies,
     stats,
     production,
+    revenue,
     isLoading,
     isSyncing,
     error,
@@ -272,6 +328,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     fetchColonyDetail,
     fetchStats,
     fetchProduction,
+    fetchRevenue,
     syncColonies,
     finishSync,
     failSync,

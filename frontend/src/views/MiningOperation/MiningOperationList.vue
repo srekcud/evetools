@@ -6,7 +6,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import MiningOperationRecurrencesPanel from '@/components/mining-operation/MiningOperationRecurrencesPanel.vue'
 import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
-import MiningSubTabs from '@/components/mining-module/MiningSubTabs.vue'
+import SubTabs from '@/components/common/SubTabs.vue'
 import MiningStatusBadge from '@/components/mining-operation/MiningStatusBadge.vue'
 import NewMiningOperationModal from '@/components/mining-operation/NewMiningOperationModal.vue'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
@@ -180,7 +180,7 @@ onMounted(async () => {
 
       <p v-if="operationDeleted" class="mb-4 rounded-md border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200" role="status">{{ t('miningOperation.detail.deleted') }}</p>
 
-      <MiningSubTabs v-model="activeTab" :tabs="subTabs" />
+      <SubTabs v-model="activeTab" :tabs="subTabs" />
 
       <div v-if="loading" class="flex justify-center py-16">
         <LoadingSpinner size="xl" class="text-cyan-400" />

@@ -1,12 +1,12 @@
 <script setup lang="ts" generic="Tab extends string">
-export interface MiningSubTab<Id extends string> {
+export interface SubTab<Id extends string> {
   id: Id
   label: string
   count?: number
 }
 
 defineProps<{
-  tabs: MiningSubTab<Tab>[]
+  tabs: SubTab<Tab>[]
   modelValue: Tab
 }>()
 

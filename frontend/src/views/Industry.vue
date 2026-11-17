@@ -8,7 +8,7 @@ import { useAdminStore } from '@/stores/admin'
 import { DATA_FRESHNESS_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
 import MainLayout from '@/layouts/MainLayout.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
-import MiningSubTabs from '@/components/mining-module/MiningSubTabs.vue'
+import SubTabs from '@/components/common/SubTabs.vue'
 import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import IndustrySettings, { type IndustryConfigSection } from '@/components/industry/IndustrySettings.vue'
@@ -149,7 +149,7 @@ watch(() => store.navigationIntent, (intent) => {
       </template>
 
       <template v-else>
-        <MiningSubTabs v-model="activeSubTab" :tabs="subTabs" />
+        <SubTabs v-model="activeSubTab" :tabs="subTabs" />
 
         <DataFreshnessList
           v-if="page === 'analysis'"
