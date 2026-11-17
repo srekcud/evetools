@@ -4344,7 +4344,11 @@
       "workshop": "Atelier",
       "projects": "Projets",
       "analysis": "Analyse",
-      "production": "Production"
+      "production": "Production",
+      "revenue": "Revenus"
+    },
+    "pages": {
+      "revenue": "Revenus"
     }
   },
   "pveModule": {
@@ -5294,6 +5298,22 @@
     "extractedHint": "mesurée entre le premier et le dernier scan"
   },
   "revenue": {
+    "industry": {
+      "title": "Profit réel",
+      "rowLabel": "Industrie",
+      "rowSub": "aucun projet terminé | {count} projet terminé | {count} projets terminés",
+      "columns": {
+        "profit": "Profit",
+        "unknownProfit": "Profit inconnu"
+      },
+      "todo": {
+        "unknownProfit": {
+          "text": "{count} projet à profit inconnu | {count} projets à profit inconnu",
+          "effect": "Hors du profit ci-dessus, jamais compté à 0",
+          "action": "Ouvrir les projets"
+        }
+      }
+    },
     "pve": {
       "title": "Revenus PVE",
       "columns": {

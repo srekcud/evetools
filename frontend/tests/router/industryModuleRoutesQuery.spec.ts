@@ -29,6 +29,7 @@ describe('industry module routes, query and memory', () => {
     ['analysis', 'industry-analysis', '/industry/analysis'],
     ['projects', 'industry-projects', '/industry/projects'],
     ['production', 'industry-production', '/industry/production'],
+    ['revenue', 'industry-revenue', '/industry/revenue'],
     ['workshop', 'industry', '/industry'],
     ['corporation hangars', 'industry-hangars', '/industry/hangars'],
   ])('names the %s page and gives it its path', (_page, routeName, expectedPath) => {
@@ -59,6 +60,8 @@ describe('industry module routes, query and memory', () => {
     ['the workshop without tab', '/industry'],
     ['the workshop with a type', '/industry?typeId=587'],
     ['the analysis page', '/industry/analysis?tab=pivot&typeId=587'],
+    ['the revenue page', '/industry/revenue'],
+    ['the revenue page with another parameter', '/industry/revenue?x=1'],
     ['the skills page', '/industry/skills'],
     ['the corporation hangars page', '/industry/hangars'],
   ])('leaves %s where it is', async (_case, url) => {

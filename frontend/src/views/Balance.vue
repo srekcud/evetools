@@ -10,14 +10,13 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LedgerDashboardTab from '@/components/ledger/LedgerDashboardTab.vue'
 import LedgerPeriodSelector from '@/components/ledger/LedgerPeriodSelector.vue'
 import LedgerSettingsTab from '@/components/ledger/LedgerSettingsTab.vue'
-import LedgerIndustryTab from '@/components/ledger/LedgerIndustryTab.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
 const ledgerStore = useLedgerStore()
 
-type TabId = 'dashboard' | 'industry' | 'settings'
-const validTabs: TabId[] = ['dashboard', 'industry', 'settings']
+type TabId = 'dashboard' | 'settings'
+const validTabs: TabId[] = ['dashboard', 'settings']
 const activeTab = useTabQuery(validTabs, 'dashboard')
 
 const { selectedDays, periodOptions, yearToDateDays } = useLedgerPeriod()
@@ -74,7 +73,6 @@ onMounted(async () => {
           <button
             v-for="tab in [
               { id: 'dashboard', label: t('ledger.tabs.dashboard') },
-              { id: 'industry', label: t('ledger.tabs.industry') },
               { id: 'settings', label: t('ledger.tabs.settings') },
             ]"
             :key="tab.id"
@@ -104,10 +102,6 @@ onMounted(async () => {
           :selected-days="selectedDays"
           :max-daily-value="maxDailyValue"
         />
-      </div>
-
-      <div v-else-if="activeTab === 'industry'" key="industry">
-        <LedgerIndustryTab :selected-days="selectedDays" />
       </div>
 
       <!-- Settings Tab -->

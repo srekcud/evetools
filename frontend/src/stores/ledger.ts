@@ -66,7 +66,9 @@ export interface LedgerIndustry {
     capital: number
     slotHours: number | null
     iskPerHour: number | null
+    change: number | null
   }
+  daily: Record<string, number>
   months: {
     month: string
     projectCount: number
@@ -83,6 +85,8 @@ export interface LedgerIndustry {
     projectCount: number
     unknownProjectCount: number
     profit: number
+    capital: number
+    marginPercent: number | null
   }[]
 }
 

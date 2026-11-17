@@ -4344,7 +4344,11 @@
       "workshop": "Workshop",
       "projects": "Projects",
       "analysis": "Analysis",
-      "production": "Production"
+      "production": "Production",
+      "revenue": "Revenue"
+    },
+    "pages": {
+      "revenue": "Revenue"
     }
   },
   "pveModule": {
@@ -5294,6 +5298,22 @@
     "extractedHint": "measured between the first and the last scan"
   },
   "revenue": {
+    "industry": {
+      "title": "Real profit",
+      "rowLabel": "Industry",
+      "rowSub": "no completed project | {count} completed project | {count} completed projects",
+      "columns": {
+        "profit": "Profit",
+        "unknownProfit": "Unknown profit"
+      },
+      "todo": {
+        "unknownProfit": {
+          "text": "{count} project with an unknown profit | {count} projects with an unknown profit",
+          "effect": "Left out of the profit above, never counted as 0",
+          "action": "Open projects"
+        }
+      }
+    },
     "pve": {
       "title": "PVE revenue",
       "columns": {

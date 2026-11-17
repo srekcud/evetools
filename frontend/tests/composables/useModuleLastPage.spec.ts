@@ -100,6 +100,7 @@ describe('useModuleLastPage', () => {
     ['a project detail', '/industry/projects/6c1d90a4', '/industry/projects'],
     ['the analysis page', '/industry/analysis', '/industry/analysis'],
     ['the production page', '/industry/production', '/industry/production'],
+    ['the revenue page', '/industry/revenue', '/industry/revenue'],
   ])('remembers the industry page of %s', (_case, visited, expectedPage) => {
     rememberModulePage(visited)
 

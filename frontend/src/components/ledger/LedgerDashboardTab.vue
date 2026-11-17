@@ -269,7 +269,7 @@ const chartOptions = computed(() => ({
         </div>
         <div class="mt-2 text-xs text-slate-500">{{ industrySummary }}</div>
         <RouterLink
-          to="/industry"
+          to="/industry/revenue"
           class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-white"
         >
           {{ t('ledger.dashboard.openModule', { module: t('nav.industry') }) }}

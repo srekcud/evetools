@@ -10,6 +10,7 @@ const PAGES: Array<[IndustryModulePage, string]> = [
   ['projects', '/industry/projects'],
   ['analysis', '/industry/analysis'],
   ['production', '/industry/production'],
+  ['revenue', '/industry/revenue'],
 ]
 
 enableAutoUnmount(afterEach)
@@ -22,6 +23,7 @@ async function mountTabs(active: IndustryModulePage, locale: 'en' | 'fr' = 'en')
       { path: '/industry/projects', name: 'industry-projects', component: { template: '<div />' } },
       { path: '/industry/analysis', name: 'industry-analysis', component: { template: '<div />' } },
       { path: '/industry/production', name: 'industry-production', component: { template: '<div />' } },
+      { path: '/industry/revenue', name: 'industry-revenue', component: { template: '<div />' } },
     ],
   })
   await router.push('/industry')
@@ -35,16 +37,16 @@ async function mountTabs(active: IndustryModulePage, locale: 'en' | 'fr' = 'en')
 }
 
 describe('IndustryModuleTabs', () => {
-  it('links the four pages of the module in order', async () => {
+  it('links the five pages of the module in order', async () => {
     const wrapper = await mountTabs('workshop')
 
     expect(wrapper.findAll('a[title]').map(link => link.attributes('href'))).toEqual(PAGES.map(([, path]) => path))
   })
 
   it.each([
-    ['en', ['Workshop', 'Projects', 'Analysis', 'Production']],
-    ['fr', ['Atelier', 'Projets', 'Analyse', 'Production']],
-  ] as const)('labels the four pages in %s', async (locale, labels) => {
+    ['en', ['Workshop', 'Projects', 'Analysis', 'Production', 'Revenue']],
+    ['fr', ['Atelier', 'Projets', 'Analyse', 'Production', 'Revenus']],
+  ] as const)('labels the five pages in %s', async (locale, labels) => {
     const wrapper = await mountTabs('workshop', locale)
 
     expect(wrapper.findAll('a[title]').map(link => link.text().trim())).toEqual(labels)

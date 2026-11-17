@@ -59,7 +59,7 @@ describe('LedgerDashboardTab pve module summary', () => {
       return wrapper.findAllComponents(RouterLinkStub).filter(link => card.element.contains(link.element)).map(link => link.props('to'))
     })
 
-    expect(linksByCard).toEqual([['/pve/revenue'], ['/mining/my-mining'], ['/industry']])
+    expect(linksByCard).toEqual([['/pve/revenue'], ['/mining/my-mining'], ['/industry/revenue']])
   })
 
   it('shows the sold escalations in the pve breakdown', () => {

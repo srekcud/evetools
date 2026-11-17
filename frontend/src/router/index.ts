@@ -12,6 +12,7 @@ const INDUSTRY_PATH = '/industry'
 const INDUSTRY_PROJECTS_PATH = '/industry/projects'
 const INDUSTRY_ANALYSIS_PATH = '/industry/analysis'
 const INDUSTRY_PRODUCTION_PATH = '/industry/production'
+const INDUSTRY_REVENUE_PATH = '/industry/revenue'
 const INDUSTRY_ANALYSIS_TABS: readonly string[] = ['margins', 'batch', 'buy-vs-build', 'pivot']
 const INDUSTRY_PRODUCTION_TABS: readonly string[] = ['slots', 'stockpile', 'blueprints']
 const INDUSTRY_WORKSHOP_TABS: readonly string[] = ['workshop', 'dashboard']
@@ -81,11 +82,19 @@ function formerLedgerLocation(to: QueriedLocation): RouteLocationRaw {
     case 'escalations':
       return { path: PVE_ESCALATIONS_PATH, query: queryWithout(to.query, 'tab') }
     case 'industry':
+      return { path: INDUSTRY_REVENUE_PATH, query: queryWithout(to.query, 'tab') }
     case 'settings':
       return { path: BALANCE_PATH, query: to.query }
     default:
       return { path: BALANCE_PATH, query: queryWithout(to.query, 'tab') }
   }
+}
+
+function formerBalanceIndustryLocation(to: QueriedLocation): RouteLocationRaw | true {
+  if (to.query.tab !== 'industry') {
+    return true
+  }
+  return { path: INDUSTRY_REVENUE_PATH, query: queryWithout(to.query, 'tab') }
 }
 
 function formerAssetsContractsLocation(to: QueriedLocation): RouteLocationRaw | true {
@@ -168,6 +177,7 @@ const router = createRouter({
       path: BALANCE_PATH,
       name: 'balance',
       component: () => import('@/views/Balance.vue'),
+      beforeEnter: formerBalanceIndustryLocation,
       meta: { requiresAuth: true },
     },
     {
@@ -200,6 +210,12 @@ const router = createRouter({
       name: 'industry-production',
       component: () => import('@/views/Industry.vue'),
       props: { page: 'production' },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: INDUSTRY_REVENUE_PATH,
+      name: 'industry-revenue',
+      component: () => import('@/views/IndustryRevenue.vue'),
       meta: { requiresAuth: true },
     },
     {
