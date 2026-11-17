@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
 import MiningTab from '@/components/ledger/MiningTab.vue'
 import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
-import MiningSubTabs from '@/components/mining-module/MiningSubTabs.vue'
+import SubTabs from '@/components/common/SubTabs.vue'
 import { useLedgerPeriod } from '@/composables/useLedgerPeriod'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useLedgerStore } from '@/stores/ledger'
@@ -38,7 +38,7 @@ onMounted(() => ledgerStore.fetchSettings())
 
       <h1 class="sr-only">{{ t('miningModule.pages.myMining') }}</h1>
 
-      <MiningSubTabs v-model="activeTab" :tabs="subTabs" />
+      <SubTabs v-model="activeTab" :tabs="subTabs" />
 
       <template v-if="activeTab === 'ledger'">
         <div class="mb-6 flex flex-wrap items-center gap-2 rounded-lg bg-slate-900 p-1 w-fit max-w-full" role="group" :aria-label="t('miningModule.myMining.period')">

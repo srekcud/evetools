@@ -362,6 +362,34 @@
     "subtitle": "Gestion des colonies PI",
     "lastSync": "Derniere sync :",
     "syncTooltip": "Met a jour le cache local depuis l'ESI. Les donnees refletent votre derniere interaction en jeu.",
+    "tabs": {
+      "colonies": "Colonies",
+      "revenue": "Revenus"
+    },
+    "revenue": {
+      "period": "Période",
+      "days": "{n} jours",
+      "realisedTitle": "Revenus planétaires · ventes réalisées",
+      "estimateTitle": "Revenus planétaires · production théorique",
+      "rowLabel": "Planétaire",
+      "rowSub": "ventes wallet des produits PI",
+      "estimateSub": "production valorisée au sell Jita, jamais ajoutée aux ventes",
+      "realisedNet": "Réalisé",
+      "estimateNet": "Estimation",
+      "estimateColumn": "Estimation de production",
+      "offMarket": "Ventes hors marché (non suivies)",
+      "tiers": {
+        "P1": "P1 · Basique",
+        "P2": "P2 · Raffiné",
+        "P3": "P3 · Spécialisé",
+        "P4": "P4 · Avancé"
+      },
+      "todo": {
+        "text": "{character} : {n} colonie en production sans vente PI sur la période ({planets}) | {character} : {n} colonies en production sans vente PI sur la période ({planets})",
+        "effect": "Le stock s'accumule peut-être ou est vendu ailleurs, le revenu réalisé peut être sous-estimé",
+        "action": "Colonies"
+      }
+    },
     "loadingColonies": "Chargement des colonies...",
     "noColonies": "Aucune colonie PI",
     "noColoniesDescription": "Aucune colonie detectee. Cliquez sur \"Synchroniser\" pour charger vos donnees PI depuis l'ESI, ou verifiez que vos personnages ont le scope Planetary Interaction.",
