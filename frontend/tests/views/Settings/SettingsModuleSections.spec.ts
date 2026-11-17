@@ -148,20 +148,6 @@ describe('Settings mining section', () => {
 })
 
 describe('Settings pve section', () => {
-  it('shows the corporation project accounting and writes the choice with a PATCH of the ledger settings', async () => {
-    const calls = stubBackend({
-      [`GET ${LEDGER_SETTINGS_URL}`]: ledgerSettings,
-      [`PATCH ${LEDGER_SETTINGS_URL}`]: { ...ledgerSettings, corpProjectAccounting: 'mining' },
-    })
-    const { wrapper } = await mountSettingsAt('/settings/pve')
-
-    expect(wrapper.get<HTMLInputElement>('input[name="corpProjectAccounting"][value="pve"]').element.checked).toBe(true)
-    await wrapper.get('input[name="corpProjectAccounting"][value="mining"]').trigger('change')
-    await flushPromises()
-
-    expect(callsTo(calls, 'PATCH', LEDGER_SETTINGS_URL).map(call => call.body)).toEqual([{ corpProjectAccounting: 'mining' }])
-  })
-
   it('opens the ammo configuration dialog from a button of the section', async () => {
     stubBackend({ [`GET ${LEDGER_SETTINGS_URL}`]: ledgerSettings })
     const { wrapper } = await mountSettingsAt('/settings/pve')
@@ -171,6 +157,29 @@ describe('Settings pve section', () => {
 
     expect(visibleBefore).toBe(0)
     expect(wrapper.findAllComponents(TypeConfigDialog).filter(dialog => dialog.props('visible')).map(dialog => dialog.props('title'))).toEqual(['Ammo configuration'])
+  })
+})
+
+describe('Settings patrimoine section', () => {
+  it('shows the corporation project accounting and writes the choice with a PATCH of the ledger settings', async () => {
+    const calls = stubBackend({
+      [`GET ${LEDGER_SETTINGS_URL}`]: ledgerSettings,
+      [`PATCH ${LEDGER_SETTINGS_URL}`]: { ...ledgerSettings, corpProjectAccounting: 'mining' },
+    })
+    const { wrapper } = await mountSettingsAt('/settings/patrimoine')
+
+    expect(wrapper.get<HTMLInputElement>('input[name="corpProjectAccounting"][value="pve"]').element.checked).toBe(true)
+    await wrapper.get('input[name="corpProjectAccounting"][value="mining"]').trigger('change')
+    await flushPromises()
+
+    expect(callsTo(calls, 'PATCH', LEDGER_SETTINGS_URL).map(call => call.body)).toEqual([{ corpProjectAccounting: 'mining' }])
+  })
+
+  it('no longer shows the corporation project accounting in the pve section', async () => {
+    stubBackend({ [`GET ${LEDGER_SETTINGS_URL}`]: ledgerSettings })
+    const { wrapper } = await mountSettingsAt('/settings/pve')
+
+    expect(wrapper.find('input[name="corpProjectAccounting"]').exists()).toBe(false)
   })
 })
 

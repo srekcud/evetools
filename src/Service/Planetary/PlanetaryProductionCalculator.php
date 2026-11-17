@@ -315,40 +315,35 @@ class PlanetaryProductionCalculator
      */
     private function classifyTier(int $typeId): string
     {
+        return $this->findProductTier($typeId) ?? 'P0';
+    }
+
+    public function findProductTier(int $typeId): ?string
+    {
         $type = $this->invTypeRepository->find($typeId);
         if ($type === null) {
-            return 'P0';
+            return null;
         }
 
-        $marketGroup = $type->getMarketGroup();
-        if ($marketGroup === null) {
-            return 'P0';
-        }
-
-        // Walk up the market group hierarchy to find the PI tier
-        $current = $marketGroup;
+        $current = $type->getMarketGroup();
         $depth = 0;
         while ($current !== null && $depth < 10) {
-            $mgId = $current->getMarketGroupId();
-
-            if ($mgId === self::MARKET_GROUP_P1) {
-                return 'P1';
-            }
-            if ($mgId === self::MARKET_GROUP_P2) {
-                return 'P2';
-            }
-            if ($mgId === self::MARKET_GROUP_P3) {
-                return 'P3';
-            }
-            if ($mgId === self::MARKET_GROUP_P4) {
-                return 'P4';
+            $tier = match ($current->getMarketGroupId()) {
+                self::MARKET_GROUP_P1 => 'P1',
+                self::MARKET_GROUP_P2 => 'P2',
+                self::MARKET_GROUP_P3 => 'P3',
+                self::MARKET_GROUP_P4 => 'P4',
+                default => null,
+            };
+            if ($tier !== null) {
+                return $tier;
             }
 
             $current = $current->getParentGroup();
             $depth++;
         }
 
-        return 'P0';
+        return null;
     }
 
     private function getTierLabel(string $tier): string
