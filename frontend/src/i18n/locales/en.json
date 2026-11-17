@@ -5292,5 +5292,43 @@
     "extracted": "Extracted",
     "extractedUnknown": "unknown",
     "extractedHint": "measured between the first and the last scan"
+  },
+  "revenue": {
+    "grid": {
+      "net": "Net",
+      "previousPeriod": "vs previous {n} days",
+      "regularity": "Regularity",
+      "perDay": "per day",
+      "perWeek": "per week",
+      "stripCount": "{active}/{total} {unit}",
+      "stripUnit": {
+        "day": "days",
+        "week": "weeks"
+      },
+      "contributors": {
+        "characters": "Contributors",
+        "products": "Products"
+      },
+      "more": {
+        "characters": "+{n} character | +{n} characters",
+        "products": "+{n} product | +{n} products"
+      },
+      "changeUnknown": "No comparable previous period",
+      "regularityUnknown": "Daily revenue unknown",
+      "contributorsUnknown": "Contributors unknown",
+      "unknownCell": "Unknown value, excluded from the net",
+      "excludedFromNet": "excluded from the net",
+      "estimate": "estimate",
+      "todoBadge": "To fix, item {n}",
+      "legend": {
+        "weight": "tint = weight in the row",
+        "estimate": "~ estimate",
+        "unknown": "unknown, excluded from the net",
+        "todo": "to fix"
+      }
+    },
+    "todo": {
+      "title": "To fix · skews the figures"
+    }
   }
 }
