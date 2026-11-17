@@ -66,7 +66,9 @@ export interface LedgerIndustry {
     capital: number
     slotHours: number | null
     iskPerHour: number | null
+    change: number | null
   }
+  daily: Record<string, number>
   months: {
     month: string
     projectCount: number
@@ -83,6 +85,8 @@ export interface LedgerIndustry {
     projectCount: number
     unknownProjectCount: number
     profit: number
+    capital: number
+    marginPercent: number | null
   }[]
 }
 
@@ -154,6 +158,39 @@ export interface MiningStats {
   valuationSource?: ValuationSource | null
 }
 
+export const MINING_GRID_COLUMN_IDS = ['sold', 'corp_project', 'unknown'] as const
+
+export type MiningGridColumnId = (typeof MINING_GRID_COLUMN_IDS)[number]
+
+export interface MiningGridContributor {
+  id: number
+  name: string
+  value: number
+}
+
+export interface MiningGridColumn {
+  value: number | null
+  previous: number | null
+  change: number | null
+  quantity: number
+  daily: Record<string, number> | null
+  contributors: MiningGridContributor[] | null
+}
+
+export interface MiningGrid {
+  period: { from: string; to: string; days: number }
+  columns: Record<MiningGridColumnId, MiningGridColumn>
+  net: {
+    value: number | null
+    previous: number | null
+    change: number | null
+    daily: Record<string, number>
+    contributors: MiningGridContributor[]
+  }
+  missingPriceTypeIds: number[]
+  corpProjectCountedInPve: boolean
+}
+
 export interface MiningDailyStats {
   period: {
     from: string
@@ -211,6 +248,7 @@ export const useLedgerStore = defineStore('ledger', () => {
   const industry = ref<LedgerIndustry | null>(null)
   const miningEntries = ref<MiningEntry[]>([])
   const miningStats = ref<MiningStats | null>(null)
+  const miningGrid = ref<MiningGrid | null>(null)
   const miningDailyStats = ref<MiningDailyStats | null>(null)
   const miningStatsByType = ref<MiningStatsByType | null>(null)
   const settings = ref<LedgerSettings | null>(null)
@@ -295,6 +333,17 @@ export const useLedgerStore = defineStore('ledger', () => {
       miningStats.value = await apiRequest<MiningStats>(`/ledger/mining/stats?days=${d}`)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch mining stats'
+    }
+  }
+
+  async function fetchMiningGrid(days?: number) {
+    error.value = null
+
+    try {
+      const d = days ?? selectedDays.value
+      miningGrid.value = await apiRequest<MiningGrid>(`/ledger/mining/stats/grid?days=${d}`)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch mining revenue'
     }
   }
 
@@ -386,6 +435,7 @@ export const useLedgerStore = defineStore('ledger', () => {
       await Promise.all([
         fetchDashboard(),
         fetchMiningStats(),
+        fetchMiningGrid(),
         fetchMiningEntries(),
       ])
 
@@ -413,6 +463,7 @@ export const useLedgerStore = defineStore('ledger', () => {
     industry,
     miningEntries,
     miningStats,
+    miningGrid,
     miningDailyStats,
     miningStatsByType,
     settings,
@@ -431,6 +482,7 @@ export const useLedgerStore = defineStore('ledger', () => {
     fetchIndustry,
     fetchMiningEntries,
     fetchMiningStats,
+    fetchMiningGrid,
     fetchMiningDailyStats,
     fetchMiningStatsByType,
     fetchSettings,

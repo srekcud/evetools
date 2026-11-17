@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ModuleTabBar, { type ModuleTab } from '@/components/layout/ModuleTabBar.vue'
 
-export type IndustryModulePage = 'workshop' | 'projects' | 'analysis' | 'production'
+export type IndustryModulePage = 'workshop' | 'projects' | 'analysis' | 'production' | 'revenue'
 
 defineProps<{
   active: IndustryModulePage
@@ -16,6 +16,7 @@ const tabs = computed<ModuleTab[]>(() => [
   { id: 'projects', label: t('industryModule.tabs.projects'), to: { name: 'industry-projects' } },
   { id: 'analysis', label: t('industryModule.tabs.analysis'), to: { name: 'industry-analysis' } },
   { id: 'production', label: t('industryModule.tabs.production'), to: { name: 'industry-production' } },
+  { id: 'revenue', label: t('industryModule.tabs.revenue'), to: { name: 'industry-revenue' } },
 ])
 </script>
 

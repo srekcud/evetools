@@ -12,11 +12,12 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 function industryOfProfit(days: number, profit: number): LedgerIndustry {
   return {
     period: { from: '2026-10-08', to: '2026-11-07', days },
-    totals: { profit, projectCount: 1, unknownProjectCount: 0, capital: 400_000_000, slotHours: 100, iskPerHour: profit / 100 },
+    totals: { profit, projectCount: 1, unknownProjectCount: 0, capital: 400_000_000, slotHours: 100, iskPerHour: profit / 100, change: null },
+    daily: { '2026-11-03': profit },
     months: [
       { month: '2026-11', projectCount: 1, unknownProjectCount: 0, profit, capital: 400_000_000, marginPercent: 30, slotHours: 100, iskPerHour: profit / 100 },
     ],
-    products: [{ typeId: 22456, typeName: 'Sabre', projectCount: 1, unknownProjectCount: 0, profit }],
+    products: [{ typeId: 22456, typeName: 'Sabre', projectCount: 1, unknownProjectCount: 0, profit, capital: 400_000_000, marginPercent: 30 }],
   }
 }
 

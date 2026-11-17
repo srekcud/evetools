@@ -4372,7 +4372,11 @@
       "workshop": "Workshop",
       "projects": "Projects",
       "analysis": "Analysis",
-      "production": "Production"
+      "production": "Production",
+      "revenue": "Revenue"
+    },
+    "pages": {
+      "revenue": "Revenue"
     }
   },
   "pveModule": {
@@ -4391,13 +4395,13 @@
       "moons": "Moons",
       "sites": "Sites",
       "oreValue": "Ore value",
-      "myMining": "My mining"
+      "myMining": "Revenue"
     },
     "pages": {
       "moons": "Moons",
       "sites": "Mining sites",
       "oreValue": "Ore value",
-      "myMining": "My mining"
+      "myMining": "Revenue"
     },
     "moons": {
       "tabs": {
@@ -5322,6 +5326,58 @@
     "extractedHint": "measured between the first and the last scan"
   },
   "revenue": {
+    "balance": {
+      "title": "Revenue · all activities",
+      "rowLabel": "Account",
+      "hint": "Click a column to open the Revenue page of its module",
+      "accountProjects": "Account projects",
+      "columns": {
+        "pve": "PVE",
+        "mining": "Mining",
+        "industry": "Industry",
+        "planetary": "Planetary",
+        "planetaryEstimate": "Planetary (estimate)",
+        "unknown": "Not valued"
+      },
+      "todo": {
+        "missingPrice": {
+          "text": "{count} ore type without a price | {count} ore types without a price",
+          "effect": "Mining value unknown, left out of the net",
+          "action": "Open Mining"
+        },
+        "uncategorised": {
+          "text": "{count} unit of uncategorised ore | {count} units of uncategorised ore",
+          "effect": "Shown as not valued, never added to the net",
+          "action": "Open Mining"
+        },
+        "unknownProfit": {
+          "text": "{count} industry project with an unknown profit | {count} industry projects with an unknown profit",
+          "effect": "Left out of the Industry profit, never counted as 0",
+          "action": "Open projects"
+        },
+        "piWithoutSale": {
+          "text": "{count} producing colony with no PI sale over the period | {count} producing colonies with no PI sale over the period",
+          "effect": "The Planetary figure may be an estimate or miss sales made elsewhere",
+          "action": "Open Planetary"
+        }
+      }
+    },
+    "industry": {
+      "title": "Real profit",
+      "rowLabel": "Industry",
+      "rowSub": "no completed project | {count} completed project | {count} completed projects",
+      "columns": {
+        "profit": "Profit",
+        "unknownProfit": "Unknown profit"
+      },
+      "todo": {
+        "unknownProfit": {
+          "text": "{count} project with an unknown profit | {count} projects with an unknown profit",
+          "effect": "Left out of the profit above, never counted as 0",
+          "action": "Open projects"
+        }
+      }
+    },
     "pve": {
       "title": "PVE revenue",
       "columns": {
@@ -5336,6 +5392,27 @@
         "neverSynced": {
           "text": "No PVE data has been synced yet",
           "effect": "Every figure above is empty until the first refresh"
+        }
+      }
+    },
+    "mining": {
+      "title": "Mining revenue",
+      "rowLabel": "Mining",
+      "columns": {
+        "sold": "Sold",
+        "corpProject": "Corp project",
+        "uncategorised": "Uncategorised"
+      },
+      "todo": {
+        "missingPrice": {
+          "text": "Ores without a price: {types}",
+          "effect": "The columns holding them are hatched and left out of the net until they have a price",
+          "action": "Ore value"
+        },
+        "uncategorised": {
+          "text": "{quantity} units of ore are not categorised",
+          "effect": "They are left out of the net until each line is set as sold or corp project",
+          "action": "Categorise"
         }
       }
     },

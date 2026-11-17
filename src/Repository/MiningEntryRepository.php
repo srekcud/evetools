@@ -353,6 +353,40 @@ class MiningEntryRepository extends ServiceEntityRepository
         return $byUsageAndType;
     }
 
+    /**
+     * @param list<string> $usages
+     * @return list<array{usage: string, day: string, typeId: int, characterId: int, characterName: string, quantity: int}>
+     */
+    public function getQuantitiesByUsageDayTypeAndCharacter(
+        User $user,
+        \DateTimeImmutable $from,
+        \DateTimeImmutable $to,
+        array $usages,
+    ): array {
+        $results = $this->createQueryBuilder('m')
+            ->select('m.usage, m.date as day, m.typeId, m.characterId, m.characterName, SUM(m.quantity) as totalQuantity')
+            ->where('m.user = :user')
+            ->andWhere('m.date >= :from')
+            ->andWhere('m.date <= :to')
+            ->andWhere('m.usage IN (:usages)')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->setParameter('usages', $usages)
+            ->groupBy('m.usage, m.date, m.typeId, m.characterId, m.characterName')
+            ->getQuery()
+            ->getResult();
+
+        return array_values(array_map(static fn (array $row): array => [
+            'usage' => (string) $row['usage'],
+            'day' => $row['day'] instanceof \DateTimeInterface ? $row['day']->format('Y-m-d') : (string) $row['day'],
+            'typeId' => (int) $row['typeId'],
+            'characterId' => (int) $row['characterId'],
+            'characterName' => (string) $row['characterName'],
+            'quantity' => (int) $row['totalQuantity'],
+        ], $results));
+    }
+
     public function findOldestDate(User $user): ?\DateTimeImmutable
     {
         $oldestDate = $this->createQueryBuilder('m')

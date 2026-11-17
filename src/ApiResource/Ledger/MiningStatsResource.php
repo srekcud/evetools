@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Ledger\MiningStatsByTypeProvider;
 use App\State\Provider\Ledger\MiningStatsDailyProvider;
+use App\State\Provider\Ledger\MiningStatsGridProvider;
 use App\State\Provider\Ledger\MiningStatsProvider;
 
 #[ApiResource(
@@ -33,6 +34,18 @@ use App\State\Provider\Ledger\MiningStatsProvider;
             output: MiningStatsDailyResource::class,
             openapi: new Model\Operation(
                 summary: 'Get daily mining statistics',
+                tags: ['Ledger - Mining'],
+                parameters: [
+                    new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
+                ],
+            ),
+        ),
+        new Get(
+            uriTemplate: '/ledger/mining/stats/grid',
+            provider: MiningStatsGridProvider::class,
+            output: MiningStatsGridResource::class,
+            openapi: new Model\Operation(
+                summary: 'Get mining revenue per usage with change, daily amounts and contributors',
                 tags: ['Ledger - Mining'],
                 parameters: [
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),

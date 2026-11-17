@@ -3,16 +3,17 @@ import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLedgerStore } from '@/stores/ledger'
 import { useFormatters } from '@/composables/useFormatters'
+import type { RevenueTodoItem } from '@/types/revenueGrid'
+import { MULTI_PRODUCT_CONTRIBUTOR_ID, buildIndustryNetSeries, buildIndustryRevenueColumns, hasNoKnownProfit } from '@/utils/industryRevenueGrid'
 import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import RevenueLineGrid from '@/components/revenue/RevenueLineGrid.vue'
+import RevenueTodoPanel from '@/components/revenue/RevenueTodoPanel.vue'
 
 const props = defineProps<{
   selectedDays: number
 }>()
-
-const MINIMUM_BAR_HEIGHT_PX = 4
-const MAXIMUM_BAR_HEIGHT_PX = 160
 
 const { t } = useI18n()
 const { formatIsk, formatNumber } = useFormatters()
@@ -22,18 +23,28 @@ const industry = computed(() => ledgerStore.industry)
 
 watch(() => props.selectedDays, days => ledgerStore.fetchIndustry(days), { immediate: true })
 
-const largestMonthlyProfit = computed(() =>
-  Math.max(1, ...(industry.value?.months ?? []).map(month => Math.abs(month.profit))),
+const columns = computed(() =>
+  industry.value === null
+    ? []
+    : buildIndustryRevenueColumns(industry.value, {
+        profit: t('revenue.industry.columns.profit'),
+        unknownProfit: t('revenue.industry.columns.unknownProfit'),
+        multiProduct: t('ledger.industry.multiProduct'),
+      }),
 )
+const netSeries = computed(() => (industry.value === null ? null : buildIndustryNetSeries(industry.value)))
+const period = computed(() => (industry.value === null ? null : { to: industry.value.period.to, days: industry.value.period.days }))
 
-function barHeightOf(profit: number): string {
-  const height = Math.abs(profit) / largestMonthlyProfit.value * MAXIMUM_BAR_HEIGHT_PX
-  return `${Math.max(MINIMUM_BAR_HEIGHT_PX, height)}px`
-}
-
-function hasNoKnownProfit(line: { projectCount: number; unknownProjectCount: number }): boolean {
-  return line.projectCount > 0 && line.unknownProjectCount === line.projectCount
-}
+const todoItems = computed<RevenueTodoItem[]>(() => {
+  const unknownProjectCount = industry.value?.totals.unknownProjectCount ?? 0
+  if (unknownProjectCount === 0) return []
+  return [{
+    text: t('revenue.industry.todo.unknownProfit.text', { count: unknownProjectCount }, unknownProjectCount),
+    effect: t('revenue.industry.todo.unknownProfit.effect'),
+    actionLabel: t('revenue.industry.todo.unknownProfit.action'),
+    to: { name: 'industry-projects' },
+  }]
+})
 
 function profitClassOf(profit: number): string {
   return profit < 0 ? 'text-red-400' : 'text-emerald-400'
@@ -58,58 +69,23 @@ function formatMonth(month: string): string {
     >{{ t('ledger.industry.empty') }}</div>
 
     <template v-else>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-slate-900 rounded-xl p-4 border border-emerald-500/20">
-          <span class="text-emerald-400 text-sm">{{ t('ledger.industry.totalProfit') }}</span>
-          <div class="mt-2 text-2xl font-bold text-emerald-400">
-            <UnknownValue v-if="hasNoKnownProfit(industry.totals)" />
-            <IskAmount v-else :value="industry.totals.profit" short />
-          </div>
-        </div>
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <span class="text-slate-400 text-sm">{{ t('ledger.industry.columns.projects') }}</span>
-          <div class="mt-2 text-2xl font-bold text-white">{{ industry.totals.projectCount }}</div>
-          <div v-if="industry.totals.unknownProjectCount > 0" class="mt-1 text-xs text-violet-300">
-            {{ t('ledger.industry.unknownProjects', { count: industry.totals.unknownProjectCount }, industry.totals.unknownProjectCount) }}
-          </div>
-        </div>
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <span class="text-slate-400 text-sm">{{ t('ledger.industry.columns.iskPerHour') }}</span>
-          <div class="mt-2 text-2xl font-bold text-white">
-            <IskAmount :value="industry.totals.iskPerHour" short />
-          </div>
-        </div>
-        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-          <span class="text-slate-400 text-sm">{{ t('ledger.industry.columns.capital') }}</span>
-          <div class="mt-2 text-2xl font-bold text-white">
-            <UnknownValue v-if="hasNoKnownProfit(industry.totals)" />
-            <IskAmount v-else :value="industry.totals.capital" short />
-          </div>
-        </div>
-      </div>
+      <RevenueLineGrid
+        v-if="netSeries && period"
+        :title="t('revenue.industry.title')"
+        :row-label="t('revenue.industry.rowLabel')"
+        :row-sub="t('revenue.industry.rowSub', { count: industry.totals.projectCount }, industry.totals.projectCount)"
+        :net-label="t('revenue.industry.columns.profit')"
+        :columns="columns"
+        :net="netSeries"
+        :period="period"
+        contributor-unit="products"
+      />
+      <RevenueTodoPanel :items="todoItems" />
 
       <div class="bg-slate-900 rounded-xl border border-slate-800">
         <div class="flex items-center justify-between p-4">
           <h3 class="text-sm font-semibold text-white">{{ t('ledger.industry.monthlyProfit') }}</h3>
           <span class="text-xs text-slate-500">{{ t('ledger.industry.completedProjects') }}</span>
-        </div>
-        <div class="flex flex-row-reverse items-end justify-center gap-6 px-4 pb-4" style="height: 220px">
-          <div
-            v-for="month in industry.months"
-            :key="month.month"
-            class="flex flex-1 flex-col items-center justify-end gap-2"
-          >
-            <span class="font-mono text-xs text-slate-300">
-              <UnknownValue v-if="hasNoKnownProfit(month)" />
-              <IskAmount v-else :value="month.profit" short />
-            </span>
-            <div
-              data-testid="industry-month-bar"
-              :class="['w-3/5 rounded-t', month.profit < 0 ? 'bg-red-500/70' : 'bg-cyan-500/70']"
-              :style="{ height: hasNoKnownProfit(month) ? `${MINIMUM_BAR_HEIGHT_PX}px` : barHeightOf(month.profit) }"
-            />
-            <span class="text-xs text-slate-500">{{ formatMonth(month.month) }}</span>
-          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -172,13 +148,15 @@ function formatMonth(month: string): string {
               <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-t border-slate-800">
                 <th class="px-4 py-2">{{ t('ledger.industry.columns.product') }}</th>
                 <th class="px-4 py-2 text-right">{{ t('ledger.industry.columns.projects') }}</th>
+                <th class="px-4 py-2 text-right">{{ t('ledger.industry.columns.capital') }}</th>
                 <th class="px-4 py-2 text-right">{{ t('ledger.industry.columns.profit') }}</th>
+                <th class="px-4 py-2 text-right">{{ t('ledger.industry.columns.margin') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="product in industry.products"
-                :key="product.typeId ?? 'multi-product'"
+                :key="product.typeId ?? MULTI_PRODUCT_CONTRIBUTOR_ID"
                 data-testid="industry-product-row"
                 class="border-t border-slate-800"
               >
@@ -194,9 +172,17 @@ function formatMonth(month: string): string {
                     {{ t('ledger.industry.unknownProjects', { count: product.unknownProjectCount }, product.unknownProjectCount) }}
                   </div>
                 </td>
+                <td class="px-4 py-2 text-right text-slate-300">
+                  <UnknownValue v-if="hasNoKnownProfit(product)" />
+                  <IskAmount v-else :value="product.capital" short />
+                </td>
                 <td class="px-4 py-2 text-right font-medium" :class="profitClassOf(product.profit)">
                   <UnknownValue v-if="hasNoKnownProfit(product)" />
                   <IskAmount v-else :value="product.profit" short />
+                </td>
+                <td class="px-4 py-2 text-right text-slate-300">
+                  <UnknownValue v-if="hasNoKnownProfit(product) || product.marginPercent === null" />
+                  <template v-else>{{ formatNumber(product.marginPercent, 1) }}%</template>
                 </td>
               </tr>
             </tbody>

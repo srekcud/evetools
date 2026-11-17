@@ -40,6 +40,9 @@ class LedgerIndustryResource
     /** @var array<string, mixed> */
     public array $totals = [];
 
+    /** @var array<string, float> */
+    public array $daily = [];
+
     /** @var list<array<string, mixed>> */
     public array $months = [];
 

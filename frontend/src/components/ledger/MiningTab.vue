@@ -3,8 +3,9 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLedgerStore, type MiningEntry } from '@/stores/ledger'
 import { useFormatters } from '@/composables/useFormatters'
-import { useMiningPricing } from '@/composables/useMiningPricing'
 import { useMiningValuationSettings } from '@/composables/useMiningValuationSettings'
+import ValuationSourceLabel from '@/components/mining-module/ValuationSourceLabel.vue'
+import MiningRevenueGrid from '@/components/revenue/MiningRevenueGrid.vue'
 import MiningStatsCards from './MiningStatsCards.vue'
 import MiningEntriesTable from './MiningEntriesTable.vue'
 
@@ -28,9 +29,6 @@ const miningStats = computed(() => ledgerStore.miningStats)
 const settings = computed(() => ledgerStore.settings)
 const isSyncing = computed(() => ledgerStore.isSyncing)
 
-// Pricing composable
-const { miningByUsage } = useMiningPricing(miningEntries)
-
 // Derived stats
 const activeDays = computed(() => {
   const uniqueDays = new Set(miningEntries.value.map(e => e.date.split('T')[0]))
@@ -46,9 +44,9 @@ const iskPerActiveDay = computed((): number | null => {
 })
 
 const missingPriceTypeLabels = computed((): string[] => {
-  if (miningStats.value === null) return []
+  if (ledgerStore.miningGrid === null) return []
   const typeNamesById = new Map(miningEntries.value.map(entry => [entry.typeId, entry.typeName]))
-  return miningStats.value.missingPriceTypeIds.map(typeId => typeNamesById.get(typeId) ?? `#${typeId}`)
+  return ledgerStore.miningGrid.missingPriceTypeIds.map(typeId => typeNamesById.get(typeId) ?? `#${typeId}`)
 })
 
 const mainSystem = computed(() => {
@@ -75,13 +73,19 @@ const mainSystem = computed(() => {
 
 // Table ref for page reset
 const tableRef = ref<InstanceType<typeof MiningEntriesTable> | null>(null)
+const entriesSection = ref<HTMLElement | null>(null)
 
 // Fetch mining data
 async function fetchMiningData() {
   await Promise.all([
     ledgerStore.fetchMiningEntries(props.selectedDays),
     ledgerStore.fetchMiningStats(props.selectedDays),
+    ledgerStore.fetchMiningGrid(props.selectedDays),
   ])
+}
+
+function showEntriesToCategorise() {
+  entriesSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 // Sync mining
@@ -98,6 +102,7 @@ async function syncMining() {
 async function handleUpdateUsage(entryId: string, usage: MiningEntry['usage']) {
   try {
     await ledgerStore.updateMiningEntryUsage(entryId, usage)
+    await ledgerStore.fetchMiningGrid(props.selectedDays)
   } catch (e) {
     console.error('Failed to update entry usage:', e)
   }
@@ -148,22 +153,25 @@ defineExpose({
     </div>
 
     <!-- Stats Cards -->
+    <div v-if="miningStats !== null" class="-mb-3 text-right"><ValuationSourceLabel :source="miningStats.valuationSource ?? null" /></div>
+    <MiningRevenueGrid :missing-price-labels="missingPriceTypeLabels" @categorise="showEntriesToCategorise" />
+
     <MiningStatsCards
-      :mining-by-usage="miningByUsage"
       :isk-per-active-day="iskPerActiveDay"
       :active-days="activeDays"
       :mining-stats="miningStats"
       :loading="ledgerStore.isLoading"
       :main-system="mainSystem"
-      :missing-price-type-labels="missingPriceTypeLabels"
     />
 
     <!-- Entries Table -->
-    <MiningEntriesTable
-      ref="tableRef"
-      :entries="miningEntries"
-      :selected-structure-id="selectedStructureId"
-      @update-usage="handleUpdateUsage"
-    />
+    <div ref="entriesSection">
+      <MiningEntriesTable
+        ref="tableRef"
+        :entries="miningEntries"
+        :selected-structure-id="selectedStructureId"
+        @update-usage="handleUpdateUsage"
+      />
+    </div>
   </div>
 </template>

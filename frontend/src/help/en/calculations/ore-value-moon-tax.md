@@ -13,11 +13,11 @@ Two pricing rules live side by side:
 |---|---|
 | "Mining" menu, "Ore value" tab, "Value per mined m³" table | Per ore: "Raw", "Compressed", "Reprocessed", "Best" and "Gap to best", in ISK/m³ |
 | Same page, "Reprocessing yield" panel | The yield used for the "Reprocessed" column |
-| "My mining" tab | "Total value" of the ore mined over the period, with its valuation source |
+| "Revenue" tab | "Sold", "Corp project" and "Uncategorised" columns: value of the ore mined over the period, with its valuation source |
 | "Moons" tab, "Chunks" sub-tab, "Value" column | "Estimated value" of a chunk and its share "At 4", "At 6", "At 8 participants" |
 | "Moons" tab, "Moon tax" sub-tab | "Due", "Paid", "Remaining" and "Status" of each statement |
 
-The settings at the top of the "Ore value" page ("Export tax", "Structure", "Market", "Valuation basis") are saved on your account: they also value "My mining" and the chunks ("The structure and the export tax also value the lines of My mining.").
+The settings at the top of the "Ore value" page ("Export tax", "Structure", "Market", "Valuation basis") are saved on your account: they also value "Revenue" and the chunks ("The structure and the export tax also value the lines of My mining.").
 
 ## The formula
 
@@ -64,9 +64,9 @@ yield = base × (1 + 0.03 × Reprocessing) × (1 + 0.02 × Reprocessing Efficien
 
 Rig and security only count in a structure. EVE Tools does not cap the result. The yield is recomputed when you save the panel or click "Recompute".
 
-### Value of mined ore ("My mining")
+### Value of mined ore ("Revenue")
 
-Total value = Σ (mined quantity of the type × unit price of the type on your profile)
+Value of a column = Σ (mined quantity of the type × unit price of the type on your profile)
 
 The quantity comes from your mining ledger, summed over the period. The profile's valuation basis ("Raw", "Compressed" or "Reprocessed") picks which of the three unit prices is used; "Reprocessed" uses the yield of your panel. A mining operation has its own basis, which replaces your profile (playbook, step 3).
 
@@ -115,7 +115,7 @@ Status of a statement that is neither cancelled nor marked paid: "Paid" when not
 | Volume, portion size, reprocessing minerals, group (rarity, family) | SDE | At each SDE import |
 | Skill levels | ESI, skills of the panel's character | On save or "Recompute" |
 | Location, rig, security, implant, export tax, market, basis, structure | Your settings | Saved on your account |
-| "My mining" quantities | ESI, mining ledger of your characters | See [data freshness and privacy](/help?page=data/freshness-privacy) |
+| "Revenue" quantities | ESI, mining ledger of your characters | See [data freshness and privacy](/help?page=data/freshness-privacy) |
 | Extraction start and chunk arrival | ESI, corporation extractions | Every 30 minutes |
 | Ore shares of a moon | Scan pasted by a player | Until the next paste |
 | Refinery ledger | ESI `/corporation/{id}/mining/observers/{observer_id}/`, one line per character, type and day, replaced at each read | Every hour, or "Sync" |
@@ -141,7 +141,7 @@ Example values, round, not taken from the game.
 | "Reprocessed" in ISK/m³ | 630 ÷ 10 | 63 |
 | "Best" | the highest | 109.9 (compressed) |
 
-If this is the best row of the table, its gap is 0.0 %; another row at 100 ISK/m³ shows (109.9 − 100) ÷ 109.9 × 100 = 9.0 %. With the "Compressed" basis, 1,000 mined units are worth 1,000 × 1,099 = 1,099,000 ISK in "My mining".
+If this is the best row of the table, its gap is 0.0 %; another row at 100 ISK/m³ shows (109.9 − 100) ÷ 109.9 × 100 = 9.0 %. With the "Compressed" basis, 1,000 mined units are worth 1,000 × 1,099 = 1,099,000 ISK in "Revenue".
 
 **Chunk value.** A 100 h extraction: 100 × 25,000 = 2,500,000 m³. Scan: ore A 40 %, ore B 60 %, both 10 m³ per unit, profile prices 500 ISK and 100 ISK.
 
@@ -183,8 +183,8 @@ Unknown shows as "—" (tooltip "Unknown value") or "unknown", never 0.
 | Ore without reprocessing minerals in the SDE | No reprocessed value | "—" with "Cannot be reprocessed" for screen readers |
 | Ore volume missing or zero | All its per-m³ values unknown | "—" |
 | None of the three values known | "Best" and "Gap to best" unknown | "—", row at the bottom of the table |
-| A mined type without a price on your profile | "Total value" unknown, not a partial sum | "Ores without a price: …" |
-| No mining over the period | Total value 0: there is nothing to value | 0 |
+| A mined type without a price on your profile | The column holding it is unknown (hatched, —), not a partial sum | "Ores without a price: …" |
+| No mining over the period | Columns at 0: there is nothing to value | 0 |
 | No moon scan | Chunk not valued | "value unknown · paste the moon scan" |
 | An ore of the scan without a price | Chunk not valued | "value unknown · price missing" |
 | An ore of the scan without a volume | Chunk not valued | "value unknown · ore volume missing" |
@@ -192,7 +192,7 @@ Unknown shows as "—" (tooltip "Unknown value") or "unknown", never 0.
 
 ## Pitfalls
 
-- **Two different prices for the same moon ore.** Chunk value and "My mining" follow your profile; moon tax always takes Jita buy compressed. With a "Jita sell" or "Reprocessed" profile, the tax cannot be derived from the value shown.
+- **Two different prices for the same moon ore.** Chunk value and "Revenue" follow your profile; moon tax always takes Jita buy compressed. With a "Jita sell" or "Reprocessed" profile, the tax cannot be derived from the value shown.
 - **The message of a chunk without a price is misleading.** The detail says "At least one ore of the scan has no compressed Jita buy price." while the missing price is the one of your profile.
 - **The export tax is partial.** It is only taken off Jita raw and compressed prices. Reprocessed values and structure prices carry no export tax, which favours the "Reprocessed" column over compressed once you enter a tax.
 - **A price clamped to 0 is not unknown.** If the export tax exceeds the price, raw or compressed shows 0 instead of "—".

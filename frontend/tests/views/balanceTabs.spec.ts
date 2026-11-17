@@ -5,7 +5,6 @@ import { createI18n } from 'vue-i18n'
 import type { LocationQuery } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
-import LedgerIndustryTab from '@/components/ledger/LedgerIndustryTab.vue'
 import { apiRequest } from '@/services/api'
 import Balance from '@/views/Balance.vue'
 
@@ -34,8 +33,7 @@ async function mountLedger(locale: 'en' | 'fr'): Promise<VueWrapper> {
       plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
       stubs: {
         MainLayout: MainLayoutStub,
-        LedgerDashboardTab: true,
-        LedgerIndustryTab: true,
+        BalanceRevenueGrid: true,
         PveTab: true,
         MiningTab: true,
         EscalationsTab: true,
@@ -64,22 +62,18 @@ beforeEach(() => {
   route.query = {}
 })
 
-describe('Balance industry tab', () => {
-  it('lists only the overview and industry tabs, in French and in English', async () => {
-    const french = tabLabels(await mountLedger('fr'))
-    const english = tabLabels(await mountLedger('en'))
-
-    expect(french).toEqual([fr.ledger.tabs.dashboard, 'Industrie'])
-    expect(english).toEqual([en.ledger.tabs.dashboard, 'Industry'])
+describe('Balance tabs', () => {
+  it('shows the overview alone, without tab bar, in French and in English', async () => {
+    expect(tabLabels(await mountLedger('fr'))).toEqual([])
+    expect(tabLabels(await mountLedger('en'))).toEqual([])
   })
 
-  it('shows the industry tab with the selected period when it is the active tab', async () => {
+  it('has no industry tab any more, the real profit lives in Industry › Revenue', async () => {
     route.query = { tab: 'industry' }
 
     const wrapper = await mountLedger('en')
 
-    const industryTab = wrapper.findComponent(LedgerIndustryTab)
-    expect(industryTab.exists()).toBe(true)
-    expect(industryTab.props('selectedDays')).toBe(STORED_PERIOD_DAYS)
+    expect(tabLabels(wrapper)).not.toContain('Industry')
+    expect(wrapper.findComponent({ name: 'IndustryRevenueTab' }).exists()).toBe(false)
   })
 })

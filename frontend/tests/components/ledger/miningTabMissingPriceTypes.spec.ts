@@ -45,14 +45,6 @@ beforeEach(() => {
 })
 
 describe('MiningTab while some mined ores have no price', () => {
-  it('lists the ores without a price under an unknown total value, by name when loaded, else by typeId', async () => {
-    const wrapper = await mountTab()
-
-    expect(cardValue(wrapper, en.ledger.mining.totalValue).textContent?.trim()).toBe('—')
-    expect(card(wrapper, en.ledger.mining.totalValue).get('[title]').attributes('title')).toBe('Unknown value')
-    expect(wrapper.findAll('*').some(element => element.text() === 'Ores without a price: Mystery Ore, #81144')).toBe(true)
-  })
-
   it('shows the ISK per active day as unknown instead of dividing an unknown total', async () => {
     const wrapper = await mountTab()
 
@@ -65,32 +57,5 @@ describe('MiningTab while some mined ores have no price', () => {
 
     const mainSystemShare = cardShare(wrapper, en.ledger.mining.mainSystem)
     expect(mainSystemShare.textContent?.trim()).toBe('—')
-  })
-
-  it('shows the personal value and share as unknown when a sold ore has no price', async () => {
-    const wrapper = await mountTab()
-
-    expect(cardValue(wrapper, en.ledger.mining.personal).textContent?.trim()).toBe('—')
-    expect(cardShare(wrapper, en.ledger.mining.personal).textContent?.trim()).toBe('—')
-  })
-
-  it('keeps the known corp value but shows its share of an unknown total as unknown', async () => {
-    const wrapper = await mountTab()
-
-    expect(cardValue(wrapper, en.ledger.mining.corp).textContent?.trim()).toBe('101.70 K')
-    expect(cardShare(wrapper, en.ledger.mining.corp).textContent?.trim()).toBe('—')
-  })
-
-  it('keeps the uncategorized value known at zero', async () => {
-    const wrapper = await mountTab()
-
-    expect(cardValue(wrapper, en.ledger.mining.usage.unknown).textContent?.trim()).toBe('0')
-  })
-
-  it('draws no personal segment in the ore breakdown bar', async () => {
-    const wrapper = await mountTab()
-
-    const breakdown = card(wrapper, en.ledger.mining.oreBreakdown)
-    expect(breakdown.find('.bg-emerald-500.h-full').exists()).toBe(false)
   })
 })

@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Service\Industry\Revenue\IndustryRevenueMonth;
 use App\Service\Industry\Revenue\IndustryRevenueProduct;
 use App\Service\Industry\Revenue\IndustryRevenueReader;
+use App\Service\Industry\Revenue\IndustryRevenueReport;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -21,6 +22,7 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 class LedgerIndustryProvider implements ProviderInterface
 {
     private const int DEFAULT_DAYS = 30;
+    private const int PERCENT = 100;
 
     public function __construct(
         private readonly Security $security,
@@ -41,6 +43,7 @@ class LedgerIndustryProvider implements ProviderInterface
         $to = new \DateTimeImmutable();
         $from = $to->modify("-{$days} days");
         $report = $this->industryRevenueReader->reportFor($user, $from, $to);
+        $previousReport = $this->industryRevenueReader->reportFor($user, $from->modify("-{$days} days"), $from);
 
         $resource = new LedgerIndustryResource();
         $resource->period = [
@@ -55,7 +58,9 @@ class LedgerIndustryProvider implements ProviderInterface
             'capital' => $report->totals->capital,
             'slotHours' => $report->totals->slotHours,
             'iskPerHour' => $report->totals->iskPerHour,
+            'change' => $this->profitChange($report, $previousReport),
         ];
+        $resource->daily = $report->dailyProfit;
         $resource->months = array_map(static fn (IndustryRevenueMonth $month): array => [
             'month' => $month->month,
             'projectCount' => $month->projectCount,
@@ -72,8 +77,24 @@ class LedgerIndustryProvider implements ProviderInterface
             'projectCount' => $product->projectCount,
             'unknownProjectCount' => $product->unknownProjectCount,
             'profit' => $product->profit,
+            'capital' => $product->capital,
+            'marginPercent' => $product->marginPercent,
         ], $report->products);
 
         return $resource;
+    }
+
+    private function profitChange(IndustryRevenueReport $current, IndustryRevenueReport $previous): ?float
+    {
+        if (!$this->hasKnownProfit($current) || !$this->hasKnownProfit($previous) || $previous->totals->profit === 0.0) {
+            return null;
+        }
+
+        return ($current->totals->profit - $previous->totals->profit) / abs($previous->totals->profit) * self::PERCENT;
+    }
+
+    private function hasKnownProfit(IndustryRevenueReport $report): bool
+    {
+        return $report->totals->projectCount > $report->totals->unknownProjectCount;
     }
 }

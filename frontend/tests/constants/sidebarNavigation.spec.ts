@@ -22,7 +22,7 @@ describe('sidebar navigation registry', () => {
   it('declares the eight modules in order with their route and their pages, and no collapsible group', () => {
     expect(allNavEntries.map(module => [module.id, module.route, pagesOf(module).map(page => page.route)])).toEqual([
       ['dashboard', '/dashboard', []],
-      ['industry', '/industry', ['/industry', '/industry/projects', '/industry/analysis', '/industry/production']],
+      ['industry', '/industry', ['/industry', '/industry/projects', '/industry/analysis', '/industry/production', '/industry/revenue']],
       ['mining', '/mining/operations', ['/mining/operations', '/mining/moons', '/mining/sites', '/mining/ore-value', '/mining/my-mining']],
       ['pve', '/pve/revenue', ['/pve/revenue', '/pve/escalations']],
       ['planetary', '/planetary', []],

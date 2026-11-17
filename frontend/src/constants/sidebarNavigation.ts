@@ -28,6 +28,7 @@ export const allNavEntries: NavModule[] = [
       { route: '/industry/projects', labelKey: 'industryModule.tabs.projects' },
       { route: '/industry/analysis', labelKey: 'industryModule.tabs.analysis' },
       { route: '/industry/production', labelKey: 'industryModule.tabs.production' },
+      { route: '/industry/revenue', labelKey: 'industryModule.tabs.revenue' },
     ],
   },
   {

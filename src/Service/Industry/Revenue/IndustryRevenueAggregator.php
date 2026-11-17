@@ -7,6 +7,7 @@ namespace App\Service\Industry\Revenue;
 class IndustryRevenueAggregator
 {
     private const string MONTH_FORMAT = 'Y-m';
+    private const string DAY_FORMAT = 'Y-m-d';
     private const int PERCENT = 100;
 
     /**
@@ -27,7 +28,29 @@ class IndustryRevenueAggregator
             ),
             $this->months($figures),
             $this->products($figures),
+            $this->dailyProfit($figures),
         );
+    }
+
+    /**
+     * @param list<CompletedProjectFigures> $figures
+     *
+     * @return array<string, float>
+     */
+    private function dailyProfit(array $figures): array
+    {
+        $profitByDay = [];
+        foreach ($figures as $project) {
+            if ($project->profit === null || $project->capital === null) {
+                continue;
+            }
+
+            $day = $project->completedAt->setTimezone(new \DateTimeZone('UTC'))->format(self::DAY_FORMAT);
+            $profitByDay[$day] = ($profitByDay[$day] ?? 0.0) + $project->profit;
+        }
+        ksort($profitByDay);
+
+        return $profitByDay;
     }
 
     /**
@@ -83,6 +106,8 @@ class IndustryRevenueAggregator
                 $summary['projectCount'],
                 $summary['unknownProjectCount'],
                 $summary['profit'],
+                $summary['capital'],
+                $summary['capital'] > 0 ? $summary['profit'] * self::PERCENT / $summary['capital'] : null,
             );
         }
 

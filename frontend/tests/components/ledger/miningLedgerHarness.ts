@@ -53,8 +53,9 @@ export function i18nPlugin() {
   return createI18n({ legacy: false, locale: 'en', messages: { en } })
 }
 
-export function respondWith(stats: () => Promise<unknown>, entries: () => Promise<unknown>) {
+export function respondWith(stats: () => Promise<unknown>, entries: () => Promise<unknown>, grid: () => Promise<unknown> = () => new Promise(() => {})) {
   vi.mocked(apiRequest).mockImplementation((endpoint: string) => {
+    if (endpoint.startsWith('/ledger/mining/stats/grid')) return grid()
     if (endpoint.startsWith('/ledger/mining/stats')) return stats()
     if (endpoint.startsWith('/ledger/mining/entries')) return entries()
     return new Promise(() => {})
