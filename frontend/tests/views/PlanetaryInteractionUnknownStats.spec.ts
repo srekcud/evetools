@@ -1,3 +1,5 @@
+import { reactive } from 'vue'
+import type { LocationQuery } from 'vue-router'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
@@ -6,6 +8,14 @@ import PlanetaryInteraction from '@/views/PlanetaryInteraction.vue'
 import PiKpiCards from '@/components/planetary/PiKpiCards.vue'
 import type { Colony, PlanetaryStats, ProductionTier } from '@/stores/planetary'
 import { apiRequest } from '@/services/api'
+
+const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/planetary', params: {}, query: {} })
+
+vi.mock(import('vue-router'), async importOriginal => ({
+  ...(await importOriginal()),
+  useRoute: (() => route) as never,
+  useRouter: (() => ({ replace: vi.fn(), push: vi.fn() })) as never,
+}))
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
