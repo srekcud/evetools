@@ -3,20 +3,16 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
-import { usePveStore } from '@/stores/pve'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePveExpenseScanning } from '@/composables/usePveExpenseScanning'
 import { usePveTypeSettings } from '@/composables/usePveTypeSettings'
-import PveDashboard from '@/components/pve/PveDashboard.vue'
-import IncomeChart from '@/components/pve/IncomeChart.vue'
-import ProfitTrendChart from '@/components/pve/ProfitTrendChart.vue'
-import ExpenseBreakdownChart from '@/components/pve/ExpenseBreakdownChart.vue'
 import AddExpenseDialog from '@/components/ledger/pve/AddExpenseDialog.vue'
 import AddLootSaleDialog from '@/components/ledger/pve/AddLootSaleDialog.vue'
 import TypeConfigDialog from '@/components/ledger/pve/TypeConfigDialog.vue'
 import ContractScanDialog from '@/components/ledger/pve/ContractScanDialog.vue'
 import LootSaleScanDialog from '@/components/ledger/pve/LootSaleScanDialog.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
+import PveRevenueGrid from '@/components/revenue/PveRevenueGrid.vue'
 import type { PveData, Expense } from '@/types/pve'
 
 const props = defineProps<{
@@ -29,7 +25,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const pveStore = usePveStore()
 const { formatIskFull, formatDate, formatDateTime } = useFormatters()
 
 // Template refs for child components
@@ -364,9 +359,8 @@ defineExpose({
     </div>
 
     <template v-else-if="pveData">
-      <!-- Dashboard with Charts -->
       <div class="mb-8">
-        <PveDashboard :days="selectedDays" />
+        <PveRevenueGrid :days="selectedDays" :never-synced="pveData.lastSyncAt === null" :refresh-token="pveData" @sync="syncPveData" />
       </div>
 
       <!-- Bounties, Loot Sales, Escalations and Expenses -->
@@ -561,27 +555,6 @@ defineExpose({
             {{ t('pve.noExpenses') }}
           </div>
         </div>
-      </div>
-
-      <!-- Charts Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <IncomeChart
-          v-if="pveStore.dailyStats.length > 0"
-          :data="pveStore.dailyStats"
-        />
-        <ProfitTrendChart
-          v-if="pveStore.dailyStats.length > 0"
-          :data="pveStore.dailyStats"
-        />
-        <ExpenseBreakdownChart
-          v-if="pveStore.stats && pveStore.stats.totals.expenses > 0"
-          :data="{
-            fuel: pveStore.stats.expensesByType?.fuel ?? 0,
-            ammo: pveStore.stats.expensesByType?.ammo ?? 0,
-            crab_beacon: pveStore.stats.expensesByType?.crab_beacon ?? 0,
-            other: pveStore.stats.expensesByType?.other ?? 0,
-          }"
-        />
       </div>
     </template>
 

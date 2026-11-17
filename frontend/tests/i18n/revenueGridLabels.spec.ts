@@ -16,3 +16,10 @@ describe('revenue grid labels', () => {
     expect(fr.revenue.todo.title).not.toBe(en.revenue.todo.title)
   })
 })
+
+describe('PVE revenue tab labels', () => {
+  it('names the tab and the page Revenue in English and Revenus in French, like the sidebar', () => {
+    expect([en.pveModule.tabs.revenue, en.pveModule.pages.revenue, en.nav.revenue]).toEqual(['Revenue', 'Revenue', 'Revenue'])
+    expect([fr.pveModule.tabs.revenue, fr.pveModule.pages.revenue, fr.nav.revenue]).toEqual(['Revenus', 'Revenus', 'Revenus'])
+  })
+})

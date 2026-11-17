@@ -2,99 +2,45 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
 
-export interface PveStats {
-  period: {
-    from: string
-    to: string
-    days: number
-  }
-  totals: {
-    income: number
-    bounties: number
-    ess: number
-    missions: number
-    lootSales: number
-    escalations: number
-    expenses: number
-    profit: number
-  }
-  expensesByType: {
-    fuel?: number
-    ammo?: number
-    crab_beacon?: number
-    other?: number
-  }
-  iskPerDay: number
+export const PVE_GRID_COLUMN_IDS = ['bounties', 'ess', 'missions', 'lootSales', 'escalations', 'expenses'] as const
+
+export type PveGridColumnId = (typeof PVE_GRID_COLUMN_IDS)[number]
+
+export interface PveGridColumn {
+  value: number
+  previous: number
+  change: number | null
+  daily: Record<string, number>
+  contributors: Array<{ name: string; value: number }> | null
 }
 
-export interface DailyStats {
-  date: string
-  income: number
-  bounties: number
-  lootSales: number
-  escalations: number
-  expenses: number
-  profit: number
+export interface PveGrid {
+  period: { from: string; to: string; days: number }
+  columns: Record<PveGridColumnId, PveGridColumn>
+  net: { value: number; previous: number; change: number | null; daily: Record<string, number> }
 }
 
 export const usePveStore = defineStore('pve', () => {
-  // State
-  const stats = ref<PveStats | null>(null)
-  const dailyStats = ref<DailyStats[]>([])
+  const grid = ref<PveGrid | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const selectedDays = ref(30)
 
-  // Actions
-  async function fetchStats(days?: number) {
+  async function fetchGrid(days: number) {
     isLoading.value = true
     error.value = null
 
     try {
-      const d = days ?? selectedDays.value
-      stats.value = await apiRequest<PveStats>(`/pve/stats?days=${d}`)
+      grid.value = await apiRequest<PveGrid>(`/pve/stats/grid?days=${days}`)
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch stats'
+      error.value = e instanceof Error ? e.message : 'Failed to fetch PVE revenue'
     } finally {
       isLoading.value = false
     }
-  }
-
-  async function fetchDailyStats(days?: number) {
-    error.value = null
-
-    try {
-      const d = days ?? selectedDays.value
-      const result = await apiRequest<{ daily: DailyStats[] }>(
-        `/pve/stats/daily?days=${d}`
-      )
-      dailyStats.value = result.daily
-    } catch (e) {
-      error.value =
-        e instanceof Error ? e.message : 'Failed to fetch daily stats'
-    }
-  }
-
-  function setSelectedDays(days: number) {
-    selectedDays.value = days
   }
 
   function clearError() {
     error.value = null
   }
 
-  return {
-    // State
-    stats,
-    dailyStats,
-    isLoading,
-    error,
-    selectedDays,
-
-    // Actions
-    fetchStats,
-    fetchDailyStats,
-    setSelectedDays,
-    clearError,
-  }
+  return { grid, isLoading, error, fetchGrid, clearError }
 })

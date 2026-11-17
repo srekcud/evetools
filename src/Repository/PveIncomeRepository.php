@@ -315,6 +315,60 @@ class PveIncomeRepository extends ServiceEntityRepository
         return $dailyTotals;
     }
 
+    /**
+     * @return array<string, array<string, float>> amounts per income type value, keyed by day
+     */
+    public function getDailyTotalsPerIncomeType(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        $results = $this->createQueryBuilder('i')
+            ->select('i.date as day, i.type, SUM(i.amount) as total')
+            ->where('i.user = :user')
+            ->andWhere('i.date >= :from')
+            ->andWhere('i.date <= :to')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->groupBy('i.date, i.type')
+            ->getQuery()
+            ->getResult();
+
+        $dailyTotals = [];
+        foreach ($results as $row) {
+            $day = $row['day'] instanceof \DateTimeImmutable ? $row['day']->format('Y-m-d') : (string) $row['day'];
+            $type = $row['type'] instanceof PveIncomeType ? $row['type']->value : (string) $row['type'];
+            $dailyTotals[$day][$type] = ($dailyTotals[$day][$type] ?? 0.0) + (float) $row['total'];
+        }
+
+        return $dailyTotals;
+    }
+
+    /**
+     * @param list<PveIncomeType> $types
+     * @return list<array{type: string, description: string, total: float}>
+     */
+    public function getTotalsByTypeAndDescription(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to, array $types): array
+    {
+        $results = $this->createQueryBuilder('i')
+            ->select('i.type, i.description, SUM(i.amount) as total')
+            ->where('i.user = :user')
+            ->andWhere('i.date >= :from')
+            ->andWhere('i.date <= :to')
+            ->andWhere('i.type IN (:types)')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->setParameter('types', array_map(static fn (PveIncomeType $type): string => $type->value, $types))
+            ->groupBy('i.type, i.description')
+            ->getQuery()
+            ->getResult();
+
+        return array_values(array_map(static fn (array $row): array => [
+            'type' => $row['type'] instanceof PveIncomeType ? $row['type']->value : (string) $row['type'],
+            'description' => (string) $row['description'],
+            'total' => (float) $row['total'],
+        ], $results));
+    }
+
     public function findOldestDate(User $user): ?\DateTimeImmutable
     {
         $oldestDate = $this->createQueryBuilder('i')
