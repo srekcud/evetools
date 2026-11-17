@@ -5,6 +5,7 @@ import { useLedgerStore } from '@/stores/ledger'
 import { useLedgerPeriod, daysSinceOldestEntry } from '@/composables/useLedgerPeriod'
 import { useTabQuery } from '@/composables/useTabQuery'
 import MainLayout from '@/layouts/MainLayout.vue'
+import SubTabs from '@/components/common/SubTabs.vue'
 import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LedgerDashboardTab from '@/components/ledger/LedgerDashboardTab.vue'
@@ -19,6 +20,7 @@ const ledgerStore = useLedgerStore()
 type TabId = 'dashboard' | 'industry' | 'settings'
 const validTabs: TabId[] = ['dashboard', 'industry', 'settings']
 const activeTab = useTabQuery(validTabs, 'dashboard')
+const subTabs = computed(() => validTabs.map(tab => ({ id: tab, label: t(`ledger.tabs.${tab}`) })))
 
 const { selectedDays, periodOptions, yearToDateDays } = useLedgerPeriod()
 
@@ -68,28 +70,7 @@ onMounted(async () => {
     <div class="space-y-6">
       <LedgerPeriodSelector v-model="selectedDays" :options="periodOptions" :ytd-days="yearToDateDays" :all-days="allDays" />
 
-      <!-- Tabs -->
-      <div class="border-b border-slate-800">
-        <nav class="flex gap-6">
-          <button
-            v-for="tab in [
-              { id: 'dashboard', label: t('ledger.tabs.dashboard') },
-              { id: 'industry', label: t('ledger.tabs.industry') },
-              { id: 'settings', label: t('ledger.tabs.settings') },
-            ]"
-            :key="tab.id"
-            @click="activeTab = tab.id as TabId"
-            :class="[
-              'pb-3 text-sm font-medium border-b-2 transition-colors',
-              activeTab === tab.id
-                ? 'border-cyan-500 text-cyan-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            ]"
-          >
-            {{ tab.label }}
-          </button>
-        </nav>
-      </div>
+      <SubTabs v-model="activeTab" :tabs="subTabs" />
 
       <!-- Loading state -->
       <div v-if="isLoading && !dashboard" key="loading" class="flex justify-center py-12">
