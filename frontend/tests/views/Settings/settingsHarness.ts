@@ -9,7 +9,7 @@ import { moduleRoutes } from '../../components/layout/moduleTabsHarness'
 
 export { callsTo, FailedAnswer, stubBackend, type BackendAnswer, type BackendCall } from '../../backendStub'
 
-export const SETTINGS_SECTIONS = ['account', 'display', 'market', 'industry', 'mining', 'pve', 'notifications']
+export const SETTINGS_SECTIONS = ['account', 'display', 'market', 'industry', 'mining', 'pve', 'patrimoine', 'notifications']
 
 interface SettingsMountOptions {
   locale?: 'en' | 'fr'

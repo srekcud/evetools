@@ -10,15 +10,14 @@ import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.v
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LedgerDashboardTab from '@/components/ledger/LedgerDashboardTab.vue'
 import LedgerPeriodSelector from '@/components/ledger/LedgerPeriodSelector.vue'
-import LedgerSettingsTab from '@/components/ledger/LedgerSettingsTab.vue'
 import LedgerIndustryTab from '@/components/ledger/LedgerIndustryTab.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
 const ledgerStore = useLedgerStore()
 
-type TabId = 'dashboard' | 'industry' | 'settings'
-const validTabs: TabId[] = ['dashboard', 'industry', 'settings']
+type TabId = 'dashboard' | 'industry'
+const validTabs: TabId[] = ['dashboard', 'industry']
 const activeTab = useTabQuery(validTabs, 'dashboard')
 const subTabs = computed(() => validTabs.map(tab => ({ id: tab, label: t(`ledger.tabs.${tab}`) })))
 
@@ -30,7 +29,6 @@ const dashboard = computed(() => ledgerStore.dashboard)
 const allDays = computed(() => daysSinceOldestEntry(dashboard.value?.oldestEntryDate))
 const dailyStats = computed(() => ledgerStore.dailyStats)
 
-const settings = computed(() => ledgerStore.settings)
 
 const maxDailyValue = computed(() => {
   if (!dailyStats.value?.daily) return 0
@@ -42,16 +40,7 @@ async function fetchData() {
   await Promise.all([
     ledgerStore.fetchDashboard(selectedDays.value),
     ledgerStore.fetchDailyStats(selectedDays.value),
-    ledgerStore.fetchSettings(),
   ])
-}
-
-async function updateCorpProjectAccounting(key: string, value: string) {
-  try {
-    await ledgerStore.updateSettings({ [key]: value })
-  } catch (e) {
-    console.error('Failed to update settings:', e)
-  }
 }
 
 watch(selectedDays, async () => {
@@ -89,14 +78,6 @@ onMounted(async () => {
 
       <div v-else-if="activeTab === 'industry'" key="industry">
         <LedgerIndustryTab :selected-days="selectedDays" />
-      </div>
-
-      <!-- Settings Tab -->
-      <div v-else-if="activeTab === 'settings'" key="settings">
-        <LedgerSettingsTab
-          :settings="settings"
-          @update-setting="updateCorpProjectAccounting"
-        />
       </div>
 
       <!-- Error state -->
