@@ -379,11 +379,23 @@
       "estimateNet": "Estimate",
       "estimateColumn": "Production estimate",
       "offMarket": "Off-market sales (not tracked)",
+      "walletUnsynced": "Wallet not synced (unknown)",
       "tiers": {
         "P1": "P1 · Basic",
         "P2": "P2 · Refined",
         "P3": "P3 · Specialized",
         "P4": "P4 · Advanced"
+      },
+      "walletTodo": {
+        "text": "{character}: wallet not synced ({reason})",
+        "effect": "Its PI sales are unknown, not zero: they stay out of the net and its colonies are not listed below as unsold",
+        "action": "Characters",
+        "status": {
+          "never_read": "never read",
+          "no_token": "no ESI token",
+          "missing_scope": "wallet permission missing",
+          "invalid_auth": "ESI login expired"
+        }
       },
       "todo": {
         "text": "{character}: {n} producing colony with no PI sale over the period ({planets}) | {character}: {n} producing colonies with no PI sale over the period ({planets})",

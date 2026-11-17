@@ -44,6 +44,14 @@ export interface PlanetaryRevenueToFix {
   solarSystemName: string | null
 }
 
+export type PlanetaryWalletStatus = 'never_read' | 'no_token' | 'missing_scope' | 'invalid_auth'
+
+export interface PlanetaryRevenueUnsyncedWallet {
+  characterId: number
+  characterName: string
+  status: PlanetaryWalletStatus
+}
+
 export interface PlanetaryRevenue {
   periodEnd: string
   days: number
@@ -58,6 +66,7 @@ export interface PlanetaryRevenue {
     contributors: PlanetaryRevenueContributor[]
   }
   toFix: PlanetaryRevenueToFix[]
+  unsyncedWallets: PlanetaryRevenueUnsyncedWallet[]
 }
 
 export interface Pin {

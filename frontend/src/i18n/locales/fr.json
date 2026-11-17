@@ -379,11 +379,23 @@
       "estimateNet": "Estimation",
       "estimateColumn": "Estimation de production",
       "offMarket": "Ventes hors marché (non suivies)",
+      "walletUnsynced": "Wallet non synchronisé (inconnu)",
       "tiers": {
         "P1": "P1 · Basique",
         "P2": "P2 · Raffiné",
         "P3": "P3 · Spécialisé",
         "P4": "P4 · Avancé"
+      },
+      "walletTodo": {
+        "text": "{character} : wallet non synchronisé ({reason})",
+        "effect": "Ses ventes PI sont inconnues, pas nulles : elles restent hors du net et ses colonies ne sont pas listées plus bas comme invendues",
+        "action": "Personnages",
+        "status": {
+          "never_read": "jamais lu",
+          "no_token": "aucun jeton ESI",
+          "missing_scope": "autorisation wallet manquante",
+          "invalid_auth": "connexion ESI expirée"
+        }
       },
       "todo": {
         "text": "{character} : {n} colonie en production sans vente PI sur la période ({planets}) | {character} : {n} colonies en production sans vente PI sur la période ({planets})",

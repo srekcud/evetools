@@ -28,6 +28,7 @@ const revenue = computed(() => planetaryStore.revenue)
 const labels = computed<PlanetaryRevenueLabels>(() => ({
   tier: tier => t(`pi.revenue.tiers.${tier}`),
   offMarket: t('pi.revenue.offMarket'),
+  walletUnsynced: t('pi.revenue.walletUnsynced'),
   estimate: t('pi.revenue.estimateColumn'),
 }))
 
@@ -36,7 +37,16 @@ const realisedColumns = computed(() => (revenue.value ? buildRealisedColumns(rev
 const estimateColumns = computed(() => (revenue.value ? [buildEstimateColumn(revenue.value, labels.value)] : []))
 const realisedNet = computed(() => (revenue.value ? buildRealisedNet(revenue.value) : ESTIMATE_NET))
 
-const todoItems = computed<RevenueTodoItem[]>(() =>
+const walletTodoItems = computed<RevenueTodoItem[]>(() =>
+  (revenue.value?.unsyncedWallets ?? []).map(wallet => ({
+    text: t('pi.revenue.walletTodo.text', { character: wallet.characterName, reason: t(`pi.revenue.walletTodo.status.${wallet.status}`) }),
+    effect: t('pi.revenue.walletTodo.effect'),
+    actionLabel: t('pi.revenue.walletTodo.action'),
+    to: { name: 'characters' },
+  })),
+)
+
+const unsoldColoniesTodoItems = computed<RevenueTodoItem[]>(() =>
   groupColoniesWithoutSale(revenue.value?.toFix ?? []).map(group => ({
     text: t('pi.revenue.todo.text', { character: group.characterName, n: group.planetNames.length, planets: group.planetNames.join(', ') }, group.planetNames.length),
     effect: t('pi.revenue.todo.effect'),
@@ -44,6 +54,8 @@ const todoItems = computed<RevenueTodoItem[]>(() =>
     to: { name: 'planetary' },
   })),
 )
+
+const todoItems = computed<RevenueTodoItem[]>(() => [...walletTodoItems.value, ...unsoldColoniesTodoItems.value])
 
 function periodButtonClass(days: number): string[] {
   return [
