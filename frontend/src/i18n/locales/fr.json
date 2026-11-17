@@ -5292,5 +5292,43 @@
     "extracted": "Extrait",
     "extractedUnknown": "inconnue",
     "extractedHint": "mesurée entre le premier et le dernier scan"
+  },
+  "revenue": {
+    "grid": {
+      "net": "Net",
+      "previousPeriod": "vs {n} j préc.",
+      "regularity": "Régularité",
+      "perDay": "par jour",
+      "perWeek": "par semaine",
+      "stripCount": "{active}/{total} {unit}",
+      "stripUnit": {
+        "day": "j",
+        "week": "sem."
+      },
+      "contributors": {
+        "characters": "Contributeurs",
+        "products": "Produits"
+      },
+      "more": {
+        "characters": "+{n} perso | +{n} persos",
+        "products": "+{n} produit | +{n} produits"
+      },
+      "changeUnknown": "Pas de période précédente comparable",
+      "regularityUnknown": "Revenu par jour inconnu",
+      "contributorsUnknown": "Contributeurs inconnus",
+      "unknownCell": "Valeur inconnue, hors du net",
+      "excludedFromNet": "hors du net",
+      "estimate": "estimation",
+      "todoBadge": "À traiter, point {n}",
+      "legend": {
+        "weight": "teinte = poids dans la ligne",
+        "estimate": "~ estimation",
+        "unknown": "inconnu, hors du net",
+        "todo": "à traiter"
+      }
+    },
+    "todo": {
+      "title": "À traiter · fausse les chiffres"
+    }
   }
 }
