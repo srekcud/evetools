@@ -4349,11 +4349,11 @@
   },
   "pveModule": {
     "tabs": {
-      "revenue": "Revenus PVE",
+      "revenue": "Revenus",
       "escalations": "Escalations"
     },
     "pages": {
-      "revenue": "Revenus PVE",
+      "revenue": "Revenus",
       "escalations": "Escalations"
     }
   },
@@ -5294,6 +5294,23 @@
     "extractedHint": "mesurée entre le premier et le dernier scan"
   },
   "revenue": {
+    "pve": {
+      "title": "Revenus PVE",
+      "columns": {
+        "bounties": "Bounties",
+        "ess": "ESS",
+        "missions": "Missions",
+        "lootSales": "Loot",
+        "escalations": "Escalations vendues",
+        "expenses": "Dépenses"
+      },
+      "todo": {
+        "neverSynced": {
+          "text": "Aucune donnée PVE synchronisée pour le moment",
+          "effect": "Tous les chiffres sont vides tant que le premier rafraîchissement n'a pas eu lieu"
+        }
+      }
+    },
     "grid": {
       "net": "Net",
       "previousPeriod": "vs {n} j préc.",
