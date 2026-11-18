@@ -49,4 +49,7 @@ final class PlanetaryRevenueResource
 
     /** @var list<array{characterId: int, characterName: string, planetId: int, planetName: string|null, solarSystemName: string|null}> */
     public array $toFix = [];
+
+    /** @var list<array{characterId: int, characterName: string, status: string}> */
+    public array $unsyncedWallets = [];
 }

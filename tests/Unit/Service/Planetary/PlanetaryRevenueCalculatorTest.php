@@ -6,14 +6,18 @@ namespace App\Tests\Unit\Service\Planetary;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
+use App\Entity\CharacterWalletReading;
+use App\Entity\EveToken;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
+use App\Repository\CharacterWalletReadingRepository;
 use App\Repository\PlanetaryColonyRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\Planetary\PlanetaryRevenueCalculator;
+use App\Service\Sync\WalletReadingStateReader;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -32,6 +36,7 @@ final class PlanetaryRevenueCalculatorTest extends TestCase
     private const int WATER_SCHEMATIC = 68;
     private const string NOW = '2026-11-17T10:00:00+00:00';
     private const int DAYS = 3;
+    private const string WALLET_SCOPE = 'esi-wallet.read_character_wallet.v1';
 
     private int $nextTransactionId = 1;
     private int $nextPinId = 1;
@@ -189,6 +194,68 @@ final class PlanetaryRevenueCalculatorTest extends TestCase
         $this->assertSame([40000005], array_column($report['toFix'], 'planetId'));
     }
 
+    public function testAColonyOfACharacterWhoseWalletWasNeverReadIsNotToFixAndTheWalletIsReportedUnsynced(): void
+    {
+        $synced = $this->character(2112000001, 'Pilot One');
+        $unsynced = $this->character(2112000002, 'Pilot Two');
+        $report = $this->report(
+            [],
+            [$synced, $unsynced],
+            [$this->factoryColony($synced, 40000001), $this->factoryColony($unsynced, 40000002), $this->factoryColony($unsynced, 40000003)],
+            unreadWalletCharacterIds: [2112000002],
+        );
+
+        $this->assertSame([40000001], array_column($report['toFix'], 'planetId'));
+        $this->assertSame(
+            [['characterId' => 2112000002, 'characterName' => 'Pilot Two', 'status' => 'never_read']],
+            $report['unsyncedWallets'],
+        );
+    }
+
+    public function testACharacterWithoutColoniesIsNotReportedUnsynced(): void
+    {
+        $withColony = $this->character(2112000001, 'Pilot One');
+        $withoutColony = $this->character(2112000002, 'Pilot Two');
+        $report = $this->report([], [$withColony, $withoutColony], [$this->factoryColony($withColony, 40000001)], unreadWalletCharacterIds: [2112000002]);
+
+        $this->assertSame([], $report['unsyncedWallets']);
+    }
+
+    public function testACharacterWithAnInvalidAuthIsUnsyncedEvenWhenItsLastReadSucceeded(): void
+    {
+        $pilot = $this->character(2112000001, 'Pilot One')->markAuthInvalid();
+        $report = $this->report([], [$pilot], [$this->factoryColony($pilot, 40000001)]);
+
+        $this->assertSame([], $report['toFix']);
+        $this->assertSame(
+            [['characterId' => 2112000001, 'characterName' => 'Pilot One', 'status' => 'invalid_auth']],
+            $report['unsyncedWallets'],
+        );
+    }
+
+    public function testAnUnsyncedCharacterKeepsItsCachedSalesInTheRealisedRevenue(): void
+    {
+        $pilot = $this->character(2112000001, 'Pilot One');
+        $report = $this->report(
+            [$this->sale($pilot, self::COOLANT, 1, 1_000.0, '2026-11-17T08:00:00+00:00')],
+            [$pilot],
+            [$this->factoryColony($pilot, 40000001)],
+            unreadWalletCharacterIds: [2112000001],
+        );
+
+        $this->assertSame(1_000.0, $report['realisedIsk']);
+        $this->assertSame(['never_read'], array_column($report['unsyncedWallets'], 'status'));
+    }
+
+    public function testASyncedAccountReportsNoUnsyncedWallet(): void
+    {
+        $pilot = $this->character(2112000001, 'Pilot One');
+        $report = $this->report([], [$pilot], [$this->factoryColony($pilot, 40000001)]);
+
+        $this->assertSame([], $report['unsyncedWallets']);
+        $this->assertSame([40000001], array_column($report['toFix'], 'planetId'));
+    }
+
     public function testThePeriodEndsToday(): void
     {
         $report = $this->report([], [], []);
@@ -201,9 +268,10 @@ final class PlanetaryRevenueCalculatorTest extends TestCase
      * @param Character[] $characters
      * @param PlanetaryColony[] $colonies
      * @param array<int, float> $dailyIskByCharacter
+     * @param list<int> $unreadWalletCharacterIds
      * @return array<string, mixed>
      */
-    private function report(array $sales, array $characters, array $colonies, array $dailyIskByCharacter = []): array
+    private function report(array $sales, array $characters, array $colonies, array $dailyIskByCharacter = [], array $unreadWalletCharacterIds = []): array
     {
         $user = new User();
         foreach ($characters as $character) {
@@ -248,13 +316,29 @@ final class PlanetaryRevenueCalculatorTest extends TestCase
             },
         );
 
-        return (new PlanetaryRevenueCalculator($transactionRepository, $colonyRepository, $schematicTypeRepository, $productionCalculator))
+        $readings = array_map(
+            fn (Character $character): CharacterWalletReading => (new CharacterWalletReading())
+                ->setCharacter($character)
+                ->setReadAt(new \DateTimeImmutable('2026-11-17T09:30:00+00:00'))
+                ->setNextReadAt(new \DateTimeImmutable('2026-11-17T10:30:00+00:00')),
+            array_values(array_filter(
+                $characters,
+                static fn (Character $character): bool => !in_array($character->getEveCharacterId(), $unreadWalletCharacterIds, true),
+            )),
+        );
+        $readingRepository = $this->createStub(CharacterWalletReadingRepository::class);
+        $readingRepository->method('findByCharacters')->willReturn($readings);
+
+        return (new PlanetaryRevenueCalculator($transactionRepository, $colonyRepository, $schematicTypeRepository, $productionCalculator, new WalletReadingStateReader($readingRepository)))
             ->calculate($user, new \DateTimeImmutable(self::NOW), self::DAYS);
     }
 
     private function character(int $eveCharacterId, string $name): Character
     {
-        return (new Character())->setEveCharacterId($eveCharacterId)->setName($name);
+        return (new Character())
+            ->setEveCharacterId($eveCharacterId)
+            ->setName($name)
+            ->setEveToken((new EveToken())->setScopes([self::WALLET_SCOPE]));
     }
 
     private function sale(Character $character, int $typeId, int $quantity, float $unitPrice, string $date, bool $isBuy = false): CachedWalletTransaction

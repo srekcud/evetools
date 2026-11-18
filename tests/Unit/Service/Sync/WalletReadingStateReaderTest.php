@@ -92,6 +92,35 @@ final class WalletReadingStateReaderTest extends TestCase
         );
     }
 
+    public function testUnsyncedStatusesCoverEveryCharacterWhoseWalletIsNotBeingRead(): void
+    {
+        $user = new User();
+        $read = $this->characterOf($user, 'Aria Solberg', (new EveToken())->setScopes([self::WALLET_SCOPE]))->setEveCharacterId(2112000001);
+        $neverRead = $this->characterOf($user, 'Brann Holt', (new EveToken())->setScopes([self::WALLET_SCOPE]))->setEveCharacterId(2112000002);
+        $missingScope = $this->characterOf($user, 'Cora Venn', (new EveToken())->setScopes(['esi-skills.read_skills.v1']))->setEveCharacterId(2112000003);
+        $withoutToken = $this->characterOf($user, 'Dorn Achar', null)->setEveCharacterId(2112000004);
+        $invalidAuth = $this->characterOf($user, 'Elin Marsk', (new EveToken())->setScopes([self::WALLET_SCOPE]))->setEveCharacterId(2112000005)->markAuthInvalid();
+        $readings = [
+            $this->readingOf($read, '2026-11-13T20:04:10+00:00', '2026-11-13T21:04:00+00:00'),
+            $this->readingOf($invalidAuth, '2026-11-13T20:04:10+00:00', '2026-11-13T21:04:00+00:00'),
+        ];
+
+        self::assertSame(
+            [2112000002 => 'never_read', 2112000003 => 'missing_scope', 2112000004 => 'no_token', 2112000005 => 'invalid_auth'],
+            $this->reader($readings)->unsyncedStatusByEveCharacterId($user),
+        );
+    }
+
+    public function testAUserWhoseWalletsAreAllReadHasNoUnsyncedStatus(): void
+    {
+        $user = new User();
+        $main = $this->characterOf($user, 'Aria Solberg', (new EveToken())->setScopes([self::WALLET_SCOPE]))->setEveCharacterId(2112000001);
+        $readings = [$this->readingOf($main, '2026-11-13T20:04:10+00:00', '2026-11-13T21:04:00+00:00')];
+
+        self::assertSame([], $this->reader($readings)->unsyncedStatusByEveCharacterId($user));
+        self::assertSame([], $this->reader([])->unsyncedStatusByEveCharacterId(new User()));
+    }
+
     public function testUserWithoutCharacterHasNoState(): void
     {
         self::assertSame([], $this->reader([])->forUser(new User()));

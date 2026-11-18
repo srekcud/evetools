@@ -3,10 +3,12 @@ import type { RevenueContributor, RevenueGridColumn, RevenueSeries } from '@/typ
 
 export const OFF_MARKET_COLUMN_ID = 'off-market'
 export const ESTIMATE_COLUMN_ID = 'estimate'
+export const WALLET_UNSYNCED_COLUMN_ID = 'wallet-unsynced'
 
 export interface PlanetaryRevenueLabels {
   tier: (tier: string) => string
   offMarket: string
+  walletUnsynced: string
   estimate: string
 }
 
@@ -42,7 +44,22 @@ export function buildRealisedColumns(revenue: PlanetaryRevenue, labels: Planetar
     contributors: null,
   }
 
-  return [...tierColumns, offMarketColumn]
+  const unsyncedCount = revenue.unsyncedWallets.length
+  if (unsyncedCount === 0) return [...tierColumns, offMarketColumn]
+
+  const walletUnsyncedColumn: RevenueGridColumn = {
+    id: WALLET_UNSYNCED_COLUMN_ID,
+    label: labels.walletUnsynced,
+    tone: 'neutral',
+    kind: 'unknown',
+    value: null,
+    change: null,
+    daily: null,
+    contributors: null,
+    headerBadge: unsyncedCount,
+  }
+
+  return [...tierColumns, offMarketColumn, walletUnsyncedColumn]
 }
 
 export function buildRealisedNet(revenue: PlanetaryRevenue): RevenueSeries {

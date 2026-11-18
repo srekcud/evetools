@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\PlanetaryColonyRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
+use App\Service\Sync\WalletReadingStateReader;
 
 final readonly class PlanetaryRevenueCalculator
 {
@@ -22,6 +23,7 @@ final readonly class PlanetaryRevenueCalculator
         private PlanetaryColonyRepository $colonyRepository,
         private PlanetSchematicTypeRepository $schematicTypeRepository,
         private PlanetaryProductionCalculator $productionCalculator,
+        private WalletReadingStateReader $walletReadingStateReader,
     ) {
     }
 
@@ -35,7 +37,8 @@ final readonly class PlanetaryRevenueCalculator
      *     realisedDaily: list<array{date: string, amount: float}>,
      *     realisedContributors: list<array{characterId: int, characterName: string, value: float}>,
      *     estimate: array{dailyIsk: float, periodIsk: float, contributors: list<array{characterId: int, characterName: string, value: float}>},
-     *     toFix: list<array{characterId: int, characterName: string, planetId: int, planetName: string|null, solarSystemName: string|null}>
+     *     toFix: list<array{characterId: int, characterName: string, planetId: int, planetName: string|null, solarSystemName: string|null}>,
+     *     unsyncedWallets: list<array{characterId: int, characterName: string, status: string}>
      * }
      */
     public function calculate(User $user, \DateTimeImmutable $now, int $days): array
@@ -66,6 +69,7 @@ final readonly class PlanetaryRevenueCalculator
         }
 
         $estimatedDailyIsk = $this->productionCalculator->calculateTotalDailyIsk($colonies);
+        $unsyncedStatuses = $this->walletReadingStateReader->unsyncedStatusByEveCharacterId($user);
 
         return [
             'periodEnd' => $now->format('Y-m-d'),
@@ -80,7 +84,8 @@ final readonly class PlanetaryRevenueCalculator
                 'periodIsk' => round($estimatedDailyIsk * $days, 2),
                 'contributors' => $this->estimateContributors($colonies, $days),
             ],
-            'toFix' => $this->coloniesWithoutSale($colonies, $current),
+            'toFix' => $this->coloniesWithoutSale($colonies, $current, $unsyncedStatuses),
+            'unsyncedWallets' => $this->unsyncedWallets($colonies, $unsyncedStatuses),
         ];
     }
 
@@ -206,10 +211,30 @@ final readonly class PlanetaryRevenueCalculator
 
     /**
      * @param PlanetaryColony[] $colonies
+     * @param array<int, string> $unsyncedStatuses
+     * @return list<array{characterId: int, characterName: string, status: string}>
+     */
+    private function unsyncedWallets(array $colonies, array $unsyncedStatuses): array
+    {
+        $unsynced = [];
+        foreach ($colonies as $colony) {
+            $character = $colony->getCharacter();
+            $eveCharacterId = $character->getEveCharacterId();
+            if (isset($unsyncedStatuses[$eveCharacterId])) {
+                $unsynced[$eveCharacterId] ??= ['characterId' => $eveCharacterId, 'characterName' => $character->getName(), 'status' => $unsyncedStatuses[$eveCharacterId]];
+            }
+        }
+
+        return array_values($unsynced);
+    }
+
+    /**
+     * @param PlanetaryColony[] $colonies
      * @param iterable<CachedWalletTransaction> $sales
+     * @param array<int, string> $unsyncedStatuses
      * @return list<array{characterId: int, characterName: string, planetId: int, planetName: string|null, solarSystemName: string|null}>
      */
-    private function coloniesWithoutSale(array $colonies, iterable $sales): array
+    private function coloniesWithoutSale(array $colonies, iterable $sales, array $unsyncedStatuses): array
     {
         $sellingCharacterIds = [];
         foreach ($sales as $sale) {
@@ -219,11 +244,12 @@ final readonly class PlanetaryRevenueCalculator
         $toFix = [];
         foreach ($colonies as $colony) {
             $character = $colony->getCharacter();
-            if (isset($sellingCharacterIds[$character->getEveCharacterId()]) || !$this->isProducing($colony)) {
+            $eveCharacterId = $character->getEveCharacterId();
+            if (isset($sellingCharacterIds[$eveCharacterId]) || isset($unsyncedStatuses[$eveCharacterId]) || !$this->isProducing($colony)) {
                 continue;
             }
             $toFix[] = [
-                'characterId' => $character->getEveCharacterId(),
+                'characterId' => $eveCharacterId,
                 'characterName' => $character->getName(),
                 'planetId' => $colony->getPlanetId(),
                 'planetName' => $colony->getPlanetName(),

@@ -2,6 +2,7 @@ import type { PlanetaryRevenue } from '@/stores/planetary'
 import {
   ESTIMATE_COLUMN_ID,
   OFF_MARKET_COLUMN_ID,
+  WALLET_UNSYNCED_COLUMN_ID,
   buildEstimateColumn,
   buildRealisedColumns,
   buildRealisedNet,
@@ -9,7 +10,7 @@ import {
 } from '@/utils/planetaryRevenue'
 import { sumNet } from '@/utils/revenueGrid'
 
-const LABELS = { tier: (tier: string) => `Tier ${tier}`, offMarket: 'Off-market', estimate: 'Estimate' }
+const LABELS = { tier: (tier: string) => `Tier ${tier}`, offMarket: 'Off-market', walletUnsynced: 'Wallet not synced', estimate: 'Estimate' }
 
 const REVENUE: PlanetaryRevenue = {
   periodEnd: '2026-11-17',
@@ -24,7 +25,13 @@ const REVENUE: PlanetaryRevenue = {
   realisedContributors: [{ characterId: 7, characterName: 'Ilyra Castell', value: 4_000_000 }],
   estimate: { dailyIsk: 500_000, periodIsk: 15_000_000, contributors: [{ characterId: 7, characterName: 'Ilyra Castell', value: 15_000_000 }] },
   toFix: [],
+  unsyncedWallets: [],
 }
+
+const UNSYNCED_WALLETS: PlanetaryRevenue['unsyncedWallets'] = [
+  { characterId: 8, characterName: 'Doran Vex', status: 'never_read' },
+  { characterId: 9, characterName: 'Mira Tull', status: 'invalid_auth' },
+]
 
 describe('planetary revenue columns', () => {
   it('builds one actual column per tier and a last off-market column excluded from the net with an unknown value', () => {
@@ -36,6 +43,23 @@ describe('planetary revenue columns', () => {
       [OFF_MARKET_COLUMN_ID, 'unknown', null],
     ])
     expect(columns[2]).toMatchObject({ daily: null, contributors: null, change: null })
+  })
+
+  it('adds no wallet column while every wallet is synced', () => {
+    expect(buildRealisedColumns(REVENUE, LABELS).map(column => column.id)).not.toContain(WALLET_UNSYNCED_COLUMN_ID)
+  })
+
+  it('adds a last hatched column with an unknown value and a badge counting the unsynced characters, never zero', () => {
+    const columns = buildRealisedColumns({ ...REVENUE, unsyncedWallets: UNSYNCED_WALLETS }, LABELS)
+
+    expect(columns.map(column => column.id)).toEqual(['P1', 'P2', OFF_MARKET_COLUMN_ID, WALLET_UNSYNCED_COLUMN_ID])
+    expect(columns[3]).toMatchObject({ kind: 'unknown', value: null, daily: null, contributors: null, change: null, headerBadge: 2, label: 'Wallet not synced' })
+  })
+
+  it('keeps the unsynced wallet column out of the net', () => {
+    const columns = buildRealisedColumns({ ...REVENUE, unsyncedWallets: UNSYNCED_WALLETS }, LABELS)
+
+    expect(sumNet(columns)).toBe(REVENUE.realisedIsk)
   })
 
   it('keeps the realised net free of the estimate', () => {

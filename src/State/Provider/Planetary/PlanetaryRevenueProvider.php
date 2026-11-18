@@ -51,6 +51,7 @@ final readonly class PlanetaryRevenueProvider implements ProviderInterface
         $resource->realisedContributors = $report['realisedContributors'];
         $resource->estimate = $report['estimate'];
         $resource->toFix = $report['toFix'];
+        $resource->unsyncedWallets = $report['unsyncedWallets'];
 
         return $resource;
     }

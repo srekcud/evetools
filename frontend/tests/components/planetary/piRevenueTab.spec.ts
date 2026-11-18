@@ -30,6 +30,7 @@ const REVENUE: PlanetaryRevenue = {
     { characterId: 8, characterName: 'Doran Vex', planetId: 40009081, planetName: 'Perimeter II', solarSystemName: 'Perimeter' },
     { characterId: 8, characterName: 'Doran Vex', planetId: 40009082, planetName: 'Perimeter III', solarSystemName: 'Perimeter' },
   ],
+  unsyncedWallets: [],
 }
 
 async function mountTab(revenue: PlanetaryRevenue = REVENUE, locale: 'en' | 'fr' = 'en') {
@@ -87,6 +88,51 @@ describe('PiRevenueTab', () => {
     const wrapper = await mountTab({ ...REVENUE, toFix: [] })
 
     expect(wrapper.find('[data-testid="revenue-todo-panel"]').exists()).toBe(false)
+  })
+
+  it('shows no wallet column and no wallet item while every wallet is synced', async () => {
+    const wrapper = await mountTab()
+
+    expect(wrapper.find('[data-column="wallet-unsynced"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="revenue-todo-panel"]').text()).not.toContain('wallet not synced')
+  })
+
+  it('shows a character whose wallet is not synced as an unknown hatched cell outside the net, with a badge, and lists it first in the to fix panel', async () => {
+    const wrapper = await mountTab({
+      ...REVENUE,
+      toFix: [],
+      unsyncedWallets: [
+        { characterId: 8, characterName: 'Doran Vex', status: 'never_read' },
+        { characterId: 9, characterName: 'Mira Tull', status: 'invalid_auth' },
+      ],
+    })
+    const realised = wrapper.findAll('[data-testid="revenue-line-grid"]')[0]
+    const items = wrapper.findAll('[data-testid="revenue-todo-panel"] li')
+
+    expect(realised?.get('[data-cell="wallet-unsynced"] > div').attributes('data-state')).toBe('unknown')
+    expect(realised?.get('[data-cell="wallet-unsynced"] > div').text()).toBe('—')
+    expect(realised?.get('[data-column="wallet-unsynced"] [data-testid="header-badge"]').text()).toBe('2')
+    expect(realised?.get('[data-testid="net-value"]').text()).toBe('4.00 M')
+    expect(items.map(item => item.get('p').text())).toEqual([
+      'Doran Vex: wallet not synced (never read)',
+      'Mira Tull: wallet not synced (ESI login expired)',
+    ])
+  })
+
+  it('puts the wallet items before the colonies without sale', async () => {
+    const wrapper = await mountTab({ ...REVENUE, unsyncedWallets: [{ characterId: 9, characterName: 'Mira Tull', status: 'no_token' }] })
+
+    expect(wrapper.findAll('[data-testid="revenue-todo-panel"] li').map(item => item.get('p').text())).toEqual([
+      'Mira Tull: wallet not synced (no ESI token)',
+      'Doran Vex: 2 producing colonies with no PI sale over the period (Perimeter II, Perimeter III)',
+    ])
+  })
+
+  it('words the wallet column and item in French', async () => {
+    const wrapper = await mountTab({ ...REVENUE, toFix: [], unsyncedWallets: [{ characterId: 8, characterName: 'Doran Vex', status: 'missing_scope' }] }, 'fr')
+
+    expect(wrapper.text()).toContain('Wallet non synchronisé (inconnu)')
+    expect(wrapper.get('[data-testid="revenue-todo-panel"]').text()).toContain('Doran Vex : wallet non synchronisé (autorisation wallet manquante)')
   })
 
   it('labels the tiers and the unknown column in French', async () => {
