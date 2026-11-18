@@ -37,6 +37,8 @@ Version 0.24 (2026-11-18)
   ventes reelles
 - Colonies qui produisent sans vente sur la periode signalees par
   personnage
+- Un personnage dont le wallet n'est pas synchronise est signale, et ses
+  colonies ne sont plus comptees comme sans vente
 
 ### Patrimoine
 - Nouvelle section Patrimoine dans les Parametres pour la comptabilite des
