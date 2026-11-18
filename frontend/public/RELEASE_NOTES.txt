@@ -3,6 +3,47 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.24 (2026-11-18)
+--------------------------------------------------------------------------------
+
+### Bilan
+- Le Bilan devient la synthese des revenus du compte sur une grille d'une
+  ligne : PVE, Minage, Industrie, Planetaire et minerai non valorise
+- Chaque colonne reprend le net de la page Revenus du module et l'ouvre
+- Planetaire : ventes reelles quand il y en a, sinon l'estimation de
+  production, marquee "~"
+- Panneau "A corriger" : minerais sans prix, minerai non categorise,
+  projets a profit inconnu, colonies qui produisent sans vente
+- Les anciennes cartes et graphiques du Bilan sont retires
+
+### PVE
+- L'onglet devient "Revenus" : primes, ESS, missions, loot, escalations
+  vendues et depenses sur une grille d'une ligne, avec le net
+- Evolution par rapport a la periode precedente, regularite par jour et
+  repartition par personnage (primes, ESS, missions)
+
+### Minage
+- "Mon minage" devient "Revenus" : vendu, projet corpo et non categorise
+  sur la grille d'une ligne, avec evolution, regularite et personnages
+- Un minerai sans prix n'est plus compte a 0 : sa colonne est marquee
+  inconnue et sortie du net
+- Panneau "A corriger" vers les minerais sans prix et le minerai a
+  categoriser
+
+### Planetaire
+- Nouvel onglet Revenus : ventes PI reelles lues dans le wallet, par
+  niveau (P1 a P4), sur 7, 30 ou 90 jours
+- L'estimation de production est affichee a part, jamais ajoutee aux
+  ventes reelles
+- Colonies qui produisent sans vente sur la periode signalees par
+  personnage
+
+### Patrimoine
+- Nouvelle section Patrimoine dans les Parametres pour la comptabilite des
+  projets corpo, avec un raccourci dans la barre d'onglets
+- Barres d'onglets harmonisees entre Industrie, Minage et Bilan
+
+--------------------------------------------------------------------------------
 Version 0.23 (2026-11-16)
 --------------------------------------------------------------------------------
 
