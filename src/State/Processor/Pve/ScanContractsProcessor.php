@@ -12,6 +12,7 @@ use App\Entity\PveExpense;
 use App\Entity\User;
 use App\Repository\PveExpenseRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -38,6 +39,7 @@ class ScanContractsProcessor implements ProcessorInterface
         private readonly UserPveSettingsRepository $settingsRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly RequestStack $requestStack,
+        private readonly UserLedgerSettingsRepository $ledgerSettingsRepository,
     ) {
     }
 
@@ -254,6 +256,8 @@ class ScanContractsProcessor implements ProcessorInterface
                 continue;
             }
         }
+
+        $this->ledgerSettingsRepository->recordExpenseScan($user, new \DateTimeImmutable());
 
         $resource = new ScanContractsResultResource();
         $resource->scannedContracts = $scannedContracts;

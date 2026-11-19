@@ -1,5 +1,5 @@
 import type { PveGrid } from '@/stores/pve'
-import { buildPveNetSeries, buildPveRevenueColumns } from '@/utils/pveRevenueGrid'
+import { buildPveNetSeries, buildPveRevenueColumns, pveTodoKinds } from '@/utils/pveRevenueGrid'
 
 const LABELS = { bounties: 'Bounties', ess: 'ESS', missions: 'Missions', lootSales: 'Loot', escalations: 'Escalations sold', expenses: 'Expenses' }
 
@@ -18,6 +18,13 @@ const GRID: PveGrid = {
     expenses: { value: 60, previous: 30, change: 100, daily: { '2026-11-17': 60 }, contributors: null },
   },
   net: { value: 260, previous: 170, change: 52.9, daily: { '2026-11-16': 100, '2026-11-17': 160 } },
+  scans: { lootSales: { lastScanAt: '2026-11-17T09:00:00+00:00', overdue: false }, expenses: { lastScanAt: '2026-11-17T09:00:00+00:00', overdue: false } },
+}
+
+const OVERDUE = { lastScanAt: null, overdue: true }
+
+function gridWithScans(scans: Partial<PveGrid['scans']>): PveGrid {
+  return { ...GRID, scans: { ...GRID.scans, ...scans } }
 }
 
 describe('buildPveRevenueColumns', () => {
@@ -70,6 +77,49 @@ describe('buildPveRevenueColumns', () => {
 
   it('keeps an unknown change unknown', () => {
     expect(buildPveRevenueColumns(GRID, LABELS)[1].change).toBeNull()
+  })
+})
+
+describe('pveTodoKinds', () => {
+  it('lists the sync first, then the loot scan, then the expense scan, each only when needed', () => {
+    expect(pveTodoKinds(gridWithScans({ lootSales: OVERDUE, expenses: OVERDUE }), true)).toEqual(['neverSynced', 'lootScan', 'expenseScan'])
+    expect(pveTodoKinds(gridWithScans({ expenses: OVERDUE }), false)).toEqual(['expenseScan'])
+    expect(pveTodoKinds(GRID, false)).toEqual([])
+  })
+
+  it('still asks for the sync while the grid is not loaded', () => {
+    expect(pveTodoKinds(null, true)).toEqual(['neverSynced'])
+    expect(pveTodoKinds(null, false)).toEqual([])
+  })
+})
+
+describe('buildPveRevenueColumns scan badges', () => {
+  it('numbers the Loot and Expenses badges after their position in the To fix panel', () => {
+    const columns = buildPveRevenueColumns(gridWithScans({ lootSales: OVERDUE, expenses: OVERDUE }), LABELS, ['neverSynced', 'lootScan', 'expenseScan'])
+
+    expect(columns.map(column => [column.id, column.headerBadge])).toEqual([
+      ['bounties', undefined],
+      ['ess', undefined],
+      ['missions', undefined],
+      ['lootSales', 2],
+      ['escalations', undefined],
+      ['expenses', 3],
+    ])
+  })
+
+  it('badges only the column whose scan is overdue', () => {
+    const columns = buildPveRevenueColumns(gridWithScans({ lootSales: OVERDUE }), LABELS, ['lootScan'])
+
+    expect(columns.find(column => column.id === 'lootSales')?.headerBadge).toBe(1)
+    expect(columns.find(column => column.id === 'expenses')?.headerBadge).toBeUndefined()
+  })
+
+  it('shows no badge without a To fix item, and leaves the figures alone', () => {
+    const plain = buildPveRevenueColumns(GRID, LABELS)
+    const badged = buildPveRevenueColumns(gridWithScans({ lootSales: OVERDUE }), LABELS, ['lootScan'])
+
+    expect(plain.every(column => column.headerBadge === undefined)).toBe(true)
+    expect(badged.map(column => ({ ...column, headerBadge: undefined }))).toEqual(plain.map(column => ({ ...column, headerBadge: undefined })))
   })
 })
 

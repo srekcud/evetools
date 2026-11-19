@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Entity\UserPveSettings;
 use App\Repository\PveExpenseRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -107,6 +108,27 @@ class ScanContractsProcessorTest extends TestCase
         $this->assertSame('market', $expense->source);
     }
 
+    #[Group('issue-1079')]
+    public function testTheScanRecordsTheMomentTheExpenseScanRan(): void
+    {
+        $ledgerSettingsRepository = $this->createMock(UserLedgerSettingsRepository::class);
+        $ledgerSettingsRepository->expects($this->once())
+            ->method('recordExpenseScan')
+            ->with($this->isInstanceOf(User::class), $this->callback(static fn (\DateTimeImmutable $scannedAt): bool => abs($scannedAt->getTimestamp() - time()) < 5));
+        $ledgerSettingsRepository->expects($this->never())->method('recordLootScan');
+
+        $this->createProcessor([], [], [], $ledgerSettingsRepository)->process(null, new Post());
+    }
+
+    #[Group('issue-1079')]
+    public function testTheScanRecordsItsRunEvenWithoutAnyAmmoTypeConfigured(): void
+    {
+        $ledgerSettingsRepository = $this->createMock(UserLedgerSettingsRepository::class);
+        $ledgerSettingsRepository->expects($this->once())->method('recordExpenseScan');
+
+        $this->createProcessor([], [], [], $ledgerSettingsRepository, [])->process(null, new Post());
+    }
+
     public function testKnownAmmoKeepsItsSdeNameInContractAndMarketExpenses(): void
     {
         $processor = $this->createProcessor(
@@ -129,7 +151,7 @@ class ScanContractsProcessorTest extends TestCase
         );
     }
 
-    private function createProcessor(array $contracts, array $itemsByContractId, array $transactions): ScanContractsProcessor
+    private function createProcessor(array $contracts, array $itemsByContractId, array $transactions, ?UserLedgerSettingsRepository $ledgerSettingsRepository = null, array $ammoTypeIds = [self::SCOURGE_FURY_HEAVY_MISSILE, self::AMMO_MISSING_FROM_SDE]): ScanContractsProcessor
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->createUserWithCharacter());
@@ -152,7 +174,7 @@ class ScanContractsProcessorTest extends TestCase
         );
 
         $settings = new UserPveSettings();
-        $settings->setAmmoTypeIds([self::SCOURGE_FURY_HEAVY_MISSILE, self::AMMO_MISSING_FROM_SDE]);
+        $settings->setAmmoTypeIds($ammoTypeIds);
         $settingsRepository = $this->createStub(UserPveSettingsRepository::class);
         $settingsRepository->method('getOrCreate')->willReturn($settings);
 
@@ -178,6 +200,7 @@ class ScanContractsProcessorTest extends TestCase
             $settingsRepository,
             $invTypeRepository,
             $requestStack,
+            $ledgerSettingsRepository ?? $this->createStub(UserLedgerSettingsRepository::class),
         );
     }
 

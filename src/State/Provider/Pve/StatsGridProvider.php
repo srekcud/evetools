@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Entity\UserLedgerSettings;
 use App\Repository\UserLedgerSettingsRepository;
 use App\Service\Pve\PveRevenueGridBuilder;
+use App\Service\Pve\PveScanOverdue;
 use App\Service\Pve\RequestedDays;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -54,7 +55,22 @@ class StatsGridProvider implements ProviderInterface
         ];
         $resource->columns = $grid['columns'];
         $resource->net = $grid['net'];
+        $resource->scans = [
+            PveRevenueGridBuilder::LOOT_SALES => self::scanState($ledgerSettings?->getLastLootScanAt(), $to),
+            PveRevenueGridBuilder::EXPENSES => self::scanState($ledgerSettings?->getLastExpenseScanAt(), $to),
+        ];
 
         return $resource;
+    }
+
+    /**
+     * @return array{lastScanAt: string|null, overdue: bool}
+     */
+    private static function scanState(?\DateTimeImmutable $lastScanAt, \DateTimeImmutable $now): array
+    {
+        return [
+            'lastScanAt' => $lastScanAt?->format(\DATE_ATOM),
+            'overdue' => PveScanOverdue::isOverdue($lastScanAt, $now),
+        ];
     }
 }

@@ -63,6 +63,12 @@ const scanning = usePveExpenseScanning(
   () => { showLootConfig.value = true },
 )
 
+const scanCompletions = ref(0)
+watch([scanning.isScanning, scanning.isScanningLoot], ([isScanningExpenses, isScanningLoot], [wasScanningExpenses, wasScanningLoot]) => {
+  if ((wasScanningExpenses && !isScanningExpenses) || (wasScanningLoot && !isScanningLoot)) scanCompletions.value++
+})
+const gridRefreshToken = computed(() => [pveData.value, scanCompletions.value])
+
 const typeSettings = usePveTypeSettings(
   (contracts: number, transactions: number) => {
     scanning.setDeclinedCounts(contracts, transactions)
@@ -360,7 +366,14 @@ defineExpose({
 
     <template v-else-if="pveData">
       <div class="mb-8">
-        <PveRevenueGrid :days="selectedDays" :never-synced="pveData.lastSyncAt === null" :refresh-token="pveData" @sync="syncPveData" />
+        <PveRevenueGrid
+          :days="selectedDays"
+          :never-synced="pveData.lastSyncAt === null"
+          :refresh-token="gridRefreshToken"
+          @sync="syncPveData"
+          @scan-loot="scanning.scanLootSales(selectedDays)"
+          @scan-expenses="scanning.scanContracts(selectedDays)"
+        />
       </div>
 
       <!-- Bounties, Loot Sales, Escalations and Expenses -->
