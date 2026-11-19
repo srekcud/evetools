@@ -9,7 +9,7 @@ final readonly class CourierOverview
     /**
      * @param list<CourierLine>      $lines
      * @param list<CourierCandidate> $candidates
-     * @param list<CourierOriginQuote> $otherOrigins
+     * @param list<CourierOtherOriginLine> $otherOriginLines
      * @param list<CourierUnknownOriginLine> $unknownOriginLines
      */
     public function __construct(
@@ -22,7 +22,7 @@ final readonly class CourierOverview
         public ?CourierLinkedContract $contract,
         public array $lines,
         public array $candidates,
-        public array $otherOrigins,
+        public array $otherOriginLines,
         public array $unknownOriginLines,
     ) {
     }

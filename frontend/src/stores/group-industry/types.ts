@@ -1102,15 +1102,12 @@ export interface CourierCandidate extends CourierContractFigures {
   matchesQuote: boolean
 }
 
-export interface CourierOriginQuote {
+export interface CourierOtherOriginLine {
   solarSystemId: number
   solarSystemName: string | null
-  volumeCubicMeters: number | null
-  collateral: number | null
-  reward: number | null
-  jumps: number | null
-  quoteStatus: CourierQuoteStatus
-  missingVolumeTypeIds: number[]
+  typeId: number
+  typeName: string | null
+  quantity: number
 }
 
 export interface CourierUnknownOriginLine {
@@ -1137,7 +1134,7 @@ export interface ProjectCourier {
   contract: CourierLinkedContract | null
   lines: CourierLine[]
   candidates: CourierCandidate[]
-  otherOrigins: CourierOriginQuote[]
+  otherOriginLines: CourierOtherOriginLine[]
   unknownOriginLines: CourierUnknownOriginLine[]
 }
 

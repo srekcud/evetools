@@ -37,6 +37,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(CourierOverviewBuilder::class)]
 #[Group('issue-1022')]
+#[Group('issue-1084')]
 final class CourierOverviewBuilderTest extends TestCase
 {
     private const int TRITANIUM = 34;
@@ -148,18 +149,19 @@ final class CourierOverviewBuilderTest extends TestCase
 
         self::assertSame([self::JITA, 'Jita', self::PERIMETER, 'Perimeter'], $this->routeOf($overview));
         self::assertSame([10.0, 1_000_000, 1_500, 1, 'ready', []], $this->quoteRow($overview->quote));
-        self::assertSame([[], []], [$overview->otherOrigins, $overview->unknownOriginLines]);
+        self::assertSame([[], []], [$overview->otherOriginLines, $overview->unknownOriginLines]);
     }
 
-    public function testPurchasesMadeInAnotherHubAreQuotedFromThatHubWithItsOwnJumps(): void
+    public function testPurchasesMadeInAnotherHubGetNoCourierQuoteAndAreListedWithTheirOrigin(): void
     {
         $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::AMARR_STATION);
 
         $overview = $this->overview();
 
-        self::assertSame([self::AMARR, 'Amarr', self::PERIMETER, 'Perimeter'], $this->routeOf($overview));
-        self::assertSame([10.0, 1_000_000, 13_500, 9, 'ready', []], $this->quoteRow($overview->quote));
-        self::assertSame([[], []], [$overview->otherOrigins, $overview->unknownOriginLines]);
+        self::assertSame([null, null, self::PERIMETER, 'Perimeter'], $this->routeOf($overview));
+        self::assertSame([null, null, null, null, 'no_purchases', []], $this->quoteRow($overview->quote));
+        self::assertSame([[self::AMARR, 'Amarr', self::TRITANIUM, 1_000]], $this->otherOriginRows($overview));
+        self::assertSame([[], []], [$overview->lines, $overview->unknownOriginLines]);
     }
 
     public function testPurchasesMadeInTheWorkshopSystemNeedNoTransport(): void
@@ -170,48 +172,38 @@ final class CourierOverviewBuilderTest extends TestCase
 
         self::assertSame([null, null, self::PERIMETER, 'Perimeter'], $this->routeOf($overview));
         self::assertSame([null, null, null, null, 'no_purchases', []], $this->quoteRow($overview->quote));
-        self::assertSame([[], [], []], [$overview->otherOrigins, $overview->unknownOriginLines, $overview->lines]);
+        self::assertSame([[], [], []], [$overview->otherOriginLines, $overview->unknownOriginLines, $overview->lines]);
     }
 
-    public function testTheOriginWithTheLargestCollateralIsTheMainOneAndTheOtherIsListed(): void
+    public function testMixedJitaAndHubPurchasesAreQuotedFromJitaOnlyWhateverTheHubCollateral(): void
     {
         $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
         $this->buy(self::NOCXIUM, 100, 5_000_000.0, self::AMARR_STATION);
 
         $overview = $this->overview();
 
-        self::assertSame([self::AMARR, 'Amarr'], [$overview->originSolarSystemId, $overview->originSolarSystemName]);
-        self::assertSame([5.0, 5_000_000, 6_750, 9, 'ready', []], $this->quoteRow($overview->quote));
-        self::assertSame(
-            [[self::JITA, 'Jita', 10.0, 1_000_000, 1_500, 1, 'ready', []]],
-            array_map($this->originRow(...), $overview->otherOrigins),
-        );
+        self::assertSame([self::JITA, 'Jita'], [$overview->originSolarSystemId, $overview->originSolarSystemName]);
+        self::assertSame([10.0, 1_000_000, 1_500, 1, 'ready', []], $this->quoteRow($overview->quote));
+        self::assertSame([[self::AMARR, 'Amarr', self::NOCXIUM, 100]], $this->otherOriginRows($overview));
     }
 
-    public function testOtherOriginsAreSortedByDescendingCollateral(): void
+    public function testOtherOriginLinesAreSortedBySolarSystemThenTypeAndSummedPerType(): void
     {
-        $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
         $this->buy(self::NOCXIUM, 100, 5_000_000.0, self::AMARR_STATION);
         $this->buy(self::MORPHITE, 20, 3_000_000.0, self::RENS_STATION);
+        $tritaniumLine = $this->buy(self::TRITANIUM, 400, 500_000.0, self::AMARR_STATION);
+        $this->buyOn($tritaniumLine, 100, 100_000.0, self::AMARR_STRUCTURE);
 
         $overview = $this->overview();
 
-        self::assertSame(self::AMARR, $overview->originSolarSystemId);
         self::assertSame(
-            [[self::RENS, 'Rens', 10.0, 3_000_000, 9_000, 6, 'ready', []], [self::JITA, 'Jita', 10.0, 1_000_000, 1_500, 1, 'ready', []]],
-            array_map($this->originRow(...), $overview->otherOrigins),
+            [
+                [self::AMARR, 'Amarr', self::TRITANIUM, 500],
+                [self::AMARR, 'Amarr', self::NOCXIUM, 100],
+                [self::RENS, 'Rens', self::MORPHITE, 20],
+            ],
+            $this->otherOriginRows($overview),
         );
-    }
-
-    public function testOriginsWithTheSameCollateralKeepTheSmallestSolarSystemIdAsMain(): void
-    {
-        $this->buy(self::NOCXIUM, 100, 1_000_000.0, self::AMARR_STATION);
-        $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
-
-        $overview = $this->overview();
-
-        self::assertSame(self::JITA, $overview->originSolarSystemId);
-        self::assertSame([self::AMARR], array_map(static fn ($origin): int => $origin->solarSystemId, $overview->otherOrigins));
     }
 
     public function testQuantityBoughtInTheWorkshopSystemIsLeftOutOfTheQuoteAndTheLine(): void
@@ -225,7 +217,7 @@ final class CourierOverviewBuilderTest extends TestCase
         self::assertSame([[$line->getId()->toRfc4122(), self::TRITANIUM, 1_000]], $this->lineRows($overview));
     }
 
-    public function testTheSameTypeBoughtInTwoHubsIsQuotedOnceForEachHub(): void
+    public function testTheSameTypeBoughtInJitaAndInAHubIsQuotedFromJitaAndTheHubQuantityIsListed(): void
     {
         $line = $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
         $this->buyOn($line, 400, 500_000.0, self::AMARR_STATION);
@@ -233,11 +225,8 @@ final class CourierOverviewBuilderTest extends TestCase
         $overview = $this->overview();
 
         self::assertSame([self::JITA, [10.0, 1_000_000, 1_500, 1, 'ready', []]], [$overview->originSolarSystemId, $this->quoteRow($overview->quote)]);
-        self::assertSame(
-            [[self::AMARR, 'Amarr', 4.0, 500_000, 5_400, 9, 'ready', []]],
-            array_map($this->originRow(...), $overview->otherOrigins),
-        );
-        self::assertSame([[$line->getId()->toRfc4122(), self::TRITANIUM, 1_400]], $this->lineRows($overview));
+        self::assertSame([[self::AMARR, 'Amarr', self::TRITANIUM, 400]], $this->otherOriginRows($overview));
+        self::assertSame([[$line->getId()->toRfc4122(), self::TRITANIUM, 1_000]], $this->lineRows($overview));
     }
 
     public function testManualPurchasesAreAnUnknownOriginAndNeverQuotedFromJita(): void
@@ -249,7 +238,7 @@ final class CourierOverviewBuilderTest extends TestCase
         self::assertSame([null, null], [$overview->originSolarSystemId, $overview->originSolarSystemName]);
         self::assertSame([null, null, null, null, 'no_purchases', []], $this->quoteRow($overview->quote));
         self::assertSame([[self::TRITANIUM, 1_000]], $this->unknownRows($overview));
-        self::assertSame([[], []], [$overview->otherOrigins, $overview->lines]);
+        self::assertSame([[], []], [$overview->otherOriginLines, $overview->lines]);
     }
 
     public function testManualQuantityOfAJitaTypeIsKeptOutOfTheQuoteAndListedAsUnknownOrigin(): void
@@ -283,6 +272,7 @@ final class CourierOverviewBuilderTest extends TestCase
 
         self::assertSame('no_purchases', $overview->quote->quoteStatus);
         self::assertSame([[self::MORPHITE, 20]], $this->unknownRows($overview));
+        self::assertSame([], $overview->otherOriginLines);
     }
 
     public function testAPurchaseOfQuantityZeroIsIgnoredWhateverItsOrigin(): void
@@ -293,37 +283,46 @@ final class CourierOverviewBuilderTest extends TestCase
 
         $overview = $this->overview();
 
-        self::assertSame([[], []], [$overview->otherOrigins, $overview->unknownOriginLines]);
+        self::assertSame([[], []], [$overview->otherOriginLines, $overview->unknownOriginLines]);
         self::assertSame([[$line->getId()->toRfc4122(), self::TRITANIUM, 1_000]], $this->lineRows($overview));
     }
 
-    public function testWithoutManufacturingSystemTheOriginIsKeptAndTheQuoteHasNoRoute(): void
+    public function testWithoutManufacturingSystemTheJitaQuoteHasNoRoute(): void
+    {
+        $this->manufacturingSystemId = null;
+        $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
+
+        $overview = $this->overview();
+
+        self::assertSame([self::JITA, 'Jita', null, null], $this->routeOf($overview));
+        self::assertSame([10.0, 1_000_000, null, null, 'workshop_unknown', []], $this->quoteRow($overview->quote));
+    }
+
+    public function testWithoutManufacturingSystemAHubPurchaseStillGetsNoQuote(): void
     {
         $this->manufacturingSystemId = null;
         $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::AMARR_STATION);
 
         $overview = $this->overview();
 
-        self::assertSame([self::AMARR, 'Amarr', null, null], $this->routeOf($overview));
-        self::assertSame([10.0, 1_000_000, null, null, 'workshop_unknown', []], $this->quoteRow($overview->quote));
+        self::assertSame([null, null, null, null], $this->routeOf($overview));
+        self::assertSame('no_purchases', $overview->quote->quoteStatus);
+        self::assertSame([[self::AMARR, 'Amarr', self::TRITANIUM, 1_000]], $this->otherOriginRows($overview));
     }
 
-    public function testAMissingVolumeOnlyAffectsTheOriginOfThatType(): void
+    public function testAMissingVolumeOnlyAffectsTheJitaQuote(): void
     {
-        $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
-        $this->buy(self::TYPE_WITHOUT_VOLUME, 3, 5_000_000.0, self::AMARR_STATION);
+        $this->buy(self::TYPE_WITHOUT_VOLUME, 3, 5_000_000.0, self::JITA_STATION);
+        $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::AMARR_STATION);
 
         $overview = $this->overview();
 
-        self::assertSame(self::AMARR, $overview->originSolarSystemId);
-        self::assertSame([null, 5_000_000, null, 9, 'volume_unknown', [self::TYPE_WITHOUT_VOLUME]], $this->quoteRow($overview->quote));
-        self::assertSame(
-            [[self::JITA, 'Jita', 10.0, 1_000_000, 1_500, 1, 'ready', []]],
-            array_map($this->originRow(...), $overview->otherOrigins),
-        );
+        self::assertSame(self::JITA, $overview->originSolarSystemId);
+        self::assertSame([null, 5_000_000, null, 1, 'volume_unknown', [self::TYPE_WITHOUT_VOLUME]], $this->quoteRow($overview->quote));
+        self::assertSame([[self::AMARR, 'Amarr', self::TRITANIUM, 1_000]], $this->otherOriginRows($overview));
     }
 
-    public function testContractCandidatesAreMatchedAgainstTheMainOriginOnly(): void
+    public function testContractCandidatesAreMatchedAgainstTheJitaQuoteOnly(): void
     {
         $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
         $this->buy(self::NOCXIUM, 100, 5_000_000.0, self::AMARR_STATION);
@@ -336,7 +335,7 @@ final class CourierOverviewBuilderTest extends TestCase
         $overview = $this->builder->build($this->project, $this->owner);
 
         self::assertSame(
-            [[1_022_002, false], [1_022_001, true]],
+            [[1_022_002, true], [1_022_001, false]],
             array_map(static fn ($candidate): array => [$candidate->contract->contractId, $candidate->matchesQuote], $overview->candidates),
         );
     }
@@ -393,9 +392,9 @@ final class CourierOverviewBuilderTest extends TestCase
         return [$quote->volumeCubicMeters, $quote->collateral, $quote->reward, $quote->jumps, $quote->quoteStatus, $quote->missingVolumeTypeIds];
     }
 
-    private function originRow(object $origin): array
+    private function otherOriginRows(CourierOverview $overview): array
     {
-        return [$origin->solarSystemId, $origin->solarSystemName, ...$this->quoteRow($origin->quote)];
+        return array_map(static fn ($line): array => [$line->solarSystemId, $line->solarSystemName, $line->typeId, $line->quantity], $overview->otherOriginLines);
     }
 
     private function lineRows(CourierOverview $overview): array

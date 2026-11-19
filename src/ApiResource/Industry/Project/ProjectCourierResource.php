@@ -115,7 +115,7 @@ class ProjectCourierResource
     /**
      * @var list<array<string, mixed>>
      */
-    public array $otherOrigins = [];
+    public array $otherOriginLines = [];
 
     /**
      * @var list<array<string, mixed>>
