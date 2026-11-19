@@ -38,6 +38,7 @@ class AutomaticPurchaseLinker
             return;
         }
 
+        usort($openProjects, static fn (IndustryProject $first, IndustryProject $second): int => $first->getCreatedAt() <=> $second->getCreatedAt());
         usort($transactions, static fn (CachedWalletTransaction $first, CachedWalletTransaction $second): int => $first->getDate() <=> $second->getDate());
 
         $linkedCount = 0;
@@ -47,17 +48,17 @@ class AutomaticPurchaseLinker
                 continue;
             }
 
-            $candidateLines = $this->candidateLinesOf($openProjects, $transaction);
-            if (\count($candidateLines) !== 1 || $transaction->getQuantity() > $this->quantityLeftToBuy($candidateLines[0])) {
+            $line = $this->lineToLink($openProjects, $transaction);
+            if ($line === null) {
                 continue;
             }
 
             $purchase = ProjectPurchaseFactory::fromTransaction($transaction, null);
-            $purchase->setBuyer($candidateLines[0]->getProject()->getOwnerParticipant());
-            $candidateLines[0]->addPurchase($purchase);
+            $purchase->setBuyer($line->getProject()->getOwnerParticipant());
+            $line->addPurchase($purchase);
             $this->entityManager->persist($purchase);
-            $this->derivedContributionService->refreshLine($candidateLines[0]);
-            $touchedProjects[$candidateLines[0]->getProject()->getId()->toRfc4122()] = $candidateLines[0]->getProject();
+            $this->derivedContributionService->refreshLine($line);
+            $touchedProjects[$line->getProject()->getId()->toRfc4122()] = $line->getProject();
             ++$linkedCount;
         }
 
@@ -76,25 +77,34 @@ class AutomaticPurchaseLinker
     }
 
     /**
-     * @param list<IndustryProject> $openProjects
-     *
-     * @return list<IndustryProjectBomLine>
+     * @param list<IndustryProject> $projectsOldestFirst
      */
-    private function candidateLinesOf(array $openProjects, CachedWalletTransaction $transaction): array
+    private function lineToLink(array $projectsOldestFirst, CachedWalletTransaction $transaction): ?IndustryProjectBomLine
     {
-        $candidateLines = [];
-        foreach ($openProjects as $project) {
-            if ($transaction->getDate() < $project->getCreatedAt()) {
+        foreach ($projectsOldestFirst as $project) {
+            $candidateLines = $this->candidateLinesOf($project, $transaction);
+            if (!array_any($candidateLines, fn (IndustryProjectBomLine $line): bool => $transaction->getQuantity() <= $this->quantityLeftToBuy($line))) {
                 continue;
             }
 
-            foreach ($project->getBomItems() as $line) {
-                if ($line->isPurchasable() && $line->getTypeId() === $transaction->getTypeId() && $line->getRemainingQuantity() > 0) {
-                    $candidateLines[] = $line;
-                }
-            }
+            return \count($candidateLines) === 1 ? $candidateLines[0] : null;
         }
 
-        return $candidateLines;
+        return null;
+    }
+
+    /**
+     * @return list<IndustryProjectBomLine>
+     */
+    private function candidateLinesOf(IndustryProject $project, CachedWalletTransaction $transaction): array
+    {
+        if ($transaction->getDate() < $project->getCreatedAt()) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $project->getBomItems()->toArray(),
+            static fn (IndustryProjectBomLine $line): bool => $line->isPurchasable() && $line->getTypeId() === $transaction->getTypeId() && $line->getRemainingQuantity() > 0,
+        ));
     }
 }
