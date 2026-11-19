@@ -66,6 +66,7 @@ function jobLine(jobMatches: JobMatch[]): BomItem {
     purchases: [],
     purchasedQuantity: 0,
     reservations: [],
+    pendingContributions: [],
     reservedQuantity: 0,
     freeQuantity: 0,
   }

@@ -61,6 +61,7 @@ function jobLineWith(locations: JobLocations | null): BomItem {
     purchases: [],
     purchasedQuantity: 0,
     reservations: [],
+    pendingContributions: [],
     reservedQuantity: 0,
     freeQuantity: 0,
   }

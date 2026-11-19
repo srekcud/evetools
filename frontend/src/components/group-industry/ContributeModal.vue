@@ -6,6 +6,7 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import { pendingQuantityOf } from './pendingContributions'
 import type {
   BomItem,
   ContributionType,
@@ -84,7 +85,7 @@ function isIntermediateLine(line: BomItem): boolean {
 
 function prefilledQuantityOf(item: BomItem): number {
   const reservation = item.reservations.find(candidate => candidate.isMine)
-  return reservation === undefined ? item.remainingQuantity : Math.max(0, reservation.quantity - reservation.pendingQuantity)
+  return reservation === undefined ? item.remainingQuantity : Math.max(0, reservation.quantity - pendingQuantityOf(item, reservation.participantId))
 }
 
 // Reset form when modal opens
