@@ -130,6 +130,12 @@ function isAwaitingUnits(contribution: GroupContribution): boolean {
   return contribution.awaitingQuantity !== undefined && contribution.awaitingQuantity > 0
 }
 
+function isValueReadFromEsi(contribution: GroupContribution): boolean {
+  if (contribution.type !== 'material') return contribution.isAutoDetected
+  if (isAwaitingUnits(contribution)) return false
+  return contribution.isAutoDetected || contribution.valueSource === 'wallet_purchase'
+}
+
 async function handleValueAtJitaPrice(id: string): Promise<void> {
   await store.valueContributionAtJitaPrice(props.projectId, id)
 }
@@ -392,7 +398,7 @@ onMounted(() => {
                   {{ t(methodLabelKey(contrib)) }}
                 </span>
                 <span
-                  v-if="contrib.isAutoDetected"
+                  v-if="isValueReadFromEsi(contrib)"
                   class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
                 >ESI &#10003;</span>
               </td>
