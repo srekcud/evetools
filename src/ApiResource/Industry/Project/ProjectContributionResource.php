@@ -149,6 +149,8 @@ class ProjectContributionResource
 
     public int $quantity;
 
+    public ?int $walletBackedQuantity = null;
+
     public ?float $estimatedValue;
 
     /** @var array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null */

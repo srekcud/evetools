@@ -146,6 +146,7 @@ class ProjectResourceMapper
         $resource->bomItemTypeName = $contribution->getBomItem()?->getTypeName();
         $resource->type = $contribution->getType()->value;
         $resource->quantity = $contribution->getQuantity();
+        $resource->walletBackedQuantity = $contribution->walletBackedQuantity();
         $resource->estimatedValue = $contribution->getEstimatedValue();
         $resource->estimatedValueSource = $contribution->isValuedAtJitaPrice() && null !== $contribution->getEstimatedValue() ? ProjectContributionService::materialContributionPriceSource()->toArray() : null;
         $resource->status = $contribution->getStatus()->value;

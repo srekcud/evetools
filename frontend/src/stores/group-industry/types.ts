@@ -251,6 +251,7 @@ export type GroupContribution = {
   bomItemTypeName: string | null
   type: ContributionType
   quantity: number
+  walletBackedQuantity?: number | null
   estimatedValue: number | null
   estimatedValueSource?: PriceSource | null
   status: ContributionStatus

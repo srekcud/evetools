@@ -266,13 +266,14 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
     public function findByProjectForListing(IndustryProject $project): array
     {
         return $this->createQueryBuilder('c')
-            ->addSelect('contributor', 'contributorUser', 'contributorCharacter', 'contributorToken', 'bomItem', 'reviewer', 'reviewerCharacter', 'reviewerToken')
+            ->addSelect('contributor', 'contributorUser', 'contributorCharacter', 'contributorToken', 'bomItem', 'linePurchase', 'reviewer', 'reviewerCharacter', 'reviewerToken')
             ->join('c.member', 'contributor')
             ->join('contributor.user', 'contributorUser')
             // Character::eveToken is an inverse OneToOne: not joined, Doctrine would load it row by row
             ->leftJoin('contributorUser.mainCharacter', 'contributorCharacter')
             ->leftJoin('contributorCharacter.eveToken', 'contributorToken')
             ->leftJoin('c.bomItem', 'bomItem')
+            ->leftJoin('bomItem.purchases', 'linePurchase')
             ->leftJoin('c.reviewedBy', 'reviewer')
             ->leftJoin('reviewer.mainCharacter', 'reviewerCharacter')
             ->leftJoin('reviewerCharacter.eveToken', 'reviewerToken')

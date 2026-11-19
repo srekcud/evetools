@@ -75,7 +75,8 @@
       },
       "groupIndustry": {
         "contributionTypeFilter": "Filter by contribution type",
-        "contributionStatusFilter": "Filter by contribution status"
+        "contributionStatusFilter": "Filter by contribution status",
+        "contributionWalletProofFilter": "Filter by wallet proof"
       },
       "escalation": {
         "timerDays": "Days",
@@ -3680,6 +3681,19 @@
       },
       "unknownValueCause": "A contribution has no known price: the totals that include it are unknown, never partial.",
       "duplicatesDerived": "Duplicate of an ESI contribution",
+      "badges": {
+        "autoDetected": "Auto-detected",
+        "unverified": "Unverified",
+        "deliveryConfirmedByHand": "Delivery confirmed by hand",
+        "walletBacked": "Wallet ✓",
+        "walletPartial": "Wallet {backed} / {total}",
+        "noWalletProof": "No wallet proof"
+      },
+      "walletProofFilter": {
+        "all": "All wallet proofs",
+        "backed": "With wallet proof",
+        "none": "No wallet proof"
+      },
       "awaitingUnits": "{count} units awaiting wallet transaction",
       "valueUnknown": "Value unknown",
       "approveBlockedAwaiting": "Cannot be approved while units await a wallet transaction",

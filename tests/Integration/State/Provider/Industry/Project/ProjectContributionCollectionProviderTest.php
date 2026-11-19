@@ -9,7 +9,9 @@ use App\ApiResource\Industry\Project\ProjectContributionResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
+use App\Entity\CachedWalletTransaction;
 use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -154,6 +156,52 @@ final class ProjectContributionCollectionProviderTest extends IntegrationTestCas
         self::assertSame(['Material 1', 'Reviewer 1 of Orin Vahl', 1_000], $byMember['Member 1 of Orin Vahl']);
         self::assertSame(['Material 10', 'Reviewer 10 of Orin Vahl', 10_000], $byMember['Member 10 of Orin Vahl']);
         self::assertCount(10, $byMember);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Group('issue-1092')]
+    public function testWalletBackedQuantityIsListedWithoutLazyLoadingThePurchasesOfEachLine(): void
+    {
+        $tritanium = $this->em->find(IndustryProjectContribution::class, $this->contributionIds['tritanium']);
+        \assert($tritanium instanceof IndustryProjectContribution);
+        $character = $tritanium->getMember()->getUser()?->getMainCharacter();
+        \assert(null !== $character);
+        $transaction = (new CachedWalletTransaction())
+            ->setCharacter($character)
+            ->setTransactionId(1_092_001)
+            ->setIsBuy(true)
+            ->setTypeId(self::TRITANIUM_TYPE_ID)
+            ->setQuantity(150_000)
+            ->setUnitPrice(4.0)
+            ->setDate(new \DateTimeImmutable('2026-09-01 10:00:00'))
+            ->setLocationId(60003760);
+        $this->em->persist($transaction);
+        foreach ([[150_000, $transaction], [50_000, null]] as [$quantity, $linkedTransaction]) {
+            $purchase = (new IndustryProjectPurchase())
+                ->setTypeId(self::TRITANIUM_TYPE_ID)
+                ->setQuantity($quantity)
+                ->setUnitPrice(4.0)
+                ->setTotalPrice(4.0 * $quantity)
+                ->setSource(null === $linkedTransaction ? 'manual' : 'esi_wallet')
+                ->setTransaction($linkedTransaction)
+                ->setBuyer($tritanium->getMember())
+                ->setContribution($tritanium);
+            $tritanium->getBomItem()?->addPurchase($purchase);
+            $this->em->persist($purchase);
+        }
+        $this->em->flush();
+        $this->em->clear();
+        $viewer = $this->viewer();
+
+        $queries = $this->queriesMatching(
+            $this->sqlExecutedDuring(fn () => $this->listContributionsAs($viewer)),
+            self::GROUP_INDUSTRY_TABLES_PATTERN,
+        );
+        $listed = $this->listedContributionsByLabel();
+
+        self::assertSame(150_000, $listed['tritanium']->walletBackedQuantity);
+        self::assertSame(0, $listed['mexallon']->walletBackedQuantity);
+        self::assertNull($listed['sabreJob']->walletBackedQuantity);
+        self::assertLessThanOrEqual(self::MAX_QUERIES, \count($queries), implode("\n", $queries));
     }
 
     public function testListingReturnsOnlyTheProjectContributions(): void
