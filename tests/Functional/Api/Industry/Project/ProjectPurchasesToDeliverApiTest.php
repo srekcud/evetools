@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Entity\CachedWalletTransaction;
+use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\Sde\InvCategory;
@@ -109,7 +110,7 @@ final class ProjectPurchasesToDeliverApiTest extends WebTestCase
         self::assertSame([404, 'Project not found'], $this->errorDetail());
     }
 
-    private function deliveriesUri(object $project): string
+    private function deliveriesUri(IndustryProject $project): string
     {
         return $this->projectUri($project).'/purchases-to-deliver';
     }
@@ -123,8 +124,10 @@ final class ProjectPurchasesToDeliverApiTest extends WebTestCase
             ->setTotalPrice((float) $quantity)
             ->setSource(null === $locationId ? 'manual' : 'esi_wallet');
         if (null !== $locationId) {
+            $buyer = $this->owner->getMainCharacter();
+            self::assertNotNull($buyer);
             $transaction = (new CachedWalletTransaction())
-                ->setCharacter($this->owner->getMainCharacter())
+                ->setCharacter($buyer)
                 ->setTransactionId($this->nextTransactionId++)
                 ->setTypeId($line->getTypeId())
                 ->setQuantity($quantity)
