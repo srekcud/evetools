@@ -6,11 +6,15 @@ import type { BomItem, JobLocation } from '@/stores/group-industry/types'
 import type { CompanionAlert, CompanionTasks } from './companionTasks'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
+import { recallCollapsedSections, rememberCollapsedSections, type CompanionSectionKey } from './companionCollapsedSections'
+
+type LineKind = 'buy' | 'build'
 
 const FREE_LINES_SHOWN = 6
 const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'move_products', 'price_below_break_even', 'undercut_sell_order', 'join_request', 'bom_complete']
 const VALUE_DECIMALS = 1
 const BOM_PERCENT_DECIMALS = 0
+const LINE_KINDS: LineKind[] = ['buy', 'build']
 
 const props = defineProps<{
   tasks: CompanionTasks
@@ -30,8 +34,45 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { formatNumber, formatIsk } = useFormatters()
 
-const shownFree = computed(() => props.tasks.free.slice(0, FREE_LINES_SHOWN))
-const hiddenFreeCount = computed(() => Math.max(0, props.tasks.free.length - FREE_LINES_SHOWN))
+const collapsedSections = ref<CompanionSectionKey[]>(recallCollapsedSections())
+
+function isOpen(key: CompanionSectionKey): boolean {
+  return !collapsedSections.value.includes(key)
+}
+
+function toggleSection(key: CompanionSectionKey): void {
+  collapsedSections.value = isOpen(key)
+    ? [...collapsedSections.value, key]
+    : collapsedSections.value.filter(collapsed => collapsed !== key)
+  rememberCollapsedSections(collapsedSections.value)
+}
+
+function isOfKind(item: BomItem, kind: LineKind): boolean {
+  return item.isJob === (kind === 'build')
+}
+
+function countOfKind(items: BomItem[], kind: LineKind): number {
+  return items.filter(item => isOfKind(item, kind)).length
+}
+
+const freeGroups = computed(() => LINE_KINDS.map((kind) => {
+  const lines = props.tasks.free.filter(item => isOfKind(item, kind))
+  return { kind, total: lines.length, shown: lines.slice(0, FREE_LINES_SHOWN), hidden: Math.max(0, lines.length - FREE_LINES_SHOWN) }
+}).filter(group => group.total > 0))
+
+const mineGroups = computed(() => LINE_KINDS.map((kind) => {
+  const lines = props.tasks.mine.filter(entry => isOfKind(entry.item, kind))
+  return { kind, total: lines.length, lines }
+}).filter(group => group.total > 0))
+
+const freeCounts = computed(() => ({
+  buy: countOfKind(props.tasks.free, 'buy'),
+  build: countOfKind(props.tasks.free, 'build'),
+}))
+const mineCounts = computed(() => ({
+  buy: props.tasks.mine.filter(entry => isOfKind(entry.item, 'buy')).length,
+  build: props.tasks.mine.filter(entry => isOfKind(entry.item, 'build')).length,
+}))
 const hasTodo = computed(() => props.tasks.toReview !== null || props.tasks.joinRequests !== null)
 const isBar = computed(() => props.size === 'bar')
 
@@ -145,10 +186,22 @@ function unknownReasonText(output: JobLocation): string | null {
       </span>
       <template v-if="isBar">
         <span class="flex-shrink-0 rounded border border-slate-700 px-1.5 py-0.5 text-xs text-slate-300" data-testid="companion-count-free" :title="t('groupIndustry.companion.sections.free')">
-          {{ t('groupIndustry.companion.counters.free', { count: tasks.free.length }) }}
+          <template v-if="tasks.free.length === 0">{{ t('groupIndustry.companion.counters.free', { count: 0 }) }}</template>
+          <template v-else>
+            {{ t('groupIndustry.companion.counters.freeLabel') }}
+            <span v-if="freeCounts.buy > 0" data-testid="companion-count-free-buy">{{ t('groupIndustry.companion.counters.toBuy', { count: freeCounts.buy }) }}</span>
+            <template v-if="freeCounts.buy > 0 && freeCounts.build > 0"> &middot; </template>
+            <span v-if="freeCounts.build > 0" data-testid="companion-count-free-build">{{ t('groupIndustry.companion.counters.toBuild', { count: freeCounts.build }) }}</span>
+          </template>
         </span>
         <span class="flex-shrink-0 rounded border border-slate-700 px-1.5 py-0.5 text-xs text-slate-300" data-testid="companion-count-mine" :title="t('groupIndustry.companion.sections.mine')">
-          {{ t('groupIndustry.companion.counters.mine', { count: tasks.mine.length }) }}
+          <template v-if="tasks.mine.length === 0">{{ t('groupIndustry.companion.counters.mine', { count: 0 }) }}</template>
+          <template v-else>
+            {{ t('groupIndustry.companion.counters.mineLabel') }}
+            <span v-if="mineCounts.buy > 0" data-testid="companion-count-mine-buy">{{ t('groupIndustry.companion.counters.toBuy', { count: mineCounts.buy }) }}</span>
+            <template v-if="mineCounts.buy > 0 && mineCounts.build > 0"> &middot; </template>
+            <span v-if="mineCounts.build > 0" data-testid="companion-count-mine-build">{{ t('groupIndustry.companion.counters.toBuild', { count: mineCounts.build }) }}</span>
+          </template>
         </span>
         <span
           v-if="tasks.toReview !== null"
@@ -203,84 +256,138 @@ function unknownReasonText(output: JobLocation): string | null {
       >{{ t('groupIndustry.companion.moveProductsUnknown', { count: tasks.moveProducts.unknownJobCount }) }}</p>
 
       <section data-testid="companion-free" class="flex flex-col gap-1.5">
-        <h2 class="text-xs uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.companion.sections.free') }}</h2>
-        <p v-if="tasks.free.length === 0" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyFree') }}</p>
-        <ul v-else class="flex flex-col gap-1">
-          <li
-            v-for="item in shownFree"
-            :key="item.id"
-            data-testid="companion-free-line"
-            class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/60 px-2 py-1"
-          >
-            <div class="min-w-0 flex-1">
-              <p class="flex items-center gap-1">
-                <span class="min-w-0 truncate text-sm text-slate-100" :title="item.typeName">{{ item.typeName }}</span>
-                <BlueprintNameCopyButton :blueprint-name="item.blueprintName ?? null" />
-              </p>
-              <p v-if="item.isJob" class="truncate text-xs text-slate-400">
-                <template v-if="activityLabel(item.activityType) !== null">{{ activityLabel(item.activityType) }}</template>
-                <template v-else><span data-unknown="true">{{ t('common.unknownValue') }}</span></template>
-                &middot;
-                <template v-if="item.runs !== null">{{ t('groupIndustry.companion.runs', { runs: item.runs }, item.runs) }}</template>
-                <template v-else><span data-unknown="true">{{ t('common.unknownValue') }}</span></template>
-              </p>
-              <p v-else class="truncate text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">
-                <span class="font-mono">&times;{{ formatNumber(item.freeQuantity, 0) }}</span>
-                &middot;
-                <span v-if="freeValueUnknown(item)" data-unknown="true" class="text-slate-500">{{ t('common.unknownValue') }}</span>
-                <span v-else class="font-mono">{{ freeValue(item) }}</span>
-              </p>
-            </div>
+        <button
+          type="button"
+          data-testid="companion-toggle-free"
+          class="flex w-full items-center gap-1.5 text-left text-xs uppercase tracking-wider text-cyan-400"
+          :aria-expanded="isOpen('free')"
+          @click="toggleSection('free')"
+        >
+          <svg class="h-2.5 w-2.5 flex-shrink-0 text-slate-500 transition-transform" :class="isOpen('free') ? 'rotate-90' : ''" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M3 1l5 4-5 4z" /></svg>
+          <span>{{ t('groupIndustry.companion.sections.free') }}</span>
+          <span data-testid="companion-free-total" class="ml-auto font-mono text-xs normal-case tracking-normal" :class="isOpen('free') ? 'text-slate-500' : 'text-slate-300'">{{ tasks.free.length }}</span>
+        </button>
+        <template v-if="isOpen('free')">
+          <p v-if="tasks.free.length === 0" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyFree') }}</p>
+          <div v-for="group in freeGroups" :key="group.kind" :data-testid="`companion-free-${group.kind}`" class="flex flex-col gap-1">
             <button
               type="button"
-              data-testid="companion-claim"
-              class="flex-shrink-0 rounded border border-cyan-500/40 px-2 py-0.5 text-xs text-cyan-300 hover:bg-cyan-500/10"
-              @click="emit('claim', item.id)"
-            >{{ t('groupIndustry.companion.claim') }}</button>
-          </li>
-        </ul>
-        <button
-          v-if="hiddenFreeCount > 0"
-          type="button"
-          data-testid="companion-more-free"
-          :data-count="hiddenFreeCount"
-          class="self-start text-xs text-cyan-400 hover:underline"
-          @click="emit('open-bom')"
-        >{{ t('groupIndustry.companion.moreFree', { count: hiddenFreeCount }) }}</button>
+              :data-testid="`companion-toggle-free-${group.kind}`"
+              class="flex w-full items-center gap-1.5 text-left text-xs uppercase tracking-wider text-slate-400"
+              :aria-expanded="isOpen(`free:${group.kind}`)"
+              @click="toggleSection(`free:${group.kind}`)"
+            >
+              <svg class="h-2.5 w-2.5 flex-shrink-0 text-slate-500 transition-transform" :class="isOpen(`free:${group.kind}`) ? 'rotate-90' : ''" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M3 1l5 4-5 4z" /></svg>
+              <template v-if="group.kind === 'buy'"><svg class="h-3 w-3 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3h2l1.5 7h7L14 5H5" /><circle cx="6.5" cy="13" r="1" /><circle cx="12" cy="13" r="1" /></svg></template><template v-else><svg class="h-3 w-3 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9.5 2.5l4 4-2 2-4-4zM7.5 4.5l-5 5 4 4 5-5" /></svg></template>
+              <span>{{ t(`groupIndustry.companion.groups.${group.kind}`) }}</span>
+              <span :data-testid="`companion-free-${group.kind}-total`" class="font-mono normal-case tracking-normal text-slate-300">{{ group.total }}</span>
+            </button>
+            <template v-if="isOpen(`free:${group.kind}`)">
+              <ul class="flex flex-col gap-1">
+                <li
+                  v-for="item in group.shown"
+                  :key="item.id"
+                  data-testid="companion-free-line"
+                  class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/60 px-2 py-1"
+                >
+                  <div class="min-w-0 flex-1">
+                    <p class="flex items-center gap-1">
+                      <span class="min-w-0 truncate text-sm text-slate-100" :title="item.typeName">{{ item.typeName }}</span>
+                      <BlueprintNameCopyButton :blueprint-name="item.blueprintName ?? null" />
+                    </p>
+                    <p v-if="item.isJob" class="truncate text-xs text-slate-400">
+                      <template v-if="activityLabel(item.activityType) !== null">{{ activityLabel(item.activityType) }}</template>
+                      <template v-else><span data-unknown="true">{{ t('common.unknownValue') }}</span></template>
+                      &middot;
+                      <template v-if="item.runs !== null">{{ t('groupIndustry.companion.runs', { runs: item.runs }, item.runs) }}</template>
+                      <template v-else><span data-unknown="true">{{ t('common.unknownValue') }}</span></template>
+                    </p>
+                    <p v-else class="truncate text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">
+                      <span class="font-mono">&times;{{ formatNumber(item.freeQuantity, 0) }}</span>
+                      &middot;
+                      <span v-if="freeValueUnknown(item)" data-unknown="true" class="text-slate-500">{{ t('common.unknownValue') }}</span>
+                      <span v-else class="font-mono">{{ freeValue(item) }}</span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="companion-claim"
+                    class="flex-shrink-0 rounded border border-cyan-500/40 px-2 py-0.5 text-xs text-cyan-300 hover:bg-cyan-500/10"
+                    @click="emit('claim', item.id)"
+                  >{{ t('groupIndustry.companion.claim') }}</button>
+                </li>
+              </ul>
+              <button
+                v-if="group.hidden > 0"
+                type="button"
+                :data-testid="`companion-more-free-${group.kind}`"
+                :data-count="group.hidden"
+                class="self-start text-xs text-cyan-400 hover:underline"
+                @click="emit('open-bom')"
+              >{{ t(`groupIndustry.companion.more.${group.kind}`, { count: group.hidden }) }}</button>
+            </template>
+          </div>
+        </template>
       </section>
 
       <section data-testid="companion-mine" class="flex flex-col gap-1.5">
-        <h2 class="text-xs uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.companion.sections.mine') }}</h2>
-        <p v-if="tasks.mine.length === 0" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyMine') }}</p>
-        <ul v-else class="flex flex-col gap-1">
-          <li
-            v-for="entry in tasks.mine"
-            :key="entry.item.id"
-            data-testid="companion-mine-line"
-            class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/60 px-2 py-1"
-          >
-            <div class="min-w-0 flex-1">
-              <p class="flex items-center gap-1">
-                <span class="min-w-0 truncate text-sm text-slate-100" :title="entry.item.typeName">{{ entry.item.typeName }}</span>
-                <BlueprintNameCopyButton :blueprint-name="entry.item.blueprintName ?? null" />
-                <OpenInGameButton v-if="!entry.item.isJob" type="market" :target-id="entry.item.typeId" />
-              </p>
-              <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(entry.quantity, 0) }}</p>
-            </div>
+        <button
+          type="button"
+          data-testid="companion-toggle-mine"
+          class="flex w-full items-center gap-1.5 text-left text-xs uppercase tracking-wider text-cyan-400"
+          :aria-expanded="isOpen('mine')"
+          @click="toggleSection('mine')"
+        >
+          <svg class="h-2.5 w-2.5 flex-shrink-0 text-slate-500 transition-transform" :class="isOpen('mine') ? 'rotate-90' : ''" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M3 1l5 4-5 4z" /></svg>
+          <span>{{ t('groupIndustry.companion.sections.mine') }}</span>
+          <span data-testid="companion-mine-total" class="ml-auto font-mono text-xs normal-case tracking-normal" :class="isOpen('mine') ? 'text-slate-500' : 'text-slate-300'">{{ tasks.mine.length }}</span>
+        </button>
+        <template v-if="isOpen('mine')">
+          <p v-if="tasks.mine.length === 0" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyMine') }}</p>
+          <div v-for="group in mineGroups" :key="group.kind" :data-testid="`companion-mine-${group.kind}`" class="flex flex-col gap-1">
             <button
               type="button"
-              data-testid="companion-deliver"
-              class="flex-shrink-0 rounded border border-emerald-500/40 px-2 py-0.5 text-xs text-emerald-300 hover:bg-emerald-500/10"
-              @click="emit('deliver', entry.item.id)"
-            >{{ t('groupIndustry.companion.deliver') }}</button>
-            <button
-              type="button"
-              data-testid="companion-release"
-              class="flex-shrink-0 rounded border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-800"
-              @click="emit('release', entry.item.id)"
-            >{{ t('groupIndustry.companion.release') }}</button>
-          </li>
-        </ul>
+              :data-testid="`companion-toggle-mine-${group.kind}`"
+              class="flex w-full items-center gap-1.5 text-left text-xs uppercase tracking-wider text-slate-400"
+              :aria-expanded="isOpen(`mine:${group.kind}`)"
+              @click="toggleSection(`mine:${group.kind}`)"
+            >
+              <svg class="h-2.5 w-2.5 flex-shrink-0 text-slate-500 transition-transform" :class="isOpen(`mine:${group.kind}`) ? 'rotate-90' : ''" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M3 1l5 4-5 4z" /></svg>
+              <template v-if="group.kind === 'buy'"><svg class="h-3 w-3 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3h2l1.5 7h7L14 5H5" /><circle cx="6.5" cy="13" r="1" /><circle cx="12" cy="13" r="1" /></svg></template><template v-else><svg class="h-3 w-3 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9.5 2.5l4 4-2 2-4-4zM7.5 4.5l-5 5 4 4 5-5" /></svg></template>
+              <span>{{ t(`groupIndustry.companion.groups.${group.kind}`) }}</span>
+              <span :data-testid="`companion-mine-${group.kind}-total`" class="font-mono normal-case tracking-normal text-slate-300">{{ group.total }}</span>
+            </button>
+            <ul v-if="isOpen(`mine:${group.kind}`)" class="flex flex-col gap-1">
+              <li
+                v-for="entry in group.lines"
+                :key="entry.item.id"
+                data-testid="companion-mine-line"
+                class="flex items-center gap-2 rounded border border-slate-800 bg-slate-900/60 px-2 py-1"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="flex items-center gap-1">
+                    <span class="min-w-0 truncate text-sm text-slate-100" :title="entry.item.typeName">{{ entry.item.typeName }}</span>
+                    <BlueprintNameCopyButton :blueprint-name="entry.item.blueprintName ?? null" />
+                    <OpenInGameButton v-if="!entry.item.isJob" type="market" :target-id="entry.item.typeId" />
+                  </p>
+                  <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(entry.quantity, 0) }}</p>
+                </div>
+                <button
+                  type="button"
+                  data-testid="companion-deliver"
+                  class="flex-shrink-0 rounded border border-emerald-500/40 px-2 py-0.5 text-xs text-emerald-300 hover:bg-emerald-500/10"
+                  @click="emit('deliver', entry.item.id)"
+                >{{ t('groupIndustry.companion.deliver') }}</button>
+                <button
+                  type="button"
+                  data-testid="companion-release"
+                  class="flex-shrink-0 rounded border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-800"
+                  @click="emit('release', entry.item.id)"
+                >{{ t('groupIndustry.companion.release') }}</button>
+              </li>
+            </ul>
+          </div>
+        </template>
       </section>
 
       <section v-if="tasks.awaitingApproval.length > 0" data-testid="companion-awaiting" class="flex flex-col gap-1.5">

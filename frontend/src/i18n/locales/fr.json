@@ -4220,6 +4220,10 @@
       "counters": {
         "free": "{count} à attribuer",
         "mine": "{count} à livrer",
+        "freeLabel": "À attribuer :",
+        "mineLabel": "À livrer :",
+        "toBuy": "{count} à acheter",
+        "toBuild": "{count} à fabriquer",
         "review": "{count} à revoir"
       },
       "sections": {
@@ -4233,7 +4237,14 @@
       "emptyFree": "Toutes les lignes ont un responsable.",
       "emptyMine": "Rien à livrer.",
       "emptyJobs": "Aucun de vos jobs sur ce projet.",
-      "moreFree": "+ {count} autres lignes libres · voir la BOM",
+      "more": {
+        "buy": "+ {count} autres achats · voir la BOM",
+        "build": "+ {count} autres crafts · voir la BOM"
+      },
+      "groups": {
+        "buy": "À acheter",
+        "build": "À fabriquer"
+      },
       "claim": "Je m'en charge",
       "release": "Libérer",
       "deliver": "Livrer",
