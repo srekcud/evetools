@@ -149,7 +149,8 @@ class ProjectBomProvider implements ProviderInterface
     {
         $pendingContributions = [];
         foreach ($pendingQuantityByParticipantId as $participantId => $quantity) {
-            $user = ($participantsById[$participantId] ?? null)?->getUser();
+            $participant = $participantsById[$participantId] ?? throw new \LogicException(sprintf('Pending contribution of unknown participant %s', $participantId));
+            $user = $participant->getUser();
             $pendingContributions[] = [
                 'participantId' => $participantId,
                 'characterName' => PilotName::of($user),
@@ -157,7 +158,7 @@ class ProjectBomProvider implements ProviderInterface
                 'isMine' => $user !== null && $user->getId()?->toRfc4122() === $viewer->getId()?->toRfc4122(),
             ];
         }
-        usort($pendingContributions, static fn (array $left, array $right): int => [$left['characterName'], $left['participantId']] <=> [$right['characterName'], $right['participantId']]);
+        usort($pendingContributions, static fn (array $left, array $right): int => strcasecmp((string) $left['characterName'], (string) $right['characterName']) ?: strcmp($left['participantId'], $right['participantId']));
 
         return $pendingContributions;
     }

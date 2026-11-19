@@ -750,6 +750,31 @@ class ProjectBomProviderTest extends TestCase
         self::assertSame(['Aria Solberg', 'Cora Vance'], array_column($resource->pendingContributions, 'characterName'));
     }
 
+    #[Group('issue-1093')]
+    public function testPendingContributionsSortIgnoringTheCaseOfTheName(): void
+    {
+        $setup = $this->pendingScenario(150, 0);
+        $setup['viewer']->getMainCharacter()->setName('zed Alpha');
+        $line = $setup['line'];
+        $pending = [$line->getId()->toRfc4122() => [$setup['mine']->getId()->toRfc4122() => 10, $setup['other']->getId()->toRfc4122() => 40]];
+
+        $resource = $this->readPendingScenario($setup, $pending, $this->createStub(IndustryProjectLineReservationRepository::class));
+
+        self::assertSame(['Cora Vance', 'zed Alpha'], array_column($resource->pendingContributions, 'characterName'));
+    }
+
+    #[Group('issue-1093')]
+    public function testPendingContributionOfAnUnknownParticipantIsRefused(): void
+    {
+        $setup = $this->pendingScenario(150, 0);
+        $line = $setup['line'];
+        $pending = [$line->getId()->toRfc4122() => [Uuid::v4()->toRfc4122() => 10]];
+
+        $this->expectException(\LogicException::class);
+
+        $this->readPendingScenario($setup, $pending, $this->createStub(IndustryProjectLineReservationRepository::class));
+    }
+
     /**
      * @return array{viewer: User, mine: IndustryProjectParticipant, other: IndustryProjectParticipant, project: IndustryProject, line: IndustryProjectBomLine, lines: list<IndustryProjectBomLine>}
      */

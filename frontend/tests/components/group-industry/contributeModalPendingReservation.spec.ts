@@ -46,4 +46,13 @@ describe('ContributeModal prefilled quantity of a reserved line', () => {
   it('prefills the whole reserved quantity when nothing awaits approval', async () => {
     expect(await openedQuantityFor(reservedLine(50, 0))).toBe(50)
   })
+
+  it('ignores the pending quantity of another participant', async () => {
+    const item = {
+      ...reservedLine(50, 0),
+      pendingContributions: [{ participantId: 'participant-zeta', characterName: 'Zeta', quantity: 88, isMine: false }],
+    }
+
+    expect(await openedQuantityFor(item)).toBe(50)
+  })
 })

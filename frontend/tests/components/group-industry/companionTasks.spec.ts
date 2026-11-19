@@ -524,6 +524,19 @@ describe('buildCompanionTasks awaiting approval', () => {
     expect(summaryOf(tasksOf([shared])).awaitingApproval).toEqual([{ id: 'bom-thulium', quantity: 9_800 }])
   })
 
+  it('does not subtract the pending quantity of another participant from my reservation', () => {
+    const shared = {
+      ...reservedLine(50, 0),
+      pendingContributions: [{ participantId: 'participant-zeta', characterName: 'Zeta', quantity: 88, isMine: false }],
+    }
+
+    expect(summaryOf(tasksOf([shared]))).toEqual({ mine: [{ id: 'bom-nocxium', quantity: 50 }], awaitingApproval: [] })
+  })
+
+  it('drops a line from mine when my pending quantity exceeds my reservation', () => {
+    expect(summaryOf(tasksOf([reservedLine(30, 40)]))).toEqual({ mine: [], awaitingApproval: [{ id: 'bom-nocxium', quantity: 40 }] })
+  })
+
   it('does not list a completed line as to deliver even when I hold a reservation on it', () => {
     const completed = { ...reservedLine(50, 50), isFulfilled: true }
 

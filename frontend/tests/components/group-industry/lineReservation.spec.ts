@@ -162,6 +162,18 @@ describe('LineReservation', () => {
     expect(wrapper.findAll('[data-testid="pending-contribution"]')).toHaveLength(1)
   })
 
+  it('hides the reservation chip when the pending quantity exceeds the reservation', () => {
+    const wrapper = mountReservation(line({
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      pendingContributions: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 40, isMine: true }],
+      reservedQuantity: 30,
+      freeQuantity: 50,
+    }))
+
+    expect(wrapper.find('[data-testid="reservation"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('×-')
+  })
+
   it('subtracts only the pending quantity of the same participant from a reservation', () => {
     const wrapper = mountReservation(line({
       reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false }],
