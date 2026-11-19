@@ -186,6 +186,36 @@ class IndustryProjectContribution
         return false;
     }
 
+    public function walletBackedQuantity(): ?int
+    {
+        if (ContributionType::Material !== $this->type || null === $this->bomItem) {
+            return null;
+        }
+
+        $backed = 0;
+        foreach ($this->bomItem->getPurchases() as $purchase) {
+            if (null !== $purchase->getTransaction() && $this->isPaidBy($purchase)) {
+                $backed += $purchase->getQuantity();
+            }
+        }
+
+        return min($backed, $this->quantity);
+    }
+
+    private function isPaidBy(IndustryProjectPurchase $purchase): bool
+    {
+        if ($purchase->getTypeId() !== $this->bomItem?->getTypeId()) {
+            return false;
+        }
+
+        if (!$this->isAutoDetected) {
+            return $purchase->getContribution() === $this;
+        }
+
+        return null === $purchase->getContribution()
+            && ($purchase->getBuyer() ?? $this->project->getOwnerParticipant()) === $this->member;
+    }
+
     public function isContributedBy(?User $user): bool
     {
         $contributor = $this->member->getUser();

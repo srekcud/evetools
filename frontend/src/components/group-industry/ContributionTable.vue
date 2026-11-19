@@ -22,13 +22,19 @@ const { formatIsk, formatNumber } = useFormatters()
 const { getCharacterPortraitUrl, getTypeIconUrl, onImageError } = useEveImages()
 const { pilotName } = usePilotName()
 
+type WalletProofFilter = 'all' | 'backed' | 'none'
+type WalletProofState = 'complete' | 'partial' | 'none'
+
 const typeFilter = ref<ContributionType | 'all'>('all')
 const statusFilter = ref<ContributionStatus | 'all'>('all')
+const walletProofFilter = ref<WalletProofFilter>('all')
 
 const filteredContributions = computed(() => {
   return store.contributions.filter(c => {
     if (typeFilter.value !== 'all' && c.type !== typeFilter.value) return false
     if (statusFilter.value !== 'all' && c.status !== statusFilter.value) return false
+    if (walletProofFilter.value === 'backed' && !hasWalletProof(c)) return false
+    if (walletProofFilter.value === 'none' && hasWalletProof(c) !== false) return false
     return true
   })
 })
@@ -94,6 +100,30 @@ function methodLabelKey(contribution: GroupContribution): string {
       : 'groupIndustry.contributions.methods.paidPrice'
   }
   return 'groupIndustry.contributions.methods.enteredValue'
+}
+
+type WalletProof = { state: WalletProofState; label: string }
+
+function walletProof(contribution: GroupContribution): WalletProof | null {
+  const backed = contribution.walletBackedQuantity
+  if (contribution.type !== 'material' || backed === undefined || backed === null) return null
+  if (backed <= 0) return { state: 'none', label: t('groupIndustry.contributions.badges.noWalletProof') }
+  if (backed >= contribution.quantity) return { state: 'complete', label: t('groupIndustry.contributions.badges.walletBacked') }
+  return {
+    state: 'partial',
+    label: t('groupIndustry.contributions.badges.walletPartial', { backed: formatNumber(backed, 0), total: formatNumber(contribution.quantity, 0) }),
+  }
+}
+
+function hasWalletProof(contribution: GroupContribution): boolean | null {
+  const proof = walletProof(contribution)
+  return proof === null ? null : proof.state !== 'none'
+}
+
+const WALLET_PROOF_BADGE_CLASSES: Record<WalletProofState, string> = {
+  complete: 'bg-emerald-500/10 text-emerald-400/70 border-emerald-500/15',
+  partial: 'bg-amber-500/10 text-amber-400/70 border-amber-500/15',
+  none: 'bg-red-500/10 text-red-400/70 border-red-500/15',
 }
 
 function isAwaitingUnits(contribution: GroupContribution): boolean {
@@ -207,6 +237,16 @@ onMounted(() => {
       >
         <option value="all">{{ t('common.status.all') }} Statuses</option>
         <option v-for="(label, key) in STATUS_LABELS" :key="key" :value="key">{{ label }}</option>
+      </select>
+      <select
+        v-model="walletProofFilter"
+        data-testid="wallet-proof-filter"
+        :aria-label="t('a11y.zoneB.groupIndustry.contributionWalletProofFilter')"
+        class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
+      >
+        <option value="all">{{ t('groupIndustry.contributions.walletProofFilter.all') }}</option>
+        <option value="backed">{{ t('groupIndustry.contributions.walletProofFilter.backed') }}</option>
+        <option value="none">{{ t('groupIndustry.contributions.walletProofFilter.none') }}</option>
       </select>
     </div>
     <slot name="actions" />
@@ -367,15 +407,21 @@ onMounted(() => {
                 <span
                   v-if="contrib.isAutoDetected"
                   class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
-                >Auto-detected</span>
+                >{{ t('groupIndustry.contributions.badges.autoDetected') }}</span>
+                <span
+                  v-if="walletProof(contrib) !== null"
+                  data-testid="wallet-proof-badge"
+                  class="text-xs px-1.5 py-0.5 rounded border ml-1.5"
+                  :class="WALLET_PROOF_BADGE_CLASSES[walletProof(contrib)!.state]"
+                >{{ walletProof(contrib)!.label }}</span>
                 <span
                   v-if="!contrib.isVerified && (contrib.isAutoDetected || isPending(contrib.status))"
                   class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
-                >Unverified</span>
+                >{{ t('groupIndustry.contributions.badges.unverified') }}</span>
                 <span
                   v-if="isDeliveryConfirmedByHand(contrib)"
                   class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
-                >Delivery confirmed by hand</span>
+                >{{ t('groupIndustry.contributions.badges.deliveryConfirmedByHand') }}</span>
                 <span
                   v-if="contrib.duplicatesDerived"
                   class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"

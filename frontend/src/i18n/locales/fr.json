@@ -75,7 +75,8 @@
       },
       "groupIndustry": {
         "contributionTypeFilter": "Filtrer par type de contribution",
-        "contributionStatusFilter": "Filtrer par statut de contribution"
+        "contributionStatusFilter": "Filtrer par statut de contribution",
+        "contributionWalletProofFilter": "Filtrer par preuve wallet"
       },
       "escalation": {
         "timerDays": "Jours",
@@ -3680,6 +3681,19 @@
       },
       "unknownValueCause": "Un apport n'a pas de prix connu : les totaux qui l'incluent sont inconnus, jamais partiels.",
       "duplicatesDerived": "Doublon avec un apport ESI",
+      "badges": {
+        "autoDetected": "Détecté automatiquement",
+        "unverified": "Non vérifié",
+        "deliveryConfirmedByHand": "Livraison confirmée à la main",
+        "walletBacked": "Wallet ✓",
+        "walletPartial": "Wallet {backed} / {total}",
+        "noWalletProof": "Aucune preuve wallet"
+      },
+      "walletProofFilter": {
+        "all": "Toutes les preuves wallet",
+        "backed": "Avec preuve wallet",
+        "none": "Sans preuve wallet"
+      },
       "awaitingUnits": "{count} unités en attente d'une transaction wallet",
       "valueUnknown": "Valeur inconnue",
       "approveBlockedAwaiting": "Ne peut pas être approuvée tant que des unités attendent une transaction wallet",
