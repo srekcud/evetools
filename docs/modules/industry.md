@@ -50,6 +50,7 @@ Contrat de courrier (#351, spec `docs/specs/351-courier-contract.md`), préfixe 
 |---|---|
 | `GET /courier` | `assertAcceptedMember` (candidats seulement pour le propriétaire) |
 | `POST /courier-contract` (`{contractId}`), `DELETE /courier-contract` | `assertOwner` |
+| `GET /purchases-to-deliver` (#1085, spec `docs/specs/1085-purchases-to-deliver.md`) | `assertAcceptedMember` ; `PurchasesToDeliverBuilder`, front `ProjectPurchasesToDeliver.vue` sous le panneau Courrier, tests `PurchasesToDeliverBuilderTest`, `ProjectPurchasesToDeliverApiTest`, `projectPurchasesToDeliver.spec.ts` |
 
 Alerte d'échec (#422, spec `docs/specs/422-courier-failure-alert.md`) : `CourierFailureNotifier::notifyFailedContracts` (`src/Service/Industry/Project/Courier/`), déclenché toutes les 30 minutes par `CheckCourierContracts` / `CheckCourierContractsHandler` (clé `SyncTracker` `courier-contracts`), lit une fois par propriétaire les contrats des liens dont `failureNotifiedAt` est `null` (projet non `completed`, `IndustryProjectCourierContractRepository::findPendingFailureCheck`) et envoie une notification `industry` de niveau `warning` quand l'état est `Failed`, puis renseigne `failureNotifiedAt` ; `IndustryProjectCourierContract::link` remet la date à `null`. Tests : `CourierFailureNotifierTest`, `CheckCourierContractsHandlerTest`, `IndustryProjectCourierContractFailureNotificationTest`, `IndustryProjectCourierContractRepositoryTest`.
 
