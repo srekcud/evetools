@@ -3236,10 +3236,6 @@
         "title": "Linked contract #{id}",
         "issuedAt": "Issued"
       },
-      "otherOrigins": {
-        "title": "Other purchase locations",
-        "hint": "Each of these locations needs its own courier contract, quoted from its own system."
-      },
       "unknownOrigin": {
         "title": "Unknown origin",
         "hint": "The purchase location of these items is unknown (manual purchase or unresolved location): they are included in no contract."

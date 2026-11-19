@@ -7,17 +7,13 @@ import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
 import { apiRequest } from '@/services/api'
 import type { ProjectCourier as ProjectCourierData } from '@/stores/group-industry/types'
 import {
-  AMARR_ORIGIN,
-  AMARR_SOLAR_SYSTEM_ID,
   IN_TRANSIT_CONTRACT_ID,
   LINKED_IN_TRANSIT,
-  LONG_SYSTEM_NAME,
   MORPHITE_TYPE_ID,
   NOCXIUM_TYPE_ID,
   OUTSTANDING_CONTRACT_ID,
   readyCourier,
-  RENS_ORIGIN_WITHOUT_VOLUME,
-  RENS_SOLAR_SYSTEM_ID,
+  OTHER_ORIGIN_LINES,
   TRITANIUM_TYPE_ID,
   UNKNOWN_ORIGIN_LINES,
 } from '../../courierFixtures'
@@ -85,38 +81,13 @@ describe('ProjectCourier', () => {
     expect(digitsOf(wrapper, 'courier-expiration')).toContain('7')
   })
 
-  it('shows the route and the contract text from the origin of the quote when it is not Jita', async () => {
-    const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
-      originSolarSystemId: AMARR_SOLAR_SYSTEM_ID,
-      originSolarSystemName: 'Amarr',
-    }))
+  it('shows no panel for the purchases made outside Jita, they get no quote here', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID, { otherOriginLines: OTHER_ORIGIN_LINES }))
 
-    expect(shown(wrapper, 'courier-route')).toContain('Amarr')
-    expect(shown(wrapper, 'courier-route')).toContain('Perimeter')
-    expect(shown(wrapper, 'courier-route')).not.toContain('Jita')
-    expect(wrapper.get('[data-testid="courier-contract-text"]').element.textContent ?? '').toContain('Amarr')
-  })
-
-  it('lists every other purchase location below the quote with its own volume, collateral, reward and jumps', async () => {
-    const wrapper = await mountCourier(readyCourier(PROJECT_ID, { otherOrigins: [AMARR_ORIGIN] }))
-
-    const row = `courier-other-origin-${AMARR_SOLAR_SYSTEM_ID}`
-    expect(wrapper.find('[data-testid="courier-other-origins"]').exists()).toBe(true)
-    expect(shown(wrapper, row)).toContain('Amarr')
-    expect(shown(wrapper, row)).toContain('412.5')
-    expect(digitsOf(wrapper, row)).toContain('8765000')
-    expect(digitsOf(wrapper, row)).toContain('556875')
-    expect(digitsOf(wrapper, row)).toContain('9')
-  })
-
-  it('shows the unknown figures of another location as dashes, keeps its collateral and shows a long system name whole', async () => {
-    const wrapper = await mountCourier(readyCourier(PROJECT_ID, { otherOrigins: [AMARR_ORIGIN, RENS_ORIGIN_WITHOUT_VOLUME] }))
-
-    const row = `courier-other-origin-${RENS_SOLAR_SYSTEM_ID}`
-    expect(shown(wrapper, row)).toContain(LONG_SYSTEM_NAME)
-    expect(shown(wrapper, row)).toContain(DASH)
-    expect(digitsOf(wrapper, row)).toContain('3210000')
-    expect(digitsOf(wrapper, row)).toContain('6')
+    expect(wrapper.find('[data-testid="courier-other-origins"]').exists()).toBe(false)
+    expect(shown(wrapper, 'courier-route')).toContain('Jita')
+    expect(shown(wrapper, 'courier-route')).not.toContain('Amarr')
+    expect(wrapper.get('[data-testid="courier-contract-text"]').element.textContent ?? '').not.toContain('Amarr')
   })
 
   it('lists the purchases of unknown origin with their type and quantity next to a quote', async () => {

@@ -3236,10 +3236,6 @@
         "title": "Contrat lié n°{id}",
         "issuedAt": "Émis"
       },
-      "otherOrigins": {
-        "title": "Autres lieux d'achat",
-        "hint": "Chacun de ces lieux demande son propre contrat de courrier, chiffré depuis son propre système."
-      },
       "unknownOrigin": {
         "title": "Origine inconnue",
         "hint": "Le lieu d'achat de ces objets est inconnu (achat manuel ou lieu non résolu) : ils ne sont inclus dans aucun contrat."
