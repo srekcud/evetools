@@ -221,7 +221,7 @@ function unknownReasonText(output: JobLocation): string | null {
                 <template v-if="activityLabel(item.activityType) !== null">{{ activityLabel(item.activityType) }}</template>
                 <template v-else><span data-unknown="true">{{ t('common.unknownValue') }}</span></template>
                 &middot;
-                <template v-if="item.runs !== null">{{ t('groupIndustry.companion.runs', { runs: item.runs }) }}</template>
+                <template v-if="item.runs !== null">{{ t('groupIndustry.companion.runs', { runs: item.runs }, item.runs) }}</template>
                 <template v-else><span data-unknown="true">{{ t('common.unknownValue') }}</span></template>
               </p>
               <p v-else class="truncate text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">
@@ -324,7 +324,7 @@ function unknownReasonText(output: JobLocation): string | null {
               <span class="min-w-0 truncate text-sm text-slate-100" :title="job.item.typeName">{{ job.item.typeName }}</span>
               <BlueprintNameCopyButton :blueprint-name="job.item.blueprintName ?? null" />
               <span class="ml-auto flex-shrink-0 text-xs text-slate-400">{{ t(`groupIndustry.companion.jobStatus.${job.match.status}`) }}</span>
-              <span class="flex-shrink-0 font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">{{ t('groupIndustry.companion.runs', { runs: job.match.runs }) }}</span>
+              <span class="flex-shrink-0 font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">{{ t('groupIndustry.companion.runs', { runs: job.match.runs }, job.match.runs) }}</span>
             </p>
             <p v-if="job.match.locations" data-testid="companion-job-location" class="truncate text-xs text-slate-400">
               <template v-if="outputPlace(job.match.locations.output) !== null">

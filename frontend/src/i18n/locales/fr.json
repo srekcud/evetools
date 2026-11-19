@@ -4237,7 +4237,7 @@
       "claim": "Je m'en charge",
       "release": "Libérer",
       "deliver": "Livrer",
-      "runs": "{runs} runs",
+      "runs": "{runs} run | {runs} runs",
       "todo": {
         "contributions": "{count} contributions à revoir",
         "joinRequests": "{count} demandes d'adhésion"

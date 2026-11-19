@@ -4237,7 +4237,7 @@
       "claim": "I'll handle it",
       "release": "Release",
       "deliver": "Deliver",
-      "runs": "{runs} runs",
+      "runs": "{runs} run | {runs} runs",
       "todo": {
         "contributions": "{count} contributions to review",
         "joinRequests": "{count} join requests"
