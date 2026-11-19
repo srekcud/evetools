@@ -1,0 +1,8 @@
+# #243 lot 1 — tests tueurs (relecture sceptique)
+
+- Rouges (ScanLootSalesProcessorCorpProjectReaderRobustnessTest) : A `testReaderRefusedWhenAskedForTheContributors…`, `…ForTheProjectDetail…` (EveAuthRequiredException sort de read()) ; B `testListedProjectWithoutId…` (TypeError), `testListedProjectWithoutState…` (warning + projet lu).
+- Rouge hors liste : `testContributorWithoutIdIsAnUnexpectedResponseOfTheProject` (C5) : assertions vertes mais warning `Undefined array key "id"` à EsiClient.php:96 → exit 1 (failOnWarning). Même cause que B (id) : le correctif touche EsiClient::getUnversionedCursorPaginated (garder `testGetUnversionedCursorPaginatedKeepsTheFirstSeenRecordWhenAnIdRepeatsOnALaterPage`).
+- Verts (ScanLootSalesProcessorCorpProjectBoundariesTest, 12) : C1 importé/refusé, C2 contributed 0 (+ repli 403), C3 contribution hors fenêtre, C4 404 hors repli = esi_error, C5 sans liste / sans last_modified, C6 deux corporations, C7 days=7, 2000000 lue, 1999999 non lue, C8 3 × 0,1 = 0.30000000000000004 (pas d'arrondi).
+- Écart C1 : E26 (`{projectId}_{characterId}_{contributed}`) est du lot 2 ; le lot 1 garde `{projectId}_{characterId}` (contexte :158, R18), c'est l'identifiant figé.
+- Verts front : usePveExpenseScanning.spec (récompense 0 → needsPriceInput ; seul un contrat sans type de loot ouvre le dialogue), lootSaleScanDialogCorpProjectErrors.spec (récompense 0 : saisie affichée, « Ajouter » désactivé).
+- Harnais : CorpProjectsEsiSimulation gagne acceptedAccessTokenCallsByCharacterId, importedTransactionIds, declinedTransactionIds, days, secondCorporationProjectResponses, contributionSummaries (déplacé depuis ErrorsTest).

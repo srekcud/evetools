@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<!--
+  Maquette V1 · industrie de groupe (Group Industry). Fichier autonome, rendu en JS, aucune dépendance.
+  Base : l'existant du module (frontend/src/views/GroupIndustry, src/**/GroupIndustry*, specs 105 à 257).
+  Chaque proposition est marquée « Proposition n » (cadre violet pointillé) et listée dans « Ce que la maquette ajoute à la spec ».
+  Le bouton « Existant seul » masque les propositions et montre le comportement actuel du code.
+  Données et noms 100 % fictifs. Recettes, plafonds de runs, probabilité d'invention et datacores : SDE local.
+  Quantités : formule du noyau (ME, bonus de structure 1 %, arrondi par job), découpage par plafond de runs du BPC.
+  Prix Jita : fictifs (ordre de grandeur). Tous les totaux sont recalculés en Python (expected.json des tests).
+  Routage par hash : #p=1..N (parcours), #v=list|available|join|detail|companion, #tab=bom|contrib|dist|members,
+  #m=published|in_progress|selling|completed, #s=<état>, #long=1, #real=1 (existant seul), #spec=1, #audit=1, #modal=…, #size=bar|compact
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EVE Tools · Industrie de groupe · maquette V1</title>
+<style>
+@font-face { font-family: 'Share Tech Mono'; font-style: normal; font-weight: 400; src: url(data:font/woff2;base64,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) format('woff2'); }
+:root {
+  --s950:#020617; --s900:#0f172a; --s800:#1e293b; --s700:#334155; --s600:#475569; --s500:#64748b; --s400:#94a3b8; --s300:#cbd5e1; --s200:#e2e8f0; --s100:#f1f5f9;
+  --c400:#22d3ee; --c500:#06b6d4; --c600:#0891b2; --e400:#34d399; --e500:#10b981; --e600:#059669;
+  --a300:#fcd34d; --a400:#fbbf24; --a500:#f59e0b; --a600:#d97706; --r400:#f87171; --r500:#ef4444; --v400:#a78bfa; --v500:#8b5cf6; --sky400:#38bdf8;
+  --warning:#f59e0b; --chart-grid:#334155; --chart-text:#e2e8f0;
+  --mono:'Share Tech Mono', ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--s950); color: var(--s100); font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; font-size: 14px; line-height: 1.43; }
+button { font: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+input, select { font: inherit; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.bg-grid { position: fixed; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(6,182,212,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,.03) 1px, transparent 1px); background-size: 50px 50px; }
+.bg-glow { position: fixed; top: -50%; left: -50%; width: 100%; height: 100%; pointer-events: none; background: radial-gradient(closest-side, rgba(22,78,99,.2), transparent); }
+
+/* Barre de maquette */
+.mockbar { position: relative; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 14px; background: repeating-linear-gradient(135deg, #160f24 0 10px, #120c1e 10px 20px); border-bottom: 2px dashed rgba(167,139,250,.55); font-size: 12px; color: #c4b5fd; }
+.mockbar .lbl { font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; color: var(--v400); }
+.mockbar .grp { display: flex; align-items: center; gap: 4px; padding-left: 10px; border-left: 1px dashed rgba(167,139,250,.35); }
+.mockbar button, .mockbar select { background: rgba(167,139,250,.08); color: #ddd6fe; border: 1px dashed rgba(167,139,250,.45); border-radius: 6px; padding: 3px 8px; font-size: 12px; }
+.mockbar button.on { background: rgba(167,139,250,.28); border-style: solid; color: #fff; }
+.mockbar .step { font-family: var(--mono); color: #fff; min-width: 210px; }
+
+/* Shell (MainLayout.vue) */
+.app { position: relative; display: flex; min-height: calc(100vh - 44px); }
+aside.side { width: 256px; flex-shrink: 0; background: var(--s900); border-right: 1px solid rgba(6,182,212,.2); display: flex; flex-direction: column; position: sticky; top: 0; height: calc(100vh - var(--mbh, 0px)); }
+.logo { padding: 24px; border-bottom: 1px solid rgba(6,182,212,.2); display: flex; align-items: center; gap: 12px; }
+.logo .ic { width: 40px; height: 40px; border-radius: 8px; background: linear-gradient(to bottom right, #06b6d4, #2563eb); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(6,182,212,.3); }
+.logo h1 { margin: 0; font-size: 18px; line-height: 28px; font-weight: 700; letter-spacing: -.025em; background: linear-gradient(to right, #22d3ee, #60a5fa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.logo p { margin: 0; font-size: 12px; color: var(--s500); letter-spacing: .1em; text-transform: uppercase; }
+nav.menu { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.ni { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; border: 1px solid transparent; color: var(--s400); background: none; text-align: left; font-weight: 500; font-size: 14px; }
+.ni:hover { background: rgba(30,41,59,.5); color: var(--s200); border-color: rgba(6,182,212,.3); }
+.ni svg { width: 20px; height: 20px; flex-shrink: 0; }
+.ni.on { background: linear-gradient(to right, rgba(6,182,212,.2), rgba(59,130,246,.1)); color: var(--c400); border-color: rgba(6,182,212,.3); box-shadow: 0 10px 15px -3px rgba(6,182,212,.1); }
+.ni .dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--c400); }
+.ni .chev { margin-left: auto; width: 16px; height: 16px; }
+.sub { padding-left: 16px; display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.sub .ni { padding: 10px 16px; font-size: 14px; }
+.sub .ni svg { width: 16px; height: 16px; }
+.charcard { margin: 16px; margin-top: 0; padding-top: 16px; border-top: 1px solid rgba(6,182,212,.2); }
+.charcard .in { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; }
+.avatar { width: 48px; height: 48px; border-radius: 8px; box-shadow: 0 0 0 2px rgba(6,182,212,.5); background: linear-gradient(135deg, #334155, #1e293b); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--s300); }
+main.content { flex: 1; min-width: 0; }
+header.top { position: sticky; top: 0; z-index: 10; background: var(--s900); border-bottom: 1px solid rgba(6,182,212,.1); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+header.top h2 { margin: 0; font-size: 24px; line-height: 32px; font-weight: 700; color: var(--s100); }
+header.top p { margin: 4px 0 0; font-size: 14px; color: var(--s500); }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; border: 1px solid; font-size: 12px; }
+.pill.esi { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); color: var(--e400); }
+.pill.esi i { width: 8px; height: 8px; border-radius: 50%; background: var(--e500); }
+.pill.all { padding: 8px 16px; background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); color: var(--a400); font-size: 14px; font-weight: 500; }
+.pill.corp { padding: 8px 16px; background: rgba(6,182,212,.1); border-color: rgba(6,182,212,.3); color: var(--c400); font-size: 14px; font-weight: 500; }
+.page { padding: 32px; }
+.wrap { max-width: 80rem; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+/* Briques (Ledger, MiningTab, GroupIndustry) */
+.card { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; padding: 16px; }
+.card.p5 { padding: 20px; }
+.card.p6 { padding: 24px; }
+.card.soft { background: rgba(15,23,42,.8); }
+.card.flush { padding: 0; overflow: hidden; }
+.card-h { padding: 16px 24px; border-bottom: 1px solid var(--s800); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.card-h h3, h3.t { margin: 0; font-size: 18px; line-height: 28px; font-weight: 600; color: #fff; }
+.lab { font-size: 12px; color: var(--s400); text-transform: uppercase; letter-spacing: .05em; }
+.lab.dim { color: var(--s500); }
+.kpi { margin-top: 4px; font-size: 20px; line-height: 28px; font-weight: 700; }
+.kpi3 { font-size: 30px; line-height: 36px; font-weight: 700; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.hint { font-size: 12px; color: var(--s500); }
+.hint2 { font-size: 12px; color: #475569; }
+.muted { color: var(--s400); }
+.c-cyan { color: var(--c400); } .c-em { color: var(--e400); } .c-amber { color: var(--a400); } .c-red { color: var(--r400); } .c-violet { color: var(--v400); } .c-white { color: #fff; } .c-s300 { color: var(--s300); } .c-s200 { color: var(--s200); } .c-s500 { color: var(--s500); }
+.unk { color: var(--warning); font-style: italic; }
+.row { display: flex; align-items: center; gap: 12px; }
+.row.sb { justify-content: space-between; }
+.row.wrapf { flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.g2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+.g3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+.g4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; }
+.span2 { grid-column: span 2 / span 2; }
+.start { align-items: start; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; border: 0; font-size: 14px; font-weight: 500; white-space: nowrap; transition: transform .15s, background .15s; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:disabled { opacity: .5; }
+.btn svg { width: 16px; height: 16px; }
+.btn.pri { background: var(--c600); color: #fff; } .btn.pri:hover:not(:disabled) { background: var(--c500); }
+.btn.sec { background: var(--s700); color: var(--s200); } .btn.sec:hover:not(:disabled) { background: var(--s600); }
+.btn.amb { background: var(--a600); color: #fff; } .btn.amb:hover:not(:disabled) { background: var(--a500); }
+.btn.em { background: var(--e600); color: #fff; }
+.btn.sm { padding: 6px 10px; font-size: 13px; }
+.btn.xs { padding: 3px 8px; font-size: 12px; border-radius: 6px; }
+.btn.ghost { background: transparent; color: var(--s400); border: 1px solid var(--s700); }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; padding: 4px 10px; border-radius: 8px; font-weight: 500; border: 1px solid; white-space: nowrap; }
+.badge.sm { padding: 2px 8px; border-radius: 4px; }
+.b-slate { background: var(--s700); color: var(--s400); border-color: var(--s600); }
+.b-violet { background: rgba(139,92,246,.15); color: var(--v400); border-color: rgba(139,92,246,.2); }
+.b-cyan { background: rgba(6,182,212,.15); color: var(--c400); border-color: rgba(6,182,212,.2); }
+.b-em { background: rgba(16,185,129,.15); color: var(--e400); border-color: rgba(16,185,129,.2); }
+.b-amber { background: rgba(245,158,11,.15); color: var(--a400); border-color: rgba(245,158,11,.25); }
+.b-red { background: rgba(239,68,68,.15); color: var(--r400); border-color: rgba(239,68,68,.25); }
+.chip { margin-left: 6px; font-size: 12px; padding: 2px 6px; border-radius: 4px; background: var(--s700); color: var(--s400); }
+.tabs { border-bottom: 1px solid var(--s800); display: flex; gap: 24px; }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 0 0 12px; font-size: 14px; font-weight: 500; color: var(--s400); }
+.tab:hover { color: var(--s200); }
+.tab.on { border-bottom-color: var(--c500); color: var(--c400); }
+.tab.on .chip { background: rgba(6,182,212,.15); color: var(--c400); }
+.seg { display: inline-flex; gap: 8px; background: var(--s900); border-radius: 8px; padding: 4px; border: 1px solid var(--s800); }
+.seg button { padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--s400); background: none; border: 0; }
+.seg button.on { background: var(--c600); color: #fff; }
+table.t { width: 100%; border-collapse: collapse; }
+table.t thead { background: rgba(15,23,42,.5); }
+table.t th { padding: 12px; font-size: 12px; font-weight: 500; color: var(--s400); text-transform: uppercase; letter-spacing: .05em; text-align: left; white-space: nowrap; }
+table.t td { white-space: nowrap; padding: 10px 12px; font-size: 13px; line-height: 20px; color: var(--s300); border-top: 1px solid var(--s800); vertical-align: middle; }
+table.t .r { text-align: right; }
+table.t td.r { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.t tr.subrow td { background: rgba(2,6,23,.35); color: var(--s400); font-size: 12px; padding-top: 6px; padding-bottom: 6px; }
+table.t tr.tot td { border-top: 1px solid var(--s700); color: var(--s100); font-weight: 600; }
+table.t tbody tr:hover td { background: rgba(30,41,59,.35); }
+.banner { border-radius: 12px; border: 1px solid; padding: 14px 16px; font-size: 14px; display: flex; gap: 12px; align-items: flex-start; }
+.banner.amber { background: rgba(245,158,11,.05); border-color: rgba(245,158,11,.2); color: var(--a300); }
+.banner.cyan { background: rgba(6,182,212,.05); border-color: rgba(6,182,212,.2); color: #a5f3fc; }
+.banner.em { background: rgba(16,185,129,.06); border-color: rgba(16,185,129,.25); color: #a7f3d0; }
+.banner svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; }
+.banner b { color: #fff; font-weight: 600; }
+.annot { font-size: 12px; color: var(--v400); border: 1px dashed rgba(167,139,250,.5); border-radius: 8px; padding: 8px 10px; background: rgba(167,139,250,.05); }
+.annot b { color: #ddd6fe; }
+.input { width: 100%; padding: 8px 12px; background: var(--s800); border: 1px solid var(--s700); border-radius: 8px; color: var(--s100); font-size: 14px; }
+.input:focus { outline: none; border-color: rgba(6,182,212,.5); }
+.input.sm { width: 72px; padding: 6px 8px; text-align: right; }
+.field label.fl { display: block; font-size: 12px; color: var(--s400); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.radio { display: flex; gap: 8px; }
+.radio label { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 8px 10px; font-size: 13px; border-radius: 8px; border: 1px solid var(--s700); background: rgba(30,41,59,.5); color: var(--s300); cursor: pointer; }
+.radio label.on { border-color: rgba(6,182,212,.5); background: rgba(6,182,212,.1); color: var(--c400); }
+.radio label.dis { opacity: .45; cursor: not-allowed; }
+.kbd { font-family: var(--mono); font-size: 12px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--s600); background: var(--s800); color: var(--s200); }
+.mini { width: 32px; height: 32px; border-radius: 8px; background: var(--s800); border: 1px solid var(--s700); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--s300); flex-shrink: 0; }
+.dotc { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+.sep { height: 1px; background: var(--s800); margin: 4px 0; }
+
+/* Stepper */
+.stepper { display: flex; align-items: center; gap: 0; }
+.stp { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--s500); white-space: nowrap; }
+.stp .n { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--s600); display: flex; align-items: center; justify-content: center; font-size: 12px; font-family: var(--mono); }
+.stp.done { color: var(--e400); } .stp.done .n { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.4); }
+.stp.cur { color: var(--c400); font-weight: 600; } .stp.cur .n { background: rgba(6,182,212,.2); border-color: var(--c400); box-shadow: 0 0 10px rgba(0,212,255,.3); }
+.stl { flex: 1; height: 1px; background: var(--s700); margin: 0 12px; min-width: 24px; }
+.stl.done { background: rgba(16,185,129,.4); }
+
+/* ETA hero */
+.eta-big { font-family: var(--mono); font-size: 72px; line-height: 1; color: var(--c400); text-shadow: 0 0 10px rgba(0,212,255,.5); letter-spacing: -.02em; }
+.eta-mid { font-family: var(--mono); font-size: 32px; line-height: 1; color: var(--s200); }
+.count { font-family: var(--mono); font-size: 20px; color: var(--s100); }
+.paste { border: 1px dashed rgba(6,182,212,.35); border-radius: 10px; padding: 10px 12px; background: rgba(6,182,212,.04); display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+
+/* Calendrier */
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 8px; }
+.day { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; min-height: 150px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.day.today { border-color: rgba(6,182,212,.35); }
+.day .dh { font-size: 12px; color: var(--s400); text-transform: uppercase; letter-spacing: .05em; display: flex; justify-content: space-between; }
+.chunk { text-align: left; width: 100%; border-radius: 8px; padding: 8px; border: 1px solid var(--s700); background: rgba(30,41,59,.55); color: var(--s200); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.chunk:hover { border-color: rgba(6,182,212,.35); }
+.chunk.sel { border-color: var(--c400); box-shadow: 0 0 0 1px rgba(34,211,238,.4), 0 0 10px rgba(0,212,255,.2); }
+.chunk .nm { font-weight: 600; color: var(--s100); }
+.chunk .mt { font-size: 12px; color: var(--s400); }
+.dim { opacity: .5; }
+
+/* Modale (BaseModal.vue) */
+.ov { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+.ov .bk { position: absolute; inset: 0; background: rgba(2,6,23,.8); }
+.panel { position: relative; background: var(--s900); border: 1px solid var(--s700); border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.6); width: 100%; max-width: 42rem; margin: 0 16px; max-height: 90vh; overflow-y: auto; }
+.panel.wide { max-width: 56rem; }
+.ph { padding: 20px 24px; border-bottom: 1px solid var(--s800); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ph h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--s100); }
+.ph p { margin: 2px 0 0; font-size: 14px; color: var(--s500); }
+.x { width: 32px; height: 32px; border-radius: 8px; background: var(--s800); border: 0; color: var(--s400); display: flex; align-items: center; justify-content: center; }
+.pb { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.pf { padding: 16px 24px; border-top: 1px solid var(--s800); display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+.charsel { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--s700); background: rgba(30,41,59,.4); }
+.charsel.dis { opacity: .55; }
+.charsel input { width: 16px; height: 16px; accent-color: var(--c500); }
+
+/* Toasts (ToastContainer.vue) */
+.toasts { position: fixed; top: 64px; right: 24px; z-index: 100; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; border: 1px solid; backdrop-filter: blur(24px); box-shadow: 0 20px 25px -5px rgba(0,0,0,.4); max-width: 26rem; font-size: 14px; font-weight: 500; }
+.toast.success { background: rgba(16,185,129,.2); border-color: rgba(16,185,129,.4); color: var(--e400); }
+.toast.warning { background: rgba(245,158,11,.2); border-color: rgba(245,158,11,.4); color: var(--a400); }
+.toast svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+/* Vue compacte */
+.compact { max-width: 390px; margin: 0 auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.compact .eta-big { font-size: 84px; }
+.compact .bigbtn { width: 100%; justify-content: center; padding: 16px; font-size: 16px; border-radius: 12px; }
+.compact-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* V3 · compagnon */
+.cmp { --cs: 1; --cbg: rgba(15,23,42,.96); background: var(--cbg); border: 1px solid rgba(6,182,212,.25); border-radius: 14px; color: var(--s100); font-size: calc(13px * var(--cs)); display: flex; flex-direction: column; gap: 6px; padding: 12px; position: relative; overflow: hidden; }
+.cmp.full { border-radius: 0; border-width: 0 0 0 3px; min-height: 100vh; }
+.cmp .hint { font-size: calc(12px * var(--cs)); }
+.cmp-h { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cmp-title { font-weight: 700; color: var(--s100); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: calc(14px * var(--cs)); }
+.cmp-sub { font-size: calc(11px * var(--cs)); color: var(--s500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmp-tools { margin-left: auto; display: flex; gap: 4px; flex-shrink: 0; }
+.cbtn { background: var(--s800); border: 1px solid var(--s700); color: var(--s300); border-radius: 6px; font-size: 11px; line-height: 14px; padding: 3px 6px; display: inline-flex; align-items: center; gap: 4px; }
+.cbtn:hover:not(:disabled) { border-color: rgba(6,182,212,.5); color: var(--c400); }
+.cbtn.on { background: rgba(6,182,212,.18); border-color: rgba(6,182,212,.5); color: var(--c400); }
+.cbtn svg { width: 13px; height: 13px; }
+.cbtn:disabled { opacity: .45; }
+.cmp-eta { font-family: var(--mono); line-height: 1; letter-spacing: -.02em; font-size: calc(52px * var(--cs)); font-variant-numeric: tabular-nums; }
+.cmp-eta small { font-size: .38em; letter-spacing: 0; }
+.tier-normal .cmp-eta { color: var(--c400); text-shadow: 0 0 10px rgba(0,212,255,.5); }
+.tier-orange .cmp-eta { color: var(--a400); text-shadow: 0 0 10px rgba(245,158,11,.45); }
+.tier-red .cmp-eta, .tier-reached .cmp-eta { color: var(--r400); text-shadow: 0 0 12px rgba(239,68,68,.5); animation: softblink 1.6s ease-in-out infinite; }
+.tier-empty .cmp-eta { color: var(--s400); font-size: calc(38px * var(--cs)); }
+.tier-unknown .cmp-eta { color: var(--warning); font-style: italic; font-size: calc(32px * var(--cs)); }
+.cmp.tier-orange { border-color: rgba(245,158,11,.5); }
+.cmp.tier-red, .cmp.tier-reached { border-color: rgba(239,68,68,.6); box-shadow: 0 0 18px rgba(239,68,68,.18); }
+@keyframes softblink { 50% { opacity: .45; } }
+.ring-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+.ring-wrap .ring-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.tier-normal .ring-fg { stroke: #22d3ee; } .tier-orange .ring-fg { stroke: #fbbf24; } .tier-red .ring-fg, .tier-reached .ring-fg { stroke: #f87171; } .tier-empty .ring-fg, .tier-unknown .ring-fg { stroke: #64748b; }
+.cmp-count { font-family: var(--mono); font-size: calc(18px * var(--cs)); color: var(--s100); }
+.pbar { height: 5px; border-radius: 3px; background: var(--s800); overflow: hidden; }
+.pbar i { display: block; height: 100%; background: currentColor; }
+.tier-normal .pbar { color: #22d3ee; } .tier-orange .pbar { color: #fbbf24; } .tier-red .pbar, .tier-reached .pbar { color: #f87171; } .tier-empty .pbar, .tier-unknown .pbar { color: #64748b; }
+.cpill { display: inline-flex; align-items: center; gap: 6px; font-size: calc(11px * var(--cs)); padding: 3px 8px; border-radius: 999px; border: 1px solid var(--s700); color: var(--s300); background: rgba(30,41,59,.6); white-space: nowrap; }
+.cpill.due { border-color: rgba(245,158,11,.6); color: var(--a400); background: rgba(245,158,11,.12); animation: pulseA 1.8s infinite; }
+.cpill.irr { border-color: rgba(245,158,11,.4); color: var(--a400); }
+.cpill.ok { border-color: rgba(16,185,129,.35); color: var(--e400); }
+@keyframes pulseA { 0% { box-shadow: 0 0 0 0 rgba(245,158,11,.55); } 70% { box-shadow: 0 0 0 7px rgba(245,158,11,0); } 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); } }
+.cmp-flash { font-size: calc(12px * var(--cs)); color: var(--e400); background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); border-radius: 8px; padding: 6px 8px; }
+.cmp-warn { font-size: 11px; color: var(--a400); background: rgba(245,158,11,.08); border: 1px dashed rgba(245,158,11,.35); border-radius: 6px; padding: 4px 6px; }
+.cmp-list .it { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; border-top: 1px solid var(--s800); font-size: calc(13px * var(--cs)); }
+.cmp-list .it:first-child { border-top: 0; }
+.cmp-paste { width: 100%; justify-content: center; padding: 10px; font-size: calc(15px * var(--cs)); border-radius: 10px; }
+.cmp-actions { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+.cmp-actions .cbtn { justify-content: center; padding: 6px 4px; }
+.kh { font-size: 10px; color: var(--s500); text-align: center; opacity: 0; transition: opacity .2s; }
+.cmp:hover .kh, .cmp:focus-within .kh { opacity: 1; }
+.kh .kbd { font-size: 10px; padding: 0 4px; }
+.size-bar { flex-direction: row; align-items: center; gap: 10px; padding: 8px 10px 12px; height: 110px; }
+.size-bar .cmp-eta { font-size: calc(44px * var(--cs)); }
+.size-bar .pbar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0; }
+.size-bar .kh { position: absolute; left: 0; right: 0; bottom: 5px; }
+.pres { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.pres.online { background: var(--e500); } .pres.afk { background: var(--a500); } .pres.left { background: var(--s600); }
+.cmp-set { display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--s300); border-top: 1px solid var(--s800); padding-top: 8px; }
+.cmp-set label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cmp-set input[type=range] { width: 120px; accent-color: #06b6d4; }
+.cmp-set input[type=number] { width: 52px; background: var(--s800); border: 1px solid var(--s700); color: var(--s100); border-radius: 6px; padding: 2px 4px; text-align: right; }
+.cmp-dock { position: fixed; right: 24px; bottom: 24px; z-index: 45; box-shadow: 0 25px 50px -12px rgba(0,0,0,.8); border-radius: 16px; background: rgba(18,12,30,.97); border: 1px dashed rgba(167,139,250,.55); padding: 6px; }
+.cmp-dock-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: #c4b5fd; padding: 4px 6px 6px; letter-spacing: .08em; text-transform: uppercase; }
+.hl { box-shadow: 0 0 0 2px #a78bfa; animation: pulseV 1.8s infinite; }
+@keyframes pulseV { 0% { box-shadow: 0 0 0 0 rgba(167,139,250,.7); } 70% { box-shadow: 0 0 0 9px rgba(167,139,250,0); } 100% { box-shadow: 0 0 0 0 rgba(167,139,250,0); } }
+body.cmp-window { margin: 0; background: var(--s950); }
+.cmp-page { min-height: 100vh; }
+.sitestrip { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+.sitecard { flex: 1; min-width: 220px; background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.sitecard.cur { border-color: rgba(6,182,212,.35); }
+.sitearrow { display: flex; align-items: center; color: var(--s600); font-size: 20px; }
+.spec-panel { background: #120c1e; border-bottom: 2px dashed rgba(167,139,250,.55); padding: 12px 18px 16px; color: #ddd6fe; font-size: 13px; position: relative; z-index: 59; }
+.spec-panel table { width: 100%; border-collapse: collapse; }
+.spec-panel th { text-align: left; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--v400); padding: 6px 8px; font-weight: 600; }
+.spec-panel td { padding: 6px 8px; border-top: 1px dashed rgba(167,139,250,.25); vertical-align: top; }
+.spec-panel td.iss { white-space: nowrap; font-family: var(--mono); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .tier-red .cmp-eta, .tier-reached .cmp-eta, .cpill.due, .hl { animation: none; } }
+
+.cmp-alert { display: flex; gap: 8px; align-items: flex-start; font-size: calc(12px * var(--cs)); border-radius: 8px; padding: 6px 8px; border: 1px solid rgba(245,158,11,.5); background: rgba(245,158,11,.14); color: var(--a300); animation: pulseA 1.8s 3; }
+.cmp-alert.info { border-color: rgba(6,182,212,.4); background: rgba(6,182,212,.1); color: #a5f3fc; animation: none; }
+.cmp-alert svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+
+/* V4 */
+.cmp-dock { position: relative; right: auto; bottom: auto; z-index: auto; box-shadow: 0 10px 30px -12px rgba(0,0,0,.7); }
+.cmp-dock .cmp { margin: 0 auto; }
+.banner.red { background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.35); color: #fecaca; }
+.banner.red svg { color: var(--r400); }
+.cmp-alert.dt { border-color: rgba(239,68,68,.55); background: rgba(239,68,68,.14); color: #fecaca; animation: none; }
+.cmp-alert.dt svg { color: var(--r400); }
+.cmp-hauler { border-top: 1px solid var(--s800); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.copyblock { margin: 0; padding: 10px 12px; background: var(--s950); border: 1px solid var(--s800); border-radius: 8px; font-family: var(--mono); font-size: 12px; line-height: 1.55; color: var(--s300); white-space: pre-wrap; overflow-wrap: anywhere; }
+.recap-img { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; border: 1px solid rgba(6,182,212,.35); background: linear-gradient(160deg, rgba(8,47,73,.55), rgba(2,6,23,.95) 60%); box-shadow: inset 0 0 0 1px rgba(6,182,212,.08), 0 0 24px rgba(6,182,212,.08); }
+.chunk .mt { overflow-wrap: anywhere; }
+.ppl-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:24px}
+
+/* Industrie de groupe · V1 */
+.ov { top: var(--mbh, 0px); }
+aside.side { position: relative; height: auto; min-height: calc(100vh - var(--mbh, 0px)); }
+header.top { position: relative; }
+.panel { max-height: calc(100vh - var(--mbh, 0px) - 32px); }
+.prop { position: relative; outline: 1px dashed rgba(167,139,250,.6); outline-offset: 3px; border-radius: 12px; }
+.ptag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; line-height: 14px; padding: 1px 6px; border-radius: 4px; border: 1px dashed rgba(167,139,250,.6); color: #c4b5fd; background: rgba(167,139,250,.08); white-space: nowrap; font-weight: 500; vertical-align: middle; }
+.ptag.real { border-color: rgba(100,116,139,.6); color: var(--s400); background: rgba(100,116,139,.08); }
+.pbar2 { height: 6px; border-radius: 3px; background: var(--s800); overflow: hidden; min-width: 80px; }
+.pbar2 i { display: block; height: 100%; background: var(--c500); }
+.pbar2.done i { background: var(--e500); }
+.pbar2.part i { background: var(--a500); }
+.ring { width: 56px; height: 56px; }
+.ring circle { fill: none; stroke-width: 6; }
+.ring .bg { stroke: var(--s800); }
+.ring .fg { stroke: var(--c400); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.pcard { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; text-align: left; color: inherit; }
+.pcard:hover { border-color: rgba(6,182,212,.35); }
+.pcard .nm { font-size: 16px; font-weight: 600; color: var(--s100); overflow-wrap: anywhere; }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.fpill { padding: 6px 12px; border-radius: 999px; font-size: 13px; border: 1px solid var(--s700); color: var(--s400); background: var(--s900); }
+.fpill.on { border-color: rgba(6,182,212,.5); color: var(--c400); background: rgba(6,182,212,.1); }
+.grp-h td { background: rgba(30,41,59,.45); color: var(--s200); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+.act { font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--s700); color: var(--s300); background: var(--s800); }
+.act.inv { border-color: rgba(139,92,246,.35); color: var(--v400); }
+.act.copy { border-color: rgba(56,189,248,.35); color: var(--sky400); }
+.feed { display: flex; flex-direction: column; }
+.feed .ev { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--s800); font-size: 13px; color: var(--s300); }
+.feed .ev:first-child { border-top: 0; }
+.feed .ev .t { font-family: var(--mono); color: var(--s500); font-size: 12px; min-width: 42px; }
+.feed .ev.new { animation: evIn 2.4s ease-out 1; }
+@keyframes evIn { 0% { background: rgba(6,182,212,.25); } 100% { background: transparent; } }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--e400); }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--e500); box-shadow: 0 0 8px rgba(16,185,129,.7); animation: softblink 2s ease-in-out infinite; }
+.live.off { color: var(--a400); } .live.off i { background: var(--a500); box-shadow: none; animation: none; }
+.donut { width: 168px; height: 168px; }
+.legend { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.who .mini { width: 24px; height: 24px; font-size: 10px; border-radius: 6px; }
+.who b { font-weight: 500; color: var(--s200); overflow-wrap: break-word; white-space: normal; }
+table.t td.meth { white-space: normal; min-width: 140px; max-width: 220px; }
+.who > span:last-child { min-width: 118px; }
+body.long .who > span:last-child { min-width: 90px; }
+table.t td.wr { white-space: normal; }
+.game { position: relative; min-height: 760px; border-radius: 12px; border: 1px solid var(--s700); background: radial-gradient(ellipse at 30% 40%, rgba(30,41,59,.9), rgba(2,6,23,1) 70%); overflow: hidden; }
+.game-h { display: flex; justify-content: space-between; padding: 8px 12px; font-size: 12px; color: var(--s400); border-bottom: 1px solid var(--s800); background: rgba(2,6,23,.7); }
+.game-in { position: absolute; inset: 37px 0 0 0; display: flex; align-items: center; justify-content: center; padding-right: 380px; text-align: center; }
+.game-cmp { position: absolute; top: 52px; right: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.9); border-radius: 14px; }
+.cmp-page2 { min-height: 100vh; display: flex; justify-content: center; padding: 24px; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.cmpg { width: 340px; background: rgba(15,23,42,.96); border: 1px solid rgba(6,182,212,.25); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.cmpg.bar { width: 420px; flex-direction: row; align-items: center; gap: 10px; }
+.cmpg .sec { border-top: 1px solid var(--s800); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.cmpg .it { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cmpg .it span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.alertv { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; border-radius: 8px; padding: 6px 8px; border: 1px solid rgba(245,158,11,.5); background: rgba(245,158,11,.14); color: var(--a300); animation: pulseA 1.8s 3; }
+.alertv.ok { border-color: rgba(16,185,129,.45); background: rgba(16,185,129,.12); color: #a7f3d0; }
+.alertv.info { border-color: rgba(6,182,212,.4); background: rgba(6,182,212,.1); color: #a5f3fc; animation: none; }
+.alertv svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+.check { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--s800); }
+.check:first-child { border-top: 0; }
+.check .ic { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.check .ic.ok { background: rgba(16,185,129,.15); color: var(--e400); }
+.check .ic.ko { background: rgba(245,158,11,.15); color: var(--a400); }
+.audit td.ex { color: var(--e400); white-space: nowrap; }
+.audit td.gap { color: var(--a400); white-space: nowrap; }
+.viewas { font-size: 12px; color: #c4b5fd; border: 1px dashed rgba(167,139,250,.5); border-radius: 8px; padding: 6px 10px; background: rgba(167,139,250,.06); }
+.hl2 { box-shadow: 0 0 0 2px #a78bfa; animation: pulseV 1.8s 3; }
+.spec-panel td { white-space: normal; }
+@media (prefers-reduced-motion: reduce) { .feed .ev.new, .alertv, .live i, .hl2 { animation: none; } }
+.col > .ptag { align-self: flex-start; }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div><div class="bg-glow"></div>
+<div id="mockbar"></div>
+<div id="root"></div>
+<div id="modal"></div>
+<div class="toasts" id="toasts"></div>
+<script>
+const DATA = {"mats": [{"name": "Tritanium", "required": 165656, "price": 4.12, "key": "m1"}, {"name": "Pyerite", "required": 278, "price": 9.85, "key": "m2"}, {"name": "Mexallon", "required": 9980, "price": 61.4, "key": "m3"}, {"name": "Isogen", "required": 598, "price": 139.0, "key": "m4"}, {"name": "Nocxium", "required": 54, "price": 645.0, "key": "m5"}, {"name": "Zydrine", "required": 179, "price": 1580.0, "key": "m6"}, {"name": "Morphite", "required": 180, "price": 14850.0, "key": "m7"}, {"name": "Robotics", "required": 180, "price": 91200.0, "key": "m8"}, {"name": "Guidance Systems", "required": 180, "price": 34650.0, "key": "m9"}, {"name": "Particle Accelerator Unit", "required": 80, "price": 30900.0, "key": "m10"}, {"name": "R.A.M.- Robotics", "required": 80, "price": 1462.0, "key": "m11"}, {"name": "Datacore - Electronic Engineering", "required": 39, "price": 98400.0, "key": "m12"}, {"name": "Datacore - Graviton Physics", "required": 39, "price": 111900.0, "key": "m13"}], "jobs": [{"product": "Hammerhead II", "activity": "manufacturing", "runs": 10, "me": 2, "te": 4, "group": "final", "required": 10, "key": "j1"}, {"product": "Hammerhead II", "activity": "manufacturing", "runs": 10, "me": 2, "te": 4, "group": "final", "required": 10, "key": "j2"}, {"product": "Hammerhead II", "activity": "manufacturing", "runs": 10, "me": 2, "te": 4, "group": "final", "required": 10, "key": "j3"}, {"product": "Hammerhead II", "activity": "manufacturing", "runs": 10, "me": 2, "te": 4, "group": "final", "required": 10, "key": "j4"}, {"product": "Hammerhead II", "activity": "manufacturing", "runs": 10, "me": 2, "te": 4, "group": "final", "required": 10, "key": "j5"}, {"product": "Hobgoblin II", "activity": "manufacturing", "runs": 10, "me": 2, "te": 4, "group": "final", "required": 10, "key": "j6"}, {"product": "Hobgoblin II", "activity": "manufacturing", "runs": 10, "me": 2, "te": 4, "group": "final", "required": 10, "key": "j7"}, {"product": "Hobgoblin II", "activity": "manufacturing", "runs": 10, "me": 2, "te": 4, "group": "final", "required": 10, "key": "j8"}, {"product": "Hammerhead I", "activity": "manufacturing", "runs": 50, "me": 10, "te": 20, "group": "component", "required": 50, "key": "j9"}, {"product": "Hobgoblin I", "activity": "manufacturing", "runs": 30, "me": 10, "te": 20, "group": "component", "required": 30, "key": "j10"}, {"product": "Hammerhead I", "activity": "copy", "runs": 50, "me": 0, "te": 0, "group": "blueprint", "required": 50, "key": "j11"}, {"product": "Hobgoblin I", "activity": "copy", "runs": 30, "me": 0, "te": 0, "group": "blueprint", "required": 30, "key": "j12"}, {"product": "Hammerhead II", "activity": "invention", "runs": 15, "me": 0, "te": 0, "group": "blueprint", "required": 15, "key": "j13"}, {"product": "Hammerhead I", "activity": "copy", "runs": 15, "me": 0, "te": 0, "group": "blueprint", "required": 15, "forInvention": true, "key": "j14"}, {"product": "Hobgoblin II", "activity": "invention", "runs": 9, "me": 0, "te": 0, "group": "blueprint", "required": 9, "key": "j15"}, {"product": "Hobgoblin I", "activity": "copy", "runs": 9, "me": 0, "te": 0, "group": "blueprint", "required": 9, "forInvention": true, "key": "j16"}], "contribs": [{"id": "A1", "member": "alpha", "type": "material", "line": "m1", "qty": 165656, "value": 682502.72, "final": "approved"}, {"id": "A2", "member": "alpha", "type": "material", "line": "m3", "qty": 9980, "value": 612772.0, "final": "approved"}, {"id": "A3", "member": "alpha", "type": "material", "line": "m4", "qty": 598, "value": 83122.0, "final": "approved"}, {"id": "A4", "member": "alpha", "type": "material", "line": "m2", "qty": 278, "value": 2738.3, "final": "approved"}, {"id": "A5", "member": "alpha", "type": "material", "line": "m5", "qty": 54, "value": 34830.0, "final": "approved"}, {"id": "A6", "member": "alpha", "type": "material", "line": "m6", "qty": 179, "value": 282820.0, "final": "approved"}, {"id": "B1", "member": "bravo", "type": "material", "line": "m7", "qty": 180, "value": 2673000.0, "final": "approved"}, {"id": "B2", "member": "bravo", "type": "material", "line": "m8", "qty": 120, "value": 10944000.0, "final": "approved"}, {"id": "C1", "member": "charlie", "type": "material", "line": "m9", "qty": 180, "value": 6237000.0, "final": "approved"}, {"id": "C2", "member": "charlie", "type": "material", "line": "m10", "qty": 80, "value": 2472000.0, "final": "approved"}, {"id": "C3", "member": "charlie", "type": "material", "line": "m11", "qty": 80, "value": 116960.0, "final": "approved"}, {"id": "C4", "member": "charlie", "type": "material", "line": "m8", "qty": 60, "value": 5472000.0, "final": "approved"}, {"id": "D1", "member": "delta", "type": "material", "line": "m12", "qty": 39, "value": 3837600.0, "final": "approved"}, {"id": "D2", "member": "delta", "type": "material", "line": "m13", "qty": 39, "value": 4364100.0, "final": "approved"}, {"id": "D7", "member": "delta", "type": "material", "line": "m7", "qty": 30, "value": 445500.0, "final": "rejected"}, {"id": "A7", "member": "alpha", "type": "job_install", "line": "j9", "qty": 50, "value": 96000, "final": "approved"}, {"id": "A8", "member": "alpha", "type": "job_install", "line": "j10", "qty": 30, "value": 41000, "final": "approved"}, {"id": "D3", "member": "delta", "type": "bpc", "line": "j13", "qty": 15, "value": 1245000, "final": "approved"}, {"id": "D4", "member": "delta", "type": "bpc", "line": "j15", "qty": 9, "value": 747000, "final": "approved"}, {"id": "D5", "member": "delta", "type": "job_install", "line": "j14", "qty": 15, "value": 45000, "final": "approved"}, {"id": "D6", "member": "delta", "type": "job_install", "line": "j16", "qty": 9, "value": 27000, "final": "approved"}, {"id": "B4", "member": "bravo", "type": "job_install", "line": "j1", "qty": 10, "value": 214000, "final": "approved"}, {"id": "B5", "member": "bravo", "type": "job_install", "line": "j2", "qty": 10, "value": 214000, "final": "approved"}, {"id": "B6", "member": "bravo", "type": "job_install", "line": "j3", "qty": 10, "value": 214000, "final": "approved"}, {"id": "B7", "member": "bravo", "type": "job_install", "line": "j4", "qty": 10, "value": 214000, "final": "approved"}, {"id": "B8", "member": "bravo", "type": "job_install", "line": "j5", "qty": 10, "value": 214000, "final": "approved"}, {"id": "C5", "member": "charlie", "type": "job_install", "line": "j6", "qty": 10, "value": 131000, "final": "approved"}, {"id": "C6", "member": "charlie", "type": "job_install", "line": "j7", "qty": 10, "value": 131000, "final": "approved"}, {"id": "C7", "member": "charlie", "type": "job_install", "line": "j8", "qty": 10, "value": 131000, "final": "approved"}, {"id": "C8", "member": "charlie", "type": "line_rental", "line": "j6", "qty": 10, "value": 1000000, "final": "approved"}], "sales": [{"id": "S1", "item": "Hammerhead II", "qty": 30, "unit": 760000, "venue": "Jita IV - Moon 4", "seller": "Personnage Alpha", "wallet": true, "date": "05/11", "channel": "market", "contractFees": 0}, {"id": "S2", "item": "Hobgoblin II", "qty": 30, "unit": 455000, "venue": "Contrat item exchange · Corp D", "seller": "Personnage Bravo", "wallet": false, "date": "04/11", "channel": "contract", "contractFees": 0}, {"id": "S3", "item": "Hammerhead II", "qty": 20, "unit": 748000, "venue": "Jita IV - Moon 4", "seller": "Personnage Bravo", "wallet": true, "date": "06/11", "channel": "market", "contractFees": 0}], "items": [{"name": "Hammerhead II", "me": 2, "te": 4, "runs": 50}, {"name": "Hobgoblin II", "me": 2, "te": 4, "runs": 30}], "fees": {"broker": 3.6, "tax": 3.6}, "bomTotal": 37815445.02, "held": {"alpha": 21158400.0, "bravo": 27532880.0}, "transfers": [{"from": "alpha", "to": "charlie", "amount": 17985473.36}, {"from": "alpha", "to": "delta", "amount": 1068691.94}, {"from": "bravo", "to": "delta", "amount": 10698177.26}]};
+
+const ICON = {
+  dashboard: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+  revenue: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
+  production: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+  mining: 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z',
+  group: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+  projects: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  market: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
+  inventory: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+  link: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',
+  refresh: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+  warn: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z',
+  ok: 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  lock: 'M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z',
+  clip: 'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3',
+  chev: 'M9 5l7 7-7 7',
+  x: 'M6 18L18 6M6 6l12 12',
+  gear: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z',
+  plus: 'M12 4v16m8-8H4',
+  pencil: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z',
+  trash: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+  ext: 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14',
+  bolt: 'M13 10V3L4 14h7v7l9-11h-7z',
+  bell: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'
+};
+const svg = (d, cls = '') => `<svg class="${cls}" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="${d}"/></svg>`;
+
+const PROJECT_REF = 'GI-7F3A9C';
+const PROJECT = { name: 'Drones de doctrine · semaine 46', code: '7f3a9c2e1b', container: 'GI Drones S46', created: 'lun. 02/11 20:15', completed: 'sam. 07/11 21:40', structure: 'Structure A' };
+const joinLink = () => 'evetools.app/' + (S.real ? 'join/' : 'group-industry/join/') + PROJECT.code;
+const OLD_PROJECT = { name: 'Carburant de la corpo · octobre', items: '1 item · 40 runs', approved: 18450000, bom: 17920000, members: 3, created: '05/10' };
+const PEOPLE = {
+  alpha: { name: 'Joueur Alpha', char: 'Personnage Alpha', corp: 'Corp A', joined: '02/11 20:15' },
+  bravo: { name: 'Joueur Bravo', char: 'Personnage Bravo', corp: 'Corp A', joined: '02/11 20:31' },
+  charlie: { name: 'Joueur Charlie', char: 'Personnage Charlie', corp: 'Corp A', joined: '02/11 20:48' },
+  delta: { name: 'Joueur Delta', char: 'Personnage Delta', corp: 'Corp B', joined: '02/11 21:12' },
+  echo: { name: 'Joueur Echo', char: 'Personnage Echo', corp: 'Corp C', joined: null },
+  foxtrot: { name: 'Joueur Foxtrot', char: 'Personnage Foxtrot', corp: 'Corp A', joined: null }
+};
+const NAME_ORIG = JSON.parse(JSON.stringify({ people: PEOPLE, project: PROJECT.name, container: PROJECT.container }));
+const LONG_TAG = ' Longnom-Exemple de la Corpo Exemple';
+function applyNames(long) {
+  Object.entries(NAME_ORIG.people).forEach(([k, p]) => {
+    PEOPLE[k].name = p.name + (long ? LONG_TAG : '');
+    PEOPLE[k].char = p.char + (long ? ' Longnom-Exemple' : '');
+    PEOPLE[k].corp = p.corp + (long ? ' Longnom-Exemple Industrie et Logistique' : '');
+  });
+  PROJECT.name = NAME_ORIG.project + (long ? ' — capitales, drones et munitions pour la campagne d’hiver' : '');
+  PROJECT.container = NAME_ORIG.container + (long ? ' · Hangar partagé Longnom-Exemple' : '');
+}
+const SELLER_KEY = { 'Personnage Alpha': 'alpha', 'Personnage Bravo': 'bravo' };
+const TYPE_LABEL = { material: 'Matériau', job_install: 'Installation de job', bpc: 'BPC', line_rental: 'Location de ligne' };
+const TYPE_BADGE = { material: 'b-cyan', job_install: 'b-violet', bpc: 'b-amber', line_rental: 'b-slate' };
+const STATUS = { draft: ['Brouillon', 'b-slate'], published: ['Publié', 'b-cyan'], in_progress: ['En cours', 'b-violet'], selling: ['En vente', 'b-amber'], completed: ['Terminé', 'b-em'] };
+const NEXT_STATUS = { published: 'in_progress', in_progress: 'selling', selling: 'completed' };
+const ACT_LABEL = { manufacturing: 'Fabrication', reaction: 'Réaction', copy: 'Copie', invention: 'Invention' };
+const GROUP_LABEL = { blueprint: 'Blueprints', component: 'Composants', final: 'Produits finaux' };
+const BLACKLIST = [['advanced_components', 'Advanced Components', true], ['capital_components', 'Capital Components', false], ['advanced_capital_components', 'Advanced Capital Components', false], ['hybrid_components', 'Hybrid Components', false], ['fuel_blocks', 'Fuel Blocks', false], ['tools', 'Tools (R.A.M.)', true], ['simple_reactions', 'Simple Reactions', false], ['complex_reactions', 'Composite Reactions', false], ['hybrid_reactions', 'Hybrid Reactions', false], ['biochem_reactions', 'Biochemical Reactions', false]];
+const RATES = [['Component T1', 250, 'ISK/run'], ['Module T1', 10000, 'ISK/run'], ['Ship T1', 100000, 'ISK/run'], ['Module T2', 100000, 'ISK/run'], ['Ship T2', 2500000, 'ISK/run'], ['Capital T1', 25000, 'ISK/run'], ['Capital T2', 125000, 'ISK/run'], ['Location Factor', 1000000, 'ISK/jour']];
+const CONTAINER_QTY = { Robotics: 120, Nocxium: 0 };
+const ESI_COST_NOTE = 'coût réel payé en jeu (champ cost de l’ESI : frais d’installation + taxe de la structure, déjà stocké dans CachedIndustryJob)';
+const PRICES_FROZEN = 'lun. 02/11 20:15';
+
+const SUBMIT_STEP = { A1: 10, A2: 11, A3: 11, A4: 11, A5: 11, A6: 11, B1: 11, C1: 11, C2: 11, C3: 11, D1: 11, D2: 11, B2: 12, A7: 12, A8: 12, B4: 12, B5: 12, B6: 12, B7: 12, B8: 12, D3: 12, D4: 12, D5: 12, D6: 12, D7: 12, C4: 13, C5: 13, C6: 13, C7: 13, C8: 14 };
+const APPROVED_AT_12 = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'C1', 'C2', 'C3', 'D1', 'D2'];
+const ESI_DETECTED = ['A7', 'A8', 'B4', 'B5', 'B6', 'B7', 'B8', 'C5', 'C6', 'C7', 'D3', 'D4', 'D5', 'D6'];
+const SALE_STEP = { S2: 19, S1: 20, S3: 21 };
+
+const TOUR = [
+  { label: 'Mes projets · un projet terminé', base: 1 },
+  { label: 'Nouveau projet · collage en lot', base: 2, idea: 1 },
+  { label: 'Nouveau projet · liste noire, container, frais', base: 3, idea: 2 },
+  { label: 'Projet créé · BOM figée (feuilles)', base: 4 },
+  { label: 'Jobs à lancer · blueprints, composants, finaux', base: 5 },
+  { label: 'Invitation · lien de partage par module', base: 6, idea: 19 },
+  { label: 'Disponibles · même corpo, sans approbation', base: 7 },
+  { label: 'Lien court · demande en attente (Corp B)', base: 8 },
+  { label: 'Demandes · accepter, promouvoir admin', base: 9, idea: 16 },
+  { label: 'Contribuer depuis la BOM · prix BOM figé', base: 10, idea: 3 },
+  { label: 'Je m’en charge · lignes réservées', base: 11, idea: 4 },
+  { label: 'En cours · jobs ESI, containers d’entrée et de sortie', base: 12, idea: 18 },
+  { label: 'Location de ligne · barème du projet', base: 13, idea: 6 },
+  { label: 'Revue des contributions', base: 14 },
+  { label: 'Vérification du container', base: 15, idea: 8 },
+  { label: 'Temps réel · jobs en cours, coût réel', base: 16, idea: 9 },
+  { label: 'Compagnon · lignes à attribuer, jeu à l’écran', base: 17, idea: 10 },
+  { label: 'Alertes visuelles · job fini, BOM complète', base: 18, idea: 10 },
+  { label: 'En vente · contrat sans taxe, wallet à rattacher', base: 19, idea: 20 },
+  { label: 'Distribution · ventes partielles, invendus', base: 20, idea: 12 },
+  { label: 'Dernière vente · payouts', base: 21 },
+  { label: 'Versements · qui verse à qui', base: 22, idea: 13 },
+  { label: 'Clôture · vérifications avant Terminer', base: 23, idea: 14 },
+  { label: 'Projet terminé · comptes figés, récap', base: 24, idea: 14 },
+  { label: 'Variante · lecteur de la corpo non membre', base: 15, idea: 15, fx: () => { S.state = 'corp_reader'; S.tab = 'contrib'; } },
+  { label: 'Variante · prix BOM manquant', base: 10, fx: () => { S.state = 'missing_price'; } },
+  { label: 'Variante · aucune vente encore', base: 18, idea: 12, fx: () => { S.state = 'no_sales'; S.tab = 'dist'; S.view = 'detail'; S.focus = null; } },
+  { label: 'Variante · personnage à reconnecter', base: 16, idea: 5, fx: () => { S.state = 'reconnect'; S.tab = 'contrib'; } },
+  { label: 'Variante · enregistrer une vente par contrat', base: 19, idea: 20, fx: () => { S.modal = 'sale'; S.sales = []; } },
+  { label: 'Variante · compagnon avant le lancement, tout à attribuer', base: 10, idea: 4, fx: () => { S.modal = null; S.view = 'companion'; S.size = 'compact'; S.claims = { m1: true, m2: true }; } }
+];
+const STEPS = TOUR.map(t => t.label);
+const LAST_STEP = STEPS.length;
+const STATE_LABELS = { normal: 'Normal', missing_price: 'Prix BOM manquant (Robotics)', container_unknown: 'Container non vérifiable', corp_reader: 'Lecteur de la corpo (non membre)', reconnect: 'Personnage à reconnecter', no_sales: 'Aucune vente encore', no_cost: 'Aucune contribution approuvée' };
+const MODE_TO_STEP = { published: 6, in_progress: 16, selling: 20, completed: 24 };
+
+const SPEC_ADDITIONS = [
+  ['Création', 'Collage en lot : retour ligne par ligne avant la création (reconnue, item inconnu avec suggestion, format invalide) au lieu d’ignorer en silence ou d’échouer au serveur', '#327'],
+  ['Création', 'Frais de courtage et taxe de vente saisis à la création, pré-remplis depuis les réglages Industry (champs absents de la modale aujourd’hui)', '#327 (suite #170)'],
+  ['BOM', 'Contribuer depuis une ligne de BOM ou de job : bouton par ligne, quantité restante pré-remplie (l’événement « contribute » existe sans être émis)', '#320'],
+  ['BOM', '« Je m’en charge » : réserver une ligne (matériau ou job) avant de livrer, depuis la BOM ou depuis le compagnon sans quitter le jeu ; visible de tous en direct (nouvel événement Mercure line_reserved) ; évite les doublons comme la Morphite rejetée', '#320'],
+  ['Contributions', 'Installation de job et BPC détectés par les jobs ESI des personnages et de la corpo (produit, activité, runs), valorisés au coût réel payé en jeu (champ cost, déjà stocké) et non plus saisis ; coût réel affiché dans le tableau des jobs ; « vérifié » quand le job finit ; sans scope ou jeton expiré : « non vérifié » et coût inconnu, jamais 0', '#318 (jamais branchée : méthode sans appelant supprimée par #257)'],
+  ['Contributions', 'Location de ligne pré-remplie par le barème du projet, puis de l’utilisateur (catégorie × runs)', '#300 (option « brancher »)'],
+  ['BOM', 'Statut des jobs lu dans l’ESI (en cours avec heure de fin, terminé) au lieu d’être déduit de la quantité fournie', '#318'],
+  ['Container', 'Écart entre contributions approuvées et contenu du container signalé par ligne ; bouton « Tout vérifier » visible des seuls admins', '#328 (étend #158)'],
+  ['Temps réel', 'Fil d’activité et indicateur « en direct » sur le détail, alimentés par les événements Mercure déjà émis ; jobs détectés en cours avec coût réel et compte à rebours jusqu’à la fin (end_date ESI)', '#321 (étend #148)'],
+  ['Temps réel', 'Compagnon compact « Mes tâches » (barre ou colonne), posé au-dessus de la fenêtre du jeu : lignes à attribuer avec « Je m’en charge », mes lignes à livrer, à revoir, mes jobs, alertes visuelles sans son (job terminé, BOM complète, demande d’adhésion)', '#322 (lien #148)'],
+  ['Liste', 'KPI « Approbations en attente » calculé (codé à 0 aujourd’hui)', '#329'],
+  ['Distribution', 'Avant toute vente : « en attente des ventes » au lieu d’une marge à −100 % et du scénario de perte ; invendus listés et marge projetée au dernier prix de vente', '#323 (suite #146, #156)'],
+  ['Distribution', 'Versements : chaque vendeur garde son revenu net, la maquette calcule qui verse quoi à qui, avec une référence de paiement ; coche manuelle, vérification par le journal wallet à confirmer', '#324'],
+  ['Clôture', 'Vérifications avant « Terminer » (contributions en attente, invendus, versements) et récapitulatif texte à partager', '#324 (lien #152)'],
+  ['Accès', 'Lecteur de la corpo non membre : onglets Contributions et Membres remplacés par une explication et « Rejoindre » au lieu d’un 403 muet', '#329 (Q2 de #162)'],
+  ['Membres', 'Statut, voie d’adhésion (lien court ou même corpo) et nom de corporation réels dans les tables des membres et des demandes', '#329'],
+  ['Ventes', 'Vente : item choisi parmi les items du projet (typeId) et quantité restante à vendre par item', '#325 (lien #241)'],
+  ['Jobs', 'Entrée et sortie de chaque job ESI : blueprint_location_id et output_location_id gardés par la sync, résolus en container (nom, division) par les assets ; contrôle « entrée = container du projet » et alerte quand la sortie n’y est pas ; lieu non résolu : inconnu avec la raison', '#319 (suite proposition 5, lien #158)'],
+  ['Invitation', 'Le lien d’invitation porte le module : /group-industry/join/{code} ici, comme /mining-operations/join/{code} prévu par #262 pour le minage ; l’ancien /join/{code} redirige', '#330 (étend #150, aligné sur #262)'],
+  ['Ventes', 'Vente par contrat : canal « ordre de marché » ou « contrat » sur chaque vente ; un contrat ne paie ni la taxe de vente ni les frais de courtage du projet ; ses frais réels viennent du journal wallet (contract_brokers_fee, contract_sales_tax) ; rattachement au contrat ESI terminé (item_exchange, items lus comme pour les ventes de loot PVE)', '#325 (lien #241)']
+];
+const AUDIT_EXISTS = [
+  ['Liste « Mes projets » et « Disponibles » (même corpo), KPI, filtres par statut', 'GroupIndustryList.vue, ProjectKpiCards.vue'],
+  ['Création multi-items (1 à 10), recherche ou collage « ITEM ME TE xRUNS », liste noire, container, barème de location', 'NewProjectModal.vue, CreateGroupProjectProcessor.php'],
+  ['BOM figée à la création : feuilles du plan du noyau, prix Jita 5 % figé, jobs final / composant (ME 10, TE 20) / blueprint (copie, invention)', 'GroupIndustryProjectService.php, spec 141, 105, 154'],
+  ['Lien court (approbation) et même corpo (acceptation automatique) ; rôles Owner > Admin > Member ; retrait doux', 'JoinGroupProjectProcessor.php, spec 162, 170'],
+  ['Contributions Matériau, Installation de job, BPC, Location de ligne ; revue par un admin (pas la sienne) ; une par membre, ligne et type', 'GroupIndustryContributionService.php'],
+  ['Vérification du container par nom dans les assets corpo de l’owner, sous-containers compris, états inconnu / introuvable / vérifié / partiel / absent', 'GroupIndustryContainerService.php, spec 158'],
+  ['Temps réel Mercure : topic /group-project/{id}/events, rechargement ciblé par action', 'MercurePublisherService.php, groupProjectRefreshes.ts, spec 148'],
+  ['Ventes manuelles ou rattachées à une transaction wallet, vendeur, doublon possible', 'SalesTable.vue, SaleSuggestionsPanel.vue, spec 241'],
+  ['Distribution : payout = coûts engagés × (1 + marge %), répartition impossible si coût approuvé nul', 'GroupIndustryDistributionService.php, spec 146-156'],
+  ['Cycle published → in_progress → selling → completed, projet terminé figé', 'nextProjectStatus.ts, spec 152']
+];
+const AUDIT_GAPS = [
+  ['Aucune détection ESI : Installation de job, BPC et location sont saisis à la main ; « Non vérifié » partout', '#318'],
+  ['Barèmes de location stockés mais jamais appliqués', '#300'],
+  ['Sans vente : marge −100 %, payouts 0 et « Loss Scenario »', '#323'],
+  ['KPI « Approbations en attente » codé à 0', '#329'],
+  ['Pas de bouton « contribuer » sur la BOM ; pas de réservation', '#320'],
+  ['Collage en lot : lignes invalides ignorées sans message', '#327'],
+  ['Pas de frais à la création ; liste noire décochée malgré « Défauts issus de vos paramètres »', '#327'],
+  ['« Tout vérifier » visible de tous, réservé aux admins côté serveur ; 403 non affiché', '#328'],
+  ['Lecteur de la corpo : onglets Contributions et Membres en 403', '#329'],
+  ['Membres : statut toujours « Active », voie toujours « Lien court », corpo « Corp #id »', '#329'],
+  ['Vente manuelle : typeId 0, item en texte libre, date non saisissable', '#325'],
+  ['Libellés anglais codés en dur (cartes, contributions, ventes, distribution, membres) ; la maquette les montre en français', 'nouvelle issue i18n'],
+  ['Bouton Supprimer visible d’un admin alors que le serveur le réserve à l’owner', 'nouvelle issue'],
+  ['Vente par contrat : la taxe de vente et les frais de courtage du projet s’appliquent quand même (le lieu est un texte libre)', '#325'],
+  ['Lien d’invitation /join/{code} identique pour tous les modules : rien ne distingue un lien d’industrie d’un lien de minage', '#330'],
+  ['Sync des jobs : seuls facility_id et station_id sont gardés, pas blueprint_location_id ni output_location_id', '#319'],
+  ['Ligne de copie générée pour chaque blueprint copiable, même fabriqué depuis un BPO (Hammerhead I, Hobgoblin I) : reste « À lancer »', 'à confirmer']
+];
+const TO_CONFIRM = ['Frais réels d’un contrat item exchange en jeu : le journal ESI connaît contract_brokers_fee et contract_sales_tax ; journal wallet non synchronisé aujourd’hui', 'Matériaux pris au même lieu que le blueprint (blueprint_location_id) : à vérifier en jeu, l’ESI n’a pas de champ d’entrée des matériaux', 'output_location_id d’un job corpo : container, office ou hangar de division ? à vérifier', 'Forme du lien de minage : #262 prévoit /mining-operations/join/{code}, la maquette minage V4 montre /minage/rejoindre/… ; à aligner', 'Catégorie de barème d’un drone T2 (Module T2 ?) pour la proposition 6', 'Journal wallet (dons) : non synchronisé aujourd’hui, à ajouter pour vérifier les versements (proposition 13)', 'Jobs corpo visibles seulement avec le rôle Factory_Manager : détection partielle sinon (proposition 5)', 'Lignes de copie des blueprints fabriqués depuis un BPO : à garder ou à retirer de la BOM'];
+
+let S;
+function baseState() {
+  return { view: 'list', tab: 'bom', status: 'none', created: false, step: 0, phase: 0, cfType: null, modal: null, state: 'normal', longNames: false, specOpen: false, auditOpen: false, real: false,
+    members: { alpha: 'accepted', bravo: 'none', charlie: 'none', delta: 'none', echo: 'none' }, bravoAdmin: false, contrib: {}, sales: [], reserved: false, containerChecked: false,
+    feed: false, focus: null, createStage: 1, contribForm: null, paid: {}, filter: 'all', mine: false, expanded: {}, copied: false, size: 'compact', alerts: false, viewer: 'alpha', joinedNow: false, refCopied: false, recapCopied: false, listTab: 'mine', claims: {} };
+}
+function applyStep(n) {
+  const t = TOUR[n - 1];
+  applyBase(t.base);
+  S.step = n;
+  if (t.fx) t.fx();
+}
+function applyBase(n) {
+  S.step = n;
+  S.phase = n;
+  S.view = 'list';
+  if (n === 2 || n === 3) { S.modal = 'create'; S.createStage = n === 2 ? 1 : 2; }
+  if (n >= 4) { S.created = true; S.status = 'published'; S.view = 'detail'; S.tab = 'bom'; }
+  if (n === 5) S.focus = 'jobs';
+  if (n >= 6) S.tab = 'members';
+  if (n >= 7) { S.members.bravo = 'accepted'; S.members.charlie = 'accepted'; }
+  if (n === 7) { S.view = 'list'; S.listTab = 'available'; S.viewer = 'charlie'; S.members.charlie = 'none'; }
+  if (n >= 8) { S.members.delta = 'pending'; S.members.echo = 'pending'; }
+  if (n === 8) { S.view = 'join'; S.viewer = 'delta'; }
+  if (n >= 9) S.members.delta = 'accepted';
+  if (n >= 10) S.bravoAdmin = true;
+  if (n === 9) { S.members.delta = 'pending'; S.focus = 'pending'; }
+  Object.entries(SUBMIT_STEP).forEach(([id, st]) => { if (n >= st) S.contrib[id] = 'pending'; });
+  if (n >= 10) S.tab = 'bom';
+  if (n === 10) { S.modal = 'contribute'; S.contribForm = { type: 'material', line: 'm1', qty: 165656 }; }
+  if (n >= 11) S.reserved = true;
+  if (n >= 12) { S.status = 'in_progress'; APPROVED_AT_12.forEach(id => { S.contrib[id] = 'approved'; }); S.tab = 'contrib'; }
+  if (n === 13) { S.modal = 'contribute'; S.contribForm = { type: 'line_rental', line: 'j6', qty: 10 }; }
+  if (n === 14) S.focus = 'review';
+  if (n >= 15) { Object.keys(S.contrib).forEach(id => { S.contrib[id] = id === 'D7' ? 'rejected' : 'approved'; }); S.tab = 'bom'; S.containerChecked = true; }
+  if (n >= 16) { S.feed = true; S.tab = 'contrib'; }
+  if (n === 17) { S.view = 'companion'; S.size = 'compact'; }
+  if (n >= 18) S.alerts = true;
+  if (n === 18) { S.view = 'detail'; S.tab = 'bom'; S.focus = 'dock'; }
+  if (n >= 19) { S.status = 'selling'; S.tab = 'dist'; }
+  Object.entries(SALE_STEP).forEach(([id, st]) => { if (n >= st) S.sales.push(id); });
+  if (n === 19) S.focus = 'suggest';
+  if (n >= 22) { S.focus = 'payments'; }
+  if (n === 22) { S.paid = { 0: true }; }
+  if (n === 23) { S.modal = 'complete'; S.paid = { 0: true, 1: true, 2: true }; }
+  if (n >= 24) { S.status = 'completed'; S.paid = { 0: true, 1: true, 2: true }; S.focus = 'recap'; }
+}
+
+/* ---------- Données dérivées ---------- */
+const memberIds = () => Object.keys(S.members).filter(k => S.members[k] === 'accepted');
+const pendingIds = () => Object.keys(S.members).filter(k => S.members[k] === 'pending');
+const contribs = () => DATA.contribs.filter(c => S.contrib[c.id]);
+const statusOf = c => S.contrib[c.id];
+const lineOf = key => DATA.mats.find(m => m.key === key) || DATA.jobs.find(j => j.key === key);
+const lineName = l => l.name || l.product;
+function priceOf(m) { return S.state === 'missing_price' && m.name === 'Robotics' ? null : m.price; }
+function fulfilled(key) { return contribs().filter(c => c.line === key && statusOf(c) === 'approved').reduce((s, c) => s + c.qty, 0); }
+function pct(key, req) { return req <= 0 ? 100 : Math.min(100, fulfilled(key) / req * 100); }
+function bomProgress() { const ms = DATA.mats; return ms.reduce((s, m) => s + pct(m.key, m.required), 0) / ms.length; }
+function bomValue() { if (DATA.mats.some(m => priceOf(m) === null)) return null; return DATA.mats.reduce((s, m) => s + m.required * m.price, 0); }
+function detectionUnknown(c) { return S.state === 'reconnect' && !S.real && c.member === 'bravo' && ESI_DETECTED.includes(c.id); }
+function valueOf(c) { return detectionUnknown(c) ? null : c.value; }
+const dateKey = s => s.date.split('/').reverse().join('');
+function salesList() { return DATA.sales.filter(s => S.sales.includes(s.id) && S.state !== 'no_sales').sort((a, b) => dateKey(a).localeCompare(dateKey(b))); }
+function distribution() {
+  const sales = salesList();
+  const revenue = sales.reduce((s, x) => s + x.qty * x.unit, 0);
+  const taxed = S.real ? revenue : sales.filter(x => x.channel === 'market').reduce((s, x) => s + x.qty * x.unit, 0);
+  const contractRevenue = revenue - taxed;
+  const contractFees = S.real ? 0 : sales.filter(x => x.channel === 'contract').reduce((s, x) => s + x.contractFees, 0);
+  const broker = taxed * DATA.fees.broker / 100, tax = taxed * DATA.fees.tax / 100, net = revenue - broker - tax - contractFees;
+  const ap = S.state === 'no_cost' ? [] : contribs().filter(c => statusOf(c) === 'approved');
+  const unknown = ap.filter(c => valueOf(c) === null);
+  const cost = unknown.length ? null : ap.reduce((s, c) => s + c.value, 0);
+  const ratio = cost === null || cost <= 0 ? null : (net - cost) / cost;
+  const members = {};
+  ap.forEach(c => { const m = members[c.member] = members[c.member] || { costs: 0, byType: {}, unknown: 0 }; if (valueOf(c) === null) m.unknown += 1; else { m.costs += c.value; m.byType[c.type] = (m.byType[c.type] || 0) + c.value; } });
+  Object.values(members).forEach(m => { m.share = cost ? m.costs / cost * 100 : null; m.profit = ratio === null || m.unknown ? null : m.costs * ratio; m.payout = m.profit === null ? null : m.costs + m.profit; });
+  return { sales, revenue, taxed, contractRevenue, contractFees, broker, tax, net, cost, ratio, margin: ratio === null ? null : ratio * 100, members, unknown, approved: ap };
+}
+function soldQty(item) { return salesList().filter(s => s.item === item).reduce((a, s) => a + s.qty, 0); }
+function producedQty(item) { const it = DATA.items.find(i => i.name === item); return it.runs; }
+function lastPrice(item) { const s = salesList().filter(x => x.item === item); return s.length ? s[s.length - 1].unit : null; }
+
+/* ---------- Formats ---------- */
+const nf = new Intl.NumberFormat('fr-FR');
+const nf2 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtN = v => nf.format(Math.round(v));
+const UNK = '<span class="unk">inconnu</span>';
+function fmtIsk(v) {
+  if (v === null || v === undefined) return UNK;
+  const a = Math.abs(v), sg = v < 0 ? '−' : '';
+  if (a >= 1e9) return sg + nf2.format(a / 1e9) + ' B';
+  if (a >= 1e6) return sg + nf2.format(a / 1e6) + ' M';
+  if (a >= 1e3) return sg + nf.format(Math.round(a / 100) / 10) + ' k';
+  return sg + nf.format(Math.round(a));
+}
+const fmtFull = v => v === null || v === undefined ? UNK : nf2.format(v) + ' ISK';
+const fmtPct = (v, d = 1) => v === null || v === undefined ? UNK : (v < 0 ? '−' : '') + Math.abs(v).toFixed(d).replace('.', ',') + ' %';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const initials = name => { const w = name.replace(/^(Joueur|Personnage) /, '').split(/[\s-]+/); return (w[0][0] + (w[1] ? w[1][0] : '')).toUpperCase(); };
+const itemIni = name => name.replace(/[^A-Za-z ]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const who = (k, sub) => `<span class="who"><span class="mini">${initials(PEOPLE[k].name)}</span><span style="min-width:0"><b>${esc(PEOPLE[k].char)}</b>${sub ? `<div class="hint">${sub}</div>` : ''}</span></span>`;
+
+/* ---------- Propositions ---------- */
+const propTitle = n => SPEC_ADDITIONS[n - 1][1];
+const ptag = n => S.real ? '' : `<span class="ptag" title="${esc(propTitle(n))}">Proposition ${n}</span>`;
+function prop(n, html, realHtml = '') {
+  if (S.real) return realHtml;
+  return `<div class="prop">${html}</div>`;
+}
+const realTag = txt => `<span class="ptag real">existant · ${txt}</span>`;
+
+/* ---------- Barre de maquette ---------- */
+function renderMockbar() {
+  const el = document.getElementById('mockbar');
+  const vb = (hash, label, on) => `<button data-hash="${hash}" class="${on ? 'on' : ''}">${label}</button>`;
+  const d = S.view === 'detail';
+  const spec = S.specOpen ? `<div class="spec-panel"><div class="row sb" style="margin-bottom:6px"><b style="color:#fff">Ce que la maquette ajoute à la spec</b><span style="color:#a78bfa;font-size:12px">À trancher par Sylvain · chaque proposition est marquée « Proposition n » dans les écrans · « Existant seul » les masque</span></div>
+    <table><thead><tr><th>#</th><th>Où</th><th>Proposition</th><th>Issue touchée</th></tr></thead><tbody>${SPEC_ADDITIONS.map((a, i) => `<tr><td class="iss">${i + 1}</td><td>${a[0]}</td><td>${a[1]}</td><td class="iss">${a[2]}</td></tr>`).join('')}</tbody></table>
+    <div style="margin-top:8px;font-size:12px;color:#c4b5fd"><b style="color:#fff">À confirmer :</b> ${TO_CONFIRM.join(' · ')}</div></div>` : '';
+  const audit = S.auditOpen ? `<div class="spec-panel audit"><div class="row sb" style="margin-bottom:6px"><b style="color:#fff">État des lieux du module (code au 03/11)</b><span style="color:#a78bfa;font-size:12px">Ce qui existe déjà, puis ce qui manque</span></div>
+    <div class="g2" style="gap:24px"><table><thead><tr><th>Existant</th><th>Où</th></tr></thead><tbody>${AUDIT_EXISTS.map(a => `<tr><td>${a[0]}</td><td class="ex">${a[1]}</td></tr>`).join('')}</tbody></table>
+    <table><thead><tr><th>Manque ou défaut</th><th>Suite</th></tr></thead><tbody>${AUDIT_GAPS.map(a => `<tr><td>${a[0]}</td><td class="gap">${a[1]}</td></tr>`).join('')}</tbody></table></div></div>` : '';
+  el.innerHTML = `<div class="mockbar">
+    <span class="lbl">Maquette V1 · industrie de groupe</span>
+    <div class="grp"><button data-act="tour-prev" ${S.step <= 1 ? 'disabled' : ''}>◀</button>
+      <button data-act="tour-start" class="${S.step ? 'on' : ''}">Parcours</button>
+      <button data-act="tour-next" ${S.step >= LAST_STEP ? 'disabled' : ''}>▶</button>
+      <span class="step">${S.step ? `Étape ${S.step}/${LAST_STEP} · ${STEPS[S.step - 1]}` : 'Hors parcours'}</span></div>
+    <div class="grp">${vb('v=list', 'Mes projets', S.view === 'list' && S.listTab === 'mine')}${vb('v=available', 'Disponibles', S.view === 'list' && S.listTab === 'available')}${vb('v=join', 'Rejoindre', S.view === 'join')}</div>
+    <div class="grp"><span>Projet</span>${['published', 'in_progress', 'selling', 'completed'].map(m => vb('m=' + m + '&tab=' + S.tab, STATUS[m][0], d && S.status === m && !S.step)).join('')}</div>
+    <div class="grp"><span>Onglet</span>${[['bom', 'BOM'], ['contrib', 'Contributions'], ['dist', 'Distribution'], ['members', 'Membres']].map(([k, l]) => `<button data-act="tab" data-arg="${k}" class="${d && S.tab === k ? 'on' : ''}" ${d ? '' : 'disabled'}>${l}</button>`).join('')}</div>
+    <div class="grp"><span>Compagnon</span>${vb('v=companion&size=compact&p=17', 'Compact', S.view === 'companion' && S.size === 'compact')}${vb('v=companion&size=bar&p=17', 'Barre', S.view === 'companion' && S.size === 'bar')}</div>
+    <div class="grp"><span>État</span><select data-act="state">${Object.entries(STATE_LABELS).map(([k, l]) => `<option value="${k}" ${S.state === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <button data-act="real" class="${S.real ? 'on' : ''}" title="Masque les propositions et montre le comportement actuel du code">Existant seul</button><button data-act="long-names" class="${S.longNames ? 'on' : ''}">Noms longs</button></div>
+    <div class="grp"><button data-act="audit-toggle" class="${S.auditOpen ? 'on' : ''}">${S.auditOpen ? '▾' : '▸'} État des lieux</button><button data-act="spec-toggle" class="${S.specOpen ? 'on' : ''}">${S.specOpen ? '▾' : '▸'} Ce que la maquette ajoute à la spec (${SPEC_ADDITIONS.length})</button></div>
+  </div>${audit}${spec}`;
+}
+
+/* ---------- Shell ---------- */
+function navItem(label, icon, on, hash) {
+  return `<button class="ni ${on ? 'on' : ''}" ${hash ? `data-hash="${hash}"` : ''}>${svg(icon)}<span>${label}</span>${on ? '<span class="dot"></span>' : ''}</button>`;
+}
+function renderShell(inner, title) {
+  const me = PEOPLE[S.viewer] || PEOPLE.alpha;
+  return `<div class="app">
+    <aside class="side">
+      <div class="logo"><div class="ic"><svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${ICON.bolt}"/></svg></div>
+        <div><h1>EVE Tools</h1><p>Utilities</p></div></div>
+      <nav class="menu">
+        ${navItem('Tableau de bord', ICON.dashboard, false)}
+        ${navItem('Revenus', ICON.revenue, false)}
+        <button class="ni">${svg(ICON.production)}<span>Production</span><svg class="chev" style="transform:rotate(90deg)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${ICON.chev}"/></svg></button>
+        <div class="sub">
+          ${navItem('Projets', ICON.projects, false)}
+          ${navItem('Industrie de groupe', ICON.group, true, 'v=list')}
+        </div>
+        ${navItem('Minage', ICON.mining, false)}
+        ${navItem('Marché', ICON.market, false)}
+        ${navItem('Inventaire', ICON.inventory, false)}
+      </nav>
+      <div class="charcard"><div class="in"><div class="avatar">${initials(me.name)}</div><div style="min-width:0"><div style="font-weight:600;color:var(--s100);overflow-wrap:anywhere">${esc(me.char)}</div><div style="font-size:12px;color:var(--c400);overflow-wrap:anywhere">${esc(me.corp)}</div></div></div></div>
+    </aside>
+    <main class="content">
+      <header class="top"><div><h2>${title}</h2><p>Bon retour, capsulier</p></div>
+        <div class="row"><span class="pill esi"><i></i>ESI OK</span><span class="pill all">Alliance A</span><span class="pill corp">${esc(me.corp)}</span></div></header>
+      <div class="page"><div class="wrap">${inner}</div></div>
+    </main></div>`;
+}
+const viewAs = k => k === 'alpha' ? '' : `<div class="viewas">Vue de ${esc(PEOPLE[k].name)} (${esc(PEOPLE[k].corp)}) · le reste du parcours est vu par ${esc(PEOPLE.alpha.name)}, owner du projet</div>`;
+const statusBadge = st => `<span class="badge ${STATUS[st][1]}">${STATUS[st][0]}</span>`;
+function ring(p, size = 56) {
+  const r = 24, c = 2 * Math.PI * r;
+  return `<svg class="ring" style="width:${size}px;height:${size}px" viewBox="0 0 56 56"><circle class="bg" cx="28" cy="28" r="${r}"/><circle class="fg" cx="28" cy="28" r="${r}" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p / 100)}"/><text x="28" y="32" text-anchor="middle" font-size="12" fill="#e2e8f0" font-family="monospace">${Math.round(p)}%</text></svg>`;
+}
+const pbar = p => `<div class="pbar2 ${p >= 100 ? 'done' : p > 0 ? 'part' : ''}"><i style="width:${Math.min(100, p)}%"></i></div>`;
+
+/* ---------- Liste ---------- */
+function projectName() { return PROJECT.name; }
+function itemsLine() { return DATA.items.map(i => `${i.name} ×${i.runs}`).join(', '); }
+function renderList() {
+  if (S.listTab === 'available') return renderAvailable();
+  const mine = S.created ? 2 : 1;
+  const active = S.created && S.status !== 'completed' ? 1 : 0;
+  const myApproved = OLD_PROJECT.approved + (S.created ? contribs().filter(c => statusOf(c) === 'approved').reduce((s, c) => s + (valueOf(c) ?? 0), 0) : 0);
+  const pending = S.created ? contribs().filter(c => statusOf(c) === 'pending').length : 0;
+  const bv = S.created && S.status !== 'completed' ? bomValue() : 0;
+  const unknownExcl = S.created && S.status !== 'completed' && bv === null ? 1 : 0;
+  const pipeline = (bv || 0);
+  const kpi = (label, val, sub, cls = 'c-s100') => `<div class="card soft"><p class="lab dim" style="margin:0 0 8px">${label}</p><p class="kpi3 ${cls}" style="margin:0;font-size:26px">${val}</p><p class="hint2" style="margin:4px 0 0">${sub}</p></div>`;
+  const kpis = `<div class="g4">${kpi('Projets actifs', active, 'en cours de production', 'c-cyan')}${kpi('Contributions totales', fmtIsk(myApproved), 'sur tous les projets', 'c-em')}
+    ${S.real ? kpi('Approbations en attente', 0, 'contributions en attente de validation', 'c-amber') : `<div class="prop">${kpi(`Approbations en attente ${ptag(11)}`, pending, 'contributions en attente de validation', 'c-amber')}</div>`}
+    ${kpi('Valeur pipeline', fmtIsk(pipeline), `coût matériaux estimé${unknownExcl ? ` · ${unknownExcl} projet à la valeur inconnue exclu` : ''}`, 'c-violet')}</div>`;
+  const filters = [['all', 'Tous', mine], ['published', 'Publié', S.status === 'published' ? 1 : 0], ['in_progress', 'En cours', S.status === 'in_progress' ? 1 : 0], ['selling', 'En vente', S.status === 'selling' ? 1 : 0], ['completed', 'Terminé', 1 + (S.status === 'completed' ? 1 : 0)]];
+  const cardNew = S.created ? `<button class="pcard" data-hash="v=detail&m=${S.status}"><div class="row sb start"><div style="min-width:0"><div class="nm">${esc(projectName())}</div><div class="hint">${DATA.items.length} items · ${DATA.items.reduce((s, i) => s + i.runs, 0)} runs</div></div>${statusBadge(S.status)}</div>
+      <div class="row">${ring(bomProgress())}<div style="flex:1"><div class="lab dim">Avancement de la BOM</div>${pbar(bomProgress())}</div></div>
+      <div class="row sb hint"><span>${esc(PEOPLE.alpha.name)} · ${memberIds().length} membres</span><span class="mono c-s300">${fmtIsk(bomValue())}</span></div></button>` : '';
+  const cardOld = `<div class="pcard"><div class="row sb start"><div style="min-width:0"><div class="nm">${OLD_PROJECT.name}</div><div class="hint">${OLD_PROJECT.items}</div></div>${statusBadge('completed')}</div>
+      <div class="row">${ring(100)}<div style="flex:1"><div class="lab dim">Avancement de la BOM</div>${pbar(100)}</div></div>
+      <div class="row sb hint"><span>${esc(PEOPLE.alpha.name)} · ${OLD_PROJECT.members} membres · créé le ${OLD_PROJECT.created}</span><span class="mono c-s300">${fmtIsk(OLD_PROJECT.bom)}</span></div></div>`;
+  return `${listHeader()}${kpis}
+    <div class="pills">${filters.map(([k, l, n]) => `<button class="fpill ${S.filter === k ? 'on' : ''}" data-act="filter" data-arg="${k}">${l} <span class="mono">${n}</span></button>`).join('')}</div>
+    <div class="g3 start">${(S.filter === 'all' || S.filter === S.status) ? cardNew : ''}${S.filter === 'all' || S.filter === 'completed' ? cardOld : ''}</div>`;
+}
+function listHeader() {
+  const me = PEOPLE[S.viewer];
+  return `${viewAs(S.viewer)}<div class="row sb"><div class="row"><div class="mini" style="width:40px;height:40px">${initials(me.corp)}</div><div><h3 class="t">Industrie de groupe</h3><div class="hint">${esc(me.corp)}</div></div></div>
+    <div class="row"><button class="btn sec sm" data-act="modal" data-arg="rates" title="Tarifs location de ligne par défaut">${svg(ICON.gear)}</button><button class="btn pri" data-act="modal" data-arg="create">${svg(ICON.plus)}Nouveau projet</button></div></div>
+    <div class="tabs"><button class="tab ${S.listTab === 'mine' ? 'on' : ''}" data-hash="v=list">Mes projets<span class="chip">${S.viewer === 'alpha' ? (S.created ? 2 : 1) : 0}</span></button><button class="tab ${S.listTab === 'available' ? 'on' : ''}" data-hash="v=available">Disponibles<span class="chip">${S.created && S.members.charlie !== 'accepted' ? 1 : 0}</span> <span class="badge sm b-cyan">même corp</span></button></div>`;
+}
+function renderAvailable() {
+  const show = S.created && S.status !== 'completed' && (S.viewer !== 'alpha') && S.members[S.viewer] !== 'accepted';
+  const card = `<div class="pcard"><div class="row sb start"><div style="min-width:0"><div class="nm">${esc(projectName())}</div><div class="hint">par ${esc(PEOPLE.alpha.name)}</div></div>${statusBadge(S.status === 'none' ? 'published' : S.status)}</div>
+    <div class="g3"><div><div class="lab dim">Runs</div><div class="mono c-s200">${DATA.items.reduce((s, i) => s + i.runs, 0)}</div></div><div><div class="lab dim">ME / TE</div><div class="mono c-s200">${DATA.items[0].me} / ${DATA.items[0].te}</div></div><div><div class="lab dim">BOM %</div><div class="mono c-s200">${Math.round(bomProgress())} %</div></div></div>
+    <div class="row sb"><span class="hint">${memberIds().length} membres</span><button class="btn pri sm" data-act="join-corp">Rejoindre le projet</button></div></div>`;
+  return `${listHeader()}<div class="banner cyan">${svg(ICON.group)}<div>Projets publiés par les membres de votre corporation. Rejoignez instantanément, sans approbation.</div></div>
+    ${show ? `<div class="g2 start">${card}</div>` : `<div class="card p6 col" style="align-items:center;text-align:center"><h3 class="t">Aucun projet disponible</h3><p class="muted" style="margin:0">Pas de projets ouverts dans votre corporation pour le moment.</p></div>`}`;
+}
+function renderJoin() {
+  const k = S.viewer === 'alpha' ? 'delta' : S.viewer;
+  return `${viewAs(k)}<div class="card p6 col" style="align-items:center;text-align:center;max-width:36rem;margin:40px auto">
+    <div class="mini" style="width:56px;height:56px;color:var(--a400)">${svg(ICON.ok).replace('<svg', '<svg width="28" height="28"')}</div>
+    <h3 class="t">Demande envoyée</h3>
+    <p class="muted" style="margin:0">Votre demande d’adhésion a été envoyée et attend l’approbation d’un admin du projet. Vous serez notifié dès qu’elle sera acceptée.</p>
+    <p class="hint" style="margin:0">Lien suivi : <span class="mono">${joinLink()}</span> · ${esc(PEOPLE[k].corp)} n’est pas la corporation de l’owner</p>
+    <button class="btn sec" data-hash="v=list">Retour à Industrie de groupe</button></div>`;
+}
+
+/* ---------- Détail ---------- */
+function canAdmin() { return S.viewer === 'alpha' && S.state !== 'corp_reader'; }
+function renderDetailHeader() {
+  const next = NEXT_STATUS[S.status];
+  const nItems = DATA.items.length, runs = DATA.items.reduce((s, i) => s + i.runs, 0);
+  return `<div class="hint"><a data-hash="v=list" style="color:var(--c400);cursor:pointer">Industrie de groupe</a> › ${esc(projectName())}</div>
+    <div class="row sb start wrapf"><div class="row start" style="min-width:0;flex:1">
+      <div class="row" style="gap:4px">${DATA.items.map(i => `<div class="mini" title="${i.name}">${itemIni(i.name)}</div>`).join('')}</div>
+      <div style="min-width:0"><div class="row wrapf" style="gap:8px"><h3 class="t" style="overflow-wrap:anywhere">${esc(projectName())}</h3>${statusBadge(S.status)}<span class="badge sm b-slate">${svg(ICON.inventory).replace('<svg', '<svg width="12" height="12"')} ${esc(PROJECT.container)}</span>${S.feed && !S.real ? `<span class="live ${S.state === 'reconnect' ? '' : ''}"><i></i>en direct</span>${ptag(9)}` : ''}</div>
+      <div class="hint">${nItems} items · ${runs} runs · Manager : ${esc(PEOPLE.alpha.name)} · ${new Set(contribs().map(c => c.member)).size} contributeurs · créé le ${PROJECT.created}</div></div></div>
+      <div class="row">${S.state === 'corp_reader' ? '' : `<button class="btn sec sm" data-act="copy">${svg(ICON.link)}${S.copied ? 'Lien copié !' : 'Lien de partage'}</button>`}
+        ${canAdmin() && next ? `<button class="btn pri sm" data-act="next-status">Passer à ${STATUS[next][0]}</button>` : ''}
+        ${canAdmin() ? `<button class="btn sec sm" data-act="modal" data-arg="edit" title="Modifier">${svg(ICON.pencil)}</button>` : ''}
+        ${canAdmin() && S.status !== 'completed' && !(S.sales.length || contribs().some(c => statusOf(c) === 'approved')) ? `<button class="btn sec sm" title="Supprimer">${svg(ICON.trash)}</button>` : ''}</div></div>`;
+}
+function detailTabs() {
+  const t = (id, label, chip) => `<button class="tab ${S.tab === id ? 'on' : ''}" data-act="tab" data-arg="${id}">${label}${chip !== null ? `<span class="chip">${chip}</span>` : ''}</button>`;
+  return `<div class="tabs">${t('bom', 'Matériaux & Jobs', `${DATA.mats.length} items · ${DATA.jobs.length} jobs`)}${t('contrib', 'Contributions', contribs().length)}${t('dist', 'Distribution', null)}${t('members', 'Membres', memberIds().length)}</div>`;
+}
+function renderDetail() {
+  if (!S.created) return `<div class="card p6 col"><h3 class="t">Projet introuvable</h3><button class="btn sec" data-hash="v=list">Retour aux projets</button></div>`;
+  const frozen = S.status === 'completed' ? `<div class="banner em">${svg(ICON.lock)}<div><b>Projet terminé le ${PROJECT.completed}.</b> Comptes figés : plus de contribution, de revue, de vente ni de changement de frais. Le nom et le container restent modifiables.</div></div>` : '';
+  const reader = S.state === 'corp_reader' ? `<div class="viewas">Vue de ${esc(PEOPLE.foxtrot.name)} (${esc(PEOPLE.foxtrot.corp)}, non membre) : la lecture est ouverte à la corporation de l’owner (spec 162)</div>` : '';
+  const body = { bom: renderBom, contrib: renderContrib, dist: renderDist, members: renderMembers }[S.tab]();
+  const dock = S.focus === 'dock' && !S.real ? `<div class="prop"><div class="g3 start" style="padding:12px"><div class="span2 col"><div class="row">${ptag(10)}<h3 class="t">Alertes visuelles du compagnon</h3></div>
+    <p class="muted" style="margin:0">Le compagnon reste ouvert à côté du jeu (fenêtre détachée). Quand un événement demande une action de la personne connectée, il s’allume : bord ambre qui pulse trois fois pour un job terminé à livrer, vert pour la BOM complète. Aucun son, comme pour le minage.</p>
+    <div class="feed">${feedEvents().slice(0, 3).map(e => `<div class="ev"><span class="t">${e[1]}</span>${who(e[2])}<span style="flex:1">${e[3]}</span></div>`).join('')}</div></div>
+    <div class="cmp-dock" style="padding:8px"><div class="cmp-dock-h"><span>Compagnon · aperçu</span></div>${renderCompanionCard('compact')}</div></div></div>${body}` : body;
+  return `${reader}${renderDetailHeader()}${frozen}${detailTabs()}${dock}`;
+}
+
+/* ---------- Onglet BOM ---------- */
+function reservedBy(key) {
+  if (S.claims[key]) return 'alpha';
+  if (!S.reserved) return null;
+  const map = { m7: 'bravo', m8: 'bravo', m9: 'charlie', m10: 'charlie', m11: 'charlie', m12: 'delta', m13: 'delta', m1: 'alpha', m2: 'alpha', m3: 'alpha', m4: 'alpha', m5: 'alpha', m6: 'alpha', j1: 'bravo', j2: 'bravo', j3: 'bravo', j4: 'bravo', j5: 'bravo', j6: 'charlie', j7: 'charlie', j8: 'charlie', j9: 'alpha', j10: 'alpha', j13: 'delta', j14: 'delta', j15: 'delta', j16: 'delta' };
+  return map[key] || null;
+}
+function containerState(m) {
+  if (S.state === 'container_unknown') return null;
+  const q = CONTAINER_QTY[m.name] !== undefined ? CONTAINER_QTY[m.name] : m.required;
+  return { q, st: q >= m.required ? 'verified' : q > 0 ? 'partial' : 'missing' };
+}
+function renderContainerBanner() {
+  const admin = canAdmin();
+  if (S.state === 'container_unknown') return `<div class="banner amber">${svg(ICON.warn)}<div style="flex:1"><b>Container : « ${esc(PROJECT.container)} » relié aux bureaux corpo.</b> Non vérifiable : Synchronisez les assets corpo. Les quantités du container sont inconnues, jamais 0.</div>${admin || S.real ? '<button class="btn sec sm">Tout vérifier</button>' : ''}</div>`;
+  const checked = S.containerChecked;
+  const gaps = checked ? DATA.mats.filter(m => { const c = containerState(m); return c.st !== 'verified'; }) : [];
+  const gapTxt = gaps.map(m => { const c = containerState(m); return `${m.name} : ${fmtN(c.q)} / ${fmtN(m.required)} dans le container, ${fmtN(fulfilled(m.key))} approuvés`; }).join(' · ');
+  return `<div class="banner cyan">${svg(ICON.inventory)}<div style="flex:1"><b>Container : « ${esc(PROJECT.container)} » relié aux bureaux corpo.</b> ${checked ? `Vérifié à 22:10 sur les assets corpo de ${esc(PEOPLE.alpha.corp)} (sync 22:04).` : 'Pas encore vérifié.'}
+    ${checked && gaps.length && !S.real ? `<div class="prop" style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.08);color:var(--a300)">${ptag(8)} <b>${gaps.length} lignes approuvées mais absentes ou partielles dans le container.</b> ${gapTxt}. À relancer auprès des contributeurs avant de lancer les jobs.</div>` : ''}</div>
+    ${S.real || admin ? `<button class="btn sec sm" data-act="verify">${svg(ICON.refresh)}Tout vérifier</button>` : `<span class="hint">vérification réservée aux admins ${ptag(8)}</span>`}</div>`;
+}
+function contribBtn(key, done) {
+  if (S.real || S.status === 'completed' || done || S.state === 'corp_reader') return '';
+  return `<button class="btn ghost xs" data-act="contrib-line" data-arg="${key}">Contribuer</button>`;
+}
+function renderBom() {
+  const showRes = (S.reserved || Object.keys(S.claims).length) && !S.real;
+  const mats = DATA.mats.map(m => {
+    const f = fulfilled(m.key), p = pct(m.key, m.required), price = priceOf(m);
+    const c = S.containerChecked ? containerState(m) : null;
+    const cTxt = c ? (c.st === 'verified' ? `<span class="c-em">Vérifié : ${fmtN(c.q)} / ${fmtN(m.required)}</span>` : c.st === 'partial' ? `<span class="c-amber">Partiel : ${fmtN(c.q)} / ${fmtN(m.required)}</span>` : '<span class="c-red">Absent du container</span>') : (S.containerChecked && S.state === 'container_unknown' ? '<span class="unk">container inconnu</span>' : '');
+    const res = showRes ? (reservedBy(m.key) ? `<td>${who(reservedBy(m.key))}</td>` : '<td class="hint">libre</td>') : '';
+    return `<tr><td class="wr"><div class="row" style="gap:8px"><div class="mini">${itemIni(m.name)}</div><div><div class="c-s200">${m.name}</div>${cTxt ? `<div class="hint">${cTxt}</div>` : ''}</div></div></td>
+      <td class="r">${fmtN(m.required)}</td><td class="r">${fmtN(f)}</td><td class="r">${fmtN(Math.max(0, m.required - f))}</td>
+      <td><div class="row" style="gap:8px">${pbar(p)}<span class="mono" style="font-size:12px">${Math.round(p)} %</span>${p >= 100 ? svg(ICON.lock).replace('<svg', '<svg width="12" height="12" style="color:var(--e400)"') : ''}</div></td>
+      <td class="r">${price === null ? `${UNK}<div class="hint" style="font-family:inherit">aucun ordre Jita</div>` : fmtIsk(m.required * price)}</td>${res}${S.real ? '' : `<td>${contribBtn(m.key, p >= 100)}</td>`}</tr>`;
+  }).join('');
+  const bv = bomValue();
+  const missing = DATA.mats.filter(m => priceOf(m) === null);
+  const matTable = `<div class="card flush ${S.focus === 'jobs' ? '' : ''}"><div class="card-h"><h3>Matériaux à sourcer</h3><span class="hint">Prix BOM figés le ${PRICES_FROZEN} · Jita, 5 % des ordres de vente les moins chers${showRes ? ' ' + ptag(4) : ''}</span></div>
+    ${missing.length ? `<div class="banner amber" style="margin:12px 16px;border-radius:8px">${svg(ICON.warn)}<div><b>Coût total inconnu.</b> Prix BOM manquant : ${missing.map(m => m.name).join(', ')}. Rien n’est compté pour 0 ; une contribution sur cette ligne demande une valeur saisie.</div></div>` : ''}
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Item</th><th class="r">Requis</th><th class="r">Fourni</th><th class="r">Restant</th><th>Progression</th><th class="r">Coût est.</th>${showRes ? '<th>Réservé par</th>' : ''}${S.real ? '' : `<th>${S.status === 'completed' ? '' : ptag(3)}</th>`}</tr></thead><tbody>${mats}</tbody></table></div>
+    <div class="row sb" style="padding:14px 24px;border-top:1px solid var(--s800)"><div class="row" style="gap:28px"><div><div class="lab dim">Total items</div><div class="mono c-s100">${DATA.mats.length}</div></div><div><div class="lab dim">Coût total est.</div><div class="mono c-s100">${fmtIsk(bv)}</div><div class="hint mono">${bv === null ? '' : fmtFull(bv)}</div></div></div>
+      <div class="row"><div class="lab dim">Progression globale</div>${ring(bomProgress())}</div></div></div>`;
+  return `<p class="hint" style="margin:0">Matériaux feuilles pour ${DATA.items.length} items (${itemsLine()}) · 2 catégories en liste noire (Advanced Components, Tools (R.A.M.)) · composants et BPC dans Jobs ci-dessous · structure de l’owner : ${PROJECT.structure} (bonus de matériau 1 %)</p>
+    ${renderContainerBanner()}${matTable}${renderJobs()}${S.feed && !S.real && S.phase !== 18 ? renderFeedCard() : ''}`;
+}
+function jobStatus(j) {
+  const f = fulfilled(j.key), done = f >= j.required;
+  const e = esiStatus(j.key);
+  if (e) return e;
+  if (done && j.group === 'blueprint') return '<span class="badge sm b-amber">BPC contribué</span>';
+  if (done) return '<span class="badge sm b-em">Livré</span>';
+  if (f > 0) return '<span class="badge sm b-cyan">Actif</span>';
+  return '<span class="badge sm b-slate">À lancer</span>';
+}
+const LOC = {
+  proj: () => ({ kind: 'container', name: PROJECT.container, where: `${PROJECT.structure} · hangar corpo, division 2` }),
+  projOut: () => ({ kind: 'container', name: PROJECT.container + ' · Produits', where: `${PROJECT.structure} · hangar corpo, division 2` }),
+  charlie: () => ({ kind: 'container', name: 'Stock perso', where: `${PROJECT.structure} · hangar de ${PEOPLE.charlie.char}`, foreign: true }),
+  hangar2: () => ({ kind: 'hangar', name: 'Hangar corpo, division 2', where: PROJECT.structure }),
+  delta: () => ({ kind: 'unknown', id: '1 046 662 315 207', why: `assets de ${PEOPLE.delta.char} pas encore synchronisés` }),
+  bravoExpired: () => ({ kind: 'unknown', id: '1 046 551 902 118', why: `${PEOPLE.bravo.char} à reconnecter` })
+};
+const JOB_LOC = { j1: ['proj', 'projOut'], j2: ['proj', 'projOut'], j3: ['proj', 'projOut'], j4: ['proj', 'projOut'], j5: ['proj', 'projOut'], j6: ['charlie', 'projOut'], j7: ['charlie', 'projOut'], j8: ['charlie', 'projOut'], j9: ['proj', 'hangar2'], j10: ['proj', 'hangar2'], j13: ['delta', 'delta'], j14: ['delta', 'delta'], j15: ['delta', 'delta'], j16: ['delta', 'delta'] };
+function jobLoc(key) {
+  const l = JOB_LOC[key];
+  if (!l || S.real || !esiStatus(key)) return null;
+  const bravoJob = ['j1', 'j2', 'j3', 'j4', 'j5'].includes(key);
+  if (bravoJob && S.state === 'reconnect') return { in: LOC.bravoExpired(), out: LOC.bravoExpired() };
+  return { in: LOC[l[0]](), out: LOC[l[1]]() };
+}
+function locTxt(l) {
+  if (l.kind === 'unknown') return `<span class="unk">inconnu</span> <span class="hint">(lieu #${l.id} · ${esc(l.why)})</span>`;
+  return `${l.kind === 'container' ? '« ' + esc(l.name) + ' »' : esc(l.name)} <span class="hint">${esc(l.where)}</span>`;
+}
+function locCheck(loc) {
+  if (loc.in.kind === 'unknown') return '<span class="unk">contrôle impossible</span>';
+  if (loc.in.foreign) return '<span class="c-amber">⚠ entrée hors du container du projet</span>';
+  if (loc.out.kind !== 'container' || !loc.out.name.startsWith(PROJECT.container)) return '<span class="c-amber">⚠ sortie hors container : à déplacer</span>';
+  return '<span class="c-em">✓ entrée et sortie dans le projet</span>';
+}
+const ESI_JOB = {};
+['j1', 'j2', 'j3', 'j4', 'j5'].forEach((k, i) => { ESI_JOB[k] = st => st >= 19 ? '<span class="badge sm b-em">Terminé · ESI</span>' : st >= 12 ? `<span class="badge sm b-cyan">En cours · fin ${['mar. 03/11 02:18', 'mar. 03/11 02:18', 'mar. 03/11 02:19', 'mar. 03/11 02:19', 'mar. 03/11 02:20'][i]}</span>` : null; });
+['j6', 'j7', 'j8'].forEach(k => { ESI_JOB[k] = st => st >= 18 ? '<span class="badge sm b-em">Terminé · ESI</span>' : st >= 13 ? '<span class="badge sm b-cyan">En cours · fin mar. 03/11 00:43</span>' : null; });
+['j9', 'j10', 'j13', 'j14', 'j15', 'j16'].forEach(k => { ESI_JOB[k] = () => '<span class="badge sm b-em">Terminé · ESI</span>'; });
+function jobCost(key) {
+  if (S.real || !esiStatus(key)) return { launched: false };
+  const c = contribs().find(x => x.line === key && ESI_DETECTED.includes(x.id));
+  return c ? { launched: true, value: valueOf(c) } : { launched: true, value: null };
+}
+function jobCostCell(key) {
+  if (S.real) return UNK;
+  const c = jobCost(key);
+  if (!c.launched) return '<span class="hint" style="font-family:inherit">pas lancé</span>';
+  return c.value === null ? `${UNK}<div class="hint" style="font-family:inherit">jeton expiré</div>` : `${fmtIsk(c.value)}<div class="hint" style="font-family:inherit">réel · ESI</div>`;
+}
+function esiStatus(key) { return !S.real && S.phase >= 12 && ESI_JOB[key] ? ESI_JOB[key](S.phase) : null; }
+function jobKind(j) {
+  const e = esiStatus(j.key);
+  if (e) return e.includes('Terminé') ? (j.group === 'blueprint' ? 'bpc' : 'delivered') : 'active';
+  const f = fulfilled(j.key);
+  if (f >= j.required) return j.group === 'blueprint' ? 'bpc' : 'delivered';
+  return f > 0 ? 'active' : 'launch';
+}
+function jobsCostTotal() {
+  const real = `<div><div class="lab dim">Coût total est.</div><div class="mono">${UNK}</div><div class="hint">coût d’installation non calculé pour les jobs de groupe (#146 Q2)</div></div>`;
+  if (S.real || S.phase < 12) return real;
+  const costs = DATA.jobs.map(j => jobCost(j.key)).filter(c => c.launched);
+  const unknown = costs.filter(c => c.value === null).length;
+  const total = unknown ? null : costs.reduce((s, c) => s + c.value, 0);
+  return `<div><div class="lab dim">Coût réel des jobs lancés ${ptag(5)}</div><div class="mono c-s100">${fmtIsk(total)}</div><div class="hint">${costs.length} jobs lancés sur ${DATA.jobs.length}${unknown ? ` · ${unknown} sans coût lu` : ''} · champ cost de l’ESI, payé en jeu</div></div>`;
+}
+function renderJobs() {
+  const groups = ['blueprint', 'component', 'final'];
+  const counts = { launch: 0, active: 0, delivered: 0, bpc: 0 };
+  DATA.jobs.forEach(j => { counts[jobKind(j)]++; });
+  const showRes = (S.reserved || Object.keys(S.claims).length) && !S.real;
+  const rows = groups.map(g => {
+    const js = DATA.jobs.filter(j => j.group === g);
+    return `<tr class="grp-h"><td colspan="${7 + (showRes ? 1 : 0) + (S.real ? 0 : 1)}">▾ ${GROUP_LABEL[g]} <span class="chip">${js.length}</span></td></tr>` + js.map(j => {
+      const res = showRes ? (reservedBy(j.key) ? `<td>${who(reservedBy(j.key))}</td>` : '<td class="hint">libre</td>') : '';
+      const note = j.forInvention ? '<div class="hint">copie pour l’invention</div>' : j.activity === 'copy' ? `<div class="hint">blueprint copiable · fabriqué depuis le BPO ? <span class="c-violet">à confirmer</span></div>` : '';
+      const loc = jobLoc(j.key);
+      const locNote = loc ? `<div class="hint">${loc.in.kind === 'unknown' ? 'entrée et sortie inconnues' : `${esc(loc.in.name)} → ${esc(loc.out.name)}`} ${ptag(18)}</div>` : '';
+      return `<tr><td class="wr"><div class="row" style="gap:8px"><div class="mini">${itemIni(j.product)}</div><div><div class="c-s200">${j.product}</div>${note}${locNote}</div></div></td>
+      <td><span class="act ${j.activity === 'invention' ? 'inv' : j.activity === 'copy' ? 'copy' : ''}">${ACT_LABEL[j.activity]}</span></td>
+      <td class="r">${fmtN(j.runs)}${j.activity === 'invention' ? '<div class="hint" style="font-family:inherit">Tentatives</div>' : ''}</td>
+      <td class="r">${j.activity === 'manufacturing' ? `ME ${j.me} / TE ${j.te}` : '—'}</td>
+      <td>${jobStatus(j)}</td><td class="r">${jobCostCell(j.key)}</td>${res}${S.real ? '' : `<td>${contribBtn(j.key, fulfilled(j.key) >= j.required)}</td>`}</tr>`;
+    }).join('');
+  }).join('');
+  const rules = S.focus === 'jobs' ? `<div class="banner cyan">${svg(ICON.ok)}<div><b>Existant · règles des jobs (specs 105, 141, 23).</b> Job final au ME/TE de l’item, découpé au plafond de runs du BPC (Hammerhead II et Hobgoblin II : 10 runs, d’où 5 + 3 lignes). Composants en ME 10 / TE 20. Invention : tentatives = ⌈runs / (10 runs × 34 %)⌉ = ⌈50 / 3,4⌉ = 15 et ⌈30 / 3,4⌉ = 9, plus une copie T1 du même nombre de runs et les datacores (2 + 2 et 1 + 1 par tentative) ajoutés aux matériaux. Aucun prix sur les jobs : coût inconnu, jamais 0.</div></div>` : '';
+  return `${rules}<div class="card flush ${S.focus === 'jobs' ? 'hl2' : ''}" ${S.focus === 'jobs' ? 'id="focus"' : ''}><div class="card-h"><h3>Jobs à lancer</h3><span class="hint">${counts.launch} à lancer · ${counts.active} actifs · ${counts.delivered} livrés · ${counts.bpc} BPC contribués${!S.real && S.phase >= 12 ? ' · statut ESI ' + ptag(7) : ''}</span></div>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Produit</th><th>Activité</th><th class="r">Runs</th><th class="r">ME/TE</th><th>Statut</th><th class="r">${S.real ? 'Coût est.' : 'Coût ' + ptag(5)}</th>${showRes ? '<th>Réservé par</th>' : ''}${S.real ? '' : '<th></th>'}</tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="row sb" style="padding:14px 24px;border-top:1px solid var(--s800)"><div class="row" style="gap:28px"><div><div class="lab dim">Total jobs</div><div class="mono c-s100">${DATA.jobs.length}</div></div>${jobsCostTotal()}</div><span class="hint">${counts.bpc} couverts par un BPC</span></div></div>`;
+}
+
+/* ---------- Onglet Contributions ---------- */
+function readerLock(what) {
+  if (S.real) return `<div class="banner red">${svg(ICON.warn)}<div><b>Erreur 403.</b> ${what} est réservé aux membres acceptés : aujourd’hui l’onglet reste visible, la requête échoue et rien ne l’explique.</div></div>`;
+  return `<div class="prop"><div class="card p6 col" style="align-items:flex-start"><div class="row">${svg(ICON.lock).replace('<svg', '<svg width="22" height="22" style="color:var(--c400)"')}<h3 class="t">${what} visible des membres du projet</h3>${ptag(15)}</div>
+    <p class="muted" style="margin:0">Vous voyez ce projet parce qu’il appartient à un membre de ${esc(PEOPLE.foxtrot.corp)}. La BOM et la distribution restent lisibles ; rejoignez le projet pour contribuer et voir les autres membres. Même corporation : adhésion sans approbation.</p>
+    <button class="btn pri" data-act="join-corp">Rejoindre le projet</button></div></div>`;
+}
+function methodOf(c) {
+  if (c.type === 'material') return priceOf(lineOf(c.line)) === null ? 'valeur saisie' : 'prix BOM × quantité';
+  if (!S.real && ESI_DETECTED.includes(c.id)) return 'coût réel du jeu (ESI)';
+  if (!S.real && c.type === 'line_rental') return 'barème du projet';
+  return 'valeur saisie';
+}
+function verifBadge(c) {
+  if (S.real) return statusOf(c) === 'pending' ? '<div class="hint">Non vérifié</div>' : '';
+  if (ESI_DETECTED.includes(c.id)) {
+    if (detectionUnknown(c)) return `<div class="hint c-amber">détection impossible : ${esc(PEOPLE.bravo.char)} à reconnecter</div>`;
+    return `<div class="hint c-em">Détecté · ESI${(esiStatus(c.line) || '').includes('Terminé') ? ' · vérifié' : ''}</div>`;
+  }
+  if (c.type === 'material') return '';
+  return '<div class="hint">Non vérifié · saisi à la main</div>';
+}
+function renderContrib() {
+  if (S.state === 'corp_reader') return readerLock('L’onglet Contributions');
+  const all = contribs();
+  const list = all.filter(c => (S.cfType ? c.type === S.cfType : true));
+  const sum = st => all.filter(c => !st || statusOf(c) === st).reduce((s, c) => s + (valueOf(c) ?? 0), 0);
+  const n = st => all.filter(c => statusOf(c) === st).length;
+  const unknownN = all.filter(c => valueOf(c) === null).length;
+  const rows = list.map(c => {
+    const l = lineOf(c.line), st = statusOf(c);
+    const badge = st === 'approved' ? '<span class="badge sm b-em">Approuvée</span>' : st === 'rejected' ? '<span class="badge sm b-red">Rejetée</span>' : '<span class="badge sm b-amber">En attente</span>';
+    const own = c.member === 'alpha';
+    const actions = st === 'pending' && canAdmin() && S.status !== 'completed' ? (own ? '<span class="hint" title="Personne ne revoit sa propre contribution">revue par un autre admin</span>' : `<button class="btn em xs" data-act="review" data-arg="${c.id}">Approuver</button> <button class="btn ghost xs" data-act="reject" data-arg="${c.id}">Rejeter</button>`) : (c.id === 'D7' && st === 'rejected' ? '<span class="hint">doublon : Morphite déjà couverte</span>' : '<span class="hint">--</span>');
+    const desc = l.name ? l.name : `${l.product} · ${ACT_LABEL[l.activity].toLowerCase()}${l.activity === 'invention' ? '' : ` · ${l.runs} runs`}`;
+    return `<tr ${S.focus === 'review' && st === 'pending' ? 'style="background:rgba(245,158,11,.04)"' : ''}><td>${who(c.member)}</td><td><span class="badge sm ${TYPE_BADGE[c.type]}">${TYPE_LABEL[c.type]}</span></td><td class="wr">${desc}</td><td class="r">${fmtN(c.qty)}</td><td class="r">${fmtIsk(valueOf(c))}</td><td class="meth">${methodOf(c)}${verifBadge(c)}</td><td>${badge}</td><td class="wr" style="min-width:120px">${actions}</td></tr>`;
+  }).join('');
+  const esiBanner = S.real ? `<div class="annot"><b>Existant ·</b> aucune détection ESI : Installation de job, BPC et Location de ligne sont saisis à la main, toujours « Non vérifié ». La détection prévue en V0.13 n’a jamais été branchée (méthode sans appelant, supprimée par #257).</div>`
+    : S.state === 'reconnect' ? `<div class="prop"><div class="banner amber">${svg(ICON.warn)}<div style="flex:1"><b>${ptag(5)} Jobs de ${esc(PEOPLE.bravo.char)} non lus : jeton ESI expiré.</b> ${all.filter(detectionUnknown).length} installations détectées avant l’expiration ont un coût inconnu (pas 0) ; les payouts restent inconnus tant qu’elles ne sont pas relues ou saisies.</div><button class="btn sec sm">Reconnecter</button></div></div>`
+    : S.phase >= 12 ? `<div class="prop"><div class="banner cyan">${svg(ICON.bolt)}<div><b>${ptag(5)} Jobs détectés par l’ESI.</b> Détecté à la sync suivante des jobs (toutes les 30 min, ou au rafraîchissement). Un job lancé depuis la création du projet par un personnage d’un membre (ou par la corpo, rôle Factory_Manager) sur un produit et une activité de la BOM crée une contribution en attente, valorisée au ${ESI_COST_NOTE}. Elle devient « vérifiée » quand le job se termine. L’admin garde la revue.</div></div></div>` : '';
+  return `${S.feed && !S.real ? renderFeedCard() : ''}${esiBanner}${renderJobLocations()}<div class="row sb wrapf"><div class="row"><select class="input" style="width:auto" data-act="cf-type"><option value="">Tous types</option>${Object.entries(TYPE_LABEL).map(([k, l]) => `<option value="${k}" ${S.cfType === k ? 'selected' : ''}>${l}</option>`).join('')}</select><select class="input" style="width:auto"><option>Tous statuts</option></select></div>
+    ${S.status === 'completed' ? '' : '<button class="btn pri sm" data-act="modal" data-arg="contribute">' + svg(ICON.plus) + 'Ajouter une contribution</button>'}</div>
+    ${all.length ? `<div class="card flush" ${S.focus === 'review' ? 'id="focus"' : ''}><div style="overflow-x:auto"><table class="t"><thead><tr><th>Personnage</th><th>Type</th><th>Item / description</th><th class="r">Qté</th><th class="r">Valorisation</th><th>Méthode</th><th>Statut</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="row wrapf" style="gap:28px;padding:14px 24px;border-top:1px solid var(--s800)"><div><div class="lab dim">Coûts engagés</div><div class="mono c-s100">${unknownN ? UNK : fmtIsk(sum(null))}</div><div class="hint">toutes, rejetées comprises (existant)</div></div><div><div class="lab dim">Valeur approuvée</div><div class="mono c-em">${unknownN ? UNK : fmtIsk(sum('approved'))}</div></div><div><div class="lab dim">Valeur en attente</div><div class="mono c-amber">${fmtIsk(sum('pending'))}</div></div><div class="hint">${n('approved')} approuvées · ${n('pending')} en attente · ${n('rejected')} rejetée${n('rejected') > 1 ? 's' : ''}</div></div></div>`
+    : `<div class="card p6 col" style="align-items:center;text-align:center"><h3 class="t">Aucune contribution</h3><p class="muted" style="margin:0">Les contributions apparaîtront ici dès que les membres commenceront à contribuer.</p></div>`}`;
+}
+
+function renderJobLocations() {
+  if (S.real || S.phase < 12 || S.state === 'corp_reader') return '';
+  const groups = [['j1', 'j5', 'Hammerhead II', 'fabrication', 5, 'bravo'], ['j6', 'j8', 'Hobgoblin II', 'fabrication', 3, 'charlie'], ['j9', 'j9', 'Hammerhead I', 'fabrication', 1, 'alpha'], ['j10', 'j10', 'Hobgoblin I', 'fabrication', 1, 'alpha'], ['j13', 'j16', 'Inventions et copies T1', 'invention, copie', 4, 'delta']];
+  const rows = groups.filter(g => jobLoc(g[0])).map(g => {
+    const loc = jobLoc(g[0]);
+    return `<tr><td class="wr"><div class="c-s200">${g[2]}</div><div class="hint">${g[3]} · ${g[4]} job${g[4] > 1 ? 's' : ''}</div></td><td>${who(g[5])}</td><td>${esiStatus(g[0])}</td><td class="wr">${locTxt(loc.in)}</td><td class="wr">${locTxt(loc.out)}</td><td class="wr">${locCheck(loc)}</td></tr>`;
+  }).join('');
+  return `<div class="prop"><div class="card flush" ${S.phase === 12 ? 'id="focus"' : ''}><div class="card-h"><div class="row"><h3>Jobs ESI · containers d’entrée et de sortie</h3>${ptag(18)}</div><span class="hint">container du projet : « ${esc(PROJECT.container)} »</span></div>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Job</th><th>Installé par</th><th>Statut</th><th>Entrée (blueprint_location_id)</th><th>Sortie (output_location_id)</th><th>Contrôle</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint" style="margin:0;padding:10px 24px;border-top:1px solid var(--s800)">L’ESI donne pour chaque job le lieu d’installation du blueprint et le lieu de livraison : un identifiant de station, de structure ou d’asset (container). Le nom et la division viennent des assets synchronisés ; un lieu absent des assets reste inconnu, avec la raison. Aujourd’hui la sync ne garde que facility_id.</p></div></div>`;
+}
+
+/* ---------- Fil d’activité (proposition 9) ---------- */
+const FEED_NOW = { 16: 81060, 17: 81060, 18: 89220 };
+const RUNNING = [
+  { keys: ['j1', 'j2', 'j3', 'j4', 'j5'], name: 'Hammerhead II', who: 'bravo', start: '02/11 21:41', end: 94680, endTxt: '03/11 02:18', until: 19 },
+  { keys: ['j6', 'j7', 'j8'], name: 'Hobgoblin II', who: 'charlie', start: '02/11 22:24', end: 89003, endTxt: '03/11 00:43', until: 18 }
+];
+function groupCost(keys) {
+  const cs = keys.map(k => jobCost(k));
+  return cs.some(c => c.value === null) ? null : cs.reduce((s, c) => s + c.value, 0);
+}
+function runningJobs() { return RUNNING.filter(r => S.phase >= 13 && S.phase < r.until && esiStatus(r.keys[0])); }
+function feedEvents() {
+  const hh = fmtIsk(groupCost(RUNNING[0].keys)), hg = fmtIsk(groupCost(RUNNING[1].keys));
+  const ev = [
+    [16, '02/11 22:30', 'charlie', `job en cours (ESI) · Hobgoblin II · 3 jobs × 10 runs · démarrés 22:24 · coût réel ${hg} · fin 03/11 00:43`],
+    [16, '02/11 22:10', 'alpha', 'container vérifié · 2 écarts'],
+    [16, '02/11 22:00', 'bravo', `job en cours (ESI) · Hammerhead II · 5 jobs × 10 runs · démarrés 21:41 · coût réel ${hh} · fin 03/11 02:18`],
+    [16, '02/11 21:58', 'bravo', `contribution de ${esc(PEOPLE.delta.char)} rejetée · Morphite ×30`],
+    [16, '02/11 21:12', 'delta', 'a rejoint le projet (lien court, approuvé)']
+  ];
+  if (S.phase >= 18) ev.unshift([18, '03/11 00:43', 'charlie', `job terminé (ESI) · Hobgoblin II · 3 jobs · livrés dans « ${esc(PROJECT.container)} · Produits »`]);
+  if (S.phase >= 19) ev.unshift([19, '03/11 02:20', 'bravo', 'job terminé (ESI) · Hammerhead II · 5 jobs']);
+  if (S.phase >= 19) ev.unshift([19, '04/11 19:20', 'bravo', 'vente enregistrée · Hobgoblin II ×30']);
+  return ev.slice(0, 6);
+}
+function renderRunningJobs() {
+  const rj = runningJobs();
+  if (!rj.length) return '';
+  return `<div class="col" style="gap:6px"><div class="lab dim">En cours maintenant (ESI)</div>${rj.map(r => `<div class="row sb wrapf" style="gap:6px 12px;padding:8px 10px;border:1px solid rgba(6,182,212,.25);border-radius:8px;background:rgba(6,182,212,.05)">
+      <span class="row" style="gap:8px">${who(r.who)}<span><b class="c-s200">${r.name}</b> <span class="hint">${r.keys.length} jobs × 10 runs · démarrés ${r.start}</span></span></span>
+      <span class="row" style="gap:16px"><span class="hint">coût réel <span class="mono c-s200">${fmtIsk(groupCost(r.keys))}</span></span><span class="hint">fin ${r.endTxt}</span><span class="mono c-cyan" data-end="${r.end}">--:--:--</span></span></div>`).join('')}</div>`;
+}
+function renderFeedCard() {
+  return `<div class="prop"><div class="card p5 col"><div class="row sb"><div class="row"><h3 class="t">Activité</h3>${ptag(9)}</div><span class="live"><i></i>en direct · Mercure</span></div>
+    ${renderRunningJobs()}
+    <div class="feed">${feedEvents().map((e, i) => `<div class="ev ${i === 0 && S.phase === 16 ? 'new' : ''}"><span class="t" style="min-width:86px">${e[1]}</span>${who(e[2])}<span style="flex:1">${e[3]}</span></div>`).join('')}</div>
+    <p class="hint" style="margin:0">Les événements existent déjà (member_joined, contribution_*, sale_*, status_changed) ; aujourd’hui ils rechargent les onglets sans laisser de trace. Un job démarré n’émet rien : il apparaît à la sync des jobs suivante (30 min). Le compte à rebours suit l’end_date de l’ESI ; le coût est celui payé en jeu (champ cost).</p></div></div>`;
+}
+
+/* ---------- Onglet Distribution ---------- */
+function renderDist() {
+  const d = distribution();
+  const admin = canAdmin();
+  const open = S.status !== 'completed';
+  const sales = d.sales;
+  const saleRows = sales.map(s => `<tr><td>${s.date}</td><td>${s.seller ? `${esc(PEOPLE[SELLER_KEY[s.seller]].char)}` : '<span class="unk">Vendeur inconnu</span>'} ${s.wallet ? '<span class="badge sm b-cyan">Wallet</span>' : ''}</td><td>${s.item}</td><td class="r">${fmtN(s.qty)}</td><td class="r">${fmtIsk(s.unit)}</td><td class="r">${fmtIsk(s.qty * s.unit)}</td>${S.real ? '' : `<td>${s.channel === 'contract' ? `<span class="badge sm b-violet">Contrat</span>` : '<span class="badge sm b-slate">Marché</span>'}</td>`}<td class="wr">${s.venue}</td><td>${admin && open ? `<button class="btn ghost xs">${svg(ICON.pencil).replace('<svg', '<svg width="12" height="12"')}</button>` : ''}</td></tr>`).join('');
+  const salesCard = `<div class="card flush"><div class="card-h"><div class="row"><h3>Ventes</h3><label class="hint row" style="gap:6px"><input type="checkbox" ${S.mine ? 'checked' : ''} data-act="mine"> Mes ventes</label></div>${admin && open ? `<button class="btn pri sm" data-act="modal" data-arg="sale">${svg(ICON.plus)}Enregistrer une vente</button>` : ''}</div>
+    ${sales.length ? `<div style="overflow-x:auto"><table class="t"><thead><tr><th>Date</th><th>Vendeur</th><th>Item</th><th class="r">Quantité</th><th class="r">Prix unitaire</th><th class="r">Revenu</th>${S.real ? '' : `<th>Canal ${ptag(20)}</th>`}<th>Lieu</th><th></th></tr></thead><tbody>${saleRows}<tr class="tot"><td colspan="5">Total</td><td class="r">${fmtIsk(d.revenue)}</td><td colspan="${S.real ? 2 : 3}"></td></tr></tbody></table></div>`
+      : `<div class="col" style="align-items:center;padding:24px"><b class="c-s200">Aucune vente enregistrée</b><span class="hint">Enregistrez les ventes une fois les items vendus sur le marché</span></div>`}
+    ${S.real ? '' : `<div class="prop" style="margin:12px 16px"><div class="row wrapf" style="gap:16px;padding:8px 10px">${ptag(17)}${DATA.items.map(i => { const sold = soldQty(i.name); return `<span class="hint">${i.name} : <span class="mono c-s200">${sold} / ${producedQty(i.name)}</span> vendus${sold < producedQty(i.name) ? ` · <span class="c-amber">${producedQty(i.name) - sold} restants</span>` : ' ✓'}</span>`; }).join('')}<span class="hint">· l’item d’une vente est choisi parmi les items du projet</span></div></div>`}</div>`;
+  const sugg = S.phase === 19 && admin ? `<div class="card flush ${S.focus === 'suggest' ? 'hl2' : ''}"><div class="card-h"><h3>Transactions à rattacher</h3><span class="hint">ventes de vos personnages sur les items du projet depuis sa création, non rattachées</span></div>
+    <table class="t"><thead><tr><th>Date</th><th>Personnage</th><th class="r">Quantité</th><th class="r">Prix unitaire</th><th class="r">Total</th><th class="r">Quantité à enregistrer</th><th></th></tr></thead><tbody>
+    <tr><td>05/11 20:41</td><td>${esc(PEOPLE.alpha.char)}</td><td class="r">30</td><td class="r">${fmtIsk(760000)}</td><td class="r">${fmtIsk(30 * 760000)}</td><td class="r"><input class="input sm" value="" placeholder="30"></td><td><button class="btn em xs">Enregistrer comme vente</button></td></tr></tbody></table>
+    <p class="hint" style="margin:0;padding:10px 24px">Hammerhead II · Jita IV - Moon 4 · type, prix, date et vendeur repris de la transaction et figés</p></div>` : '';
+  const noSales = !sales.length;
+  const pending = !S.real && noSales;
+  const fin = `<div class="card p5 col"><h3 class="t">Résumé financier</h3>
+    <table class="t"><tbody>
+      <tr><td>Revenu total</td><td class="r">${pending ? '<span class="hint">aucune vente</span>' : fmtIsk(d.revenue)}</td></tr>
+      ${S.real || pending ? '' : `<tr class="subrow"><td style="padding-left:24px">ordres de marché</td><td class="r">${fmtIsk(d.taxed)}</td></tr><tr class="subrow"><td style="padding-left:24px">contrats ${ptag(20)}</td><td class="r">${fmtIsk(d.contractRevenue)}</td></tr>`}
+      <tr><td>Frais de courtage (${fmtPct(DATA.fees.broker)}${S.real || pending ? '' : ' du marché'})</td><td class="r">${pending ? '—' : d.broker ? '−' + fmtIsk(d.broker) : '0'}</td></tr>
+      <tr><td>Taxe de vente (${fmtPct(DATA.fees.tax)}${S.real || pending ? '' : ' du marché'})</td><td class="r">${pending ? '—' : d.tax ? '−' + fmtIsk(d.tax) : '0'}</td></tr>
+      ${S.real || pending || !d.contractRevenue ? '' : `<tr><td class="wr">Frais des contrats<div class="hint">journal wallet du vendeur : aucune écriture contract_brokers_fee ni contract_sales_tax</div></td><td class="r">${d.contractFees ? '−' + fmtIsk(d.contractFees) : '0'}</td></tr>`}
+      <tr class="tot"><td>Revenu net</td><td class="r">${pending ? '<span class="hint">en attente</span>' : fmtIsk(d.net)}</td></tr>
+      <tr><td>Coût total du projet</td><td class="r">${fmtIsk(d.cost)}</td></tr>
+      ${['material', 'job_install', 'bpc', 'line_rental'].map(t => `<tr class="subrow"><td style="padding-left:24px">${{ material: 'Matériaux', job_install: 'Installation jobs', bpc: 'BPC', line_rental: 'Location de ligne' }[t]}</td><td class="r">${d.unknown.length && t === 'job_install' ? UNK : fmtIsk(d.approved.filter(c => c.type === t).reduce((s, c) => s + (valueOf(c) ?? 0), 0))}</td></tr>`).join('')}
+    </tbody></table>
+    <div class="card soft row sb"><div><div class="lab dim">Profit</div><div class="kpi mono ${d.ratio !== null && d.ratio < 0 ? 'c-red' : 'c-em'}">${pending ? '<span class="hint" style="font-size:14px">en attente des ventes</span>' : d.cost === null || d.cost === 0 ? UNK : fmtIsk(d.net - d.cost)}</div></div><div style="text-align:right"><div class="lab dim">Marge</div><div class="kpi mono">${pending ? '<span class="hint" style="font-size:14px">en attente</span>' : fmtPct(d.margin, 2)}</div></div></div>
+    ${pending ? `<div class="prop"><div class="annot" style="border:0">${ptag(12)} Sans vente, le code actuel affiche une marge de −100 %, des payouts à 0 et le scénario de perte : la maquette dit « en attente des ventes ».</div></div>` : ''}</div>`;
+  const unsold = DATA.items.filter(i => soldQty(i.name) < producedQty(i.name));
+  let projection = '';
+  if (!S.real && sales.length && unsold.length && d.cost) {
+    const extra = unsold.reduce((s, i) => { const p = lastPrice(i.name); return s + (p === null ? NaN : (producedQty(i.name) - soldQty(i.name)) * p); }, 0);
+    const projNet = d.net + extra * (1 - (DATA.fees.broker + DATA.fees.tax) / 100);
+    const projMargin = isNaN(extra) ? null : (projNet - d.cost) / d.cost * 100;
+    projection = `<div class="prop"><div class="banner amber">${svg(ICON.warn)}<div>${ptag(12)} <b>Marge provisoire : ${unsold.map(i => `${producedQty(i.name) - soldQty(i.name)} ${i.name}`).join(', ')} restent à vendre.</b> ${projMargin === null ? `Aucune vente encore pour ${unsold.filter(i => lastPrice(i.name) === null).map(i => i.name).join(', ')} : pas de prix de référence, marge projetée ${UNK}.` : `Au dernier prix de vente (${unsold.map(i => `${i.name} ${fmtIsk(lastPrice(i.name))}`).join(', ')}), la marge projetée est de <span class="mono c-white">${fmtPct(projMargin, 2)}</span>.`} Les payouts ci-dessous sont ceux d’aujourd’hui.</div></div></div>`;
+  }
+  const impossible = d.cost === 0 ? `<div class="banner amber">${svg(ICON.warn)}<div><b>Répartition impossible :</b> aucune contribution approuvée n’a de coût, le revenu net ne peut pas être réparti.</div></div>` : '';
+  const unknownBanner = d.unknown.length ? `<div class="banner amber">${svg(ICON.warn)}<div><b>Coût total et payouts inconnus.</b> ${d.unknown.length} contributions approuvées sans coût lu : ${[...new Set(d.unknown.map(c => PEOPLE[c.member].char))].join(', ')} (jobs ESI non relus). Rien n’est compté pour 0.</div></div>` : '';
+  const ids = Object.keys(d.members);
+  const colors = { alpha: '#22d3ee', bravo: '#a78bfa', charlie: '#34d399', delta: '#fbbf24' };
+  let acc = 0;
+  const C = 2 * Math.PI * 60;
+  const donut = d.cost ? `<svg class="donut" viewBox="0 0 168 168"><circle cx="84" cy="84" r="60" fill="none" stroke="#1e293b" stroke-width="22"/>${ids.map(k => { const p = d.members[k].share / 100; const seg = `<circle cx="84" cy="84" r="60" fill="none" stroke="${colors[k]}" stroke-width="22" stroke-dasharray="${C * p} ${C}" stroke-dashoffset="${-C * acc}" transform="rotate(-90 84 84)"/>`; acc += p; return seg; }).join('')}
+    <text x="84" y="80" text-anchor="middle" font-size="11" fill="#94a3b8">Total payout</text><text x="84" y="98" text-anchor="middle" font-size="15" fill="#fff" font-family="monospace">${pending || d.unknown.length ? '?' : fmtIsk(d.net).replace(/<[^>]+>/g, '')}</text></svg>` : '';
+  const distRows = ids.map(k => {
+    const m = d.members[k];
+    const sub = S.expanded[k] ? Object.entries(m.byType).map(([t, v]) => `<tr class="subrow"><td style="padding-left:40px">${TYPE_LABEL[t]}</td><td class="r">${fmtIsk(v)}</td><td colspan="3"></td></tr>`).join('') : '';
+    const pay = pending ? '<span class="hint" style="font-family:inherit">en attente</span>' : fmtIsk(m.payout);
+    return `<tr data-act="expand" data-arg="${k}" style="cursor:pointer"><td><span class="row" style="gap:6px"><span class="dotc" style="background:${colors[k]}"></span>${S.expanded[k] ? '▾' : '▸'} ${who(k)}</span></td><td class="r">${m.unknown ? UNK : fmtIsk(m.costs)}</td><td class="r">${m.share === null || d.unknown.length ? UNK : fmtPct(m.share, 2)}</td><td class="r">${pending ? '<span class="hint" style="font-family:inherit">en attente</span>' : fmtIsk(m.profit)}</td><td class="r c-white">${pay}</td></tr>${sub}`;
+  }).join('');
+  const totalPay = pending || d.ratio === null || d.unknown.length ? null : ids.reduce((s, k) => s + d.members[k].payout, 0);
+  const distCard = `<div class="card flush" ${S.focus === 'dist' ? 'id="focus"' : ''}><div class="card-h"><h3>Répartition du profit</h3><span class="hint">payout = coûts engagés × (1 + marge %)</span></div>
+    <div class="row start" style="padding:16px 24px;gap:24px">${donut}<div class="legend">${ids.map(k => `<span class="row" style="gap:8px"><span class="dotc" style="background:${colors[k]}"></span>${esc(PEOPLE[k].char)} <span class="mono c-s300">${d.members[k].share === null || d.unknown.length ? '?' : fmtPct(d.members[k].share, 1)}</span></span>`).join('')}</div></div>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Personnage</th><th class="r">Coûts engagés</th><th class="r">Part %</th><th class="r">Part du profit</th><th class="r">Payout total</th></tr></thead><tbody>${distRows || '<tr><td colspan="5" class="hint" style="text-align:center">Aucun membre avec une contribution approuvée</td></tr>'}
+    <tr class="tot"><td>Total</td><td class="r">${fmtIsk(d.cost)}</td><td class="r">${d.cost ? '100 %' : UNK}</td><td class="r">${totalPay === null ? (pending ? '<span class="hint" style="font-family:inherit">en attente</span>' : UNK) : fmtIsk(d.net - d.cost)}</td><td class="r c-white">${totalPay === null ? (pending ? '<span class="hint" style="font-family:inherit">en attente</span>' : UNK) : fmtIsk(totalPay)}</td></tr></tbody></table></div>
+    <div style="padding:10px 24px;border-top:1px solid var(--s800)" class="hint mono">Payout = coûts engagés × (1 + marge %) = coûts engagés × revenu net / coût total du projet${totalPay !== null ? ` · Σ payouts ${fmtFull(totalPay)} = revenu net ${fmtFull(d.net)} ✓` : ''}</div>
+    ${S.real && noSales && d.cost ? `<div class="banner red" style="margin:12px 16px">${svg(ICON.warn)}<div><b>Existant · Loss Scenario.</b> Sans vente, revenu 0 : marge −100 %, payouts à 0 ISK. Ce n’est pas une perte, c’est une donnée pas encore connue.</div></div>` : ''}</div>`;
+  const payCard = S.phase >= 22 && !S.real && !pending ? renderPayments(d) : '';
+  const recap = S.phase >= 24 && !S.real ? renderRecap(d) : '';
+  return `${impossible}${unknownBanner}${projection}${sugg}${salesCard}<div class="g3 start"><div class="span2 col">${distCard}${payCard}</div><div class="col">${fin}</div></div>${recap}`;
+}
+function renderPayments(d) {
+  const tr = DATA.transfers;
+  const paidN = tr.filter((t, i) => S.paid[i]).length;
+  const held = Object.entries(DATA.held).map(([k, v]) => `${esc(PEOPLE[k].char)} ${fmtIsk(v)}`).join(' · ');
+  return `<div class="prop"><div class="card p5 col ${S.focus === 'payments' && S.phase === 22 ? 'hl2' : ''}"><div class="row sb"><div class="row"><h3 class="t">Versements</h3>${ptag(13)}</div><span class="hint">${paidN} / ${tr.length} faits</span></div>
+    <p class="hint" style="margin:0">Chaque vendeur garde le revenu net de ses ventes (frais du projet sur les ordres de marché, frais réels sur les contrats) : ${held}. Pour que chacun reçoive son payout, ${tr.length} virements suffisent.</p>
+    <div class="paste"><div class="col" style="gap:2px"><span class="c-s300">Motif du virement en jeu : <b class="mono c-white" style="font-size:16px">${PROJECT_REF}</b></span><span class="hint">vérification par le journal wallet du destinataire : à confirmer (journal non synchronisé aujourd’hui)</span></div><button class="btn ${S.refCopied ? 'em' : 'sec'} sm" data-act="copy-ref">${svg(ICON.clip)}${S.refCopied ? 'Copié' : 'Copier'}</button></div>
+    <table class="t"><thead><tr><th>De</th><th>À</th><th class="r">Montant</th><th>État</th></tr></thead><tbody>${tr.map((t, i) => `<tr><td>${who(t.from)}</td><td>${who(t.to)}</td><td class="r">${fmtFull(t.amount)}</td><td>${S.paid[i] ? '<span class="badge sm b-em">✓ versé · coché par ' + esc(PEOPLE[t.to].name) + '</span>' : `<button class="btn sec xs" data-act="pay" data-arg="${i}">Marquer versé</button>`}</td></tr>`).join('')}</tbody></table>
+    ${roundingNote(d)}</div></div>`;
+}
+function roundingNote(d) {
+  const left = Object.keys(d.members).map(k => {
+    const out = DATA.transfers.filter(t => t.from === k).reduce((s, t) => s + t.amount, 0), inn = DATA.transfers.filter(t => t.to === k).reduce((s, t) => s + t.amount, 0);
+    return [k, (DATA.held[k] || 0) - out + inn - d.members[k].payout];
+  }).filter(([, r]) => Math.abs(r) >= 0.005);
+  return left.length ? `<p class="hint" style="margin:0">Écart d’arrondi (payouts au centime) : ${left.map(([k, r]) => `${nf2.format(Math.abs(r))} ISK ${r > 0 ? 'reste chez' : 'manque à'} ${esc(PEOPLE[k].char)}`).join(' · ')}.</p>` : '';
+}
+function renderRecap(d) {
+  const txt = `${PROJECT.name} — terminé le ${PROJECT.completed}
+Produit : ${DATA.items.map(i => `${i.runs} ${i.name}`).join(', ')}
+Coût engagé : ${fmtFull(d.cost)} · revenu net : ${fmtFull(d.net)} · marge ${fmtPct(d.margin, 2).replace(/<[^>]+>/g, '')}
+${Object.keys(d.members).map(k => `${PEOPLE[k].char} : ${fmtFull(d.members[k].payout)}`).join('\n')}
+Référence : ${PROJECT_REF}`;
+  return `<div class="prop"><div class="card p5 col"><div class="row sb"><div class="row"><h3 class="t">Récapitulatif à partager</h3>${ptag(14)}</div><button class="btn ${S.recapCopied ? 'em' : 'sec'} sm" data-act="copy-recap">${svg(ICON.clip)}${S.recapCopied ? 'Copié' : 'Copier le texte'}</button></div>
+    <pre class="copyblock">${esc(txt)}</pre><span class="hint">Texte brut pour Discord ou le chat en jeu, sans webhook.</span></div></div>`;
+}
+
+/* ---------- Onglet Membres ---------- */
+function renderMembers() {
+  if (S.state === 'corp_reader') return readerLock('L’onglet Membres');
+  const admin = canAdmin();
+  const rows = memberIds().map(k => {
+    const role = k === 'alpha' ? '<span class="badge sm b-cyan">Owner</span>' : k === 'bravo' && S.bravoAdmin ? '<span class="badge sm b-violet">Admin</span>' : '<span class="badge sm b-slate">Member</span>';
+    const via = S.real ? 'Active' : k === 'alpha' ? 'Actif · créateur' : k === 'delta' ? 'Actif · lien court, approuvé' : 'Actif · même corpo';
+    const acts = k === 'alpha' || !admin ? '' : k === 'bravo' ? (S.bravoAdmin ? '<button class="btn ghost xs">Rétrograder</button> <button class="btn ghost xs">Exclure</button>' : `<button class="btn sec xs ${S.focus === 'pending' ? 'hl2' : ''}" data-act="promote">Promouvoir admin</button> <button class="btn ghost xs">Exclure</button>`) : '<button class="btn sec xs">Promouvoir admin</button> <button class="btn ghost xs">Exclure</button>';
+    return `<tr><td>${who(k, k === 'alpha' ? 'vous' : '')}</td><td class="wr">${esc(PEOPLE[k].corp)}</td><td>${role}</td><td>${via}${S.real ? '' : ''}</td><td>${PEOPLE[k].joined}</td><td>${acts}</td></tr>`;
+  }).join('');
+  const pend = pendingIds();
+  const prow = pend.map(k => `<tr><td>${who(k)}</td><td class="wr">${S.real ? 'Corp #98' + (k === 'delta' ? '000123' : '000456') : esc(PEOPLE[k].corp)}</td><td>${k === 'delta' ? '02/11 21:09' : '02/11 23:20'}</td><td>Lien court</td><td>${admin ? `<button class="btn em xs ${S.focus === 'pending' && k === 'delta' ? 'hl2' : ''}" data-act="accept" data-arg="${k}">Accepter</button> <button class="btn ghost xs">Rejeter</button>` : ''}</td></tr>`).join('');
+  return `<div class="row sb"><span class="hint">${memberIds().length} membres actifs · ${pend.length} en attente</span><button class="btn sec sm" data-act="copy">${svg(ICON.link)}Copier le lien d’invitation</button></div>
+    <div class="card flush"><table class="t"><thead><tr><th>Personnage</th><th>Corporation</th><th>Rôle</th><th>Statut ${S.real ? '' : ptag(16)}</th><th>Rejoint</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${pend.length || admin ? `<div class="card flush" ${S.focus === 'pending' ? 'id="focus"' : ''}><div class="card-h"><h3>Demandes en attente</h3>${S.real ? '' : ptag(16)}</div>${pend.length ? `<table class="t"><thead><tr><th>Personnage</th><th>Corporation</th><th>Demandé le</th><th>Via</th><th>Actions</th></tr></thead><tbody>${prow}</tbody></table>` : '<div class="col" style="align-items:center;padding:20px"><b class="c-s200">Aucune demande d’adhésion en attente.</b><span class="hint">Partagez le lien d’invitation pour inviter de nouveaux membres</span></div>'}</div>` : ''}
+    <div class="card p5 col" style="background:rgba(30,41,59,.6);border-color:rgba(51,65,85,.5)"><h4 style="margin:0;font-size:14px;font-weight:600;color:var(--s200)">Lien d’invitation</h4>
+      <div class="row" style="gap:8px"><input class="input mono" readonly value="${joinLink()}" style="background:var(--s900)"><button class="btn ${S.copied ? 'em' : 'sec'}" data-act="copy">${svg(ICON.clip)}${S.copied ? 'Lien copié !' : 'Copier'}</button></div>
+      <p class="hint" style="margin:0">Les membres de la même corp sont auto-acceptés. Les autres joueurs devront être approuvés.</p>
+      ${prop(19, `<div class="row wrapf" style="gap:6px 10px;padding:8px 10px">${ptag(19)}<span class="hint">Le module est dans le lien : <span class="mono c-s200">/group-industry/join/…</span> pour l’industrie de groupe, <span class="mono c-s200">/mining-operations/join/…</span> pour une opération de minage (#262). Un lien collé sur Discord dit ce qu’il ouvre ; l’ancien <span class="mono">/join/${PROJECT.code}</span> redirige.</span></div>`, '<div class="annot"><b>Existant ·</b> <span class="mono">/join/{code}</span> pour tous les modules : rien ne dit si le lien ouvre un projet d’industrie ou une opération de minage.</div>')}</div>`;
+}
+
+/* ---------- Compagnon (proposition 10) ---------- */
+function claimLabel(l) {
+  if (l.name) { const p = priceOf(l); return `${fmtN(l.required - fulfilled(l.key))} u · ${p === null ? UNK : fmtIsk((l.required - fulfilled(l.key)) * p)}`; }
+  return `${ACT_LABEL[l.activity].toLowerCase()} · ${l.runs} runs${l.activity === 'invention' ? ' (tentatives)' : ''}`;
+}
+function freeLines() {
+  const mats = DATA.mats.filter(m => fulfilled(m.key) < m.required && !reservedBy(m.key));
+  const jobs = DATA.jobs.filter(j => fulfilled(j.key) < j.required && !esiStatus(j.key) && !reservedBy(j.key));
+  return [...mats, ...jobs];
+}
+function myLines() { return [...DATA.mats, ...DATA.jobs].filter(l => reservedBy(l.key) === 'alpha' && fulfilled(l.key) < l.required && !esiStatus(l.key)); }
+function myTasks() {
+  const pend = contribs().filter(c => statusOf(c) === 'pending' && c.member !== 'alpha').length;
+  return { pend, reqs: pendingIds().length, bom: bomProgress(), free: freeLines(), mine: myLines() };
+}
+const CMP_FREE_SHOWN = 6;
+function renderCompanionCard(size) {
+  const t = myTasks();
+  const alerts = S.alerts ? `<div class="alertv">${svg(ICON.bell)}<div><b>Job terminé</b> · Hobgoblin II ×10 runs (${esc(PEOPLE.charlie.char)}) · à livrer dans « ${esc(PROJECT.container)} »</div></div>
+    <div class="alertv ok">${svg(ICON.ok)}<div><b>BOM complète</b> · 13 / 13 matériaux fournis</div></div>` : '';
+  if (size === 'bar') return `<div class="cmpg bar"><span class="live"><i></i></span><div style="min-width:0;flex:1"><div class="cmp-title" style="font-weight:700">${esc(PROJECT.name)}</div><div class="hint">BOM ${Math.round(t.bom)} % · ${t.free.length} à attribuer · ${t.mine.length} à livrer · ${t.pend} à revoir</div></div>${S.alerts ? '<span class="cpill due">1 job fini</span>' : t.free.length ? `<span class="cpill irr">${t.free.length} libres</span>` : ''}</div>`;
+  const freeRows = t.free.slice(0, CMP_FREE_SHOWN).map((l, i) => `<div class="it"><span><span class="c-s200">${lineName(l)}</span><div class="hint">${claimLabel(l)}</div></span><button class="btn sec xs ${i === 0 && S.phase === 17 ? 'hl2' : ''}" data-act="claim" data-arg="${l.key}">Je m’en charge</button></div>`).join('');
+  const more = t.free.length > CMP_FREE_SHOWN ? `<div class="hint">+ ${t.free.length - CMP_FREE_SHOWN} autres lignes libres · <a data-hash="m=${S.status === 'none' ? 'published' : S.status}&tab=bom" style="color:var(--c400);cursor:pointer">voir la BOM</a></div>` : '';
+  const mineRows = t.mine.map(l => `<div class="it"><span><span class="c-s200">${lineName(l)}</span><div class="hint">${claimLabel(l)}</div></span><span class="row" style="gap:4px"><button class="btn em xs" data-act="contrib-line" data-arg="${l.key}">Livrer</button><button class="btn ghost xs" data-act="unclaim" data-arg="${l.key}">Libérer</button></span></div>`).join('');
+  const jobs = S.phase >= 12 ? `<div class="sec"><div class="lab dim">Mes jobs (ESI)</div>
+      <div class="it"><span>Hammerhead I · 50 runs<div class="hint">livré dans Hangar corpo, division 2</div></span><span class="badge sm b-em">terminé</span></div>
+      <div class="it"><span>Hobgoblin I · 30 runs<div class="hint">livré dans Hangar corpo, division 2</div></span><span class="badge sm b-em">terminé</span></div>
+      <div class="alertv info">${svg(ICON.inventory)}<div><b>Sortie hors container</b> · déplacer 50 Hammerhead I et 30 Hobgoblin I dans « ${esc(PROJECT.container)} » ${ptag(18)}</div></div></div>` : '';
+  return `<div class="cmpg"><div class="row sb"><div style="min-width:0"><div style="font-weight:700;color:var(--s100);overflow-wrap:anywhere">${esc(PROJECT.name)}</div><div class="hint">${STATUS[S.status === 'none' ? 'published' : S.status][0]} · ${esc(PEOPLE.alpha.char)}</div></div><span class="live"><i></i>direct</span></div>
+    ${alerts}
+    <div class="sec"><div class="row sb"><div class="lab dim">À attribuer · ${t.free.length}</div>${ptag(4)}</div>${freeRows || '<div class="hint">Toutes les lignes ont un responsable.</div>'}${more}</div>
+    <div class="sec"><div class="lab dim">Mes lignes à livrer · ${t.mine.length}</div>${mineRows || '<div class="hint">Rien à livrer.</div>'}</div>
+    <div class="sec"><div class="lab dim">À faire</div>
+      <div class="it"><span>Contributions à revoir</span><span class="mono ${t.pend ? 'c-amber' : 'c-em'}">${t.pend}</span></div>
+      <div class="it"><span>Demandes d’adhésion</span><span class="mono ${t.reqs ? 'c-amber' : ''}">${t.reqs}</span></div></div>
+    ${jobs}
+    <div class="sec"><div class="lab dim">Projet</div>
+      <div class="it"><span>BOM</span>${pbar(t.bom)}<span class="mono">${Math.round(t.bom)} %</span></div>
+      ${S.phase >= 12 ? `<div class="it"><span>Jobs finaux en cours</span><span class="mono">${S.phase >= 19 ? 0 : S.phase >= 18 ? 5 : 8} / 8</span></div>` : ''}</div>
+    <p class="hint" style="margin:0">Alertes visuelles seulement, aucun son. Une réservation est visible de tous en direct.</p></div>`;
+}
+function renderCompanionPage() {
+  const game = `<div class="game"><div class="game-h"><span>Fenêtre du jeu</span><span class="hint">client EVE Online, plein écran</span></div>
+    <div class="game-in"><span class="hint">la fenêtre du jeu reste au premier plan ; le compagnon flotte au-dessus, dans un coin</span></div>
+    <div class="game-cmp">${renderCompanionCard(S.size)}</div></div>`;
+  return `<div class="cmp-page2"><div class="col" style="width:100%;max-width:1200px"><div class="viewas">Compagnon · fenêtre détachée (Document Picture-in-Picture, toujours au-dessus, comme le minage) · ${ptag(10)}</div>${game}
+    <div class="annot"><b>Maquette ·</b> le compagnon suit les événements Mercure du projet (topic /group-project/{id}/events). « Je m’en charge » réserve la ligne sans quitter le jeu : elle quitte « À attribuer » chez tout le monde et apparaît dans la colonne « Réservé par » de la BOM. « Livrer » ouvre la contribution pré-remplie.</div></div></div>`;
+}
+
+/* ---------- Modales ---------- */
+function modalShell(title, sub, body, foot, wide) {
+  return `<div class="ov"><div class="bk" data-act="close"></div><div class="panel ${wide ? 'wide' : ''}" role="dialog" aria-modal="true">
+    <div class="ph"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button class="x" data-act="close" aria-label="Fermer">${svg(ICON.x).replace('<svg', '<svg width="16" height="16"')}</button></div>
+    <div class="pb">${body}</div>${foot ? `<div class="pf">${foot}</div>` : ''}</div></div>`;
+}
+const PASTE_TEXT = 'Hammerhead II 2 4 x50\nHobgoblin II 2 4 x30\nHamerhead II 2 4 x10\nOgre II x20';
+const PASTE_RESULT = [
+  ['ok', 'Hammerhead II 2 4 x50', 'Hammerhead II · ME 2 · TE 4 · 50 runs'],
+  ['ok', 'Hobgoblin II 2 4 x30', 'Hobgoblin II · ME 2 · TE 4 · 30 runs'],
+  ['unknown', 'Hamerhead II 2 4 x10', 'item inconnu du SDE · vouliez-vous dire Hammerhead II ?'],
+  ['format', 'Ogre II x20', 'format attendu : ITEM ME TE xRUNS (ME et TE manquants)']
+];
+function renderCreateModal() {
+  const stage = S.createStage;
+  const items = `<table class="t"><thead><tr><th>Item</th><th class="r">ME</th><th class="r">TE</th><th class="r">Runs</th><th></th></tr></thead><tbody>${DATA.items.map(i => `<tr><td><div class="row" style="gap:8px"><div class="mini">${itemIni(i.name)}</div>${i.name} <span class="badge sm b-violet">T2</span></div></td><td class="r"><input class="input sm" value="${i.me}"></td><td class="r"><input class="input sm" value="${i.te}"></td><td class="r"><input class="input sm" value="${i.runs}"></td><td><button class="btn ghost xs">${svg(ICON.trash).replace('<svg', '<svg width="12" height="12"')}</button></td></tr>`).join('')}</tbody></table>
+    <div class="hint">${DATA.items.length} items · ${DATA.items.reduce((s, i) => s + i.runs, 0)} runs au total</div>`;
+  const paste = `<div class="field"><label class="fl">Coller en lot</label><textarea class="input mono" rows="4" style="resize:vertical">${PASTE_TEXT}</textarea><p class="hint" style="margin:6px 0 0">Format : ItemName ME TE xRuns</p></div>
+    ${prop(1, `<div class="col" style="gap:4px;padding:8px 10px"><div class="row">${ptag(1)}<span class="hint">résultat ligne par ligne avant d’ajouter</span></div>${PASTE_RESULT.map(r => `<div class="row" style="gap:8px;font-size:13px"><span class="${r[0] === 'ok' ? 'c-em' : 'c-amber'}" style="width:16px">${r[0] === 'ok' ? '✓' : '!'}</span><span class="mono c-s300" style="min-width:180px">${r[1]}</span><span class="${r[0] === 'ok' ? 'c-s300' : 'c-amber'}">${r[2]}</span>${r[0] === 'unknown' ? '<button class="btn sec xs">Corriger</button>' : ''}</div>`).join('')}</div>`,
+      `<div class="annot"><b>Existant ·</b> « Ogre II x20 » est ignorée sans message ; « Hamerhead II » part au serveur et la création échoue avec « Unknown item(s): Hamerhead II ».</div>`)}
+    <div class="row"><button class="btn sec sm">Parser et ajouter</button><span class="hint">2 lignes ajoutées${S.real ? '' : ', 2 à corriger'}</span></div>`;
+  const s1 = `<div class="seg"><button>Ajouter un item</button><button class="on">Coller en lot</button></div>${paste}<div class="sep"></div><div class="lab">Items à produire</div>${items}`;
+  const bl = `<div class="field"><label class="fl">Liste noire</label><p class="hint" style="margin:0 0 8px">Les items ci-dessous seront achetés, pas fabriqués.</p><div class="g2" style="gap:6px 16px">${BLACKLIST.map(b => `<label class="row" style="gap:8px;font-size:13px"><input type="checkbox" ${b[2] ? 'checked' : ''}> ${b[1]}</label>`).join('')}</div></div>`;
+  const fees = prop(2, `<div class="col" style="padding:8px 10px"><div class="row">${ptag(2)}<span class="lab">Frais du projet</span></div><div class="g2"><div class="field"><label class="fl">Frais de courtage %</label><input class="input mono" value="3,6"></div><div class="field"><label class="fl">Taxe de vente %</label><input class="input mono" value="3,6"></div></div><p class="hint" style="margin:0">Pré-remplis depuis vos réglages Industry (sinon 3,6 %), modifiables tant que le projet n’est pas terminé.</p></div>`,
+    `<div class="annot"><b>Existant ·</b> pas de champ de frais à la création : ceux des réglages Industry (sinon 3,6 %) s’appliquent, modifiables ensuite dans « Modifier le projet ».</div>`);
+  const s2 = `<div class="field"><label class="fl">Nom (optionnel)</label><input class="input" value="${esc(PROJECT.name)}"></div>${bl}
+    <div class="g2"><div class="field"><label class="fl">Container corp (optionnel)</label><input class="input" value="${esc(PROJECT.container)}"><p class="hint" style="margin:6px 0 0">Si défini, les admins peuvent vérifier les contributions matérielles contre le contenu de ce container dans les bureaux corp partagés.</p></div>
+      <div class="field"><label class="fl">Tarifs location de ligne</label><p class="muted" style="margin:0">Utilise les défauts de vos paramètres</p><button class="btn ghost xs" style="margin-top:6px">Surcharger pour ce projet</button></div></div>${fees}`;
+  return modalShell('Nouveau projet de groupe', 'Créer un nouveau projet industriel multi-items', stage === 1 ? s1 : s2,
+    `<span class="hint" style="margin-right:auto">La BOM sera agrégée depuis tous les items et figée à la création</span><button class="btn sec" data-act="${stage === 1 ? 'close' : 'create-back'}">${stage === 1 ? 'Annuler' : 'Retour'}</button><button class="btn pri" data-act="${stage === 1 ? 'create-next' : 'create'}">${stage === 1 ? 'Suivant' : 'Créer le projet'}</button>`, true);
+}
+function renderContributeModal() {
+  const f = S.contribForm || { type: 'material', line: 'm1', qty: 1 };
+  const l = lineOf(f.line);
+  const isMat = f.type === 'material';
+  const price = isMat ? priceOf(l) : null;
+  const cards = Object.entries(TYPE_LABEL).map(([k, lab]) => `<label class="${f.type === k ? 'on' : ''}" data-act="cf-set" data-arg="${k}">${lab}</label>`).join('');
+  const options = (isMat ? DATA.mats : DATA.jobs).filter(x => fulfilled(x.key) < x.required).map(x => `<option ${x.key === f.line ? 'selected' : ''}>${lineName(x)}${x.activity ? ' · ' + ACT_LABEL[x.activity].toLowerCase() : ''} (${fmtN(x.required - fulfilled(x.key))} restants)</option>`).join('');
+  let valBlock;
+  if (isMat && price !== null) valBlock = `<div class="card soft col" style="gap:4px"><div class="lab">Prix BOM, figé à la création du projet</div><div class="row sb"><span class="hint">Calculé automatiquement · Figé le ${PRICES_FROZEN} · Jita, 5 % des ordres de vente les moins chers</span><span class="mono c-s200">Prix unitaire : ${nf2.format(price)} ISK</span></div><div class="mono c-s300">${fmtN(f.qty)} × ${nf2.format(price)} = ${fmtFull(f.qty * price)}</div></div>`;
+  else if (isMat) valBlock = `<div class="field"><label class="fl">Valeur estimée (ISK)</label><input class="input mono" placeholder="obligatoire : aucun prix BOM pour ${l.name}"><p class="hint c-amber" style="margin:6px 0 0">Aucun prix BOM pour cette ligne : la valeur saisie (&gt; 0) est obligatoire, jamais 0 par défaut.</p></div>`;
+  else if (f.type === 'line_rental' && !S.real) valBlock = `<div class="prop"><div class="card soft col" style="gap:6px">${ptag(6)}<div class="lab">Barème de location du projet</div><div class="row sb"><span class="hint">Catégorie Module T2 (Hobgoblin II, à confirmer) · défauts de ${esc(PEOPLE.alpha.char)}, pas de surcharge sur ce projet</span><span class="mono c-s200">100 000 ISK/run</span></div><div class="mono c-s300">${f.qty} runs × 100 000 = ${fmtFull(f.qty * 100000)}</div><span class="hint">Modifiable : la valeur pré-remplie peut être corrigée avant l’envoi.</span></div></div>`;
+  else valBlock = `<div class="field"><label class="fl">Valeur estimée (ISK)</label><input class="input mono" placeholder="ex : 1 000 000">${f.type === 'line_rental' ? '<p class="hint" style="margin:6px 0 0">Existant : le barème de location n’est pas appliqué, la valeur est saisie à la main (#300).</p>' : ''}</div>`;
+  const total = isMat ? (price === null ? null : f.qty * price) : f.type === 'line_rental' && !S.real ? f.qty * 100000 : null;
+  return modalShell('Ajouter une contribution', `Projet : ${esc(PROJECT.name)}${!S.real && S.phase === 10 ? ' · ouverte depuis la ligne Tritanium de la BOM ' + ptag(3) : ''}`,
+    `<div class="radio">${cards}</div>
+    <div class="g2"><div class="field"><label class="fl">${isMat ? 'Item' : 'Étape BOM'}</label><select class="input">${options}</select></div><div class="field"><label class="fl">Quantité</label><input class="input mono" value="${f.qty}"></div></div>
+    ${valBlock}
+    <div class="card soft row sb"><span class="lab">Valorisation totale</span><span class="kpi mono c-em" style="margin:0">${total === null ? (isMat ? UNK : '<span class="hint">saisie</span>') : fmtIsk(total)}</span></div>
+    ${isMat && price !== null ? '<p class="hint" style="margin:0">Méthode : prix BOM × quantité</p>' : ''}
+    <div class="field"><label class="fl">Notes (optionnel)</label><input class="input" placeholder="${f.type === 'line_rental' ? 'ligne de Structure B, 3 jours' : 'livré dans le container'}"></div>`,
+    `<span class="hint" style="margin-right:auto">Votre contribution sera examinée par un admin du projet.</span><button class="btn sec" data-act="close">Annuler</button><button class="btn pri" data-act="submit-contrib">Soumettre la contribution</button>`, true);
+}
+function renderCompleteModal() {
+  const d = distribution();
+  const pend = contribs().filter(c => statusOf(c) === 'pending').length;
+  const unsold = DATA.items.filter(i => soldQty(i.name) < producedQty(i.name));
+  const paidN = DATA.transfers.filter((t, i) => S.paid[i]).length;
+  const check = (ok, txt) => `<div class="check"><span class="ic ${ok ? 'ok' : 'ko'}">${ok ? '✓' : '!'}</span><span>${txt}</span></div>`;
+  return modalShell('Terminer le projet', null, `<p class="muted" style="margin:0">Terminer le projet fige ses comptes : plus de contribution, de revue, de vente ni de changement de frais, et il ne pourra plus être supprimé. Cette action est irréversible.</p>
+    ${prop(14, `<div class="col" style="padding:8px 10px;gap:0"><div class="row" style="margin-bottom:6px">${ptag(14)}<span class="lab">Vérifications</span></div>
+      ${check(pend === 0, pend === 0 ? 'Aucune contribution en attente' : `${pend} contributions en attente`)}
+      ${check(!unsold.length, !unsold.length ? `Tout est vendu : ${DATA.items.map(i => `${soldQty(i.name)} / ${producedQty(i.name)} ${i.name}`).join(', ')}` : `Invendus : ${unsold.map(i => i.name).join(', ')}`)}
+      ${check(d.margin !== null, `Marge finale ${fmtPct(d.margin, 2)} · payouts calculés`)}
+      ${check(paidN === DATA.transfers.length, `Versements : ${paidN} / ${DATA.transfers.length} cochés`)}</div>`)}`,
+    `<button class="btn sec" data-act="close">Annuler</button><button class="btn amb" data-hash="p=24">Terminer</button>`);
+}
+function renderRatesModal() {
+  return modalShell('Tarifs location de ligne par défaut', 'Ces tarifs sont utilisés par défaut lors de la création de nouveaux projets de groupe. Chaque projet peut les surcharger.',
+    `<table class="t"><thead><tr><th>Catégorie</th><th class="r">Tarif</th><th>Unité</th></tr></thead><tbody>${RATES.map(r => `<tr><td>${r[0]}</td><td class="r"><input class="input sm" style="width:120px" value="${fmtN(r[1])}"></td><td class="hint">${r[2]}</td></tr>`).join('')}</tbody></table>
+    ${prop(6, `<div class="annot" style="border:0">${ptag(6)} Ces tarifs pré-remplissent la contribution « Location de ligne » : catégorie de l’item × runs de la ligne (surcharge du projet d’abord).</div>`, '<div class="annot"><b>Existant ·</b> tarifs enregistrés mais jamais appliqués à une contribution (#300).</div>')}`,
+    `<button class="btn sec" data-act="close">Annuler</button><button class="btn pri" data-act="close">Sauvegarder</button>`);
+}
+function renderEditModal() {
+  return modalShell('Modifier le projet', null, `<div class="field"><label class="fl">Nom du projet</label><input class="input" value="${esc(PROJECT.name)}"></div><div class="field"><label class="fl">Nom du container</label><input class="input" value="${esc(PROJECT.container)}"></div>
+    <div class="g2"><div class="field"><label class="fl">Frais courtier %</label><input class="input mono" value="3,6" ${S.status === 'completed' ? 'disabled' : ''}></div><div class="field"><label class="fl">Taxe de vente %</label><input class="input mono" value="3,6" ${S.status === 'completed' ? 'disabled' : ''}></div></div>`,
+    `<button class="btn sec" data-act="close">Annuler</button><button class="btn pri" data-act="close">Enregistrer</button>`);
+}
+function renderSaleModal() {
+  if (S.real) return modalShell('Enregistrer une vente', null, `<div class="g2"><div class="field"><label class="fl">Nom de l’item</label><input class="input" placeholder="ex : Ishtar"></div><div class="field"><label class="fl">Vendeur</label><select class="input"><option>Inconnu</option><option>${esc(PEOPLE.alpha.char)}</option></select></div></div>
+    <div class="g2"><div class="field"><label class="fl">Quantité</label><input class="input mono"></div><div class="field"><label class="fl">Prix unitaire (ISK)</label><input class="input mono"></div></div><div class="field"><label class="fl">Lieu</label><input class="input" placeholder="ex : Jita 4-4"></div>
+    <div class="annot"><b>Existant ·</b> pas de canal : une vente par contrat se saisit avec un lieu libre et la taxe de vente et les frais de courtage du projet s’appliquent quand même.</div>`, `<button class="btn sec" data-act="close">Annuler</button><button class="btn pri" data-act="close">Enregistrer</button>`, true);
+  const contract = S.saleChannel !== 'market';
+  return modalShell('Enregistrer une vente', `Projet : ${esc(PROJECT.name)} · saisie par ${esc(PEOPLE.bravo.char)} (admin)`, `
+    <div class="field"><label class="fl">Canal ${ptag(20)}</label><div class="radio"><label class="${contract ? '' : 'on'}" data-act="sale-channel" data-arg="market">Ordre de marché</label><label class="${contract ? 'on' : ''}" data-act="sale-channel" data-arg="contract">Contrat (item exchange)</label></div></div>
+    <div class="g2"><div class="field"><label class="fl">Item</label><select class="input">${DATA.items.map(i => `<option ${i.name === 'Hobgoblin II' ? 'selected' : ''}>${i.name} (${producedQty(i.name) - soldQty(i.name)} restants)</option>`).join('')}</select></div><div class="field"><label class="fl">Vendeur</label><select class="input"><option>${esc(PEOPLE.bravo.char)}</option><option>Inconnu</option></select></div></div>
+    <div class="g2"><div class="field"><label class="fl">Quantité</label><input class="input mono" value="30"></div><div class="field"><label class="fl">${contract ? 'Prix du contrat (ISK)' : 'Prix unitaire (ISK)'}</label><input class="input mono" value="${contract ? '13 650 000' : '455 000'}"></div></div>
+    ${contract ? `<div class="field"><label class="fl">Contrat ESI (optionnel)</label><select class="input"><option>Contrat item exchange terminé · 30 Hobgoblin II · 13,65 M · acheteur Corp D · 04/11</option><option>Aucun, saisie libre</option></select><p class="hint" style="margin:6px 0 0">Les contrats terminés du vendeur sont lus dans l’ESI avec leurs items (déjà fait pour les ventes de loot PVE) : quantité, prix et date repris et figés.</p></div>
+      <div class="banner cyan">${svg(ICON.ok)}<div><b>Pas de taxe de vente ni de frais de courtage du projet sur un contrat.</b> Les frais réels du contrat, s’il y en a, sont lus dans le journal wallet du vendeur (contract_brokers_fee, contract_sales_tax) ; tant qu’il n’est pas lu, ils sont inconnus, jamais 0. Montants en jeu : à confirmer.</div></div>`
+      : `<div class="field"><label class="fl">Lieu</label><input class="input" value="Jita IV - Moon 4"></div><p class="hint" style="margin:0">Taxe de vente ${fmtPct(DATA.fees.tax)} et frais de courtage ${fmtPct(DATA.fees.broker)} du projet appliqués.</p>`}
+`,
+    `<button class="btn sec" data-act="close">Annuler</button><button class="btn pri" data-act="close">Enregistrer</button>`, true);
+}
+function renderModal() {
+  const el = document.getElementById('modal');
+  const m = { create: renderCreateModal, contribute: renderContributeModal, complete: renderCompleteModal, sale: renderSaleModal, rates: renderRatesModal, edit: renderEditModal }[S.modal];
+  el.innerHTML = m && S.view !== 'companion' ? m() : '';
+}
+
+/* ---------- Rendu ---------- */
+function render() {
+  document.body.classList.toggle('long', S.longNames);
+  renderMockbar();
+  document.documentElement.style.setProperty('--mbh', document.getElementById('mockbar').offsetHeight + 'px');
+  const root = document.getElementById('root');
+  if (S.view === 'companion') root.innerHTML = renderCompanionPage();
+  else {
+    const inner = { list: renderList, join: renderJoin, detail: renderDetail }[S.view]();
+    root.innerHTML = renderShell(inner, 'Industrie de groupe');
+  }
+  renderModal();
+  updateClocks();
+}
+function toast(msg, type = 'success') {
+  const box = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `${svg(type === 'success' ? ICON.ok : ICON.warn)}<span>${msg}</span>`;
+  box.appendChild(t);
+  while (box.children.length > 3) box.firstChild.remove();
+  setTimeout(() => t.remove(), 6000);
+}
+
+function applyHash() {
+  const params = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const keep = S ? { specOpen: S.specOpen, auditOpen: S.auditOpen } : { specOpen: false, auditOpen: false };
+  S = baseState();
+  tickStart = Date.now();
+  Object.assign(S, keep);
+  if (params.get('spec') === '1') S.specOpen = true;
+  if (params.get('audit') === '1') S.auditOpen = true;
+  S.longNames = params.get('long') === '1';
+  S.real = params.get('real') === '1';
+  applyNames(S.longNames);
+  const p = parseInt(params.get('p') || '0', 10);
+  const m = params.get('m');
+  if (p) applyStep(Math.min(LAST_STEP, Math.max(1, p)));
+  else if (m) { applyStep(MODE_TO_STEP[m]); S.step = 0; S.modal = null; S.focus = null; S.view = 'detail'; S.viewer = 'alpha'; }
+  const v = params.get('v');
+  if (v) {
+    S.view = v === 'available' ? 'list' : v;
+    if (v === 'available') { S.listTab = 'available'; if (S.viewer === 'alpha') S.viewer = 'charlie'; }
+    if (v === 'list') { S.listTab = 'mine'; S.viewer = 'alpha'; }
+    if (v === 'join') S.viewer = 'delta';
+    if (v === 'detail' && !S.created) { applyStep(16); S.step = 0; S.view = 'detail'; S.focus = null; }
+    if (v === 'companion' && !S.created) { applyStep(17); S.step = 0; S.view = 'companion'; }
+    if (v !== 'detail') S.modal = null;
+  }
+  if (params.get('tab')) { S.tab = params.get('tab'); if (S.view !== 'detail' && S.created && !v) S.view = 'detail'; }
+  if (params.get('size')) S.size = params.get('size');
+  if (params.get('s')) S.state = params.get('s');
+  if (S.state === 'corp_reader') S.viewer = 'foxtrot';
+  if (params.get('modal')) S.modal = params.get('modal') === 'none' ? null : params.get('modal');
+  render();
+  const f = document.getElementById('focus');
+  if (f && S.step) f.scrollIntoView({ block: 'center' });
+  else window.scrollTo(0, 0);
+}
+let tickStart = Date.now();
+function clockTxt(sec) { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return [h, m, s].map(v => String(v).padStart(2, '0')).join(':'); }
+function updateClocks() {
+  const now = (FEED_NOW[S.phase] ?? FEED_NOW[16]) + (Date.now() - tickStart) / 1000;
+  document.querySelectorAll('[data-end]').forEach(el => { const left = parseFloat(el.dataset.end) - now; el.textContent = left > 0 ? 'dans ' + clockTxt(left) : 'terminé'; });
+}
+setInterval(updateClocks, 1000);
+function go(hash) { if (location.hash === '#' + hash) applyHash(); else location.hash = hash; }
+function setParam(k, v) { const params = new URLSearchParams(location.hash.replace(/^#/, '')); if (v === null) params.delete(k); else params.set(k, v); go(params.toString()); }
+
+/* ---------- Événements ---------- */
+function onClick(e) {
+  const h = e.target.closest('[data-hash]');
+  if (h && !h.disabled) { go(h.dataset.hash); return; }
+  const a = e.target.closest('[data-act]');
+  if (!a || a.disabled) return;
+  const act = a.dataset.act, arg = a.dataset.arg;
+  if (['state', 'cf-type', 'mine'].includes(act)) return;
+  switch (act) {
+    case 'tour-start': go('p=1'); break;
+    case 'tour-next': go('p=' + Math.min(LAST_STEP, (S.step || 0) + 1)); break;
+    case 'tour-prev': go('p=' + Math.max(1, S.step - 1)); break;
+    case 'spec-toggle': S.specOpen = !S.specOpen; render(); break;
+    case 'audit-toggle': S.auditOpen = !S.auditOpen; render(); break;
+    case 'real': setParam('real', S.real ? null : '1'); break;
+    case 'long-names': setParam('long', S.longNames ? null : '1'); break;
+    case 'tab': if (S.view !== 'detail') { go(`m=${S.status === 'none' ? 'in_progress' : S.status}&tab=${arg}`); } else { S.tab = arg; S.focus = null; render(); } break;
+    case 'filter': S.filter = arg; render(); break;
+    case 'close': S.modal = null; render(); break;
+    case 'modal': S.modal = arg; if (arg === 'contribute' && !S.contribForm) S.contribForm = { type: 'material', line: 'm8', qty: 60 }; render(); break;
+    case 'create-next': S.createStage = 2; render(); break;
+    case 'create-back': S.createStage = 1; render(); break;
+    case 'create': go('p=4'); break;
+    case 'cf-set': { const t = arg; const line = t === 'material' ? 'm8' : t === 'bpc' ? 'j15' : 'j6'; S.contribForm = { type: t, line, qty: t === 'material' ? 60 : lineOf(line).runs }; render(); break; }
+    case 'contrib-line': { if (S.view === 'companion') { S.view = 'detail'; S.tab = 'bom'; } const l = lineOf(arg); S.contribForm = { type: l.name ? 'material' : l.group === 'blueprint' ? 'bpc' : 'job_install', line: arg, qty: l.required - fulfilled(arg) }; S.modal = 'contribute'; render(); break; }
+    case 'submit-contrib': S.modal = null; render(); toast('Contribution soumise · en attente de revue'); break;
+    case 'copy': S.copied = true; render(); toast('Lien copié !'); break;
+    case 'copy-ref': S.refCopied = true; render(); break;
+    case 'copy-recap': S.recapCopied = true; render(); break;
+    case 'verify': S.containerChecked = true; render(); toast('Container vérifié'); break;
+    case 'review': S.contrib[arg] = 'approved'; render(); toast('Contribution approuvée'); break;
+    case 'reject': S.contrib[arg] = 'rejected'; render(); toast('Contribution rejetée', 'warning'); break;
+    case 'accept': S.members[arg] = 'accepted'; S.focus = null; render(); toast(`${PEOPLE[arg].name} accepté`); break;
+    case 'promote': S.bravoAdmin = true; S.focus = null; render(); toast(`${PEOPLE.bravo.name} promu admin`); break;
+    case 'join-corp': toast('Projet rejoint : même corporation, sans approbation'); go(S.state === 'corp_reader' ? 'm=in_progress&tab=contrib' : 'p=9'); break;
+    case 'next-status': { const n = NEXT_STATUS[S.status]; if (n === 'completed') { S.modal = 'complete'; render(); } else go('m=' + n + '&tab=' + S.tab); break; }
+    case 'pay': S.paid[arg] = true; render(); break;
+    case 'sale-channel': S.saleChannel = arg; render(); break;
+    case 'claim': S.claims[arg] = true; render(); toast(`${lineName(lineOf(arg))} : réservé par vous`); break;
+    case 'unclaim': delete S.claims[arg]; render(); toast(`${lineName(lineOf(arg))} : ligne libérée`, 'warning'); break;
+    case 'expand': S.expanded[arg] = !S.expanded[arg]; render(); break;
+  }
+}
+function onChange(e) {
+  const a = e.target.closest('[data-act]');
+  if (!a) return;
+  if (a.dataset.act === 'state') setParam('s', a.value === 'normal' ? null : a.value);
+  if (a.dataset.act === 'cf-type') { S.cfType = a.value || null; render(); }
+  if (a.dataset.act === 'mine') { S.mine = a.checked; render(); }
+}
+function onKey(e) {
+  if (e.target.closest('input, textarea, select')) return;
+  if (e.key === 'ArrowRight' && S.step < LAST_STEP) go('p=' + ((S.step || 0) + 1));
+  if (e.key === 'ArrowLeft' && S.step > 1) go('p=' + (S.step - 1));
+  if (e.key === 'Escape' && S.modal) { S.modal = null; render(); }
+}
+document.addEventListener('click', onClick);
+document.addEventListener('change', onChange);
+document.addEventListener('keydown', onKey);
+window.addEventListener('hashchange', applyHash);
+applyHash();
+</script>
+</body>
+</html>

@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<!--
+  Maquette V1 · industrie solo (projets industriels personnels). Fichier autonome, rendu en JS, aucune dépendance.
+  Base : l’existant du module (frontend/src/views/Industry.vue, components/industry/*, IndustryJobMatcher, IndustryResourceMapper) et la maquette de groupe.
+  Chaque proposition est marquée « Proposition n » (cadre violet pointillé) et listée dans « Ce que la maquette ajoute à la spec ».
+  Le bouton « Existant seul » masque les propositions et montre le comportement actuel du code.
+  Données et noms 100 % fictifs. Recettes, plafonds de runs, probabilité d'invention et datacores : SDE local.
+  Quantités : formule du noyau (ME, bonus de structure 1 %, arrondi par job), découpage par plafond de runs du BPC.
+  Prix Jita : fictifs (ordre de grandeur). Tous les totaux sont recalculés en Python (mockups/tests/industry_solo_v1_data.py).
+  Routage par hash : #p=1..N (parcours), #v=dashboard|projects|slots|detail|companion, #tab=invention|steps|shopping|costs|sales,
+  #s=<état>, #long=1, #real=1 (existant seul), #spec=1, #audit=1, #modal=…, #size=bar|compact
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EVE Tools · Industrie solo · maquette V1</title>
+<style>
+@font-face { font-family: 'Share Tech Mono'; font-style: normal; font-weight: 400; src: url(data:font/woff2;base64,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) format('woff2'); }
+:root {
+  --s950:#020617; --s900:#0f172a; --s800:#1e293b; --s700:#334155; --s600:#475569; --s500:#64748b; --s400:#94a3b8; --s300:#cbd5e1; --s200:#e2e8f0; --s100:#f1f5f9;
+  --c400:#22d3ee; --c500:#06b6d4; --c600:#0891b2; --e400:#34d399; --e500:#10b981; --e600:#059669;
+  --a300:#fcd34d; --a400:#fbbf24; --a500:#f59e0b; --a600:#d97706; --r400:#f87171; --r500:#ef4444; --v400:#a78bfa; --v500:#8b5cf6; --sky400:#38bdf8;
+  --warning:#f59e0b; --chart-grid:#334155; --chart-text:#e2e8f0;
+  --mono:'Share Tech Mono', ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--s950); color: var(--s100); font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; font-size: 14px; line-height: 1.43; }
+button { font: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+input, select { font: inherit; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.bg-grid { position: fixed; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(6,182,212,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,.03) 1px, transparent 1px); background-size: 50px 50px; }
+.bg-glow { position: fixed; top: -50%; left: -50%; width: 100%; height: 100%; pointer-events: none; background: radial-gradient(closest-side, rgba(22,78,99,.2), transparent); }
+
+/* Barre de maquette */
+.mockbar { position: relative; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 14px; background: repeating-linear-gradient(135deg, #160f24 0 10px, #120c1e 10px 20px); border-bottom: 2px dashed rgba(167,139,250,.55); font-size: 12px; color: #c4b5fd; }
+.mockbar .lbl { font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; color: var(--v400); }
+.mockbar .grp { display: flex; align-items: center; gap: 4px; padding-left: 10px; border-left: 1px dashed rgba(167,139,250,.35); }
+.mockbar button, .mockbar select { background: rgba(167,139,250,.08); color: #ddd6fe; border: 1px dashed rgba(167,139,250,.45); border-radius: 6px; padding: 3px 8px; font-size: 12px; }
+.mockbar button.on { background: rgba(167,139,250,.28); border-style: solid; color: #fff; }
+.mockbar .step { font-family: var(--mono); color: #fff; min-width: 210px; }
+
+/* Shell (MainLayout.vue) */
+.app { position: relative; display: flex; min-height: calc(100vh - 44px); }
+aside.side { width: 256px; flex-shrink: 0; background: var(--s900); border-right: 1px solid rgba(6,182,212,.2); display: flex; flex-direction: column; position: sticky; top: 0; height: calc(100vh - var(--mbh, 0px)); }
+.logo { padding: 24px; border-bottom: 1px solid rgba(6,182,212,.2); display: flex; align-items: center; gap: 12px; }
+.logo .ic { width: 40px; height: 40px; border-radius: 8px; background: linear-gradient(to bottom right, #06b6d4, #2563eb); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(6,182,212,.3); }
+.logo h1 { margin: 0; font-size: 18px; line-height: 28px; font-weight: 700; letter-spacing: -.025em; background: linear-gradient(to right, #22d3ee, #60a5fa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.logo p { margin: 0; font-size: 12px; color: var(--s500); letter-spacing: .1em; text-transform: uppercase; }
+nav.menu { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.ni { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; border: 1px solid transparent; color: var(--s400); background: none; text-align: left; font-weight: 500; font-size: 14px; }
+.ni:hover { background: rgba(30,41,59,.5); color: var(--s200); border-color: rgba(6,182,212,.3); }
+.ni svg { width: 20px; height: 20px; flex-shrink: 0; }
+.ni.on { background: linear-gradient(to right, rgba(6,182,212,.2), rgba(59,130,246,.1)); color: var(--c400); border-color: rgba(6,182,212,.3); box-shadow: 0 10px 15px -3px rgba(6,182,212,.1); }
+.ni .dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--c400); }
+.ni .chev { margin-left: auto; width: 16px; height: 16px; }
+.sub { padding-left: 16px; display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.sub .ni { padding: 10px 16px; font-size: 14px; }
+.sub .ni svg { width: 16px; height: 16px; }
+.charcard { margin: 16px; margin-top: 0; padding-top: 16px; border-top: 1px solid rgba(6,182,212,.2); }
+.charcard .in { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; }
+.avatar { width: 48px; height: 48px; border-radius: 8px; box-shadow: 0 0 0 2px rgba(6,182,212,.5); background: linear-gradient(135deg, #334155, #1e293b); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--s300); }
+main.content { flex: 1; min-width: 0; }
+header.top { position: sticky; top: 0; z-index: 10; background: var(--s900); border-bottom: 1px solid rgba(6,182,212,.1); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+header.top h2 { margin: 0; font-size: 24px; line-height: 32px; font-weight: 700; color: var(--s100); }
+header.top p { margin: 4px 0 0; font-size: 14px; color: var(--s500); }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; border: 1px solid; font-size: 12px; }
+.pill.esi { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); color: var(--e400); }
+.pill.esi i { width: 8px; height: 8px; border-radius: 50%; background: var(--e500); }
+.pill.all { padding: 8px 16px; background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); color: var(--a400); font-size: 14px; font-weight: 500; }
+.pill.corp { padding: 8px 16px; background: rgba(6,182,212,.1); border-color: rgba(6,182,212,.3); color: var(--c400); font-size: 14px; font-weight: 500; }
+.page { padding: 32px; }
+.wrap { max-width: 80rem; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+/* Briques (Ledger, MiningTab, GroupIndustry) */
+.card { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; padding: 16px; }
+.card.p5 { padding: 20px; }
+.card.p6 { padding: 24px; }
+.card.soft { background: rgba(15,23,42,.8); }
+.card.flush { padding: 0; overflow: hidden; }
+.card-h { padding: 16px 24px; border-bottom: 1px solid var(--s800); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.card-h h3, h3.t { margin: 0; font-size: 18px; line-height: 28px; font-weight: 600; color: #fff; }
+.lab { font-size: 12px; color: var(--s400); text-transform: uppercase; letter-spacing: .05em; }
+.lab.dim { color: var(--s500); }
+.kpi { margin-top: 4px; font-size: 20px; line-height: 28px; font-weight: 700; }
+.kpi3 { font-size: 30px; line-height: 36px; font-weight: 700; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.hint { font-size: 12px; color: var(--s500); }
+.hint2 { font-size: 12px; color: #475569; }
+.muted { color: var(--s400); }
+.c-cyan { color: var(--c400); } .c-em { color: var(--e400); } .c-amber { color: var(--a400); } .c-red { color: var(--r400); } .c-violet { color: var(--v400); } .c-white { color: #fff; } .c-s300 { color: var(--s300); } .c-s200 { color: var(--s200); } .c-s500 { color: var(--s500); }
+.unk { color: var(--warning); font-style: italic; }
+.row { display: flex; align-items: center; gap: 12px; }
+.row.sb { justify-content: space-between; }
+.row.wrapf { flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.g2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+.g3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+.g4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; }
+.span2 { grid-column: span 2 / span 2; }
+.start { align-items: start; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; border: 0; font-size: 14px; font-weight: 500; white-space: nowrap; transition: transform .15s, background .15s; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:disabled { opacity: .5; }
+.btn svg { width: 16px; height: 16px; }
+.btn.pri { background: var(--c600); color: #fff; } .btn.pri:hover:not(:disabled) { background: var(--c500); }
+.btn.sec { background: var(--s700); color: var(--s200); } .btn.sec:hover:not(:disabled) { background: var(--s600); }
+.btn.amb { background: var(--a600); color: #fff; } .btn.amb:hover:not(:disabled) { background: var(--a500); }
+.btn.em { background: var(--e600); color: #fff; }
+.btn.sm { padding: 6px 10px; font-size: 13px; }
+.btn.xs { padding: 3px 8px; font-size: 12px; border-radius: 6px; }
+.btn.ghost { background: transparent; color: var(--s400); border: 1px solid var(--s700); }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; padding: 4px 10px; border-radius: 8px; font-weight: 500; border: 1px solid; white-space: nowrap; }
+.badge.sm { padding: 2px 8px; border-radius: 4px; }
+.b-slate { background: var(--s700); color: var(--s400); border-color: var(--s600); }
+.b-violet { background: rgba(139,92,246,.15); color: var(--v400); border-color: rgba(139,92,246,.2); }
+.b-cyan { background: rgba(6,182,212,.15); color: var(--c400); border-color: rgba(6,182,212,.2); }
+.b-em { background: rgba(16,185,129,.15); color: var(--e400); border-color: rgba(16,185,129,.2); }
+.b-amber { background: rgba(245,158,11,.15); color: var(--a400); border-color: rgba(245,158,11,.25); }
+.b-red { background: rgba(239,68,68,.15); color: var(--r400); border-color: rgba(239,68,68,.25); }
+.chip { margin-left: 6px; font-size: 12px; padding: 2px 6px; border-radius: 4px; background: var(--s700); color: var(--s400); }
+.tabs { border-bottom: 1px solid var(--s800); display: flex; gap: 24px; }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 0 0 12px; font-size: 14px; font-weight: 500; color: var(--s400); }
+.tab:hover { color: var(--s200); }
+.tab.on { border-bottom-color: var(--c500); color: var(--c400); }
+.tab.on .chip { background: rgba(6,182,212,.15); color: var(--c400); }
+.seg { display: inline-flex; gap: 8px; background: var(--s900); border-radius: 8px; padding: 4px; border: 1px solid var(--s800); }
+.seg button { padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--s400); background: none; border: 0; }
+.seg button.on { background: var(--c600); color: #fff; }
+table.t { width: 100%; border-collapse: collapse; }
+table.t thead { background: rgba(15,23,42,.5); }
+table.t th { padding: 12px; font-size: 12px; font-weight: 500; color: var(--s400); text-transform: uppercase; letter-spacing: .05em; text-align: left; white-space: nowrap; }
+table.t td { white-space: nowrap; padding: 10px 12px; font-size: 13px; line-height: 20px; color: var(--s300); border-top: 1px solid var(--s800); vertical-align: middle; }
+table.t .r { text-align: right; }
+table.t td.r { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.t tr.subrow td { background: rgba(2,6,23,.35); color: var(--s400); font-size: 12px; padding-top: 6px; padding-bottom: 6px; }
+table.t tr.tot td { border-top: 1px solid var(--s700); color: var(--s100); font-weight: 600; }
+table.t tbody tr:hover td { background: rgba(30,41,59,.35); }
+.banner { border-radius: 12px; border: 1px solid; padding: 14px 16px; font-size: 14px; display: flex; gap: 12px; align-items: flex-start; }
+.banner.amber { background: rgba(245,158,11,.05); border-color: rgba(245,158,11,.2); color: var(--a300); }
+.banner.cyan { background: rgba(6,182,212,.05); border-color: rgba(6,182,212,.2); color: #a5f3fc; }
+.banner.em { background: rgba(16,185,129,.06); border-color: rgba(16,185,129,.25); color: #a7f3d0; }
+.banner svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; }
+.banner b { color: #fff; font-weight: 600; }
+.annot { font-size: 12px; color: var(--v400); border: 1px dashed rgba(167,139,250,.5); border-radius: 8px; padding: 8px 10px; background: rgba(167,139,250,.05); }
+.annot b { color: #ddd6fe; }
+.input { width: 100%; padding: 8px 12px; background: var(--s800); border: 1px solid var(--s700); border-radius: 8px; color: var(--s100); font-size: 14px; }
+.input:focus { outline: none; border-color: rgba(6,182,212,.5); }
+.input.sm { width: 72px; padding: 6px 8px; text-align: right; }
+.field label.fl { display: block; font-size: 12px; color: var(--s400); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.radio { display: flex; gap: 8px; }
+.radio label { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 8px 10px; font-size: 13px; border-radius: 8px; border: 1px solid var(--s700); background: rgba(30,41,59,.5); color: var(--s300); cursor: pointer; }
+.radio label.on { border-color: rgba(6,182,212,.5); background: rgba(6,182,212,.1); color: var(--c400); }
+.radio label.dis { opacity: .45; cursor: not-allowed; }
+.kbd { font-family: var(--mono); font-size: 12px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--s600); background: var(--s800); color: var(--s200); }
+.mini { width: 32px; height: 32px; border-radius: 8px; background: var(--s800); border: 1px solid var(--s700); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--s300); flex-shrink: 0; }
+.dotc { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+.sep { height: 1px; background: var(--s800); margin: 4px 0; }
+
+/* Stepper */
+.stepper { display: flex; align-items: center; gap: 0; }
+.stp { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--s500); white-space: nowrap; }
+.stp .n { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--s600); display: flex; align-items: center; justify-content: center; font-size: 12px; font-family: var(--mono); }
+.stp.done { color: var(--e400); } .stp.done .n { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.4); }
+.stp.cur { color: var(--c400); font-weight: 600; } .stp.cur .n { background: rgba(6,182,212,.2); border-color: var(--c400); box-shadow: 0 0 10px rgba(0,212,255,.3); }
+.stl { flex: 1; height: 1px; background: var(--s700); margin: 0 12px; min-width: 24px; }
+.stl.done { background: rgba(16,185,129,.4); }
+
+/* ETA hero */
+.eta-big { font-family: var(--mono); font-size: 72px; line-height: 1; color: var(--c400); text-shadow: 0 0 10px rgba(0,212,255,.5); letter-spacing: -.02em; }
+.eta-mid { font-family: var(--mono); font-size: 32px; line-height: 1; color: var(--s200); }
+.count { font-family: var(--mono); font-size: 20px; color: var(--s100); }
+.paste { border: 1px dashed rgba(6,182,212,.35); border-radius: 10px; padding: 10px 12px; background: rgba(6,182,212,.04); display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+
+/* Calendrier */
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 8px; }
+.day { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; min-height: 150px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.day.today { border-color: rgba(6,182,212,.35); }
+.day .dh { font-size: 12px; color: var(--s400); text-transform: uppercase; letter-spacing: .05em; display: flex; justify-content: space-between; }
+.chunk { text-align: left; width: 100%; border-radius: 8px; padding: 8px; border: 1px solid var(--s700); background: rgba(30,41,59,.55); color: var(--s200); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.chunk:hover { border-color: rgba(6,182,212,.35); }
+.chunk.sel { border-color: var(--c400); box-shadow: 0 0 0 1px rgba(34,211,238,.4), 0 0 10px rgba(0,212,255,.2); }
+.chunk .nm { font-weight: 600; color: var(--s100); }
+.chunk .mt { font-size: 12px; color: var(--s400); }
+.dim { opacity: .5; }
+
+/* Modale (BaseModal.vue) */
+.ov { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+.ov .bk { position: absolute; inset: 0; background: rgba(2,6,23,.8); }
+.panel { position: relative; background: var(--s900); border: 1px solid var(--s700); border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.6); width: 100%; max-width: 42rem; margin: 0 16px; max-height: 90vh; overflow-y: auto; }
+.panel.wide { max-width: 56rem; }
+.ph { padding: 20px 24px; border-bottom: 1px solid var(--s800); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ph h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--s100); }
+.ph p { margin: 2px 0 0; font-size: 14px; color: var(--s500); }
+.x { width: 32px; height: 32px; border-radius: 8px; background: var(--s800); border: 0; color: var(--s400); display: flex; align-items: center; justify-content: center; }
+.pb { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.pf { padding: 16px 24px; border-top: 1px solid var(--s800); display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+.charsel { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--s700); background: rgba(30,41,59,.4); }
+.charsel.dis { opacity: .55; }
+.charsel input { width: 16px; height: 16px; accent-color: var(--c500); }
+
+/* Toasts (ToastContainer.vue) */
+.toasts { position: fixed; top: 64px; right: 24px; z-index: 100; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; border: 1px solid; backdrop-filter: blur(24px); box-shadow: 0 20px 25px -5px rgba(0,0,0,.4); max-width: 26rem; font-size: 14px; font-weight: 500; }
+.toast.success { background: rgba(16,185,129,.2); border-color: rgba(16,185,129,.4); color: var(--e400); }
+.toast.warning { background: rgba(245,158,11,.2); border-color: rgba(245,158,11,.4); color: var(--a400); }
+.toast svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+/* Vue compacte */
+.compact { max-width: 390px; margin: 0 auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.compact .eta-big { font-size: 84px; }
+.compact .bigbtn { width: 100%; justify-content: center; padding: 16px; font-size: 16px; border-radius: 12px; }
+.compact-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* V3 · compagnon */
+.cmp { --cs: 1; --cbg: rgba(15,23,42,.96); background: var(--cbg); border: 1px solid rgba(6,182,212,.25); border-radius: 14px; color: var(--s100); font-size: calc(13px * var(--cs)); display: flex; flex-direction: column; gap: 6px; padding: 12px; position: relative; overflow: hidden; }
+.cmp.full { border-radius: 0; border-width: 0 0 0 3px; min-height: 100vh; }
+.cmp .hint { font-size: calc(12px * var(--cs)); }
+.cmp-h { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cmp-title { font-weight: 700; color: var(--s100); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: calc(14px * var(--cs)); }
+.cmp-sub { font-size: calc(11px * var(--cs)); color: var(--s500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmp-tools { margin-left: auto; display: flex; gap: 4px; flex-shrink: 0; }
+.cbtn { background: var(--s800); border: 1px solid var(--s700); color: var(--s300); border-radius: 6px; font-size: 11px; line-height: 14px; padding: 3px 6px; display: inline-flex; align-items: center; gap: 4px; }
+.cbtn:hover:not(:disabled) { border-color: rgba(6,182,212,.5); color: var(--c400); }
+.cbtn.on { background: rgba(6,182,212,.18); border-color: rgba(6,182,212,.5); color: var(--c400); }
+.cbtn svg { width: 13px; height: 13px; }
+.cbtn:disabled { opacity: .45; }
+.cmp-eta { font-family: var(--mono); line-height: 1; letter-spacing: -.02em; font-size: calc(52px * var(--cs)); font-variant-numeric: tabular-nums; }
+.cmp-eta small { font-size: .38em; letter-spacing: 0; }
+.tier-normal .cmp-eta { color: var(--c400); text-shadow: 0 0 10px rgba(0,212,255,.5); }
+.tier-orange .cmp-eta { color: var(--a400); text-shadow: 0 0 10px rgba(245,158,11,.45); }
+.tier-red .cmp-eta, .tier-reached .cmp-eta { color: var(--r400); text-shadow: 0 0 12px rgba(239,68,68,.5); animation: softblink 1.6s ease-in-out infinite; }
+.tier-empty .cmp-eta { color: var(--s400); font-size: calc(38px * var(--cs)); }
+.tier-unknown .cmp-eta { color: var(--warning); font-style: italic; font-size: calc(32px * var(--cs)); }
+.cmp.tier-orange { border-color: rgba(245,158,11,.5); }
+.cmp.tier-red, .cmp.tier-reached { border-color: rgba(239,68,68,.6); box-shadow: 0 0 18px rgba(239,68,68,.18); }
+@keyframes softblink { 50% { opacity: .45; } }
+.ring-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+.ring-wrap .ring-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.tier-normal .ring-fg { stroke: #22d3ee; } .tier-orange .ring-fg { stroke: #fbbf24; } .tier-red .ring-fg, .tier-reached .ring-fg { stroke: #f87171; } .tier-empty .ring-fg, .tier-unknown .ring-fg { stroke: #64748b; }
+.cmp-count { font-family: var(--mono); font-size: calc(18px * var(--cs)); color: var(--s100); }
+.pbar { height: 5px; border-radius: 3px; background: var(--s800); overflow: hidden; }
+.pbar i { display: block; height: 100%; background: currentColor; }
+.tier-normal .pbar { color: #22d3ee; } .tier-orange .pbar { color: #fbbf24; } .tier-red .pbar, .tier-reached .pbar { color: #f87171; } .tier-empty .pbar, .tier-unknown .pbar { color: #64748b; }
+.cpill { display: inline-flex; align-items: center; gap: 6px; font-size: calc(11px * var(--cs)); padding: 3px 8px; border-radius: 999px; border: 1px solid var(--s700); color: var(--s300); background: rgba(30,41,59,.6); white-space: nowrap; }
+.cpill.due { border-color: rgba(245,158,11,.6); color: var(--a400); background: rgba(245,158,11,.12); animation: pulseA 1.8s infinite; }
+.cpill.irr { border-color: rgba(245,158,11,.4); color: var(--a400); }
+.cpill.ok { border-color: rgba(16,185,129,.35); color: var(--e400); }
+@keyframes pulseA { 0% { box-shadow: 0 0 0 0 rgba(245,158,11,.55); } 70% { box-shadow: 0 0 0 7px rgba(245,158,11,0); } 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); } }
+.cmp-flash { font-size: calc(12px * var(--cs)); color: var(--e400); background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); border-radius: 8px; padding: 6px 8px; }
+.cmp-warn { font-size: 11px; color: var(--a400); background: rgba(245,158,11,.08); border: 1px dashed rgba(245,158,11,.35); border-radius: 6px; padding: 4px 6px; }
+.cmp-list .it { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 0; border-top: 1px solid var(--s800); font-size: calc(13px * var(--cs)); }
+.cmp-list .it:first-child { border-top: 0; }
+.cmp-paste { width: 100%; justify-content: center; padding: 10px; font-size: calc(15px * var(--cs)); border-radius: 10px; }
+.cmp-actions { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+.cmp-actions .cbtn { justify-content: center; padding: 6px 4px; }
+.kh { font-size: 10px; color: var(--s500); text-align: center; opacity: 0; transition: opacity .2s; }
+.cmp:hover .kh, .cmp:focus-within .kh { opacity: 1; }
+.kh .kbd { font-size: 10px; padding: 0 4px; }
+.size-bar { flex-direction: row; align-items: center; gap: 10px; padding: 8px 10px 12px; height: 110px; }
+.size-bar .cmp-eta { font-size: calc(44px * var(--cs)); }
+.size-bar .pbar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0; }
+.size-bar .kh { position: absolute; left: 0; right: 0; bottom: 5px; }
+.pres { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.pres.online { background: var(--e500); } .pres.afk { background: var(--a500); } .pres.left { background: var(--s600); }
+.cmp-set { display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--s300); border-top: 1px solid var(--s800); padding-top: 8px; }
+.cmp-set label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cmp-set input[type=range] { width: 120px; accent-color: #06b6d4; }
+.cmp-set input[type=number] { width: 52px; background: var(--s800); border: 1px solid var(--s700); color: var(--s100); border-radius: 6px; padding: 2px 4px; text-align: right; }
+.cmp-dock { position: fixed; right: 24px; bottom: 24px; z-index: 45; box-shadow: 0 25px 50px -12px rgba(0,0,0,.8); border-radius: 16px; background: rgba(18,12,30,.97); border: 1px dashed rgba(167,139,250,.55); padding: 6px; }
+.cmp-dock-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: #c4b5fd; padding: 4px 6px 6px; letter-spacing: .08em; text-transform: uppercase; }
+.hl { box-shadow: 0 0 0 2px #a78bfa; animation: pulseV 1.8s infinite; }
+@keyframes pulseV { 0% { box-shadow: 0 0 0 0 rgba(167,139,250,.7); } 70% { box-shadow: 0 0 0 9px rgba(167,139,250,0); } 100% { box-shadow: 0 0 0 0 rgba(167,139,250,0); } }
+body.cmp-window { margin: 0; background: var(--s950); }
+.cmp-page { min-height: 100vh; }
+.sitestrip { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+.sitecard { flex: 1; min-width: 220px; background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.sitecard.cur { border-color: rgba(6,182,212,.35); }
+.sitearrow { display: flex; align-items: center; color: var(--s600); font-size: 20px; }
+.spec-panel { background: #120c1e; border-bottom: 2px dashed rgba(167,139,250,.55); padding: 12px 18px 16px; color: #ddd6fe; font-size: 13px; position: relative; z-index: 59; }
+.spec-panel table { width: 100%; border-collapse: collapse; }
+.spec-panel th { text-align: left; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--v400); padding: 6px 8px; font-weight: 600; }
+.spec-panel td { padding: 6px 8px; border-top: 1px dashed rgba(167,139,250,.25); vertical-align: top; }
+.spec-panel td.iss { white-space: nowrap; font-family: var(--mono); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .tier-red .cmp-eta, .tier-reached .cmp-eta, .cpill.due, .hl { animation: none; } }
+
+.cmp-alert { display: flex; gap: 8px; align-items: flex-start; font-size: calc(12px * var(--cs)); border-radius: 8px; padding: 6px 8px; border: 1px solid rgba(245,158,11,.5); background: rgba(245,158,11,.14); color: var(--a300); animation: pulseA 1.8s 3; }
+.cmp-alert.info { border-color: rgba(6,182,212,.4); background: rgba(6,182,212,.1); color: #a5f3fc; animation: none; }
+.cmp-alert svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+
+/* V4 */
+.cmp-dock { position: relative; right: auto; bottom: auto; z-index: auto; box-shadow: 0 10px 30px -12px rgba(0,0,0,.7); }
+.cmp-dock .cmp { margin: 0 auto; }
+.banner.red { background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.35); color: #fecaca; }
+.banner.red svg { color: var(--r400); }
+.cmp-alert.dt { border-color: rgba(239,68,68,.55); background: rgba(239,68,68,.14); color: #fecaca; animation: none; }
+.cmp-alert.dt svg { color: var(--r400); }
+.cmp-hauler { border-top: 1px solid var(--s800); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.copyblock { margin: 0; padding: 10px 12px; background: var(--s950); border: 1px solid var(--s800); border-radius: 8px; font-family: var(--mono); font-size: 12px; line-height: 1.55; color: var(--s300); white-space: pre-wrap; overflow-wrap: anywhere; }
+.recap-img { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; border: 1px solid rgba(6,182,212,.35); background: linear-gradient(160deg, rgba(8,47,73,.55), rgba(2,6,23,.95) 60%); box-shadow: inset 0 0 0 1px rgba(6,182,212,.08), 0 0 24px rgba(6,182,212,.08); }
+.chunk .mt { overflow-wrap: anywhere; }
+.ppl-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:24px}
+
+/* Industrie de groupe · V1 */
+.ov { top: var(--mbh, 0px); }
+aside.side { position: relative; height: auto; min-height: calc(100vh - var(--mbh, 0px)); }
+header.top { position: relative; }
+.panel { max-height: calc(100vh - var(--mbh, 0px) - 32px); }
+.prop { position: relative; outline: 1px dashed rgba(167,139,250,.6); outline-offset: 3px; border-radius: 12px; }
+.ptag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; line-height: 14px; padding: 1px 6px; border-radius: 4px; border: 1px dashed rgba(167,139,250,.6); color: #c4b5fd; background: rgba(167,139,250,.08); white-space: nowrap; font-weight: 500; vertical-align: middle; }
+.ptag.real { border-color: rgba(100,116,139,.6); color: var(--s400); background: rgba(100,116,139,.08); }
+.pbar2 { height: 6px; border-radius: 3px; background: var(--s800); overflow: hidden; min-width: 80px; }
+.pbar2 i { display: block; height: 100%; background: var(--c500); }
+.pbar2.done i { background: var(--e500); }
+.pbar2.part i { background: var(--a500); }
+.ring { width: 56px; height: 56px; }
+.ring circle { fill: none; stroke-width: 6; }
+.ring .bg { stroke: var(--s800); }
+.ring .fg { stroke: var(--c400); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.pcard { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; text-align: left; color: inherit; }
+.pcard:hover { border-color: rgba(6,182,212,.35); }
+.pcard .nm { font-size: 16px; font-weight: 600; color: var(--s100); overflow-wrap: anywhere; }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.fpill { padding: 6px 12px; border-radius: 999px; font-size: 13px; border: 1px solid var(--s700); color: var(--s400); background: var(--s900); }
+.fpill.on { border-color: rgba(6,182,212,.5); color: var(--c400); background: rgba(6,182,212,.1); }
+.grp-h td { background: rgba(30,41,59,.45); color: var(--s200); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+.act { font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--s700); color: var(--s300); background: var(--s800); }
+.act.inv { border-color: rgba(139,92,246,.35); color: var(--v400); }
+.act.copy { border-color: rgba(56,189,248,.35); color: var(--sky400); }
+.feed { display: flex; flex-direction: column; }
+.feed .ev { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--s800); font-size: 13px; color: var(--s300); }
+.feed .ev:first-child { border-top: 0; }
+.feed .ev .t { font-family: var(--mono); color: var(--s500); font-size: 12px; min-width: 42px; }
+.feed .ev.new { animation: evIn 2.4s ease-out 1; }
+@keyframes evIn { 0% { background: rgba(6,182,212,.25); } 100% { background: transparent; } }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--e400); }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--e500); box-shadow: 0 0 8px rgba(16,185,129,.7); animation: softblink 2s ease-in-out infinite; }
+.live.off { color: var(--a400); } .live.off i { background: var(--a500); box-shadow: none; animation: none; }
+.donut { width: 168px; height: 168px; }
+.legend { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.who .mini { width: 24px; height: 24px; font-size: 10px; border-radius: 6px; }
+.who b { font-weight: 500; color: var(--s200); overflow-wrap: break-word; white-space: normal; }
+table.t td.meth { white-space: normal; min-width: 140px; max-width: 220px; }
+.who > span:last-child { min-width: 118px; }
+body.long .who > span:last-child { min-width: 90px; }
+table.t td.wr { white-space: normal; }
+.game { position: relative; min-height: 760px; border-radius: 12px; border: 1px solid var(--s700); background: radial-gradient(ellipse at 30% 40%, rgba(30,41,59,.9), rgba(2,6,23,1) 70%); overflow: hidden; }
+.game-h { display: flex; justify-content: space-between; padding: 8px 12px; font-size: 12px; color: var(--s400); border-bottom: 1px solid var(--s800); background: rgba(2,6,23,.7); }
+.game-in { position: absolute; inset: 37px 0 0 0; display: flex; align-items: center; justify-content: center; padding-right: 380px; text-align: center; }
+.game-cmp { position: absolute; top: 52px; right: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.9); border-radius: 14px; }
+.cmp-page2 { min-height: 100vh; display: flex; justify-content: center; padding: 24px; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.cmpg { width: 340px; background: rgba(15,23,42,.96); border: 1px solid rgba(6,182,212,.25); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.cmpg.bar { width: 420px; flex-direction: row; align-items: center; gap: 10px; }
+.cmpg .sec { border-top: 1px solid var(--s800); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.cmpg .it { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cmpg .it span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.alertv { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; border-radius: 8px; padding: 6px 8px; border: 1px solid rgba(245,158,11,.5); background: rgba(245,158,11,.14); color: var(--a300); animation: pulseA 1.8s 3; }
+.alertv.ok { border-color: rgba(16,185,129,.45); background: rgba(16,185,129,.12); color: #a7f3d0; }
+.alertv.info { border-color: rgba(6,182,212,.4); background: rgba(6,182,212,.1); color: #a5f3fc; animation: none; }
+.alertv svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+.check { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--s800); }
+.check:first-child { border-top: 0; }
+.check .ic { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.check .ic.ok { background: rgba(16,185,129,.15); color: var(--e400); }
+.check .ic.ko { background: rgba(245,158,11,.15); color: var(--a400); }
+.audit td.ex { color: var(--e400); white-space: nowrap; }
+.audit td.gap { color: var(--a400); white-space: nowrap; }
+.viewas { font-size: 12px; color: #c4b5fd; border: 1px dashed rgba(167,139,250,.5); border-radius: 8px; padding: 6px 10px; background: rgba(167,139,250,.06); }
+.hl2 { box-shadow: 0 0 0 2px #a78bfa; animation: pulseV 1.8s 3; }
+.spec-panel td { white-space: normal; }
+@media (prefers-reduced-motion: reduce) { .feed .ev.new, .alertv, .live i, .hl2 { animation: none; } }
+.col > .ptag { align-self: flex-start; }
+.steprow { background: var(--s900); border: 1px solid var(--s700); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.steprow.child { margin-left: 28px; background: rgba(15,23,42,.6); border-color: var(--s800); }
+.steprow.group { border-color: var(--s700); }
+.cyc { display: flex; gap: 0; align-items: stretch; }
+.cyc .ph { flex: 1; padding: 10px 12px; border: 1px solid var(--s800); border-left: 0; background: var(--s900); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cyc .ph:first-child { border-left: 1px solid var(--s800); border-radius: 10px 0 0 10px; }
+.cyc .ph:last-child { border-radius: 0 10px 10px 0; }
+.cyc .ph.done { border-bottom: 2px solid var(--e500); }
+.cyc .ph.cur { border-bottom: 2px solid var(--c400); background: rgba(6,182,212,.06); }
+.cyc .ph b { color: var(--s100); font-size: 13px; }
+.gantt { position: relative; height: 26px; background: rgba(30,41,59,.5); border-radius: 6px; }
+.gantt i { position: absolute; top: 4px; bottom: 4px; border-radius: 4px; background: rgba(6,182,212,.55); }
+.gantt i.sci { background: rgba(139,92,246,.55); }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div><div class="bg-glow"></div>
+<div id="mockbar"></div>
+<div id="root"></div>
+<div id="modal"></div>
+<div class="toasts" id="toasts"></div>
+<script>
+const DATA = {"mats": [{"name": "Tritanium", "required": 152050, "price": 4.12, "stock": 152050, "bought": 0}, {"name": "Pyerite", "required": 90, "price": 9.85, "stock": 90, "bought": 0}, {"name": "Mexallon", "required": 9980, "price": 61.4, "stock": 9980, "bought": 0}, {"name": "Isogen", "required": 491, "price": 139.0, "stock": 491, "bought": 0}, {"name": "Zydrine", "required": 179, "price": 1580.0, "stock": 179, "bought": 0}, {"name": "Morphite", "required": 150, "price": 14850.0, "stock": 0, "bought": 150}, {"name": "Robotics", "required": 150, "price": 91200.0, "stock": 0, "bought": 150}, {"name": "Guidance Systems", "required": 150, "price": 34650.0, "stock": 0, "bought": 150}, {"name": "Particle Accelerator Unit", "required": 50, "price": 30900.0, "stock": 0, "bought": 50}, {"name": "R.A.M.- Robotics", "required": 50, "price": 1462.0, "stock": 0, "bought": 50}], "purchases": [{"id": "P1", "item": "Robotics", "qty": 150, "unit": 90500.0, "date": "02/11 19:12", "char": "Personnage Alpha"}, {"id": "P2", "item": "Morphite", "qty": 150, "unit": 14600.0, "date": "02/11 19:14", "char": "Personnage Alpha"}, {"id": "P3", "item": "Guidance Systems", "qty": 150, "unit": 34900.0, "date": "02/11 19:20", "char": "Personnage Alpha"}, {"id": "P4", "item": "R.A.M.- Robotics", "qty": 50, "unit": 1450.0, "date": "02/11 19:21", "char": "Personnage Alpha"}, {"id": "P5", "item": "Particle Accelerator Unit", "qty": 50, "unit": 31200.0, "date": "03/11 18:30", "char": "Personnage Alpha"}], "sales": [{"id": "S1", "qty": 30, "unit": 760000, "channel": "market", "date": "05/11 20:41", "venue": "Jita IV - Moon 4", "wallet": true, "fees": null}, {"id": "S2", "qty": 20, "unit": 748000, "channel": "contract", "date": "05/11 22:10", "venue": "Contrat item exchange · Corp D", "wallet": false, "fees": 0}], "divisions": [10, 10, 10, 10, 10], "t1Runs": 50, "jobCosts": {"final": 214000.0, "t1": 96000.0}, "fees": {"broker": 3.6, "tax": 3.6}, "est": {"material": 24314273.5, "materialApplied": 25000000.0, "sell": 38000000, "tax": 2736000.0, "job": 1250000.0}, "jobsCost": 1166000.0, "invention": {"datacores": 6309000.0, "jobs": 1290000.0, "computed": 7599000.0, "entered": 7600000.0}, "existing": {"total": 36502000.0, "profit": 1498000.0, "percent": 4.103884718645554}, "realMaterial": 24223673.5, "partial": {"revenue": 22800000, "market": 22800000, "taxes": 1641600.0, "cost": 34630273.5, "profit": -11830273.5, "percent": -34.16165194306075, "unsold": 20, "projectedProfit": 2275326.5, "projectedPercent": 6.369061707449894}, "final": {"revenue": 37760000, "market": 22800000, "taxes": 1641600.0, "cost": 34630273.5, "profit": 3129726.5, "percent": 9.037544852194136, "unsold": 0, "projectedProfit": 3129726.5, "projectedPercent": 9.037544852194136}};
+
+const ICON = {
+  dashboard: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+  revenue: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
+  production: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+  mining: 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z',
+  group: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+  projects: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  market: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
+  inventory: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+  link: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',
+  refresh: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+  warn: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z',
+  ok: 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  lock: 'M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z',
+  clip: 'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3',
+  chev: 'M9 5l7 7-7 7',
+  x: 'M6 18L18 6M6 6l12 12',
+  gear: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z',
+  plus: 'M12 4v16m8-8H4',
+  pencil: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z',
+  trash: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+  ext: 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14',
+  bolt: 'M13 10V3L4 14h7v7l9-11h-7z',
+  bell: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'
+};
+const svg = (d, cls = '') => `<svg class="${cls}" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="${d}"/></svg>`;
+
+
+const PROJECT_REF = 'IP-4C81D2';
+const PROJECT = { name: 'Hammerhead II · doctrine', product: 'Hammerhead II', runs: 50, me: 2, te: 4, created: 'lun. 02/11 18:40', start: '02/11/2026', container: 'Prod HH', structure: 'Structure A', completed: 'sam. 07/11 21:40' };
+const OTHER_PROJECTS = [
+  { name: 'Nitrogen Fuel Block', runs: 40, me: 10, te: 20, mat: 17920000, jobs: 310000, tax: null, estTax: 1450000, sell: null, estSell: 21600000, status: 'completed', profit: 1920000, pct: 9.8 },
+  { name: 'Drake', runs: 5, me: 10, te: 20, mat: null, estMat: 268400000, jobs: 0, estJobs: 4100000, tax: null, estTax: 23040000, sell: null, estSell: 320000000, status: 'active', profit: 24460000, pct: 8.3 }
+];
+const PEOPLE = {
+  alpha: { name: 'Joueur Alpha', char: 'Personnage Alpha', corp: 'Corp A' },
+  alt: { name: 'Joueur Alpha', char: 'Personnage Alpha II', corp: 'Corp A' }
+};
+const NAME_ORIG = JSON.parse(JSON.stringify({ people: PEOPLE, project: PROJECT.name, container: PROJECT.container }));
+function applyNames(long) {
+  Object.entries(NAME_ORIG.people).forEach(([k, p]) => {
+    PEOPLE[k].char = p.char + (long ? ' Longnom-Exemple' : '');
+    PEOPLE[k].corp = p.corp + (long ? ' Longnom-Exemple Industrie et Logistique' : '');
+  });
+  PROJECT.name = NAME_ORIG.project + (long ? ' — flotte de drones pour la campagne d’hiver de la corporation' : '');
+  PROJECT.container = NAME_ORIG.container + (long ? ' · Hangar personnel Longnom-Exemple' : '');
+}
+
+const TOUR = [
+  { label: 'Tableau de bord industrie', base: 1 },
+  { label: 'Projets · estimations figées', base: 2 },
+  { label: 'Nouveau projet · Hammerhead II ×50', base: 3 },
+  { label: 'Étapes · divisions au plafond du BPC', base: 4 },
+  { label: 'Approvisionnement · stock et achats rattachés', base: 5, idea: 2 },
+  { label: 'Coûts · matériaux réels dans le profit', base: 6, idea: 2 },
+  { label: 'Jobs ESI · rattachés à chaque sync', base: 7, idea: 3 },
+  { label: 'Lieux · Hammerhead I livrés hors container', base: 8, idea: 4 },
+  { label: 'Fil d’activité du projet', base: 9, idea: 5 },
+  { label: 'Compagnon · prochaines étapes lançables', base: 10, idea: 6 },
+  { label: 'Compagnon · achat rattaché, jobs en cours', base: 11, idea: 6 },
+  { label: 'Slots · suivi existant', base: 12 },
+  { label: 'Ventes · transaction wallet, invendus', base: 13, idea: 1 },
+  { label: 'Ventes · contrat sans taxe', base: 14, idea: 1 },
+  { label: 'Profit réel · ventes, achats, invention', base: 15, idea: 7 },
+  { label: 'Clôture · vérifications avant Terminer', base: 16, idea: 8 },
+  { label: 'Projet terminé · récapitulatif', base: 17, idea: 8 },
+  { label: 'Ouvrir à ma corpo · avant le premier job', base: 4, idea: 9, fx: () => { S.modal = 'group'; } },
+  { label: 'Variante · enregistrer une vente par contrat', base: 13, idea: 1, fx: () => { S.modal = 'sale'; } },
+  { label: 'Variante · jeton expiré, lieux inconnus', base: 11, idea: 4, fx: () => { S.state = 'token_expired'; S.view = 'detail'; S.tab = 'steps'; } },
+  { label: 'Variante · usage personnel (pas de vente)', base: 15, fx: () => { S.state = 'personal_use'; } }
+];
+const STEPS = TOUR.map(t => t.label);
+const LAST_STEP = STEPS.length;
+const STATE_LABELS = { normal: 'Normal', missing_price: 'Prix manquant (Particle Accelerator Unit)', token_expired: 'Jeton ESI expiré', skills_unknown: 'Compétences inconnues (alt)', personal_use: 'Usage personnel' };
+
+const SPEC_ADDITIONS = [
+  ['Ventes', 'Onglet « Ventes » : ventes rattachées aux transactions wallet du produit (comme les achats), canal marché ou contrat, taxe et courtage calculés sur le marché seulement, contrat sans taxe (frais réels du journal wallet) ; « Vente » et « Taxes » ne se saisissent plus ; invendus et marge provisoire au dernier prix de vente', 'même concept que #325, #323'],
+  ['Coûts', 'Matériaux réels dans le profit : achats rattachés (matériaux bruts compris, aujourd’hui seuls les intermédiaires sont suggérés), stock au prix estimé, reste au meilleur prix ; fin de l’arrondi au million de « Appliquer comme coût matériaux » ; suggestions filtrées depuis le début des jobs', 'nouvelle issue'],
+  ['Jobs', 'Rattachement des jobs ESI à chaque sync planifiée (30 min) au lieu du seul bouton « Sync jobs » ; délier repasse en mode auto', 'nouvelle issue (même matcher que #318)'],
+  ['Jobs', 'Lieux et heure de fin de chaque job (blueprint_location_id, output_location_id, end_date) résolus par les assets : container du projet, « à déplacer » quand une sortie n’est pas là où l’étape suivante s’installe ; lieu non résolu : inconnu avec la raison', '#319 (étendue au solo)'],
+  ['Temps réel', 'Fil d’activité du projet : jobs rattachés, démarrés, terminés, achats et ventes rattachés, régénération des étapes ; en direct par les topics industry-project et industry-jobs', 'lien #321'],
+  ['Compagnon', 'Compagnon solo posé sur le jeu : prochaines étapes lançables (amont livré, matériaux en stock ou achetés, sinon ce qui manque), jobs en cours avec compte à rebours, slots libres par personnage, alertes visuelles sans son (job terminé, achat rattaché, à déplacer)', 'lien #322'],
+  ['Coûts', 'Coût d’invention calculé (datacores achetés ou au prix estimé + jobs d’invention et de copie ESI) au lieu de la saisie « Invention »', 'nouvelle issue'],
+  ['Clôture', 'Bouton « Terminer le projet » (verbe), proposé quand toutes les étapes sont livrées et tout est vendu ; vérifications (étapes, invendus, coûts inconnus) et récapitulatif à copier', 'lien #324'],
+  ['Groupe', '« Ouvrir à ma corpo » : crée un projet de groupe avec le produit, les runs, le ME/TE, la liste noire et le container du projet solo ; le projet solo reste et renvoie vers le groupe', 'nouvelle issue (à trancher)'],
+  ['Projet', 'Cycle de vie du projet sous l’en-tête : préparation (matériaux couverts), production (étapes livrées), vente (unités vendues), terminé ; l’étape en cours est mise en avant', 'nouvelle issue']
+];
+const AUDIT_EXISTS = [
+  ['Onglets Tableau de bord, Projets, Marges, Scan, Achat vs Prod, Pivot, Slots, Stockpile ; configuration Frais, Compétences, Structures, Blacklist', 'Industry.vue'],
+  ['Liste des projets : réel ou estimé (« est. »), édition par double-clic, profit total et projets au profit inconnu exclus', 'ProjectTable.vue'],
+  ['Création mono ou multi-produit, ME/TE 2/4 pour un T2, estimations figées à la création', 'Industry.vue, CreateProjectProcessor.php'],
+  ['Étapes groupées par blueprint et activité, divisions au plafond de runs du BPC et à la durée max, structure recommandée, badges de statut', 'StepTree.vue, IndustryProjectFactory.php'],
+  ['Jobs ESI rattachés aux étapes (blueprint, activité, depuis le début des jobs), lien manuel, coût ESI stocké', 'IndustryJobMatcher.php, IndustryStepJobMatch'],
+  ['Approvisionnement : stock rapide collé, prix Jita et structure, suggestions d’achats wallet sur les intermédiaires', 'ShoppingTab.vue, PurchaseSuggestionProvider.php'],
+  ['Profit : vente − (invention + matériaux + transport + jobs + taxes), réel sinon estimé, inconnu si un coût manque', 'IndustryResourceMapper.php:146'],
+  ['Slots par personnage, chronologie 72 h, compétences inconnues exclues', 'SlotTrackerService.php, IndustrySlotsSection.vue'],
+  ['Notification « job terminé » une fois par job', 'IndustryJobSyncService.php:330']
+];
+const AUDIT_GAPS = [
+  ['Vente et taxes saisies à la main ; aucune vente wallet ni contrat rattaché', 'proposition 1'],
+  ['« Mat. réel » (achats rattachés) n’entre pas dans le profit ; « Appliquer » arrondit au million', 'proposition 2'],
+  ['Suggestions d’achats : intermédiaires seulement, sans filtre de date', 'proposition 2'],
+  ['Rattachement des jobs seulement au clic « Sync jobs » ; délier ne repasse pas en auto', 'proposition 3'],
+  ['Une seule fin et une seule structure affichées par étape, lieux des jobs non gardés', 'propositions 4, 6'],
+  ['Invention saisie à la main', 'proposition 7'],
+  ['« Termine » comme libellé d’action ; fin jamais proposée', 'proposition 8'],
+  ['Ouvrir un projet ne met pas ?project= dans l’URL', 'nouvelle issue'],
+  ['Progression du tableau de bord à 0 % (liste sans étapes)', 'nouvelle issue'],
+  ['« Sauvegarder les coûts » envoie jobsCost, ignoré en silence', 'nouvelle issue'],
+  ['Clés FR sans accents, en-têtes en anglais (Status, Runs), onglet « Achats » / « Approvisionnement »', 'nouvelle issue i18n'],
+  ['Étape de copie « Hammerhead I (BPC) » créée même quand on fabrique depuis le BPO', 'à confirmer']
+];
+const TO_CONFIRM = ['Frais réels d’un ordre de marché : journal wallet (transaction_tax, brokers_fee), non synchronisé aujourd’hui ; la maquette applique les taux des réglages Frais', 'Frais d’un contrat item exchange en jeu', 'Datacores achetés : rattachables comme achats de l’étape d’invention ?', 'Étape de copie d’un blueprint fabriqué depuis le BPO : à garder ou à retirer'];
+
+const STEP_NOTES = {
+  2: 'les estimations (matériaux, jobs, vente Jita, taxes) sont figées à la création du projet ; changer les runs, le ME ou le TE régénère les étapes sans recalculer ces estimations.',
+  4: 'les étapes sont regroupées par blueprint et activité. Un job de fabrication est divisé au plus petit du plafond de runs du BPC (10 pour un Hammerhead II inventé, d’où 5 divisions) et de la durée maximale des jobs (2 jours) ; les composants sont en ME 10 / TE 20 ; une structure est recommandée par étape.',
+  5: 'les suggestions d’achats ne portent que sur les produits des étapes intermédiaires (ici Hammerhead I), sans filtre de date ; « Appliquer comme coût matériaux » écrit le meilleur total, arrondi au million supérieur.',
+  7: 'rattachement glouton par blueprint et activité, sur les jobs démarrés depuis le début du projet, hors annulés ; lien manuel possible depuis « Jobs ESI » ; une étape délier reste en mode manuel.',
+  12: 'slots par personnage (fabrication, réaction, science), personnages aux compétences inconnues exclus des totaux, chronologie des jobs sur 72 h.'
+};
+let S;
+function baseState() {
+  return { view: 'dashboard', tab: 'steps', step: 0, phase: 0, modal: null, state: 'normal', longNames: false, specOpen: false, auditOpen: false, real: false,
+    created: false, status: 'active', size: 'compact', listMode: 'list', esiPanel: false, focus: null, refCopied: false, recapCopied: false, saleChannel: 'contract', expanded: {}, links: {}, calc: 'proposed' };
+}
+function applyStep(n) {
+  const t = TOUR[n - 1];
+  applyBase(t.base);
+  S.step = n;
+  if (t.fx) t.fx();
+}
+function applyBase(n) {
+  S.step = n; S.phase = n;
+  if (n >= 6) ['P1', 'P2', 'P3', 'P4'].forEach(id => { S.links[id] = true; });
+  if (n >= 11) S.links.P5 = true;
+  if (n >= 13) S.links.S1 = true;
+  if (n >= 14) S.links.S2 = true;
+  S.view = n === 1 ? 'dashboard' : 'projects';
+  if (n === 3) S.modal = 'create';
+  if (n >= 4) { S.created = true; S.view = 'detail'; S.tab = 'steps'; }
+  if (n === 5) S.tab = 'shopping';
+  if (n === 6) S.tab = 'costs';
+  if (n === 7) S.esiPanel = true;
+  if (n === 9) S.focus = 'feed';
+  if (n === 10 || n === 11) S.view = 'companion';
+  if (n === 12) S.view = 'slots';
+  if (n >= 13) S.tab = 'sales';
+  if (n === 15) S.tab = 'costs';
+  if (n === 16) S.modal = 'complete';
+  if (n >= 17) { S.status = 'completed'; S.tab = 'sales'; }
+}
+
+/* ---------- Chronologie du scénario (phase) ---------- */
+const purchasesAt = () => DATA.purchases.filter(p => S.links[p.id]);
+const stockPasted = () => S.phase >= 5;
+const salesAt = () => S.state === 'personal_use' ? [] : DATA.sales.filter(s => S.links[s.id]);
+function jobState(kind) {
+  if (kind === 't1') return S.phase >= 8 ? 'delivered' : S.phase >= 7 ? 'active' : null;
+  if (kind === 'final') return S.phase >= 13 ? 'delivered' : S.phase >= 11 ? 'active' : null;
+  return null;
+}
+const matched = kind => !!jobState(kind) && (!S.real || S.phase >= 7);
+function jobsCost() {
+  let c = 0;
+  if (matched('t1')) c += DATA.jobCosts.t1;
+  if (matched('final')) c += DATA.divisions.length * DATA.jobCosts.final;
+  return c;
+}
+const priceOf = m => S.state === 'missing_price' && m.name === 'Particle Accelerator Unit' ? null : m.price;
+function estMaterial() { return DATA.mats.some(m => priceOf(m) === null) ? null : DATA.mats.reduce((s, m) => s + m.required * m.price, 0); }
+const materialApplied = () => S.phase >= 6 && estMaterial() !== null ? Math.ceil(estMaterial() / 1e6) * 1e6 : null;
+function realMaterial() {
+  let total = 0;
+  for (const m of DATA.mats) {
+    const bought = purchasesAt().filter(p => p.item === m.name);
+    const qty = bought.reduce((s, p) => s + p.qty, 0);
+    const rest = m.required - qty;
+    if (rest > 0 && priceOf(m) === null) return null;
+    total += bought.reduce((s, p) => s + p.qty * p.unit, 0) + Math.max(0, rest) * (priceOf(m) ?? 0);
+  }
+  return total;
+}
+const inventionComputed = () => S.phase >= 6 ? DATA.invention.computed : null;
+const inventionEntered = () => S.phase >= 6 ? DATA.invention.entered : null;
+const personal = () => S.state === 'personal_use';
+
+function existingProfit() {
+  const mat = materialApplied() ?? estMaterial();
+  const jobs = jobsCost() > 0 ? jobsCost() : DATA.est.job;
+  const tax = DATA.est.tax, sell = DATA.est.sell;
+  if (mat === null) return { total: null, profit: null, pct: null, mat, jobs, tax, sell };
+  const total = (inventionEntered() ?? 0) + mat + jobs + tax;
+  return { total, profit: personal() ? null : sell - total, pct: personal() ? null : (sell - total) / total * 100, mat, jobs, tax, sell };
+}
+function realProfit() {
+  const sales = salesAt();
+  const revenue = sales.reduce((s, x) => s + x.qty * x.unit, 0);
+  const market = sales.filter(x => x.channel === 'market').reduce((s, x) => s + x.qty * x.unit, 0);
+  const contractFees = sales.filter(x => x.channel === 'contract').reduce((s, x) => s + (x.fees ?? 0), 0);
+  const taxes = market * (DATA.fees.broker + DATA.fees.tax) / 100 + contractFees;
+  const mat = realMaterial(), inv = inventionComputed() ?? 0, jobs = jobsCost();
+  const sold = sales.reduce((s, x) => s + x.qty, 0), unsold = PROJECT.runs - sold;
+  const costs = mat === null ? null : inv + mat + jobs + (personal() ? 0 : taxes);
+  if (personal() || !sales.length) return { revenue, market, taxes, mat, inv, jobs, costs, profit: null, pct: null, unsold, pending: !personal() };
+  const profit = costs === null ? null : revenue - costs;
+  const last = sales.filter(x => x.channel === 'market').slice(-1)[0];
+  let projProfit = null, projPct = null;
+  if (unsold && last && costs !== null) {
+    const extra = unsold * last.unit, extraTax = extra * (DATA.fees.broker + DATA.fees.tax) / 100;
+    projProfit = revenue + extra - costs - extraTax; projPct = projProfit / (costs + extraTax) * 100;
+  }
+  return { revenue, market, taxes, mat, inv, jobs, costs, profit, pct: profit === null ? null : profit / costs * 100, unsold, projProfit, projPct, pending: false };
+}
+
+/* ---------- Formats ---------- */
+const nf = new Intl.NumberFormat('fr-FR');
+const nf2 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtN = v => nf.format(Math.round(v));
+const UNK = '<span class="unk">inconnu</span>';
+function fmtIsk(v) {
+  if (v === null || v === undefined) return UNK;
+  const a = Math.abs(v), sg = v < 0 ? '−' : '';
+  if (a >= 1e9) return sg + nf2.format(a / 1e9) + ' B';
+  if (a >= 1e6) return sg + nf2.format(a / 1e6) + ' M';
+  if (a >= 1e3) return sg + nf.format(Math.round(a / 100) / 10) + ' k';
+  return sg + nf.format(Math.round(a));
+}
+const fmtFull = v => v === null || v === undefined ? UNK : nf2.format(v) + ' ISK';
+const fmtPct = (v, d = 1) => v === null || v === undefined ? UNK : (v < 0 ? '−' : '') + Math.abs(v).toFixed(d).replace('.', ',') + ' %';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const initials = name => { const w = name.replace(/^(Joueur|Personnage) /, '').split(/[\s-]+/); return (w[0][0] + (w[1] ? w[1][0] : '')).toUpperCase(); };
+const itemIni = name => name.replace(/[^A-Za-z ]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const who = (k, sub) => `<span class="who"><span class="mini">${initials(PEOPLE[k].name)}</span><span style="min-width:0"><b>${esc(PEOPLE[k].char)}</b>${sub ? `<div class="hint">${sub}</div>` : ''}</span></span>`;
+
+
+const propTitle = n => SPEC_ADDITIONS[n - 1][1];
+const ptag = n => S.real ? '' : `<span class="ptag" title="${esc(propTitle(n))}">Proposition ${n}</span>`;
+function prop(n, html, realHtml = '') { return S.real ? realHtml : `<div class="prop">${html}</div>`; }
+
+/* ---------- Barre de maquette ---------- */
+function renderMockbar() {
+  const el = document.getElementById('mockbar');
+  const vb = (hash, label, on) => `<button data-hash="${hash}" class="${on ? 'on' : ''}">${label}</button>`;
+  const d = S.view === 'detail';
+  const spec = S.specOpen ? `<div class="spec-panel"><div class="row sb" style="margin-bottom:6px"><b style="color:#fff">Ce que la maquette ajoute à la spec</b><span style="color:#a78bfa;font-size:12px">À trancher par Sylvain · chaque proposition est marquée « Proposition n » dans les écrans · « Existant seul » les masque</span></div>
+    <table><thead><tr><th>#</th><th>Où</th><th>Proposition</th><th>Issue touchée</th></tr></thead><tbody>${SPEC_ADDITIONS.map((a, i) => `<tr><td class="iss">${i + 1}</td><td>${a[0]}</td><td>${a[1]}</td><td class="iss">${a[2]}</td></tr>`).join('')}</tbody></table>
+    <div style="margin-top:8px;font-size:12px;color:#c4b5fd"><b style="color:#fff">À confirmer :</b> ${TO_CONFIRM.join(' · ')}</div></div>` : '';
+  const audit = S.auditOpen ? `<div class="spec-panel audit"><div class="row sb" style="margin-bottom:6px"><b style="color:#fff">État des lieux du module (code au 03/11)</b><span style="color:#a78bfa;font-size:12px">Ce qui existe déjà, puis ce qui manque</span></div>
+    <div class="g2" style="gap:24px"><table><thead><tr><th>Existant</th><th>Où</th></tr></thead><tbody>${AUDIT_EXISTS.map(a => `<tr><td>${a[0]}</td><td class="ex">${a[1]}</td></tr>`).join('')}</tbody></table>
+    <table><thead><tr><th>Manque ou défaut</th><th>Suite</th></tr></thead><tbody>${AUDIT_GAPS.map(a => `<tr><td>${a[0]}</td><td class="gap">${a[1]}</td></tr>`).join('')}</tbody></table></div></div>` : '';
+  el.innerHTML = `<div class="mockbar">
+    <span class="lbl">Maquette V1 · industrie solo</span>
+    <div class="grp"><button data-act="tour-prev" ${S.step <= 1 ? 'disabled' : ''}>◀</button>
+      <button data-act="tour-start" class="${S.step ? 'on' : ''}">Parcours</button>
+      <button data-act="tour-next" ${S.step >= LAST_STEP ? 'disabled' : ''}>▶</button>
+      <span class="step">${S.step ? `Étape ${S.step}/${LAST_STEP} · ${STEPS[S.step - 1]}` : 'Hors parcours'}</span></div>
+    <div class="grp">${vb('v=dashboard', 'Tableau de bord', S.view === 'dashboard')}${vb('v=projects&p=6', 'Projets', S.view === 'projects')}${vb('v=slots&p=12', 'Slots', S.view === 'slots')}</div>
+    <div class="grp"><span>Projet</span>${[['invention', 'Invention'], ['steps', 'Étapes'], ['shopping', 'Approvisionnement'], ['costs', 'Coûts'], ['sales', 'Ventes']].map(([k, l]) => `<button data-act="tab" data-arg="${k}" class="${d && S.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    <div class="grp"><span>Compagnon</span>${vb('v=companion&size=compact&p=10', 'Avant l’achat', S.view === 'companion' && S.phase === 10)}${vb('v=companion&size=compact&p=11', 'Jobs en cours', S.view === 'companion' && S.phase === 11 && S.size === 'compact')}${vb('v=companion&size=bar&p=11', 'Barre', S.view === 'companion' && S.size === 'bar')}</div>
+    <div class="grp"><span>État</span><select data-act="state">${Object.entries(STATE_LABELS).map(([k, l]) => `<option value="${k}" ${S.state === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <button data-act="real" class="${S.real ? 'on' : ''}" title="Masque les propositions et montre le comportement actuel du code">Existant seul</button><button data-act="long-names" class="${S.longNames ? 'on' : ''}">Noms longs</button></div>
+    <div class="grp"><button data-act="audit-toggle" class="${S.auditOpen ? 'on' : ''}">${S.auditOpen ? '▾' : '▸'} État des lieux</button><button data-act="spec-toggle" class="${S.specOpen ? 'on' : ''}">${S.specOpen ? '▾' : '▸'} Ce que la maquette ajoute à la spec (${SPEC_ADDITIONS.length})</button></div>
+  </div>${audit}${spec}`;
+}
+
+/* ---------- Shell ---------- */
+function navItem(label, icon, on, hash) {
+  return `<button class="ni ${on ? 'on' : ''}" ${hash ? `data-hash="${hash}"` : ''}>${svg(icon)}<span>${label}</span>${on ? '<span class="dot"></span>' : ''}</button>`;
+}
+function renderShell(inner) {
+  const me = PEOPLE.alpha;
+  return `<div class="app">
+    <aside class="side">
+      <div class="logo"><div class="ic"><svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${ICON.bolt}"/></svg></div>
+        <div><h1>EVE Tools</h1><p>Utilities</p></div></div>
+      <nav class="menu">
+        ${navItem('Tableau de bord', ICON.dashboard, false)}
+        ${navItem('Revenus', ICON.revenue, false)}
+        <button class="ni">${svg(ICON.production)}<span>Production</span><svg class="chev" style="transform:rotate(90deg)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${ICON.chev}"/></svg></button>
+        <div class="sub">
+          ${navItem('Industrie', ICON.projects, true, 'v=dashboard')}
+          ${navItem('Industrie de groupe', ICON.group, false)}
+        </div>
+        ${navItem('Minage', ICON.mining, false)}
+        ${navItem('Marché', ICON.market, false)}
+        ${navItem('Inventaire', ICON.inventory, false)}
+      </nav>
+      <div class="charcard"><div class="in"><div class="avatar">${initials(me.name)}</div><div style="min-width:0"><div style="font-weight:600;color:var(--s100);overflow-wrap:anywhere">${esc(me.char)}</div><div style="font-size:12px;color:var(--c400);overflow-wrap:anywhere">${esc(me.corp)}</div></div></div></div>
+    </aside>
+    <main class="content">
+      <header class="top"><div><h2>Industrie</h2><p>Projets de fabrication et réactions</p></div>
+        <div class="row"><span class="pill esi"><i></i>ESI OK</span><span class="pill all">Alliance A</span><span class="pill corp">${esc(me.corp)}</span></div></header>
+      <div class="page"><div class="wrap">${STEP_NOTES[S.step] ? `<div class="banner cyan">${svg(ICON.ok)}<div><b>Existant ·</b> ${STEP_NOTES[S.step]}</div></div>` : ''}${inner}</div></div>
+    </main></div>`;
+}
+function pills() {
+  const grp = (title, items) => `<div class="col" style="gap:4px"><span class="lab dim">${title}</span><div class="row" style="gap:6px">${items.map(([k, l, h]) => `<button class="fpill ${S.view === k ? 'on' : ''}" ${h ? `data-hash="${h}"` : ''}>${l}</button>`).join('')}</div></div>`;
+  return `<div class="row sb wrapf" style="align-items:flex-end">${grp('Vue d’ensemble', [['dashboard', 'Tableau de bord', 'v=dashboard'], ['projects', 'Projets', 'v=projects&p=6']])}${grp('Analyse', [['m', 'Marges'], ['b', 'Scan'], ['bvb', 'Achat vs Prod'], ['pv', 'Pivot']])}${grp('Opérations', [['slots', 'Slots', 'v=slots&p=12'], ['st', 'Stockpile']])}<button class="btn sec sm">${svg(ICON.gear)}Configuration</button></div>`;
+}
+
+/* ---------- Tableau de bord ---------- */
+function renderDashboard() {
+  const kpi = (label, val, sub, cls) => `<div class="card soft"><p class="lab dim" style="margin:0 0 8px">${label}</p><p class="kpi3 ${cls}" style="margin:0;font-size:26px">${val}</p><p class="hint2" style="margin:4px 0 0">${sub}</p></div>`;
+  const active = 1 + (S.created && S.status !== 'completed' ? 1 : 0);
+  const ep = S.created ? existingProfit() : null;
+  const profit = OTHER_PROJECTS[1].profit + (ep && ep.profit !== null ? ep.profit : 0);
+  return `${pills()}<div class="g4">${kpi('Projets actifs', active, 'en cours', 'c-cyan')}${kpi('Profit estimé', fmtIsk(profit), 'sur tous les projets actifs', 'c-em')}${kpi('Slots utilisés', S.phase >= 11 && S.phase < 13 ? '7 / 16' : '2 / 16', 'fabrication, tous personnages', 'c-violet')}${kpi('Santé du pipeline', 'OK', 'aucun stockpile sous 25 %', 'c-s200')}</div>
+    <div class="card p5 col"><h3 class="t">Alertes</h3>${[S.phase >= 11 && S.phase < 13 ? '5 jobs Hammerhead II en cours, fin 04/11 00:02' : null, `${S.phase >= 11 && S.phase < 13 ? 9 : 14} slots de fabrication libres`, 'Stockpile : aucune cible sous 25 %'].filter(Boolean).map(a => `<div class="row" style="gap:8px">${svg(ICON.bell).replace('<svg', '<svg width="16" height="16" style="color:var(--a400)"')}<span class="muted">${a}</span></div>`).join('')}</div>
+    <div class="card flush"><div class="card-h"><h3>Projets récents</h3></div><table class="t"><thead><tr><th>Produit</th><th>Actif</th><th>Progression</th><th class="r">Profit</th></tr></thead><tbody>
+      ${S.created ? `<tr><td>${esc(PROJECT.name)}</td><td><span class="badge sm b-cyan">Actif</span></td><td><div class="row" style="gap:8px">${pbar(0)}<span class="mono">0 %</span></div></td><td class="r">${fmtIsk(existingProfit().profit)}</td></tr>` : ''}
+      <tr><td>Drake</td><td><span class="badge sm b-cyan">Actif</span></td><td><div class="row" style="gap:8px">${pbar(0)}<span class="mono">0 %</span></div></td><td class="r">${fmtIsk(OTHER_PROJECTS[1].profit)}</td></tr></tbody></table>
+      <div class="annot" style="margin:12px 16px"><b>Existant ·</b> l’en-tête de colonne dit « Actif » au lieu de « Statut », et la progression vaut 0 % : la liste des projets ne renvoie pas les étapes.</div></div>`;
+}
+
+/* ---------- Liste des projets ---------- */
+const pbar = p => `<div class="pbar2 ${p >= 100 ? 'done' : p > 0 ? 'part' : ''}"><i style="width:${Math.min(100, p)}%"></i></div>`;
+const est = v => v === null || v === undefined ? '<span class="hint">-</span>' : `<span class="hint" style="font-style:italic">est. ${fmtIsk(v)}</span>`;
+function renderProjects() {
+  const rows = [];
+  if (S.created) {
+    const e = existingProfit(), jc = jobsCost();
+    rows.push(`<tr><td><div class="row" style="gap:8px"><div class="mini">HI</div><div><div class="c-s200">${esc(PROJECT.name)} <span class="hint">(Hammerhead II)</span> <span class="badge sm b-violet">T2</span></div></div></div></td>
+      <td><span class="badge sm ${S.status === 'completed' ? 'b-em' : 'b-cyan'}">${S.status === 'completed' ? 'Terminé' : 'Actif'}</span></td><td class="r">${PROJECT.runs}</td><td class="r">${PROJECT.me}/${PROJECT.te}</td>
+      <td class="r">${materialApplied() !== null ? fmtIsk(materialApplied()) : est(estMaterial())}</td><td class="r">${jc > 0 ? fmtIsk(jc) : est(DATA.est.job)}</td><td class="r">${est(DATA.est.tax)}</td><td class="r">${est(DATA.est.sell)}</td>
+      <td class="r ${e.profit >= 0 ? 'c-em' : 'c-red'}">${e.profit === null ? '-' : `${fmtIsk(e.profit)} <span class="hint">(${fmtPct(e.pct)})</span>`}</td></tr>`);
+  }
+  OTHER_PROJECTS.forEach(p => rows.push(`<tr><td><div class="row" style="gap:8px"><div class="mini">${itemIni(p.name)}</div><span class="c-s200">${p.name}</span></div></td><td><span class="badge sm ${p.status === 'completed' ? 'b-em' : 'b-cyan'}">${p.status === 'completed' ? 'Terminé' : 'Actif'}</span></td><td class="r">${p.runs}</td><td class="r">${p.me}/${p.te}</td>
+    <td class="r">${p.mat !== null ? fmtIsk(p.mat) : est(p.estMat)}</td><td class="r">${p.jobs ? fmtIsk(p.jobs) : est(p.estJobs)}</td><td class="r">${est(p.estTax)}</td><td class="r">${est(p.estSell)}</td><td class="r c-em">${fmtIsk(p.profit)} <span class="hint">(${fmtPct(p.pct)})</span></td></tr>`));
+  return `${pills()}<div class="card flush"><div class="card-h"><div class="row"><h3>Projets</h3><span class="badge sm b-slate">${rows.length} projets</span></div><button class="btn em sm" data-act="modal" data-arg="create">${svg(ICON.plus)}Nouveau projet</button></div>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Produit</th><th>Statut</th><th class="r">Runs</th><th class="r">ME/TE</th><th class="r">Matériaux</th><th class="r">Coût jobs</th><th class="r">Taxes</th><th class="r">Vente</th><th class="r">Profit</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
+    <p class="hint" style="margin:0;padding:10px 24px">valeur = éditable (double-clic) · est.valeur = estimé (pas encore de données réelles) · T2 = Tech II (ME 2 / TE 4 fixes)</p>
+    ${prop(1, `<div class="row" style="gap:8px;padding:8px 12px">${ptag(1)}<span class="hint">« Taxes » et « Vente » ne se saisissent plus : elles viennent des ventes rattachées (onglet Ventes du projet).</span></div>`)}</div>`;
+}
+
+/* ---------- Détail : en-tête et coûts ---------- */
+const editable = () => S.status !== 'completed';
+function cell(label, value, opts = {}) {
+  return `<div class="card soft" style="padding:10px 12px;min-width:0"><div class="lab dim" style="font-size:11px">${label}</div><div class="mono ${opts.cls || 'c-s100'}" style="margin-top:4px;font-size:15px">${value}</div>${opts.sub ? `<div class="hint">${opts.sub}</div>` : ''}</div>`;
+}
+const dash = '<span class="hint">-</span>';
+function existingGrid() {
+  const e = existingProfit(), jc = jobsCost();
+  const cells = [
+    cell('Invention', inventionEntered() === null ? dash : fmtIsk(inventionEntered()), { sub: inventionEntered() === null ? '' : 'saisi' }),
+    materialApplied() === null ? cell('Mat. estimé', fmtIsk(estMaterial())) : cell('Matériaux', fmtIsk(materialApplied()), { sub: 'appliqué, arrondi au million' }),
+    cell('Mat. réel', dash, { sub: 'achats rattachés : aucun' }),
+    cell('Transport', dash),
+    cell('Jobs ESI', fmtIsk(jc)),
+    jc > 0 ? '' : cell('Est. Jobs', fmtIsk(DATA.est.job)),
+    personal() ? '' : cell('Est. Taxes', fmtIsk(DATA.est.tax)),
+    personal() ? '' : cell('Est. Vente', fmtIsk(DATA.est.sell), { sub: 'Jita' }),
+    cell('Profit', personal() ? '<span class="hint">—</span>' : e.profit === null ? dash : `${fmtIsk(e.profit)} <span class="hint">(${fmtPct(e.pct)})</span>`, { cls: e.profit !== null && e.profit < 0 ? 'c-red' : 'c-em' })
+  ].filter(Boolean);
+  return `<div style="display:grid;grid-template-columns:repeat(${cells.length},minmax(0,1fr));gap:8px">${cells.join('')}</div>`;
+}
+function proposedGrid() {
+  const r = realProfit();
+  const sold = PROJECT.runs - r.unsold;
+  const profitVal = personal() ? '<span class="hint">usage personnel</span>' : r.pending ? '<span class="hint">en attente des ventes</span>' : r.profit === null ? UNK : `${fmtIsk(r.profit)} <span class="hint">(${fmtPct(r.pct)})</span>`;
+  const cells = [
+    cell(`Invention ${ptag(7)}`, r.inv ? fmtIsk(r.inv) : dash, { sub: r.inv ? 'datacores + jobs ESI' : 'pas encore de job' }),
+    cell(`Matériaux ${ptag(2)}`, fmtIsk(r.mat), { sub: `${purchasesAt().length} achats rattachés + reste au meilleur prix` }),
+    cell('Transport', dash),
+    cell('Jobs ESI', fmtIsk(r.jobs), { sub: 'coût réel payé en jeu' }),
+    personal() ? '' : cell(`Taxes ${ptag(1)}`, r.pending ? dash : fmtIsk(r.taxes), { sub: 'marché seulement' }),
+    personal() ? '' : cell(`Ventes ${ptag(1)}`, r.pending ? '<span class="hint">aucune vente</span>' : fmtIsk(r.revenue), { sub: `${sold} / ${PROJECT.runs} vendus` }),
+    cell(r.unsold && !r.pending && !personal() ? 'Profit provisoire' : 'Profit', profitVal, { cls: r.profit !== null && r.profit < 0 ? 'c-red' : 'c-em', sub: r.projProfit !== undefined && r.projProfit !== null ? `projeté ${fmtIsk(r.projProfit)} (${fmtPct(r.projPct)})` : '' })
+  ].filter(Boolean);
+  return `<div style="display:grid;grid-template-columns:repeat(${cells.length},minmax(0,1fr));gap:8px">${cells.join('')}</div>`;
+}
+function renderLifecycle() {
+  const covered = DATA.mats.filter(m => (stockPasted() ? m.stock : 0) + purchasesAt().filter(p => p.item === m.name).reduce((s, p) => s + p.qty, 0) >= m.required).length;
+  const delivered = (jobState('t1') === 'delivered' ? 1 : 0) + (jobState('final') === 'delivered' ? DATA.divisions.length : 0);
+  const sold = salesAt().reduce((s, x) => s + x.qty, 0);
+  const phases = [
+    ['Préparation', `${covered} / ${DATA.mats.length} matériaux couverts`, covered === DATA.mats.length],
+    ['Production', `${delivered} / ${DATA.divisions.length + 1} étapes livrées`, delivered === DATA.divisions.length + 1],
+    ['Vente', personal() ? 'usage personnel' : `${sold} / ${PROJECT.runs} vendus`, personal() || sold === PROJECT.runs],
+    ['Terminé', S.status === 'completed' ? PROJECT.completed : 'à clôturer', S.status === 'completed']
+  ];
+  const cur = phases.findIndex(p => !p[2]);
+  return `<div class="prop"><div class="cyc">${phases.map((p, i) => `<div class="ph ${p[2] ? 'done' : i === cur ? 'cur' : ''}"><b>${p[2] ? '✓ ' : ''}${p[0]}</b><span class="hint">${p[1]}</span></div>`).join('')}<div class="ph" style="flex:0 0 auto;justify-content:center">${ptag(10)}</div></div></div>`;
+}
+function renderDetailHeader() {
+  const done = S.status === 'completed';
+  const toGroup = S.real ? '' : `<button class="btn sec sm" data-act="modal" data-arg="group">${svg(ICON.group)}Ouvrir à ma corpo ${ptag(9)}</button>`;
+  const finish = S.real ? `<button class="btn ${done ? 'amb' : 'em'} sm">${done ? 'Réactiver' : '✓ Terminé'}</button>` : done ? '<button class="btn amb sm">Réactiver</button>' : `<button class="btn em sm" data-act="modal" data-arg="complete">Terminer le projet ${ptag(8)}</button>`;
+  return `<div class="row sb start wrapf"><div class="row start" style="min-width:0;flex:1"><button class="btn ghost sm" data-hash="v=projects&p=6">←</button><div class="mini" style="width:44px;height:44px">HI</div>
+      <div style="min-width:0"><div class="row wrapf" style="gap:8px"><h3 class="t" style="overflow-wrap:anywhere">${esc(PROJECT.name)}</h3><span class="badge sm ${done ? 'b-em' : 'b-cyan'}">${done ? 'Terminé' : 'Actif'}</span>${S.phase >= 9 && !S.real ? `<span class="live"><i></i>en direct</span>` : ''}</div>
+      <div class="hint">Hammerhead II · ${PROJECT.runs} runs · ME ${PROJECT.me} · TE ${PROJECT.te} · durée ≈ 8 h 28 · Début : <span class="mono">${PROJECT.start}</span>${done ? ` · terminé le ${PROJECT.completed}` : ''}</div></div></div>
+    <div class="row">${toGroup}${finish}</div></div>
+    ${S.real ? '' : renderLifecycle()}
+    ${S.real ? '' : `<div class="row sb"><div class="seg"><button class="${S.calc === 'proposed' ? 'on' : ''}" data-act="calc" data-arg="proposed">Calcul proposé</button><button class="${S.calc === 'current' ? 'on' : ''}" data-act="calc" data-arg="current">Calcul actuel</button></div><span class="hint">${S.calc === 'proposed' ? 'ventes, achats et jobs réels' : 'ce que calcule le code aujourd’hui : saisies et estimations figées'}</span></div>`}
+    ${S.real || S.calc === 'current' ? existingGrid() : proposedGrid()}`;
+}
+function detailTabs() {
+  const t = (id, label, extra = '') => `<button class="tab ${S.tab === id ? 'on' : ''}" data-act="tab" data-arg="${id}" ${id === 'shopping' && S.status === 'completed' ? 'disabled title="Non disponible pour les projets terminés"' : ''}>${label}${extra}</button>`;
+  return `<div class="tabs">${t('invention', 'Invention')}${t('steps', 'Étapes', `<span class="chip">${DATA.divisions.length + 2}</span>`)}${t('shopping', 'Approvisionnement')}${t('costs', 'Coûts')}${S.real ? '' : t('sales', 'Ventes', ` <span class="ptag">Proposition 1</span>`)}</div>`;
+}
+function renderDetail() {
+  if (!S.created) return `<div class="card p6"><h3 class="t">Aucun projet ouvert</h3></div>`;
+  const tab = S.real && S.tab === 'sales' ? 'costs' : S.tab;
+  const body = { invention: renderInvention, steps: renderSteps, shopping: renderShopping, costs: renderCosts, sales: renderSales }[tab]();
+  const done = S.status === 'completed' ? `<div class="banner em">${svg(ICON.lock)}<div><b>Projet terminé le ${PROJECT.completed}.</b> Étapes, coûts, nom et date de début en lecture seule.</div></div>` : '';
+  return `${renderDetailHeader()}${done}${detailTabs()}${body}${S.phase >= 17 && !S.real ? renderRecap() : ''}`;
+}
+
+/* ---------- Invention ---------- */
+function renderInvention() {
+  return `<div class="card p5 col"><h3 class="t">Kit d’invention · Hammerhead II</h3>
+    <table class="t"><thead><tr><th>Élément</th><th class="r">Quantité</th><th class="r">Prix</th><th class="r">Total</th></tr></thead><tbody>
+    <tr><td>Datacore - Electronic Engineering</td><td class="r">30</td><td class="r">${fmtIsk(98400)}</td><td class="r">${fmtIsk(30 * 98400)}</td></tr>
+    <tr><td>Datacore - Graviton Physics</td><td class="r">30</td><td class="r">${fmtIsk(111900)}</td><td class="r">${fmtIsk(30 * 111900)}</td></tr>
+    <tr><td>Tentatives</td><td class="r">15</td><td class="hint" colspan="2">⌈50 / (10 runs × 34 %)⌉ · BPC de 10 runs, ME 2 / TE 4</td></tr></tbody></table>
+    ${prop(7, `<div class="row sb wrapf" style="padding:8px 10px">${ptag(7)}<span class="hint">Jobs ESI d’invention et de copie T1 rattachés : ${fmtIsk(DATA.invention.jobs)} · datacores ${fmtIsk(DATA.invention.datacores)}</span><span class="mono c-s200">coût d’invention ${fmtIsk(DATA.invention.computed)}</span></div>`,
+      '<div class="annot"><b>Existant ·</b> le coût d’invention se saisit à la main dans la case « Invention » de l’en-tête (7,60 M dans le scénario).</div>')}</div>`;
+}
+
+/* ---------- Étapes (StepTree.vue reproduit) ---------- */
+const STATUS_BADGE = { delivered: '<span class="badge sm b-em">Terminé</span>', active: '<span class="badge sm b-cyan">Actif</span>', none: '<span class="badge sm b-slate">À lancer</span>' };
+const LOC = { proj: () => `« ${esc(PROJECT.container)} »`, hangar: () => `hangar de ${PROJECT.structure}` };
+function locLine(kind) {
+  if (S.real || !jobState(kind)) return '';
+  if (S.state === 'token_expired' && kind === 'final') return `<div class="hint"><span class="unk">entrée, sortie et fin inconnues</span> · jeton ESI de ${esc(PEOPLE.alpha.char)} expiré ${ptag(4)}</div>`;
+  const end = kind === 't1' ? '03/11 00:51' : '04/11 00:02';
+  const fin = jobState(kind) === 'active' ? `fin ${end}` : `livré ${end}`;
+  if (kind === 't1') return `<div class="hint">${fin} · entrée ${LOC.proj()} → sortie ${LOC.hangar()} · <span class="c-amber">⚠ à déplacer vers ${LOC.proj()}, d’où s’installe Hammerhead II</span> ${ptag(4)}</div>`;
+  return `<div class="hint">${fin} · entrée ${LOC.proj()} → sortie ${LOC.proj()} <span class="c-em">✓</span> ${ptag(4)}</div>`;
+}
+const card = (inner, extra = '') => `<div class="steprow ${extra}">${inner}</div>`;
+const actBadge = a => `<span class="act ${a === 'Copie' ? 'copy' : ''}">${a}</span>`;
+function childRow(i, runs, st) {
+  const esi = matched('final');
+  const meTe = esi || S.status === 'completed' ? '<span class="mono hint">ME2 TE4</span>' : '<span class="row" style="gap:4px"><span class="hint">ME</span><input class="input sm" style="width:44px" value="2"><span class="hint">TE</span><input class="input sm" style="width:44px" value="4"></span>';
+  const who = esi ? `<span class="badge sm b-cyan">${esc(PEOPLE.alpha.char)}</span> <span class="badge sm b-cyan" title="Job ESI associé">ESI <span title="Délier le job ESI">×</span></span>` : `<span class="badge sm b-violet" title="Personnage recommandé">${esc(PEOPLE.alpha.char)}</span>`;
+  const info = esi ? `<span class="hint">(1 job) <span class="c-em">${runs} / ${runs} runs</span> (${st === 'delivered' ? '1 livré, 0 en cours' : '0 livré, 1 en cours'})</span>` : '';
+  return card(`<div class="row sb wrapf" style="gap:6px 12px"><div class="row wrapf" style="gap:6px 10px;min-width:0"><div class="mini">HI</div><span class="c-s200">Hammerhead II</span><span class="hint">×${runs} (${runs} runs)</span><span class="badge sm b-slate">Division ${i + 1}/${DATA.divisions.length}</span>${meTe}<span class="hint">${PROJECT.structure} — 1 %</span>${who}</div>
+    <div class="row" style="gap:10px"><span class="hint mono">4 h 37 (27,7 min/run)</span>${STATUS_BADGE[st]}${esi ? `<span class="mono c-s300">${fmtIsk(DATA.jobCosts.final)}</span>` : `<button class="btn ghost xs">Diviser ▾</button>`}</div></div>
+    ${info || locLine('final') ? `<div style="padding-left:42px">${info}${locLine('final')}</div>` : ''}`, 'child');
+}
+function groupRow(o) {
+  const open = S.expanded[o.key] !== false;
+  return card(`<div class="row sb wrapf" style="gap:6px 12px"><div class="row wrapf" style="gap:6px 10px;min-width:0"><span class="hint" style="cursor:pointer" data-act="toggle-group" data-arg="${o.key}">${o.children ? (open ? '▾' : '▸') : '·'}</span><div class="mini">${itemIni(o.name)}</div><span class="c-s200" style="font-weight:500">${o.name}</span>${o.count ? `<span class="hint">(${o.count} jobs)</span>` : `<span class="hint">×${fmtN(o.qty)} (${o.runs} runs)</span>`}${actBadge(o.act)}<span class="hint c-em">${PROJECT.structure} (1 %)</span>${o.meTe ? `<span class="mono hint">${o.meTe}</span>` : ''}${o.who || ''}</div>
+    <div class="row" style="gap:10px">${o.right || ''}</div></div>
+    <div class="row wrapf hint" style="gap:4px 14px;padding-left:24px"><span>${o.runsLine}</span><span>${o.counts}</span><span class="mono">${o.duration}</span>${o.extra || ''}</div>${o.loc ? `<div style="padding-left:24px">${o.loc}</div>` : ''}${o.note ? `<div style="padding-left:24px">${o.note}</div>` : ''}`, 'group' + (o.hl ? ' hl2' : '')) + (o.children && open ? o.children : '');
+}
+function renderStepList() {
+  const f = jobState('final') || 'none', t1 = jobState('t1') || 'none';
+  const n = DATA.divisions.length;
+  const cnt = st => `${st === 'none' ? n : 0} À lancer · ${st === 'active' ? n : 0} En cours · ${st === 'delivered' ? n : 0} Terminé`;
+  const sec = t => `<div class="lab" style="margin-top:6px">${t}</div>`;
+  const purchased = '<label class="hint row" style="gap:4px"><input type="checkbox"> Acheté</label>';
+  const t1Who = matched('t1') ? `<span class="badge sm b-cyan">${esc(PEOPLE.alpha.char)}</span> <span class="badge sm b-cyan">ESI ×</span>` : `<span class="badge sm b-violet">${esc(PEOPLE.alpha.char)}</span>`;
+  return `${sec('Profondeur 0 — Fabrication')}
+    ${groupRow({ key: 'hh2', name: 'Hammerhead II', count: n, act: 'Fabrication', runsLine: `${PROJECT.runs} / ${PROJECT.runs} runs`, counts: cnt(f), duration: '4 h 37', right: n > 1 && false ? '' : '', children: DATA.divisions.map((r, i) => childRow(i, r, f)).join(''), hl: S.step === 4 })}
+    ${sec('Profondeur 1 — Fabrication')}
+    ${groupRow({ key: 'hh1', name: 'Hammerhead I', qty: DATA.t1Runs, runs: DATA.t1Runs, act: 'Fabrication', meTe: 'ME10 TE20', who: t1Who, runsLine: matched('t1') ? `<span class="c-em">${DATA.t1Runs} / ${DATA.t1Runs} runs</span> (${t1 === 'delivered' ? '1 livré, 0 en cours' : '0 livré, 1 en cours'})` : `${DATA.t1Runs} runs`, counts: STATUS_BADGE[t1], duration: '3 h 51 (4,6 min/run)', right: `${matched('t1') ? `<span class="mono c-s300">${fmtIsk(DATA.jobCosts.t1)}</span>` : ''}${purchased}`, loc: locLine('t1') })}
+    ${sec('Profondeur 1 — Copies')}
+    ${groupRow({ key: 'cp', name: 'Hammerhead I (BPC)', qty: DATA.t1Runs, runs: DATA.t1Runs, act: 'Copie', runsLine: `${DATA.t1Runs} runs`, counts: STATUS_BADGE.none, duration: '<span class="unk" title="Valeur inconnue">—</span>', right: purchased, note: '<span class="hint">étape de copie créée parce que le blueprint est copiable, même si l’on fabrique depuis le BPO · <span class="c-violet">à confirmer</span></span>' })}
+    ${S.status === 'completed' ? '' : '<div class="steprow" style="border-style:dashed;text-align:center"><span class="hint">+ Ajouter un job</span></div>'}`;
+}
+function renderStepTree() {
+  const leaf = (name, q) => `<div class="row" style="gap:8px;padding:2px 0"><span class="hint">└</span><span>${name}</span><span class="mono hint">×${fmtN(q)}</span></div>`;
+  const mat = n => DATA.mats.find(m => m.name === n).required;
+  return `<div class="card p5 col" style="gap:4px"><div class="row" style="gap:8px"><div class="mini">HI</div><b class="c-s200">Hammerhead II</b><span class="hint">×${PROJECT.runs} (${PROJECT.runs} runs)</span>${actBadge('Fabrication')}<span class="hint c-em">${PROJECT.structure} (1 %)</span>${STATUS_BADGE[jobState('final') || 'none']}</div>
+    <div style="padding-left:28px">${['Guidance Systems', 'Morphite', 'Robotics', 'Particle Accelerator Unit', 'R.A.M.- Robotics'].map(n => leaf(n, mat(n))).join('')}
+      <div class="row" style="gap:8px;padding:4px 0"><span class="hint">└</span><div class="mini">HI</div><b class="c-s200">Hammerhead I</b><span class="hint">×${DATA.t1Runs} (${DATA.t1Runs} runs)</span>${actBadge('Fabrication')}${STATUS_BADGE[jobState('t1') || 'none']}</div>
+      <div style="padding-left:28px">${['Tritanium', 'Pyerite', 'Mexallon', 'Isogen', 'Zydrine'].map(n => leaf(n, mat(n))).join('')}</div>
+      <div class="row" style="gap:8px;padding:4px 0"><span class="hint">└</span><b class="c-s200">Hammerhead I (BPC)</b>${actBadge('Copie')}${STATUS_BADGE.none}</div></div></div>`;
+}
+function renderSteps() {
+  const panel = S.esiPanel ? renderEsiPanel() : '';
+  const tokenBanner = S.state === 'token_expired' ? `<div class="banner amber">${svg(ICON.warn)}<div><b>Jobs non synchronisés pour 1 personnage(s), le rattachement a utilisé les derniers jobs connus :</b> ${esc(PEOPLE.alpha.char)} (jeton expiré).</div></div>` : '';
+  return `${tokenBanner}<div class="row sb wrapf"><div class="row">${S.status === 'completed' ? '' : `<button class="btn sec sm ${S.step === 7 ? 'hl2' : ''}" data-act="esi-panel">${svg(ICON.refresh)}Jobs ESI</button>`}<div class="seg"><button class="${S.listMode === 'list' ? 'on' : ''}" data-act="list-mode" data-arg="list">Liste</button><button class="${S.listMode === 'tree' ? 'on' : ''}" data-act="list-mode" data-arg="tree">Arbre</button></div></div>
+    ${S.phase >= 7 && !S.real ? `<span class="hint">${ptag(3)} rattachement automatique à chaque sync des jobs (30 min) · dernière : 02/11 21:30</span>` : ''}</div>
+    ${panel}<div class="col" style="gap:6px">${S.listMode === 'tree' ? renderStepTree() : renderStepList()}</div>
+    ${S.phase >= 9 && !S.real ? renderFeed() : ''}`;
+}
+function renderEsiPanel() {
+  const st = jobState('t1');
+  return `<div class="card flush ${S.step === 7 ? 'hl2' : ''}"><div class="card-h"><h3>Jobs ESI disponibles (1)</h3><button class="btn sec sm">${svg(ICON.refresh)}Sync jobs</button></div>
+    <table class="t"><thead><tr><th>Personnage</th><th>Produit</th><th class="r">Runs</th><th>Statut</th><th>Début</th><th class="r">Coût</th><th>Lié à</th><th>Action</th></tr></thead><tbody>
+    <tr><td>${esc(PEOPLE.alpha.char)}</td><td>Hammerhead I</td><td class="r">50</td><td>${st === 'delivered' ? 'Terminé' : 'Actif'}</td><td>02/11 21:00</td><td class="r">${fmtIsk(DATA.jobCosts.t1)}</td><td>Hammerhead I</td><td><button class="btn ghost xs">Délier</button></td></tr></tbody></table>
+    ${prop(3, `<div class="row" style="gap:8px;padding:8px 12px">${ptag(3)}<span class="hint">Ce job a été rattaché tout seul à la sync planifiée de 21:30 : plus besoin de cliquer « Sync jobs ». « Délier » repasse l’étape en mode auto.</span></div>`, '<div class="annot" style="margin:8px 12px"><b>Existant ·</b> le rattachement ne se fait qu’au clic sur « Sync jobs » ; la sync planifiée (30 min) met à jour l’état des jobs déjà rattachés, sans en rattacher de nouveaux.</div>')}</div>`;
+}
+
+/* ---------- Fil d’activité ---------- */
+function feedEvents() {
+  const ev = [];
+  if (S.phase >= 14) ev.push(['05/11 22:10', 'contrat terminé rattaché · 20 Hammerhead II · 14,96 M · sans taxe']);
+  if (S.phase >= 13) { ev.push(['05/11 20:41', 'vente rattachée (wallet) · 30 Hammerhead II · 22,80 M']); ev.push(['04/11 00:02', 'jobs terminés (ESI) · Hammerhead II · 5 jobs · livrés dans « ' + esc(PROJECT.container) + ' »']); }
+  if (S.phase >= 11) { ev.push(['03/11 19:30', `jobs rattachés (ESI) · Hammerhead II · 5 jobs × 10 runs · coût réel ${fmtIsk(DATA.divisions.length * DATA.jobCosts.final)} · fin 04/11 00:02`]); ev.push(['03/11 18:30', 'achat rattaché (wallet) · Particle Accelerator Unit ×50 · ' + fmtIsk(50 * 31200)]); }
+  ev.push(['03/11 00:51', 'job terminé (ESI) · Hammerhead I ×50 runs · livré dans le hangar de ' + PROJECT.structure + ', hors container']);
+  ev.push(['02/11 21:30', `job rattaché automatiquement · Hammerhead I ×50 runs · coût réel ${fmtIsk(DATA.jobCosts.t1)}`]);
+  ev.push(['02/11 19:25', 'achats rattachés (wallet) · Robotics, Morphite, Guidance Systems, R.A.M.- Robotics']);
+  ev.push(['02/11 19:05', 'stock collé · 5 matériaux couverts']);
+  return ev.slice(0, 7);
+}
+function renderFeed() {
+  return `<div class="prop"><div class="card p5 col"><div class="row sb"><div class="row"><h3 class="t">Activité du projet</h3>${ptag(5)}</div><span class="live"><i></i>en direct</span></div>
+    <div class="feed">${feedEvents().map((e, i) => `<div class="ev ${i === 0 && S.phase === 9 ? 'new' : ''}"><span class="t" style="min-width:86px">${e[0]}</span><span style="flex:1">${e[1]}</span></div>`).join('')}</div>
+    <p class="hint" style="margin:0">Topics existants industry-project et industry-jobs ; aujourd’hui ils rechargent l’écran et créent la notification « job terminé », sans trace dans le projet.</p></div></div>`;
+}
+
+/* ---------- Approvisionnement ---------- */
+function renderShopping() {
+  const rows = DATA.mats.map(m => {
+    const st = stockPasted() ? m.stock : 0;
+    const bought = purchasesAt().filter(p => p.item === m.name).reduce((s, p) => s + p.qty, 0);
+    const toBuy = Math.max(0, m.required - st);
+    const p = priceOf(m);
+    return `<tr><td>${m.name}</td><td class="r">${fmtN(m.required)}</td><td class="r">${fmtN(st)}</td><td class="r">${fmtN(toBuy)}</td><td class="r">${p === null ? '<span class="unk">Inconnu</span>' : fmtIsk(toBuy * p)}</td>${S.real ? '' : `<td class="r">${bought ? `<span class="c-em">${fmtN(bought)} rattachés</span>` : '<span class="hint">—</span>'}</td>`}</tr>`;
+  }).join('');
+  const toBuyTotal = DATA.mats.some(m => priceOf(m) === null) ? null : DATA.mats.reduce((s, m) => s + Math.max(0, m.required - (stockPasted() ? m.stock : 0)) * m.price, 0);
+  const purch = purchasesAt();
+  const linked = purch.map(p => `<tr><td>Hammerhead II</td><td>${p.item}</td><td class="r">${fmtN(p.qty)}</td><td class="r">${fmtIsk(p.unit)}</td><td class="r">${fmtIsk(p.qty * p.unit)}</td><td><span class="badge sm b-cyan">ESI</span></td></tr>`).join('');
+  return `<div class="g3"><div class="card p5 col"><span class="lab">Structure marché</span><span class="muted">Jita IV - Moon 4 (défaut)</span></div><div class="card p5 col"><span class="lab">Coût transport / m³</span><span class="mono c-s200">0</span></div>
+      <div class="card p5 col"><span class="lab">Stock rapide</span><span class="muted">${stockPasted() ? '5 matériaux collés depuis l’inventaire EVE' : 'Coller inventaire EVE…'}</span></div></div>
+    <div class="card flush"><div class="card-h"><h3>Matériaux</h3><span class="hint">Meilleur total à acheter : <span class="mono c-s200">${fmtIsk(toBuyTotal)}</span></span></div>
+      <table class="t"><thead><tr><th>Matériau</th><th class="r">Quantité</th><th class="r">Stock</th><th class="r">À acheter</th><th class="r">Meilleur</th>${S.real ? '' : `<th class="r">Achats ${ptag(2)}</th>`}</tr></thead><tbody>${rows}</tbody></table>
+      <div class="row sb" style="padding:10px 24px;border-top:1px solid var(--s800)"><span class="hint">Prix pondérés par volume (Jita Sell + import)</span>${S.real ? '<button class="btn sec sm">Appliquer comme coût matériaux</button>' : `<span class="hint">${ptag(2)} plus de bouton « Appliquer » : le coût matériaux suit les achats rattachés</span>`}</div></div>
+    <div class="card flush"><div class="card-h"><h3>Suggestions d’achats (wallet ESI)</h3><button class="btn sec sm">Rafraîchir</button></div>
+      ${S.real ? '<div class="col" style="align-items:center;padding:20px"><b class="c-s200">Aucune transaction wallet correspondant aux matériaux du projet.</b><span class="hint">Seuls les produits des étapes intermédiaires (ici Hammerhead I) sont suggérés : les achats de Robotics, Morphite… ne peuvent pas être rattachés.</span></div>'
+        : renderPurchaseSuggestions()}</div>
+    <div class="card flush"><div class="card-h"><h3>Achats liés au projet</h3></div>
+      ${S.real || !purch.length ? '<div class="col" style="align-items:center;padding:20px"><b class="c-s200">Aucun achat lié à ce projet.</b></div>' : `<table class="t"><thead><tr><th>Étape</th><th>Item</th><th class="r">Qté</th><th class="r">Prix unit.</th><th class="r">Total</th><th>Source</th></tr></thead><tbody>${linked}</tbody></table>`}</div>`;
+}
+
+function renderPurchaseSuggestions() {
+  const pending = DATA.purchases.filter(p => !S.links[p.id] && (p.id !== 'P5' || S.phase >= 11));
+  const rows = pending.map(p => `<tr><td>${p.date}</td><td>${p.item}</td><td class="r">${fmtN(p.qty)}</td><td class="r">${fmtIsk(p.unit)}</td><td class="r">${fmtIsk(p.qty * p.unit)}</td><td>${esc(PEOPLE.alpha.char)}</td><td><button class="btn em xs" data-act="link" data-arg="${p.id}">Lier</button></td></tr>`).join('');
+  return `<div class="prop" style="margin:12px 16px"><div class="col" style="gap:6px;padding:8px 10px"><div class="row sb"><span class="row" style="gap:8px">${ptag(2)}<span class="hint">matériaux bruts compris, transactions depuis le début des jobs (02/11) seulement</span></span>${pending.length > 1 ? `<button class="btn sec xs" data-act="link-all">Tout lier</button>` : ''}</div>
+    ${pending.length ? `<table class="t"><thead><tr><th>Date</th><th>Item</th><th class="r">Qté</th><th class="r">Prix unit.</th><th class="r">Total</th><th>Perso</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : `<span class="hint">${purchasesAt().length} transactions rattachées, aucune en attente.</span>`}</div></div>`;
+}
+
+/* ---------- Coûts ---------- */
+function renderCosts() {
+  const e = existingProfit(), r = realProfit();
+  const line = (label, a, b) => `<tr><td>${label}</td><td class="r">${a}</td>${S.real ? '' : `<td class="r c-white">${b}</td>`}</tr>`;
+  const pending = '<span class="hint" style="font-family:inherit">en attente des ventes</span>';
+  return `<div class="card flush"><div class="card-h"><h3>Coût et profit</h3><span class="hint">${S.real ? 'calcul actuel' : `calcul actuel et calcul proposé ${ptag(1)} ${ptag(2)} ${ptag(7)}`}</span></div>
+    <table class="t"><thead><tr><th>Poste</th><th class="r">Actuel (saisi ou estimé)</th>${S.real ? '' : '<th class="r">Proposé (réel)</th>'}</tr></thead><tbody>
+      ${line('Invention', inventionEntered() === null ? dash : `${fmtIsk(inventionEntered())} <span class="hint">saisi</span>`, r.inv ? `${fmtIsk(r.inv)} <span class="hint">calculé</span>` : dash)}
+      ${line('Matériaux', e.mat === null ? UNK : `${fmtIsk(e.mat)} <span class="hint">${materialApplied() !== null ? 'appliqué (arrondi)' : 'estimé'}</span>`, `${fmtIsk(r.mat)} <span class="hint">achats + reste</span>`)}
+      ${line('Transport', dash, dash)}
+      ${line('Jobs', `${fmtIsk(e.jobs)} <span class="hint">${jobsCost() > 0 ? 'ESI' : 'estimé'}</span>`, `${fmtIsk(r.jobs)} <span class="hint">ESI</span>`)}
+      ${personal() ? '' : line('Taxes', `${fmtIsk(e.tax)} <span class="hint">estimé</span>`, r.pending ? pending : `${fmtIsk(r.taxes)} <span class="hint">3,6 % + 3,6 % du marché, contrat sans taxe</span>`)}
+      ${personal() ? '' : line('Vente', `${fmtIsk(e.sell)} <span class="hint">estimé Jita</span>`, r.pending ? pending : fmtIsk(r.revenue))}
+      <tr class="tot"><td>Profit</td><td class="r">${personal() ? '—' : e.profit === null ? UNK : `${fmtIsk(e.profit)} (${fmtPct(e.pct)})`}</td>${S.real ? '' : `<td class="r">${personal() ? '<span class="hint" style="font-family:inherit">usage personnel</span>' : r.pending ? pending : `${fmtIsk(r.profit)} (${fmtPct(r.pct)})`}</td>`}</tr>
+    </tbody></table>
+    <p class="hint" style="margin:0;padding:10px 24px">Profit = vente − (invention + matériaux + transport + jobs + taxes). Aujourd’hui « Mat. réel » (achats rattachés) n’y entre pas et le bouton « Appliquer » arrondit les matériaux au million supérieur.</p></div>`;
+}
+
+/* ---------- Ventes (proposition 1) ---------- */
+function renderSales() {
+  const sales = salesAt(), r = realProfit();
+  if (personal()) return `<div class="card p6 col"><h3 class="t">Usage personnel</h3><p class="muted" style="margin:0">Pas de vente pour ce projet : ni taxe ni profit, seulement le coût.</p></div>`;
+  const rows = sales.map(s => `<tr><td>${s.date}</td><td>${s.channel === 'contract' ? '<span class="badge sm b-violet">Contrat</span>' : '<span class="badge sm b-slate">Marché</span>'}</td><td class="r">${s.qty}</td><td class="r">${fmtIsk(s.unit)}</td><td class="r">${fmtIsk(s.qty * s.unit)}</td><td class="r">${s.channel === 'market' ? '−' + fmtIsk(s.qty * s.unit * (DATA.fees.broker + DATA.fees.tax) / 100) : '0'}</td><td class="wr">${s.venue}</td><td>${s.wallet ? '<span class="badge sm b-cyan">Wallet</span>' : '<span class="badge sm b-violet">Contrat ESI</span>'}</td></tr>`).join('');
+  const sugg = S.phase === 13 && !S.links.S2 ? `<div class="card flush hl2"><div class="card-h"><h3>Contrats terminés à rattacher</h3><span class="hint">vos contrats item exchange terminés contenant le produit, depuis le début des jobs</span></div>
+    <table class="t"><thead><tr><th>Date</th><th>Contrat</th><th class="r">Items</th><th class="r">Prix</th><th></th></tr></thead><tbody><tr><td>05/11 22:10</td><td>item exchange · acheteur Corp D</td><td class="r">20 Hammerhead II</td><td class="r">${fmtIsk(14960000)}</td><td><button class="btn em xs" data-act="link" data-arg="S2">Rattacher comme vente</button></td></tr></tbody></table></div>` : '';
+  const unsold = r.unsold && sales.length ? `<div class="banner amber">${svg(ICON.warn)}<div><b>Profit provisoire : ${r.unsold} Hammerhead II restent à vendre.</b> Au dernier prix de marché (${fmtIsk(sales.filter(s => s.channel === 'market').slice(-1)[0].unit)}), le profit projeté est de <span class="mono c-white">${fmtIsk(r.projProfit)} (${fmtPct(r.projPct)})</span>.</div></div>` : '';
+  const sold = PROJECT.runs - r.unsold;
+  const k = (label, val, sub, cls = 'c-s100') => `<div class="card soft"><p class="lab dim" style="margin:0 0 6px">${label}</p><p class="kpi mono ${cls}" style="margin:0">${val}</p><p class="hint2" style="margin:4px 0 0">${sub}</p></div>`;
+  const kpis = `<div class="g4">${k('Vendus', `${sold} / ${PROJECT.runs}`, `<span style="display:block;margin-top:4px">${pbar(sold / PROJECT.runs * 100)}</span>`, sold === PROJECT.runs ? 'c-em' : 'c-amber')}${k('Revenu', fmtIsk(r.revenue), `marché ${fmtIsk(r.market)} · contrats ${fmtIsk(r.revenue - r.market)}`)}${k('Taxes', fmtIsk(r.taxes), 'marché seulement')}${k(r.unsold ? 'Profit provisoire' : 'Profit', r.pending ? '<span class="hint">en attente</span>' : `${fmtIsk(r.profit)}`, r.pending ? 'aucune vente' : fmtPct(r.pct), r.profit !== null && r.profit < 0 ? 'c-red' : 'c-em')}</div>`;
+  return `<div class="prop"><div class="col" style="gap:16px;padding:4px">
+    ${kpis}${unsold}${sugg}
+    <div class="card flush"><div class="card-h"><div class="row"><h3>Ventes</h3>${ptag(1)}</div><button class="btn pri sm" data-act="modal" data-arg="sale">${svg(ICON.plus)}Enregistrer une vente</button></div>
+      ${sales.length ? `<table class="t"><thead><tr><th>Date</th><th>Canal</th><th class="r">Qté</th><th class="r">Prix unitaire</th><th class="r">Revenu</th><th class="r">Taxes</th><th>Lieu</th><th>Source</th></tr></thead><tbody>${rows}
+        <tr class="tot"><td colspan="4">Total · ${PROJECT.runs - r.unsold} / ${PROJECT.runs} vendus</td><td class="r">${fmtIsk(r.revenue)}</td><td class="r">−${fmtIsk(r.taxes)}</td><td colspan="2"></td></tr></tbody></table>`
+        : '<div class="col" style="align-items:center;padding:24px"><b class="c-s200">Aucune vente rattachée</b><span class="hint">Les ventes wallet du produit et vos contrats terminés depuis le début des jobs sont proposés ici.</span></div>'}
+      <p class="hint" style="margin:0;padding:10px 24px">Ordres de marché : frais de courtage ${fmtPct(DATA.fees.broker)} et taxe de vente ${fmtPct(DATA.fees.tax)} de vos réglages Frais. Contrat : ni taxe ni courtage ; frais réels du journal wallet (contract_brokers_fee, contract_sales_tax), inconnus tant qu’il n’est pas lu.</p></div></div></div>`;
+}
+function renderRecap() {
+  const r = realProfit();
+  const txt = `${PROJECT.name} — terminé le ${PROJECT.completed}
+Produit : ${PROJECT.runs} Hammerhead II (ME ${PROJECT.me} / TE ${PROJECT.te})
+Coûts : invention ${fmtFull(r.inv)} · matériaux ${fmtFull(r.mat)} · jobs ${fmtFull(r.jobs)} · taxes ${fmtFull(r.taxes)}
+Ventes : ${fmtFull(r.revenue)} (30 au marché, 20 par contrat)
+Profit : ${fmtFull(r.profit)} · marge ${fmtPct(r.pct, 2).replace(/<[^>]+>/g, '')}
+Référence : ${PROJECT_REF}`;
+  return `<div class="prop"><div class="card p5 col"><div class="row sb"><div class="row"><h3 class="t">Récapitulatif à partager</h3>${ptag(8)}</div><button class="btn ${S.recapCopied ? 'em' : 'sec'} sm" data-act="copy-recap">${svg(ICON.clip)}${S.recapCopied ? 'Copié' : 'Copier le texte'}</button></div><pre class="copyblock">${esc(txt)}</pre></div></div>`;
+}
+
+/* ---------- Slots (existant) ---------- */
+const SLOT_CHARS = () => [
+  { k: 'alpha', main: true, manuf: [jobState('final') === 'active' ? 5 : 0, 10], sci: [0, 5], jobs: jobState('final') === 'active' ? [['Hammerhead II', 'Fabrication', '10', 34, '3 h 02', PROJECT.structure]] : [] },
+  { k: 'alt', main: false, manuf: [2, S.state === 'skills_unknown' ? null : 6], sci: [1, S.state === 'skills_unknown' ? null : 4], jobs: [['Drake', 'Fabrication', '5', 64, '9 h 12', PROJECT.structure], ['Drake Blueprint', 'Copie', '5', 20, '22 h 40', PROJECT.structure]] }
+];
+function renderSlots() {
+  const chars = SLOT_CHARS();
+  const known = chars.filter(c => c.manuf[1] !== null);
+  const used = known.reduce((s, c) => s + c.manuf[0], 0), max = known.reduce((s, c) => s + c.manuf[1], 0);
+  const sciU = known.reduce((s, c) => s + c.sci[0], 0), sciM = known.reduce((s, c) => s + c.sci[1], 0);
+  const kpi = (label, u, m) => `<div class="card soft row" style="gap:12px">${ringPct(m ? u / m * 100 : 0)}<div><div class="lab dim">${label}</div><div class="mono c-s100" style="font-size:20px">${u}/${m}</div><div class="hint">${m && u / m >= .8 ? 'Utilisation élevée' : m && u / m >= .5 ? 'Utilisation modérée' : 'Utilisation faible'}</div></div></div>`;
+  return `${pills()}<div class="row sb"><h3 class="t">Suivi des Slots</h3><span class="hint">Dernière sync : 03/11 21:00 <button class="btn sec xs">Rafraîchir</button></span></div>
+    ${S.state === 'skills_unknown' ? `<div class="banner amber">${svg(ICON.warn)}<div><b>Partiel :</b> 1 personnage(s) aux compétences inconnues exclu(s). <button class="btn sec xs">Synchroniser les Skills</button></div></div>` : ''}
+    <div class="g3">${kpi('Slots Fabrication', used, max)}${kpi('Slots Réaction', 0, S.state === 'skills_unknown' ? 0 : 3)}${kpi('Slots Science', sciU, sciM)}</div>
+    <div class="col">${chars.map(c => `<div class="card flush"><div class="card-h"><div class="row">${who(c.k)}<span class="badge sm ${c.main ? 'b-cyan' : 'b-slate'}">${c.main ? 'Principal' : 'Alt'}</span></div><span class="hint">${c.manuf[0]}/${c.manuf[1] === null ? '<span class="unk">—</span>' : c.manuf[1]} Fabrication | ${c.sci[0]}/${c.sci[1] === null ? '<span class="unk">—</span>' : c.sci[1]} Science</span></div>
+      ${c.jobs.length ? `<table class="t"><thead><tr><th>Produit</th><th>Activité</th><th class="r">Runs</th><th>Progression</th><th>Temps restant</th></tr></thead><tbody>${c.jobs.map(j => `<tr><td>${j[0]}${c.k === 'alpha' ? ' <span class="hint">×5 jobs</span>' : ''}</td><td>${j[1]}</td><td class="r">${j[2]}</td><td><div class="row" style="gap:6px">${pbar(j[3])}<span class="mono">${j[3]} %</span></div></td><td class="mono">${j[4]}</td></tr>`).join('')}</tbody></table>` : '<div class="col" style="align-items:center;padding:16px"><span class="hint">Aucun job actif</span></div>'}
+      <p class="hint" style="margin:0;padding:8px 16px">${c.manuf[1] === null ? 'slots libres inconnus (compétences)' : `${c.manuf[1] - c.manuf[0]} slots fabrication libres · Construire`}</p></div>`).join('')}</div>
+    ${renderGantt(chars)}`;
+}
+function renderGantt(chars) {
+  const toH = t => { const m = t.match(/(\d+) h (\d+)/); return +m[1] + m[2] / 60; };
+  const jobs = chars.flatMap(c => c.jobs.map(j => ({ who: PEOPLE[c.k].char, name: j[0], act: j[1], left: toH(j[4]) }))).sort((a, b) => a.left - b.left);
+  if (!jobs.length) return '';
+  const ticks = [0, 12, 24, 36, 48, 60, 72];
+  return `<div class="card p5 col"><div class="row sb"><h3 class="t">Chronologie des Jobs</h3><span class="hint">Prochain slot libre dans <span class="mono c-s200">${jobs[0].left.toFixed(0)} h ${String(Math.round(jobs[0].left % 1 * 60)).padStart(2, '0')}</span></span></div>
+    ${jobs.map(j => `<div class="row" style="gap:10px"><span class="hint" style="width:220px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(j.who)} · ${j.name}</span><div class="gantt" style="flex:1"><i class="${j.act === 'Copie' ? 'sci' : ''}" style="left:0;width:${Math.min(100, j.left / 72 * 100)}%"></i></div><span class="mono hint" style="width:70px;text-align:right">${Math.floor(j.left)} h ${String(Math.round(j.left % 1 * 60)).padStart(2, '0')}</span></div>`).join('')}
+    <div class="row" style="gap:10px"><span style="width:220px"></span><div class="row sb" style="flex:1">${ticks.map(t => `<span class="hint mono">${t} h</span>`).join('')}</div><span style="width:70px"></span></div></div>`;
+}
+function ringPct(p) {
+  const r = 24, c = 2 * Math.PI * r;
+  return `<svg class="ring" viewBox="0 0 56 56"><circle class="bg" cx="28" cy="28" r="${r}"/><circle class="fg" cx="28" cy="28" r="${r}" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p / 100)}"/><text x="28" y="32" text-anchor="middle" font-size="12" fill="#e2e8f0" font-family="monospace">${Math.round(p)}%</text></svg>`;
+}
+
+/* ---------- Compagnon (proposition 6) ---------- */
+const CLOCK = { 10: 115200, 11: 162000 };
+const FINAL_END = 172920;
+function renderCompanionCard(size) {
+  const before = S.phase === 10;
+  const chars = SLOT_CHARS();
+  if (size === 'bar') return `<div class="cmpg bar"><span class="live"><i></i></span><div style="min-width:0;flex:1"><div style="font-weight:700">${esc(PROJECT.name)}</div><div class="hint">${before ? '0 job en cours · 1 achat manquant' : '5 jobs en cours · fin 04/11 00:02'} · ${chars[0].manuf[1] - chars[0].manuf[0]} slots libres</div></div>${before ? '<span class="cpill due">à déplacer</span>' : '<span class="mono c-cyan" data-end="' + FINAL_END + '">--:--:--</span>'}</div>`;
+  const next = before
+    ? `<div class="it"><span><span class="c-s200">Hammerhead II · 5 divisions × 10 runs</span><div class="hint c-amber">manque Particle Accelerator Unit ×50 (≈ ${fmtIsk(50 * 30900)})</div>${S.moved ? `<div class="hint c-em">50 Hammerhead I déplacés dans « ${esc(PROJECT.container)} » ✓</div>` : `<div class="hint c-amber">50 Hammerhead I dans le hangar de ${PROJECT.structure} : à déplacer vers « ${esc(PROJECT.container)} »</div>`}
+         <div class="row wrapf" style="gap:4px;margin-top:4px">${S.listed ? '<span class="badge sm b-em">dans la liste d’achats</span>' : '<button class="btn sec xs" data-act="cmp-list">Ajouter à la liste d’achats</button>'}${S.moved ? '' : '<button class="btn sec xs hl2" data-act="cmp-moved">C’est déplacé</button>'}<button class="btn ghost xs" data-hash="p=8">Voir l’étape</button></div></span><span class="badge sm b-amber">bloqué</span></div>
+       <div class="it"><span><span class="c-s200">Hammerhead I (BPC) · copie 50 runs</span><div class="hint">lançable · inutile si BPO ? à confirmer</div></span><span class="badge sm b-slate">lançable</span></div>`
+    : `<div class="hint">Rien d’autre à lancer : la copie Hammerhead I (BPC) reste inutile si l’on a le BPO.</div>`;
+  const running = before ? '<div class="hint">Aucun job en cours.</div>'
+    : `<div class="it"><span><span class="c-s200">Hammerhead II · 5 jobs × 10 runs</span><div class="hint">coût réel ${fmtIsk(DATA.divisions.length * DATA.jobCosts.final)} · fin 04/11 00:02 · sortie « ${esc(PROJECT.container)} »</div></span><span class="mono c-cyan" data-end="${FINAL_END}">--:--:--</span></div>`;
+  const alerts = before
+    ? `<div class="alertv">${svg(ICON.bell)}<div><b>Job terminé</b> · Hammerhead I ×50 · livré hors du container du projet ${ptag(4)}</div></div>`
+    : `<div class="alertv ok">${svg(ICON.ok)}<div><b>Achat rattaché</b> · Particle Accelerator Unit ×50 · ${fmtIsk(50 * 31200)}</div></div><div class="alertv info">${svg(ICON.bolt)}<div><b>5 jobs rattachés</b> · Hammerhead II, tout est lancé</div></div>`;
+  const slots = chars.map(c => `<div class="it"><span>${esc(PEOPLE[c.k].char)}</span><span class="mono">${c.manuf[1] === null ? '<span class="unk">inconnu</span>' : `${c.manuf[1] - c.manuf[0]} fab. libres`} · ${c.sci[1] === null ? '<span class="unk">inconnu</span>' : `${c.sci[1] - c.sci[0]} sci.`}</span></div>`).join('');
+  return `<div class="cmpg"><div class="row sb"><div style="min-width:0"><div style="font-weight:700;color:var(--s100);overflow-wrap:anywhere">${esc(PROJECT.name)}</div><div class="hint">${before ? 'mar. 03/11 08:00' : 'mar. 03/11 21:00'} · ${esc(PEOPLE.alpha.char)}</div></div><span class="live"><i></i>direct</span></div>
+    ${alerts}
+    <div class="sec"><div class="lab dim">Prochaines étapes</div>${next}</div>
+    <div class="sec"><div class="lab dim">Jobs en cours</div>${running}</div>
+    <div class="sec"><div class="lab dim">Slots libres</div>${slots}</div>
+    <div class="sec"><div class="lab dim">Autres projets actifs</div><div class="it"><span><span class="c-s200">Drake</span><div class="hint">${esc(PEOPLE.alt.char)} · 2 jobs en cours · fin dans 9 h 12</div></span><span class="badge sm b-cyan">Actif</span></div></div>
+    <p class="hint" style="margin:0">Alertes visuelles seulement, aucun son. « C’est déplacé » se revérifie à la sync des assets suivante.</p></div>`;
+}
+function renderCompanionPage() {
+  return `<div class="cmp-page2"><div class="col" style="width:100%;max-width:1200px"><div class="viewas">Compagnon solo · fenêtre détachée, toujours au-dessus du jeu · ${ptag(6)}</div>
+    <div class="game"><div class="game-h"><span>Fenêtre du jeu</span><span class="hint">client EVE Online, plein écran</span></div><div class="game-in"><span class="hint">le jeu reste au premier plan ; le compagnon flotte dans un coin</span></div><div class="game-cmp">${renderCompanionCard(S.size)}</div></div>
+    <div class="annot"><b>Maquette ·</b> une étape est « lançable » quand ses étapes amont sont livrées et ses matériaux en stock ou achetés ; sinon le compagnon dit ce qui manque. Le compte à rebours suit l’end_date des jobs rattachés ; les slots viennent du suivi existant.</div></div></div>`;
+}
+
+/* ---------- Modales ---------- */
+function modalShell(title, sub, body, foot, wide) {
+  return `<div class="ov"><div class="bk" data-act="close"></div><div class="panel ${wide ? 'wide' : ''}" role="dialog" aria-modal="true">
+    <div class="ph"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button class="x" data-act="close" aria-label="Fermer">${svg(ICON.x).replace('<svg', '<svg width="16" height="16"')}</button></div>
+    <div class="pb">${body}</div>${foot ? `<div class="pf">${foot}</div>` : ''}</div></div>`;
+}
+function renderCreateModal() {
+  return modalShell('Nouveau projet', null, `<div class="field"><label class="fl">Nom du projet (optionnel)</label><input class="input" value="${esc(PROJECT.name)}" placeholder="Ex: Flotte Rorqual, Build Capital..."></div>
+    <div class="field"><label class="fl">Produit *</label><div class="row" style="gap:8px"><input class="input" value="Hammerhead II"><span class="badge sm b-violet">T2</span></div></div>
+    <div class="g3"><div class="field"><label class="fl">Runs</label><input class="input mono" value="50"></div><div class="field"><label class="fl">ME</label><input class="input mono" value="2"></div><div class="field"><label class="fl">TE</label><input class="input mono" value="4"></div></div>
+    <p class="hint" style="margin:0">Multi-produit · Ajouter un produit</p>`, `<button class="btn sec" data-act="close">Annuler</button><button class="btn em" data-hash="p=4">Créer le projet</button>`);
+}
+function renderCompleteModal() {
+  const r = realProfit();
+  const check = (ok, txt) => `<div class="check"><span class="ic ${ok ? 'ok' : 'ko'}">${ok ? '✓' : '!'}</span><span>${txt}</span></div>`;
+  return modalShell('Terminer le projet', null, `<p class="muted" style="margin:0">Le projet passe en lecture seule : étapes, coûts, nom et date de début. Il reste réactivable.</p>
+    <div class="col" style="gap:0"><div>${ptag(8)}</div>
+      ${check(true, '6 étapes de production livrées (ESI)')}
+      ${check(false, '1 étape jamais lancée : Hammerhead I (BPC), copie · fabriqué depuis le BPO ?')}
+      ${check(r.unsold === 0, r.unsold === 0 ? `Tout est vendu : ${PROJECT.runs} / ${PROJECT.runs} Hammerhead II` : `${r.unsold} Hammerhead II invendus`)}
+      ${check(r.costs !== null, 'Aucun coût inconnu')}
+      ${check(true, `Profit ${fmtIsk(r.profit)} (${fmtPct(r.pct)})`)}</div>`,
+    `<button class="btn sec" data-act="close">Annuler</button><button class="btn em" data-hash="p=17">Terminer le projet</button>`);
+}
+function renderGroupModal() {
+  return modalShell('Ouvrir à ma corpo', 'Crée un projet de groupe à partir de ce projet solo', `
+    <div class="g2"><div class="field"><label class="fl">Nom du projet de groupe</label><input class="input" value="${esc(PROJECT.name)}"></div><div class="field"><label class="fl">Container corp</label><input class="input" value="${esc(PROJECT.container)}"></div></div>
+    <table class="t"><thead><tr><th>Item</th><th class="r">ME</th><th class="r">TE</th><th class="r">Runs</th></tr></thead><tbody><tr><td>Hammerhead II</td><td class="r">2</td><td class="r">4</td><td class="r">50</td></tr></tbody></table>
+    <p class="hint" style="margin:0">Liste noire reprise de vos réglages : Advanced Components, Tools (R.A.M.). La BOM de groupe est recalculée (feuilles, prix Jita figés à la création).</p>
+    <div class="banner amber">${svg(ICON.warn)}<div><b>À trancher.</b> Ce qui est déjà fait sur le projet solo (jobs, achats rattachés) ne passe pas dans le groupe : le projet de groupe démarre de zéro et le projet solo reste, avec un lien vers lui. Autre option : ne proposer le bouton qu’avant le premier job.</div></div>
+    <div>${ptag(9)}</div>`, `<button class="btn sec" data-act="close">Annuler</button><button class="btn pri" data-act="close">Créer le projet de groupe</button>`, true);
+}
+function renderSaleModal() {
+  const contract = S.saleChannel !== 'market';
+  return modalShell('Enregistrer une vente', esc(PROJECT.name), `
+    <div class="field"><label class="fl">Canal ${ptag(1)}</label><div class="radio"><label class="${contract ? '' : 'on'}" data-act="sale-channel" data-arg="market">Ordre de marché</label><label class="${contract ? 'on' : ''}" data-act="sale-channel" data-arg="contract">Contrat (item exchange)</label></div></div>
+    <div class="g2"><div class="field"><label class="fl">Quantité</label><input class="input mono" value="20"></div><div class="field"><label class="fl">${contract ? 'Prix du contrat (ISK)' : 'Prix unitaire (ISK)'}</label><input class="input mono" value="${contract ? '14 960 000' : '748 000'}"></div></div>
+    ${contract ? `<div class="field"><label class="fl">Contrat ESI</label><select class="input"><option>Contrat item exchange terminé · 20 Hammerhead II · 14,96 M · acheteur Corp D · 06/11</option><option>Aucun, saisie libre</option></select></div>
+      <div class="banner cyan">${svg(ICON.ok)}<div><b>Pas de taxe de vente ni de frais de courtage sur un contrat.</b> Frais réels du contrat lus dans le journal wallet ; inconnus tant qu’il n’est pas lu, jamais 0.</div></div>`
+      : `<p class="hint" style="margin:0">Frais de courtage ${fmtPct(DATA.fees.broker)} et taxe de vente ${fmtPct(DATA.fees.tax)} de vos réglages Frais.</p>`}`,
+    `<button class="btn sec" data-act="close">Annuler</button><button class="btn pri" data-act="close">Enregistrer</button>`, true);
+}
+function renderModal() {
+  const el = document.getElementById('modal');
+  const m = { create: renderCreateModal, complete: renderCompleteModal, group: renderGroupModal, sale: renderSaleModal }[S.modal];
+  el.innerHTML = m && S.view !== 'companion' && !(S.real && ['complete', 'group', 'sale'].includes(S.modal)) ? m() : '';
+}
+
+/* ---------- Rendu ---------- */
+function render() {
+  document.body.classList.toggle('long', S.longNames);
+  renderMockbar();
+  document.documentElement.style.setProperty('--mbh', document.getElementById('mockbar').offsetHeight + 'px');
+  const root = document.getElementById('root');
+  if (S.view === 'companion') root.innerHTML = renderCompanionPage();
+  else root.innerHTML = renderShell({ dashboard: renderDashboard, projects: renderProjects, slots: renderSlots, detail: renderDetail }[S.view]());
+  renderModal();
+  updateClocks();
+}
+function toast(msg) {
+  const box = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast success';
+  t.innerHTML = `${svg(ICON.ok)}<span>${msg}</span>`;
+  box.appendChild(t);
+  while (box.children.length > 3) box.firstChild.remove();
+  setTimeout(() => t.remove(), 6000);
+}
+let tickStart = Date.now();
+function clockTxt(sec) { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return [h, m, s].map(v => String(v).padStart(2, '0')).join(':'); }
+function updateClocks() {
+  const now = (CLOCK[S.phase] ?? CLOCK[11]) + (Date.now() - tickStart) / 1000;
+  document.querySelectorAll('[data-end]').forEach(el => { const left = parseFloat(el.dataset.end) - now; el.textContent = left > 0 ? 'dans ' + clockTxt(left) : 'terminé'; });
+}
+setInterval(updateClocks, 1000);
+
+function applyHash() {
+  const params = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const keep = S ? { specOpen: S.specOpen, auditOpen: S.auditOpen } : { specOpen: false, auditOpen: false };
+  S = baseState();
+  tickStart = Date.now();
+  Object.assign(S, keep);
+  if (params.get('spec') === '1') S.specOpen = true;
+  if (params.get('audit') === '1') S.auditOpen = true;
+  S.longNames = params.get('long') === '1';
+  S.real = params.get('real') === '1';
+  applyNames(S.longNames);
+  const p = parseInt(params.get('p') || '0', 10);
+  if (p) applyStep(Math.min(LAST_STEP, Math.max(1, p)));
+  const v = params.get('v');
+  if (v) { S.view = v; if (v !== 'detail') S.modal = null; if (!p) S.step = 0; }
+  if (params.get('tab')) { S.tab = params.get('tab'); if (S.created) S.view = 'detail'; }
+  if (params.get('size')) S.size = params.get('size');
+  if (params.get('s')) S.state = params.get('s');
+  if (params.get('modal')) S.modal = params.get('modal') === 'none' ? null : params.get('modal');
+  render();
+  window.scrollTo(0, 0);
+}
+function go(hash) { if (location.hash === '#' + hash) applyHash(); else location.hash = hash; }
+function setParam(k, v) { const params = new URLSearchParams(location.hash.replace(/^#/, '')); if (v === null) params.delete(k); else params.set(k, v); go(params.toString()); }
+
+function onClick(e) {
+  const h = e.target.closest('[data-hash]');
+  if (h && !h.disabled) { go(h.dataset.hash); return; }
+  const a = e.target.closest('[data-act]');
+  if (!a || a.disabled) return;
+  const act = a.dataset.act, arg = a.dataset.arg;
+  if (act === 'state') return;
+  switch (act) {
+    case 'tour-start': go('p=1'); break;
+    case 'tour-next': go('p=' + Math.min(LAST_STEP, (S.step || 0) + 1)); break;
+    case 'tour-prev': go('p=' + Math.max(1, S.step - 1)); break;
+    case 'spec-toggle': S.specOpen = !S.specOpen; render(); break;
+    case 'audit-toggle': S.auditOpen = !S.auditOpen; render(); break;
+    case 'real': setParam('real', S.real ? null : '1'); break;
+    case 'long-names': setParam('long', S.longNames ? null : '1'); break;
+    case 'tab': if (!S.created) { go('p=15&tab=' + arg); } else { S.view = 'detail'; S.tab = arg; render(); } break;
+    case 'close': S.modal = null; render(); break;
+    case 'modal': S.modal = arg; render(); break;
+    case 'esi-panel': S.esiPanel = !S.esiPanel; render(); break;
+    case 'list-mode': S.listMode = arg; render(); break;
+    case 'toggle-group': S.expanded[arg] = S.expanded[arg] === false; render(); break;
+    case 'calc': S.calc = arg; render(); break;
+    case 'cmp-moved': S.moved = true; render(); break;
+    case 'cmp-list': S.listed = true; render(); break;
+    case 'link': S.links[arg] = true; render(); toast(arg.startsWith('S') ? 'Contrat rattaché comme vente · sans taxe' : 'Achat rattaché au projet'); break;
+    case 'link-all': DATA.purchases.filter(p => p.id !== 'P5' || S.phase >= 11).forEach(p => { S.links[p.id] = true; }); render(); toast('Achats rattachés au projet'); break;
+    case 'sale-channel': S.saleChannel = arg; render(); break;
+    case 'copy-recap': S.recapCopied = true; render(); toast('Récapitulatif copié'); break;
+  }
+}
+function onChange(e) {
+  const a = e.target.closest('[data-act]');
+  if (a && a.dataset.act === 'state') setParam('s', a.value === 'normal' ? null : a.value);
+}
+document.addEventListener('click', onClick);
+document.addEventListener('change', onChange);
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, select')) return;
+  if (e.key === 'ArrowRight' && S.step < LAST_STEP) go('p=' + ((S.step || 0) + 1));
+  if (e.key === 'ArrowLeft' && S.step > 1) go('p=' + (S.step - 1));
+  if (e.key === 'Escape' && S.modal) { S.modal = null; render(); }
+});
+window.addEventListener('hashchange', applyHash);
+applyHash();
+</script>
+</body>
+</html>

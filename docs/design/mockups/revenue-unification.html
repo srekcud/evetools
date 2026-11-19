@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unification des revenus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script>
+tailwind.config = { theme: { extend: { fontFamily: { display: ['Rajdhani', 'sans-serif'], mono: ['"Share Tech Mono"', 'monospace'] } } } }
+</script>
+<style>
+  :root { color-scheme: dark; }
+  body { background: #020617; font-family: Rajdhani, sans-serif; }
+  .hud-hex { clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+  .hud-frame { position: relative; background: linear-gradient(180deg, rgba(15,23,42,.85), rgba(2,6,23,.85)); border: 1px solid rgba(34,211,238,.14); }
+  .hud-frame::before, .hud-frame::after { content: ''; position: absolute; width: 14px; height: 14px; border-color: #22d3ee; pointer-events: none; }
+  .hud-frame::before { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+  .hud-frame::after { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; }
+  .hud-label { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #64748b; }
+  .tag-new, .tag-moved { position: relative; }
+  .tag-new { outline: 1px dashed #f59e0b; outline-offset: 3px; }
+  .tag-moved { outline: 1px dashed #22d3ee; outline-offset: 3px; }
+  .tag-new::after, .tag-moved::after {
+    position: absolute; top: -9px; right: 6px; font: 600 10px/1 'Share Tech Mono', monospace;
+    padding: 2px 5px; letter-spacing: .06em; z-index: 5; white-space: nowrap;
+  }
+  .tag-new::after { content: attr(data-tag); background: #f59e0b; color: #0f172a; }
+  .tag-moved::after { content: attr(data-tag); background: #22d3ee; color: #0f172a; }
+  .strike { text-decoration: line-through; opacity: .45; }
+  .flux-band { transition: fill-opacity .15s; }
+  .flux-band:hover { fill-opacity: .7; }
+</style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+<div class="sticky top-0 z-50 border-b border-amber-500/30 bg-slate-950/95 backdrop-blur px-4 py-3">
+  <div class="flex flex-wrap items-center gap-3">
+    <span class="font-mono text-xs text-amber-400 uppercase tracking-widest">Maquette · revenus · option C retenue</span>
+    <div id="optionSwitch" class="flex rounded-md border border-slate-700 overflow-hidden"></div>
+    <div id="pageSwitch" class="flex flex-wrap gap-1.5"></div>
+    <div class="ml-auto flex items-center gap-3 font-mono text-[11px] text-slate-400">
+      <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 border border-dashed border-amber-500"></span>nouveau</span>
+      <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 border border-dashed border-cyan-400"></span>déplacé / renommé</span>
+      <span>valeurs fictives</span>
+    </div>
+  </div>
+  <p id="notes" class="mt-2 text-sm text-slate-300 max-w-6xl"></p>
+</div>
+
+<div class="flex min-h-screen">
+  <aside class="hidden md:flex w-60 shrink-0 bg-slate-950/95 border-r border-slate-800 flex-col">
+    <div class="h-14 px-4 flex items-center gap-3 border-b border-slate-800">
+      <div class="hud-hex w-8 h-8 grid place-items-center bg-gradient-to-br from-cyan-300 to-blue-600 text-slate-950 font-bold text-sm">ET</div>
+      <h1 class="font-bold text-lg uppercase tracking-[0.14em] text-slate-100">EVE <span class="text-cyan-400">Tools</span></h1>
+    </div>
+    <nav id="sidebar" class="flex-1 px-3 py-4 space-y-0.5"></nav>
+    <div class="px-4 py-3 border-t border-slate-800 flex justify-between font-mono text-xs text-slate-400">
+      <span>v0.22 · Notes de version</span><span>Aide</span>
+    </div>
+  </aside>
+
+  <main class="flex-1 min-w-0">
+    <header class="h-14 border-b border-slate-800 bg-slate-950/90 px-4 md:px-6 flex items-center gap-3">
+      <h2 id="pageTitle" class="min-w-0 truncate font-bold uppercase tracking-[0.08em] text-lg text-slate-100"></h2>
+      <div class="ml-auto hidden sm:flex h-9 w-72 max-w-full items-center px-2.5 rounded-md border border-slate-700 bg-slate-900/70 text-sm text-slate-400">Rechercher… <span class="ml-auto font-mono text-xs">Ctrl K</span></div>
+    </header>
+    <div id="content" class="p-4 md:p-6 max-w-[1400px]"></div>
+  </main>
+</div>
+
+<script>
+const ICONS = {"dashboard": "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6", "industry": "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z", "mining": "M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9", "pve": "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z", "planetary": "M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9", "commerce": "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z", "patrimoine": "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4", "account": "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z", "admin": "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"};
+
+const SIDEBAR = [
+  ['dashboard', 'Accueil'], ['industry', 'Industrie'], ['mining', 'Minage'], ['pve', 'PVE'],
+  ['planetary', 'Planétaire'], ['commerce', 'Commerce'], ['patrimoine', 'Patrimoine'], ['account', 'Compte'], ['admin', 'Administration'],
+];
+
+const C = { pve: '#22d3ee', mining: '#f59e0b', industry: '#34d399', pi: '#a78bfa', loss: '#f87171', unknown: '#94a3b8' };
+
+const state = { option: 'C', page: 'balance', filter: 'all', days: 30 };
+
+const PAGES = {
+  A: [
+    { id: 'balance', label: 'Patrimoine › Bilan', module: 'patrimoine' },
+    { id: 'pve', label: 'PVE › Revenus', module: 'pve' },
+    { id: 'mining', label: 'Minage › Revenus', module: 'mining' },
+    { id: 'industry', label: 'Industrie › Revenus', module: 'industry' },
+  ],
+  C: [
+    { id: 'balance', label: 'Patrimoine › Bilan', module: 'patrimoine' },
+    { id: 'pve', label: 'PVE › Revenus', module: 'pve' },
+    { id: 'mining', label: 'Minage › Revenus', module: 'mining' },
+    { id: 'industry', label: 'Industrie › Revenus', module: 'industry' },
+  ],
+  B: [
+    { id: 'revenue', label: 'Patrimoine › Revenus', module: 'patrimoine' },
+    { id: 'modules', label: 'Effet sur les modules', module: 'pve' },
+  ],
+};
+
+const NOTES = {
+  'A:balance': "Option A · Bilan. Une grille, comme l'overview : un personnage par ligne, une activité par colonne, la teinte donne le poids. On lit en ligne (qui rapporte quoi), en colonne (quelle activité pèse) et en bas (écart avec la période précédente). La bande d'activité montre la régularité jour par jour. Les pastilles renvoient à « À traiter ». Clic sur une colonne = la page Revenus du module.",
+  'A:pve': "Option A · PVE › Revenus. Même grille, colonnes = sources PVE, dépenses en rouge. La ligne d'un personnage ici a le même net que sa case PVE du Bilan. Les pastilles d'en-tête signalent un problème qui touche toute la colonne (scan pas fait).",
+  'A:mining': "Option A · Minage › Revenus (ex « Mon minage »). Colonnes = ce qu'est devenu le minerai. « Non catégorisé » est hachuré et hors du net : la pastille mène à l'action.",
+  'A:industry': "Option A · Industrie › Revenus (nouvel onglet, contenu déplacé de Bilan › Industrie). Une ligne par produit, colonnes = ventes moins coûts, profit en net. [À VÉRIFIER : le profit réel expose-t-il cette ventilation, ou seulement le total ?] Les projets à profit inconnu restent une ligne hachurée, hors des totaux.",
+  'B:revenue': "Option B. Une page « Revenus » dans Patrimoine, filtre d'activité. « Toutes » = la grille du Bilan ; un filtre montre la grille du module. Clic sur une colonne = filtre.",
+  'C:balance': "Option C · Bilan. Même place que A, mais une seule ligne pour tout le compte : 1 ou 2 mains font l'essentiel, les alts ne servent qu'à une tâche, une ligne par personnage serait du bruit. Sous chaque activité : l'écart, la régularité, et qui y contribue (les 2 premiers nommés, le reste groupé en « +N persos », détail au survol).",
+  'C:pve': "Option C · PVE › Revenus. Une ligne, colonnes = sources. Les contributeurs remplacent les lignes par personnage.",
+  'C:mining': "Option C · Minage › Revenus. Une ligne, colonnes = usage du minerai. Les alts de minage apparaissent dans les contributeurs, pas comme lignes.",
+  'C:industry': "Option C · Industrie › Revenus. Une ligne, colonnes = ventes moins coûts. Ici la répartition se fait par produit (un projet appartient au compte). [À VÉRIFIER : ventilation disponible dans le profit réel ?]",
+  'B:modules': "Option B, effet sur les modules : les pages de revenus quittent PVE, Minage et le Bilan. Le module PVE n'a plus qu'un onglet. La grille reste identique à l'option A, seule sa place change.",
+};
+
+const LONG_CHAR = 'Commandant Aurelius Vandermeer-Okonkwo';
+const LONG_CHAR_2 = 'Xylia Thornfield of the Outer Ring';
+const LONG_CHAR_3 = 'Dex Halloran';
+
+function seeded(seed) { let s = seed; return () => (s = (s * 9301 + 49297) % 233280) / 233280; }
+function isk(v, unit = true) {
+  const a = Math.abs(v);
+  const s = a >= 1e9 ? (a / 1e9).toFixed(2) + ' B' : a >= 1e6 ? (a / 1e6).toFixed(0) + ' M' : a >= 1e3 ? (a / 1e3).toFixed(0) + ' k' : a.toFixed(0);
+  return (v < 0 ? '-' : '') + s + (unit ? ' ISK' : '');
+}
+function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a.toFixed(3)})`; }
+function icon(path, cls = 'w-[18px] h-[18px]') {
+  return `<svg class="${cls} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="${path}"/></svg>`;
+}
+function tag(kind, label) { return kind ? `tag-${kind}" data-tag="${label}` : ''; }
+
+function tabBar(tabs, activeId, opts = {}) {
+  const items = tabs.map(t => {
+    const active = t.id === activeId;
+    const cls = active ? 'border-cyan-400 text-cyan-300' : 'border-transparent text-slate-400 hover:text-slate-200';
+    const label = t.gone ? `<span class="strike">${t.label}</span>` : `<span class="truncate">${t.label}</span>`;
+    return `<a class="flex min-w-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-semibold uppercase tracking-wider ${cls} ${t.tag ? tag(t.tag[0], t.tag[1]) : ''}">${label}</a>`;
+  }).join('');
+  const settings = opts.settings ? `<a class="ml-auto flex shrink-0 items-center gap-1.5 border-b-2 border-transparent px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-400 ${opts.settingsNew ? tag('new', 'NOUVEAU') : ''}">${icon(ICONS.admin || '', 'w-4 h-4')}<span class="hidden sm:inline">Réglages</span></a>` : '';
+  return `<nav class="flex min-w-0 flex-wrap border-b border-slate-800 mb-6">${items}${settings}</nav>`;
+}
+
+function subTabs(tabs, activeId) {
+  return `<div class="mb-6 flex flex-wrap gap-x-6 border-b border-slate-800 ${tag('new', 'SOUS-ONGLETS COMMUNS')}">${tabs.map(t => `<button class="border-b-2 px-1 pb-3 text-base font-semibold tracking-wide ${t.id === activeId ? 'border-cyan-400 text-slate-50' : 'border-transparent text-slate-400'}">${t.label}</button>`).join('')}</div>`;
+}
+
+function periodSelector() {
+  const opts = [7, 14, 30, 60, 90].map(d => [d, `${d} jours`]).concat([[320, 'YTD'], [999, 'Tout']]);
+  return `<div class="flex flex-wrap items-center gap-1 rounded-lg bg-slate-900 p-1 w-fit max-w-full" role="group" aria-label="Periode">${opts.map(([d, l]) => `<button data-days="${d}" class="px-3 py-1.5 rounded-md text-sm font-medium ${state.days === d ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'}">${l}</button>`).join('')}</div>`;
+}
+
+function pageHeader(subtitle, lastSync, actions = '') {
+  return `
+  <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+    <div class="min-w-0"><p class="text-slate-400">${subtitle}</p>${lastSync ? `<p class="text-xs text-slate-500 mt-1">${lastSync}</p>` : ''}</div>
+    ${periodSelector()}
+  </div>
+  ${actions ? `<div class="flex flex-wrap gap-2 mb-6">${actions}</div>` : ''}`;
+}
+
+function btn(label, kind = 'secondary') {
+  const cls = { primary: 'bg-cyan-600 hover:bg-cyan-500 text-white', secondary: 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300', sync: 'bg-emerald-600 hover:bg-emerald-500 text-white' }[kind];
+  return `<button class="px-3.5 py-2 rounded-lg text-sm font-medium ${cls}">${label}</button>`;
+}
+
+const HATCH = 'repeating-linear-gradient(45deg,rgba(148,163,184,.28) 0 2px,transparent 2px 6px)';
+
+function stripBuckets() {
+  if (state.days <= 30) return { count: state.days, unit: 'j' };
+  return { count: Math.min(Math.ceil(state.days / 7), 52), unit: 'sem.' };
+}
+
+function activityStrip(seed, density, color) {
+  const { count, unit } = stripBuckets();
+  const rand = seeded(seed);
+  const cells = Array.from({ length: count }, () => (rand() < density ? 0.25 + rand() * 0.75 : 0));
+  const active = cells.filter(v => v > 0).length;
+  const squares = cells.map(v => `<span class="inline-block w-[6px] h-4" style="background:${v ? hexA(color, v) : 'rgba(51,65,85,.35)'}"></span>`).join('');
+  return `<div class="flex items-center gap-2"><div class="flex gap-px">${squares}</div><span class="font-mono text-[11px] text-slate-400 w-16">${active}/${count} ${unit}</span></div>`;
+}
+
+function alertBadge(n) {
+  return `<span class="absolute -top-1.5 -right-1.5 grid place-items-center w-4 h-4 rounded-full bg-amber-500 text-slate-900 font-mono text-[10px] leading-none z-10">${n}</span>`;
+}
+
+function deltaText(delta) {
+  if (delta === null || delta === undefined) return '<span class="text-slate-500">—</span>';
+  if (delta === 'est') return '<span class="text-violet-300">estim.</span>';
+  return `<span class="${delta >= 0 ? 'text-emerald-400' : 'text-red-400'}">${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)} %</span>`;
+}
+
+function columnLink(col, linkMode) {
+  if (!col.target || !linkMode) return '';
+  return linkMode === 'filter' ? `data-filter="${col.target}"` : `data-page="${col.target}"`;
+}
+
+function matrix(spec) {
+  const cols = spec.columns;
+  const counted = cols.filter(c => c.kind !== 'unknown');
+  const rows = spec.rows.map(r => ({
+    ...r,
+    net: r.unknown ? null : counted.reduce((s, c) => s + (r.cells[c.id] || 0), 0),
+    hasEstimate: cols.some(c => c.kind === 'estimate' && r.cells[c.id]),
+  }));
+  const known = rows.filter(r => !r.unknown);
+  const totals = Object.fromEntries(cols.map(c => [c.id, known.reduce((s, r) => s + (r.cells[c.id] || 0), 0)]));
+  const totalNet = known.reduce((s, r) => s + r.net, 0);
+  const maxCell = Math.max(...known.flatMap(r => counted.map(c => Math.abs(r.cells[c.id] || 0))));
+  const maxNet = Math.max(...known.map(r => Math.abs(r.net)));
+
+  const head = cols.map(c => `
+    <th class="px-1 pb-2 align-bottom font-normal">
+      <a ${columnLink(c, spec.linkMode)} class="relative flex flex-col items-end gap-1 px-2 ${c.target && spec.linkMode ? 'cursor-pointer hover:text-slate-100' : ''}" title="${c.target && spec.linkMode ? (spec.linkMode === 'filter' ? 'Filtrer sur ' : 'Ouvrir ') + c.label : c.label}">
+        ${c.alert ? alertBadge(c.alert) : ''}
+        <span class="hud-label !text-slate-300 whitespace-nowrap">${c.label}</span>
+        <span class="block h-[3px] w-full" style="${c.kind === 'unknown' ? `background:${HATCH}` : c.kind === 'estimate' ? `border-top:2px dashed ${c.color}` : `background:${c.color}`}"></span>
+      </a>
+    </th>`).join('');
+
+  const cell = (r, c) => {
+    const v = r.cells[c.id];
+    const alert = r.alerts && r.alerts[c.id];
+    if (r.unknown) return `<td class="p-1 min-w-[6.5rem]"><div class="h-11 grid place-items-center font-mono text-slate-500" style="background:${HATCH}">?</div></td>`;
+    if (!v && !alert) return `<td class="p-1 min-w-[6.5rem]"><div class="h-11 grid place-items-center font-mono text-slate-700">·</div></td>`;
+    const ratio = Math.abs(v || 0) / maxCell;
+    let style; let text = v ? isk(v, false) : '—'; let textCls = 'text-slate-100';
+    if (c.kind === 'unknown') { style = `background:${HATCH}`; textCls = 'text-slate-400'; }
+    else if (c.kind === 'estimate') { style = `background:${hexA(c.color, 0.06 + 0.4 * ratio)};outline:1px dashed ${hexA(c.color, 0.7)};outline-offset:-1px`; text = '~' + text; textCls = 'text-violet-100'; }
+    else if (v < 0) { style = `background:${hexA(C.loss, 0.06 + 0.45 * ratio)}`; textCls = 'text-red-300'; }
+    else style = `background:${hexA(c.color, 0.06 + 0.55 * ratio)}`;
+    const tip = `${r.name} · ${c.label} : ${v ? isk(v) : 'non valorisé'}${c.kind === 'unknown' ? ' (hors du net)' : c.kind === 'estimate' ? ' (estimation)' : ''}`;
+    return `<td class="p-1 min-w-[6.5rem]"><div class="relative h-11 px-3 flex items-center justify-end font-mono text-[15px] ${textCls}" style="${style}" title="${tip}">${alert ? alertBadge(alert) : ''}${text}</div></td>`;
+  };
+
+  const body = rows.map(r => `
+    <tr class="${r.unknown ? 'opacity-80' : ''}">
+      <th class="py-1 pr-3 text-left font-semibold"><div class="flex items-center gap-2 min-w-0">${r.portrait === false ? '' : `<span class="w-7 h-7 shrink-0 bg-slate-800 border border-slate-700 grid place-items-center text-[10px] text-slate-500 font-mono">${r.portrait || 'IMG'}</span>`}<span class="truncate max-w-[15rem] ${r.unknown ? 'text-slate-400 italic' : 'text-slate-100'}" title="${r.name}">${r.name}</span>${r.alertRow ? `<span class="relative w-4 h-4 shrink-0">${alertBadge(r.alertRow).replace('absolute -top-1.5 -right-1.5', 'absolute inset-0')}</span>` : ''}</div></th>
+      ${cols.map(c => cell(r, c)).join('')}
+      <td class="p-1 pl-3 border-l border-slate-700/70"><div class="flex items-center gap-2 h-11">
+        ${r.unknown ? '<span class="font-mono text-slate-500">inconnu</span>' : `<div class="h-1.5 w-20 bg-slate-800 shrink-0"><div class="h-full bg-slate-200" style="width:${Math.abs(r.net) / maxNet * 100}%"></div></div><span class="font-mono text-[15px] font-semibold ${r.net < 0 ? 'text-red-400' : 'text-slate-50'}">${r.hasEstimate ? '~' : ''}${isk(r.net, false)}</span>`}
+      </div></td>
+      <td class="p-1 px-3 text-right font-mono text-sm">${r.unknown ? '' : deltaText(r.delta)}</td>
+      <td class="p-1 pl-3">${r.unknown ? '' : activityStrip(r.seed, r.density, r.stripColor || '#22d3ee')}</td>
+    </tr>`).join('');
+
+  const totalRow = `
+    <tr class="border-t border-slate-600">
+      <th class="pt-2 pr-3 text-left hud-label">Total</th>
+      ${cols.map(c => `<td class="pt-2 px-3 text-right font-mono ${c.kind === 'unknown' ? 'text-slate-500' : totals[c.id] < 0 ? 'text-red-300' : 'text-slate-200'}">${totals[c.id] ? (c.kind === 'estimate' ? '~' : '') + isk(totals[c.id], false) : '·'}</td>`).join('')}
+      <td class="pt-2 pl-3 border-l border-slate-700/70 font-mono text-base font-semibold text-slate-50">${counted.some(c => c.kind === 'estimate') ? '~' : ''}${isk(totalNet, false)}</td>
+      <td class="pt-2 px-3 text-right font-mono text-sm">${deltaText(spec.totalDelta)}</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th class="pt-1 pr-3 text-left hud-label">vs ${state.days >= 320 ? 'période préc.' : state.days + ' j préc.'}</th>
+      ${cols.map(c => `<td class="pt-1 px-3 text-right font-mono text-xs">${c.kind === 'unknown' ? '' : deltaText(c.delta)}</td>`).join('')}
+      <td class="border-l border-slate-700/70"></td><td></td><td></td>
+    </tr>`;
+
+  return `<div class="mb-6 ${spec.tag ? tag(spec.tag[0], spec.tag[1]) : ''}"><section class="hud-frame p-4 md:p-5">
+    <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3"><h3 class="hud-label">${spec.title}</h3>${spec.right || ''}</div>
+    <div class="overflow-x-auto"><table class="border-separate border-spacing-0 whitespace-nowrap">
+      <thead><tr>
+        <th class="pb-2 pr-3 text-left align-bottom hud-label font-normal">${spec.rowLabel}</th>${head}
+        <th class="pb-2 pl-3 text-left align-bottom hud-label font-normal border-l border-slate-700/70">${spec.netLabel || 'Net'}</th>
+        <th class="pb-2 px-3 text-right align-bottom hud-label font-normal">Écart</th>
+        <th class="pb-2 pl-3 text-left align-bottom hud-label font-normal">Régularité · par ${stripBuckets().unit === 'j' ? 'jour' : 'semaine'}</th>
+      </tr></thead>
+      <tbody>${body}${totalRow}</tbody>
+    </table></div>
+    ${matrixLegend(spec)}
+  </section></div>`;
+}
+
+function matrixLegend(spec) {
+  const items = [
+    `<span class="flex items-center gap-1.5"><span class="inline-block w-10 h-3" style="background:linear-gradient(90deg,${hexA('#22d3ee', .08)},${hexA('#22d3ee', .6)})"></span>teinte = poids</span>`,
+    spec.columns.some(c => c.kind === 'estimate') ? `<span class="flex items-center gap-1.5"><span class="inline-block w-5 h-3 border border-dashed border-violet-400 bg-violet-400/15"></span>~ estimation</span>` : '',
+    spec.columns.some(c => c.kind === 'unknown') || spec.rows.some(r => r.unknown) ? `<span class="flex items-center gap-1.5"><span class="inline-block w-5 h-3" style="background:${HATCH}"></span>non valorisé, hors du net</span>` : '',
+    `<span class="flex items-center gap-1.5"><span class="inline-grid place-items-center w-4 h-4 rounded-full bg-amber-500 text-slate-900 text-[10px]">1</span>à traiter</span>`,
+    spec.footnote ? `<span class="text-slate-500">${spec.footnote}</span>` : '',
+  ];
+  return `<div class="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11px] text-slate-400 mt-3">${items.join('')}</div>`;
+}
+
+function todoPanel(items) {
+  return `<div class="mb-6 ${tag('new', 'ACTIONNABLE')}"><section class="hud-frame p-4 md:p-5">
+    <h3 class="hud-label mb-3">À traiter · fausse les chiffres</h3>
+    <ul class="grid gap-x-6 gap-y-2 lg:grid-cols-2">${items.map((it, i) => `
+      <li class="flex items-start gap-3 border-l-2 border-amber-500/60 pl-3 py-1">
+        <span class="mt-0.5 inline-grid place-items-center w-5 h-5 shrink-0 rounded-full bg-amber-500 text-slate-900 font-mono text-xs">${i + 1}</span>
+        <div class="min-w-0 flex-1"><p class="text-sm text-slate-100">${it.text}</p><p class="text-xs text-slate-500">${it.effect}</p></div>
+        <button class="shrink-0 px-2.5 py-1 rounded border border-cyan-500/40 text-xs font-semibold uppercase tracking-wider text-cyan-300 hover:bg-cyan-500/10">${it.action}</button>
+      </li>`).join('')}</ul>
+  </section></div>`;
+}
+
+const PVE_ROWS = [
+  { name: LONG_CHAR, cells: { bounty: 520e6, ess: 60e6, loot: 120e6, esc: 250e6, spend: -108e6 }, delta: 18, seed: 21, density: .8 },
+  { name: LONG_CHAR_2, cells: { bounty: 262e6, ess: 36e6, mission: 64e6, loot: 55e6, esc: 62e6, spend: -81e6 }, delta: 3, seed: 22, density: .55 },
+  { name: LONG_CHAR_3, cells: { bounty: 52e6, loot: 8e6, spend: -16e6 }, delta: -61, seed: 23, density: .15 },
+];
+const MINING_ROWS = [
+  { name: LONG_CHAR_2, cells: { sold: 512e6 }, alerts: { sold: 1 }, delta: 6, seed: 31, density: .6 },
+  { name: LONG_CHAR, cells: { corp: 210e6 }, delta: -22, seed: 32, density: .35 },
+  { name: LONG_CHAR_3, cells: { uncat: 142e6 }, alerts: { uncat: 2 }, delta: null, seed: 33, density: .2 },
+];
+const net = (rows, name) => { const r = rows.find(x => x.name === name); return Object.values(r.cells).reduce((s, v) => s + v, 0); };
+const counted = (rows, name, exclude) => { const r = rows.find(x => x.name === name); return Object.entries(r.cells).filter(([k]) => k !== exclude).reduce((s, [, v]) => s + v, 0); };
+
+const SPECS = {
+  all: (linkMode) => ({
+    title: 'Revenus · personnages × activités', rowLabel: 'Personnage', linkMode, tag: ['new', 'GRILLE DES REVENUS'],
+    right: `<span class="font-mono text-xs text-slate-500">${linkMode === 'filter' ? 'clic sur une colonne = filtre' : 'clic sur une colonne = sa page Revenus'}</span>`,
+    columns: [
+      { id: 'pve', label: 'PVE', color: C.pve, delta: 12, target: 'pve' },
+      { id: 'mining', label: 'Minage', color: C.mining, delta: -4, target: 'mining' },
+      { id: 'industry', label: 'Industrie', color: C.industry, delta: 8, target: 'industry' },
+      { id: 'pi', label: 'Planétaire', color: C.pi, kind: 'estimate', delta: 'est', target: 'pi' },
+      { id: 'unknown', label: 'Non valorisé', color: C.unknown, kind: 'unknown' },
+    ],
+    rows: [
+      { name: LONG_CHAR, cells: { pve: net(PVE_ROWS, LONG_CHAR), mining: counted(MINING_ROWS, LONG_CHAR, 'uncat'), pi: 64e6 }, delta: 15, seed: 51, density: .85 },
+      { name: LONG_CHAR_2, cells: { pve: net(PVE_ROWS, LONG_CHAR_2), mining: counted(MINING_ROWS, LONG_CHAR_2, 'uncat'), pi: 150e6 }, alerts: { mining: 1 }, delta: 5, seed: 52, density: .7 },
+      { name: LONG_CHAR_3, cells: { pve: net(PVE_ROWS, LONG_CHAR_3), unknown: 142e6 }, alerts: { unknown: 2 }, delta: -61, seed: 53, density: .25 },
+      { name: 'Projets industriels du compte', portrait: 'IND', cells: { industry: 742e6 }, alerts: { industry: 3 }, delta: 8, seed: 54, density: .4, stripColor: C.industry },
+    ],
+    totalDelta: 9,
+    footnote: '[À VÉRIFIER : un projet appartient au compte, pas à un personnage — d\'où une ligne à part]',
+  }),
+  pve: (linkMode) => ({
+    title: 'Revenus PVE · personnages × sources', rowLabel: 'Personnage', linkMode, tag: ['new', 'GRILLE DES REVENUS'],
+    columns: [
+      { id: 'bounty', label: 'Bounties', color: C.pve, delta: 9 },
+      { id: 'ess', label: 'ESS', color: C.pve, delta: -3 },
+      { id: 'mission', label: 'Missions', color: C.pve, delta: null },
+      { id: 'loot', label: 'Loot', color: C.pve, delta: 22, alert: 1 },
+      { id: 'esc', label: 'Escalations vendues', color: C.pve, delta: 40 },
+      { id: 'spend', label: 'Dépenses', color: C.loss, delta: 6, alert: 2 },
+    ],
+    rows: PVE_ROWS, totalDelta: 12,
+  }),
+  mining: (linkMode) => ({
+    title: 'Revenus minage · personnages × usage', rowLabel: 'Personnage', linkMode, tag: ['new', 'GRILLE DES REVENUS'],
+    columns: [
+      { id: 'sold', label: 'Vendu', color: C.mining, delta: 6 },
+      { id: 'corp', label: 'Projet corp', color: C.mining, delta: -22 },
+      { id: 'uncat', label: 'Non catégorisé', color: C.unknown, kind: 'unknown' },
+    ],
+    rows: MINING_ROWS, totalDelta: -4,
+  }),
+  industry: (linkMode) => ({
+    title: 'Profit réel · produits × postes', rowLabel: 'Produit', linkMode, netLabel: 'Profit', tag: ['new', 'GRILLE DES REVENUS'],
+    right: '<span class="font-mono text-xs text-amber-400">ventilation à vérifier</span>',
+    columns: [
+      { id: 'sales', label: 'Ventes', color: C.industry, delta: 11 },
+      { id: 'mat', label: 'Matériaux', color: C.loss, delta: 7 },
+      { id: 'fees', label: 'Frais de jobs', color: C.loss, delta: 4 },
+      { id: 'tax', label: 'Taxes et courtage', color: C.loss, delta: 9 },
+    ],
+    rows: [
+      { name: 'Republic Fleet Large Cap Battery — lot de 40 runs, copie ME 10', cells: { sales: 1200e6, mat: -640e6, fees: -98e6, tax: -74e6 }, delta: 14, seed: 41, density: .3, stripColor: C.industry },
+      { name: 'Multi-produits', portrait: 'IND', cells: { sales: 620e6, mat: -330e6, fees: -50e6, tax: -29e6 }, delta: -9, seed: 42, density: .2, stripColor: C.industry },
+      { name: 'Caldari Navy Hookbill', cells: { sales: 490e6, mat: -240e6, fees: -48e6, tax: -59e6 }, delta: 31, seed: 43, density: .25, stripColor: C.industry },
+      { name: '2 projets terminés · profit inconnu', portrait: '?', cells: {}, unknown: true, alertRow: 1 },
+    ],
+    totalDelta: 8,
+  }),
+};
+
+const TODO = {
+  all: [
+    { text: '3 minerais sans prix : Euxenite, Sylvite compressée, Mercoxit', effect: 'Leur volume est miné mais pas valorisé : le Minage est sous-estimé.', action: 'Valeur du minerai' },
+    { text: '142 M ISK de minerai non categorise', effect: 'Ni vendu, ni projet corp : hors du net tant que l\'usage n\'est pas choisi.', action: 'Catégoriser' },
+    { text: '2 projets terminés à profit inconnu', effect: 'Comptés à part, jamais à 0 : le profit Industrie est incomplet.', action: 'Industrie › Revenus' },
+  ],
+  pve: [
+    { text: 'Ventes de loot non scannées depuis 9 jours', effect: 'Le loot vendu depuis n\'entre pas dans la grille.', action: 'Scanner les ventes' },
+    { text: 'Achats de munitions non scannés sur la période', effect: 'Dépenses sous-estimées, net PVE surestimé.', action: 'Scanner les achats' },
+  ],
+  mining: [
+    { text: '3 minerais sans prix : Euxenite, Sylvite compressée, Mercoxit', effect: 'Volume miné non valorisé.', action: 'Valeur du minerai' },
+    { text: '142 M ISK de minerai non categorise', effect: 'Choisir vendu ou projet corp pour qu\'il compte.', action: 'Catégoriser' },
+  ],
+  industry: [
+    { text: '2 projets terminés à profit inconnu', effect: 'Prix de vente ou coût manquant : hors des totaux.', action: 'Ouvrir les projets' },
+  ],
+};
+
+function revenueBody(key, linkMode) {
+  return matrix(SPECS[key](linkMode)) + todoPanel(TODO[key]);
+}
+
+function pageBalanceA() {
+  return tabBar([{ id: 'balance', label: 'Bilan' }, { id: 'assets', label: 'Inventaire' }], 'balance', { settings: true, settingsNew: true })
+    + pageHeader('Synthèse de toutes les activités. Le détail vit dans chaque module.', '')
+    + revenueBody('all', 'page');
+}
+
+function pagePveA() {
+  return tabBar([{ id: 'revenue', label: 'Revenus', tag: ['moved', 'RENOMMÉ'] }, { id: 'esc', label: 'Escalations' }], 'revenue', { settings: true })
+    + pageHeader('Suivi des revenus et depenses PVE', 'Derniere sync : 16/11/2026 14:05', btn('Rafraîchir', 'sync') + btn('Scanner les achats') + btn('Scanner les ventes de loot') + btn('Ajouter une depense', 'primary'))
+    + revenueBody('pve')
+    + `<p class="text-sm text-slate-500">… puis les listes actuelles : Primes recentes, Ventes de loot, Depenses (inchangées). Munitions et Types de loot : configuration dans Réglages › PVE.</p>`;
+}
+
+function pageMiningA() {
+  return tabBar([
+    { id: 'ops', label: 'Opérations' }, { id: 'moons', label: 'Lunes' }, { id: 'sites', label: 'Sites' },
+    { id: 'ore', label: 'Valeur du minerai' }, { id: 'rev', label: 'Revenus', tag: ['moved', 'EX « MON MINAGE »'] },
+  ], 'rev', { settings: true })
+    + subTabs([{ id: 'ledger', label: 'Ledger' }, { id: 'season', label: 'Saison' }], 'ledger')
+    + pageHeader('Historique de minage et valorisation', 'Derniere sync : 16/11/2026 13:58', btn('Rafraîchir', 'sync'))
+    + revenueBody('mining')
+    + `<p class="text-sm text-slate-500">… puis Repartition par minerai et la table du ledger (inchangées).</p>`;
+}
+
+function pageIndustryA() {
+  return tabBar([
+    { id: 'workshop', label: 'Atelier' }, { id: 'projects', label: 'Projets' }, { id: 'analysis', label: 'Analyse' },
+    { id: 'production', label: 'Production' }, { id: 'rev', label: 'Revenus', tag: ['new', 'NOUVEAU'] },
+  ], 'rev', { settings: true })
+    + pageHeader('Profit réel des projets terminés', 'Calculé à la clôture de chaque projet')
+    + revenueBody('industry')
+    + `<p class="text-sm text-slate-500">… puis Profit réel par mois (table actuelle, déplacée de Bilan › Industrie).</p>`;
+}
+
+function pageRevenueB() {
+  const filters = [['all', 'Toutes'], ['pve', 'PVE'], ['mining', 'Minage'], ['industry', 'Industrie'], ['pi', 'PI']];
+  const chips = `<div class="${tag('new', 'FILTRE D’ACTIVITÉ')} flex flex-wrap gap-2 mb-6">${filters.map(([id, l]) => `<button data-filter="${id}" class="px-3 py-1.5 border text-sm font-semibold uppercase tracking-wider ${state.filter === id ? 'border-cyan-400 bg-cyan-500/10 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}">${l}</button>`).join('')}</div>`;
+  const bar = tabBar([{ id: 'rev', label: 'Revenus', tag: ['moved', 'EX « BILAN »'] }, { id: 'assets', label: 'Inventaire' }], 'rev', { settings: true, settingsNew: true });
+  const head = pageHeader('Revenus de toutes les activités', '');
+  let body;
+  if (state.filter === 'pi') body = `<div class="hud-frame p-6 text-sm text-slate-300">Revenu PI : seule une estimation existe aujourd'hui (Production theorique/jour, prix sell Jita). Pas de revenu réalisé sans suivi des ventes de produits PI.</div>`;
+  else {
+    const actions = state.filter === 'pve' ? `<div class="flex flex-wrap gap-2 mb-6">${btn('Rafraîchir', 'sync')}${btn('Scanner les achats')}${btn('Scanner les ventes de loot')}${btn('Ajouter une depense', 'primary')}</div>` : '';
+    body = actions + revenueBody(state.filter, 'filter');
+  }
+  return bar + head + chips + body;
+}
+
+function pageModulesB() {
+  const row = (name, bar, note) => `<div class="mb-8"><p class="font-mono text-xs text-slate-500 mb-1">${name}</p>${bar}<p class="-mt-4 text-xs text-slate-400">${note}</p></div>`;
+  return row('PVE', tabBar([{ id: 'r', label: 'Revenus PVE', gone: true }, { id: 'esc', label: 'Escalations' }], 'esc', { settings: true }), 'Un seul onglet restant : le module PVE devient une page Escalations.')
+    + row('Minage', tabBar([{ id: 'ops', label: 'Opérations' }, { id: 'moons', label: 'Lunes' }, { id: 'sites', label: 'Sites' }, { id: 'ore', label: 'Valeur du minerai' }, { id: 'my', label: 'Mon minage', gone: true }], 'ops', { settings: true }), 'Mon minage part dans Patrimoine › Revenus (filtre Minage) ; la Saison doit trouver une autre place.')
+    + row('Industrie', tabBar([{ id: 'workshop', label: 'Atelier' }, { id: 'projects', label: 'Projets' }, { id: 'analysis', label: 'Analyse' }, { id: 'production', label: 'Production' }], 'workshop', { settings: true }), 'Inchangé : le profit réel reste hors du module.')
+    + row('Patrimoine', tabBar([{ id: 'rev', label: 'Revenus', tag: ['moved', 'EX « BILAN »'] }, { id: 'assets', label: 'Inventaire' }], 'rev', { settings: true, settingsNew: true }), 'Une page, cinq filtres. Les outils de saisie PVE vivent dans le filtre PVE.');
+}
+
+
+const ALT_1 = 'Torvald Ironhide';
+const ALT_2 = 'Booster Mae';
+const ALT_3 = 'Ore Hauler Seven';
+const ALT_4 = 'Nyx Salvage';
+
+function stripCells(seed, density, color, size) {
+  const { count } = stripBuckets();
+  const rand = seeded(seed);
+  const cells = Array.from({ length: count }, () => (rand() < density ? 0.25 + rand() * 0.75 : 0));
+  const active = cells.filter(v => v > 0).length;
+  const w = count > 30 ? 2 : size;
+  return { html: `<div class="flex gap-px">${cells.map(v => `<span class="inline-block h-3" style="width:${w}px;background:${v ? hexA(color, v) : 'rgba(51,65,85,.35)'}"></span>`).join('')}</div>`, active, count };
+}
+
+function contributorBar(list, color, label) {
+  if (!list) return `<span class="font-mono text-[11px] text-slate-500">${label}</span>`;
+  const sorted = [...list].filter(c => c.value).sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  const total = sorted.reduce((s, c) => s + Math.abs(c.value), 0);
+  const named = sorted.slice(0, 2);
+  const rest = sorted.slice(2);
+  const restValue = rest.reduce((s, c) => s + Math.abs(c.value), 0);
+  const segments = named.map((c, i) => ({ share: Math.abs(c.value) / total, fill: hexA(color, i === 0 ? 0.85 : 0.5) }))
+    .concat(rest.length ? [{ share: restValue / total, fill: 'rgba(100,116,139,.55)' }] : []);
+  const tip = sorted.map(c => `${c.name} : ${isk(c.value)}`).join('\n');
+  const pct = c => Math.round(Math.abs(c.value) / total * 100);
+  return `<div class="w-full" title="${tip}">
+    <div class="flex h-1.5 w-full gap-px">${segments.map(s => `<span style="width:${s.share * 100}%;background:${s.fill}"></span>`).join('')}</div>
+    <div class="mt-1 space-y-0.5 text-[12px] leading-tight">
+      ${named.map(c => `<div class="flex justify-between gap-2"><span class="truncate max-w-[7.5rem] text-slate-300" title="${c.name}">${c.name}</span><span class="font-mono text-slate-400">${pct(c)} %</span></div>`).join('')}
+      ${rest.length ? `<div class="flex justify-between gap-2 text-slate-500"><span>+${rest.length} ${label === 'produits' ? 'produits' : 'persos'}</span><span class="font-mono">${Math.round(restValue / total * 100)} %</span></div>` : ''}
+    </div>
+  </div>`;
+}
+
+function lineGrid(spec) {
+  const cols = spec.columns;
+  const counted = cols.filter(c => c.kind !== 'unknown');
+  const net = counted.reduce((s, c) => s + c.value, 0);
+  const maxCell = Math.max(...counted.map(c => Math.abs(c.value)));
+  const cellStyle = c => {
+    const ratio = Math.abs(c.value) / maxCell;
+    if (c.kind === 'unknown') return { style: `background:${HATCH}`, text: 'text-slate-400' };
+    if (c.kind === 'estimate') return { style: `background:${hexA(c.color, 0.08 + 0.4 * ratio)};outline:1px dashed ${hexA(c.color, 0.7)};outline-offset:-1px`, text: 'text-violet-100' };
+    if (c.value < 0) return { style: `background:${hexA(C.loss, 0.08 + 0.45 * ratio)}`, text: 'text-red-300' };
+    return { style: `background:${hexA(c.color, 0.08 + 0.55 * ratio)}`, text: 'text-slate-50' };
+  };
+  const rowHead = (label, sub = '') => `<th class="pr-4 text-left align-top pt-2 w-36"><span class="hud-label">${label}</span>${sub ? `<div class="text-[11px] text-slate-500 font-normal normal-case">${sub}</div>` : ''}</th>`;
+  const netStrip = stripCells(spec.netSeed, spec.netDensity, '#e2e8f0', 3);
+
+  const head = cols.map(c => `
+    <th class="px-1 pb-2 align-bottom font-normal min-w-[9.5rem]">
+      <a ${columnLink(c, spec.linkMode)} class="relative flex flex-col gap-1 ${c.target && spec.linkMode ? 'cursor-pointer hover:text-slate-100' : ''}">
+        ${c.alert ? alertBadge(c.alert) : ''}
+        <span class="hud-label !text-slate-300 whitespace-nowrap">${c.label}</span>
+        <span class="block h-[3px] w-full" style="${c.kind === 'unknown' ? `background:${HATCH}` : c.kind === 'estimate' ? `border-top:2px dashed ${c.color}` : `background:${c.color}`}"></span>
+      </a>
+    </th>`).join('');
+
+  const values = cols.map(c => {
+    const s = cellStyle(c);
+    const txt = (c.kind === 'estimate' ? '~' : '') + isk(c.value, false);
+    return `<td class="p-1"><div class="relative h-14 px-3 flex items-center justify-end font-mono text-lg ${s.text}" style="${s.style}" title="${c.label} : ${isk(c.value)}${c.kind === 'unknown' ? ' (hors du net)' : ''}">${c.cellAlert ? alertBadge(c.cellAlert) : ''}${txt}</div></td>`;
+  }).join('');
+
+  const deltas = cols.map(c => `<td class="px-2 pt-1 text-right font-mono text-sm">${c.kind === 'unknown' ? '' : deltaText(c.delta)}</td>`).join('');
+  const strips = cols.map(c => {
+    if (c.kind === 'unknown') return '<td></td>';
+    const s = stripCells(c.seed, c.density, c.kind === 'estimate' ? C.pi : c.value < 0 ? C.loss : c.color, 4);
+    return `<td class="px-2 pt-3"><div class="flex flex-col items-end gap-1">${s.html}<span class="font-mono text-[11px] text-slate-500">${s.active}/${s.count} ${stripBuckets().unit}</span></div></td>`;
+  }).join('');
+  const contribs = cols.map(c => `<td class="px-2 pt-3 align-top">${contributorBar(c.contrib, c.kind === 'unknown' ? C.unknown : c.value < 0 ? C.loss : c.color, c.contribNote || spec.contribUnit)}</td>`).join('');
+
+  return `<div class="mb-6 ${tag('new', 'GRILLE · 1 LIGNE')}"><section class="hud-frame p-4 md:p-5">
+    <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3"><h3 class="hud-label">${spec.title}</h3>${spec.right || ''}</div>
+    <div class="overflow-x-auto"><table class="border-separate border-spacing-0 whitespace-nowrap">
+      <thead><tr><th></th>${head}<th class="pl-4 pb-2 align-bottom text-left font-normal border-l border-slate-700/70 min-w-[10rem]"><span class="hud-label !text-slate-300">${spec.netLabel || 'Net'}</span></th></tr></thead>
+      <tbody>
+        <tr>${rowHead(spec.rowLabel, spec.rowSub)}${values}<td class="pl-4 border-l border-slate-700/70"><div class="h-14 flex items-center font-mono text-2xl font-semibold text-slate-50">${counted.some(c => c.kind === 'estimate') ? '~' : ''}${isk(net, false)}</div></td></tr>
+        <tr>${rowHead(`vs ${state.days >= 320 ? 'préc.' : state.days + ' j préc.'}`)}${deltas}<td class="pl-4 pt-1 border-l border-slate-700/70 font-mono text-sm">${deltaText(spec.totalDelta)}</td></tr>
+        <tr>${rowHead('Régularité', `par ${stripBuckets().unit === 'j' ? 'jour' : 'semaine'}`)}${strips}<td class="pl-4 pt-3 border-l border-slate-700/70"><div class="flex flex-col gap-1">${netStrip.html}<span class="font-mono text-[11px] text-slate-500">${netStrip.active}/${netStrip.count} ${stripBuckets().unit} avec revenu</span></div></td></tr>
+        <tr>${rowHead(spec.contribLabel || 'Contributeurs', spec.contribSub || '')}${contribs}<td class="pl-4 pt-3 align-top border-l border-slate-700/70 text-[12px] text-slate-400 whitespace-normal">${spec.netContrib || ''}</td></tr>
+      </tbody>
+    </table></div>
+    ${matrixLegend({ columns: cols, rows: [], footnote: spec.footnote })}
+  </section></div>`;
+}
+
+const sumCol = (rows, id) => rows.reduce((s, r) => s + (r.cells[id] || 0), 0);
+const contribFrom = (rows, id) => rows.map(r => ({ name: r.name, value: r.cells[id] || 0 }));
+
+const MINING_C = {
+  sold: [{ name: ALT_1, value: 260e6 }, { name: ALT_2, value: 140e6 }, { name: LONG_CHAR_2, value: 112e6 }],
+  corp: [{ name: ALT_2, value: 120e6 }, { name: ALT_3, value: 90e6 }],
+  uncat: [{ name: ALT_3, value: 142e6 }],
+};
+const sumList = list => list.reduce((s, c) => s + c.value, 0);
+const mergeLists = (...lists) => Object.values(lists.flat().reduce((acc, c) => { acc[c.name] = { name: c.name, value: (acc[c.name]?.value || 0) + c.value }; return acc; }, {}));
+const PVE_NET_CONTRIB = PVE_ROWS.map(r => ({ name: r.name, value: Object.values(r.cells).reduce((s, v) => s + v, 0) }));
+const PI_C = [{ name: LONG_CHAR, value: 64e6 }, { name: LONG_CHAR_2, value: 50e6 }, { name: ALT_4, value: 40e6 }, { name: ALT_1, value: 32e6 }, { name: ALT_2, value: 28e6 }];
+const INDUSTRY_PRODUCTS = [
+  { name: 'Republic Fleet Large Cap Battery — lot de 40 runs, copie ME 10', sales: 1200e6, mat: -640e6, fees: -98e6, tax: -74e6 },
+  { name: 'Multi-produits', sales: 620e6, mat: -330e6, fees: -50e6, tax: -29e6 },
+  { name: 'Caldari Navy Hookbill', sales: 490e6, mat: -240e6, fees: -48e6, tax: -59e6 },
+];
+const productContrib = id => INDUSTRY_PRODUCTS.map(p => ({ name: p.name, value: p[id] }));
+
+const LINE_SPECS = {
+  all: linkMode => ({
+    title: 'Revenus · toutes activités', linkMode, rowLabel: 'Compte', rowSub: '7 personnages actifs', contribUnit: 'persos',
+    right: `<span class="font-mono text-xs text-slate-500">${linkMode === 'filter' ? 'clic sur une colonne = filtre' : 'clic sur une colonne = sa page Revenus'}</span>`,
+    columns: [
+      { id: 'pve', label: 'PVE', color: C.pve, value: sumList(PVE_NET_CONTRIB), delta: 12, target: 'pve', seed: 61, density: .8, contrib: PVE_NET_CONTRIB },
+      { id: 'mining', label: 'Minage', color: C.mining, value: sumList(MINING_C.sold) + sumList(MINING_C.corp), delta: -4, target: 'mining', seed: 62, density: .6, contrib: mergeLists(MINING_C.sold, MINING_C.corp), cellAlert: 1 },
+      { id: 'industry', label: 'Industrie', color: C.industry, value: 742e6, delta: 8, target: 'industry', seed: 63, density: .4, contrib: null, contribNote: 'projets du compte', cellAlert: 3 },
+      { id: 'pi', label: 'Planétaire', color: C.pi, kind: 'estimate', value: sumList(PI_C), delta: 'est', seed: 64, density: 1, contrib: PI_C },
+      { id: 'unknown', label: 'Non valorisé', color: C.unknown, kind: 'unknown', value: sumList(MINING_C.uncat), contrib: MINING_C.uncat, cellAlert: 2 },
+    ],
+    totalDelta: 9, netSeed: 65, netDensity: .9,
+    netContrib: `Mains : ${LONG_CHAR.split(' ')[0]}…, ${LONG_CHAR_2.split(' ')[0]} · 5 alts sur une tâche`,
+  }),
+  pve: linkMode => ({
+    title: 'Revenus PVE', linkMode, rowLabel: 'PVE', rowSub: `${PVE_ROWS.length} personnages actifs`, contribUnit: 'persos',
+    columns: [
+      { id: 'bounty', label: 'Bounties', color: C.pve, delta: 9, seed: 71, density: .75 },
+      { id: 'ess', label: 'ESS', color: C.pve, delta: -3, seed: 72, density: .5 },
+      { id: 'mission', label: 'Missions', color: C.pve, delta: null, seed: 73, density: .2 },
+      { id: 'loot', label: 'Loot', color: C.pve, delta: 22, seed: 74, density: .3, alert: 1 },
+      { id: 'esc', label: 'Escalations vendues', color: C.pve, delta: 40, seed: 75, density: .2 },
+      { id: 'spend', label: 'Dépenses', color: C.loss, delta: 6, seed: 76, density: .25, alert: 2 },
+    ].map(c => ({ ...c, value: sumCol(PVE_ROWS, c.id), contrib: contribFrom(PVE_ROWS, c.id) })),
+    totalDelta: 12, netSeed: 77, netDensity: .8,
+  }),
+  mining: linkMode => ({
+    title: 'Revenus minage', linkMode, rowLabel: 'Minage', rowSub: '4 personnages actifs', contribUnit: 'persos',
+    columns: [
+      { id: 'sold', label: 'Vendu', color: C.mining, value: sumList(MINING_C.sold), delta: 6, seed: 81, density: .5, contrib: MINING_C.sold, cellAlert: 1 },
+      { id: 'corp', label: 'Projet corp', color: C.mining, value: sumList(MINING_C.corp), delta: -22, seed: 82, density: .3, contrib: MINING_C.corp },
+      { id: 'uncat', label: 'Non catégorisé', color: C.unknown, kind: 'unknown', value: sumList(MINING_C.uncat), contrib: MINING_C.uncat, cellAlert: 2 },
+    ],
+    totalDelta: -4, netSeed: 83, netDensity: .6,
+  }),
+  industry: linkMode => ({
+    title: 'Profit réel', linkMode, rowLabel: 'Industrie', rowSub: '14 projets terminés', netLabel: 'Profit', contribLabel: 'Produits', contribUnit: 'produits',
+    right: '<span class="font-mono text-xs text-amber-400">ventilation à vérifier</span>',
+    columns: [
+      { id: 'sales', label: 'Ventes', color: C.industry, delta: 11, seed: 91, density: .3, alert: 1 },
+      { id: 'mat', label: 'Matériaux', color: C.loss, delta: 7, seed: 92, density: .3 },
+      { id: 'fees', label: 'Frais de jobs', color: C.loss, delta: 4, seed: 93, density: .5 },
+      { id: 'tax', label: 'Taxes et courtage', color: C.loss, delta: 9, seed: 94, density: .3 },
+    ].map(c => ({ ...c, value: INDUSTRY_PRODUCTS.reduce((s, p) => s + p[c.id], 0), contrib: productContrib(c.id) })),
+    totalDelta: 8, netSeed: 95, netDensity: .3,
+    netContrib: '+ 2 projets à profit inconnu, hors du total',
+  }),
+};
+
+function lineBody(key, linkMode) {
+  return lineGrid(LINE_SPECS[key](linkMode)) + todoPanel(TODO[key]);
+}
+
+function pageBalanceC() {
+  return tabBar([{ id: 'balance', label: 'Bilan' }, { id: 'assets', label: 'Inventaire' }], 'balance', { settings: true, settingsNew: true })
+    + pageHeader('Synthèse de toutes les activités. Le détail vit dans chaque module.', '')
+    + lineBody('all', 'page');
+}
+
+function pagePveC() {
+  return tabBar([{ id: 'revenue', label: 'Revenus', tag: ['moved', 'RENOMMÉ'] }, { id: 'esc', label: 'Escalations' }], 'revenue', { settings: true })
+    + pageHeader('Suivi des revenus et depenses PVE', 'Derniere sync : 16/11/2026 14:05', btn('Rafraîchir', 'sync') + btn('Scanner les achats') + btn('Scanner les ventes de loot') + btn('Ajouter une depense', 'primary'))
+    + lineBody('pve')
+    + `<p class="text-sm text-slate-500">… puis les listes actuelles : Primes recentes, Ventes de loot, Depenses (inchangées).</p>`;
+}
+
+function pageMiningC() {
+  return tabBar([
+    { id: 'ops', label: 'Opérations' }, { id: 'moons', label: 'Lunes' }, { id: 'sites', label: 'Sites' },
+    { id: 'ore', label: 'Valeur du minerai' }, { id: 'rev', label: 'Revenus', tag: ['moved', 'EX « MON MINAGE »'] },
+  ], 'rev', { settings: true })
+    + subTabs([{ id: 'ledger', label: 'Ledger' }, { id: 'season', label: 'Saison' }], 'ledger')
+    + pageHeader('Historique de minage et valorisation', 'Derniere sync : 16/11/2026 13:58', btn('Rafraîchir', 'sync'))
+    + lineBody('mining')
+    + `<p class="text-sm text-slate-500">… puis Repartition par minerai et la table du ledger (inchangées).</p>`;
+}
+
+function pageIndustryC() {
+  return tabBar([
+    { id: 'workshop', label: 'Atelier' }, { id: 'projects', label: 'Projets' }, { id: 'analysis', label: 'Analyse' },
+    { id: 'production', label: 'Production' }, { id: 'rev', label: 'Revenus', tag: ['new', 'NOUVEAU'] },
+  ], 'rev', { settings: true })
+    + pageHeader('Profit réel des projets terminés', 'Calculé à la clôture de chaque projet')
+    + lineBody('industry')
+    + `<p class="text-sm text-slate-500">… puis Profit réel par mois (table actuelle, déplacée de Bilan › Industrie).</p>`;
+}
+
+
+const RENDER = { 'C:balance': pageBalanceC, 'C:pve': pagePveC, 'C:mining': pageMiningC, 'C:industry': pageIndustryC,  'A:pve': pagePveA, 'A:mining': pageMiningA, 'A:industry': pageIndustryA, 'A:balance': pageBalanceA, 'B:revenue': pageRevenueB, 'B:modules': pageModulesB };
+
+function render() {
+  const pages = PAGES[state.option];
+  if (!pages.find(p => p.id === state.page)) state.page = pages[0].id;
+  const page = pages.find(p => p.id === state.page);
+  document.getElementById('optionSwitch').innerHTML = ['A', 'B', 'C'].map(o => `<button data-option="${o}" class="px-3 py-1 text-sm font-semibold uppercase tracking-wider ${state.option === o ? 'bg-amber-500 text-slate-950' : 'text-slate-300 hover:bg-slate-800'}">Option ${o}</button>`).join('');
+  document.getElementById('pageSwitch').innerHTML = pages.map(p => `<button data-page="${p.id}" class="px-2.5 py-1 rounded border text-sm ${state.page === p.id ? 'border-cyan-400 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}">${p.label}</button>`).join('');
+  document.getElementById('sidebar').innerHTML = SIDEBAR.map(([id, l]) => `<a class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold uppercase tracking-wider ${page.module === id ? 'bg-cyan-500/10 text-cyan-300 border-l-2 border-cyan-400' : 'text-slate-400 hover:text-slate-200'}">${icon(ICONS[id] || '')}<span class="truncate">${l}</span></a>`).join('');
+  document.getElementById('pageTitle').textContent = state.option === 'B' && state.page === 'modules' ? 'PVE › Escalations' : page.label;
+  document.getElementById('notes').textContent = NOTES[`${state.option}:${state.page}`];
+  document.getElementById('content').innerHTML = RENDER[`${state.option}:${state.page}`]();
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-option],[data-page],[data-days],[data-filter]');
+  if (!t) return;
+  if (t.dataset.option) state.option = t.dataset.option;
+  if (t.dataset.page) state.page = t.dataset.page === 'pi' ? state.page : t.dataset.page;
+  if (t.dataset.days) state.days = Number(t.dataset.days);
+  if (t.dataset.filter) state.filter = t.dataset.filter;
+  render();
+});
+render();
+</script>
+</body>
+</html>

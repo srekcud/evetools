@@ -1,0 +1,45 @@
+# Boucle de nuit 2026-11-17
+
+Lancée à la main par l'orchestrateur, 2 threads. Périmètre : unification des revenus (option C, grille sur une ligne) et propositions UX acceptées le 2026-11-16/17.
+
+## Journal
+[orchestrateur] revenus #1063→#1065→#1066→#1067 lancé (t3-thread://v2/87863fe6-cf23-4892-985e-c6568b48c378/mcp:launch:d9520370ba07c0433d01224a5a155c97a90e9c5c7b0d219538eb7f2155e41dbb)
+[orchestrateur] ui-shell + PI #1069→#1070→#1068 lancé (t3-thread://v2/87863fe6-cf23-4892-985e-c6568b48c378/mcp:launch:9f306d65d33941ffa7ac8d3783ef0cdbd9d585919092ed08932d08d1f36ecf7c)
+
+## Décisions
+
+- 2026-11-17 Sylvain : option C retenue (une ligne par compte ou module, contributeurs dessous), placement dans chaque module, PI inclus. Maquette locale non versionnée : docs/design/mockups/revenue-unification.html.
+- Saison : reste en sous-onglet de Minage › Revenus. Industrie : colonnes Capital / Profit / Marge (pas de ventilation, l'endpoint ne l'expose pas).
+- #1068 (mode nuit, recommandation) : produits PI = sorties des schémas planétaires P1 à P4, P0 exclu ; ventes hors marché (contrats, buyback) affichées « non suivies », jamais comptées à 0.
+- Hors boucle : #1064 Bilan (après les pages module), #902 (confirmation de Sylvain), #955 (autre chantier).
+
+## Blocages
+
+[#1065] BLOCAGE partiel (point 3, badges « scan en retard ») : aucune donnée ne dit quand un scan (ventes de loot, achats de munitions) a tourné pour la dernière fois ; rien dans PveIncome, PveExpense ni UserLedgerSettings. Options : (A) colonnes `lastLootScanAt` / `lastExpenseScanAt` dans UserLedgerSettings + migration, écrites par les endpoints de scan, en retard après 7 jours ; (B) pas de badge de scan, seulement l'état « jamais synchronisé » déjà connu. Recommandation : A, issue dédiée (migration, donc niveau 2). Fait dans #1065 : B.
+[#1065] DÉCISION (mode nuit) contributeurs PVE par personnage : PveIncome et PveExpense n'ont pas de personnage. Seuls bounties, ESS et missions le portent, dans la description (« Bounty - <nom> », comme `IncomeProvider::extractCharacterName`). Contributeurs fournis pour ces trois colonnes, inconnus (« — ») pour loot, escalations, dépenses et net, jamais estimés. Recommandation : colonne `character_id` sur pve_income/pve_expense (migration, historique à null), issue dédiée.
+
+## Actions Sylvain
+[#1063] 10:09 [revenus] démarré, composant RevenueLineGrid (frontend seul), node_modules lié depuis le main
+[#1069] 10:14 SubTabs commun (components/common), 4 vues Mining/Industry + barre Bilan migrées, spec ajoutée ; Help.spec échoue sur 'marked' absent de node_modules (hors sujet)
+[#1063] 10:24 PR #1072 (2dcd89fa), niveau 1 routine (composants frontend seuls, sans backend ni montant affiché), poussé sur origin/fix/night-1063 pour le thread PI. Pas de contrôle visuel possible. Suite : #1065
+[#1070] 10:24 PR #1073 (empilée sur #1071) : section Réglages Patrimoine, onglet Bilan Paramètres retiré, réglage retiré aussi de la section PVE (déplacé)
+[#1068] 10:30 backend commité (GET /planetary/revenue, PlanetaryRevenueCalculator, repo findSalesByTypeIdsBetween ; unit+intégration+phpstan verts) ; front à faire sur origin/fix/night-1063
+[#1065] 10:33 PR #1074 (d20c995c), niveau 2 (nouvel endpoint de lecture des données de l'utilisateur, lot partiel), sans Closes ; empilée sur #1063 (PR #1072). Backend : GET /pve/stats/grid, tests unitaires + intégration (base isolée créée puis supprimée), phpstan propre sur les fichiers touchés. Pas de contrôle visuel possible. Aucune migration, aucune commande console.
+[revenus] 10:33 CONTEXTE chargé : arrêt après #1065. Restent #1066 (Minage › Revenus) et #1067 (Industrie › Revenus), non commencées ; à relancer à partir de origin/fix/night-1065 (composant RevenueLineGrid, RevenueTodoPanel, utils/revenueGrid.ts, modèle de PveRevenueGrid.vue + PveRevenueGridBuilder pour le backend). Le thread PI peut utiliser origin/fix/night-1063.
+[#1063] rétro : le wrapper wt-php.sh en mode unit exige `--no-coverage --testsuite=Unit` explicites avec bin/phpunit (sinon « No tests executed » sans erreur) ; frontend : le lien symbolique node_modules du main n'a pas `marked`, d'où 5 erreurs vue-tsc et les specs Help en échec hors sujet.
+[#1068] 10:33 PR #1075 (empilée sur #1063 puis #1071), partielle sans Closes : item 4 (colonne Bilan) attend #1064 ; estimation dans une 2e grille car la grille partagée additionne les estimations au net. head 65d030d2
+[ui-pi] rétro : wt-php.sh integration refuse sans TEST_TOKEN dès que main local est en retard (migrations vues comme modifiées) ; workaround base isolée create/migrate/drop. Pas de node_modules dans un worktree : lien symbolique vers celui du dépôt principal, 'marked' absent donc Help.spec échoue hors sujet.
+[orchestrateur] relance : #1066 seul, et #1067 → #1064 (le premier thread revenus s'est arrêté après #1065) ; #1064 réintégrée dans la file (pas d'exclusion figée)
+[orchestrateur] #1066 lancé (t3-thread://v2/87863fe6-cf23-4892-985e-c6568b48c378/mcp:launch:d934999210ea05f8ac0176344abdbcb3568d5a1acb250725e44d730ffaf39b34)
+[orchestrateur] #1067 → #1064 lancé (t3-thread://v2/87863fe6-cf23-4892-985e-c6568b48c378/mcp:launch:cf936d3d27a29f931bdb514d4fa87cca58ccde2cbabe0c7cda46850923989b03)
+[#1066] 12:40 PR #1076 (7e90aeb9), niveau 2 (nouvel endpoint de lecture GET /ledger/mining/stats/grid, disposition des montants changée), Closes #1066, empilée sur #1074 (#1072 d'abord). Backend : MiningRevenueGridBuilder, unit + intégration (base isolée créée puis supprimée) + phpstan propres. Front : onglet « Revenus », grille Vendu / Projet corpo / Non classé, À traiter (minerai sans prix, non classé), aide FR+EN mise à jour. Pas de contrôle visuel possible. Aucune migration, aucune commande console.
+[#1066] DÉCISION (mode nuit) : colonne Projet corpo hachurée et hors du net quand le réglage compte ce minerai en PVE (défaut), pour ne pas le compter deux fois avec la grille PVE ; minerai usage « industry » hors des trois colonnes (reste dans le tableau) ; cartes d'activité (ISK/jour actif, volume, système principal) conservées, cartes de valeur et barre de répartition retirées.
+[#1066] rétro : le mock de harness `respondWith` routait par préfixe /ledger/mining/stats, donc le nouvel endpoint /stats/grid recevait la réponse de /stats ; ajout d'un 3e paramètre. Un `json.dump` de round-trip sur les locales reformate des lignes sans rapport et supprime une clé en double : éditer les JSON en remplacement de texte.
+[#1067] 12:44 PR #1077 (126c6535), niveau 2, backend /ledger/industry complété (change, daily, capital/marge par produit), page /industry/revenue, onglet Bilan Industrie retiré. Capital et marge dans la table par produit (la grille additionne ses colonnes au net). Pas de contrôle visuel.
+[#1064] 12:51 PR #1078 (fd1188b4), niveau 2, Bilan sur la grille (PVE/Minage/Industrie/Planétaire/Non valorisé), fusionné origin/fix/night-1068 et origin/fix/night-1066, ferme le point 4 de #1068. Limites : variation du net inconnue (pas de période précédente pour Industrie/PI), contributeurs PVE inconnus, PI plafonné à 365 j. Pas de contrôle visuel.
+[revenus-1067-1064] rétro : node_modules lié depuis le main (exclu via .git/info/exclude du worktree) ; base d'intégration isolée via TEST_TOKEN (create/migrate/drop) car main local en retard ; les specs frontend expirent à 5 s sous charge au premier import de router (relancer avec --testTimeout=90000).
+[orchestrateur] #1068 reste (fraîcheur wallet, Refs) lancé (t3-thread://v2/87863fe6-cf23-4892-985e-c6568b48c378/mcp:launch:5f3247d5626398691af82cc69664deb858c676b6a10836963e02522b12147aa8) ; PR #1075 déjà fusionnée ; Closes #1068 porté par la PR #1064
+[#1064] 15:16 précision orchestrateur reçue : #1078 était déjà fusionnée dans main (1cdbcefd, contient #1067 et le point 4 de #1068) ; #1077 fermée sans fusion ; issues #1067 et #1068 restées ouvertes (Closes absent du corps de #1078 sur #1067/#1068), commentaires ajoutés, rien fermé par le thread.
+[#1068] 15:21 PR #1081 (9cc5cca2), niveau 2, Refs #1068 sans Closes (PR #1078 ferme avec le point 4). Fraîcheur du wallet : source = CharacterWalletReading (WalletReadingStateReader) + Character::isAuthValid(). unsyncedWallets dans GET /planetary/revenue, colonne hachurée hors net + badge, un point « wallet non synchronisé » dans À traiter, colonies de ces personnages retirées de toFix. Pas de contrôle visuel. Aucune migration, aucune commande console.
+[#1068] DÉCISION (mode nuit) : seuls les personnages ayant au moins une colonie sont signalés (évite le bruit des alts sans PI) ; leurs ventes déjà en cache restent comptées ; token invalide = non synchronisé car le sync planifié ignore ces personnages sans toucher leur lecture. Limite : une lecture ancienne mais au statut « read » (worker arrêté) n'est pas détectée, aucun seuil fiable dans le code. Bilan (PR #1078) non modifié : il ne lit pas unsyncedWallets, à traiter dans une issue dédiée si voulu.
+[#1068] rétro : node_modules lié depuis le main (exclu via .git/info/exclude), le lock du main local diffère mais les specs passent ; vue-tsc ne remonte que les erreurs connues de 'marked'.

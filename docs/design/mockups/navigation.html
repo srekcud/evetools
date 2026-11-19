@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture cible EVE Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #05080c;
+  --surface: rgba(12, 18, 26, 0.92);
+  --surface-2: rgba(22, 32, 44, 0.85);
+  --surface-3: #1b2836;
+  --border: rgba(120, 170, 200, 0.16);
+  --border-strong: rgba(120, 170, 200, 0.32);
+  --text: #e4ecf2;
+  --text-muted: #a6b5c2;
+  --text-subtle: #8796a6;
+  --accent: #2fd0f0;
+  --accent-soft: rgba(47, 208, 240, 0.12);
+  --accent-line: rgba(47, 208, 240, 0.55);
+  --on-accent: #02141a;
+  --success: #46c35a;
+  --success-soft: rgba(70, 195, 90, 0.13);
+  --warning: #e8b84a;
+  --warning-soft: rgba(232, 184, 74, 0.13);
+  --danger: #ff7d73;
+  --danger-soft: rgba(255, 125, 115, 0.13);
+  --unknown: #b79af2;
+  --unknown-soft: rgba(183, 154, 242, 0.13);
+  --cut: 8px;
+  --font-ui: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --font-hud: "Rajdhani", "Inter", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", "SFMono-Regular", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  color: var(--text);
+  font: 14px/1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(1200px 700px at 85% -10%, rgba(30, 90, 140, 0.22), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(70, 40, 120, 0.18), transparent 60%),
+    linear-gradient(rgba(47, 208, 240, 0.025) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, rgba(47, 208, 240, 0.025) 1px, transparent 1px) 0 0 / 48px 48px,
+    var(--bg);
+  background-attachment: fixed;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--font-mono); font-size: .92em; color: var(--text-muted); }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.muted { color: var(--text-muted); }
+.subtle { color: var(--text-subtle); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.page { max-width: 1440px; margin: 0 auto; padding: 24px 16px 64px; }
+header.intro { margin-bottom: 20px; }
+.eyebrow { font: 600 12px var(--font-hud); letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 34px/1.1 var(--font-hud); letter-spacing: .04em; margin: 6px 0 8px; }
+h2 { font: 700 22px var(--font-hud); letter-spacing: .06em; text-transform: uppercase; margin: 40px 0 12px; display: flex; align-items: center; gap: 10px; }
+h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
+h3 { font: 700 16px var(--font-hud); letter-spacing: .08em; text-transform: uppercase; margin: 0 0 8px; }
+.lead { color: var(--text-muted); max-width: 900px; margin: 0; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; font-size: 13px; color: var(--text-muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+.tag { display: inline-flex; align-items: center; font: 700 11px var(--font-hud); letter-spacing: .1em; text-transform: uppercase; padding: 1px 6px; border: 1px solid; flex-shrink: 0; }
+.tag-new { color: var(--success); border-color: rgba(70,195,90,.45); background: var(--success-soft); }
+.tag-moved { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+.tag-merged { color: var(--warning); border-color: rgba(232,184,74,.45); background: var(--warning-soft); }
+.tag-renamed { color: var(--unknown); border-color: rgba(183,154,242,.45); background: var(--unknown-soft); }
+.tag-removed { color: var(--danger); border-color: rgba(255,125,115,.45); background: var(--danger-soft); }
+.tag-same { color: var(--text-subtle); border-color: var(--border-strong); }
+
+.toggle { display: inline-flex; border: 1px solid var(--border-strong); margin-top: 16px; }
+.toggle button { background: transparent; border: 0; padding: 8px 18px; cursor: pointer; font: 700 14px var(--font-hud); letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); }
+.toggle button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+
+.frame { display: grid; grid-template-columns: 260px minmax(0, 1fr) 340px; min-height: 640px; border: 1px solid var(--border); background: rgba(5, 8, 12, .6); margin-top: 16px; }
+.sidebar { background: linear-gradient(180deg, rgba(10,16,24,.96), rgba(6,10,16,.96)); border-right: 1px solid var(--border); padding: 0 0 12px; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+.brand-mark { width: 30px; height: 30px; background: linear-gradient(135deg, #2fd0f0, #2a6fd8); display: grid; place-items: center; color: #02141a; font: 700 13px var(--font-hud); clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+.brand-name { font: 700 19px var(--font-hud); letter-spacing: .14em; text-transform: uppercase; }
+.brand-name span { color: var(--accent); }
+.nav { padding: 12px 8px; }
+.nav-heading { display: flex; align-items: center; gap: 8px; font: 600 11px var(--font-hud); text-transform: uppercase; letter-spacing: .2em; color: var(--text-subtle); padding: 14px 10px 6px; }
+.nav-heading::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
+.nav-heading .tag { font-size: 9px; }
+.nav-item { position: relative; width: 100%; display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 10px; background: transparent; border: 0; cursor: pointer; text-align: left; color: var(--text-muted); font: 600 15px var(--font-hud); letter-spacing: .03em; }
+.nav-item:hover { background: rgba(255,255,255,.04); color: var(--text); }
+.nav-item[aria-current="page"] { color: #fff; background: linear-gradient(90deg, rgba(47,208,240,.2), rgba(47,208,240,0) 85%); }
+.nav-item[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: var(--accent); box-shadow: 0 0 8px rgba(47,208,240,.6); }
+.nav-item .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-item.sub { padding-left: 22px; font-size: 14px; }
+.nav-item .tag { font-size: 9px; padding: 0 4px; }
+.nav-item.ghost { color: var(--text-subtle); font-style: italic; }
+
+.screen { min-width: 0; display: flex; flex-direction: column; }
+.topbar { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 20px; border-bottom: 1px solid var(--border); background: rgba(5,8,12,.9); position: relative; }
+.topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-line) 30%, transparent 70%); opacity: .5; }
+.crumb { font: 600 13px var(--font-hud); letter-spacing: .1em; text-transform: uppercase; color: var(--text-subtle); min-width: 0; }
+.crumb b { color: var(--text); font-weight: 600; }
+.route { margin-left: auto; font: 12px var(--font-mono); color: var(--text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.content { padding: 18px 20px 24px; display: grid; gap: 14px; align-content: start; }
+.module-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: -4px 0 2px; }
+.module-tabs .mt { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: rgba(0,0,0,.35); border: 1px solid var(--border-strong); cursor: pointer; font: 700 14px var(--font-hud); letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }
+.module-tabs .mt:hover { color: var(--text); border-color: var(--accent-line); }
+.module-tabs .mt.on { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
+.module-tabs .mt.on .tag { background: rgba(2,20,26,.2); color: var(--on-accent); border-color: rgba(2,20,26,.4); }
+.module-tabs .mt .tag { font-size: 9px; padding: 0 4px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--border); }
+.tabs .t { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; font: 600 14px var(--font-hud); letter-spacing: .05em; color: var(--text-muted); border-bottom: 2px solid transparent; }
+.tabs .t.on { color: var(--accent); border-bottom-color: var(--accent); }
+.tabs .t.cond { border-bottom-style: dashed; color: var(--text-subtle); }
+.tabs .t .tag { font-size: 9px; padding: 0 4px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); padding: 12px 14px; min-width: 0; }
+.card.hl { border-color: rgba(70,195,90,.5); box-shadow: inset 0 0 0 1px rgba(70,195,90,.25); }
+.card-title { display: flex; align-items: center; gap: 8px; font: 700 13px var(--font-hud); letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.card-title .tag { margin-left: auto; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.kpi { background: var(--surface-2); border: 1px solid var(--border); padding: 8px 10px; min-width: 0; }
+.kpi .k { font: 600 11px var(--font-hud); letter-spacing: .14em; text-transform: uppercase; color: var(--text-subtle); }
+.kpi .v { font: 700 20px var(--font-hud); font-variant-numeric: tabular-nums; }
+.kpi .v.unknown { color: var(--unknown); font-size: 16px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font: 600 11px var(--font-hud); letter-spacing: .14em; text-transform: uppercase; color: var(--text-subtle); padding: 4px 8px; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
+td { padding: 6px 8px; border-bottom: 1px solid var(--border); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.unknown { color: var(--unknown); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border-strong); background: rgba(0,0,0,.3); font: 700 13px var(--font-hud); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn.new { border-color: rgba(70,195,90,.6); color: var(--success); background: var(--success-soft); }
+.btn.link { border-color: var(--accent-line); color: var(--accent); }
+.note { font-size: 13px; color: var(--text-muted); border-left: 2px solid var(--accent-line); padding: 2px 0 2px 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 600 12px var(--font-hud); letter-spacing: .06em; padding: 2px 8px; border: 1px solid var(--border-strong); color: var(--text-muted); }
+.chip.on { border-color: var(--accent-line); color: var(--accent); }
+
+.explain { border-left: 1px solid var(--border); background: rgba(8, 12, 18, .92); padding: 16px; min-width: 0; display: grid; gap: 16px; align-content: start; }
+.explain h3 { color: var(--accent); }
+.explain ul { margin: 0; padding-left: 18px; color: var(--text-muted); }
+.explain li { margin: 4px 0; }
+.explain p { margin: 0; color: var(--text-muted); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.moves { display: grid; gap: 6px; }
+.move { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; align-items: center; font-size: 13px; background: var(--surface-2); border: 1px solid var(--border); padding: 6px 8px; }
+.move .from { color: var(--text-subtle); }
+.move .arrow { color: var(--accent); font-family: var(--font-mono); }
+.move .to { color: var(--text); }
+.move button { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-align: left; font: inherit; }
+.move button:hover { text-decoration: underline; }
+
+.journeys { display: grid; gap: 10px; }
+.journey { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--border); padding: 10px 14px; }
+.journey .who { font: 700 15px var(--font-hud); letter-spacing: .04em; }
+.journey .who small { display: block; font: 13px var(--font-ui); color: var(--text-subtle); letter-spacing: 0; }
+.bars { display: grid; gap: 4px; }
+.bar-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) 70px; gap: 8px; align-items: center; font-size: 12px; color: var(--text-subtle); }
+.bar { height: 12px; background: rgba(255,255,255,.04); position: relative; }
+.bar i { position: absolute; inset: 0 auto 0 0; display: block; }
+.bar.before i { background: rgba(255,125,115,.55); }
+.bar.after i { background: rgba(70,195,90,.65); }
+.bar-row .val { font: 700 14px var(--font-hud); color: var(--text); font-variant-numeric: tabular-nums; }
+.journey .gap { grid-column: 2; font-size: 13px; color: var(--text-muted); }
+
+.lots { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.lot ol { margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 13px; }
+.lot li { margin: 3px 0; }
+.lot .lbl { font: 12px var(--font-mono); color: var(--accent); }
+
+.diag { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.diag p { margin: 0; color: var(--text-muted); font-size: 13px; }
+
+@media (max-width: 1100px) {
+  .frame { grid-template-columns: 220px minmax(0, 1fr); }
+  .explain { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border); }
+}
+@media (max-width: 720px) {
+  .frame { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
+  .journey { grid-template-columns: minmax(0, 1fr); }
+  .journey .gap { grid-column: 1; }
+  .move { grid-template-columns: minmax(0, 1fr); }
+  .move .arrow { display: none; }
+  h1 { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="intro">
+    <div class="eyebrow">Maquette · architecture de l'information · novembre 2026</div>
+    <h1>EVE Tools : modules par activité du joueur</h1>
+    <p class="lead">Aujourd'hui la sidebar range les écrans par type de donnée, et Revenus porte six métiers à lui seul. La cible range chaque écran dans l'activité qu'il sert : Industrie, Minage, PVE, Planétaire, Commerce, Patrimoine. Chaque module porte son analyse et son suivi, et un seul Bilan agrège les revenus. Aucun réglage ni aucune feature n'est retiré : tout est déplacé ou fusionné. La sidebar ne liste que les 8 modules, comme le Neocom du jeu ; les pages d'un module sont la barre d'onglets en haut de l'écran, chacune avec sa propre URL, et un module rouvre sa dernière page visitée. Clique un module puis un onglet pour voir l'écran, ce qui y arrive et pourquoi. Données fictives.</p>
+    <div class="legend">
+      <span><span class="tag tag-new">Nouveau</span> n'existait pas</span>
+      <span><span class="tag tag-moved">Déplacé</span> vient d'un autre écran</span>
+      <span><span class="tag tag-merged">Fusionné</span> deux écrans en un</span>
+      <span><span class="tag tag-renamed">Renommé</span> nouveau libellé</span>
+      <span><span class="tag tag-removed">Supprimé</span> doublon redirigé</span>
+    </div>
+    <div class="toggle" role="group" aria-label="Version de la navigation">
+      <button type="button" data-mode="after" aria-pressed="true">Cible</button>
+      <button type="button" data-mode="before" aria-pressed="false">Aujourd'hui</button>
+    </div>
+  </header>
+
+  <div class="frame">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">ET</div><div class="brand-name">EVE <span>Tools</span></div></div>
+      <nav class="nav" id="nav" aria-label="Navigation"></nav>
+    </aside>
+    <section class="screen" aria-live="polite">
+      <div class="topbar"><div class="crumb" id="crumb"></div><div class="route" id="route"></div></div>
+      <div class="content" id="content"></div>
+    </section>
+    <aside class="explain" id="explain"></aside>
+  </div>
+
+  <h2>Diagnostic</h2>
+  <div class="diag" id="diag"></div>
+
+  <h2>Parcours : clics avant / après</h2>
+  <p class="lead">Clics comptés depuis la sidebar, saisie de formulaire non comptée (inventaire du code, 2026-11-09). Rouge : aujourd'hui. Vert : cible.</p>
+  <div class="journeys" id="journeys" style="margin-top:12px"></div>
+
+  <h2>Découpage en lots</h2>
+  <p class="lead">Un label <code>group:*</code> par chantier, le déplacement du minage d'abord. Les issues ne seront créées qu'après ton accord.</p>
+  <div class="lots" id="lots" style="margin-top:12px"></div>
+</div>
+
+<script>
+const AFTER_NAV = [
+  { items: [{ id: 'pont', label: 'Accueil', tag: 'merged' }] },
+  { heading: 'Industrie', items: [
+    { id: 'atelier', label: 'Atelier', tag: 'merged' },
+    { id: 'projets', label: 'Projets', tag: 'renamed' },
+    { id: 'analyse', label: 'Analyse', tag: 'moved' },
+    { id: 'production', label: 'Production', tag: 'moved' },
+  ] },
+  { heading: 'Minage', items: [
+    { id: 'operations', label: 'Opérations', tag: 'same' },
+    { id: 'lunes', label: 'Lunes', tag: 'moved' },
+    { id: 'sites', label: 'Sites', tag: 'moved' },
+    { id: 'minerai', label: 'Valeur du minerai', tag: 'moved' },
+    { id: 'monminage', label: 'Mon minage', tag: 'moved' },
+  ] },
+  { heading: 'PVE', headingTag: 'new', items: [
+    { id: 'pverevenus', label: 'Revenus PVE', tag: 'moved' },
+    { id: 'escalations', label: 'Escalations', tag: 'moved' },
+  ] },
+  { items: [{ id: 'pi', label: 'Planétaire', tag: 'same' }] },
+  { heading: 'Commerce', headingTag: 'new', items: [
+    { id: 'marche', label: 'Marché', tag: 'same' },
+    { id: 'evaluateur', label: 'Évaluateur', tag: 'merged' },
+    { id: 'contrats', label: 'Contrats', tag: 'moved' },
+  ] },
+  { heading: 'Patrimoine', headingTag: 'new', items: [
+    { id: 'bilan', label: 'Bilan', tag: 'renamed' },
+    { id: 'inventaire', label: 'Inventaire', tag: 'same' },
+  ] },
+  { heading: 'Compte', items: [
+    { id: 'personnages', label: 'Personnages', tag: 'same' },
+    { id: 'parametres', label: 'Paramètres', tag: 'new' },
+  ] },
+]
+
+const BEFORE_NAV = [
+  { items: [{ id: 'b-dashboard', label: 'Tableau de bord' }] },
+  { heading: 'Production', items: [
+    { id: 'b-industry', label: 'Industrie' },
+    { id: 'b-appraisal', label: 'Appraisal' },
+    { id: 'b-pi', label: 'PI' },
+  ] },
+  { heading: 'Minage', items: [{ id: 'b-mining', label: 'Opérations de minage' }] },
+  { heading: 'Économie', items: [
+    { id: 'b-market', label: 'Marché' },
+    { id: 'b-ledger', label: 'Revenus' },
+    { id: 'b-assets', label: 'Inventaire' },
+  ] },
+  { heading: 'Compte', items: [
+    { id: 'b-characters', label: 'Personnages' },
+    { id: 'b-settings', label: 'Paramètres (modale)' },
+  ] },
+  { heading: 'Hors menu', items: [
+    { id: 'b-projects', label: 'Industrie de groupe', ghost: true },
+    { id: 'b-shopping', label: 'Shopping list', ghost: true },
+  ] },
+]
+
+const BEFORE = {
+  'b-dashboard': { crumb: 'Tableau de bord', route: '/dashboard', note: 'À faire (personnages, PI, alertes prix), KPI personnages et wallet, cartes personnages, flux de sync. Rien sur les revenus ni l\'activité en cours.', moves: [
+    ['À faire, wallet, personnages', 'pont', 'Accueil'],
+  ] },
+  'b-industry': { crumb: 'Production › Industrie', route: '/industry?tab=…', note: '8 pastilles au même niveau en 3 groupes, configuration derrière un engrenage. La liste des projets n\'a pas d\'entrée de sidebar.', moves: [
+    ['Atelier', 'atelier', 'Industrie › Atelier'],
+    ['Dashboard', 'atelier', 'Industrie › Atelier (fusion)'],
+    ['Marges, Scan, Achat vs Prod, Pivot', 'analyse', 'Industrie › Analyse'],
+    ['Slots, Stockpile', 'production', 'Industrie › Production'],
+    ['Configuration', 'parametres', 'Paramètres › Industrie + raccourci'],
+  ] },
+  'b-projects': { crumb: 'Industrie de groupe', route: '/group-industry', note: 'Accessible seulement par la palette, le Dashboard industrie ou le bouton retour. Titre « Industrie de groupe » alors que solo et groupe sont un seul module.', moves: [
+    ['Liste et détail des projets', 'projets', 'Industrie › Projets'],
+  ] },
+  'b-appraisal': { crumb: 'Production › Appraisal', route: '/appraisal', note: 'Outil d\'achat et de vente rangé sous Production.', moves: [
+    ['Appraisal', 'evaluateur', 'Commerce › Évaluateur'],
+  ] },
+  'b-shopping': { crumb: 'Shopping list', route: '/shopping-list', note: 'Orpheline : ni sidebar, ni palette, ni lien. Refait ce que fait /appraisal.', moves: [
+    ['Page et components/shopping/*', 'evaluateur', 'Supprimée, redirigée vers l\'Évaluateur'],
+  ] },
+  'b-pi': { crumb: 'Production › PI', route: '/planetary', note: 'Une page. Le seuil d\'alerte réglé par le joueur n\'est jamais lu.', moves: [
+    ['PI', 'pi', 'Planétaire (premier niveau)'],
+  ] },
+  'b-mining': { crumb: 'Minage › Opérations', route: '/mining-operations?tab=…', note: 'Seule entrée du groupe Minage. Onglets mine, available, archive, season, sites.', moves: [
+    ['mine, available, archive', 'operations', 'Minage › Opérations'],
+    ['sites', 'sites', 'Minage › Sites'],
+    ['season', 'monminage', 'Minage › Mon minage'],
+  ] },
+  'b-market': { crumb: 'Économie › Marché', route: '/market', note: 'Browse, détail, alertes. Une alerte déclenchée n\'envoie aucune notification et ne se modifie pas.', moves: [
+    ['Marché et alertes', 'marche', 'Commerce › Marché'],
+  ] },
+  'b-ledger': { crumb: 'Économie › Revenus', route: '/ledger?tab=…', note: 'La page fourre-tout : six onglets, trois sous-vues minage hors URL, un seul réglage.', moves: [
+    ['Vue d\'ensemble', 'bilan', 'Patrimoine › Bilan'],
+    ['PVE', 'pverevenus', 'PVE › Revenus PVE'],
+    ['Minage › Entrées', 'monminage', 'Minage › Mon minage'],
+    ['Minage › Valeur au m³', 'minerai', 'Minage › Valeur du minerai'],
+    ['Minage › Chunks lunaires', 'lunes', 'Minage › Lunes'],
+    ['Industrie', 'bilan', 'Patrimoine › Bilan'],
+    ['Escalations', 'escalations', 'PVE › Escalations'],
+    ['Réglages (compta corpo)', 'bilan', 'Bilan + Paramètres'],
+  ] },
+  'b-assets': { crumb: 'Économie › Inventaire', route: '/assets?tab=…', note: 'Assets et Contrats.', moves: [
+    ['Assets', 'inventaire', 'Patrimoine › Inventaire'],
+    ['Contrats', 'contrats', 'Commerce › Contrats'],
+  ] },
+  'b-characters': { crumb: 'Compte › Personnages', route: '/characters', note: 'Inchangé.', moves: [['Personnages', 'personnages', 'Compte › Personnages']] },
+  'b-settings': { crumb: 'Compte › Paramètres', route: 'modale', note: 'Modules visibles, langue, date, structure de marché. Les autres réglages sont sur 7 écrans différents, certains en stockage local.', moves: [
+    ['Modale', 'parametres', 'Compte › Paramètres (page à sections)'],
+  ] },
+}
+
+const k = (label, value, cls = '') => ({ label, value, cls })
+
+const PAGES = {
+  pont: {
+    crumb: 'Accueil', route: '/dashboard', tags: ['merged'], decision: 'B3', lot: 'Lot 6 · group:ui-shell',
+    blocks: [
+      { type: 'card', title: 'À traiter', rows: { cols: ['Gravité', 'Quoi', ''], data: [
+        ['Critique', 'Pilote Exemple : jeton ESI expiré', '<span class="btn link">Reconnecter</span>'],
+        ['Attention', 'Extracteur PI : expire bientôt', '<span class="btn link">Planétaire →</span>'],
+        ['Info', 'Alerte prix déclenchée : Tritanium', '<span class="btn link">Détail marché →</span>'],
+      ] } },
+      { type: 'grid', title: 'En cours', tag: 'new', cards: [
+        { title: 'Opération de minage', body: 'En cours · participants et quantités', btn: 'Ouvrir →' },
+        { title: 'Jobs qui finissent', body: 'Prochaines fins de jobs, avec leur projet', btn: 'Production →' },
+        { title: 'Prochain chunk', body: 'Arrivée, valeur estimée, opération liée', btn: 'Lunes →' },
+        { title: 'Extracteurs PI', body: 'Expirations au seuil réglé', btn: 'Planétaire →' },
+      ] },
+      { type: 'kpis', title: 'Bilan du mois', tag: 'moved', items: [k('PVE', '— ISK'), k('Minage', '— ISK'), k('Industrie', '— ISK'), k('Total', '— ISK')] },
+    ],
+    origin: [['À faire, wallet, personnages', 'Tableau de bord actuel'], ['Bilan du mois', 'Revenus › Vue d\'ensemble'], ['Blocs « En cours »', 'nouveau']],
+    why: ['L\'accueil actuel n\'affiche ni revenus ni activité : on ouvre trois modules pour savoir où on en est.', 'Chaque bloc renvoie à son module en un clic, comme la maquette dashboard.html de novembre.'],
+  },
+  atelier: {
+    crumb: 'Industrie › Atelier', route: '/industry', tags: ['merged'], decision: 'C2', lot: 'Lot 4 · group:industry-ia',
+    blocks: [
+      { type: 'actions', items: [['Nouveau projet', 'new'], ['Analyser un produit', 'link']] },
+      { type: 'kpis', title: 'Vue d\'ensemble', items: [k('Projets actifs', '—'), k('Slots libres', '—'), k('Jobs prêts', '—'), k('Stockpile critique', '—')] },
+      { type: 'card', title: 'File d\'actions', rows: { cols: ['Projet', 'Action', ''], data: [
+        ['Projet exemple au nom très long pour tester la troncature', 'Acheter les matériaux', '<span class="btn link">Ouvrir →</span>'],
+        ['Fuel blocks hebdo', 'Lier un job ESI', '<span class="btn link">Ouvrir →</span>'],
+      ] } },
+      { type: 'chips', title: 'Projets', items: ['Tous', 'Solo', 'Groupe'] },
+    ],
+    origin: [['File d\'actions, prochains jobs, projets filtrés', 'Industrie › Atelier'], ['KPI, alertes, actions rapides', 'Industrie › Dashboard']],
+    why: ['Atelier et Dashboard se recouvraient (deux listes de projets, deux zones d\'alertes) dans le même groupe d\'onglets.', 'L\'Atelier n\'avait pas de bouton de création : il fallait passer par le Dashboard.', 'Aucun bloc n\'est retiré, ils sont réunis.'],
+  },
+  projets: {
+    crumb: 'Industrie › Projets › Projet exemple', route: '/industry/projects/:id', tags: ['renamed'], decision: 'C1 · C4', lot: 'Lot 4 · group:industry-ia + group:workflow-bridges',
+    tabs: [['Matériaux & Jobs', 'on'], ['Contributions', 'cond'], ['Finances'], ['Ventes'], ['Équipe', 'cond'], ['Chaîne'], ['Planning']],
+    blocks: [
+      { type: 'actions', items: [['Inviter', 'new'], ['Publier', 'primary']] },
+      { type: 'note', text: 'Projet à un seul membre : Contributions et Équipe (pointillés) n\'apparaissent qu\'à la première invitation ou au deuxième membre.' },
+      { type: 'card', title: 'Matériaux à acheter', tag: 'new', rows: { cols: ['Matériau', 'Quantité', 'Estimation'], data: [
+        ['Tritanium', '—', '— ISK'], ['Pyerite', '—', '— ISK'], ['Morphite', '—', '<span class="subtle">inconnue</span>'],
+      ] }, after: [['Copier multibuy', 'new'], ['Évaluer dans l\'Évaluateur', 'new']] },
+    ],
+    origin: [['Liste et détail', '/group-industry, « Industrie de groupe »'], ['Export multibuy / Évaluateur', 'nouveau (pont)']],
+    why: ['Solo et groupe sont un seul module (décision du 2026-11-03) : l\'interface ne doit plus dire « Industrie de groupe ».', 'La liste des projets n\'avait pas d\'entrée de sidebar.', 'Acheter les matériaux obligeait à recopier la liste à la main dans l\'Appraisal.'],
+  },
+  analyse: {
+    crumb: 'Industrie › Analyse › Marges', route: '/industry/analysis?tab=margins&typeId=…', tags: ['moved'], decision: 'C1 · D3', lot: 'Lot 4 + group:workflow-bridges + group:price-rules',
+    tabs: [['Marges', 'on'], ['Scan'], ['Achat vs Prod'], ['Pivot']],
+    blocks: [
+      { type: 'kpis', title: 'Produit : Exemple de vaisseau', items: [k('Coût de production', '— ISK'), k('Vente Jita', '— ISK'), k('Marge', '— %')] },
+      { type: 'note', text: 'Source des prix affichée sous chaque montant (une seule règle pour Marges, Scan, Achat vs Prod, Pivot, Stockpile et projets).' },
+      { type: 'actions', items: [['Créer le projet', 'new'], ['Achat vs Prod', 'new'], ['Voir au marché', 'new']] },
+    ],
+    origin: [['Marges, Scan, Achat vs Prod, Pivot', 'pastilles « Analyse » de /industry'], ['Boutons de sortie', 'nouveau (pont)']],
+    why: ['Marges était un cul-de-sac : pas de création de projet, et changer d\'onglet effaçait le produit.', 'Le produit (typeId) reste dans l\'URL entre les onglets : lien partageable, retour arrière qui marche.', 'Aujourd\'hui une même marge diffère entre Scan et Marges (meilleur ordre vs prix pondéré).'],
+  },
+  production: {
+    crumb: 'Industrie › Production', route: '/industry/production?tab=slots', tags: ['moved'], decision: 'C1', lot: 'Lot 4 + group:workflow-bridges',
+    tabs: [['Slots', 'on'], ['Stockpile']],
+    blocks: [
+      { type: 'card', title: 'Jobs en cours', rows: { cols: ['Personnage', 'Job', 'Fin', 'Projet'], data: [
+        ['Pilote Exemple', 'Fabrication · 10 runs', '—', '<span class="btn link">Projet exemple →</span>'],
+        ['Alt Industriel Avec Un Nom Long', 'Réaction · 40 runs', '—', '<span class="subtle">hors projet</span>'],
+      ] } },
+      { type: 'note', text: 'Le lien job → projet est nouveau. Stockpile gagne « Évaluer dans l\'Évaluateur » à côté du copier existant.' },
+    ],
+    origin: [['Slots, Stockpile', 'pastilles « Operations » de /industry']],
+    why: ['Le suivi de production (slots, stocks) est distinct de l\'analyse.', 'Un job du tableau des slots ne renvoyait pas à son projet.'],
+  },
+  operations: {
+    crumb: 'Minage › Opérations', route: '/mining/operations', tags: ['same'], decision: 'A1', lot: 'Lot 1 · group:mining-module',
+    tabs: [['Mes opérations', 'on'], ['Disponibles'], ['Archives'], ['Récurrences']],
+    blocks: [
+      { type: 'actions', items: [['Nouvelle opération', 'primary']] },
+      { type: 'card', title: 'Mes opérations', rows: { cols: ['Opération', 'Statut', 'Lune / site'], data: [
+        ['Chunk du mardi', 'Planifiée', '<span class="btn link">Lune liée →</span>'],
+        ['Belt du week-end', 'En cours', '<span class="btn link">Site →</span>'],
+      ] } },
+    ],
+    origin: [['Opérations, récurrences', '/mining-operations (inchangé)'], ['Sites, Saison', 'sortis vers leurs pages']],
+    why: ['Le parcours d\'une opération (créer, inviter, clôturer, payer) était déjà cohérent sur une page : il ne bouge pas.', 'Il gagne la lune ou le site d\'origine de l\'opération.'],
+  },
+  lunes: {
+    crumb: 'Minage › Lunes', route: '/mining/moons', tags: ['moved'], decision: 'A1 · A2 · A4', lot: 'Lot 1 · group:mining-module (+ #368, #369)',
+    tabs: [['Calendrier', 'on'], ['Taxe lunaire', 'new']],
+    blocks: [
+      { type: 'chips', items: ['Liste', 'Semaine', 'Mois'] },
+      { type: 'card', title: 'Prochains chunks', rows: { cols: ['Lune', 'Arrivée', 'Valeur estimée', 'Part à 6', ''], data: [
+        ['Lune exemple VII – Moon 3', '—', '— ISK', '— ISK', '<span class="btn new">Planifier l\'opération</span>'],
+        ['Lune au nom très long pour la troncature', '—', '<span style="color:var(--unknown)">inconnue · coller le scan</span>', '—', '<span class="btn link">Opération liée →</span>'],
+      ] } },
+      { type: 'note', text: 'Onglet Taxe lunaire (directeurs et station managers) : réglage des raffineries, relevés par mineur, retards. Vue mineur : ses relevés et la référence TAX-… à copier.' },
+    ],
+    origin: [['Calendrier, valeur, composition', 'Revenus › Minage › Chunks lunaires'], ['Taxe lunaire', 'backend sans écran (#369)'], ['Planifier l\'opération', 'nouveau (pont)']],
+    why: ['Les chunks étaient dans Revenus, rangé sous Économie, sans lien vers les opérations.', 'Planifier une opération sur un chunk coûtait ~11 clics, 2 pages et une ressaisie de l\'heure : ~4 clics avec le bouton prérempli.', 'Les outils de la communauté (SeAT Mining Manager, AA moonmining) rangent chunks, ledger et taxe ensemble.'],
+  },
+  sites: {
+    crumb: 'Minage › Sites', route: '/mining/sites', tags: ['moved'], decision: 'A1', lot: 'Lot 1 · group:mining-module',
+    blocks: [
+      { type: 'card', title: 'Sites suivis', rows: { cols: ['Site', 'Restant', 'ETA', 'Opération'], data: [
+        ['Belt exemple', '— m³', '—', '<span class="btn link">Opération →</span>'],
+        ['Anomalie exemple', '— m³', '<span style="color:var(--unknown)">inconnue (1 scan)</span>', '<span class="subtle">—</span>'],
+      ] } },
+    ],
+    origin: [['Historique des sites', 'onglet sites de /mining-operations']],
+    why: ['Un site est un objet à part entière (scans, courbe, ETA), pas un onglet de liste.', 'Le site ne renvoyait pas à son opération alors que le lien était connu.'],
+  },
+  minerai: {
+    crumb: 'Minage › Valeur du minerai', route: '/mining/ore-value', tags: ['moved'], decision: 'A1 · A3', lot: 'Lot 1 + Lot 2 · group:mining-valuation',
+    blocks: [
+      { type: 'note', text: 'Valorisation : profil de l\'utilisateur (marché, côté, rendement, structure, taxe d\'export), réglé dans Paramètres › Minage. Même base que les sites, les chunks et les opérations.' },
+      { type: 'card', title: 'ISK / m³', rows: { cols: ['Minerai', 'Brut', 'Compressé', 'Retraité', 'Meilleur'], data: [
+        ['Veldspar', '—', '—', '—', 'Compressé'], ['Scordite', '—', '—', '—', 'Retraité'], ['Bistot', '—', '—', '—', '—'],
+      ] } },
+      { type: 'grid', cards: [
+        { title: 'Profil de retraitement', body: 'Skills, implant, structure' },
+        { title: 'Vendre mon minerai', body: 'Meilleur lieu de vente' },
+      ] },
+    ],
+    origin: [['Table ISK/m³, profil, vente', 'Revenus › Minage › Valeur au m³ (sous-vue hors URL)'], ['Rendement, taxe, structure', 'stockage local du navigateur → profil serveur']],
+    why: ['Un mineur qui choisit sa belt passait par Économie › Revenus › Minage › sous-vue : ~5 clics, 2 en cible.', 'Le même minerai était valorisé sur 6 bases différentes selon l\'écran.', 'Les réglages en stockage local se perdaient d\'un navigateur à l\'autre.'],
+  },
+  monminage: {
+    crumb: 'Minage › Mon minage', route: '/mining/my-mining', tags: ['moved'], decision: 'A1', lot: 'Lot 1 · group:mining-module',
+    tabs: [['Mon ledger', 'on'], ['Saison']],
+    blocks: [
+      { type: 'kpis', items: [k('Volume miné', '— m³'), k('Valeur', '— ISK'), k('ISK / jour actif', '— ISK')] },
+      { type: 'card', title: 'Lignes du ledger de minage', rows: { cols: ['Date', 'Personnage', 'Minerai', 'Quantité', 'Usage'], data: [
+        ['—', 'Pilote Exemple', 'Veldspar', '—', 'Vente'], ['—', 'Alt Mineur', 'Scordite', '—', 'Opération'],
+      ] } },
+    ],
+    origin: [['Entrées, stats', 'Revenus › Minage › Entrées'], ['Saison', 'onglet season de /mining-operations']],
+    why: ['Le ledger ESI personnel et la saison de corpo sont du suivi de minage, pas de la synthèse financière.', 'Le Bilan garde la ligne « Minage » et y renvoie.'],
+  },
+  pverevenus: {
+    crumb: 'PVE › Revenus PVE', route: '/pve', tags: ['moved'], decision: 'B2', lot: 'Lot 3 · group:revenue-pve',
+    blocks: [
+      { type: 'kpis', items: [k('Primes', '— ISK'), k('Ventes de loot', '— ISK'), k('Escalations vendues', '— ISK', 'new'), k('Dépenses', '— ISK')] },
+      { type: 'grid', cards: [
+        { title: 'Primes récentes', body: 'Bounties ESI' },
+        { title: 'Ventes de loot', body: 'Scan, ajout manuel, types' },
+        { title: 'Dépenses', body: 'Munitions, achats scannés' },
+      ] },
+    ],
+    origin: [['Onglet PVE complet', 'Revenus › PVE'], ['Escalations vendues', 'nouveau dans le revenu']],
+    why: ['Le PVE était un outil complet caché dans un onglet de Revenus.', 'Une escalation vendue n\'entrait ni dans le revenu PVE ni dans le Bilan.'],
+  },
+  escalations: {
+    crumb: 'PVE › Escalations', route: '/pve/escalations', tags: ['moved'], decision: 'B2', lot: 'Lot 3 · group:revenue-pve',
+    blocks: [
+      { type: 'actions', items: [['Ajouter', 'primary'], ['Partager WTS', 'link']] },
+      { type: 'card', title: 'Mes escalations', rows: { cols: ['Site', 'Expire', 'Statut', 'Prix'], data: [
+        ['Escalation exemple', '—', 'En vente', '— ISK'], ['Escalation exemple 2', '—', 'Vendue', '— ISK'],
+      ] } },
+    ],
+    origin: [['Onglet Escalations', 'Revenus › Escalations']],
+    why: ['Une escalation est un minuteur à suivre et à vendre, pas une ligne de revenu.', 'Le sélecteur de période de Revenus ne s\'y appliquait pas.'],
+  },
+  pi: {
+    crumb: 'Planétaire', route: '/planetary', tags: ['same'], decision: 'D1 · D3', lot: 'group:notifications-wiring + group:workflow-bridges',
+    blocks: [
+      { type: 'kpis', items: [k('Colonies', '—'), k('Expirent sous le seuil', '—'), k('Production', '— ISK / j')] },
+      { type: 'card', title: 'Production', rows: { cols: ['Produit', 'Volume / j', 'Valeur', ''], data: [
+        ['Coolant', '—', '— ISK', '<span class="btn new">Marché →</span>'],
+      ] } },
+    ],
+    origin: [['Page PI', 'Production › PI']],
+    why: ['La PI est une activité à part entière, pas une sous-catégorie de la production industrielle.', 'Le seuil d\'expiration réglé par le joueur sera enfin lu (aujourd\'hui 24 h et 2 h codés en dur).'],
+  },
+  marche: {
+    crumb: 'Commerce › Marché › Alertes', route: '/market?tab=alerts', tags: ['same'], decision: 'D1 · D3', lot: 'group:notifications-wiring',
+    tabs: [['Parcourir'], ['Détail'], ['Alertes', 'on']],
+    blocks: [
+      { type: 'card', title: 'Alertes', rows: { cols: ['Item', 'Seuil', 'Prix', 'Statut', ''], data: [
+        ['Tritanium', '—', '—', 'Déclenchée', '<span class="btn new">Réarmer</span> <span class="btn new">Modifier</span>'],
+      ] } },
+      { type: 'note', text: 'Une alerte déclenchée envoie une notification cliquable vers le détail de l\'item.' },
+    ],
+    origin: [['Marché', 'Économie › Marché']],
+    why: ['Aujourd\'hui une alerte déclenchée n\'apparaît que dans le « À faire » de l\'accueil.', 'On ne pouvait que supprimer une alerte, pas la modifier ni la réarmer.'],
+  },
+  evaluateur: {
+    crumb: 'Commerce › Évaluateur', route: '/appraisal', tags: ['merged'], decision: 'C3 · D1', lot: 'Lot 5 · group:commerce',
+    blocks: [
+      { type: 'note', text: 'Reçoit directement les matériaux d\'un projet ou d\'un stockpile (bouton « Évaluer dans l\'Évaluateur »).' },
+      { type: 'chips', title: 'Format (à trancher : implémenter ou retirer)', items: ['Auto', 'Multibuy', 'EFT', 'D-Scan', 'Killmail'] },
+      { type: 'kpis', items: [k('Vente Jita', '— ISK'), k('Achat Jita', '— ISK'), k('Volume', '— m³')] },
+      { type: 'actions', items: [['Multibuy Jita', 'link'], ['Multibuy structure', 'link'], ['Partager', 'link']] },
+    ],
+    origin: [['Appraisal', 'Production › Appraisal'], ['Shopping list', '/shopping-list supprimée et redirigée']],
+    why: ['Évaluer ou acheter une liste est un geste de commerce, pas de production.', '/shopping-list était un doublon sans aucun accès.', 'Les puces de format sont décoratives : un seul parseur générique existe.'],
+  },
+  contrats: {
+    crumb: 'Commerce › Contrats', route: '/contracts', tags: ['moved'], decision: 'D1', lot: 'Lot 5 · group:commerce',
+    blocks: [
+      { type: 'card', title: 'Mes contrats', rows: { cols: ['Contrat', 'Prix', 'vs Jita', 'Compétitif'], data: [
+        ['Exemple de contrat', '— ISK', '— %', 'Oui'],
+      ] } },
+    ],
+    origin: [['Contrats', 'Inventaire › Contrats']],
+    why: ['Comparer ses contrats aux prix et aux contrats publics est du commerce, pas de l\'inventaire.'],
+  },
+  bilan: {
+    crumb: 'Patrimoine › Bilan', route: '/ledger', tags: ['renamed'], decision: 'B1', lot: 'Lot 3 · group:revenue-pve',
+    blocks: [
+      { type: 'chips', items: ['7 j', '30 j', '90 j', 'Année', 'Tout'] },
+      { type: 'card', title: 'Revenus par activité', rows: { cols: ['Activité', 'Montant', 'Part', ''], data: [
+        ['PVE (escalations incluses)', '— ISK', '— %', '<span class="btn link">PVE →</span>'],
+        ['Minage', '— ISK', '— %', '<span class="btn link">Mon minage →</span>'],
+        ['Industrie', '— ISK', '— %', '<span class="btn link">Projets →</span>'],
+      ] } },
+      { type: 'note', text: 'Compta industrie (profit par mois et par produit) et réglage « projets corpo comptés côté PVE ou minage » restent ici.' },
+    ],
+    origin: [['Vue d\'ensemble, compta industrie, réglage', 'Revenus'], ['PVE, Escalations, Minage', 'partis dans leurs modules']],
+    why: ['Revenus portait six métiers. Il ne garde que la synthèse et renvoie vers chaque module.'],
+  },
+  inventaire: {
+    crumb: 'Patrimoine › Inventaire', route: '/assets', tags: ['same'], decision: 'D1', lot: 'Lot 5 · group:commerce',
+    blocks: [
+      { type: 'chips', items: ['Personnage', 'Corporation'] },
+      { type: 'card', title: 'Assets par lieu', rows: { cols: ['Lieu', 'Items', 'Types'], data: [['Station exemple au nom très long pour la troncature', '—', '—']] } },
+    ],
+    origin: [['Assets, visibilité corpo', 'Économie › Inventaire']],
+    why: ['Les contrats partent dans Commerce ; l\'inventaire reste du patrimoine.'],
+  },
+  personnages: {
+    crumb: 'Compte › Personnages', route: '/characters', tags: ['same'], decision: '—', lot: '—',
+    blocks: [{ type: 'note', text: 'Inchangé. Retiré du menu compte pour éviter le doublon avec la sidebar [à confirmer à la spec].' }],
+    origin: [['Personnages', '/characters']],
+    why: ['Rien ne bouge.'],
+  },
+  parametres: {
+    crumb: 'Compte › Paramètres', route: '/settings#minage', tags: ['new'], decision: 'D2 · A3', lot: 'Lot 6 · group:ui-shell + Lot 2',
+    tabs: [['Compte'], ['Affichage'], ['Marché'], ['Industrie'], ['Minage', 'on'], ['PVE'], ['Notifications']],
+    blocks: [
+      { type: 'card', title: 'Profil de valorisation minière', tag: 'new', rows: { cols: ['Réglage', 'Valeur'], data: [
+        ['Marché / côté', 'Jita · vente'], ['Rendement de retraitement', 'profil de retraitement'], ['Structure', 'Structure exemple'], ['Taxe d\'export', '— ISK / m³'],
+      ] } },
+      { type: 'note', text: 'Chaque module garde un bouton « Réglages » qui ouvre directement sa section. Une opération peut surcharger le profil et fige ses prix.' },
+    ],
+    origin: [['Modules, langue, date, structure', 'modale Paramètres'], ['Config industrie', 'panneau de /industry'], ['Valorisation minière', 'stockage local de l\'onglet Minage'], ['Notifications', 'menu de la cloche'], ['Compta corpo, config PVE', 'Revenus']],
+    why: ['Les réglages étaient sur 7 écrans, dont des réglages métier perdus avec le navigateur.', 'Aucun réglage n\'est retiré.'],
+  },
+}
+
+const TAG_LABEL = { new: 'Nouveau', moved: 'Déplacé', merged: 'Fusionné', renamed: 'Renommé', removed: 'Supprimé', same: 'Inchangé' }
+const tag = t => t ? `<span class="tag tag-${t}">${TAG_LABEL[t]}</span>` : ''
+const esc = s => String(s)
+
+let mode = 'after'
+let current = 'lunes'
+
+const MODULES = AFTER_NAV.map(g => ({ label: g.heading || g.items[0].label, tag: g.headingTag, pages: g.items }))
+const moduleOf = id => MODULES.find(m => m.pages.some(p => p.id === id))
+const lastPageOfModule = new Map()
+
+function renderModuleNav() {
+  const active = moduleOf(current)
+  document.getElementById('nav').innerHTML = MODULES.map((m, i) => `
+    ${m.label === 'Compte' ? '<div class="nav-heading"></div>' : ''}
+    <button type="button" class="nav-item" data-module="${i}" ${m === active ? 'aria-current="page"' : ''}>
+      <span class="label">${m.label}</span>${tag(m.tag)}</button>`).join('')
+  document.querySelectorAll('[data-module]').forEach(b => b.addEventListener('click', () => {
+    const m = MODULES[Number(b.dataset.module)]
+    select(lastPageOfModule.get(m) || m.pages[0].id)
+  }))
+}
+
+function renderModuleTabs(id) {
+  const m = moduleOf(id)
+  if (m.pages.length < 2) return ''
+  return `<div class="module-tabs" role="tablist">${m.pages.map(p => `<button type="button" role="tab" class="mt ${p.id === id ? 'on' : ''}" data-page="${p.id}" aria-selected="${p.id === id}">${p.label}${p.tag !== 'same' ? tag(p.tag) : ''}</button>`).join('')}</div>`
+}
+
+function renderNav() {
+  if (mode === 'after') { renderModuleNav(); return }
+  const groups = BEFORE_NAV
+  document.getElementById('nav').innerHTML = groups.map(g => `
+    ${g.heading ? `<div class="nav-heading">${g.heading} ${tag(g.headingTag)}</div>` : ''}
+    ${g.items.map(it => `<button type="button" class="nav-item ${g.heading ? 'sub' : ''} ${it.ghost ? 'ghost' : ''}" data-id="${it.id}" ${it.id === current ? 'aria-current="page"' : ''}>
+      <span class="label">${it.label}</span>${mode === 'after' && it.tag !== 'same' ? tag(it.tag) : ''}</button>`).join('')}
+  `).join('')
+  document.querySelectorAll('.nav-item').forEach(b => b.addEventListener('click', () => select(b.dataset.id)))
+}
+
+function renderRows(rows) {
+  return `<div style="overflow-x:auto"><table><thead><tr>${rows.cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${rows.data.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+}
+
+function renderActions(items) {
+  return `<div class="actions">${items.map(([l, c]) => `<span class="btn ${c || ''}">${l}</span>`).join('')}</div>`
+}
+
+function renderBlock(b) {
+  switch (b.type) {
+    case 'card':
+      return `<div class="card ${b.tag === 'new' ? 'hl' : ''}"><div class="card-title">${b.title}${tag(b.tag)}</div>${b.rows ? renderRows(b.rows) : ''}${b.after ? `<div style="margin-top:10px">${renderActions(b.after)}</div>` : ''}</div>`
+    case 'kpis':
+      return `<div>${b.title ? `<div class="card-title">${b.title}${tag(b.tag)}</div>` : ''}<div class="kpis">${b.items.map(i => `<div class="kpi" ${i.cls === 'new' ? 'style="border-color:rgba(70,195,90,.5)"' : ''}><div class="k truncate">${i.label}</div><div class="v">${i.value}</div></div>`).join('')}</div></div>`
+    case 'grid':
+      return `<div>${b.title ? `<div class="card-title">${b.title}${tag(b.tag)}</div>` : ''}<div class="grid2">${b.cards.map(c => `<div class="card"><div class="card-title">${c.title}</div><div class="muted" style="font-size:13px">${c.body}</div>${c.btn ? `<div style="margin-top:8px"><span class="btn link">${c.btn}</span></div>` : ''}</div>`).join('')}</div></div>`
+    case 'actions':
+      return renderActions(b.items)
+    case 'chips':
+      return `<div>${b.title ? `<div class="card-title">${b.title}</div>` : ''}<div class="chips">${b.items.map((c, i) => `<span class="chip ${i === 0 ? 'on' : ''}">${c}</span>`).join('')}</div></div>`
+    case 'note':
+      return `<div class="note">${b.text}</div>`
+  }
+  return ''
+}
+
+function renderAfter(id) {
+  const p = PAGES[id]
+  document.getElementById('crumb').innerHTML = p.crumb.split(' › ').map((s, i, a) => i === a.length - 1 ? `<b>${s}</b>` : s).join(' › ')
+  document.getElementById('route').textContent = p.route
+  lastPageOfModule.set(moduleOf(id), id)
+  const tabs = p.tabs ? `<div class="tabs">${p.tabs.map(([l, s]) => `<span class="t ${s === 'on' ? 'on' : ''} ${s === 'cond' ? 'cond' : ''}">${l}${s === 'new' ? tag('new') : ''}</span>`).join('')}</div>` : ''
+  document.getElementById('content').innerHTML = renderModuleTabs(id) + tabs + p.blocks.map(renderBlock).join('')
+  document.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => select(b.dataset.page)))
+  document.getElementById('explain').innerHTML = `
+    <div><h3>Ce qui change</h3><div class="meta">${p.tags.map(tag).join('')}<span class="tag tag-same">Décision ${p.decision}</span></div></div>
+    <div><h3>D'où ça vient</h3><div class="moves">${p.origin.map(([what, from]) => `<div class="move"><span class="to">${what}</span><span class="arrow">←</span><span class="from">${from}</span></div>`).join('')}</div></div>
+    <div><h3>Pourquoi</h3><ul>${p.why.map(w => `<li>${w}</li>`).join('')}</ul></div>
+    <div><h3>Chantier</h3><p><code>${p.lot}</code></p></div>`
+}
+
+function renderBefore(id) {
+  const p = BEFORE[id]
+  document.getElementById('crumb').innerHTML = p.crumb.split(' › ').map((s, i, a) => i === a.length - 1 ? `<b>${s}</b>` : s).join(' › ')
+  document.getElementById('route').textContent = p.route
+  document.getElementById('content').innerHTML = `<div class="note">${p.note}</div>
+    <div class="card"><div class="card-title">Contenu actuel et destination</div>${renderRows({ cols: ['Aujourd\'hui', 'Dans la cible'], data: p.moves.map(([what, , dest]) => [what, dest]) })}</div>`
+  document.getElementById('explain').innerHTML = `
+    <div><h3>Où ça part</h3><p>Clique une destination pour voir l'écran cible.</p></div>
+    <div class="moves">${p.moves.map(([what, target, dest]) => `<div class="move"><span class="from">${what}</span><span class="arrow">→</span><button type="button" data-goto="${target}">${dest}</button></div>`).join('')}</div>`
+  document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => { setMode('after'); select(b.dataset.goto) }))
+}
+
+function select(id) {
+  current = id
+  renderNav()
+  mode === 'after' ? renderAfter(id) : renderBefore(id)
+}
+
+function setMode(m) {
+  mode = m
+  document.querySelectorAll('.toggle button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)))
+  if (m === 'before' && !BEFORE[current]) current = 'b-ledger'
+  if (m === 'after' && !PAGES[current]) current = 'lunes'
+}
+
+document.querySelectorAll('.toggle button').forEach(b => b.addEventListener('click', () => { setMode(b.dataset.mode); select(current) }))
+
+const DIAG = [
+  ['Revenus est un fourre-tout', 'Synthèse, outil PVE complet, escalations, trois outils minage, compta industrie et un réglage sur une seule page rangée dans « Économie ».'],
+  ['Le minage est coupé en deux', 'Valeur du minerai et lunes dans Revenus, opérations et sites dans Minage, reliés par un seul lien qui ouvre la mauvaise sous-vue.'],
+  ['Pas de pont entre étapes', 'Chunk → opération, Marges → projet, matériaux → achat, alerte → notification, job → projet, produit PI → marché.'],
+  ['Valorisation incohérente', '6 bases de prix pour le minerai, 4 règles de prix en industrie, 4 sélecteurs de structure, 4 sources de rendement.'],
+  ['Industrie unifiée côté données seulement', 'L\'interface dit « Industrie de groupe », l\'onglet Équipe est toujours là, les projets n\'ont pas d\'entrée de sidebar.'],
+  ['Fonctions sans écran ou mal câblées', 'Taxe lunaire sans interface, alerte prix sans notification, seuil PI jamais lu, /shopping-list orpheline.'],
+]
+document.getElementById('diag').innerHTML = DIAG.map(([t, d]) => `<div class="card"><div class="card-title">${t}</div><p>${d}</p></div>`).join('')
+
+const JOURNEYS = [
+  ['Directeur lunaire', 'valeur d\'un chunk → opération', 11, 4, 'Plus de ressaisie de l\'heure, chunk et opération liés.'],
+  ['Industriel solo', '« rentable ? » → projet ouvert', 18, 8, 'Le produit suit dans l\'URL, « Créer le projet » depuis Marges.'],
+  ['Industriel corpo', 'créer, inviter, contribuer, répartir', 25, 18, 'Projets dans la sidebar, Équipe à l\'invitation.'],
+  ['PVE', 'escalation + revenu du mois', 6, 3, 'Escalations vendues comptées dans le revenu PVE.'],
+  ['Mineur', 'ISK/m³ avant de choisir sa belt', 5, 2, 'Une page dans le module Minage, même base de prix partout.'],
+  ['Trader', 'réagir à une alerte déclenchée', 3, 1, 'Notification cliquable vers le détail, alerte réarmable.'],
+  ['Achat des matériaux', 'liste du projet → évaluation', null, 2, 'Aujourd\'hui recopie manuelle dans l\'Appraisal.'],
+  ['Chef de flotte', 'créer → payer (N participants)', 14, 14, 'Parcours déjà cohérent, + N clics de paiement, inchangé.'],
+]
+const MAX = 25
+document.getElementById('journeys').innerHTML = JOURNEYS.map(([who, what, before, after, gap]) => `
+  <div class="journey">
+    <div class="who">${who}<small>${what}</small></div>
+    <div class="bars">
+      <div class="bar-row"><span>Avant</span><div class="bar before"><i style="width:${before ? (before / MAX * 100) : 100}%;${before ? '' : 'background:repeating-linear-gradient(45deg,rgba(255,125,115,.35) 0 6px,transparent 6px 12px)'}"></i></div><span class="val">${before ?? 'manuel'}</span></div>
+      <div class="bar-row"><span>Après</span><div class="bar after"><i style="width:${after / MAX * 100}%"></i></div><span class="val">${after}</span></div>
+    </div>
+    <div class="gap">${gap}</div>
+  </div>`).join('')
+
+const LOTS = [
+  ['Lot 1', 'group:mining-module', ['Module Minage : 5 pages, routes, redirections de /ledger?tab=mining', 'Page Valeur du minerai', 'Page Lunes (rattache #368 et #369)', 'Pages Mon minage et Sites', 'Chunk → « Planifier l\'opération », site → opération']],
+  ['Lot 2', 'group:mining-valuation', ['Profil de valorisation minière serveur', 'Une seule base de prix du minerai, source affichée']],
+  ['Lot 3', 'group:revenue-pve', ['Module PVE : Revenus PVE et Escalations', 'Escalation vendue dans le revenu', 'Revenus → Bilan']],
+  ['Lot 4', 'group:industry-ia', ['Industrie en 4 sous-pages, « Projets »', 'Fusion Atelier + Dashboard', 'Équipe et Contributions à l\'invitation']],
+  ['Lot 5', 'group:commerce', ['Commerce : Évaluateur, Contrats', 'Suppression de /shopping-list', 'Formats de l\'Évaluateur (à trancher)']],
+  ['Lot 6', 'group:ui-shell', ['Sidebar finale et palette alignée', 'Accueil « Pont »', 'Page Paramètres à sections']],
+  ['Transverse', 'group:notifications-wiring', ['Alerte prix → notification, réarmement', 'Seuil PI réellement lu']],
+  ['Transverse', 'group:price-rules', ['Règle de prix industrie commune, source affichée']],
+  ['Transverse', 'group:workflow-bridges', ['Marges → projet, matériaux → multibuy / Évaluateur', 'Job → projet, produit PI → marché']],
+]
+document.getElementById('lots').innerHTML = LOTS.map(([n, label, items]) => `
+  <div class="card lot"><div class="card-title">${n}<span class="lbl" style="margin-left:auto">${label}</span></div><ol>${items.map(i => `<li>${i}</li>`).join('')}</ol></div>`).join('')
+
+select(current)
+</script>
+</body>
+</html>

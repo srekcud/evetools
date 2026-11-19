@@ -1,0 +1,20 @@
+ M config/packages/messenger.yaml
+ M config/reference.php
+D  frontend/src/stores/industry/index.ts
+ M src/Entity/UserLedgerSettings.php
+D  src/Message/SyncStructureMarket.php
+D  src/MessageHandler/SyncStructureMarketHandler.php
+ M src/Repository/CachedAssetRepository.php
+ M src/Service/ESI/CorporationService.php
+ M src/Service/ESI/TokenManager.php
+ M src/Service/Industry/EsiCostIndexService.php
+ M src/Service/Industry/IndustryBonusService.php
+ M src/Service/Industry/InventionService.php
+ M src/Service/JitaMarketService.php
+D  tests/Unit/MessageHandler/SyncStructureMarketHandlerTest.php
+ M tests/Unit/Service/ESI/CorporationServiceTest.php
+ M tests/Unit/Service/Industry/EsiCostIndexServiceTest.php
+ M tests/Unit/Service/Industry/InventionServiceTest.php
+ M tests/Unit/Service/TokenManagerTest.php
+ M tests/Unit/State/Provider/Assets/CorporationAssetsProviderTest.php
+base: ba8eeaaa940cd47ad279968563581ef391bce844

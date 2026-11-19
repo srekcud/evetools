@@ -160,7 +160,7 @@ function unknownReasonText(output: JobLocation): string | null {
           v-if="topAlert !== null"
           data-testid="companion-alert"
           :data-kind="topAlert.kind"
-          class="max-w-40 flex-shrink-0 truncate rounded border px-1.5 py-0.5 text-xs"
+          class="min-w-0 max-w-40 truncate rounded border px-1.5 py-0.5 text-xs"
           :class="alertClasses(topAlert.kind)"
           :title="topAlert.text"
         >{{ topAlert.text }}</span>

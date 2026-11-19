@@ -1,0 +1,31 @@
+# Audit tests industrie (test-skeptic) — 2026-10-22 — verdict : insuffisant
+
+Mesures : `--filter Industry` 2018 tests, 1 incomplet (`InstallCostTest.php:124`), 183 notices ; Integration filtrée 135 verts. Infection Domain : 347 mutants, MSI 97 %, covered 99 %. Infection Application+Infrastructure+Service/Industry+Service/GroupIndustry : 3829 mutants, MSI 84 %, covered 88 %, 418 survivants, 174 non couverts (baselines 37 % Service/Industry, 79 % GroupIndustry). Log : `var/inf-all.txt`.
+
+Grille : a (bug figé hors cible) ko — `BuyVsBuildServiceCharacterizationTest.php:72` fige #2 + #8 (groupes issue-101/98) ; `:196` ; `GroupIndustryBomGoldenCharacterizationTest.php:379` fige #2 + #69 ; `BatchProfitScannerServiceTest.php:211,243,273…` 15 tests getCostIndex → null (#7 figé). b ko mineur (Fernite Alloy/Ceramic Powder mêmes quantités ; prix ×2 dans `ShoppingListProviderGoldenCharacterizationTest.php:329`). c ko — `timePerRun` jamais asserté ; `IndustryProjectFactoryTest.php:543,583` assertCount seul ; `IndustryCalculationService.php:235-290` 62 mutants non couverts ; assertions faibles `BatchProfitScannerServiceTest.php:178-182,495-508`, `BuyVsBuildServiceTest.php:192,206-208`, `IndustryStepCalculatorTest.php:348-378`, `InventionServiceTest` 11 assertNotNull, `ProfitMarginServiceTest.php:195,423-425,694`. d ko — `InstallCostTest.php:124` markTestIncomplete D11a + commentaire. e ko — étiquetage cassé (listes ci-dessous).
+
+## Issues proposées [tech-debt, industry]
+### P1
+1. **Distribution/contributions Group Industry non épinglées** — survivants `GroupIndustryDistributionService.php:95-98` (`+=`→`=`), `:102` (`>0`→`>=0`) ; `GroupIndustryContributionService.php:74,77-81,154` (lien membre/BOM/qty, validateAntiDuplicate, Pending bloque doublon) ; `GroupIndustryContainerService.php:121` (égalité). Tests : deux contributions Material 100+250 → 350 ; coût 0 sans division par zéro.
+2. **Pivot Advisor : aucun test multi-unités ni runs > 1** — survivants `PivotAdvisorService.php:194,236,246-251,169,210,433`. (lié legacy #1)
+3. **Coût d'invention : formule non épinglée** (≈ #18) — `InventionService.php:298-308,466,599` tous opérateurs survivent ; 11 assertNotNull.
+4. **Durée d'étape et compétences : aucune assertion** — `IndustryCalculationService.php:235-290`, `IndustryProjectFactoryTest.php:543,583`, `IndustryResourceMapper.php:250`. TE 0/20, Industry V, Advanced Industry V, Reactions IV jamais vérifiés.
+5. **JobSplitCalculationTest teste une copie privée** (#24 clos à tort, probablement par la PR ESI, cf. `.claude/tasks/issues-proposals.md:116`) — `JobSplitCalculationTest.php:24-58` ; `IndustryProjectFactory::jobsOf` (`:478-525`) non protégé. Réécrire sur createProject 14+13 runs (golden Capital Jump Drive).
+6. **Processors/providers sans test avec calcul de quantités** (≈ #2, #21) — CreateStep, AdaptStock, ApplyStock, UpdateStep, CreatePurchase, MatchJobs, RecordSale, SubmitContribution, UpdateGroupProject, SyncCharacterSkills ; PivotAdvisorProvider, CopyCostsProvider, BpcKitProvider, SlotTrackerProvider, GroupDistributionProvider.
+### P2
+7. **Étiqueter tous les tests de caractérisation Industry** — numéro sans Group : `ProjectProviderGoldenTree…:150,179,204,224,242,268`, `IndustryShoppingListBuilderGolden…:70,90,112,140,156,514`, `StockpileGoldenImport…:102,134,147,199,227`, `GroupIndustryBomGolden…:169,351,900,973,1101`, `IndustryProjectFactoryGoldenSteps…:177,206`, `ShoppingListProviderGolden…:112,231,419` ; ni numéro ni groupe : `ProfitMarginGoldenCharacterizationTest.php:166,187,223,235,247,266,379,401,433,533,552,604`, `BuyVsBuildServiceCharacterizationTest.php:161,175,209`, `IndustryProjectFactoryGoldenSteps…:962`, `IndustryShoppingListBuilderGolden…:539`, `Integration/…/GroupIndustryBomPersistenceTest.php:129` ; numéro faux : #16 au lieu de #69 (`ProjectProviderGoldenTree…:179`, `GroupIndustryBomGolden…:351`), issue-112 sur `IndustryProjectFactoryGoldenSteps…:898,921,943`, commentaire mal placé `:892-896`, `BuyVsBuildServiceCharacterizationTest.php:237` issue-98 vs #8. +30 commentaires `CARACTÉRISATION` interdits.
+8. **Découper les tests qui figent plusieurs bugs** — `BuyVsBuildServiceCharacterizationTest.php:72,196`, `GroupIndustryBomGoldenCharacterizationTest.php:379`, 15 tests scanner getCostIndex → null.
+9. **Noms qui contredisent la spec** — `ProjectProviderGoldenTree…:242` (ME 10 voulu, étiqueté bug #15), `IndustryProjectFactoryGoldenSteps…:206` (fusion voulue), `GroupIndustryBomGolden…:379` (#105 corrigé).
+10. **Test mort InstallCostTest::testCopyingInstallCostWithSccSurcharge** — `:124` ; attend SCC 20 000, total 60 000 (vecteur copying-ten-runs) ; suivre D11a.
+11. **ProductionCostCalculator : résolution du système** — survivants `:262`, `:314` (throw retiré). (= core #9)
+12. **Planner : stock d'intermédiaire parent** — non couverts `ProductionPlanner.php:44,91` (`continue`→`break`) ; cible aussi intermédiaire d'une autre cible.
+### P3
+13. **Valeur absente traitée comme 0 sans test** (≈ #8, #119) — `ProductionCostService.php:56,124,152,154,186` (`:186` findOneBy(['user'=>$user]) → findOneBy([]) survit : réglages d'un autre user lisibles sans test rouge) ; `StockpileService.php:185-186` ; `IndustryBonusService.php:155-174,213,340`.
+14. **Scanner : boucle et bornes** — `BatchProfitScannerService.php:349` (continue→break), `:348`, `:352`, `:594-632`.
+15. **Liste d'achats et stock partiel** — `IndustryShoppingListBuilder.php:185-193`, `StockpileStartingStockReducer.php:63-64,88`, `StockpileService.php:246,443`.
+16. **Cas limites IndustryProjectFactory** — `:414` (continue→break), `:178,187,190` (étape de copie), `:456` (isReaction ignoré par les stubs).
+17. **Validation d'entrée ME/TE sans test** — Range 0-10/0-20, TE impair accepté (Domain `TimeEfficiency` exige pair). (= API #15)
+18. **Legacy vs noyau sans test d'équivalence** (= legacy #21, core #1).
+19. **Cliquet MSI non appliqué** (= core #9) — `infection.json5` sans minMsi ; pas de CI ; goldens en deux exemplaires (`.claude/tasks/industry-core/golden`, `tests/Fixtures/Golden`).
+
+Autres vrais trous : `BuyVsBuildService.php:73,218` ; `IndustryJobMatcher.php:108` ; `SlotTrackerService.php:110,128,111,123,129,303,338` ; `EsiCostIndexService.php:63,75,109,122`.

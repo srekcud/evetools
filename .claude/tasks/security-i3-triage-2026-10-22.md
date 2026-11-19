@@ -1,0 +1,9 @@
+# Triage I3 — 2026-10-22 (PRIVÉ)
+
+**Verdict : confirmé, correctif S6 incomplet (pas une régression). Sévérité moyenne.**
+`8a5408d` ne touche que `CachedAssetRepository.php` et `CorporationAssetsProvider.php` ; `GroupIndustryContainerService.php` inchangé depuis `ec74e99` (V0.13).
+
+1. Divisions lues : toutes. `GroupIndustryContainerService.php:59` → `findByCorporationId()` (`CachedAssetRepository.php:78-88`, filtre corporationId + isCorporationAsset, pas de locationFlag). `CorpAssetVisibilityRepository` non injecté (constructeur `:14-17`). Sans configuration : ouvert, alors que `CorporationAssetsProvider.php:53-56` renvoie [].
+2. Qui : tout utilisateur crée un projet avec `containerName` (`CreateGroupProjectProcessor.php:71`) ; propriétaire/admin le modifient (`UpdateGroupProjectProcessor.php:61,72-73`) ; lecture propriétaire/admin (`ContainerVerificationProvider.php:52`) ; corp = main du propriétaire (`:37`, `User.php:164`) ; admin promu peut être d'une autre corp (`UpdateGroupMemberProcessor.php:87-89`). Réponse : typeId, typeName, requiredQuantity, containerQuantity, status par matériau de BOM (`:137-143`) ; contenu direct seulement (`:77-81`).
+3. Scénario : un membre sans rôle crée un projet (blacklistGroupIds pour exposer des intermédiaires), nomme un container deviné d'une division non autorisée (ou livraisons/fourrière), appelle `GET /api/group-industry/projects/{id}/container-verification` (front `stores/group-industry/project.ts:78`) → quantités révélées. Limites : nom exact, types de la BOM seulement.
+4. Test rouge (intégration, vrai repository ; l'unitaire mocke `findByCorporationId`) : `testIgnoresContainersOutsideDirectorAllowedDivisions` — liste blanche [1], container « Build » itemId 100 en CorpSAG2, 1000 Tritanium locationId 100, BOM 500 Tritanium → `containerQuantity === 0` (aujourd'hui 1000, verified). Variante sans configuration : même assertion.

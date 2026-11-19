@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Industrie · Projets · EVE Tools (maquette)</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .split { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+  .panel-title { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(90deg, rgba(47,208,240,.08), transparent 70%); }
+  .panel-title .type-icon { width: 56px; height: 56px; }
+  .panel-title h2 { margin: 0; font: 700 20px/1.1 var(--font-hud); letter-spacing: .04em; text-transform: uppercase; }
+  .panel-title small { color: var(--text-subtle); font-size: 12px; }
+  .steps { list-style: none; margin: 0; padding: 0; }
+  .steps li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px; }
+  .steps li:first-child { border-top: 0; }
+  .steps .grow { flex: 1; min-width: 0; }
+  .section-title { display: flex; align-items: center; gap: 8px; font: 700 12px var(--font-hud); text-transform: uppercase; letter-spacing: .2em; color: var(--accent); margin: 18px 0 8px; }
+  .section-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
+  .section-title:first-child { margin-top: 0; }
+  .tablefoot { display: flex; align-items: center; gap: 12px; padding: 10px 16px; font-size: 12px; color: var(--text-subtle); flex-wrap: wrap; }
+  .tablefoot .grow { flex: 1; }
+  input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+  .bulkbar { display: none; align-items: center; gap: 8px; padding: 8px 16px; background: var(--accent-soft); border-bottom: 1px solid var(--accent-line); font-size: 13px; flex-wrap: wrap; }
+  .bulkbar.on { display: flex; }
+  .bulkbar strong { font: 700 13px var(--font-hud); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  table.data td.name-col { min-width: 220px; }
+  @media (max-width: 1280px) { .split { grid-template-columns: minmax(0, 1fr); } .panel { position: static; max-height: none; } }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Aller au contenu</a>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+
+    <main class="content" id="content">
+      <div class="page-head">
+        <div>
+          <p class="kicker">Production</p>
+          <h1>Industrie</h1>
+          <p>Planifier, chiffrer et suivre vos projets de fabrication.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Configuration</button>
+          <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Nouveau projet</button>
+          <span class="annot" title="Action principale unique" style="align-self:center">1</span>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Sections de l'industrie">
+        <span class="group-label" aria-hidden="true">Suivi</span>
+        <button role="tab" aria-selected="false">Vue d'ensemble</button>
+        <button role="tab" aria-selected="true">Projets <span class="chip chip-neutral" style="height:18px">5</span></button>
+        <button role="tab" aria-selected="false">Slots</button>
+        <button role="tab" aria-selected="false">Stocks</button>
+        <span class="sep" aria-hidden="true"></span>
+        <span class="group-label" aria-hidden="true">Analyse</span>
+        <button role="tab" aria-selected="false">Marges</button>
+        <button role="tab" aria-selected="false">Scanner</button>
+        <button role="tab" aria-selected="false">Acheter ou produire</button>
+        <button role="tab" aria-selected="false">Reconversion</button>
+        <span class="annot" title="Onglets regroupés" style="align-self:center;margin-left:8px;flex-shrink:0">2</span>
+      </div>
+
+      <div class="grid split">
+        <section class="card" aria-labelledby="projects-title">
+          <div class="card-head">
+            <h2 id="projects-title">Projets actifs</h2>
+            <div class="actions"><span class="freshness hide-mobile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Prix Jita 13:00</span></div>
+          </div>
+          <div class="toolbar">
+            <div class="input-icon" style="flex:1 1 200px;max-width:280px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              <input class="input" type="search" placeholder="Filtrer par produit…" aria-label="Filtrer les projets par produit">
+            </div>
+            <div class="segmented" role="group" aria-label="Statut">
+              <button aria-pressed="true">Actifs<span class="n">5</span></button>
+              <button aria-pressed="false">Terminés<span class="n">23</span></button>
+              <button aria-pressed="false">Tous<span class="n">28</span></button>
+            </div>
+            <span class="annot" title="Filtres persistants">3</span>
+            <button class="btn btn-sm btn-ghost" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5z"/></svg>Colonnes</button>
+          </div>
+          <div class="bulkbar" id="bulkbar" role="region" aria-label="Actions groupées">
+            <strong id="bulkcount">0 sélectionné</strong>
+            <button class="btn btn-sm">Marquer terminés</button>
+            <button class="btn btn-sm">Liste d'achats combinée</button>
+            <button class="btn btn-sm btn-danger" style="margin-left:auto">Supprimer…</button>
+          </div>
+          <div class="table-wrap">
+          <table class="data" id="projects">
+            <thead><tr>
+              <th scope="col"><input type="checkbox" aria-label="Tout sélectionner" id="all"></th>
+              <th scope="col"><button>Produit</button></th>
+              <th scope="col" class="r"><button>Runs</button></th>
+              <th scope="col" class="r hide-mobile"><button>Matériaux</button></th>
+              <th scope="col" class="r hide-mobile"><button>Job + taxes</button></th>
+              <th scope="col" class="r hide-mobile"><button>Vente</button></th>
+              <th scope="col" class="r" aria-sort="descending"><button>Profit <svg class="sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10l5 5 5-5"/></svg></button></th>
+              <th scope="col">Étapes</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr></thead>
+            <tbody>
+              <tr tabindex="0" aria-selected="true" data-name="Ishtar" data-runs="4">
+                <td style="width:40px"><input type="checkbox" aria-label="Sélectionner Ishtar"></td>
+                <td class="name-col"><div class="type-cell"><span class="type-icon"><img src="https://images.evetech.net/types/12005/icon?size=64" alt="" loading="lazy"><i class="tech" title="Tech II"></i></span><div style="min-width:0"><strong class="truncate">Ishtar</strong><small class="truncate" data-long="ME 10 · TE 20 · TM-0P2 - Forge des Sept Soleils (Sotiyo de production capitale)">ME 10 · TE 20 · Sotiyo</small></div></div></td>
+                <td class="r">4</td>
+                <td class="r hide-mobile">612,4 M</td>
+                <td class="r hide-mobile">38,1 M</td>
+                <td class="r hide-mobile">1,13 Md</td>
+                <td class="r"><span class="delta-up">+479,5 M</span><br><small class="subtle">42,4 %</small></td>
+                <td style="min-width:110px"><div class="progress"><div class="meter"><span style="width:62%"></span></div><span class="num subtle">5/8</span></div></td>
+                <td><span class="row-actions"><button class="btn btn-sm btn-ghost" aria-label="Plus d'actions pour Ishtar"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button></span></td>
+              </tr>
+              <tr tabindex="0" data-name="Hammerhead II" data-runs="200">
+                <td style="width:40px"><input type="checkbox" aria-label="Sélectionner Hammerhead II"></td>
+                <td class="name-col"><div class="type-cell"><span class="type-icon"><img src="https://images.evetech.net/types/2185/icon?size=64" alt="" loading="lazy"><i class="tech" title="Tech II"></i></span><div style="min-width:0"><strong class="truncate">Hammerhead II</strong><small class="truncate" data-long="ME 10 · TE 20 · Perimeter - Atelier Raitaru des Comptoirs Réunis">ME 10 · TE 20 · Raitaru</small></div></div></td>
+                <td class="r">200</td>
+                <td class="r hide-mobile">118,0 M</td>
+                <td class="r hide-mobile">6,2 M</td>
+                <td class="r hide-mobile">402,0 M</td>
+                <td class="r"><span class="delta-up">+277,8 M</span><br><small class="subtle">69,1 %</small></td>
+                <td style="min-width:110px"><div class="progress"><div class="meter"><span style="width:25%"></span></div><span class="num subtle">1/4</span></div></td>
+                <td><span class="row-actions"><button class="btn btn-sm btn-ghost" aria-label="Plus d'actions pour Hammerhead II"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button></span></td>
+              </tr>
+              <tr tabindex="0" data-name="Capital Construction Parts" data-runs="30">
+                <td style="width:40px"><input type="checkbox" aria-label="Sélectionner Capital Construction Parts"></td>
+                <td class="name-col"><div class="type-cell"><span class="type-icon"><img src="https://images.evetech.net/types/21037/icon?size=64" alt="" loading="lazy"></span><div style="min-width:0"><strong class="truncate">Capital Construction Parts</strong><small class="truncate" data-long="ME 10 · TE 20 · TM-0P2 - Forge des Sept Soleils (Sotiyo de production capitale)">ME 10 · TE 20 · Sotiyo</small></div></div></td>
+                <td class="r">30</td>
+                <td class="r hide-mobile">204,7 M</td>
+                <td class="r hide-mobile">11,9 M</td>
+                <td class="r hide-mobile"><span class="chip chip-unknown" title="Aucun ordre de vente à Jita : prix inconnu">Prix inconnu</span></td>
+                <td class="r"><span class="chip chip-unknown">Inconnu</span></td>
+                <td style="min-width:110px"><div class="progress"><div class="meter"><span style="width:50%"></span></div><span class="num subtle">2/4</span></div></td>
+                <td><span class="row-actions"><button class="btn btn-sm btn-ghost" aria-label="Plus d'actions pour Capital Construction Parts"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button></span></td>
+              </tr>
+              <tr tabindex="0" data-name="Republic Fleet Large Cap Battery" data-runs="5">
+                <td style="width:40px"><input type="checkbox" aria-label="Sélectionner Republic Fleet Large Cap Battery"></td>
+                <td class="name-col"><div class="type-cell"><span class="type-icon" title="Icône indisponible"><span class="fallback">?</span><i class="tech faction"></i></span><div style="min-width:0"><strong class="truncate">Republic Fleet Large Cap Battery</strong><small class="truncate" data-long="Faction · BPC 5 runs · Perimeter - Atelier Raitaru des Comptoirs Réunis">Faction · BPC 5 runs · Raitaru</small></div></div></td>
+                <td class="r">5</td>
+                <td class="r hide-mobile">96,3 M</td>
+                <td class="r hide-mobile">4,0 M</td>
+                <td class="r hide-mobile">152,5 M</td>
+                <td class="r"><span class="delta-up">+52,2 M</span><br><small class="subtle">34,2 %</small></td>
+                <td style="min-width:110px"><div class="progress"><div class="meter"><span style="width:0%"></span></div><span class="num subtle">0/3</span></div></td>
+                <td><span class="row-actions"><button class="btn btn-sm btn-ghost" aria-label="Plus d'actions pour Republic Fleet Large Cap Battery"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button></span></td>
+              </tr>
+              <tr tabindex="0" data-name="Nanite Repair Paste" data-runs="50">
+                <td style="width:40px"><input type="checkbox" aria-label="Sélectionner Nanite Repair Paste"></td>
+                <td class="name-col"><div class="type-cell"><span class="type-icon"><img src="https://images.evetech.net/types/28668/icon?size=64" alt="" loading="lazy"></span><div style="min-width:0"><strong class="truncate">Nanite Repair Paste</strong><small class="truncate" data-long="ME 10 · TE 20 · Perimeter - Atelier Raitaru des Comptoirs Réunis">ME 10 · TE 20 · Raitaru</small></div></div></td>
+                <td class="r">50</td>
+                <td class="r hide-mobile">41,8 M</td>
+                <td class="r hide-mobile">2,1 M</td>
+                <td class="r hide-mobile">40,6 M</td>
+                <td class="r"><span class="delta-down">−3,3 M</span><br><small class="subtle">−8,1 %</small></td>
+                <td style="min-width:110px"><div class="progress"><div class="meter"><span style="width:0%"></span></div><span class="num subtle">0/2</span></div></td>
+                <td><span class="row-actions"><button class="btn btn-sm btn-ghost" aria-label="Plus d'actions pour Nanite Repair Paste"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button></span></td>
+              </tr>
+            </tbody>
+            <tfoot><tr>
+              <td></td><td colspan="2"><strong class="hud" style="letter-spacing:.12em;text-transform:uppercase">Total</strong> <small class="subtle">4 chiffrés sur 5</small></td>
+              <td class="r hide-mobile"><strong>1,07 Md</strong></td>
+              <td class="r hide-mobile"><strong>62,3 M</strong></td>
+              <td class="r hide-mobile"><strong>≥ 1,73 Md</strong></td>
+              <td class="r"><strong class="delta-up">≥ +806,2 M</strong></td>
+              <td colspan="2"></td>
+            </tr></tfoot>
+          </table>
+          </div>
+          <div class="tablefoot">
+            <span class="freshness"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Prix Jita du 03/11 à 13:00 · indices de coût il y a 1 h</span>
+            <span class="grow"></span>
+            <span class="annot" title="Totaux honnêtes">4</span>
+            <span>Profit = vente − matériaux − job − taxes. <a href="#">Détail du calcul</a></span>
+          </div>
+        </section>
+
+        <aside class="card panel" aria-labelledby="detail-title">
+          <div class="panel-title">
+            <span class="type-icon"><img src="https://images.evetech.net/types/12005/icon?size=64" alt="" id="detail-icon"><i class="tech"></i></span>
+            <div style="flex:1;min-width:0">
+              <h2 id="detail-title" class="clamp-2">Ishtar × 4</h2>
+              <small class="clamp-2" data-long="Créé le 28/10 · TM-0P2 - Forge des Sept Soleils (Sotiyo de production capitale du bloc nord)">Créé le 28/10 · Sotiyo</small>
+            </div>
+            <span class="annot" title="Panneau de détail">5</span>
+            <button class="icon-btn" aria-label="Fermer le détail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div class="card-body">
+            <div class="section-title">Prochaine action</div>
+            <div class="banner banner-info">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+              <span class="grow">3 étapes prêtes, matériaux en stock.</span>
+              <button class="btn btn-sm btn-primary">Lancer</button>
+            </div>
+
+            <div class="section-title">Chiffrage</div>
+            <dl class="dl">
+              <dt>Matériaux</dt><dd>612,4 M</dd>
+              <dt>Coût des jobs</dt><dd>29,7 M</dd>
+              <dt>Taxes (SCC + structure)</dt><dd>8,4 M</dd>
+              <dt>Vente estimée <span class="subtle">(Jita, ordre de vente)</span></dt><dd>1 130,0 M</dd>
+              <dt class="total">Profit</dt><dd class="total delta-up">+479,5 M · 42,4 %</dd>
+            </dl>
+
+            <div class="section-title">Étapes 5/8</div>
+            <ul class="steps">
+              <li><span class="chip chip-success">Terminé</span><span class="grow truncate">Vexor × 4</span><span class="subtle truncate" style="max-width:90px" data-long="Alexandrine Vasquez-Okonkwo Delacroix">Aria</span></li>
+              <li><span class="chip chip-info">En cours</span><span class="grow truncate">Construction Parts × 24</span><span class="num subtle">2 h 14</span></li>
+              <li><span class="chip chip-neutral">Prêt</span><span class="grow truncate">Tungsten Carbide × 1 200</span><button class="btn btn-sm">Lancer</button></li>
+              <li><span class="chip chip-neutral">Prêt</span><span class="grow truncate">Fernite Carbide × 900</span><button class="btn btn-sm">Lancer</button></li>
+              <li><span class="chip chip-warning">Bloqué</span><span class="grow"><span class="truncate">Ishtar × 4</span><small class="subtle">Attend 2 étapes</small></span></li>
+            </ul>
+
+            <div class="section-title">Raccourcis</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-sm">Liste d'achats</button>
+              <button class="btn btn-sm">Détail complet</button>
+              <button class="btn btn-sm btn-ghost">Dupliquer</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <section class="notes card card-body" aria-label="Annotations UX">
+        <h2>Annotations UX</h2>
+        <ol>
+          <li><strong>Une seule action primaire, biseautée.</strong> « Nouveau projet » est le seul bouton plein (coins coupés façon HUD) ; « Configuration » devient un bouton nommé au lieu d'une icône isolée.</li>
+          <li><strong>8 onglets en 2 familles.</strong> « Suivi » et « Analyse », libellés français homogènes (à valider avec le glossaire).</li>
+          <li><strong>Filtres explicites</strong> avec compteurs ; l'état est gardé dans l'URL comme les onglets (<code>useTabQuery</code>).</li>
+          <li><strong>Totaux honnêtes.</strong> « ≥ » et « 4 chiffrés sur 5 » quand un prix manque, au lieu d'additionner un 0.</li>
+          <li><strong>Maître-détail et noms longs.</strong> Cliquer une ligne remplit le panneau. Dans le tableau, le nom du produit se coupe avec « … » et l'infobulle donne le nom complet ; dans le panneau, il peut tenir sur 2 lignes. Une icône introuvable affiche « ? » au lieu d'un trou.</li>
+        </ol>
+      </section>
+    </main>
+  </div>
+</div>
+<script src="shell.js"></script>
+<script>
+  renderShell({ page: 'industry', crumbs: [{ label: 'Production', href: '#' }, { label: 'Industrie', href: '#' }, { label: 'Projets' }] })
+
+  const rows = [...document.querySelectorAll('#projects tbody tr')]
+  const title = document.getElementById('detail-title')
+  const detailIcon = document.getElementById('detail-icon')
+  rows.forEach(row => {
+    const select = () => {
+      rows.forEach(r => r.removeAttribute('aria-selected'))
+      row.setAttribute('aria-selected', 'true')
+      title.textContent = row.dataset.name + ' × ' + row.dataset.runs
+      const img = row.querySelector('.type-icon img')
+      detailIcon.style.visibility = img ? 'visible' : 'hidden'
+      if (img) detailIcon.src = img.src
+      requestAnimationFrame(addTitlesToTruncatedText)
+    }
+    row.addEventListener('click', event => { if (!event.target.closest('input,button')) select() })
+    row.addEventListener('keydown', event => { if (event.key === 'Enter') select() })
+  })
+
+  const boxes = [...document.querySelectorAll('#projects tbody input[type=checkbox]')]
+  const bulk = document.getElementById('bulkbar')
+  const refreshBulk = () => {
+    const n = boxes.filter(b => b.checked).length
+    bulk.classList.toggle('on', n > 0)
+    document.getElementById('bulkcount').textContent = n + (n > 1 ? ' sélectionnés' : ' sélectionné')
+  }
+  boxes.forEach(b => b.addEventListener('change', refreshBulk))
+  document.getElementById('all').addEventListener('change', e => { boxes.forEach(b => b.checked = e.target.checked); refreshBulk() })
+
+  document.querySelectorAll('.segmented button').forEach(btn => btn.addEventListener('click', () => {
+    btn.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', 'false'))
+    btn.setAttribute('aria-pressed', 'true')
+  }))
+  document.querySelectorAll('.tabs [role=tab]').forEach(tab => tab.addEventListener('click', () => {
+    document.querySelectorAll('.tabs [role=tab]').forEach(t => t.setAttribute('aria-selected', 'false'))
+    tab.setAttribute('aria-selected', 'true')
+  }))
+</script>
+</body>
+</html>

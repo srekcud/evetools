@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visites de module · EVE Tools (maquette)</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .sim-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; padding: 8px 10px; border: 1px dashed rgba(240, 180, 41, .5); background: rgba(240, 180, 41, .05); font-size: 12px; }
+  .sim-bar .label { font: 600 11px var(--font-hud); letter-spacing: .2em; text-transform: uppercase; color: #f0b429; }
+  .sim-bar .grow { flex: 1; }
+  .sim-bar .tour-state { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); }
+  .sim-btn { border-style: dashed !important; border-color: rgba(240, 180, 41, .6) !important; color: #f0b429 !important; }
+
+  .layout { grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); align-items: start; }
+  .slots-card .card-body { display: grid; gap: 12px; }
+  .slot-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 13px; }
+  .slot-row .segments { grid-column: 1 / -1; margin-top: 0; }
+  .slot-row b { font: 600 14px var(--font-hud); letter-spacing: .04em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn .chip { height: 18px; padding: 0 6px; }
+  .tabs .chip { height: 18px; padding: 0 6px; }
+  .quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .quick button { all: unset; box-sizing: border-box; cursor: pointer; padding: 14px; border: 1px solid var(--border-strong); background: rgba(0, 0, 0, .3); display: grid; gap: 4px; align-content: start; min-width: 0; }
+  .quick button:hover { border-color: var(--accent-line); }
+  .quick button:focus-visible { box-shadow: var(--focus-ring); }
+  .quick b { font: 700 16px var(--font-hud); letter-spacing: .08em; text-transform: uppercase; }
+  .quick small { color: var(--text-muted); font-size: 12px; }
+  .quick .chip { justify-self: start; margin-top: 4px; }
+  .page-skeleton { display: grid; gap: 14px; }
+  .page-skeleton .skeleton { height: 14px; }
+  .design-notes ol { margin: 12px 0 0; padding-left: 20px; color: var(--text-muted); }
+  .design-notes li { margin-bottom: 6px; }
+  .design-notes li strong { color: var(--text); font-weight: 600; }
+
+  .project-strip { display: flex; gap: 8px; flex-wrap: wrap; margin: -8px 0 16px; }
+  .who-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .who-cell .portrait { width: 28px; height: 28px; font-size: 10px; }
+  .who-cell > div { min-width: 0; }
+  .who-cell small { display: block; color: var(--text-subtle); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .share-bar { height: 6px; background: rgba(255, 255, 255, .06); margin-top: 4px; min-width: 80px; }
+  .share-bar span { display: block; height: 100%; background: var(--accent); }
+  .row-me td { background: rgba(47, 208, 240, .06); }
+  .join-card { max-width: 620px; margin: 24px auto 0; }
+  .join-card .card-body { display: grid; gap: 14px; }
+  .join-card h2 { margin: 0; font: 700 26px/1.1 var(--font-hud); letter-spacing: .06em; text-transform: uppercase; }
+  .linkbox { display: flex; gap: 8px; }
+  .linkbox .input { flex: 1; font-family: var(--font-mono); min-width: 0; }
+  .access { display: grid; gap: 10px; }
+  .access > div { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 12px; border: 1px solid var(--border); background: rgba(0, 0, 0, .25); }
+  .access p { margin: 0; grid-column: 2; font-size: 13px; color: var(--text-muted); }
+  .access b { font: 700 14px var(--font-hud); letter-spacing: .1em; text-transform: uppercase; }
+
+  .tour-veil { position: fixed; inset: 0; z-index: 60; background: rgba(2, 5, 9, .74); display: none; }
+  .tour-veil.on { display: block; }
+  .tour-veil.cut { background: transparent; }
+  .tour-hole { position: absolute; z-index: 61; pointer-events: none; display: none; box-shadow: 0 0 0 2px var(--accent), 0 0 22px rgba(47, 208, 240, .55), 0 0 0 9999px rgba(2, 5, 9, .74); transition: all .18s ease-out; }
+  .tour-hole.on { display: block; }
+  .tour-hole.wait { box-shadow: 0 0 0 2px var(--warning), 0 0 22px rgba(232, 184, 74, .5), 0 0 0 9999px rgba(2, 5, 9, .74); }
+  .tour-live { position: relative; z-index: 62; }
+  .tour-ring { box-shadow: 0 0 0 2px var(--warning), 0 0 18px rgba(232, 184, 74, .45); }
+  .tour-ring.read { box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(47, 208, 240, .45); }
+  @media (prefers-reduced-motion: reduce) { .tour-hole { transition: none; } }
+
+  .bubble { position: absolute; z-index: 66; width: 360px; max-width: calc(100vw - 32px); background: var(--surface-solid); border: 1px solid var(--accent-line); box-shadow: 0 14px 44px rgba(0, 0, 0, .65); display: none; }
+  .bubble.on { display: block; }
+  .bubble.center { position: fixed; left: 50% !important; top: 50% !important; transform: translate(-50%, -50%); width: 460px; }
+  .bubble::before, .bubble::after { content: ""; position: absolute; width: 12px; height: 12px; pointer-events: none; }
+  .bubble::before { top: -1px; left: -1px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .bubble::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+  .bubble .card-head { min-height: 42px; }
+  .bubble .card-head .step { margin-left: auto; font: 12px var(--font-mono); color: var(--text-subtle); }
+  .bubble .card-head .close { margin-right: -8px; }
+  .bubble .body { padding: 14px 16px 12px; }
+  .bubble .body p { margin: 0 0 10px; font-size: 13px; color: var(--text-muted); }
+  .bubble .body p strong { color: var(--text); font-weight: 600; }
+  .bubble .state { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; margin: 0 0 10px; font-size: 12px; border: 1px solid; border-left-width: 3px; color: var(--text); }
+  .bubble .state svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+  .bubble .state.warn { background: var(--warning-soft); border-color: rgba(232, 184, 74, .35); border-left-color: var(--warning); }
+  .bubble .state.warn svg { color: var(--warning); }
+  .bubble .state.ok { background: var(--success-soft); border-color: rgba(70, 195, 90, .35); border-left-color: var(--success); }
+  .bubble .state.ok svg { color: var(--success); }
+  .bubble .state.info { background: var(--accent-soft); border-color: rgba(47, 208, 240, .35); border-left-color: var(--accent); }
+  .bubble .state.info svg { color: var(--accent); }
+  .bubble .hint { display: flex; align-items: center; gap: 8px; font: 600 12px var(--font-hud); letter-spacing: .14em; text-transform: uppercase; color: var(--warning); margin-bottom: 10px; }
+  .bubble .hint::before { content: ""; width: 7px; height: 7px; background: var(--warning); transform: rotate(45deg); flex-shrink: 0; }
+  .bubble .foot { display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .bubble .foot .grow { flex: 1; }
+  .bubble .dots { display: flex; gap: 4px; }
+  .bubble .dots i { width: 12px; height: 4px; background: rgba(255, 255, 255, .12); transform: skewX(-20deg); }
+  .bubble .dots i.on { background: var(--accent); }
+  .bubble .dots i.done { background: var(--accent-line); }
+  .bubble .welcome-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+  .bubble .chapters { list-style: none; margin: 0 0 4px; padding: 0; counter-reset: ch; }
+  .bubble .chapters li { counter-increment: ch; display: flex; gap: 10px; align-items: baseline; padding: 3px 0; font-size: 13px; color: var(--text-muted); }
+  .bubble .chapters li::before { content: counter(ch, decimal-leading-zero); font: 12px var(--font-mono); color: var(--accent); }
+  .bubble.nudge { animation: nudge .3s; }
+  @keyframes nudge { 25% { margin-left: -6px; } 75% { margin-left: 6px; } }
+  @media (prefers-reduced-motion: reduce) { .bubble.nudge { animation: none; } }
+
+  .backdrop { position: fixed; inset: 0; z-index: 63; background: rgba(2, 5, 9, .6); }
+  .modal { position: fixed; z-index: 64; left: 50%; top: 50%; transform: translate(-50%, -45%); width: 540px; max-width: calc(100vw - 24px); max-height: calc(100vh - 40px); overflow: auto; background: var(--surface-solid); border: 1px solid var(--border-strong); box-shadow: 0 18px 50px rgba(0, 0, 0, .6); }
+  .drawer { position: fixed; z-index: 64; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100vw; background: var(--surface-solid); border-left: 1px solid var(--border-strong); box-shadow: -18px 0 50px rgba(0, 0, 0, .5); display: flex; flex-direction: column; }
+  .drawer .scroll { flex: 1; overflow: auto; padding: 16px; }
+  .modal .card-head, .drawer .card-head { position: sticky; top: 0; background: var(--surface-solid); z-index: 1; }
+  .modal .foot, .drawer .foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid var(--border); }
+  .modal .body { padding: 16px; display: grid; gap: 14px; }
+  .field-label { display: block; font: 600 12px var(--font-hud); letter-spacing: .16em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+  .suggest { list-style: none; margin: 6px 0 0; padding: 0; border: 1px solid var(--border); max-height: 220px; overflow: auto; }
+  .suggest li button { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 10px; }
+  .suggest li button:hover, .suggest li button:focus-visible { background: var(--accent-soft); }
+  .suggest li + li { border-top: 1px solid var(--border); }
+  .suggest .type-icon { width: 28px; height: 28px; }
+  .suggest mark { background: none; color: var(--accent); }
+  .picked { display: flex; align-items: center; gap: 12px; }
+  .picked .type-icon { width: 44px; height: 44px; }
+  .picked b { font: 700 18px var(--font-hud); letter-spacing: .04em; }
+  .runs { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .runs .input { width: 96px; text-align: right; }
+  .cost-box { border: 1px solid var(--border); padding: 12px; background: rgba(0, 0, 0, .25); }
+  .cost-box .where { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 10px; color: var(--text-muted); flex-wrap: wrap; }
+  .segmented { flex-wrap: wrap; }
+  .struct-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); }
+  .struct-row:first-child { border-top: 0; }
+  .struct-row b { display: block; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .struct-row small { color: var(--text-subtle); font-size: 12px; }
+  .drawer h4 { margin: 18px 0 4px; font: 700 12px var(--font-hud); letter-spacing: .2em; text-transform: uppercase; color: var(--accent); }
+  .drawer h4:first-child { margin-top: 0; }
+
+  .toast { position: fixed; z-index: 70; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: calc(100vw - 32px); display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface-solid); border: 1px solid var(--accent-line); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); font-size: 13px; }
+  .toast svg { width: 16px; height: 16px; color: var(--accent); flex-shrink: 0; }
+
+  .nav a { cursor: pointer; }
+  @media (max-width: 860px) {
+    .app.nav-open .sidebar { display: flex; position: fixed; z-index: 45; left: 0; top: 0; width: 260px; height: 100vh; box-shadow: 18px 0 50px rgba(0, 0, 0, .6); }
+  }
+  @media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 640px) {
+    .quick { grid-template-columns: minmax(0, 1fr) !important; }
+    .bubble:not(.center) { position: fixed; left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; }
+    .bubble.center { width: calc(100vw - 16px); }
+  }
+</style>
+<style>
+  .module-tabs { display: flex; align-items: stretch; gap: 2px; border-bottom: 1px solid var(--border-strong); margin-bottom: 20px; }
+  .module-tabs .tabs { border-bottom: 0; margin-bottom: 0; flex: 1; }
+  .module-tabs .gear { align-self: center; }
+  .project-header { padding: 16px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+  .project-header .info { flex: 1; min-width: 16rem; }
+  .project-header h1 { margin: 0; font: 700 22px/1.1 var(--font-hud); letter-spacing: .06em; text-transform: uppercase; display: inline; }
+  .project-header .meta { margin: 4px 0 0; font-size: 13px; color: var(--text-subtle); }
+  .project-header .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-subtle); margin-bottom: 12px; }
+  .crumbs button { all: unset; cursor: pointer; color: var(--text-muted); }
+  .rail { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin-bottom: 12px; }
+  .rail div { padding: 8px 10px; border: 1px solid var(--border); background: rgba(0, 0, 0, .25); min-width: 0; }
+  .rail b { display: block; font: 700 13px var(--font-hud); letter-spacing: .1em; text-transform: uppercase; }
+  .rail small { display: block; font-size: 11px; color: var(--text-subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rail .done { border-color: rgba(70, 195, 90, .4); }
+  .rail .done small { color: var(--success); }
+  .rail .current { border-color: var(--accent); background: var(--accent-soft); }
+  .rail .current small { color: var(--accent); }
+  .rail .blocked { border-color: rgba(232, 184, 74, .5); }
+  .rail .blocked small { color: var(--warning); }
+  .next-action { display: flex; align-items: center; gap: 14px; padding: 12px 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .next-action .grow { flex: 1; min-width: 14rem; }
+  .next-action .lbl { font: 600 11px var(--font-hud); letter-spacing: .2em; text-transform: uppercase; color: var(--accent); }
+  .next-action b { display: block; font: 700 16px var(--font-hud); letter-spacing: .06em; }
+  .next-action p { margin: 2px 0 0; font-size: 13px; color: var(--text-muted); }
+  .project-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .project-card { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 6px; padding: 14px; border: 1px solid var(--border-strong); background: rgba(0, 0, 0, .3); min-width: 0; }
+  .project-card:hover { border-color: var(--accent-line); }
+  .project-card:focus-visible { box-shadow: var(--focus-ring); }
+  .project-card b { font: 700 17px var(--font-hud); letter-spacing: .06em; text-transform: uppercase; }
+  .project-card small { color: var(--text-subtle); font-size: 12px; }
+  .project-card .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .formula { font: 12px var(--font-mono); color: var(--text-muted); padding: 12px 16px; border-top: 1px solid var(--border); }
+  .settings-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .settings-nav { display: grid; gap: 2px; }
+  .settings-nav span { padding: 8px 10px; font: 600 14px var(--font-hud); letter-spacing: .06em; color: var(--text-muted); }
+  .settings-nav span[aria-current] { color: #fff; background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .new-tag { font: 600 10px var(--font-hud); letter-spacing: .14em; text-transform: uppercase; color: #f0b429; margin-left: 6px; }
+  .spinner { width: 28px; height: 28px; margin: 0 auto 12px; border: 3px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  .sim-bar .scenario { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  @media (max-width: 860px) { .rail { grid-template-columns: repeat(5, minmax(90px, 1fr)); overflow-x: auto; } .settings-layout { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Aller au contenu</a>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <main class="content" id="content">
+      <div class="sim-bar" id="sim-bar"></div>
+      <div id="page"></div>
+      <details class="design-notes card card-body" style="margin-top:32px">
+        <summary class="hud" style="cursor:pointer;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Notes de conception</summary>
+        <ol>
+          <li><strong>Écrans réels.</strong> Menu latéral, onglets Industrie (Atelier, Projets, Analyse, Production), en-tête de projet, phases, prochaine action, onglets du projet et libellés repris du code, y compris les libellés encore en anglais (Approve, Pending, Material). Seuls ajouts : la bulle de visite, le bouton Visite du projet, la section Paramètres › Visites guidées, et la barre jaune de simulation.</li>
+          <li><strong>Déclenchement.</strong> Industrie : première ouverture du module. Projet de groupe : première ouverture d'un projet dont on est propriétaire (visite admin) ou membre (visite membre). Jamais sur la page du lien d'invitation.</li>
+          <li><strong>La visite s'appuie sur la prochaine action.</strong> Côté admin comme membre, l'étape clé passe par la carte « Prochaine action » existante plutôt que par un parcours parallèle.</li>
+          <li><strong>Événements simulés.</strong> La demande de Dren Kossak et son apport sont joués par la maquette ; en vrai ils arrivent par Mercure. Sans événement réel, la visite saute les étapes qui en dépendent.</li>
+          <li><strong>Trois sorties à l'accueil</strong> (Visiter, Plus tard, Ne plus proposer), Échap quitte, état stocké côté serveur par utilisateur et par visite.</li>
+          <li><strong>Valeur d'un apport : règle proposée (#953).</strong> Prix payé lu dans le wallet de celui qui apporte, prix Jita du jour sans achat trouvé ; compté à la livraison vue dans le container du projet ou confirmée par un admin ; corrigeable jusqu'à la phase Vendre. Le code actuel valorise un dépôt au prix Jita du jour et approuve d'office les achats du propriétaire.</li>
+          <li><strong>La configuration des structures</strong> est un écran de Paramètres › Industrie ; la maquette l'ouvre en panneau pour garder la visite en place.</li>
+        </ol>
+      </details>
+    </main>
+  </div>
+</div>
+
+<div class="tour-veil" id="veil"></div>
+<div class="tour-hole" id="hole"></div>
+<div class="bubble" id="bubble" role="dialog" aria-modal="true" aria-labelledby="bubble-title"></div>
+<div class="backdrop" id="backdrop" hidden></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" hidden></aside>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="shell.js"></script>
+<script>
+  const LOADING_MS = 450
+  const JOINING_MS = 900
+  const TOAST_MS = 3600
+  const HOLE_PADDING = 6
+  const BUBBLE_GAP = 14
+  const MORPHITE_DEPOSIT_DAY_PRICE = 19200
+  const SHARE_LINK = 'evetools/join/K7Q4ZP'
+
+  const REAL_NAV = [{ section: null, items: [
+    { id: 'dashboard', label: 'Accueil', icon: 'home', href: '#' },
+    { id: 'industry', label: 'Industrie', icon: 'industry', href: '#' },
+    { id: 'mining', label: 'Minage', icon: 'pickaxe', href: '#' },
+    { id: 'pve', label: 'PVE', icon: 'wallet', href: '#' },
+    { id: 'planetary', label: 'Planétaire', icon: 'planet', href: '#' },
+    { id: 'commerce', label: 'Commerce', icon: 'market', href: '#' },
+    { id: 'patrimoine', label: 'Patrimoine', icon: 'box', href: '#' },
+    { id: 'account', label: 'Compte', icon: 'users', href: '#' },
+  ] }]
+  NAV.splice(0, NAV.length, ...REAL_NAV)
+
+  const INDUSTRY_TABS = [['workshop', 'Atelier'], ['projects', 'Projets'], ['analysis', 'Analyse'], ['production', 'Production']]
+  const PROJECT_TABS = [['bom', 'Approvisionnement & jobs'], ['contributions', 'Contributions'], ['distribution', 'Finances'], ['sales', 'Ventes'], ['members', 'Équipe'], ['chain', 'Production'], ['planning', 'Planning'], ['journal', 'Journal'], ['invention', 'Invention']]
+  const TEAM_ONLY_TABS = ['contributions', 'members']
+  const PHASES = [['prepare', 'Préparer'], ['supply', 'Approvisionner'], ['produce', 'Produire'], ['sell', 'Vendre'], ['close', 'Clôturer']]
+  const STATUS = { draft: ['Brouillon', 'chip-neutral'], published: ['Publie', 'chip-info'], in_progress: ['En cours', 'chip-success'] }
+  const NEXT_STATUSES = { draft: ['published', 'in_progress'], published: ['in_progress'], in_progress: [] }
+  const NEXT_STATUS_LABELS = { published: 'Publier', in_progress: 'Démarrer' }
+  const ROLE = { owner: ['Propriétaire', 'chip-info'], admin: ['Admin', 'chip-info'], member: ['Membre', 'chip-neutral'] }
+  const ENTRY = { creator: 'créateur', sameCorporation: 'même corporation', shortLinkApproved: 'lien court, approuvé' }
+  const CONTRIB_TYPE = { material: 'Material', job_install: 'Job Install', bpc: 'BPC', line_rental: 'Line Rental' }
+  const CONTRIB_STATUS = { pending: ['Pending', 'chip-warning'], approved: ['Approved', 'chip-success'], rejected: ['Rejected', 'chip-danger'] }
+  const METHOD = { paidPrice: 'prix payé (wallet)', esiCost: 'coût réel (ESI)', depositDayPrice: "prix Jita du jour d'apport" }
+  const MODULE_LABELS = { dashboard: 'Accueil', industry: 'Industrie', join: 'Industrie', mining: 'Minage', pve: 'PVE', planetary: 'Planétaire', commerce: 'Commerce', patrimoine: 'Patrimoine', account: 'Compte · Paramètres' }
+  const TOUR_LABELS = { industry: 'Industrie', groupAdmin: 'Projet de groupe · propriétaire', groupMember: 'Projet de groupe · membre' }
+  const TOUR_STATE = { new: ['Jamais vue', 'chip-neutral'], later: ['Plus tard', 'chip-warning'], seen: ['Vue', 'chip-success'], never: ['Ne plus proposer', 'chip-danger'] }
+
+  const PRODUCTS = [
+    { id: 'hammerhead', name: 'Hammerhead II', short: 'HII', tech2: true, unitCost: 62100, margin: 223 },
+    { id: 'warrior', name: 'Warrior II', short: 'WII', tech2: true, unitCost: 22100, margin: 79 },
+    { id: 'sabre', name: 'Sabre', short: 'SAB', tech2: true, unitCost: 31450000, margin: 22 },
+    { id: 'ishtar', name: 'Ishtar', short: 'ISH', tech2: true, unitCost: 162600000, margin: 74 },
+    { id: 'ccp', name: 'Capital Construction Parts', short: 'CCP', unitCost: 7219000, margin: null },
+  ]
+  const STRUCTURE_OPTIONS = [
+    { id: 'raitaru', name: 'Perimeter - Atelier Raitaru', kind: 'Raitaru · rig ME T1', bonus: 0.03 },
+    { id: 'azbel', name: 'Ikuchi - Azbel des Comptoirs', kind: 'Azbel · sans rig', bonus: 0.01 },
+    { id: 'sotiyo', name: 'TM-0P2 - Forge des Sept Soleils', kind: 'Sotiyo · rig ME T2', bonus: 0.052 },
+  ]
+  const MATERIALS = [
+    { id: 'tritanium', name: 'Tritanium', required: 1240000, base: 1240000, unit: 4.1 },
+    { id: 'pyerite', name: 'Pyerite', required: 310000, base: 310000, unit: 9.8 },
+    { id: 'morphite', name: 'Morphite', required: 2400, base: 0, unit: MORPHITE_DEPOSIT_DAY_PRICE },
+    { id: 'blocks', name: 'Construction Blocks', required: 1800, base: 900, unit: 1850 },
+  ]
+  const PEOPLE = {
+    aria: { name: 'Aria Valtorr', corp: 'Kaalakiota Logistics', initials: 'AV' },
+    kel: { name: 'Kel Orrin', corp: 'Kaalakiota Logistics', initials: 'KO' },
+    dren: { name: 'Dren Kossak', corp: 'Ashgrove Mining Concern', initials: 'DK' },
+  }
+
+  const ownerContributions = () => [
+    { id: 'c1', who: 'aria', type: 'material', item: 'Achats Jita · 12 lignes', value: 612400000, method: 'paidPrice', status: 'approved' },
+    { id: 'c2', who: 'aria', type: 'job_install', item: 'Sabre · 20 runs', value: 14200000, method: 'esiCost', status: 'approved' },
+  ]
+  const adminProject = () => ({ role: 'owner', me: 'aria', status: 'draft', tab: 'bom', members: [{ who: 'aria', role: 'owner', entry: 'creator' }], pending: [], contributions: ownerContributions() })
+  const memberProject = () => ({
+    role: 'member', me: 'dren', status: 'in_progress', tab: 'bom',
+    members: [{ who: 'aria', role: 'owner', entry: 'creator' }, { who: 'kel', role: 'admin', entry: 'sameCorporation' }, { who: 'dren', role: 'member', entry: 'shortLinkApproved' }],
+    pending: [],
+    contributions: [...ownerContributions(), { id: 'c4', who: 'kel', type: 'material', item: 'Pyerite × 310 000', value: 3038000, method: 'depositDayPrice', status: 'approved' }],
+  })
+
+  const initialState = () => ({
+    module: 'dashboard', industryTab: 'workshop', projectOpen: false, listTab: 'mine',
+    structures: [], soloProjects: [], scenario: null, group: null, joinState: 'joining',
+    tours: { industry: 'new', groupAdmin: 'new', groupMember: 'new' }, pendingReplay: null,
+  })
+  let state = initialState()
+  const modal = { open: false, kind: null, query: '', product: null, runs: 10, material: null, qty: 0 }
+  const tour = { id: null, index: -1, paused: false, live: [] }
+
+  const $ = selector => document.querySelector(selector)
+  const fmt = value => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(value)
+  const int = value => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value)
+  const isk = value => value >= 1e9 ? `${fmt(value / 1e9)} Md` : value >= 1e6 ? `${fmt(value / 1e6)} M` : `${fmt(value / 1e3)} k`
+  const chip = ([label, kind]) => `<span class="chip ${kind}">${label}</span>`
+  const product = id => PRODUCTS.find(item => item.id === id)
+  const material = id => MATERIALS.find(item => item.id === id)
+  const person = key => PEOPLE[key]
+  const bestStructure = () => state.structures.map(id => STRUCTURE_OPTIONS.find(item => item.id === id)).sort((a, b) => b.bonus - a.bonus)[0] ?? null
+  const typeIcon = item => `<span class="type-icon"><span class="fallback">${item.short}</span>${item.tech2 ? '<i class="tech" title="Tech II"></i>' : ''}</span>`
+  const hydrate = (root = document) => root.querySelectorAll('[data-i]:not([data-hydrated])').forEach(node => { node.insertAdjacentHTML('afterbegin', icon(node.dataset.i)); node.dataset.hydrated = '1' })
+  const whoCell = key => `<div class="who-cell"><span class="portrait hex" aria-hidden="true">${person(key).initials}</span><div><strong class="truncate">${person(key).name}${state.group && key === state.group.me ? ' <span class="subtle">(vous)</span>' : ''}</strong><small>${person(key).corp}</small></div></div>`
+
+  function setAccount(key) {
+    $('#account-name').textContent = person(key).name
+    $('#account-corp').textContent = person(key).corp
+    document.querySelector('.account .portrait').textContent = person(key).initials
+  }
+
+  function toast(html) {
+    const node = $('#toast')
+    node.innerHTML = `${icon('info')}<span>${html}</span>`
+    node.hidden = false
+    clearTimeout(toast.timer)
+    toast.timer = setTimeout(() => { node.hidden = true }, TOAST_MS)
+  }
+
+  /* ---------- group project model ---------- */
+
+  function fulfilled(materialId) {
+    const entry = material(materialId)
+    const added = state.group.contributions.filter(c => c.status === 'approved' && c.material === materialId).reduce((sum, c) => sum + c.qty, 0)
+    return Math.min(entry.required, entry.base + added)
+  }
+  const remaining = materialId => material(materialId).required - fulfilled(materialId)
+  const coveredCount = () => MATERIALS.filter(entry => remaining(entry.id) === 0).length
+  const isWorkedOnAlone = () => state.group.members.length < 2 && !state.group.pending.length && !state.group.contributions.some(c => c.status === 'pending')
+  const pendingContributions = () => state.group.contributions.filter(c => c.status === 'pending')
+
+  function nextAction() {
+    const group = state.group
+    const isReviewer = group.role !== 'member'
+    const pending = pendingContributions()
+    if (isReviewer && pending.length) return { id: 'review', title: 'Contributions à relire', text: `${pending.length} contributions attendent votre décision avant d'être comptées dans la BOM.`, button: 'Relire les contributions', action: 'na-review' }
+    if (group.status !== 'in_progress') return isReviewer ? { id: 'start', title: 'Démarrer le projet', text: "Les matériaux sont prêts à être apportés : passez le projet en cours.", button: 'Démarrer le projet', action: 'na-start' } : { id: 'nothing', title: 'Rien à faire pour vous', text: 'Le projet avance sans vous pour le moment.' }
+    const missing = MATERIALS.find(entry => remaining(entry.id) > 0 && !pending.some(c => c.material === entry.id))
+    if (missing) return { id: 'source', title: 'Approvisionner un matériau', text: `Il manque ${int(remaining(missing.id))} ${missing.name} pour couvrir la BOM.`, button: 'Contribuer', action: 'na-contribute', material: missing.id }
+    return { id: 'nothing', title: 'Rien à faire pour vous', text: 'Le projet avance sans vous pour le moment.' }
+  }
+
+  function phaseStates() {
+    const status = state.group.status
+    if (status !== 'in_progress') return ['current', 'upcoming', 'upcoming', 'upcoming', 'upcoming']
+    const missing = MATERIALS.filter(entry => remaining(entry.id) > 0).length
+    return ['done', missing ? 'blocked' : 'current', 'upcoming', 'upcoming', 'upcoming']
+  }
+
+  /* ---------- pages ---------- */
+
+  function moduleTabs(active) {
+    return `<div class="module-tabs"><div class="tabs" role="tablist" aria-label="Industrie" id="t-tabs">${INDUSTRY_TABS.map(([id, label]) => `<button role="tab" id="tab-${id}" data-action="itab" data-tab="${id}" aria-selected="${active === id}">${label}</button>`).join('')}</div>
+      <button class="icon-btn gear" id="t-config" data-action="config-open" aria-label="Paramètres Industrie" title="Paramètres Industrie">${icon('cog')}${state.structures.length ? '' : '<span class="dot" aria-hidden="true">!</span>'}</button></div>`
+  }
+
+  function workshopTab() {
+    const structure = bestStructure()
+    return `<div class="grid layout">
+      <section class="card"><div class="card-head"><h2>Atelier</h2><div class="actions"><span class="freshness"><span data-i="clock"></span>il y a 3 min</span></div></div>
+        <div class="card-body subtle" style="font-size:13px">Projets en cours, actions à faire et jobs, regroupés ici. ${state.soloProjects.length ? `${state.soloProjects.length} projet(s).` : 'Aucun projet pour l\'instant.'}</div></section>
+      <section class="card slots-card" id="t-slots"><div class="card-head"><h2>Slots</h2></div>
+        <div class="card-body">
+          <div class="slot-row"><b>Aria Valtorr</b><span class="num">8/11</span><span class="segments">${'<i class="on"></i>'.repeat(8)}${'<i></i>'.repeat(3)}</span></div>
+          <div class="slot-row"><b>Dren Kossak</b><span class="num">3/5</span><span class="segments"><i class="on"></i><i class="on"></i><i class="warn"></i><i></i><i></i></span></div>
+          <p class="subtle" style="margin:0;font-size:12px">${structure ? `Coûts calculés à ${structure.name}.` : 'Aucune structure configurée : coûts sans bonus.'}</p>
+        </div></section></div>`
+  }
+
+  function analysisTab() {
+    return `<section class="card" id="an-table"><div class="card-head"><h2>Quoi produire</h2><div class="actions"><span class="freshness"><span data-i="clock"></span>Prix Jita 13:00</span></div></div>
+      <div class="table-wrap"><table class="data"><thead><tr><th>Produit</th><th class="r">Coût unitaire</th><th class="r">Marge</th></tr></thead><tbody>
+      ${PRODUCTS.map(item => `<tr><td class="name-col"><div class="type-cell">${typeIcon(item)}<strong class="truncate">${item.name}</strong></div></td><td class="r">${isk(item.unitCost * (1 - (bestStructure()?.bonus ?? 0)))}</td>
+        <td class="r">${item.margin === null ? '<span class="chip chip-unknown">inconnu</span>' : `<span class="delta-up">${item.margin} %</span>`}</td></tr>`).join('')}
+      </tbody></table></div></section>`
+  }
+
+  function projectsList() {
+    const mine = []
+    if (state.scenario === 'admin' || (state.scenario === 'member' && state.group.members.some(m => m.who === 'dren'))) mine.push('sabre')
+    const cards = [
+      ...mine.map(() => `<button class="project-card" id="card-sabre" data-action="open-project"><b>Doctrine Sabre</b><small>1 items · 20 runs · Manager: Aria Valtorr</small><span class="chips">${chip(STATUS[state.group.status])}${chip([`${state.group.members.length} contributors`, 'chip-neutral'])}</span></button>`),
+      ...state.soloProjects.map(project => `<button class="project-card"><b>${product(project.product).name}</b><small>1 items · ${project.runs} runs · Manager: Aria Valtorr</small><span class="chips">${chip(STATUS.draft)}</span></button>`),
+    ]
+    const available = state.listTab === 'available'
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <div class="segmented" role="group" aria-label="Projets"><button data-action="list-tab" data-tab="mine" aria-pressed="${!available}">Mes projets</button><button data-action="list-tab" data-tab="available" aria-pressed="${available}">Disponibles <span class="n">meme corp</span></button></div>
+        <span class="grow" style="flex:1"></span><button class="btn btn-primary" id="t-new" data-action="project-new"><span data-i="plus"></span>Nouveau projet</button></div>
+      ${available
+        ? `<div class="banner banner-info" style="margin-bottom:12px"><span data-i="info"></span><span class="grow">Projets publies par les membres de votre corporation. Rejoignez instantanement, sans approbation.</span></div><section class="card"><div class="empty"><div class="ic" data-i="industry"></div><h3>Aucun projet disponible</h3><p>Pas de projets ouverts dans votre corporation pour le moment.</p></div></section>`
+        : cards.length ? `<div class="project-cards" id="t-list">${cards.join('')}</div>`
+        : '<section class="card"><div class="empty"><div class="ic" data-i="industry"></div><h3>Aucun projet de groupe</h3><p>Creez un nouveau projet pour commencer a collaborer avec votre corporation.</p></div></section>'}`
+  }
+
+  function bomTab() {
+    const isMember = state.group.role === 'member'
+    return `<section class="card" id="gp-bom"><div class="card-head"><h2>Materiaux a sourcer</h2></div>
+      <div class="table-wrap"><table class="data"><thead><tr><th>Item</th><th class="r">Requis</th><th class="r">Fourni</th><th class="r">Restant</th><th>Progression</th><th class="r">Cout est.</th><th></th></tr></thead><tbody>
+      ${MATERIALS.map(entry => { const done = fulfilled(entry.id); const left = entry.required - done; const pct = Math.round(done / entry.required * 100); return `<tr>
+        <td>${entry.name}</td><td class="r">${int(entry.required)}</td><td class="r">${int(done)}</td><td class="r">${int(left)}</td>
+        <td style="min-width:110px"><div class="progress"><div class="meter"><span style="width:${pct}%${pct === 100 ? ';background:var(--success)' : ''}"></span></div><span class="num subtle">${pct} %</span></div></td>
+        <td class="r">${isk(entry.required * entry.unit)}</td>
+        <td class="r">${left ? `<span class="row-actions"><button class="btn btn-sm btn-ghost">Je m'en charge</button><button class="btn btn-sm" id="gp-contribute-${entry.id}" data-action="gp-contribute" data-material="${entry.id}">Contribuer</button></span>` : ''}</td></tr>` }).join('')}
+      </tbody></table></div></section>`
+  }
+
+  function contributionsTab() {
+    const group = state.group
+    const isReviewer = group.role !== 'member'
+    let firstPending = true
+    return `<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn btn-primary" data-action="gp-contribute"><span data-i="plus"></span>Add Contribution</button></div>
+      <section class="card" id="gp-contribs"><div class="table-wrap"><table class="data"><thead><tr><th>Character</th><th>Type</th><th class="r">Valuation</th><th>Method</th><th>Status</th>${isReviewer ? '<th>Actions</th>' : ''}</tr></thead><tbody>
+      ${group.contributions.map(c => {
+        const pending = c.status === 'pending'
+        let rowId = ''
+        if (pending && isReviewer && firstPending) { rowId = 'gp-contrib-row'; firstPending = false }
+        if (pending && !isReviewer && c.who === group.me) rowId = 'gp-contrib-row-me'
+        return `<tr ${rowId ? `id="${rowId}"` : ''} class="${c.who === group.me ? 'row-me' : ''}"><td>${whoCell(c.who)}</td><td>${chip([CONTRIB_TYPE[c.type], 'chip-info'])}<br><small class="subtle">${c.item}</small></td>
+          <td class="r">${isk(c.value)}</td><td class="subtle">${METHOD[c.method]}</td><td>${chip(CONTRIB_STATUS[c.status])}</td>
+          ${isReviewer ? `<td>${pending ? `<span class="row-actions"><button class="btn btn-sm btn-primary" ${rowId ? 'id="gp-approve"' : ''} data-action="gp-approve" data-id="${c.id}">Approve</button><button class="btn btn-sm btn-ghost" data-action="gp-reject-contrib" data-id="${c.id}">Reject</button></span>` : ''}</td>` : ''}</tr>` }).join('')}
+      </tbody></table></div></section>`
+  }
+
+  function distributionTab() {
+    const approved = state.group.contributions.filter(c => c.status === 'approved')
+    const byWho = {}
+    approved.forEach(c => { byWho[c.who] = (byWho[c.who] ?? 0) + c.value })
+    const total = Object.values(byWho).reduce((sum, value) => sum + value, 0)
+    return `<div class="banner banner-warning" style="margin-bottom:12px"><span data-i="clock"></span><span class="grow">Aucune vente enregistrée : le revenu, le profit, la marge et les payouts seront connus à la première vente.</span></div>
+      <section class="card" id="gp-payout"><div class="card-head"><h2>Profit Distribution</h2></div>
+      <div class="table-wrap"><table class="data"><thead><tr><th>Character</th><th class="r">Costs Engaged</th><th>Part</th><th class="r">Profit Part</th><th class="r">Payout Total</th></tr></thead><tbody>
+      ${Object.entries(byWho).sort((a, b) => b[1] - a[1]).map(([who, value]) => `<tr class="${who === state.group.me ? 'row-me' : ''}"><td>${whoCell(who)}</td><td class="r">${isk(value)}</td>
+        <td><span class="num">${fmt(value / total * 100)} %</span><div class="share-bar"><span style="width:${value / total * 100}%"></span></div></td>
+        <td class="r">${chip(['En attente des ventes', 'chip-unknown'])}</td><td class="r">${chip(['En attente des ventes', 'chip-unknown'])}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="formula">Distribution Formula<br>Payout = Costs Engaged x (1 + Margin%)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = Costs Engaged x (Net Revenue / Total Project Cost)</div></section>`
+  }
+
+  function membersTab() {
+    const group = state.group
+    const isReviewer = group.role !== 'member'
+    return `<section class="card" style="margin-bottom:16px"><div class="table-wrap"><table class="data"><thead><tr><th>Personnage</th><th>Rôle</th><th>Entrée</th><th>Statut</th></tr></thead><tbody>
+      ${group.members.map(member => `<tr><td>${whoCell(member.who)}</td><td>${chip(ROLE[member.role])}</td><td class="subtle">${ENTRY[member.entry]}</td><td>${chip(['Actif', 'chip-success'])}</td></tr>`).join('')}
+      </tbody></table></div></section>
+      ${isReviewer ? `<section class="card" id="gp-pending" style="margin-bottom:16px"><div class="card-head"><h2>Demandes en attente</h2></div>
+        ${group.pending.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Personnage</th><th>Corporation</th><th>Demandé le</th><th>Via</th><th>Actions</th></tr></thead><tbody>
+          ${group.pending.map((request, index) => `<tr><td>${whoCell(request.who)}</td><td class="subtle">${person(request.who).corp}</td><td class="subtle">13/11 21:42</td><td>${chip(['Lien court', 'chip-neutral'])}</td>
+            <td><span class="row-actions"><button class="btn btn-sm btn-primary" ${index === 0 ? 'id="gp-accept"' : ''} data-action="gp-accept" data-who="${request.who}">Accepter</button><button class="btn btn-sm btn-ghost" data-action="gp-reject" data-who="${request.who}">Rejeter</button></span></td></tr>`).join('')}
+          </tbody></table></div>` : '<div class="card-body subtle" style="font-size:13px">Aucune demande d\'adhesion en attente.<br>Partagez le lien d\'invitation pour inviter de nouveaux membres</div>'}
+      </section>` : ''}
+      <section class="card"><div class="card-head"><h2>Lien d'invitation</h2></div><div class="card-body" style="display:grid;gap:8px">
+        <div class="linkbox"><input class="input" readonly value="${SHARE_LINK}" aria-label="Lien d'invitation"><button class="btn" data-action="gp-share">Copier</button></div>
+        <small class="subtle">Les membres de la meme corp sont auto-acceptes. Les autres joueurs devront etre approuves.</small></div></section>`
+  }
+
+  function placeholderTab(label) {
+    return `<section class="card"><div class="empty"><div class="ic" data-i="info"></div><h3>${label}</h3><p>Onglet réel, hors du périmètre de la visite.</p></div></section>`
+  }
+
+  function projectDetail() {
+    const group = state.group
+    const isReviewer = group.role !== 'member'
+    const alone = isWorkedOnAlone()
+    const tabs = PROJECT_TABS.filter(([id]) => !(alone && TEAM_ONLY_TABS.includes(id)))
+    if (alone && TEAM_ONLY_TABS.includes(group.tab)) group.tab = 'bom'
+    const action = nextAction()
+    const states = phaseStates()
+    const stateLabel = { done: 'Terminée', current: 'En cours', blocked: `${MATERIALS.filter(e => remaining(e.id) > 0).length} matériaux à couvrir`, upcoming: 'À venir' }
+    const counts = { bom: `${coveredCount()}/${MATERIALS.length}`, contributions: group.contributions.length, members: group.members.length }
+    const content = { bom: bomTab, contributions: contributionsTab, distribution: distributionTab, members: membersTab }[group.tab]?.() ?? placeholderTab(PROJECT_TABS.find(([id]) => id === group.tab)[1])
+    return `${moduleTabs('projects')}
+      <div class="crumbs"><button data-action="back-to-list">‹</button><button data-action="back-to-list">Projets</button>${icon('chevronRight', 'width="14" height="14"')}<span style="color:var(--text)">Doctrine Sabre</span></div>
+      <section class="card project-header">
+        ${typeIcon(product('sabre'))}
+        <div class="info"><h1>Doctrine Sabre</h1> ${chip(STATUS[group.status])}<p class="meta">1 items · 20 runs · Manager: Aria Valtorr · ${group.members.length} contributors</p></div>
+        <div class="acts">
+          <button class="btn btn-ghost" data-action="tour-replay"><span data-i="help"></span>Visite</button>
+          <button class="btn" id="gp-share" data-action="gp-share"><span data-i="external"></span>${alone ? 'Inviter' : 'Lien de partage'}</button>
+          <button class="btn">Compagnon</button>
+          <button class="btn">Enregistrer comme modèle</button>
+          ${isReviewer ? NEXT_STATUSES[group.status].map(target => `<button class="btn btn-primary" id="gp-status-${target}" data-action="gp-status" data-status="${target}">${NEXT_STATUS_LABELS[target]}</button>`).join('') : ''}
+        </div>
+      </section>
+      <div class="rail" id="gp-rail" aria-label="Phases du projet">${PHASES.map(([id, label], index) => `<div class="${states[index]}"><b>${label}</b><small>${stateLabel[states[index]]}</small></div>`).join('')}</div>
+      <section class="card next-action" id="gp-next"><div class="grow"><span class="lbl">Prochaine action</span><b>${action.title}</b><p>${action.text}</p></div>
+        ${action.button ? `<button class="btn btn-primary" id="gp-next-btn" data-action="${action.action}" ${action.material ? `data-material="${action.material}"` : ''}>${action.button}</button>` : ''}</section>
+      <div class="tabs" role="tablist" aria-label="Projet">${tabs.map(([id, label]) => `<button role="tab" id="gtab-${id}" data-action="gtab" data-tab="${id}" aria-selected="${group.tab === id}">${label}${counts[id] !== undefined ? `<span class="chip chip-neutral">${counts[id]}</span>` : ''}</button>`).join('')}</div>
+      ${content}`
+  }
+
+  function industryPage() {
+    if (state.projectOpen) return projectDetail()
+    const body = { workshop: workshopTab, projects: projectsList, analysis: analysisTab, production: () => placeholderTab('Production') }[state.industryTab]()
+    return `${moduleTabs(state.industryTab)}${body}`
+  }
+
+  function joinPage() {
+    return `<section class="card join-card"><div class="card-body" style="text-align:center">
+      <p class="hud" style="margin:0;font-weight:600;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent)">Invitation à un projet d'industrie</p>
+      ${state.joinState === 'joining'
+        ? '<div class="spinner" aria-hidden="true"></div><h2 style="font-size:20px">Adhésion au projet...</h2><p class="muted" style="margin:0">Veuillez patienter pendant le traitement de votre demande</p>'
+        : `<div class="empty" style="padding:16px 0 0"><div class="ic" data-i="clock"></div><h3>Demande envoyée</h3><p>Votre demande d'adhésion a été envoyée et attend l'approbation d'un admin du projet. Vous serez notifié dès qu'elle sera acceptée.</p>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" data-action="open" data-open="industry">Retour aux projets</button><button class="btn sim-btn" data-action="join-approve-sim">Simuler : Aria Valtorr accepte</button></div></div>`}
+    </div></section>`
+  }
+
+  function settingsPage() {
+    const sections = ['Compte', 'Affichage', 'Marché', 'Industrie', 'Minage', 'PVE', 'Notifications']
+    return `<div class="page-head"><div><h1>Paramètres</h1></div></div>
+      <div class="settings-layout"><nav class="settings-nav" aria-label="Sections">${sections.map(label => `<span>${label}</span>`).join('')}<span aria-current="page">Visites guidées<span class="new-tag">proposé</span></span></nav>
+      <section class="card"><div class="card-head"><h2>Visites guidées</h2><div class="actions"><button class="btn btn-sm btn-ghost" data-action="tours-reset">Tout réinitialiser</button></div></div>
+        <div class="table-wrap"><table class="data"><thead><tr><th>Visite</th><th>État</th><th></th></tr></thead><tbody>
+        ${Object.entries(state.tours).map(([id, status]) => `<tr><td>${TOUR_LABELS[id]}</td><td>${chip(TOUR_STATE[status])}</td><td class="r"><span class="row-actions">${status === 'never' ? `<button class="btn btn-sm btn-ghost" data-action="tour-reactivate" data-tour="${id}">Réactiver</button>` : ''}<button class="btn btn-sm" data-action="tour-launch" data-tour="${id}">${status === 'seen' ? 'Rejouer' : 'Lancer'}</button></span></td></tr>`).join('')}
+        </tbody></table></div></section></div>`
+  }
+
+  function placeholderPage(id) {
+    return `<section class="card"><div class="empty"><div class="ic" data-i="info"></div><h3>${MODULE_LABELS[id]}</h3><p>Hors maquette. Les parcours se lancent depuis la barre jaune « Simulation » en haut.</p></div></section>`
+  }
+
+  const PAGES = { industry: industryPage, join: joinPage, account: settingsPage }
+
+  function renderPage() {
+    const page = $('#page')
+    page.innerHTML = (PAGES[state.module] ?? (() => placeholderPage(state.module)))()
+    hydrate(page)
+    renderSimBar()
+  }
+
+  function renderSimBar() {
+    $('#sim-bar').innerHTML = `<span class="label">Simulation</span>
+      <span class="scenario"><button class="btn btn-sm sim-btn" data-action="scenario" data-scenario="solo">Industrie, 1re ouverture</button><button class="btn btn-sm sim-btn" data-action="scenario" data-scenario="admin">Projet de groupe : propriétaire</button><button class="btn btn-sm sim-btn" data-action="scenario" data-scenario="member">Ouvrir un lien d'invitation</button></span>
+      <span class="grow"></span>
+      ${Object.entries(state.tours).map(([id, status]) => `<span class="tour-state">${TOUR_LABELS[id]} ${chip(TOUR_STATE[status])}</span>`).join('')}
+      <button class="btn btn-sm" data-action="sim-reset">Nouvel utilisateur</button>`
+  }
+
+  function setChrome(id) {
+    document.querySelector('.app').classList.remove('nav-open')
+    document.querySelectorAll('.nav a').forEach(link => { if (link.dataset.open === (id === 'join' ? 'industry' : id)) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current') })
+    const crumb = document.querySelector('.breadcrumb [aria-current]')
+    if (crumb) crumb.textContent = id === 'industry' ? `Industrie · ${INDUSTRY_TABS.find(([tab]) => tab === state.industryTab)[1]}` : MODULE_LABELS[id]
+    setAccount(state.group && (id === 'industry' || id === 'join') ? state.group.me : 'aria')
+  }
+
+  function currentTourId() {
+    if (state.module !== 'industry') return null
+    if (state.projectOpen) return state.group.role === 'owner' ? 'groupAdmin' : 'groupMember'
+    return 'industry'
+  }
+
+  function maybeStartTour() {
+    const tourId = currentTourId()
+    if (!tourId || tour.index >= 0) return
+    if (state.pendingReplay === tourId) { state.pendingReplay = null; startTour(tourId, 1); return }
+    if (state.tours[tourId] === 'new' || state.tours[tourId] === 'later') startTour(tourId, 0)
+  }
+
+  function openModule(id, options = {}) {
+    endTourSilently()
+    closeModal(false)
+    closeDrawer(false)
+    state.module = id
+    if (id === 'industry' && !options.keepView) { state.projectOpen = false; state.industryTab = options.tab ?? 'workshop' }
+    setChrome(id)
+    $('#page').innerHTML = `<div class="page-skeleton"><div class="skeleton" style="width:30%;height:28px"></div><div class="skeleton" style="width:55%"></div><div class="card card-body page-skeleton"><div class="skeleton" style="width:80%"></div><div class="skeleton" style="width:65%"></div></div></div>`
+    setTimeout(() => {
+      if (state.module !== id) return
+      renderPage()
+      if (id === 'join') setTimeout(() => { if (state.module === 'join') { state.joinState = 'sent'; renderPage() } }, JOINING_MS)
+      if (!options.noTour) maybeStartTour()
+    }, LOADING_MS)
+  }
+
+  function openProject() {
+    endTourSilently()
+    state.projectOpen = true
+    renderPage()
+    setChrome('industry')
+    maybeStartTour()
+  }
+
+  function startScenario(kind) {
+    endTourSilently()
+    state.scenario = kind
+    if (kind === 'solo') { state.group = null; openModule('industry'); return }
+    if (kind === 'admin') { state.group = adminProject(); state.listTab = 'mine'; openModule('industry', { tab: 'projects', noTour: true }); return }
+    state.group = memberProject()
+    state.group.members = state.group.members.filter(member => member.who !== 'dren')
+    state.joinState = 'joining'
+    openModule('join')
+  }
+
+  /* ---------- modal & drawer ---------- */
+
+  function modalHead(title) {
+    return `<div class="card-head"><h2 id="modal-title">${title}</h2><div class="actions"><button class="icon-btn" data-action="modal-close" aria-label="Fermer">${icon('x')}</button></div></div>`
+  }
+
+  function projectModal() {
+    const item = modal.product ? product(modal.product) : null
+    const query = modal.query.trim().toLowerCase()
+    return `${modalHead('Nouveau projet de groupe')}
+      <div class="body">
+        <p class="subtle" style="margin:0;font-size:13px">Creer un nouveau projet industriel multi-items</p>
+        <div id="np-search-wrap"><label class="field-label" for="np-search">Items a produire</label>
+          <div class="input-icon">${icon('search')}<input class="input" id="np-search" autocomplete="off" placeholder="Rechercher un item (ex: Ferox, Ishtar...)" value="${modal.query}"></div>
+          ${item ? '' : `<ul class="suggest" id="np-suggest">${suggestions(query)}</ul>`}</div>
+        ${item ? `<div class="picked">${typeIcon(item)}<div style="min-width:0"><b class="truncate">${item.name}</b><small class="subtle">ME 10 · TE 20</small></div>
+          <label class="runs"><span class="field-label" style="margin:0">Runs</span><input class="input" id="np-runs" type="number" min="1" value="${modal.runs}"></label></div>
+          <div class="cost-box" id="np-cost">${referenceBox(item)}</div>` : ''}
+      </div>
+      <div class="foot"><button class="btn btn-ghost" data-action="modal-close">Annuler</button><button class="btn btn-primary" id="np-create" data-action="project-create" ${item ? '' : 'disabled'}>Creer le projet</button></div>`
+  }
+
+  function referenceBox(item) {
+    const structure = bestStructure()
+    const unitCost = item.unitCost * (1 - (structure?.bonus ?? 0))
+    return `<div class="where">${structure ? `<span class="chip chip-success">${icon('check')}${structure.kind}</span><span class="truncate">${structure.name}</span>` : `<span class="chip chip-warning">${icon('alert')}Aucune structure</span><span>coût sans bonus de structure</span>`}</div>
+      <dl class="dl"><dt>Référence</dt><dd></dd><dt>Coût unitaire</dt><dd>${isk(unitCost)}</dd><dt>Marge</dt><dd>${item.margin === null ? '<span class="chip chip-unknown">inconnu</span>' : `${item.margin} %`}</dd><dt class="total">${modal.runs} runs au total</dt><dd class="total">${isk(unitCost * modal.runs)}</dd></dl>`
+  }
+
+  function suggestions(query) {
+    const matches = PRODUCTS.filter(entry => entry.name.toLowerCase().includes(query))
+    if (!matches.length) return '<li style="padding:10px;color:var(--text-subtle);font-size:13px">Aucun item</li>'
+    return matches.map(entry => `<li><button data-action="pick" data-product="${entry.id}">${typeIcon(entry)}<span>${query ? entry.name.replace(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'i'), '<mark>$1</mark>') : entry.name}</span></button></li>`).join('')
+  }
+
+  function contribModal() {
+    const entry = material(modal.material)
+    return `${modalHead('Ajouter une contribution')}
+      <div class="body">
+        <div><span class="field-label">Type de contribution</span><div class="segmented" role="group" aria-label="Type de contribution">${Object.values(CONTRIB_TYPE).map(label => `<button aria-pressed="${label === 'Material'}">${label}</button>`).join('')}</div></div>
+        <div class="picked"><span class="type-icon"><span class="fallback">${entry.name.slice(0, 3).toUpperCase()}</span></span><div style="min-width:0"><span class="field-label" style="margin:0">Item</span><b class="truncate">${entry.name}</b></div>
+          <label class="runs"><span class="field-label" style="margin:0">Quantite</span><input class="input" id="gc-qty" type="number" min="1" value="${modal.qty}"></label></div>
+        <div class="cost-box" id="gc-value">${contribValue(entry)}</div>
+        <div><label class="field-label" for="gc-notes">Notes <span class="subtle">(optionnel)</span></label><input class="input" id="gc-notes" style="width:100%" placeholder="Note optionnelle sur cette contribution..."></div>
+        <p class="subtle" style="margin:0;font-size:12px">Votre contribution sera examinee par un admin du projet.</p>
+      </div>
+      <div class="foot"><button class="btn btn-ghost" data-action="modal-close">Annuler</button><button class="btn btn-primary" id="gc-submit" data-action="gc-submit">Soumettre la contribution</button></div>`
+  }
+
+  function contribValue(entry) {
+    return `<dl class="dl"><dt>Prix payé (wallet), achat du 12/11<span class="new-tag">proposé #953</span></dt><dd>${int(entry.unit)} ISK</dd><dt class="total">Valorisation totale</dt><dd class="total">${isk(modal.qty * entry.unit)}</dd></dl>
+      <p class="subtle" style="margin:8px 0 0;font-size:12px">Sans achat trouvé : prix Jita du jour d'apport (percentile 5 %). Compté une fois la livraison vue dans le container du projet.</p>`
+  }
+
+  function renderModal() { $('#modal').innerHTML = { project: projectModal, contrib: contribModal }[modal.kind]() }
+
+  function openModal(kind, options = {}) {
+    Object.assign(modal, { open: true, kind }, options)
+    renderModal()
+    $('#modal').hidden = false
+    $('#backdrop').hidden = false
+    if (kind === 'project' && !modal.product) $('#np-search').focus()
+  }
+
+  function closeModal(notify = true) {
+    if (!modal.open) return
+    modal.open = false
+    $('#modal').hidden = true
+    if ($('#drawer').hidden) $('#backdrop').hidden = true
+    if (notify && tour.index >= 0 && currentStep().inModal) goTo(currentStep().backTo)
+  }
+
+  function renderDrawer() {
+    const chosen = state.structures.map(id => STRUCTURE_OPTIONS.find(item => item.id === id))
+    const available = STRUCTURE_OPTIONS.filter(item => !state.structures.includes(item.id))
+    $('#drawer').innerHTML = `
+      <div class="card-head"><h2 id="drawer-title">Paramètres › Industrie</h2><div class="actions"><button class="icon-btn" data-action="config-close" aria-label="Fermer">${icon('x')}</button></div></div>
+      <div class="scroll"><h4>Structures de production</h4>
+        ${chosen.length ? chosen.map(item => `<div class="struct-row"><div style="min-width:0"><b>${item.name}</b><small>${item.kind}</small></div><span class="chip chip-success">−${fmt(item.bonus * 100)} %</span><button class="btn btn-sm btn-ghost" data-action="structure-remove" data-structure="${item.id}">Retirer</button></div>`).join('') : '<p class="subtle" style="font-size:13px;margin:6px 0">Aucune : les projets sont calculés sans aucun bonus.</p>'}
+        <h4>Structures partagées par la corporation</h4>
+        ${available.map(item => `<div class="struct-row"><div style="min-width:0"><b>${item.name}</b><small>${item.kind} · Rigs configurés</small></div><span class="chip chip-neutral">−${fmt(item.bonus * 100)} %</span><button class="btn btn-sm" data-action="structure-add" data-structure="${item.id}">Ajouter</button></div>`).join('') || '<p class="subtle" style="font-size:13px">Toutes ajoutées.</p>'}
+      </div>
+      <div class="foot"><button class="btn btn-primary" data-action="config-close">Enregistrer</button></div>`
+  }
+
+  function openDrawer() { renderDrawer(); $('#drawer').hidden = false; $('#backdrop').hidden = false }
+
+  function closeDrawer(notify = true) {
+    if ($('#drawer').hidden) return
+    $('#drawer').hidden = true
+    if (!modal.open) $('#backdrop').hidden = true
+    if (state.module === 'industry') renderPage()
+    if (notify && tour.paused) { tour.paused = false; renderStep() }
+  }
+
+  /* ---------- tours ---------- */
+
+  const TOURS = {
+    industry: [
+      { id: 'welcome', welcome: true, title: 'Industrie · première visite', body: () => `
+        <p>De l'idée de produit jusqu'au dernier job : coût réel, achats, slots de tous vos personnages.</p>
+        <div class="welcome-meta">${chip([`${countSteps('industry')} étapes`, 'chip-neutral'])}${chip(['2 personnages lus', 'chip-success'])}</div>
+        <ol class="chapters"><li>Vos slots</li><li>Les onglets du module</li><li>Quoi produire</li><li>Vos structures</li><li>Votre premier projet</li></ol>` },
+      { id: 'slots', spot: '#t-slots', title: 'Vos slots', body: `<div class="state ok">${icon('check')}<span>11 jobs lus sur 2 personnages, il y a 3 min.</span></div><p>Un segment par slot. Orange : job terminé, à livrer en jeu.</p>` },
+      { id: 'tabs', spot: '#t-tabs', target: '#tab-analysis', waitFor: 'itab:analysis', title: 'Les onglets', body: `<p><strong>Atelier</strong> résume tout, <strong>Projets</strong> pour ce que vous fabriquez, seul ou à plusieurs, <strong>Analyse</strong> pour décider quoi fabriquer, <strong>Production</strong> pour les jobs.</p><div class="hint">Ouvrez Analyse</div>` },
+      { id: 'analysis', spot: '#an-table', title: 'Quoi produire', body: () => `<p>Chaque produit chiffré avec vos blueprints et compétences, au prix de Jita. Pas de prix de vente : « inconnu », jamais une marge inventée.</p>${bestStructure() ? '' : `<div class="state warn">${icon('alert')}<span>Sans structure configurée, ces coûts n'ont aucun bonus.</span></div>`}` },
+      { id: 'config', spot: '#t-config', title: 'Vos structures', body: () => bestStructure()
+          ? `<div class="state ok">${icon('check')}<span>Meilleur bonus : ${bestStructure().name}.</span></div><p>Tous les coûts du module en tiennent compte.</p>`
+          : `<div class="state warn">${icon('alert')}<span>Aucune structure de production : les projets sont calculés sans aucun bonus.</span></div><p>La roue dentée ouvre Paramètres › Industrie.</p>`,
+        action: { label: 'Configurer maintenant', when: () => !state.structures.length, run: () => { tour.paused = true; hideTour(); openDrawer() } } },
+      { id: 'projects-tab', spot: '#t-tabs', target: '#tab-projects', waitFor: 'itab:projects', title: 'Vos projets', body: `<div class="hint">Ouvrez Projets</div>` },
+      { id: 'new', spot: '#t-new', target: '#t-new', waitFor: 'modal:project', title: 'À vous', body: `<p>Un projet reste solo tant que personne ne le rejoint.</p><div class="hint">Cliquez sur Nouveau projet</div>` },
+      { id: 'search', inModal: true, backTo: 'new', spot: '#np-search-wrap', waitFor: 'product:selected', title: 'Un item', body: `<div class="hint">Tapez « hammer », choisissez Hammerhead II</div><p>Le collage en lot accepte aussi « Nom ME TE xRuns ».</p>` },
+      { id: 'reference', inModal: true, backTo: 'new', read: true, spot: '#np-cost', title: 'La référence', body: () => `<p>Coût unitaire et marge de référence${bestStructure() ? `, bonus de ${bestStructure().name} compris` : ', sans bonus de structure'}. Changez les runs, tout suit.</p>` },
+      { id: 'create', inModal: true, backTo: 'new', spot: '#np-create', waitFor: 'project:created', title: 'Créez-le', body: `<div class="hint">Cliquez sur Creer le projet</div>` },
+      { id: 'end', final: true, title: 'Visite terminée', body: () => `<p>Votre projet est dans Projets. Pour le faire à plusieurs, ouvrez-le et cliquez sur <strong>Inviter</strong>. Le bouton Visite rejoue cette visite.</p>` },
+    ],
+    groupAdmin: [
+      { id: 'welcome', welcome: true, title: 'Votre projet à plusieurs', body: () => `
+        <p>Vous êtes <strong>propriétaire</strong> de Doctrine Sabre. Ouvrez-le, faites entrer des joueurs, validez leurs apports ; le payout de chacun suit ses coûts engagés.</p>
+        <div class="welcome-meta">${chip([`${countSteps('groupAdmin')} étapes`, 'chip-neutral'])}${chip(STATUS.draft)}</div>
+        <ol class="chapters"><li>Phases et prochaine action</li><li>Publier</li><li>Inviter hors corporation</li><li>Accepter une demande</li><li>Relire un apport</li><li>Lire les finances</li></ol>` },
+      { id: 'cockpit', spot: '#gp-rail', title: 'Où en est le projet', body: `<p>Les cinq phases, de <strong>Préparer</strong> à <strong>Clôturer</strong>. Juste dessous, la carte <strong>Prochaine action</strong> dit toujours quoi faire maintenant.</p>` },
+      { id: 'publish', spot: '#gp-status-published', target: '#gp-status-published', waitFor: 'status:published', title: 'Publier', body: `<p>En brouillon, vous seul le voyez. <strong>Publié</strong>, il apparaît dans « Disponibles » pour votre corporation, qui le rejoint sans approbation.</p><div class="hint">Cliquez sur Publier</div>` },
+      { id: 'invite', spot: '#gp-share', target: '#gp-share', waitFor: 'link:copied', title: 'Inviter', body: `<p>Copie le lien court. Les joueurs d'une autre corporation devront être approuvés.</p><div class="hint">Cliquez sur Inviter</div>` },
+      { id: 'team-tab', spot: '#gtab-members', target: '#gtab-members', waitFor: 'gtab:members', title: 'Une demande arrive', body: () => `<div class="state info">${icon('users')}<span>${person('dren').name} (${person('dren').corp}) a ouvert le lien.</span></div><p>Les onglets Contributions et Équipe apparaissent dès qu'il y a quelqu'un d'autre.</p><div class="hint">Ouvrez Équipe</div>` },
+      { id: 'accept', spot: '#gp-pending', target: '#gp-accept', waitFor: 'member:accepted', title: 'Accepter', body: `<p>Accepté, il voit les matériaux à sourcer et peut contribuer.</p><div class="hint">Acceptez Dren Kossak</div>` },
+      { id: 'next', spot: '#gp-next', target: '#gp-next-btn', waitFor: 'gtab:contributions', title: 'Prochaine action', body: () => `<div class="state info">${icon('box')}<span>${person('dren').name} a déclaré Morphite × 2 400.</span></div><p>La carte vous amène au bon endroit.</p><div class="hint">Cliquez sur Relire les contributions</div>` },
+      { id: 'approve', spot: '#gp-contrib-row', target: '#gp-approve', waitFor: 'contrib:approved', title: 'Relire', body: `<p>Valorisé au <strong>prix payé</strong>, lu dans le wallet de Dren ; sans achat trouvé, prix Jita du jour.</p><p>Il compte quand la Morphite est vue dans le container du projet, ou quand vous confirmez la livraison. Un admin peut le rouvrir jusqu'à la phase Vendre.</p><div class="state info">${icon('info')}<span>Règle proposée, issue #953.</span></div><div class="hint">Cliquez sur Approve</div>` },
+      { id: 'finances-tab', spot: '#gtab-distribution', target: '#gtab-distribution', waitFor: 'gtab:distribution', title: 'Finances', body: `<div class="hint">Ouvrez Finances</div>` },
+      { id: 'payout', spot: '#gp-payout', title: 'Le partage', body: () => `<p>Payout = coûts engagés × revenu net / coût total du projet. Dren pèse <strong>${fmt(state.group.contributions.filter(c => c.who === 'dren' && c.status === 'approved').reduce((s, c) => s + c.value, 0) / state.group.contributions.filter(c => c.status === 'approved').reduce((s, c) => s + c.value, 0) * 100)} %</strong> des coûts.</p><p>Profit et payouts restent « en attente des ventes » jusqu'à la première vente.</p>` },
+      { id: 'end', final: true, title: 'Projet lancé', body: `<p>Ensuite, la prochaine action vous guide : <strong>Démarrer</strong>, puis les ventes, puis <strong>Clôturer</strong> fige les comptes. Le bouton Visite rejoue cette visite.</p>` },
+    ],
+    groupMember: [
+      { id: 'welcome', welcome: true, title: 'Bienvenue dans Doctrine Sabre', body: () => `
+        <p>Vous êtes <strong>membre</strong>. ${person('aria').name} pilote le projet ; vous fournissez ce qui manque, votre payout suit vos coûts engagés.</p>
+        <div class="welcome-meta">${chip([`${countSteps('groupMember')} étapes`, 'chip-neutral'])}${chip([`${state.group.members.length} contributors`, 'chip-neutral'])}</div>
+        <ol class="chapters"><li>Ce qui manque</li><li>Contribuer</li><li>Suivre votre apport</li><li>Votre part</li></ol>` },
+      { id: 'bom', spot: '#gp-bom', title: 'Ce qui manque', body: `<p><strong>Restant</strong> : ce qui manque encore. <strong>Je m'en charge</strong> réserve une ligne pour éviter les doublons.</p>` },
+      { id: 'next', spot: '#gp-next', target: '#gp-next-btn', waitFor: 'modal:contrib', title: 'Prochaine action', body: `<p>La carte propose le matériau le plus utile à apporter.</p><div class="hint">Cliquez sur Contribuer</div>` },
+      { id: 'value', inModal: true, backTo: 'next', read: true, spot: '#gc-value', title: 'Sa valeur', body: `<p>Valorisé au <strong>prix payé</strong> : l'achat du 12/11 trouvé dans votre wallet. Sans achat, prix Jita du jour d'apport.</p><p>Il comptera une fois la livraison vue dans le container du projet.</p><div class="state info">${icon('info')}<span>Règle proposée, issue #953.</span></div>` },
+      { id: 'submit', inModal: true, backTo: 'next', spot: '#gc-submit', waitFor: 'contrib:submitted', title: 'Soumettre', body: `<div class="hint">Cliquez sur Soumettre la contribution</div>` },
+      { id: 'pending', spot: '#gp-contrib-row-me', title: 'Pending', body: `<p>Il compte dans la BOM et dans vos coûts engagés une fois la livraison vue dans le container du projet, ou confirmée par un admin. Corrigeable jusqu'à la phase Vendre.</p>` },
+      { id: 'finances-tab', spot: '#gtab-distribution', target: '#gtab-distribution', waitFor: 'gtab:distribution', title: 'Votre part', body: `<div class="hint">Ouvrez Finances</div>` },
+      { id: 'share', spot: '#gp-payout', title: 'Ce que vous récupérez', body: `<p>Payout = vos coûts engagés approuvés × revenu net / coût total. Votre apport n'y entre qu'une fois approuvé.</p><p>Connu à la première vente.</p>` },
+      { id: 'end', final: true, title: 'C\'est parti', body: `<p>Le projet est dans Industrie › Projets › Mes projets. Le bouton Visite rejoue cette visite.</p>` },
+    ],
+  }
+
+  const currentStep = () => TOURS[tour.id][tour.index]
+  const countSteps = id => TOURS[id].filter(step => !step.welcome && !step.final).length
+
+  function startTour(id, index) { tour.id = id; tour.paused = false; tour.index = index; renderStep() }
+  function goTo(id) { tour.index = TOURS[tour.id].findIndex(step => step.id === id); renderStep() }
+  function clearLive() { tour.live.forEach(node => node.classList.remove('tour-live', 'tour-ring', 'read')); tour.live = [] }
+  function hideTour() { clearLive(); $('#veil').classList.remove('on', 'cut'); $('#hole').classList.remove('on'); $('#bubble').classList.remove('on') }
+
+  function endTour(status, message) {
+    if (tour.index < 0) return
+    state.tours[tour.id] = status
+    tour.index = -1
+    tour.paused = false
+    hideTour()
+    renderSimBar()
+    if (state.module === 'account') renderPage()
+    if (message) toast(message)
+  }
+
+  function endTourSilently() {
+    if (tour.index < 0) return
+    if (state.tours[tour.id] === 'new') state.tours[tour.id] = 'later'
+    tour.index = -1
+    tour.paused = false
+    hideTour()
+  }
+
+  function emit(name) {
+    if (tour.index < 0 || tour.paused) return
+    if (currentStep().waitFor === name) tour.index += 1
+    renderStep()
+  }
+
+  function renderStep() {
+    if (tour.index < 0 || tour.paused) return
+    clearLive()
+    const steps = TOURS[tour.id]
+    const step = steps[tour.index]
+    const spot = step.spot ? document.querySelector(step.spot) : null
+    if (step.spot && !spot) { tour.index += 1; return renderStep() }
+    const numbered = steps.filter(item => !item.welcome && !item.final)
+    const position = numbered.indexOf(step) + 1
+    const body = typeof step.body === 'function' ? step.body() : step.body
+    const previous = steps[tour.index - 1]
+    const canGoBack = position > 1 && !step.inModal && previous && !previous.inModal && !previous.waitFor
+    const showAction = step.action && step.action.when()
+    let footer
+    if (step.welcome) footer = `<button class="btn btn-sm btn-ghost" data-act="never">Ne plus proposer</button><span class="grow"></span><button class="btn btn-sm" data-act="later">Plus tard</button><button class="btn btn-sm btn-primary" data-act="next">Visiter</button>`
+    else if (step.final) footer = `<span class="grow"></span><button class="btn btn-sm btn-primary" data-act="finish">Terminer</button>`
+    else footer = `<span class="dots" aria-hidden="true">${numbered.map((_, i) => `<i class="${i + 1 === position ? 'on' : i + 1 < position ? 'done' : ''}"></i>`).join('')}</span><span class="grow"></span>
+      ${canGoBack ? '<button class="btn btn-sm btn-ghost" data-act="prev">Retour</button>' : ''}
+      ${showAction ? `<button class="btn btn-sm" data-act="next">Plus tard</button><button class="btn btn-sm btn-primary" data-act="action">${step.action.label}</button>` : ''}
+      ${!showAction && !step.waitFor ? '<button class="btn btn-sm btn-primary" data-act="next">Suivant</button>' : ''}`
+    const bubble = $('#bubble')
+    bubble.innerHTML = `<div class="card-head"><h3 id="bubble-title">${step.title}</h3>${position ? `<span class="step">${position}/${numbered.length}</span>` : ''}<button class="icon-btn close" data-act="close" aria-label="Quitter la visite">${icon('x')}</button></div><div class="body">${body}</div><div class="foot">${footer}</div>`
+    bubble.classList.add('on')
+    bubble.classList.toggle('center', !spot)
+    const veil = $('#veil'), hole = $('#hole')
+    veil.classList.add('on')
+    if (!spot) { veil.classList.remove('cut'); hole.classList.remove('on') }
+    else if (step.inModal) { veil.classList.remove('cut'); hole.classList.remove('on'); spot.classList.add('tour-ring'); if (step.read) spot.classList.add('read'); tour.live.push(spot) }
+    else {
+      veil.classList.add('cut')
+      hole.classList.toggle('wait', Boolean(step.waitFor))
+      if (step.target) { const target = document.querySelector(step.target); const raised = [target, target.closest('.card')].filter(Boolean); raised.forEach(node => node.classList.add('tour-live')); tour.live.push(...raised) }
+      spot.scrollIntoView({ block: 'center', behavior: 'instant' })
+    }
+    if (spot) place(spot, step)
+    const focusTarget = bubble.querySelector('.btn-primary') || bubble.querySelector('.close')
+    if (!step.inModal || !step.waitFor) focusTarget.focus({ preventScroll: true })
+  }
+
+  function place(spot, step) {
+    const rect = spot.getBoundingClientRect()
+    const sx = window.scrollX, sy = window.scrollY
+    const hole = $('#hole'), bubble = $('#bubble')
+    if (!step.inModal) { Object.assign(hole.style, { left: `${rect.left + sx - HOLE_PADDING}px`, top: `${rect.top + sy - HOLE_PADDING}px`, width: `${rect.width + HOLE_PADDING * 2}px`, height: `${rect.height + HOLE_PADDING * 2}px` }); hole.classList.add('on') }
+    const bw = bubble.offsetWidth, bh = bubble.offsetHeight
+    const fitsAbove = rect.top - BUBBLE_GAP - bh > 8
+    const fitsBelow = rect.bottom + BUBBLE_GAP + bh < window.innerHeight - 8
+    const above = step.inModal ? fitsAbove || !fitsBelow : !fitsBelow && fitsAbove
+    const top = above ? rect.top + sy - BUBBLE_GAP - bh : rect.bottom + sy + BUBBLE_GAP
+    const left = Math.min(Math.max(sx + 16, rect.left + sx + rect.width / 2 - bw / 2), sx + document.documentElement.clientWidth - bw - 16)
+    bubble.style.top = `${Math.max(sy + 8, top)}px`
+    bubble.style.left = `${left}px`
+  }
+
+  $('#bubble').addEventListener('click', event => {
+    const act = event.target.closest('[data-act]')?.dataset.act
+    if (!act) return
+    const step = currentStep()
+    if (act === 'next') { tour.index += 1; renderStep() }
+    if (act === 'prev') { tour.index -= 1; renderStep() }
+    if (act === 'action') step.action.run()
+    if (act === 'later') endTour('later', 'Visite reportée : proposée à la prochaine ouverture.')
+    if (act === 'never') endTour('never', 'Visite désactivée. Réactivable dans Paramètres › Visites guidées.')
+    if (act === 'finish') endTour('seen')
+    if (act === 'close') endTour(step.welcome ? 'later' : 'seen', step.welcome ? 'Visite reportée.' : 'Visite quittée. Le bouton Visite la relance.')
+  })
+  $('#veil').addEventListener('click', () => { const bubble = $('#bubble'); bubble.classList.remove('nudge'); void bubble.offsetWidth; bubble.classList.add('nudge') })
+
+  /* ---------- actions ---------- */
+
+  function copyText(text) { try { navigator.clipboard.writeText(text).catch(() => {}) } catch (error) { return } }
+
+  const ACTIONS = {
+    'open': node => openModule(node.dataset.open),
+    'scenario': node => startScenario(node.dataset.scenario),
+    'itab': node => { state.industryTab = node.dataset.tab; state.projectOpen = false; renderPage(); setChrome('industry'); emit(`itab:${state.industryTab}`) },
+    'list-tab': node => { state.listTab = node.dataset.tab; renderPage() },
+    'open-project': () => openProject(),
+    'back-to-list': () => { endTourSilently(); state.projectOpen = false; state.industryTab = 'projects'; renderPage() },
+    'config-open': () => openDrawer(),
+    'config-close': () => closeDrawer(),
+    'structure-add': node => { state.structures.push(node.dataset.structure); renderDrawer() },
+    'structure-remove': node => { state.structures = state.structures.filter(id => id !== node.dataset.structure); renderDrawer() },
+    'project-new': () => { openModal('project', { product: null, query: '', runs: 10 }); emit('modal:project') },
+    'modal-close': () => closeModal(),
+    'pick': node => { modal.product = node.dataset.product; modal.query = product(modal.product).name; renderModal(); emit('product:selected') },
+    'project-create': () => { state.soloProjects.push({ product: modal.product, runs: modal.runs }); closeModal(false); state.industryTab = 'projects'; state.listTab = 'mine'; renderPage(); toast(`Projet créé : ${product(modal.product).name}`); emit('project:created') },
+    'tour-replay': () => {
+      const tourId = currentTourId()
+      if (tourId === 'groupAdmin') state.group = adminProject()
+      if (tourId === 'groupMember') state.group = memberProject()
+      renderPage()
+      startTour(tourId, 1)
+    },
+    'gtab': node => { state.group.tab = node.dataset.tab; renderPage(); emit(`gtab:${state.group.tab}`) },
+    'gp-status': node => { state.group.status = node.dataset.status; renderPage(); toast(node.dataset.status === 'published' ? 'Projet publié.' : 'Projet démarré.'); emit(`status:${node.dataset.status}`) },
+    'gp-share': () => {
+      copyText(SHARE_LINK)
+      if (state.scenario === 'admin' && !state.group.pending.length && !state.group.members.some(member => member.who === 'dren')) {
+        state.group.pending.push({ who: 'dren' })
+      }
+      renderPage()
+      toast(state.scenario === 'admin' ? 'Link copied! · Dren Kossak demande à rejoindre Doctrine Sabre.' : 'Link copied!')
+      emit('link:copied')
+    },
+    'gp-accept': node => {
+      const who = node.dataset.who
+      state.group.pending = state.group.pending.filter(request => request.who !== who)
+      state.group.members.push({ who, role: 'member', entry: 'shortLinkApproved' })
+      if (!state.group.contributions.some(c => c.id === 'c3')) state.group.contributions.push({ id: 'c3', who, type: 'material', item: 'Morphite × 2 400', material: 'morphite', qty: 2400, value: 2400 * MORPHITE_DEPOSIT_DAY_PRICE, method: 'paidPrice', status: 'pending' })
+      renderPage()
+      toast(`${person(who).name} a rejoint le projet, puis soumis une contribution.`)
+      emit('member:accepted')
+    },
+    'gp-reject': node => { state.group.pending = state.group.pending.filter(request => request.who !== node.dataset.who); renderPage() },
+    'na-review': () => { state.group.tab = 'contributions'; renderPage(); emit('gtab:contributions') },
+    'na-start': () => { state.group.status = 'in_progress'; renderPage() },
+    'na-contribute': node => { openModal('contrib', { material: node.dataset.material, qty: remaining(node.dataset.material) }); emit('modal:contrib') },
+    'gp-contribute': node => { const id = node.dataset.material ?? MATERIALS.find(entry => remaining(entry.id) > 0)?.id ?? 'morphite'; openModal('contrib', { material: id, qty: Math.max(1, remaining(id)) }); emit('modal:contrib') },
+    'gp-approve': node => { state.group.contributions.find(c => c.id === node.dataset.id).status = 'approved'; renderPage(); emit('contrib:approved') },
+    'gp-reject-contrib': node => { state.group.contributions.find(c => c.id === node.dataset.id).status = 'rejected'; renderPage() },
+    'gc-submit': () => {
+      const entry = material(modal.material)
+      state.group.contributions.push({ id: `m${Date.now()}`, who: state.group.me, type: 'material', item: `${entry.name} × ${int(modal.qty)}`, material: entry.id, qty: modal.qty, value: modal.qty * entry.unit, method: 'paidPrice', status: 'pending' })
+      closeModal(false)
+      state.group.tab = 'contributions'
+      renderPage()
+      emit('contrib:submitted')
+    },
+    'join-approve-sim': () => {
+      state.group.members.push({ who: 'dren', role: 'member', entry: 'shortLinkApproved' })
+      toast('Aria Valtorr a accepté votre demande : Doctrine Sabre est dans Mes projets.')
+      state.listTab = 'mine'
+      openModule('industry', { tab: 'projects', noTour: true })
+    },
+    'tour-launch': node => {
+      endTourSilently()
+      const tourId = node.dataset.tour
+      if (tourId === 'industry') { state.pendingReplay = tourId; state.scenario = 'solo'; openModule('industry'); return }
+      state.scenario = tourId === 'groupAdmin' ? 'admin' : 'member'
+      state.group = tourId === 'groupAdmin' ? adminProject() : memberProject()
+      state.pendingReplay = tourId
+      state.module = 'industry'; state.industryTab = 'projects'; state.projectOpen = true
+      setChrome('industry'); renderPage(); maybeStartTour()
+    },
+    'tour-reactivate': node => { state.tours[node.dataset.tour] = 'new'; renderPage() },
+    'tours-reset': () => { Object.keys(state.tours).forEach(id => { state.tours[id] = 'new' }); renderPage(); toast('Toutes les visites seront reproposées.') },
+    'sim-reset': () => { endTourSilently(); state = initialState(); openModule('dashboard') },
+  }
+
+  document.addEventListener('click', event => {
+    const node = event.target.closest('[data-action]')
+    if (!node || node.disabled) return
+    event.preventDefault()
+    ACTIONS[node.dataset.action]?.(node)
+  })
+
+  document.addEventListener('input', event => {
+    if (event.target.id === 'np-search') {
+      modal.query = event.target.value
+      if (modal.product) { modal.product = null; renderModal(); const input = $('#np-search'); input.focus(); input.setSelectionRange(input.value.length, input.value.length); return }
+      $('#np-suggest').innerHTML = suggestions(modal.query.trim().toLowerCase())
+    }
+    if (event.target.id === 'np-runs') { modal.runs = Math.max(1, parseInt(event.target.value, 10) || 1); $('#np-cost').innerHTML = referenceBox(product(modal.product)) }
+    if (event.target.id === 'gc-qty') { modal.qty = Math.max(1, parseInt(event.target.value, 10) || 1); $('#gc-value').innerHTML = contribValue(material(modal.material)) }
+  })
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      if (tour.index >= 0 && !tour.paused) return endTour(currentStep().welcome ? 'later' : 'seen', 'Visite quittée. Le bouton Visite la relance.')
+      if (modal.open) return closeModal()
+      if (!$('#drawer').hidden) return closeDrawer()
+    }
+    if (tour.index < 0 || tour.paused || event.target.matches('input')) return
+    const step = currentStep()
+    if (event.key === 'ArrowRight' && !step.waitFor && !step.final && !(step.action && step.action.when())) { tour.index += 1; renderStep() }
+    if (event.key === 'ArrowLeft' && tour.index > 1 && !step.inModal) { const previous = TOURS[tour.id][tour.index - 1]; if (!previous.inModal && !previous.waitFor) { tour.index -= 1; renderStep() } }
+  })
+
+  window.addEventListener('resize', () => { if (tour.index >= 0 && !tour.paused) renderStep() })
+
+  /* ---------- boot ---------- */
+
+  renderShell({ page: 'dashboard', crumbs: [{ label: 'Accueil' }] })
+  REAL_NAV[0].items.forEach((item, index) => {
+    const link = document.querySelectorAll('.nav a')[index]
+    link.dataset.action = 'open'
+    link.dataset.open = item.id
+  })
+  document.querySelector('.sidebar-foot').innerHTML = '<a href="#">v0.20 · Notes de version</a>'
+  document.querySelector('.search-trigger > span:not(.kbd)').textContent = 'Rechercher un écran...'
+  const esiPill = document.querySelector('.status-pill')
+  if (esiPill) { esiPill.title = 'ESI OK - 24 812 joueurs en ligne'; esiPill.innerHTML = '<span class="led" aria-hidden="true"></span>ESI <span class="num">24 812</span>' }
+  document.querySelector('.mock-tools')?.remove()
+  $('#menu-btn').addEventListener('click', () => document.querySelector('.app').classList.toggle('nav-open'))
+  document.body.classList.remove('show-annot')
+  openModule('dashboard')
+</script>
+</body>
+</html>
