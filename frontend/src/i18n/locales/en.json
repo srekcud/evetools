@@ -3198,6 +3198,31 @@
       },
       "hint": "Jita = weighted sell price of the remaining quantity plus the import to the workshop (m³ × jumps × the rate). Structure = lowest sell price of your preferred market structure."
     },
+    "purchasesToDeliver": {
+      "title": "Purchases to bring to the container",
+      "loading": "Reading the container stock...",
+      "error": "The purchases to deliver could not be read",
+      "allDelivered": "Every purchase is already in the project container.",
+      "stock": {
+        "unknown": "The container stock cannot be read, so the delivery of these purchases is unknown.",
+        "none": "The project has no container name, so the delivery of these purchases cannot be checked."
+      },
+      "group": {
+        "jita": "Bought in Jita",
+        "other": "Bought in {system}",
+        "unknown": "Unknown origin",
+        "unnamedSystem": "System #{id}"
+      },
+      "bought": "Bought",
+      "missing": "Missing",
+      "courier": "Courier",
+      "state": {
+        "missing": "missing",
+        "partial": "partial",
+        "delivered": "delivered",
+        "unknown": "unknown"
+      }
+    },
     "courier": {
       "title": "Courier contract",
       "loading": "Reading the courier quote...",

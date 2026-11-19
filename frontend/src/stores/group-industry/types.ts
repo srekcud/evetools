@@ -1138,6 +1138,31 @@ export interface ProjectCourier {
   unknownOriginLines: CourierUnknownOriginLine[]
 }
 
+export type PurchaseDeliveryState = 'missing' | 'partial' | 'delivered' | 'unknown'
+
+export type PurchaseOriginKind = 'jita' | 'other' | 'unknown'
+
+export type ContainerStockState = 'known' | 'unknown' | 'none'
+
+export interface PurchaseToDeliverRow {
+  bomLineId: string
+  typeId: number
+  typeName: string | null
+  originKind: PurchaseOriginKind
+  solarSystemId: number | null
+  solarSystemName: string | null
+  purchasedQuantity: number
+  missingQuantity: number | null
+  deliveryState: PurchaseDeliveryState
+}
+
+export interface ProjectPurchasesToDeliver {
+  id: string
+  stockState: ContainerStockState
+  purchaseCount: number
+  rows: PurchaseToDeliverRow[]
+}
+
 export type StructureHealthState = 'ok' | 'low-fuel' | 'offline-service' | 'unknown'
 
 export interface StructureHealthRow {
