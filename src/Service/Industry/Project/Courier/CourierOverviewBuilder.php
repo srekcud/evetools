@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project\Courier;
 
+use App\Constant\EveConstants;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectCourierContract;
 use App\Entity\User;
@@ -16,8 +17,6 @@ use App\Service\Industry\Project\IndustryProjectService;
 final readonly class CourierOverviewBuilder
 {
     public const string REASON_UNRECOGNIZED_STATUS = 'unrecognized_status';
-
-    private const int COLLATERAL_DECIMALS = 2;
 
     public function __construct(
         private IndustryProjectCourierContractRepository $linkRepository,
@@ -39,11 +38,15 @@ final readonly class CourierOverviewBuilder
 
         $workshopSolarSystemId = $this->projectService->favoriteSystemsOf($owner)->manufacturingSystemId;
         $purchases = $this->purchasesOf($project, $workshopSolarSystemId);
-        $originQuotes = $this->originQuotesOf($purchases['purchasesByOrigin'], $workshopSolarSystemId);
-        $mainOrigin = array_shift($originQuotes);
-        $quote = null === $mainOrigin
-            ? $this->quoteCalculator->quote([], [], null !== $workshopSolarSystemId, null)
-            : $mainOrigin->quote;
+        $hasJitaPurchases = [] !== $purchases['jitaPurchases'];
+        $quote = $this->quoteCalculator->quote(
+            $purchases['jitaPurchases'],
+            $this->volumeByTypeId($purchases['jitaPurchases']),
+            null !== $workshopSolarSystemId,
+            $hasJitaPurchases && null !== $workshopSolarSystemId
+                ? $this->jumpDistances->jumpsBetween(EveConstants::JITA_SOLAR_SYSTEM_ID, $workshopSolarSystemId)
+                : null,
+        );
 
         $read = null !== $link || $canLink
             ? $this->contractReader->read($owner, $project->getCreatedAt())
@@ -53,8 +56,8 @@ final readonly class CourierOverviewBuilder
 
         return new CourierOverview(
             $quote,
-            $mainOrigin?->solarSystemId,
-            $mainOrigin?->solarSystemName,
+            $hasJitaPurchases ? EveConstants::JITA_SOLAR_SYSTEM_ID : null,
+            $hasJitaPurchases ? $this->solarSystemNameOf(EveConstants::JITA_SOLAR_SYSTEM_ID) : null,
             $workshopSolarSystemId,
             null === $workshopSolarSystemId ? null : $this->solarSystemNameOf($workshopSolarSystemId),
             $canLink,
@@ -64,21 +67,23 @@ final readonly class CourierOverviewBuilder
                 $purchases['lines'],
             ),
             $canLink && null !== $read ? $this->contractReader->candidatesIn($read, $quote) : [],
-            $originQuotes,
+            $this->otherOriginLinesOf($purchases['otherOriginQuantityBySystemAndTypeId']),
             $this->unknownOriginLinesOf($purchases['unknownOriginQuantityByTypeId']),
         );
     }
 
     /**
      * @return array{
-     *     purchasesByOrigin: array<int, list<array{typeId: int, quantity: int, totalPrice: float}>>,
+     *     jitaPurchases: list<array{typeId: int, quantity: int, totalPrice: float}>,
+     *     otherOriginQuantityBySystemAndTypeId: array<int, array<int, int>>,
      *     unknownOriginQuantityByTypeId: array<int, int>,
      *     lines: list<array{bomLineId: string, typeId: int, purchasedQuantity: int}>
      * }
      */
     private function purchasesOf(IndustryProject $project, ?int $workshopSolarSystemId): array
     {
-        $purchasesByOrigin = [];
+        $jitaPurchases = [];
+        $otherOriginQuantityBySystemAndTypeId = [];
         $unknownOriginQuantityByTypeId = [];
         $lines = [];
         foreach ($project->getBomItems() as $bomLine) {
@@ -96,7 +101,12 @@ final readonly class CourierOverviewBuilder
                 if ($originSolarSystemId === $workshopSolarSystemId) {
                     continue;
                 }
-                $purchasesByOrigin[$originSolarSystemId][] = ['typeId' => $purchase->getTypeId(), 'quantity' => $purchase->getQuantity(), 'totalPrice' => $purchase->getTotalPrice()];
+                if (EveConstants::JITA_SOLAR_SYSTEM_ID !== $originSolarSystemId) {
+                    $otherOriginQuantityBySystemAndTypeId[$originSolarSystemId][$purchase->getTypeId()] ??= 0;
+                    $otherOriginQuantityBySystemAndTypeId[$originSolarSystemId][$purchase->getTypeId()] += $purchase->getQuantity();
+                    continue;
+                }
+                $jitaPurchases[] = ['typeId' => $purchase->getTypeId(), 'quantity' => $purchase->getQuantity(), 'totalPrice' => $purchase->getTotalPrice()];
                 $shippedQuantity += $purchase->getQuantity();
             }
             if ($shippedQuantity > 0) {
@@ -104,36 +114,32 @@ final readonly class CourierOverviewBuilder
             }
         }
 
-        return ['purchasesByOrigin' => $purchasesByOrigin, 'unknownOriginQuantityByTypeId' => $unknownOriginQuantityByTypeId, 'lines' => $lines];
+        return [
+            'jitaPurchases' => $jitaPurchases,
+            'otherOriginQuantityBySystemAndTypeId' => $otherOriginQuantityBySystemAndTypeId,
+            'unknownOriginQuantityByTypeId' => $unknownOriginQuantityByTypeId,
+            'lines' => $lines,
+        ];
     }
 
     /**
-     * @param array<int, list<array{typeId: int, quantity: int, totalPrice: float}>> $purchasesByOrigin
+     * @param array<int, array<int, int>> $quantityBySystemAndTypeId
      *
-     * @return list<CourierOriginQuote>
+     * @return list<CourierOtherOriginLine>
      */
-    private function originQuotesOf(array $purchasesByOrigin, ?int $workshopSolarSystemId): array
+    private function otherOriginLinesOf(array $quantityBySystemAndTypeId): array
     {
-        $collateralByOrigin = array_map(
-            static fn (array $purchases): float => round(array_sum(array_column($purchases, 'totalPrice')), self::COLLATERAL_DECIMALS),
-            $purchasesByOrigin,
-        );
-        $originIds = array_keys($purchasesByOrigin);
-        usort($originIds, static fn (int $left, int $right): int => [$collateralByOrigin[$right], $left] <=> [$collateralByOrigin[$left], $right]);
+        ksort($quantityBySystemAndTypeId);
+        $lines = [];
+        foreach ($quantityBySystemAndTypeId as $solarSystemId => $quantityByTypeId) {
+            ksort($quantityByTypeId);
+            $solarSystemName = $this->solarSystemNameOf($solarSystemId);
+            foreach ($quantityByTypeId as $typeId => $quantity) {
+                $lines[] = new CourierOtherOriginLine($solarSystemId, $solarSystemName, $typeId, $quantity);
+            }
+        }
 
-        return array_map(
-            fn (int $originSolarSystemId): CourierOriginQuote => new CourierOriginQuote(
-                $originSolarSystemId,
-                $this->solarSystemNameOf($originSolarSystemId),
-                $this->quoteCalculator->quote(
-                    $purchasesByOrigin[$originSolarSystemId],
-                    $this->volumeByTypeId($purchasesByOrigin[$originSolarSystemId]),
-                    null !== $workshopSolarSystemId,
-                    null === $workshopSolarSystemId ? null : $this->jumpDistances->jumpsBetween($originSolarSystemId, $workshopSolarSystemId),
-                ),
-            ),
-            $originIds,
-        );
+        return $lines;
     }
 
     /**

@@ -10,7 +10,7 @@ use App\Service\Industry\Project\Courier\CourierCandidate;
 use App\Service\Industry\Project\Courier\CourierContract;
 use App\Service\Industry\Project\Courier\CourierContractState;
 use App\Service\Industry\Project\Courier\CourierLinkedContract;
-use App\Service\Industry\Project\Courier\CourierOriginQuote;
+use App\Service\Industry\Project\Courier\CourierOtherOriginLine;
 use App\Service\Industry\Project\Courier\CourierOverview;
 use App\Service\Industry\Project\Courier\CourierQuote;
 use App\Service\Industry\Project\Courier\CourierUnknownOriginLine;
@@ -126,23 +126,23 @@ final class ProjectCourierResourceMapperTest extends TestCase
         );
     }
 
-    #[Group('issue-1022')]
-    public function testOtherOriginsAreExposedWithTheirOwnQuote(): void
+    #[Group('issue-1084')]
+    public function testOtherOriginLinesCarryTheSolarSystemTheTypeNameAndTheQuantity(): void
     {
         $resource = $this->mapper->toResource(
             new IndustryProject(),
             $this->overview(null, [], [
-                new CourierOriginQuote(30_002_187, 'Amarr', new CourierQuote(5.0, 5_000_000, 6_750, 9, 'ready', [])),
-                new CourierOriginQuote(30_002_510, null, new CourierQuote(null, 3_000_000, null, 6, 'volume_unknown', [self::UNNAMED_TYPE])),
+                new CourierOtherOriginLine(30_002_187, 'Amarr', self::TRITANIUM, 500),
+                new CourierOtherOriginLine(30_002_510, null, self::UNNAMED_TYPE, 7),
             ]),
         );
 
         self::assertSame(
             [
-                ['solarSystemId' => 30_002_187, 'solarSystemName' => 'Amarr', 'volumeCubicMeters' => 5.0, 'collateral' => 5_000_000, 'reward' => 6_750, 'jumps' => 9, 'quoteStatus' => 'ready', 'missingVolumeTypeIds' => []],
-                ['solarSystemId' => 30_002_510, 'solarSystemName' => null, 'volumeCubicMeters' => null, 'collateral' => 3_000_000, 'reward' => null, 'jumps' => 6, 'quoteStatus' => 'volume_unknown', 'missingVolumeTypeIds' => [self::UNNAMED_TYPE]],
+                ['solarSystemId' => 30_002_187, 'solarSystemName' => 'Amarr', 'typeId' => self::TRITANIUM, 'typeName' => 'Tritanium', 'quantity' => 500],
+                ['solarSystemId' => 30_002_510, 'solarSystemName' => null, 'typeId' => self::UNNAMED_TYPE, 'typeName' => null, 'quantity' => 7],
             ],
-            $resource->otherOrigins,
+            $resource->otherOriginLines,
         );
     }
 
@@ -181,7 +181,7 @@ final class ProjectCourierResourceMapperTest extends TestCase
 
         self::assertNull($resource->originSolarSystemId);
         self::assertNull($resource->originSolarSystemName);
-        self::assertSame(['no_purchases', [], []], [$resource->quoteStatus, $resource->otherOrigins, $resource->unknownOriginLines]);
+        self::assertSame(['no_purchases', [], []], [$resource->quoteStatus, $resource->otherOriginLines, $resource->unknownOriginLines]);
     }
 
     private function contract(?int $startLocationId, ?int $endLocationId): CourierContract
@@ -202,14 +202,14 @@ final class ProjectCourierResourceMapperTest extends TestCase
 
     /**
      * @param list<CourierCandidate>         $candidates
-     * @param list<CourierOriginQuote>       $otherOrigins
+     * @param list<CourierOtherOriginLine>   $otherOriginLines
      * @param list<CourierUnknownOriginLine> $unknownOriginLines
      */
-    private function overview(?CourierLinkedContract $contract, array $candidates, array $otherOrigins = [], array $unknownOriginLines = []): CourierOverview
+    private function overview(?CourierLinkedContract $contract, array $candidates, array $otherOriginLines = [], array $unknownOriginLines = []): CourierOverview
     {
         return new CourierOverview(
             new CourierQuote(25.0, 376_550, 7_500, 2, 'ready', []),
-            30_000_142, 'Jita', 30_000_144, 'Perimeter', true, $contract, [], $candidates, $otherOrigins, $unknownOriginLines,
+            30_000_142, 'Jita', 30_000_144, 'Perimeter', true, $contract, [], $candidates, $otherOriginLines, $unknownOriginLines,
         );
     }
 }

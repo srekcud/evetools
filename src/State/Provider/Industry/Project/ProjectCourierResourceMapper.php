@@ -10,7 +10,7 @@ use App\Service\Industry\Project\Courier\CourierCandidate;
 use App\Service\Industry\Project\Courier\CourierContract;
 use App\Service\Industry\Project\Courier\CourierLine;
 use App\Service\Industry\Project\Courier\CourierLinkedContract;
-use App\Service\Industry\Project\Courier\CourierOriginQuote;
+use App\Service\Industry\Project\Courier\CourierOtherOriginLine;
 use App\Service\Industry\Project\Courier\CourierOverview;
 use App\Service\Industry\Project\Courier\CourierQuoteCalculator;
 use App\Service\Industry\Project\Courier\CourierUnknownOriginLine;
@@ -45,34 +45,27 @@ final readonly class ProjectCourierResourceMapper
         $resource->contract = null === $overview->contract ? null : $this->linkedContractRow($overview->contract);
         $typeNames = $this->typeNameResolver->findNames([
             ...array_map(static fn (CourierLine $line): int => $line->typeId, $overview->lines),
+            ...array_map(static fn (CourierOtherOriginLine $line): int => $line->typeId, $overview->otherOriginLines),
             ...array_map(static fn (CourierUnknownOriginLine $line): int => $line->typeId, $overview->unknownOriginLines),
         ]);
         $resource->lines = array_map(fn (CourierLine $line): array => $this->lineRow($line, $typeNames[$line->typeId] ?? null), $overview->lines);
         $resource->candidates = array_map($this->candidateRow(...), $overview->candidates);
-        $resource->otherOrigins = array_map($this->originRow(...), $overview->otherOrigins);
+        $resource->otherOriginLines = array_map(
+            static fn (CourierOtherOriginLine $line): array => [
+                'solarSystemId' => $line->solarSystemId,
+                'solarSystemName' => $line->solarSystemName,
+                'typeId' => $line->typeId,
+                'typeName' => $typeNames[$line->typeId] ?? null,
+                'quantity' => $line->quantity,
+            ],
+            $overview->otherOriginLines,
+        );
         $resource->unknownOriginLines = array_map(
             static fn (CourierUnknownOriginLine $line): array => ['typeId' => $line->typeId, 'typeName' => $typeNames[$line->typeId] ?? null, 'quantity' => $line->quantity],
             $overview->unknownOriginLines,
         );
 
         return $resource;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function originRow(CourierOriginQuote $origin): array
-    {
-        return [
-            'solarSystemId' => $origin->solarSystemId,
-            'solarSystemName' => $origin->solarSystemName,
-            'volumeCubicMeters' => $origin->quote->volumeCubicMeters,
-            'collateral' => $origin->quote->collateral,
-            'reward' => $origin->quote->reward,
-            'jumps' => $origin->quote->jumps,
-            'quoteStatus' => $origin->quote->quoteStatus,
-            'missingVolumeTypeIds' => $origin->quote->missingVolumeTypeIds,
-        ];
     }
 
     /**

@@ -107,8 +107,8 @@ final class ProjectCourierApiTest extends WebTestCase
         );
     }
 
-    #[Group('issue-1022')]
-    public function testPurchasesFromAnotherHubAndManualPurchasesAreQuotedPerOriginAndKeepTheLinkedContractState(): void
+    #[Group('issue-1084')]
+    public function testPurchasesFromAnotherHubAreLeftOutOfTheJitaQuoteAndManualPurchasesAreListedAsUnknownOrigin(): void
     {
         $this->purchaseOn($this->nocxiumLine, 100, 5_000_000.0, self::AMARR_STATION);
         $this->purchaseOn($this->tritaniumLine, 300, 1_290.0, null);
@@ -121,27 +121,25 @@ final class ProjectCourierApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->responseJson();
         self::assertSame(
-            [self::AMARR_SYSTEM_ID, 'Amarr', 5.0, 5_000_000, 750, 1, 'ready', []],
+            [self::JITA_SYSTEM_ID, 'Jita', 25.0, 376_550, 7_500, 2, 'ready', []],
             [$body['originSolarSystemId'], $body['originSolarSystemName'], $body['volumeCubicMeters'], $body['collateral'], $body['reward'], $body['jumps'], $body['quoteStatus'], $body['missingVolumeTypeIds']],
         );
+        self::assertArrayNotHasKey('otherOrigins', $body);
         self::assertSame(
-            [[self::JITA_SYSTEM_ID, 'Jita', 25.0, 376_550, 7_500, 2, 'ready', []]],
-            array_map(static fn (array $origin): array => [
-                $origin['solarSystemId'], $origin['solarSystemName'], $origin['volumeCubicMeters'], $origin['collateral'],
-                $origin['reward'], $origin['jumps'], $origin['quoteStatus'], $origin['missingVolumeTypeIds'],
-            ], $body['otherOrigins']),
+            [[self::AMARR_SYSTEM_ID, 'Amarr', self::NOCXIUM_TYPE_ID, 'Nocxium', 100]],
+            array_map(static fn (array $line): array => [$line['solarSystemId'], $line['solarSystemName'], $line['typeId'], $line['typeName'], $line['quantity']], $body['otherOriginLines']),
         );
         self::assertSame(
             [[self::TRITANIUM_TYPE_ID, 'Tritanium', 300]],
             array_map(static fn (array $line): array => [$line['typeId'], $line['typeName'], $line['quantity']], $body['unknownOriginLines']),
         );
         self::assertSame(
-            [[self::TRITANIUM_TYPE_ID, 1_500, 'in_transit'], [self::NOCXIUM_TYPE_ID, 100, 'in_transit'], [self::MORPHITE_TYPE_ID, 20, 'in_transit']],
+            [[self::TRITANIUM_TYPE_ID, 1_500, 'in_transit'], [self::MORPHITE_TYPE_ID, 20, 'in_transit']],
             $this->linesOf($body),
         );
         self::assertSame([self::IN_TRANSIT_CONTRACT_ID, 'in_transit'], [$body['contract']['contractId'], $body['contract']['state']]);
         self::assertSame(
-            [[self::OUTSTANDING_CONTRACT_ID, false], [self::IN_TRANSIT_CONTRACT_ID, false]],
+            [[self::OUTSTANDING_CONTRACT_ID, true], [self::IN_TRANSIT_CONTRACT_ID, false]],
             array_map(static fn (array $candidate): array => [$candidate['contractId'], $candidate['matchesQuote']], $body['candidates']),
         );
     }
@@ -161,7 +159,7 @@ final class ProjectCourierApiTest extends WebTestCase
         self::assertNull($body['originSolarSystemId']);
         self::assertArrayHasKey('originSolarSystemName', $body);
         self::assertNull($body['originSolarSystemName']);
-        self::assertSame(['no_purchases', [], []], [$body['quoteStatus'], $body['otherOrigins'], $body['lines']]);
+        self::assertSame(['no_purchases', [], []], [$body['quoteStatus'], $body['otherOriginLines'], $body['lines']]);
         self::assertSame(
             [[self::TRITANIUM_TYPE_ID, 'Tritanium', 2_000]],
             array_map(static fn (array $line): array => [$line['typeId'], $line['typeName'], $line['quantity']], $body['unknownOriginLines']),
