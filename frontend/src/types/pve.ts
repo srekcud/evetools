@@ -58,6 +58,7 @@ export type DetectedExpense = {
   price: number
   dateIssued: string
   source: 'contract' | 'market'
+  characterId?: number
   selected: boolean
 }
 

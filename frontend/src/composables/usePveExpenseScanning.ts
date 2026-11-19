@@ -113,6 +113,7 @@ export function usePveExpenseScanning(
             dateIssued: e.dateIssued,
             contractId: e.contractId,
             transactionId: e.transactionId,
+            characterId: e.characterId,
           })),
           declined: declinedExpenses.map(e => ({
             contractId: e.contractId,
@@ -190,6 +191,7 @@ export function usePveExpenseScanning(
           suggestedPrice: number
           date: string
           characterName: string
+          characterId?: number
         }) => ({
           transactionId: 0,
           contractId: c.contractId,
@@ -200,6 +202,7 @@ export function usePveExpenseScanning(
           price: c.contractPrice,
           dateIssued: c.date,
           characterName: c.characterName,
+          characterId: c.characterId,
           source: 'contract' as const,
           selected: true,
           needsPriceInput: c.contractPrice === 0
@@ -260,6 +263,7 @@ export function usePveExpenseScanning(
               price: sale.price,
               description: sale.typeName,
               date: sale.dateIssued,
+              characterId: sale.characterId,
             }],
             declined: []
           }),
@@ -328,6 +332,7 @@ export function usePveExpenseScanning(
               price: sale.price,
               dateIssued: sale.dateIssued,
               transactionId: sale.transactionId,
+              characterId: sale.characterId,
             }],
             declined: []
           }),

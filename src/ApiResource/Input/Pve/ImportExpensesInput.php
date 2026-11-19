@@ -6,7 +6,7 @@ namespace App\ApiResource\Input\Pve;
 
 class ImportExpensesInput
 {
-    /** @var array<array{type: string, typeName: string, price: float, dateIssued: string, contractId?: int, transactionId?: int}> */
+    /** @var array<array{type: string, typeName: string, price: float, dateIssued: string, contractId?: int, transactionId?: int, characterId?: int}> */
     public array $expenses = [];
 
     /** @var array<array{contractId?: int, transactionId?: int}> */

@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Input\Pve\ImportLootSalesInput;
 use App\ApiResource\Pve\ImportResultResource;
-use App\Entity\Character;
 use App\Entity\PveIncome;
 use App\Entity\User;
 use App\Enum\PveIncomeType;
@@ -16,6 +15,7 @@ use App\Repository\PveIncomeRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\Pve\CorpProjectAccountedQuantities;
 use App\Service\Pve\CorpProjectContributionAccounting;
+use App\Service\Pve\OwnedCharacterId;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -104,6 +104,8 @@ class ImportLootSalesProcessor implements ProcessorInterface
                 $income->setTransactionId($transactionId);
             }
 
+            $income->setCharacterId(OwnedCharacterId::of($user, $saleData['characterId'] ?? null));
+
             if ($pendingContribution !== null) {
                 $income->setCorpProjectId($pendingContribution['projectId']);
                 $income->setCorpProjectCharacterId($pendingContribution['characterId']);
@@ -162,8 +164,6 @@ class ImportLootSalesProcessor implements ProcessorInterface
 
     private function isCharacterOf(User $user, int $eveCharacterId): bool
     {
-        return $user->getCharacters()->exists(
-            static fn (int $key, Character $character): bool => $character->getEveCharacterId() === $eveCharacterId,
-        );
+        return OwnedCharacterId::of($user, $eveCharacterId) !== null;
     }
 }

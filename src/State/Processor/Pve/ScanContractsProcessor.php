@@ -178,6 +178,7 @@ class ScanContractsProcessor implements ProcessorInterface
                     $expense->price = $price;
                     $expense->dateIssued = $contractDate->format('Y-m-d');
                     $expense->source = 'contract';
+                    $expense->characterId = $character->getEveCharacterId();
 
                     $detectedExpenses[] = $expense;
                 }
@@ -248,6 +249,7 @@ class ScanContractsProcessor implements ProcessorInterface
                         $expense->price = $totalPrice;
                         $expense->dateIssued = $transactionDate->format('Y-m-d');
                         $expense->source = 'market';
+                        $expense->characterId = $character->getEveCharacterId();
 
                         $detectedExpenses[] = $expense;
                     }

@@ -110,6 +110,29 @@ class PveExpenseRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return list<array{characterId: int|null, total: float}>
+     */
+    public function getTotalsByCharacter(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        $results = $this->createQueryBuilder('e')
+            ->select('e.characterId, SUM(e.amount) as total')
+            ->where('e.user = :user')
+            ->andWhere('e.date >= :from')
+            ->andWhere('e.date <= :to')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->groupBy('e.characterId')
+            ->getQuery()
+            ->getResult();
+
+        return array_values(array_map(static fn (array $row): array => [
+            'characterId' => $row['characterId'] === null ? null : (int) $row['characterId'],
+            'total' => (float) $row['total'],
+        ], $results));
+    }
+
+    /**
      * Get daily totals for expenses
      * @return array<string, array{date: string, total: float}>
      */

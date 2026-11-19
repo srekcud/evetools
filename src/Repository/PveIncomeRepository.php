@@ -369,6 +369,33 @@ class PveIncomeRepository extends ServiceEntityRepository
         ], $results));
     }
 
+    /**
+     * @param list<PveIncomeType> $types
+     * @return list<array{type: string, characterId: int|null, total: float}>
+     */
+    public function getTotalsByTypeAndCharacter(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to, array $types): array
+    {
+        $results = $this->createQueryBuilder('i')
+            ->select('i.type, i.characterId, SUM(i.amount) as total')
+            ->where('i.user = :user')
+            ->andWhere('i.date >= :from')
+            ->andWhere('i.date <= :to')
+            ->andWhere('i.type IN (:types)')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->setParameter('types', array_map(static fn (PveIncomeType $type): string => $type->value, $types))
+            ->groupBy('i.type, i.characterId')
+            ->getQuery()
+            ->getResult();
+
+        return array_values(array_map(static fn (array $row): array => [
+            'type' => $row['type'] instanceof PveIncomeType ? $row['type']->value : (string) $row['type'],
+            'characterId' => $row['characterId'] === null ? null : (int) $row['characterId'],
+            'total' => (float) $row['total'],
+        ], $results));
+    }
+
     public function findOldestDate(User $user): ?\DateTimeImmutable
     {
         $oldestDate = $this->createQueryBuilder('i')

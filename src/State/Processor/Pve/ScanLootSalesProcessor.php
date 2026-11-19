@@ -131,6 +131,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                     $sale->price = $totalPrice;
                     $sale->dateIssued = $transactionDate->format('Y-m-d');
                     $sale->characterName = $character->getName();
+                    $sale->characterId = $character->getEveCharacterId();
                     $sale->source = 'market';
 
                     $detectedSales[] = $sale;
@@ -251,6 +252,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                     $sale->price = $iskReceived;
                     $sale->dateIssued = $contractDate->format('Y-m-d');
                     $sale->characterName = $character->getName();
+                    $sale->characterId = $character->getEveCharacterId();
                     $sale->source = 'contract';
 
                     $detectedSales[] = $sale;

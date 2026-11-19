@@ -41,7 +41,7 @@ final readonly class PveRevenueGridBuilder
         $current = $this->totals($user, $from, $to, $excludeCorpProject);
         $previous = $this->totals($user, $previousFrom, $previousTo, $excludeCorpProject);
         $daily = $this->dailyAmounts($user, $from, $to, $excludeCorpProject);
-        $contributors = $this->contributors($user, $from, $to);
+        $contributors = $this->contributors($user, $from, $to, $excludeCorpProject);
 
         $columns = [];
         foreach (array_keys($current) as $column) {
@@ -181,7 +181,7 @@ final readonly class PveRevenueGridBuilder
     /**
      * @return array<string, list<array{name: string, value: float}>|null>
      */
-    private function contributors(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    private function contributors(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to, bool $excludeCorpProject): array
     {
         $columnOfType = [
             PveIncomeType::Bounty->value => self::BOUNTIES,
@@ -213,6 +213,65 @@ final readonly class PveRevenueGridBuilder
                 $list[] = ['name' => (string) $name, 'value' => $value];
             }
             $contributors[$column] = $list;
+        }
+
+        return $contributors + $this->contributorsByCharacter($user, $from, $to, $excludeCorpProject);
+    }
+
+    /**
+     * @return array<string, list<array{name: string, value: float}>|null>
+     */
+    private function contributorsByCharacter(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to, bool $excludeCorpProject): array
+    {
+        $lootTypes = [PveIncomeType::LootSale, PveIncomeType::LootContract];
+        if (!$excludeCorpProject) {
+            $lootTypes[] = PveIncomeType::CorpProject;
+        }
+        $columnOfType = [PveIncomeType::Escalation->value => self::ESCALATIONS];
+        foreach ($lootTypes as $type) {
+            $columnOfType[$type->value] = self::LOOT_SALES;
+        }
+
+        $totalsByColumn = [self::LOOT_SALES => [], self::ESCALATIONS => [], self::EXPENSES => []];
+        foreach ($this->incomeRepository->getTotalsByTypeAndCharacter($user, $from, $to, [...$lootTypes, PveIncomeType::Escalation]) as $row) {
+            $totalsByColumn[$columnOfType[$row['type']]][] = $row;
+        }
+        $totalsByColumn[self::EXPENSES] = $this->expenseRepository->getTotalsByCharacter($user, $from, $to);
+
+        $namesByCharacterId = [];
+        foreach ($user->getCharacters() as $character) {
+            $namesByCharacterId[$character->getEveCharacterId()] = $character->getName();
+        }
+
+        return array_map(
+            static fn (array $rows): ?array => self::contributorsOf($rows, $namesByCharacterId),
+            $totalsByColumn,
+        );
+    }
+
+    /**
+     * @param list<array{characterId: int|null, total: float}> $rows
+     * @param array<int, string> $namesByCharacterId
+     * @return list<array{name: string, value: float}>|null
+     */
+    private static function contributorsOf(array $rows, array $namesByCharacterId): ?array
+    {
+        if ($rows === []) {
+            return null;
+        }
+
+        $valuesByName = [];
+        foreach ($rows as $row) {
+            $name = $row['characterId'] === null ? null : ($namesByCharacterId[$row['characterId']] ?? null);
+            if ($name === null) {
+                return null;
+            }
+            $valuesByName[$name] = ($valuesByName[$name] ?? 0.0) + $row['total'];
+        }
+
+        $contributors = [];
+        foreach ($valuesByName as $name => $value) {
+            $contributors[] = ['name' => (string) $name, 'value' => $value];
         }
 
         return $contributors;

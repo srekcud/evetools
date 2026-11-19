@@ -12,6 +12,7 @@ use App\Entity\PveExpense;
 use App\Entity\User;
 use App\Repository\PveExpenseRepository;
 use App\Repository\UserPveSettingsRepository;
+use App\Service\Pve\OwnedCharacterId;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -77,6 +78,7 @@ class ImportExpensesProcessor implements ProcessorInterface
             $expense->setDescription($description);
             $expense->setAmount((float) $expenseData['price']);
             $expense->setDate(new \DateTimeImmutable($expenseData['dateIssued']));
+            $expense->setCharacterId(OwnedCharacterId::of($user, $expenseData['characterId'] ?? null));
 
             if ($contractId && $contractId > 0) {
                 $expense->setContractId($contractId);

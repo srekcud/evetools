@@ -108,6 +108,23 @@ class ScanContractsProcessorTest extends TestCase
         $this->assertSame('market', $expense->source);
     }
 
+    #[Group('issue-1080')]
+    public function testDetectedExpensesCarryTheEveIdOfTheScannedCharacter(): void
+    {
+        $processor = $this->createProcessor(
+            [$this->finishedContractAccepted(self::RECEIVED_AMMO_CONTRACT_ID, 1840000.0, new \DateTimeImmutable('-3 days'))],
+            [self::RECEIVED_AMMO_CONTRACT_ID => [['type_id' => self::SCOURGE_FURY_HEAVY_MISSILE, 'quantity' => 4, 'is_included' => true]]],
+            [$this->marketPurchase(810003, self::SCOURGE_FURY_HEAVY_MISSILE, 11, 470.0, new \DateTimeImmutable('-2 days'))],
+        );
+
+        $result = $processor->process(null, new Post());
+
+        $this->assertSame(
+            [self::EVE_CHARACTER_ID, self::EVE_CHARACTER_ID],
+            array_map(static fn ($expense): ?int => $expense->characterId, $result->detectedExpenses),
+        );
+    }
+
     #[Group('issue-1079')]
     public function testTheScanRecordsTheMomentTheExpenseScanRan(): void
     {

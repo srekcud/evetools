@@ -303,6 +303,7 @@ class PveSyncService
                     $income->setAmount($amount);
                     $income->setDate($entryDate);
                     $income->setJournalEntryId($entryId);
+                    $income->setCharacterId($character->getEveCharacterId());
 
                     $this->entityManager->persist($income);
                     $importedIdsSet[$entryId] = true;
@@ -390,6 +391,7 @@ class PveSyncService
                     $income->setAmount($totalAmount);
                     $income->setDate($transactionDate);
                     $income->setTransactionId($transactionId);
+                    $income->setCharacterId($character->getEveCharacterId());
 
                     $this->entityManager->persist($income);
                     $importedIdsSet[$transactionId] = true;
@@ -513,6 +515,7 @@ class PveSyncService
                     $income->setAmount($totalAmount);
                     $income->setDate($completedDate);
                     $income->setContractId($contractId);
+                    $income->setCharacterId($character->getEveCharacterId());
 
                     $this->entityManager->persist($income);
                     $importedIdsSet[$contractId] = true;
@@ -564,6 +567,7 @@ class PveSyncService
             $income->setTransactionId($contribution->trackingId());
             $income->setCorpProjectId($contribution->projectId);
             $income->setCorpProjectCharacterId($contribution->characterId);
+            $income->setCharacterId($contribution->characterId);
             $income->setCorpProjectQuantity($contribution->pendingQuantity());
 
             $this->entityManager->persist($income);
@@ -648,6 +652,7 @@ class PveSyncService
                     $expense->setAmount($totalAmount);
                     $expense->setDate($transactionDate);
                     $expense->setTransactionId($transactionId);
+                    $expense->setCharacterId($character->getEveCharacterId());
 
                     $this->entityManager->persist($expense);
                     $importedIdsSet[$transactionId] = true;

@@ -94,6 +94,24 @@ final class PveSyncServiceCorpProjectsTest extends TestCase
         $this->assertSame([], $this->warningTexts());
     }
 
+    #[Group('issue-1080')]
+    public function testSyncAttributesACorpProjectIncomeToTheContributingCharacter(): void
+    {
+        $user = $this->userOf($this->pilotOne());
+        $service = $this->createService($this->tritaniumDriveResponses(
+            [$this->contributorRecord(self::EVE_CHARACTER_ID, 'Pilot One', 1000)],
+            [self::EVE_CHARACTER_ID => 1000],
+            new \DateTimeImmutable('-2 days'),
+        ));
+
+        $service->syncAll($user);
+
+        $this->assertSame(
+            [self::EVE_CHARACTER_ID],
+            array_map(static fn (PveIncome $income): ?int => $income->getCharacterId(), $this->persistedCorpProjectIncomes()),
+        );
+    }
+
     public function testSyncDoesNotImportTheSameCumulativeContributionTwice(): void
     {
         $user = $this->userOf($this->pilotOne());

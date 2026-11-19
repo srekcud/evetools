@@ -22,4 +22,6 @@ class DetectedLootContractResource
     public string $date = '';
 
     public string $characterName = '';
+
+    public ?int $characterId = null;
 }

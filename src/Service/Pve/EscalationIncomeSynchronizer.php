@@ -47,6 +47,7 @@ final readonly class EscalationIncomeSynchronizer
         $income
             ->setDescription(sprintf('%s - %s', $escalation->getType(), $escalation->getSolarSystemName()))
             ->setAmount((float) $escalation->getPrice())
-            ->setDate($soldAt);
+            ->setDate($soldAt)
+            ->setCharacterId($escalation->getCharacterId());
     }
 }

@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Enum\PveIncomeType;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserPveSettingsRepository;
+use App\Service\Pve\OwnedCharacterId;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -80,6 +81,7 @@ class ImportLootContractsProcessor implements ProcessorInterface
             $income->setAmount($price);
             $income->setDate(new \DateTimeImmutable($contractData['date']));
             $income->setContractId($contractId);
+            $income->setCharacterId(OwnedCharacterId::of($user, $contractData['characterId'] ?? null));
 
             $this->entityManager->persist($income);
             $importedContractIds[] = $contractId;
