@@ -109,6 +109,19 @@ final class ProjectLineFulfillmentsTest extends TestCase
             ->setIsJob(false);
     }
 
+    #[Group('issue-1085')]
+    public function testTheStockStateIsExposed(): void
+    {
+        self::assertSame(
+            [ContainerStockState::Known, ContainerStockState::Unknown, ContainerStockState::None],
+            [
+                (new ProjectLineFulfillments(ContainerStockState::Known))->state(),
+                (new ProjectLineFulfillments(ContainerStockState::Unknown))->state(),
+                ProjectLineFulfillments::none()->state(),
+            ],
+        );
+    }
+
     public function testOnlyAReadableContainerStockIsKnown(): void
     {
         self::assertSame(

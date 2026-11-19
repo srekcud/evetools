@@ -48,6 +48,7 @@ import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
+import ProjectPurchasesToDeliver from '@/components/group-industry/ProjectPurchasesToDeliver.vue'
 import ProjectStructureHealth from '@/components/group-industry/ProjectStructureHealth.vue'
 import ProjectBlacklistEditor from '@/components/group-industry/ProjectBlacklistEditor.vue'
 import ProjectInventionExclusionToggle from '@/components/group-industry/ProjectInventionExclusionToggle.vue'
@@ -684,6 +685,8 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           />
 
           <ProjectCourier :project-id="projectId" />
+
+          <ProjectPurchasesToDeliver :project-id="projectId" />
         </CollapsibleSourcing>
 
         <IntermediateStockProposal

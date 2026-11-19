@@ -3198,6 +3198,31 @@
       },
       "hint": "Jita = prix de vente pondéré de la quantité restante plus l'import jusqu'à l'atelier (m³ × sauts × le tarif). Structure = prix de vente le plus bas de ta structure de marché préférée."
     },
+    "purchasesToDeliver": {
+      "title": "Achats à amener au container",
+      "loading": "Lecture du stock du container...",
+      "error": "Les achats à livrer n'ont pas pu être lus",
+      "allDelivered": "Tous les achats sont déjà dans le container du projet.",
+      "stock": {
+        "unknown": "Le stock du container est illisible, la livraison de ces achats est donc inconnue.",
+        "none": "Le projet n'a pas de nom de container, la livraison de ces achats ne peut donc pas être vérifiée."
+      },
+      "group": {
+        "jita": "Achetés à Jita",
+        "other": "Achetés à {system}",
+        "unknown": "Origine inconnue",
+        "unnamedSystem": "Système n°{id}"
+      },
+      "bought": "Acheté",
+      "missing": "Manquant",
+      "courier": "Courrier",
+      "state": {
+        "missing": "manquant",
+        "partial": "partiel",
+        "delivered": "livré",
+        "unknown": "inconnu"
+      }
+    },
     "courier": {
       "title": "Contrat de courrier",
       "loading": "Lecture du devis de courrier...",
