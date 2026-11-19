@@ -100,6 +100,7 @@ export function bomLine(overrides: Partial<BomItem> & Pick<BomItem, 'id' | 'type
     purchases: [],
     purchasedQuantity: 0,
     reservations: [],
+    pendingContributions: [],
     reservedQuantity: 0,
     freeQuantity: 0,
     ...overrides,

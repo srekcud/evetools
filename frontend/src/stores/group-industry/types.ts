@@ -173,7 +173,13 @@ export type LineReservation = {
   participantId: string
   characterName: string | null
   quantity: number
-  pendingQuantity: number
+  isMine: boolean
+}
+
+export type PendingContribution = {
+  participantId: string
+  characterName: string | null
+  quantity: number
   isMine: boolean
 }
 
@@ -205,6 +211,7 @@ export type BomItem = {
   purchases: ProjectPurchase[]
   purchasedQuantity: number
   reservations: LineReservation[]
+  pendingContributions: PendingContribution[]
   reservedQuantity: number
   freeQuantity: number
   containerQuantity?: number | null

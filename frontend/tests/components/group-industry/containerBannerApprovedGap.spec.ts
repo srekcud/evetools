@@ -53,6 +53,7 @@ function bomLine(material: Material, approvedQuantity: number): BomItem {
     purchases: [],
     purchasedQuantity: 0,
     reservations: [],
+    pendingContributions: [],
     reservedQuantity: 0,
     freeQuantity: 0,
   }

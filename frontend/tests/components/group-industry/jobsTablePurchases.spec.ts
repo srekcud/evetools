@@ -73,6 +73,7 @@ const CAPITAL_ARMOR_PLATES: BomItem = {
   matchedRuns: 0,
   purchasedQuantity: 50,
   reservations: [],
+  pendingContributions: [],
   reservedQuantity: 0,
   freeQuantity: 0,
   purchases: [
@@ -92,6 +93,7 @@ const PYERITE: BomItem = {
   requiredQuantity: 45_000,
   purchasedQuantity: 15_000,
   reservations: [],
+  pendingContributions: [],
   reservedQuantity: 0,
   freeQuantity: 0,
   purchases: [purchase({ id: 'purchase-pyerite', bomLineId: 'bom-pyerite', typeId: 35, quantity: 15_000, unitPrice: 9, totalPrice: 135_000 })],

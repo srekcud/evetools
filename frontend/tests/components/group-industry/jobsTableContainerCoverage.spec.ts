@@ -34,6 +34,7 @@ function componentJob(overrides: Partial<BomItem>): BomItem {
     purchases: [],
     purchasedQuantity: 0,
     reservations: [],
+    pendingContributions: [],
     reservedQuantity: 0,
     freeQuantity: 120,
     containerQuantity: null,

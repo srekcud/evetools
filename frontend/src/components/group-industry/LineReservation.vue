@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useFormatters } from '@/composables/useFormatters'
 import type { BomItem } from '@/stores/group-industry/types'
+import { pendingQuantityOf } from './pendingContributions'
 
 const props = defineProps<{
   item: BomItem
@@ -28,6 +29,9 @@ const isOpen = computed(() => {
   const project = projectStore.currentProject
   return project !== null && project.status !== 'completed' && !props.item.isFulfilled
 })
+const reservationChips = computed(() => props.item.reservations
+  .map(reservation => ({ reservation, quantityToDeliver: reservation.quantity - pendingQuantityOf(props.item, reservation.participantId) }))
+  .filter(chip => chip.quantityToDeliver > 0))
 const myReservation = computed(() => props.item.reservations.find(reservation => reservation.isMine) ?? null)
 const maximumQuantity = computed(() => props.item.freeQuantity + (myReservation.value?.quantity ?? 0))
 const canReserve = computed(() => isOpen.value && maximumQuantity.value >= MINIMUM_RESERVED_QUANTITY)
@@ -66,17 +70,28 @@ function release(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-1.5" data-testid="line-reservation">
-    <ul v-if="!isSolo && item.reservations.length > 0" class="flex flex-wrap gap-1">
+    <ul v-if="!isSolo && item.pendingContributions.length > 0" class="flex flex-col items-start gap-1">
       <li
-        v-for="reservation in item.reservations"
+        v-for="contribution in item.pendingContributions"
+        :key="contribution.participantId"
+        data-testid="pending-contribution"
+        class="max-w-full whitespace-nowrap rounded border border-amber-500/45 bg-amber-500/10 px-1.5 py-0.5 text-xs text-amber-300"
+      >
+        <span data-testid="pending-contribution-name" :title="contribution.characterName ?? undefined" class="inline-block max-w-[12rem] truncate align-bottom">{{ contribution.characterName }}</span>
+        <span class="font-mono" style="font-variant-numeric: tabular-nums;">{{ ' · ' + t('groupIndustry.reservation.awaitingApproval', { quantity: formatNumber(contribution.quantity, 0) }) }}</span>
+        <span v-if="contribution.isMine" class="text-amber-300/70">{{ ' (' + t('groupIndustry.reservation.mine') + ')' }}</span>
+      </li>
+    </ul>
+    <ul v-if="!isSolo && reservationChips.length > 0" class="flex flex-wrap gap-1">
+      <li
+        v-for="{ reservation, quantityToDeliver } in reservationChips"
         :key="reservation.participantId"
         data-testid="reservation"
         class="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs"
         :class="reservation.isMine ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300' : 'border-slate-700 bg-slate-800/60 text-slate-300'"
       >
         <span>{{ reservation.characterName }}</span>
-        <span class="font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(reservation.quantity - reservation.pendingQuantity, 0) }}</span>
-        <span v-if="reservation.pendingQuantity > 0" data-testid="reservation-awaiting" class="text-amber-300">{{ t('groupIndustry.reservation.awaitingApproval', { quantity: formatNumber(reservation.pendingQuantity, 0) }) }}</span>
+        <span class="font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(quantityToDeliver, 0) }}</span>
         <span v-if="reservation.isMine" class="text-cyan-400/70">({{ t('groupIndustry.reservation.mine') }})</span>
       </li>
     </ul>

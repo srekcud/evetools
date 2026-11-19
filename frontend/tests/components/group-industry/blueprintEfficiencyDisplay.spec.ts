@@ -38,6 +38,7 @@ function jobLine(activityType: string): BomItem {
     purchases: [],
     purchasedQuantity: 0,
     reservations: [],
+    pendingContributions: [],
     reservedQuantity: 0,
     freeQuantity: 0,
   }

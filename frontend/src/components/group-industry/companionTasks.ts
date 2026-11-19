@@ -1,3 +1,4 @@
+import { pendingQuantityOf } from './pendingContributions'
 import type { BomItem, GroupMember, GroupProject, JobMatch, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
 
 export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'move_products' | 'price_below_break_even' | 'undercut_sell_order'
@@ -91,12 +92,15 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
   })
 
   const mine = myReservations
-    .map(({ item, reservation }) => ({ item, quantity: reservation.quantity - reservation.pendingQuantity }))
+    .map(({ item, reservation }) => ({ item, quantity: reservation.quantity - pendingQuantityOf(item, reservation.participantId) }))
     .filter(entry => entry.quantity > 0)
 
-  const awaitingApproval = myReservations
-    .filter(({ reservation }) => reservation.pendingQuantity > 0)
-    .map(({ item, reservation }) => ({ item, quantity: reservation.pendingQuantity }))
+  const awaitingApproval = bomItems.flatMap((item) => {
+    const quantity = item.pendingContributions
+      .filter(contribution => contribution.isMine)
+      .reduce((total, contribution) => total + contribution.quantity, 0)
+    return quantity > 0 ? [{ item, quantity }] : []
+  })
 
   const jobs = bomItems.flatMap(item => item.jobMatches
     .filter(match => match.characterName !== null

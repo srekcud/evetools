@@ -43,6 +43,7 @@ function line(overrides: Partial<BomItem>): BomItem {
     purchases: [],
     purchasedQuantity: 0,
     reservations: [],
+    pendingContributions: [],
     reservedQuantity: 0,
     freeQuantity: 80,
     ...overrides,
@@ -73,7 +74,7 @@ describe('LineReservation', () => {
 
   it('names who handles the line and how much, and offers the I will handle it action on an incomplete line', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, pendingQuantity: 0, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false }],
       reservedQuantity: 30,
       freeQuantity: 50,
     }))
@@ -114,7 +115,7 @@ describe('LineReservation', () => {
 
   it('offers Release when the participant holds a reservation and releases it', async () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, pendingQuantity: 0, isMine: true }],
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
       reservedQuantity: 30,
       freeQuantity: 50,
     }))
@@ -125,27 +126,96 @@ describe('LineReservation', () => {
     expect(vi.mocked(apiRequest)).toHaveBeenCalledWith(RESERVATION_URL, { method: 'DELETE' })
   })
 
-  it('shows the quantity still to deliver and the quantity awaiting approval of a reservation', () => {
+  it('shows the quantity still to deliver on the reservation chip and the pending contribution on its own amber chip', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, pendingQuantity: 10, isMine: true }],
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      pendingContributions: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 10, isMine: true }],
       reservedQuantity: 30,
       freeQuantity: 50,
     }))
-    const reservation = wrapper.find('[data-testid="reservation"]')
 
-    expect(reservation.text()).toContain('×20')
-    expect(wrapper.find('[data-testid="reservation-awaiting"]').text()).toContain('10')
+    expect(wrapper.find('[data-testid="reservation"]').text()).toContain('×20')
+    expect(wrapper.find('[data-testid="pending-contribution"]').text()).toBe('Aria Solberg · Awaiting approval ×10 (you)')
   })
 
-  it('shows no awaiting approval mark on a reservation without pending contribution', () => {
+  it('shows no pending chip on a reservation without pending contribution', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, pendingQuantity: 0, isMine: true }],
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
       reservedQuantity: 30,
       freeQuantity: 50,
     }))
 
     expect(wrapper.find('[data-testid="reservation"]').text()).toContain('×30')
-    expect(wrapper.find('[data-testid="reservation-awaiting"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="pending-contribution"]').exists()).toBe(false)
+  })
+
+  it('hides the reservation chip, never showing ×0, when the pending contributions cover the whole reservation', () => {
+    const wrapper = mountReservation(line({
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      pendingContributions: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      reservedQuantity: 30,
+      freeQuantity: 50,
+    }))
+
+    expect(wrapper.find('[data-testid="reservation"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('×0')
+    expect(wrapper.findAll('[data-testid="pending-contribution"]')).toHaveLength(1)
+  })
+
+  it('subtracts only the pending quantity of the same participant from a reservation', () => {
+    const wrapper = mountReservation(line({
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false }],
+      pendingContributions: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      reservedQuantity: 30,
+      freeQuantity: 50,
+    }))
+
+    expect(wrapper.find('[data-testid="reservation"]').text()).toContain('×30')
+  })
+
+  it('shows a pending contribution on a filled line without reservation, one chip per contributor', () => {
+    const wrapper = mountReservation(line({
+      isFulfilled: true,
+      fulfilledQuantity: 100,
+      remainingQuantity: 0,
+      freeQuantity: 0,
+      pendingContributions: [
+        { participantId: 'm-2', characterName: 'Aria Solberg', quantity: 2672, isMine: true },
+        { participantId: 'm-1', characterName: 'Brann Holt', quantity: 88, isMine: false },
+      ],
+    }))
+    const chips = wrapper.findAll('[data-testid="pending-contribution"]').map(chip => chip.text())
+
+    expect(chips).toEqual(['Aria Solberg · Awaiting approval ×2,672 (you)', 'Brann Holt · Awaiting approval ×88'])
+    expect(wrapper.findAll('button')).toHaveLength(0)
+  })
+
+  it('shows a pending contribution on an incomplete line without reservation', () => {
+    const wrapper = mountReservation(line({
+      pendingContributions: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 40, isMine: false }],
+    }))
+
+    expect(wrapper.find('[data-testid="pending-contribution"]').text()).toBe('Brann Holt · Awaiting approval ×40')
+  })
+
+  it('truncates a long character name on the chip and keeps it whole in the tooltip', () => {
+    const longName = 'Ishukone Logistics Director Of The Long Name Division'
+    const wrapper = mountReservation(line({
+      pendingContributions: [{ participantId: 'm-1', characterName: longName, quantity: 88, isMine: false }],
+    }))
+    const name = wrapper.find('[data-testid="pending-contribution-name"]')
+
+    expect(name.text()).toBe(longName)
+    expect(name.attributes('title')).toBe(longName)
+    expect(name.classes()).toContain('truncate')
+  })
+
+  it('hides the pending chips of a solo project like the reservations', () => {
+    const wrapper = mountReservation(line({
+      pendingContributions: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 40, isMine: true }],
+    }), 'in_progress', true)
+
+    expect(wrapper.find('[data-testid="pending-contribution"]').exists()).toBe(false)
   })
 
   it('emits contribute with the line', async () => {
@@ -171,7 +241,7 @@ describe('LineReservation', () => {
 
   it('does not offer to reserve a line without free quantity left', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 80, pendingQuantity: 0, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 80, isMine: false }],
       reservedQuantity: 80,
       freeQuantity: 0,
     }))
@@ -186,7 +256,7 @@ describe('BomTable reservation column', () => {
     setActivePinia(createPinia())
     const store = useGroupProjectStore()
     const item = line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, pendingQuantity: 0, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false }],
       reservedQuantity: 30,
       freeQuantity: 50,
     })

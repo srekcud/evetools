@@ -35,8 +35,8 @@ describe('buildCompanionTasks', () => {
       requiredQuantity: 150,
       remainingQuantity: 150,
       reservations: [
-        { participantId: 'participant-alpha', characterName: 'Alpha', quantity: 50, pendingQuantity: 0, isMine: true },
-        { participantId: 'participant-zeta', characterName: 'Zeta', quantity: 20, pendingQuantity: 0, isMine: false },
+        { participantId: 'participant-alpha', characterName: 'Alpha', quantity: 50, isMine: true },
+        { participantId: 'participant-zeta', characterName: 'Zeta', quantity: 20, isMine: false },
       ],
       reservedQuantity: 70,
       freeQuantity: 80,
@@ -49,7 +49,7 @@ describe('buildCompanionTasks', () => {
       fulfilledQuantity: 5000,
       remainingQuantity: 0,
       isFulfilled: true,
-      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 10, pendingQuantity: 0, isMine: true }],
+      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 10, isMine: true }],
       reservedQuantity: 10,
       freeQuantity: 400,
     })
@@ -59,7 +59,7 @@ describe('buildCompanionTasks', () => {
       typeName: 'Morphite',
       requiredQuantity: 300,
       remainingQuantity: 300,
-      reservations: [{ participantId: 'participant-zeta', characterName: 'Zeta', quantity: 300, pendingQuantity: 0, isMine: false }],
+      reservations: [{ participantId: 'participant-zeta', characterName: 'Zeta', quantity: 300, isMine: false }],
       reservedQuantity: 300,
       freeQuantity: 0,
     })
@@ -438,7 +438,10 @@ describe('buildCompanionTasks awaiting approval', () => {
       typeName: 'Nocxium',
       requiredQuantity: 150,
       remainingQuantity: 150,
-      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity, pendingQuantity, isMine }],
+      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity, isMine }],
+      pendingContributions: pendingQuantity > 0
+        ? [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: pendingQuantity, isMine }]
+        : [],
       reservedQuantity: quantity,
       freeQuantity: 150 - quantity,
     })
@@ -472,15 +475,58 @@ describe('buildCompanionTasks awaiting approval', () => {
     expect(summaryOf(tasks)).toEqual({ mine: [{ id: 'bom-nocxium', quantity: 50 }], awaitingApproval: [] })
   })
 
-  it('ignores the pending quantity of the reservations of other participants', () => {
+  it('ignores the pending contributions of other participants', () => {
     const tasks = tasksOf([reservedLine(50, 50, false)])
 
     expect(summaryOf(tasks)).toEqual({ mine: [], awaitingApproval: [] })
   })
 
-  it('never lists a completed line as awaiting approval', () => {
+  it('lists a completed line whose contribution of mine still awaits approval, without any reservation', () => {
+    const completed = bomLine({
+      id: 'bom-construction-blocks',
+      typeId: 3_828,
+      typeName: 'Construction Blocks',
+      isFulfilled: true,
+      remainingQuantity: 0,
+      pendingContributions: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 2_672, isMine: true }],
+    })
+
+    expect(summaryOf(tasksOf([completed]))).toEqual({
+      mine: [],
+      awaitingApproval: [{ id: 'bom-construction-blocks', quantity: 2_672 }],
+    })
+  })
+
+  it('lists an incomplete line with a pending contribution of mine and no reservation', () => {
+    const unreserved = bomLine({
+      id: 'bom-neodymium',
+      typeId: 16_660,
+      typeName: 'Neodymium',
+      pendingContributions: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 2_300, isMine: true }],
+    })
+
+    expect(summaryOf(tasksOf([unreserved]))).toEqual({ mine: [], awaitingApproval: [{ id: 'bom-neodymium', quantity: 2_300 }] })
+  })
+
+  it('counts only my own quantity when other participants also have pending contributions on the line', () => {
+    const shared = bomLine({
+      id: 'bom-thulium',
+      typeId: 16_665,
+      typeName: 'Thulium',
+      isFulfilled: true,
+      remainingQuantity: 0,
+      pendingContributions: [
+        { participantId: 'participant-zeta', characterName: 'Zeta', quantity: 88, isMine: false },
+        { participantId: 'participant-alpha', characterName: 'Alpha', quantity: 9_800, isMine: true },
+      ],
+    })
+
+    expect(summaryOf(tasksOf([shared])).awaitingApproval).toEqual([{ id: 'bom-thulium', quantity: 9_800 }])
+  })
+
+  it('does not list a completed line as to deliver even when I hold a reservation on it', () => {
     const completed = { ...reservedLine(50, 50), isFulfilled: true }
 
-    expect(summaryOf(tasksOf([completed]))).toEqual({ mine: [], awaitingApproval: [] })
+    expect(summaryOf(tasksOf([completed])).mine).toEqual([])
   })
 })

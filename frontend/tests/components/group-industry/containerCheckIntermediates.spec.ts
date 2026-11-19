@@ -40,6 +40,7 @@ function jobLine(line: JobLine): BomItem {
     purchases: [],
     purchasedQuantity: 0,
     reservations: [],
+    pendingContributions: [],
     reservedQuantity: 0,
     freeQuantity: 0,
   }
