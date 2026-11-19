@@ -5,12 +5,13 @@ import type { CompanionTasks } from '@/components/group-industry/companionTasks'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import { sellOrder } from '../../sellOrderFixtures'
-import { bomLine, companionTasksOf } from './companionFixtures'
+import { bomLine, companionTasksOf, jobMatch } from './companionFixtures'
 
 const FREE_LINE = '[data-testid="companion-free-line"]'
-const MORE_FREE = '[data-testid="companion-more-free"]'
+const MORE_FREE = '[data-testid="companion-more-free-buy"]'
 const TODO_SECTION = '[data-testid="companion-todo"]'
 const UNKNOWN_VALUE = '[data-unknown="true"]'
+const JOB_LINE = '[data-testid="companion-job"]'
 const ALERT = '[data-testid="companion-alert"]'
 const STANDALONE_ZERO = /(^|\D)0(\D|$)/
 
@@ -202,5 +203,21 @@ describe('GroupCompanion', () => {
       bar: 0,
       columnWithoutUnknown: 0,
     })
+  })
+
+  it.each([
+    { locale: 'en' as const, runs: [1, 2, 0], expected: ['1 run', '2 runs', '0 runs'] },
+    { locale: 'fr' as const, runs: [1, 2, 0], expected: ['1 run', '2 runs', '0 runs'] },
+  ])('writes the runs of a craft line and of an ESI job in the singular for one run only ($locale)', ({ locale, runs, expected }) => {
+    const free = runs.map((count, index) => bomLine({ id: `bom-craft-${index}`, typeId: 500 + index, typeName: `Hull ${index}`, isJob: true, activityType: 'manufacturing', runs: count, freeQuantity: 1 }))
+    const jobs = runs.map((count, index) => ({
+      match: jobMatch({ id: `match-${index}`, status: 'active', esiJobId: 900 + index, runs: count }),
+      item: free[index],
+    }))
+
+    const wrapper = mountCompanion(companionTasksOf({ free, jobs }), { locale })
+    const runsOf = (selector: string) => wrapper.findAll(selector).map(line => /\d+ run(?:s(?![a-z]))?/.exec(line.text())?.[0])
+
+    expect({ free: runsOf(FREE_LINE), jobs: runsOf(JOB_LINE) }).toEqual({ free: expected, jobs: expected })
   })
 })

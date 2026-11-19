@@ -4241,6 +4241,10 @@
       "counters": {
         "free": "{count} to assign",
         "mine": "{count} to deliver",
+        "freeLabel": "To assign:",
+        "mineLabel": "To deliver:",
+        "toBuy": "{count} to buy",
+        "toBuild": "{count} to build",
         "review": "{count} to review"
       },
       "sections": {
@@ -4254,11 +4258,18 @@
       "emptyFree": "Every line has an owner.",
       "emptyMine": "Nothing to deliver.",
       "emptyJobs": "No job of yours on this project.",
-      "moreFree": "+ {count} more free lines · see the BOM",
+      "more": {
+        "buy": "+ {count} more to buy · see the BOM",
+        "build": "+ {count} more to build · see the BOM"
+      },
+      "groups": {
+        "buy": "To buy",
+        "build": "To build"
+      },
       "claim": "I'll handle it",
       "release": "Release",
       "deliver": "Deliver",
-      "runs": "{runs} runs",
+      "runs": "{runs} run | {runs} runs",
       "todo": {
         "contributions": "{count} contributions to review",
         "joinRequests": "{count} join requests"
