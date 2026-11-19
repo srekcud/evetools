@@ -33,6 +33,7 @@ const PVE: PveGrid = {
     expenses: { value: 60, previous: 0, change: null, daily: {}, contributors: null },
   },
   net: { value: 540, previous: 400, change: 35, daily: { '2026-11-17': 540, '2026-11-16': 10 } },
+  scans: { lootSales: { lastScanAt: null, overdue: true }, expenses: { lastScanAt: null, overdue: true } },
 }
 
 const MINING: MiningGrid = {

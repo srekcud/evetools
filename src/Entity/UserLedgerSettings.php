@@ -29,6 +29,12 @@ class UserLedgerSettings
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $lastMiningSyncAt = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $lastLootScanAt = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $lastExpenseScanAt = null;
+
     #[ORM\Column(type: 'boolean')]
     private bool $autoSyncEnabled = true;
 
@@ -80,6 +86,28 @@ class UserLedgerSettings
     public function setLastMiningSyncAt(?\DateTimeImmutable $lastMiningSyncAt): static
     {
         $this->lastMiningSyncAt = $lastMiningSyncAt;
+        return $this;
+    }
+
+    public function getLastLootScanAt(): ?\DateTimeImmutable
+    {
+        return $this->lastLootScanAt;
+    }
+
+    public function setLastLootScanAt(?\DateTimeImmutable $lastLootScanAt): static
+    {
+        $this->lastLootScanAt = $lastLootScanAt;
+        return $this;
+    }
+
+    public function getLastExpenseScanAt(): ?\DateTimeImmutable
+    {
+        return $this->lastExpenseScanAt;
+    }
+
+    public function setLastExpenseScanAt(?\DateTimeImmutable $lastExpenseScanAt): static
+    {
+        $this->lastExpenseScanAt = $lastExpenseScanAt;
         return $this;
     }
 

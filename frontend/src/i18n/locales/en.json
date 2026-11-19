@@ -5450,6 +5450,18 @@
         "neverSynced": {
           "text": "No PVE data has been synced yet",
           "effect": "Every figure above is empty until the first refresh"
+        },
+        "lootScan": {
+          "neverText": "Loot sales have never been scanned",
+          "overdueText": "Loot sales not scanned since {date}",
+          "effect": "Sales not imported are missing from the Loot column and from the net",
+          "action": "Scan sales"
+        },
+        "expenseScan": {
+          "neverText": "Ammunition purchases have never been scanned",
+          "overdueText": "Ammunition purchases not scanned since {date}",
+          "effect": "Purchases not imported are missing from the Expenses column and from the net",
+          "action": "Scan purchases"
         }
       }
     },

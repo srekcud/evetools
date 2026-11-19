@@ -14,10 +14,16 @@ export interface PveGridColumn {
   contributors: Array<{ name: string; value: number }> | null
 }
 
+export interface PveGridScan {
+  lastScanAt: string | null
+  overdue: boolean
+}
+
 export interface PveGrid {
   period: { from: string; to: string; days: number }
   columns: Record<PveGridColumnId, PveGridColumn>
   net: { value: number; previous: number; change: number | null; daily: Record<string, number> }
+  scans: { lootSales: PveGridScan; expenses: PveGridScan }
 }
 
 export const usePveStore = defineStore('pve', () => {

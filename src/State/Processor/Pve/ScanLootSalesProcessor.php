@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Enum\PveIncomeType;
 use App\Repository\PveIncomeRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -41,6 +42,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
         private readonly CorpProjectContributionReader $corpProjectContributionReader,
+        private readonly UserLedgerSettingsRepository $ledgerSettingsRepository,
     ) {
     }
 
@@ -303,6 +305,10 @@ class ScanLootSalesProcessor implements ProcessorInterface
             },
             $corpProjectReading->errors,
         );
+
+        if ($lootTypeIds !== []) {
+            $this->ledgerSettingsRepository->recordLootScan($user, new \DateTimeImmutable());
+        }
 
         $this->logger->info('Loot sale scan finished', [
             'detectedSales' => count($detectedSales),

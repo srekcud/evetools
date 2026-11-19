@@ -23,6 +23,14 @@ const GRID: PveGrid = {
     expenses: { value: 60_000_000, previous: 0, change: null, daily: {}, contributors: null },
   },
   net: { value: 540_000_000, previous: 400_000_000, change: 35, daily: { '2026-11-17': 540_000_000 } },
+  scans: { lootSales: { lastScanAt: '2026-11-17T09:00:00+00:00', overdue: false }, expenses: { lastScanAt: '2026-11-17T09:00:00+00:00', overdue: false } },
+}
+
+const NEVER_SCANNED = { lastScanAt: null, overdue: true }
+const SCANNED_LONG_AGO = { lastScanAt: '2026-11-02T09:00:00+00:00', overdue: true }
+
+function gridWithScans(scans: Partial<PveGrid['scans']>): PveGrid {
+  return { ...GRID, scans: { ...GRID.scans, ...scans } }
 }
 
 enableAutoUnmount(afterEach)
@@ -113,5 +121,66 @@ describe('PveRevenueGrid', () => {
     expect(panel.text()).toContain('No PVE data has been synced yet')
     await panel.get('button').trigger('click')
     expect(wrapper.emitted('sync')).toHaveLength(1)
+  })
+
+  it('badges the Loot column and offers the loot scan when it has never run', async () => {
+    vi.mocked(apiRequest).mockResolvedValue(gridWithScans({ lootSales: NEVER_SCANNED }) as never)
+
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    expect(wrapper.get('[data-column="lootSales"] [data-testid="header-badge"]').text()).toBe('1')
+    expect(wrapper.find('[data-column="expenses"] [data-testid="header-badge"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="revenue-todo-panel"]').text()).toContain('Loot sales have never been scanned')
+    await wrapper.get('[data-todo="1"] button').trigger('click')
+    expect(wrapper.emitted('scanLoot')).toHaveLength(1)
+    expect(wrapper.emitted('sync')).toBeUndefined()
+  })
+
+  it('badges the Expenses column and offers the purchase scan, naming the date of the last scan', async () => {
+    vi.mocked(apiRequest).mockResolvedValue(gridWithScans({ expenses: SCANNED_LONG_AGO }) as never)
+
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    expect(wrapper.get('[data-column="expenses"] [data-testid="header-badge"]').text()).toBe('1')
+    expect(wrapper.get('[data-testid="revenue-todo-panel"]').text()).toContain('Ammunition purchases not scanned since')
+    await wrapper.get('[data-todo="1"] button').trigger('click')
+    expect(wrapper.emitted('scanExpenses')).toHaveLength(1)
+  })
+
+  it('numbers the scans after the sync item and routes each button to its own action', async () => {
+    vi.mocked(apiRequest).mockResolvedValue(gridWithScans({ lootSales: NEVER_SCANNED, expenses: NEVER_SCANNED }) as never)
+
+    const wrapper = mountGrid({ neverSynced: true })
+    await flushPromises()
+
+    expect(wrapper.get('[data-column="lootSales"] [data-testid="header-badge"]').text()).toBe('2')
+    expect(wrapper.get('[data-column="expenses"] [data-testid="header-badge"]').text()).toBe('3')
+    await wrapper.get('[data-todo="1"] button').trigger('click')
+    await wrapper.get('[data-todo="2"] button').trigger('click')
+    await wrapper.get('[data-todo="3"] button').trigger('click')
+    expect(wrapper.emitted('sync')).toHaveLength(1)
+    expect(wrapper.emitted('scanLoot')).toHaveLength(1)
+    expect(wrapper.emitted('scanExpenses')).toHaveLength(1)
+  })
+
+  it('shows no badge and no panel when both scans are recent', async () => {
+    vi.mocked(apiRequest).mockResolvedValue(GRID as never)
+
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="header-badge"]')).toHaveLength(0)
+    expect(wrapper.find('[data-testid="revenue-todo-panel"]').exists()).toBe(false)
+  })
+
+  it('words the scan items in French', async () => {
+    vi.mocked(apiRequest).mockResolvedValue(gridWithScans({ lootSales: NEVER_SCANNED }) as never)
+
+    const wrapper = mountGrid({}, 'fr')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="revenue-todo-panel"]').text()).toContain('ventes de loot')
   })
 })

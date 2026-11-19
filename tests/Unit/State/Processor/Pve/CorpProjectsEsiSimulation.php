@@ -15,6 +15,7 @@ use App\Exception\EveAuthRequiredException;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -79,6 +80,7 @@ trait CorpProjectsEsiSimulation
         array $corpProjectImports = [],
         UserPveSettings $settings = new UserPveSettings(),
         ClockInterface $esiClock = new NativeClock(),
+        ?UserLedgerSettingsRepository $ledgerSettingsRepository = null,
     ): ScanLootSalesProcessor {
         $tokenManager = $this->createStub(TokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturnCallback(
@@ -132,6 +134,7 @@ trait CorpProjectsEsiSimulation
                     settingsRepository: $settingsRepository,
                 ),
             ),
+            ledgerSettingsRepository: $ledgerSettingsRepository ?? $this->createStub(UserLedgerSettingsRepository::class),
         );
     }
 

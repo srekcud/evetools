@@ -13,6 +13,7 @@ use App\Entity\UserPveSettings;
 use App\Enum\PveIncomeType;
 use App\Repository\PveIncomeRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -173,6 +174,7 @@ class ScanLootSalesProcessorTest extends TestCase
                     settingsRepository: $settingsRepository,
                 ),
             ),
+            ledgerSettingsRepository: $this->createStub(UserLedgerSettingsRepository::class),
         );
     }
 

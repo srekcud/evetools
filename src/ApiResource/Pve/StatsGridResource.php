@@ -14,4 +14,7 @@ class StatsGridResource
 
     /** @var array{value: float, previous: float, change: float|null, daily: array<string, float>} */
     public array $net = ['value' => 0.0, 'previous' => 0.0, 'change' => null, 'daily' => []];
+
+    /** @var array<string, array{lastScanAt: string|null, overdue: bool}> */
+    public array $scans = [];
 }

@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Entity\UserPveSettings;
 use App\Repository\PveExpenseRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -132,6 +133,7 @@ final class ScanContractsProcessorDaysBoundsTest extends TestCase
             $settingsRepository,
             $invTypeRepository,
             $requestStack,
+            $this->createStub(UserLedgerSettingsRepository::class),
         );
     }
 

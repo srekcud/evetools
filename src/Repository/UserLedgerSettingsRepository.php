@@ -24,6 +24,18 @@ class UserLedgerSettingsRepository extends ServiceEntityRepository
         return $this->findOneBy(['user' => $user]);
     }
 
+    public function recordLootScan(User $user, \DateTimeImmutable $scannedAt): void
+    {
+        $this->getOrCreate($user)->setLastLootScanAt($scannedAt);
+        $this->getEntityManager()->flush();
+    }
+
+    public function recordExpenseScan(User $user, \DateTimeImmutable $scannedAt): void
+    {
+        $this->getOrCreate($user)->setLastExpenseScanAt($scannedAt);
+        $this->getEntityManager()->flush();
+    }
+
     public function getOrCreate(User $user): UserLedgerSettings
     {
         $settings = $this->findByUser($user);

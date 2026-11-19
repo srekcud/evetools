@@ -5450,6 +5450,18 @@
         "neverSynced": {
           "text": "Aucune donnée PVE synchronisée pour le moment",
           "effect": "Tous les chiffres sont vides tant que le premier rafraîchissement n'a pas eu lieu"
+        },
+        "lootScan": {
+          "neverText": "Les ventes de loot n'ont jamais été scannées",
+          "overdueText": "Ventes de loot non scannées depuis le {date}",
+          "effect": "Les ventes non importées manquent dans la colonne Loot et dans le net",
+          "action": "Scanner les ventes"
+        },
+        "expenseScan": {
+          "neverText": "Les achats de munitions n'ont jamais été scannés",
+          "overdueText": "Achats de munitions non scannés depuis le {date}",
+          "effect": "Les achats non importés manquent dans la colonne Dépenses et dans le net",
+          "action": "Scanner les achats"
         }
       }
     },
