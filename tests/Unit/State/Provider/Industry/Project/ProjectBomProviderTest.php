@@ -763,7 +763,7 @@ class ProjectBomProviderTest extends TestCase
         (new \ReflectionProperty(User::class, 'id'))->setValue($otherUser, Uuid::v4());
         $project = (new IndustryProject())->setOwner($viewer);
         $project->enrolOwner();
-        $mine = $project->getMembers()->first();
+        $mine = $project->getOwnerParticipant();
         $other = (new IndustryProjectParticipant())->setUser($otherUser)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted);
         $project->addMember($other);
         $line = $this->createBomItem(self::FEROX, 'Ferox', $required, $fulfilled, null, false, null, null, null, null, null, null);
