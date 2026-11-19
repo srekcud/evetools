@@ -1,7 +1,7 @@
 export type CompanionWindowSizeKey = 'bar' | 'column'
 
 export const COMPANION_WINDOW_SIZES: Record<CompanionWindowSizeKey, { width: number; height: number }> = {
-  bar: { width: 440, height: 72 },
+  bar: { width: 1240, height: 72 },
   column: { width: 360, height: 640 },
 }
 
