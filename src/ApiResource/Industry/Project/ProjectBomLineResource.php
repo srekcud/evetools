@@ -96,6 +96,9 @@ class ProjectBomLineResource
     /** @var list<array{participantId: string, characterName: string|null, quantity: int, isMine: bool}> */
     public array $reservations = [];
 
+    /** @var list<array{participantId: string, characterName: string|null, quantity: int, isMine: bool}> */
+    public array $pendingContributions = [];
+
     public int $reservedQuantity = 0;
 
     public int $freeQuantity = 0;

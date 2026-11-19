@@ -648,27 +648,154 @@ class ProjectBomProviderTest extends TestCase
     }
 
     #[Group('issue-1005')]
-    public function testReservationCarriesTheQuantityOfItsParticipantAwaitingApproval(): void
+    public function testReservationNoLongerCarriesAPendingQuantity(): void
     {
-        $viewer = $this->createUserStub();
-        $this->security->method('getUser')->willReturn($viewer);
-        $project = (new IndustryProject())->setOwner($viewer);
-        $this->projectRepository->method('find')->willReturn($project);
-        $line = $this->createBomItem(self::FEROX, 'Ferox', 150, 0, null, false, null, null, null, null, null, null);
-        $this->bomItemRepository->method('findBy')->willReturn([$line]);
-        $mine = (new IndustryProjectParticipant())->setUser($viewer);
-        $other = (new IndustryProjectParticipant())->setUser($this->createUserStub());
+        $setup = $this->pendingScenario(150, 0);
+        $line = $setup['line'];
         $reservations = $this->createStub(IndustryProjectLineReservationRepository::class);
         $reservations->method('findByProject')->willReturn([
-            new IndustryProjectLineReservation($line, $mine, 50),
-            new IndustryProjectLineReservation($line, $other, 30),
+            new IndustryProjectLineReservation($line, $setup['mine'], 50),
+            new IndustryProjectLineReservation($line, $setup['other'], 30),
         ]);
+
+        $resource = $this->readPendingScenario($setup, [$line->getId()->toRfc4122() => [$setup['mine']->getId()->toRfc4122() => 20]], $reservations);
+
+        self::assertSame(
+            [['quantity' => 50, 'isMine' => true], ['quantity' => 30, 'isMine' => false]],
+            array_map(
+                static fn (array $reservation): array => ['quantity' => $reservation['quantity'], 'isMine' => $reservation['isMine']],
+                $resource->reservations,
+            ),
+        );
+        foreach ($resource->reservations as $reservation) {
+            self::assertArrayNotHasKey('pendingQuantity', $reservation);
+        }
+    }
+
+    #[Group('issue-1093')]
+    public function testFulfilledLineWithReservationsHiddenStillCarriesItsPendingContributions(): void
+    {
+        $setup = $this->pendingScenario(150, 150);
+        $line = $setup['line'];
+        $reservations = $this->createStub(IndustryProjectLineReservationRepository::class);
+        $reservations->method('findByProject')->willReturn([new IndustryProjectLineReservation($line, $setup['mine'], 150)]);
+        $pending = [$line->getId()->toRfc4122() => [$setup['mine']->getId()->toRfc4122() => 120, $setup['other']->getId()->toRfc4122() => 30]];
+
+        $resource = $this->readPendingScenario($setup, $pending, $reservations);
+
+        self::assertTrue($resource->isFulfilled);
+        self::assertSame([], $resource->reservations);
+        self::assertSame(
+            [
+                ['participantId' => $setup['mine']->getId()->toRfc4122(), 'characterName' => 'Aria Solberg', 'quantity' => 120, 'isMine' => true],
+                ['participantId' => $setup['other']->getId()->toRfc4122(), 'characterName' => 'Cora Vance', 'quantity' => 30, 'isMine' => false],
+            ],
+            $resource->pendingContributions,
+        );
+    }
+
+    #[Group('issue-1093')]
+    public function testPendingContributionWithoutReservationIsExposed(): void
+    {
+        $setup = $this->pendingScenario(150, 0);
+        $line = $setup['line'];
+        $pending = [$line->getId()->toRfc4122() => [$setup['other']->getId()->toRfc4122() => 40]];
+
+        $resource = $this->readPendingScenario($setup, $pending, $this->createStub(IndustryProjectLineReservationRepository::class));
+
+        self::assertSame([], $resource->reservations);
+        self::assertSame(
+            [['participantId' => $setup['other']->getId()->toRfc4122(), 'characterName' => 'Cora Vance', 'quantity' => 40, 'isMine' => false]],
+            $resource->pendingContributions,
+        );
+    }
+
+    #[Group('issue-1093')]
+    public function testLineWithoutPendingContributionHasNone(): void
+    {
+        $setup = $this->pendingScenario(150, 0);
+
+        $resource = $this->readPendingScenario($setup, [], $this->createStub(IndustryProjectLineReservationRepository::class));
+
+        self::assertSame([], $resource->pendingContributions);
+    }
+
+    #[Group('issue-1093')]
+    public function testPendingContributionsStayWithTheirOwnLine(): void
+    {
+        $setup = $this->pendingScenario(150, 0);
+        $line = $setup['line'];
+        $otherLine = $this->createBomItem(38, 'Nocxium', 80, 0, null, false, null, null, null, null, null, null);
+        $setup['lines'][] = $otherLine;
+        $pending = [$otherLine->getId()->toRfc4122() => [$setup['mine']->getId()->toRfc4122() => 7]];
+
+        $resources = $this->readPendingScenarioLines($setup, $pending, $this->createStub(IndustryProjectLineReservationRepository::class));
+
+        self::assertSame([[], [7]], array_map(
+            static fn (ProjectBomLineResource $resource): array => array_column($resource->pendingContributions, 'quantity'),
+            $resources,
+        ));
+        self::assertSame($line->getId()->toString(), $resources[0]->id);
+    }
+
+    #[Group('issue-1093')]
+    public function testPendingContributionsAreSortedByCharacterNameWhateverTheQueryOrder(): void
+    {
+        $setup = $this->pendingScenario(150, 0);
+        $line = $setup['line'];
+        $pending = [$line->getId()->toRfc4122() => [$setup['other']->getId()->toRfc4122() => 40, $setup['mine']->getId()->toRfc4122() => 10]];
+
+        $resource = $this->readPendingScenario($setup, $pending, $this->createStub(IndustryProjectLineReservationRepository::class));
+
+        self::assertSame(['Aria Solberg', 'Cora Vance'], array_column($resource->pendingContributions, 'characterName'));
+    }
+
+    /**
+     * @return array{viewer: User, mine: IndustryProjectParticipant, other: IndustryProjectParticipant, project: IndustryProject, line: IndustryProjectBomLine, lines: list<IndustryProjectBomLine>}
+     */
+    private function pendingScenario(int $required, int $fulfilled): array
+    {
+        $viewerMain = (new Character())->setEveCharacterId(2981000011)->setName('Aria Solberg');
+        $viewer = (new User())->addCharacter($viewerMain)->setMainCharacter($viewerMain);
+        (new \ReflectionProperty(User::class, 'id'))->setValue($viewer, Uuid::v4());
+        $otherMain = (new Character())->setEveCharacterId(2981000012)->setName('Cora Vance');
+        $otherUser = (new User())->addCharacter($otherMain)->setMainCharacter($otherMain);
+        (new \ReflectionProperty(User::class, 'id'))->setValue($otherUser, Uuid::v4());
+        $project = (new IndustryProject())->setOwner($viewer);
+        $project->enrolOwner();
+        $mine = $project->getMembers()->first();
+        $other = (new IndustryProjectParticipant())->setUser($otherUser)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted);
+        $project->addMember($other);
+        $line = $this->createBomItem(self::FEROX, 'Ferox', $required, $fulfilled, null, false, null, null, null, null, null, null);
+
+        return ['viewer' => $viewer, 'mine' => $mine, 'other' => $other, 'project' => $project, 'line' => $line, 'lines' => [$line]];
+    }
+
+    /**
+     * @param array{viewer: User, mine: IndustryProjectParticipant, other: IndustryProjectParticipant, project: IndustryProject, line: IndustryProjectBomLine, lines: list<IndustryProjectBomLine>} $setup
+     * @param array<string, array<string, int>> $pending
+     */
+    private function readPendingScenario(array $setup, array $pending, IndustryProjectLineReservationRepository $reservations): ProjectBomLineResource
+    {
+        return $this->readPendingScenarioLines($setup, $pending, $reservations)[0];
+    }
+
+    /**
+     * @param array{viewer: User, mine: IndustryProjectParticipant, other: IndustryProjectParticipant, project: IndustryProject, line: IndustryProjectBomLine, lines: list<IndustryProjectBomLine>} $setup
+     * @param array<string, array<string, int>> $pending
+     *
+     * @return list<ProjectBomLineResource>
+     */
+    private function readPendingScenarioLines(array $setup, array $pending, IndustryProjectLineReservationRepository $reservations): array
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($setup['viewer']);
+        $this->projectRepository->method('find')->willReturn($setup['project']);
+        $this->bomItemRepository->method('findBy')->willReturn($setup['lines']);
         $contributions = $this->createStub(IndustryProjectContributionRepository::class);
-        $contributions->method('sumPendingQuantityByLineAndParticipant')->willReturn([
-            $line->getId()->toRfc4122() => [$mine->getId()->toRfc4122() => 20],
-        ]);
+        $contributions->method('sumPendingQuantityByLineAndParticipant')->willReturn($pending);
         $provider = new ProjectBomProvider(
-            $this->security,
+            $security,
             $this->projectRepository,
             $this->bomItemRepository,
             new ProjectAccessChecker($this->memberRepository),
@@ -679,15 +806,7 @@ class ProjectBomProviderTest extends TestCase
             $this->blueprintNames(),
         );
 
-        $resource = $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0];
-
-        self::assertSame(
-            [['quantity' => 50, 'pendingQuantity' => 20, 'isMine' => true], ['quantity' => 30, 'pendingQuantity' => 0, 'isMine' => false]],
-            array_map(
-                static fn (array $reservation): array => ['quantity' => $reservation['quantity'], 'pendingQuantity' => $reservation['pendingQuantity'], 'isMine' => $reservation['isMine']],
-                $resource->reservations,
-            ),
-        );
+        return array_values($provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()]));
     }
 
     private function readSingleLine(IndustryProjectBomLine $line): ProjectBomLineResource

@@ -12,6 +12,7 @@ use App\ApiResource\Industry\ProjectPurchaseResource;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Repository\IndustryProjectBomLineRepository;
@@ -84,6 +85,11 @@ class ProjectBomProvider implements ProviderInterface
         $pendingQuantities = $this->contributionRepository->sumPendingQuantityByLineAndParticipant($project);
         $claimedQuantities = $this->contributionRepository->sumClaimedMaterialQuantityByLine($project);
 
+        $participantsById = [];
+        foreach ($project->getMembers() as $participant) {
+            $participantsById[$participant->getId()->toRfc4122()] = $participant;
+        }
+
         $locationsByJobId = $this->accessChecker->isAdminOrOwner($user, $project)
             ? $this->jobLocationResolver->locationsOf($project, $this->jobMatchesOf($bomItems))
             : [];
@@ -91,7 +97,7 @@ class ProjectBomProvider implements ProviderInterface
         $blueprintNameByLineId = $this->blueprintNameByLineId($bomItems);
 
         return array_map(
-            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $pendingQuantities[$item->getId()->toRfc4122()] ?? [], $locationsByJobId, $fulfillments, $blueprintNameByLineId[$item->getId()->toRfc4122()] ?? null, $claimedQuantities[$item->getId()->toRfc4122()] ?? 0),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $pendingQuantities[$item->getId()->toRfc4122()] ?? [], $participantsById, $locationsByJobId, $fulfillments, $blueprintNameByLineId[$item->getId()->toRfc4122()] ?? null, $claimedQuantities[$item->getId()->toRfc4122()] ?? 0),
             $bomItems,
         );
     }
@@ -134,11 +140,35 @@ class ProjectBomProvider implements ProviderInterface
     }
 
     /**
+     * @param array<string, int> $pendingQuantityByParticipantId
+     * @param array<string, IndustryProjectParticipant> $participantsById
+     *
+     * @return list<array{participantId: string, characterName: string|null, quantity: int, isMine: bool}>
+     */
+    private function pendingContributionsOf(array $pendingQuantityByParticipantId, array $participantsById, User $viewer): array
+    {
+        $pendingContributions = [];
+        foreach ($pendingQuantityByParticipantId as $participantId => $quantity) {
+            $user = ($participantsById[$participantId] ?? null)?->getUser();
+            $pendingContributions[] = [
+                'participantId' => $participantId,
+                'characterName' => PilotName::of($user),
+                'quantity' => $quantity,
+                'isMine' => $user !== null && $user->getId()?->toRfc4122() === $viewer->getId()?->toRfc4122(),
+            ];
+        }
+        usort($pendingContributions, static fn (array $left, array $right): int => [$left['characterName'], $left['participantId']] <=> [$right['characterName'], $right['participantId']]);
+
+        return $pendingContributions;
+    }
+
+    /**
      * @param list<IndustryProjectLineReservation> $reservations
      * @param array<string, int> $pendingQuantityByParticipantId
+     * @param array<string, IndustryProjectParticipant> $participantsById
      * @param array<int, array{blueprint: array<string, mixed>, output: array<string, mixed>}> $locationsByJobId
      */
-    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $pendingQuantityByParticipantId, array $locationsByJobId, ProjectLineFulfillments $fulfillments, ?string $blueprintName, int $claimedQuantity): ProjectBomLineResource
+    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $pendingQuantityByParticipantId, array $participantsById, array $locationsByJobId, ProjectLineFulfillments $fulfillments, ?string $blueprintName, int $claimedQuantity): ProjectBomLineResource
     {
         $resource = new ProjectBomLineResource();
         $resource->id = $item->getId()->toString();
@@ -196,13 +226,13 @@ class ProjectBomProvider implements ProviderInterface
                 'participantId' => $reservation->getParticipant()->getId()->toRfc4122(),
                 'characterName' => PilotName::of($reservation->getParticipant()->getUser()),
                 'quantity' => $reservation->getQuantity(),
-                'pendingQuantity' => $pendingQuantityByParticipantId[$reservation->getParticipant()->getId()->toRfc4122()] ?? 0,
                 'isMine' => $reservation->getParticipant()->getUser()?->getId()?->toRfc4122() === $viewer->getId()?->toRfc4122(),
             ],
             $visibleReservations,
         );
         $resource->reservedQuantity = array_sum(array_map(static fn (IndustryProjectLineReservation $reservation): int => $reservation->getQuantity(), $visibleReservations));
         $resource->freeQuantity = max(0, $resource->remainingQuantity - $resource->reservedQuantity);
+        $resource->pendingContributions = $this->pendingContributionsOf($pendingQuantityByParticipantId, $participantsById, $viewer);
 
         return $resource;
     }
