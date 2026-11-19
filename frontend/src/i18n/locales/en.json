@@ -4236,7 +4236,7 @@
       "moreFree": "+ {count} more free lines · see the BOM",
       "claim": "I'll handle it",
       "release": "Release",
-      "deliver": "Deliver",
+      "deliver": "Deliver All",
       "runs": "{runs} runs",
       "todo": {
         "contributions": "{count} contributions to review",

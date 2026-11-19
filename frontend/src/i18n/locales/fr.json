@@ -4236,7 +4236,7 @@
       "moreFree": "+ {count} autres lignes libres · voir la BOM",
       "claim": "Je m'en charge",
       "release": "Libérer",
-      "deliver": "Livrer",
+      "deliver": "Tout livrer",
       "runs": "{runs} runs",
       "todo": {
         "contributions": "{count} contributions à revoir",
