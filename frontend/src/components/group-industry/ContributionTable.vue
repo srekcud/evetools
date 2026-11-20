@@ -394,44 +394,48 @@ onMounted(() => {
               </td>
               <!-- Method -->
               <td class="py-3 px-3">
-                <span class="text-xs text-slate-500">
-                  {{ t(methodLabelKey(contrib)) }}
-                </span>
-                <span
-                  v-if="isValueReadFromEsi(contrib)"
-                  class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
-                >ESI &#10003;</span>
+                <div data-testid="method-badges" class="flex flex-wrap items-center gap-1.5">
+                  <span class="whitespace-nowrap text-xs text-slate-500">
+                    {{ t(methodLabelKey(contrib)) }}
+                  </span>
+                  <span
+                    v-if="isValueReadFromEsi(contrib)"
+                    class="whitespace-nowrap text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15"
+                  >ESI &#10003;</span>
+                </div>
               </td>
               <!-- Status -->
               <td class="py-3 px-3 text-center">
-                <span
-                  class="text-xs px-2 py-0.5 rounded border font-medium"
-                  :class="STATUS_BADGE_CLASSES[contrib.status]"
-                >
-                  {{ STATUS_LABELS[contrib.status] }}
-                </span>
-                <span
-                  v-if="contrib.isAutoDetected"
-                  class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15 ml-1.5"
-                >{{ t('groupIndustry.contributions.badges.autoDetected') }}</span>
-                <span
-                  v-if="walletProof(contrib) !== null"
-                  data-testid="wallet-proof-badge"
-                  class="text-xs px-1.5 py-0.5 rounded border ml-1.5"
-                  :class="WALLET_PROOF_BADGE_CLASSES[walletProof(contrib)!.state]"
-                >{{ walletProof(contrib)!.label }}</span>
-                <span
-                  v-if="!contrib.isVerified && (contrib.isAutoDetected || isPending(contrib.status))"
-                  class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
-                >{{ t('groupIndustry.contributions.badges.unverified') }}</span>
-                <span
-                  v-if="isDeliveryConfirmedByHand(contrib)"
-                  class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
-                >{{ t('groupIndustry.contributions.badges.deliveryConfirmedByHand') }}</span>
-                <span
-                  v-if="contrib.duplicatesDerived"
-                  class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
-                >{{ t('groupIndustry.contributions.duplicatesDerived') }}</span>
+                <div data-testid="status-badges" class="flex flex-wrap items-center justify-center gap-1.5">
+                  <span
+                    class="whitespace-nowrap text-xs px-2 py-0.5 rounded border font-medium"
+                    :class="STATUS_BADGE_CLASSES[contrib.status]"
+                  >
+                    {{ STATUS_LABELS[contrib.status] }}
+                  </span>
+                  <span
+                    v-if="contrib.isAutoDetected"
+                    class="whitespace-nowrap text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/15"
+                  >{{ t('groupIndustry.contributions.badges.autoDetected') }}</span>
+                  <span
+                    v-if="walletProof(contrib) !== null"
+                    data-testid="wallet-proof-badge"
+                    class="whitespace-nowrap text-xs px-1.5 py-0.5 rounded border"
+                    :class="WALLET_PROOF_BADGE_CLASSES[walletProof(contrib)!.state]"
+                  >{{ walletProof(contrib)!.label }}</span>
+                  <span
+                    v-if="!contrib.isVerified && (contrib.isAutoDetected || isPending(contrib.status))"
+                    class="whitespace-nowrap text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15"
+                  >{{ t('groupIndustry.contributions.badges.unverified') }}</span>
+                  <span
+                    v-if="isDeliveryConfirmedByHand(contrib)"
+                    class="whitespace-nowrap text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15"
+                  >{{ t('groupIndustry.contributions.badges.deliveryConfirmedByHand') }}</span>
+                  <span
+                    v-if="contrib.duplicatesDerived"
+                    class="whitespace-nowrap text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15"
+                  >{{ t('groupIndustry.contributions.duplicatesDerived') }}</span>
+                </div>
               </td>
               <!-- Actions -->
               <td class="py-3 px-6 text-center">
