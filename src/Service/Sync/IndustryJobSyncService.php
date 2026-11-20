@@ -253,24 +253,21 @@ class IndustryJobSyncService
             $syncedJobsByJobId[$jobData['job_id']] = $job;
         }
 
-        // Mark stale jobs of the synced character as delivered: jobs in DB that disappeared
-        // from ESI with an end_date in the past are effectively delivered/expired.
-        // Alts' jobs are left to their own sync.
         if (!$personalJobsUnknown && !$corporationJobsUnknown) {
             $now = new \DateTimeImmutable();
             foreach ($this->jobRepository->findActiveJobsByCharacter($character) as $dbJob) {
                 $jobId = $dbJob->getJobId();
-                if (isset($jobsByJobId[$jobId])) {
+                if (isset($jobsByJobId[$jobId]) || $dbJob->getStatus() === CachedIndustryJob::STATUS_PAUSED) {
                     continue;
                 }
-                if ($dbJob->getStatus() === CachedIndustryJob::STATUS_PAUSED || $dbJob->getEndDate() > $now) {
-                    continue;
-                }
-                $dbJob->setStatus(CachedIndustryJob::STATUS_DELIVERED);
+                $endedInGame = $dbJob->getEndDate() <= $now;
+                $dbJob->setStatus($endedInGame ? CachedIndustryJob::STATUS_DELIVERED : CachedIndustryJob::STATUS_CANCELLED);
                 $dbJob->setCachedAt($now);
-                $dbJob->setCompletionNotifiedAt($now);
+                if ($endedInGame) {
+                    $dbJob->setCompletionNotifiedAt($now);
+                }
                 $syncedJobsByJobId[$jobId] = $dbJob;
-                $this->logger->info('Stale industry job marked as delivered', [
+                $this->logger->info($endedInGame ? 'Stale industry job marked as delivered' : 'Industry job missing from ESI before its end date marked as cancelled', [
                     'jobId' => $jobId,
                     'characterName' => $character->getName(),
                     'endDate' => $dbJob->getEndDate()->format('c'),

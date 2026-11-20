@@ -437,30 +437,77 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame('delivered', $staleJob->getStatus());
     }
 
-    public function testFutureJobNotMarkedAsDeliveredWhenMissingFromEsi(): void
+    #[Group('issue-1122')]
+    public function testActiveJobWithFutureEndDateMissingFromEsiIsMarkedCancelled(): void
     {
         $character = $this->createCharacterWithUser(12345);
-
-        // ESI returns no jobs for this character
         $this->esiClient->method('get')->willReturn([]);
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
-
-        // A job exists in DB: active, endDate in the future (still running)
-        $futureJob = new CachedIndustryJob();
-        $futureJob->setJobId(9002);
-        $futureJob->setStatus('active');
-        $futureJob->setEndDate(new \DateTimeImmutable('+2 days'));
-        $futureJob->setCharacter($character);
-
-        $this->jobRepository->method('findActiveJobsByCharacter')
-            ->with($character)
-            ->willReturn([$futureJob]);
-
-        $this->em->expects($this->once())->method('flush');
+        $futureJob = $this->makeCachedJob(9002, $character, 'active', '+14 days');
+        $this->stubActiveJobsByCharacter([$futureJob]);
 
         $this->service->syncCharacterJobs($character);
 
-        // Job should remain active — endDate is in the future, could be an ESI glitch
+        $this->assertSame('cancelled', $futureJob->getStatus());
+        $this->assertNull($futureJob->getCompletionNotifiedAt());
+    }
+
+    #[Group('issue-1122')]
+    public function testReadyJobWithFutureEndDateMissingFromEsiIsMarkedCancelled(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $readyJob = $this->makeCachedJob(9003, $character, 'ready', '+1 day');
+        $this->stubActiveJobsByCharacter([$readyJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('cancelled', $readyJob->getStatus());
+    }
+
+    #[Group('issue-1122')]
+    public function testJobCancelledAfterMissingFromEsiIsNotNotifiedAsCompleted(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $futureJob = $this->makeCachedJob(9004, $character, 'active', '+3 days');
+        $this->stubActiveJobsByCharacter([$futureJob]);
+        $this->notificationDispatcher->expects($this->never())->method('dispatch');
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([], $this->completionNotificationEvents);
+    }
+
+    #[Group('issue-1122')]
+    public function testActiveJobWithFutureEndDateStillReportedByEsiStaysActive(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $runningJob = $this->makeCachedJob(9005, $character, 'active', '+3 days');
+        $this->stubActiveJobsByCharacter([$runningJob]);
+        $this->esiClient->method('get')->willReturn([$this->makeJobData(9005, 12345, 'active')]);
+        $this->jobRepository->method('findByJobId')->with(9005)->willReturn($runningJob);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame('active', $runningJob->getStatus());
+    }
+
+    #[Group('issue-1122')]
+    public function testActiveJobWithFutureEndDateMissingFromEsiStaysActiveWhenCorporationJobsAreUnknown(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->givenCorporationJobsReadOutcomes(EsiApiException::forbidden());
+        $futureJob = $this->makeCachedJob(9006, $character, 'active', '+3 days');
+        $this->stubActiveJobsByCharacter([$futureJob]);
+
+        $this->service->syncCharacterJobs($character);
+
         $this->assertSame('active', $futureJob->getStatus());
     }
 
