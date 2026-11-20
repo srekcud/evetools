@@ -33,7 +33,7 @@ function sideName(side: JobLocation): string {
       </span>
       <JobLocationBadge :locations="locations" data-testid="chain-job-check" />
     </div>
-    <p v-if="inputOutside" data-testid="chain-job-input-outside" class="text-amber-400 whitespace-normal max-w-56">{{ t('groupIndustry.jobLocations.inputOutside') }}</p>
-    <p v-for="reason in reasons" :key="reason" data-testid="chain-job-io-reason" class="text-violet-300 whitespace-normal max-w-56">{{ t(`groupIndustry.jobLocations.reasons.${reason}`) }}</p>
+    <p v-if="inputOutside" data-testid="chain-job-input-outside" class="text-amber-400 whitespace-normal">{{ t('groupIndustry.jobLocations.inputOutside') }}</p>
+    <p v-for="reason in reasons" :key="reason" data-testid="chain-job-io-reason" class="text-violet-300 whitespace-normal">{{ t(`groupIndustry.jobLocations.reasons.${reason}`) }}</p>
   </div>
 </template>

@@ -399,7 +399,7 @@ describe('ProductionChain job tree', () => {
     expect((fr.groupIndustry.chain as Record<string, unknown>).ioUnknownCause).toBeUndefined()
   })
 
-  it('keeps the structure names in a fixed-width wrapper, each name truncated on one line with its full name as title', async () => {
+  it('keeps the structure names in a wrapper bounded by the column, each name truncated on one line with its full name as title', async () => {
     const longStructureName = '1DQ1-A - 1-st Thetastar of Dickbutt Engineering Complex'
     const plannedStructureName = '4-HWWF - Warpgate Assembly Sotiyo of the Northern Fleet Reserve'
     const jobWith = (id: string, overrides: Partial<ChainNode>): ChainNode => chainNode({
@@ -422,11 +422,11 @@ describe('ProductionChain job tree', () => {
     const launchedName = launched.get(`[title="${longStructureName}"]`)
     const plannedName = planned.get(`[title="${plannedStructureName}"]`)
 
-    expect(launched.get('div').classes()).toContain('w-48')
+    expect(launched.get('div').classes()).toContain('min-w-0')
     expect(launched.get('div').element.contains(launchedName.element)).toBe(true)
     expect(launchedName.classes()).toContain('truncate')
     expect(launchedName.text()).toBe(longStructureName)
-    expect(planned.get('div').classes()).toContain('w-48')
+    expect(planned.get('div').classes()).toContain('min-w-0')
     expect(plannedName.classes()).toContain('truncate')
     expect(plannedName.text()).toBe(plannedStructureName)
     expect(planned.get('[data-testid="chain-structure-warning"]').classes()).toContain('whitespace-normal')
@@ -607,6 +607,61 @@ describe('ProductionChain job tree', () => {
     expect(inTree.classes()).toContain('truncate')
     expect(treeTab).toBe(label(locale, 'views.tree'))
     expect(wrapper.get('[data-testid="chain-tree"] thead').text()).toContain(label(locale, 'columns.realCost'))
+  })
+})
+
+describe('ProductionChain job tree fits the page width', () => {
+  const FORCED_WIDTH_CLASSES = ['w-48', 'max-w-48', 'max-w-56', 'max-w-64']
+  const MINIMUM_RESERVATION_SHARE = 12
+
+  function widthShareOf(column: DOMWrapper<Element>): number {
+    return Number.parseFloat(column.attributes('style')?.match(/width:\s*([\d.]+)%/)?.[1] ?? 'NaN')
+  }
+
+  it('lays the table out with fixed columns that add up to the page width, without a horizontal scroll wrapper', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await openTree(wrapper)
+
+    const tree = wrapper.get('[data-testid="chain-tree"]')
+    const columns = tree.findAll('table colgroup col')
+    const shares = columns.map(widthShareOf)
+
+    expect(tree.classes()).not.toContain('overflow-x-auto')
+    expect(tree.get('table').classes()).toContain('table-fixed')
+    expect(columns).toHaveLength(tree.findAll('thead th').length)
+    expect(shares.every(share => Number.isFinite(share))).toBe(true)
+    expect(shares.reduce((total, share) => total + share, 0)).toBeCloseTo(100, 5)
+  })
+
+  it('gives the reservation column enough width for the reserve and contribute controls', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await openTree(wrapper)
+
+    const shares = wrapper.findAll('[data-testid="chain-tree"] table colgroup col').map(widthShareOf)
+
+    expect(shares).not.toHaveLength(0)
+    expect(shares[shares.length - 1]).toBeGreaterThanOrEqual(MINIMUM_RESERVATION_SHARE)
+  })
+
+  it('lets cells wrap instead of forcing a width or a single line, long product names included', async () => {
+    const wrapper = await mountChain([...PRODUCTION_CHAIN, chainNode({
+      id: 'node-long-name',
+      stage: 'product',
+      level: 1,
+      typeName: LONG_TYPE_NAME,
+      activity: 'manufacturing',
+      runs: 3,
+      status: 'todo',
+    })])
+    await openTree(wrapper)
+
+    const tree = wrapper.get('[data-testid="chain-tree"]')
+    const classesOfCells = tree.findAll('td, th').flatMap(element => element.classes())
+    const classesInTree = tree.findAll('*').flatMap(element => element.classes())
+
+    expect(classesOfCells).not.toContain('whitespace-nowrap')
+    expect(FORCED_WIDTH_CLASSES.filter(forced => classesInTree.includes(forced))).toEqual([])
+    expect(row(wrapper, 'node-long-name').get(`[title="${LONG_TYPE_NAME}"]`).classes()).toContain('truncate')
   })
 })
 
