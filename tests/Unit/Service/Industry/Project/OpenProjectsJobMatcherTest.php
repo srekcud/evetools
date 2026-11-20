@@ -7,12 +7,14 @@ namespace App\Tests\Unit\Service\Industry\Project;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\User;
+use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Industry\Project\OpenProjectsJobMatcher;
 use App\Service\Industry\Project\ProjectJobActivityRecorder;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\ErrorHandler\BufferingLogger;
@@ -46,6 +48,12 @@ final class OpenProjectsJobMatcherTest extends TestCase
             $this->steps[] = ['match', $project->getName()];
 
             return [];
+        });
+        $jobMatcher->method('releaseAutomaticMatches')->willReturnCallback(function (IndustryProject $project): void {
+            if ($project === $this->failingProject) {
+                throw new \RuntimeException('release failed');
+            }
+            $this->steps[] = ['release', $project->getName()];
         });
 
         $derivedContributionService = $this->createStub(DerivedContributionService::class);
@@ -118,9 +126,68 @@ final class OpenProjectsJobMatcherTest extends TestCase
         self::assertSame([], $this->steps);
     }
 
-    private function project(string $name): IndustryProject
+    #[Group('issue-1123')]
+    public function testADraftProjectIsReleasedAndItsJobLinesRefreshedButNeverMatchedNorRecorded(): void
     {
-        $project = (new IndustryProject())->setOwner(new User())->setName($name);
+        $this->projectsOfUser = [$this->project('Nomad 18', ProjectStatus::Draft)];
+
+        $this->matcher->matchOpenProjectsOf(new User());
+
+        self::assertSame([['release', 'Nomad 18'], ['refresh', 'Ishtar']], $this->steps);
+        self::assertSame([], $this->recordedProjects);
+    }
+
+    #[Group('issue-1123')]
+    public function testADraftIsReleasedBeforeTheOtherProjectsAreMatchedEvenWhenItIsListedAfterThem(): void
+    {
+        $this->projectsOfUser = [$this->project('Launch', ProjectStatus::InProgress), $this->project('Nomad 18', ProjectStatus::Draft)];
+
+        $this->matcher->matchOpenProjectsOf(new User());
+
+        self::assertSame(
+            [['release', 'Nomad 18'], ['refresh', 'Ishtar'], ['match', 'Launch'], ['refresh', 'Ishtar']],
+            $this->steps,
+        );
+    }
+
+    #[Group('issue-1123')]
+    #[DataProvider('statusesMatchedAutomatically')]
+    public function testEveryOpenStatusOtherThanDraftIsMatchedAndNeverReleased(ProjectStatus $status): void
+    {
+        $this->projectsOfUser = [$this->project('Ishtar batch', $status)];
+
+        $this->matcher->matchOpenProjectsOf(new User());
+
+        self::assertSame([['match', 'Ishtar batch'], ['refresh', 'Ishtar']], $this->steps);
+    }
+
+    /**
+     * @return iterable<string, array{ProjectStatus}>
+     */
+    public static function statusesMatchedAutomatically(): iterable
+    {
+        yield 'published' => [ProjectStatus::Published];
+        yield 'in progress' => [ProjectStatus::InProgress];
+        yield 'selling' => [ProjectStatus::Selling];
+    }
+
+    #[Group('issue-1123')]
+    public function testADraftThatFailsToBeReleasedIsLoggedAndTheOtherProjectsAreStillMatched(): void
+    {
+        $failing = $this->project('Nomad 18', ProjectStatus::Draft);
+        $this->failingProject = $failing;
+        $this->projectsOfUser = [$failing, $this->project('Launch', ProjectStatus::InProgress)];
+
+        $this->matcher->matchOpenProjectsOf(new User());
+
+        self::assertSame([['match', 'Launch'], ['refresh', 'Ishtar']], $this->steps);
+        $warnings = array_filter($this->logger->cleanLogs(), static fn (array $record): bool => 'warning' === $record[0]);
+        self::assertCount(1, $warnings);
+    }
+
+    private function project(string $name, ProjectStatus $status = ProjectStatus::InProgress): IndustryProject
+    {
+        $project = (new IndustryProject())->setOwner(new User())->setName($name)->setStatus($status);
         $project->addBomItem(
             (new IndustryProjectBomLine())
                 ->setTypeId(self::TRITANIUM_TYPE_ID)

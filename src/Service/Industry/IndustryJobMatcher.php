@@ -55,11 +55,9 @@ class IndustryJobMatcher
         $jobLines = $project->getBomItems()->filter(
             static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob(),
         );
-        $recomputableLines = $jobLines->filter(
-            static fn (IndustryProjectBomLine $line): bool => !$line->hasManualJobMatch(),
-        );
+        $recomputableLines = $this->recomputableJobLinesOf($project);
 
-        $this->clearAutomaticMatches($recomputableLines->toArray());
+        $this->clearAutomaticMatches($recomputableLines);
         $this->entityManager->flush();
 
         $assignedJobIds = array_fill_keys([
@@ -160,6 +158,22 @@ class IndustryJobMatcher
 
             return;
         }
+    }
+
+    public function releaseAutomaticMatches(IndustryProject $project): void
+    {
+        $this->clearAutomaticMatches($this->recomputableJobLinesOf($project));
+        $this->entityManager->flush();
+    }
+
+    /**
+     * @return IndustryProjectBomLine[]
+     */
+    private function recomputableJobLinesOf(IndustryProject $project): array
+    {
+        return $project->getBomItems()->filter(
+            static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob() && !$line->hasManualJobMatch(),
+        )->toArray();
     }
 
     /**

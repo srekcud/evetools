@@ -323,6 +323,44 @@ final class IndustryJobMatcherTest extends TestCase
         self::assertSame([$this->mainCharacter->getId(), $this->altCharacter->getId()], $this->jobQueries[0][1]);
     }
 
+    #[Group('issue-1123')]
+    public function testReleasingAProjectRemovesTheAutomaticMatchesOfItsJobLines(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_123_001, 3, '2026-11-02 08:00:00'),
+            $this->job(7_123_002, 2, '2026-11-02 09:00:00'),
+        );
+        $this->matcher->matchEsiJobs($project);
+        self::assertSame([7_123_001, 7_123_002], $this->matchedJobIdsOf($ishtarLine));
+
+        $this->matcher->releaseAutomaticMatches($project);
+
+        self::assertSame([], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame(0, $ishtarLine->getMatchedRuns());
+    }
+
+    #[Group('issue-1123')]
+    public function testReleasingAProjectKeepsEveryMatchOfALineHoldingAManualOneAndReleasesTheOtherLines(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $ramLine = $this->jobLine(self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', self::RAM_COMPONENT_LINE_RUNS, 'manufacturing');
+        $project = $this->project($ishtarLine, $ramLine);
+        $manualJob = $this->job(7_123_011, 3, '2026-11-02 08:00:00');
+        $this->matcher->linkJobToBomLine($manualJob, $ishtarLine);
+        $this->givenJobs(self::RAM_BLUEPRINT_TYPE_ID, $this->job(7_123_012, self::RAM_COMPONENT_LINE_RUNS, '2026-11-02 09:00:00'));
+        $this->matcher->matchEsiJobs($project);
+        self::assertSame([7_123_012], $this->matchedJobIdsOf($ramLine));
+
+        $this->matcher->releaseAutomaticMatches($project);
+
+        self::assertSame([7_123_011], $this->matchedJobIdsOf($ishtarLine));
+        self::assertTrue($ishtarLine->getJobMatches()->first()->isManual());
+        self::assertSame([], $this->matchedJobIdsOf($ramLine));
+    }
+
     private function givenParticipant(IndustryProject $project, ParticipantStatus $status, Character $character): void
     {
         $project->addMember(
