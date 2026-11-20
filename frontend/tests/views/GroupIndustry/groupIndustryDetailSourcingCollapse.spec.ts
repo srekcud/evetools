@@ -113,7 +113,7 @@ describe('project materials tab sourcing blocks', () => {
       materials: wrapper.get(tabSelector('bom')).text(),
       chain: wrapper.get(tabSelector('chain')).text(),
     }).toEqual({
-      materials: expect.stringContaining('Sourcing & jobs'),
+      materials: expect.stringMatching(/^Sourcing(?! & jobs)/),
       chain: 'Production',
     })
   })

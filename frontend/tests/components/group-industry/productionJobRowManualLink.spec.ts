@@ -1,13 +1,8 @@
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { createI18n } from 'vue-i18n'
-import en from '@/i18n/locales/en.json'
-import fr from '@/i18n/locales/fr.json'
-import JobsTable from '@/components/group-industry/JobsTable.vue'
+import { enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { apiRequest } from '@/services/api'
-import { useGroupProjectStore } from '@/stores/group-industry/project'
-import type { BomItem, GroupMemberRole, GroupProject } from '@/stores/group-industry/types'
+import type { BomItem, GroupMemberRole } from '@/stores/group-industry/types'
 import { present } from '../../present'
+import { callsTo, mountProductionJobRows } from '../../productionJobRows'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -119,20 +114,8 @@ const AVAILABLE_JOBS = [
   },
 ]
 
-function projectAs(myRole: GroupMemberRole): GroupProject {
-  return { id: PROJECT_ID, name: 'Ishtar batch', status: 'in_progress', myRole, items: [] } as unknown as GroupProject
-}
-
-function mountJobsTable(myRole: GroupMemberRole): VueWrapper {
-  const projectStore = useGroupProjectStore()
-  projectStore.currentProject = projectAs(myRole)
-  projectStore.bomItems = [ISHTAR_JOB]
-  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
-  return mount(JobsTable, { global: { plugins: [i18n], stubs: { teleport: true } } })
-}
-
-function callsTo(url: string): number {
-  return vi.mocked(apiRequest).mock.calls.filter(([calledUrl]) => calledUrl === url).length
+function mountRows(myRole: GroupMemberRole): Promise<VueWrapper> {
+  return mountProductionJobRows({ lines: [ISHTAR_JOB], projectId: PROJECT_ID, role: myRole, answers: { [AVAILABLE_JOBS_URL]: AVAILABLE_JOBS } })
 }
 
 function rowOf(wrapper: VueWrapper, selector: string, text: string) {
@@ -141,19 +124,15 @@ function rowOf(wrapper: VueWrapper, selector: string, text: string) {
   return present(row)
 }
 
+enableAutoUnmount(afterEach)
+
 beforeEach(() => {
-  setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockImplementation((async (url: string) => {
-    if (url === AVAILABLE_JOBS_URL) return AVAILABLE_JOBS
-    if (url === BOM_URL) return [ISHTAR_JOB]
-    return {}
-  }) as never)
 })
 
-describe('JobsTable manual job link', () => {
+describe('Production job row manual job link', () => {
   it('lists the available jobs of the project, flags the one already linked and links job 9001 to the line', async () => {
-    const wrapper = mountJobsTable('owner')
+    const wrapper = await mountRows('owner')
 
     await wrapper.get(OPEN_LINK_SCREEN).trigger('click')
     await flushPromises()
@@ -171,7 +150,7 @@ describe('JobsTable manual job link', () => {
   })
 
   it('unlinks a job from the line then reloads the BOM, and shows the message of a refused unlink', async () => {
-    const wrapper = mountJobsTable('owner')
+    const wrapper = await mountRows('owner')
 
     await rowOf(wrapper, JOB_MATCH, 'Aria Solberg').get(JOB_MATCH_UNLINK).trigger('click')
     await flushPromises()
@@ -189,16 +168,16 @@ describe('JobsTable manual job link', () => {
     expect(callsTo(BOM_URL)).toBe(1)
   })
 
-  it('offers the link and unlink actions to the owner only', () => {
-    const actionsOf = (myRole: GroupMemberRole) => {
-      const wrapper = mountJobsTable(myRole)
-      return { link: wrapper.findAll(OPEN_LINK_SCREEN).length, unlink: wrapper.findAll(JOB_MATCH_UNLINK).length }
+  it('offers the link and unlink actions to the owner only and keeps the linked jobs visible to everyone', async () => {
+    const actionsOf = async (myRole: GroupMemberRole) => {
+      const wrapper = await mountRows(myRole)
+      return { link: wrapper.findAll(OPEN_LINK_SCREEN).length, unlink: wrapper.findAll(JOB_MATCH_UNLINK).length, linkedJobs: wrapper.findAll(JOB_MATCH).length }
     }
 
-    expect({ owner: actionsOf('owner'), admin: actionsOf('admin'), member: actionsOf('member') }).toEqual({
-      owner: { link: 1, unlink: 2 },
-      admin: { link: 0, unlink: 0 },
-      member: { link: 0, unlink: 0 },
+    expect({ owner: await actionsOf('owner'), admin: await actionsOf('admin'), member: await actionsOf('member') }).toEqual({
+      owner: { link: 1, unlink: 2, linkedJobs: 2 },
+      admin: { link: 0, unlink: 0, linkedJobs: 2 },
+      member: { link: 0, unlink: 0, linkedJobs: 2 },
     })
   })
 })

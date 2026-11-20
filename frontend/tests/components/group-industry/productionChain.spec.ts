@@ -156,11 +156,12 @@ describe('ProductionChain overview', () => {
     const sale = wrapper.get(`[data-testid="chain-node-${SALE_ID}"]`).text()
 
     expect(columns).toEqual({
-      inventionMaterials: [HAMMERHEAD_II_INVENTION_ID, TRITANIUM_ID, HAMMERHEAD_I_COPY_ID, PARTICLE_ACCELERATOR_UNIT_ID],
+      inventionMaterials: [HAMMERHEAD_II_INVENTION_ID, HAMMERHEAD_I_COPY_ID],
       components: [HAMMERHEAD_I_ID],
       product: [HAMMERHEAD_II_ID],
       sale: [SALE_ID],
     })
+    expect(wrapper.get('[data-testid="chain-column-inventionMaterials"]').get('[data-testid="chain-materials-summary"]').text()).toContain('1 / 2 material lines supplied')
     expect(wrapper.get('[data-testid="chain-column-product"]').text()).toContain(label('en', 'flow.product'))
     expect(sale).toContain('5')
     expect(sale).toContain('3.60 M')
@@ -180,13 +181,17 @@ describe('ProductionChain overview', () => {
     expect(scrolledRowIds()).toEqual([`chain-row-${HAMMERHEAD_I_ID}`])
   })
 
-  it('selects and scrolls to nothing when the clicked node of the overview is a material, which the job list does not show', async () => {
+  it('offers no node for a material in the overview, whose job list does not show it either', async () => {
     const wrapper = await mountChain(PRODUCTION_CHAIN)
 
-    await wrapper.get(`[data-testid="chain-node-${TRITANIUM_ID}"]`).trigger('click')
+    const materialNodes = [TRITANIUM_ID, PARTICLE_ACCELERATOR_UNIT_ID].filter(id => wrapper.find(`[data-testid="chain-node-${id}"]`).exists())
+    await openTree(wrapper)
 
-    expect(wrapper.find('[data-testid="chain-tree"]').exists()).toBe(true)
-    expect(wrapper.findAll('[aria-selected="true"]')).toEqual([])
+    expect({
+      materialNodes,
+      materialRows: [TRITANIUM_ID, PARTICLE_ACCELERATOR_UNIT_ID].filter(id => wrapper.find(`[data-testid="chain-row-${id}"]`).exists()),
+      selected: wrapper.findAll('[aria-selected="true"]').length,
+    }).toEqual({ materialNodes: [], materialRows: [], selected: 0 })
     expect(scrollIntoView).not.toHaveBeenCalled()
   })
 })

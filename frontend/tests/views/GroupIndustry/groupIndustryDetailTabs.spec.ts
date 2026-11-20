@@ -1,4 +1,4 @@
-import { enableAutoUnmount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import DistributionTable from '@/components/group-industry/DistributionTable.vue'
@@ -9,8 +9,10 @@ import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import { apiRequest } from '@/services/api'
+import { TEST_LOCALES, type TestLocale } from '../../localeTexts'
 import {
   cockpitOf,
+  tabSelector,
   mountCockpitDetail,
   nextAction,
   nyxProject,
@@ -33,13 +35,17 @@ const COMING_SOON_FRENCH = 'À venir'
 const ACTIVE_TABS = ['bom', 'distribution', 'sales', 'chain', 'planning', 'journal', 'invention']
 const COMING_SOON_TABS: string[] = []
 
-async function mountSellingNyxOn(tab: string | undefined) {
+async function mountSellingNyxOn(tab: string | undefined, locale: TestLocale = 'fr') {
   route.query = tab === undefined ? {} : { tab }
   return mountCockpitDetail({
     project: nyxProject('selling', 'owner'),
     cockpit: cockpitOf('selling', nextAction({ code: 'record_sale', tab: 'sales', quantity: 40 })),
-  }, 'fr')
+  }, locale)
 }
+
+const JOBS_SECTION = '[data-testid="project-jobs-section"]'
+const SOURCING_TAB_LABELS: Record<TestLocale, string> = { en: 'Sourcing', fr: 'Approvisionnement' }
+const PRODUCTION_TAB_LABELS: Record<TestLocale, string> = { en: 'Production', fr: 'Production' }
 
 enableAutoUnmount(afterEach)
 
@@ -125,5 +131,54 @@ describe('project cockpit tabs', () => {
       finances: { financialSummary: true, distributionTable: true, salesTable: false, saleSuggestions: false },
       sales: { salesTable: true, saleSuggestions: true, financialSummary: false, distributionTable: false },
     })
+  })
+})
+
+describe('project cockpit sourcing and production tabs', () => {
+  it.each(TEST_LOCALES)('names the first tab Sourcing without jobs and keeps Production on the chain tab in %s', async (locale) => {
+    const wrapper = await mountSellingNyxOn(undefined, locale)
+
+    const sourcingLabel = wrapper.get(tabSelector('bom')).text()
+    expect({
+      sourcing: sourcingLabel.includes(SOURCING_TAB_LABELS[locale]),
+      mentionsJobs: /jobs/i.test(sourcingLabel),
+      rawKey: sourcingLabel.includes('groupIndustry.tabs'),
+      production: wrapper.get(tabSelector('chain')).text().includes(PRODUCTION_TAB_LABELS[locale]),
+    }).toEqual({ sourcing: true, mentionsJobs: false, rawKey: false, production: true })
+  })
+
+  it('renders no jobs section and no old jobs wording on the sourcing tab', async () => {
+    const wrapper = await mountSellingNyxOn('bom', 'en')
+
+    expect({
+      materialsTable: wrapper.findComponent(BomTable).exists(),
+      productionChain: wrapper.findComponent(ProductionChain).exists(),
+      jobsSection: wrapper.find(JOBS_SECTION).exists(),
+      oldHint: wrapper.text().includes('Jobs below'),
+    }).toEqual({ materialsTable: true, productionChain: false, jobsSection: false, oldHint: false })
+  })
+
+  it('wraps the production chain in the jobs section on the production tab and shows no materials table there', async () => {
+    const wrapper = await mountSellingNyxOn('chain', 'en')
+
+    const section = wrapper.find(JOBS_SECTION)
+    expect({
+      jobsSection: section.exists(),
+      sectionHoldsTheChain: section.exists() && section.element.contains(wrapper.getComponent(ProductionChain).element),
+      materialsTable: wrapper.findComponent(BomTable).exists(),
+    }).toEqual({ jobsSection: true, sectionHoldsTheChain: true, materialsTable: false })
+  })
+
+  it('opens the sourcing tab when the materials card of the production chain asks for it', async () => {
+    const wrapper = await mountSellingNyxOn('chain', 'en')
+
+    wrapper.getComponent(ProductionChain).vm.$emit('open-sourcing')
+    await flushPromises()
+
+    expect({
+      sourcingTabSelected: wrapper.get(tabSelector('bom')).attributes('aria-selected'),
+      materialsTable: wrapper.findComponent(BomTable).exists(),
+      jobsSection: wrapper.find(JOBS_SECTION).exists(),
+    }).toEqual({ sourcingTabSelected: 'true', materialsTable: true, jobsSection: false })
   })
 })
