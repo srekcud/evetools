@@ -3,6 +3,34 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.25 (2026-11-20)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Courrier : le devis de contrat part uniquement de Jita ; les achats faits
+  ailleurs sont listes a part, sans devis
+- Nouvelle carte sous le Courrier : materiaux achetes encore a apporter au
+  conteneur du projet, par origine, avec la quantite manquante
+- Un achat du wallet attendu par plusieurs projets ouverts est lie au plus
+  ancien projet qui en a encore besoin
+- Contributions : badge Wallet sur les materiaux couverts par une
+  transaction du wallet, et filtre "preuve wallet"
+- Le badge ESI indique une valeur lue dans le wallet ou le cout d'un job,
+  et non plus une contribution detectee automatiquement
+- Les badges des colonnes Methode et Statut ne se coupent plus en deux
+- Chaque ligne de la nomenclature affiche les contributions en attente par
+  personnage, aussi dans le compagnon
+- Compagnon : "A attribuer" et "A livrer" separent achats et fabrications ;
+  la barre est elargie pour afficher tous les compteurs
+
+### PVE
+- Revenus : un badge signale un scan des ventes de loot ou des achats de
+  munitions vieux de plus de 7 jours, avec le bouton de scan dans
+  "A corriger"
+- Loot, escalations vendues et depenses affichent la repartition par
+  personnage, pour les lignes enregistrees a partir de cette version
+
+--------------------------------------------------------------------------------
 Version 0.24 (2026-11-18)
 --------------------------------------------------------------------------------
 
