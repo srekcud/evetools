@@ -17,7 +17,6 @@ import { useTabQuery } from '@/composables/useTabQuery'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
 import CollapsibleSourcing from '@/components/group-industry/CollapsibleSourcing.vue'
-import JobsTable from '@/components/group-industry/JobsTable.vue'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
@@ -356,11 +355,13 @@ function actOnNextAction(): void {
     openContributeModal(bomLine)
     return
   }
+  if (action.code === 'launch_job') {
+    activeTab.value = 'chain'
+    void nextTick(() => jobsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    return
+  }
   if (action.tab !== null) {
     activeTab.value = detailTabOfNextAction(action.tab)
-  }
-  if (action.code === 'launch_job') {
-    void nextTick(() => jobsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 }
 
@@ -466,10 +467,7 @@ const totalRuns = computed(() =>
 )
 
 const bomItemCount = computed(() => projectStore.materials.length)
-const jobCount = computed(() => projectStore.jobs.length)
-const materialsCount = computed(() =>
-  `${bomItemCount.value} ${bomItemCount.value === 1 ? 'item' : 'items'} · ${jobCount.value} ${jobCount.value === 1 ? 'job' : 'jobs'}`
-)
+const materialsCount = computed(() => `${bomItemCount.value} ${bomItemCount.value === 1 ? 'item' : 'items'}`)
 const contributionCount = computed(() => project.value?.contributionsCount ?? 0)
 const shareLinkLabel = computed(() => t(isWorkedOnAlone.value ? 'groupIndustry.detail.invite' : 'groupIndustry.detail.shareLink'))
 const memberCount = computed(() => project.value?.membersCount ?? 0)
@@ -649,7 +647,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           <template v-if="project.blacklistGroupIds.length > 0">
             &middot; <span class="text-amber-400/60">{{ project.blacklistGroupIds.length }} categories blacklisted</span>
           </template>
-          &middot; <span class="text-slate-400">Components &amp; BPCs in Jobs below</span>
+          &middot; <span class="text-slate-400">{{ t('groupIndustry.bom.jobsOnProduction') }}</span>
         </p>
 
         <ProjectBlacklistEditor
@@ -709,11 +707,6 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <MaterialSourcing v-if="!sourcingCollapsed" :project-id="projectId" />
 
         <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
-
-        <!-- Jobs Table -->
-        <div ref="jobsSection" data-testid="project-jobs-section">
-          <JobsTable @contribute="openContributeModal" />
-        </div>
       </div>
 
       <!-- Tab Content: Contributions -->
@@ -753,7 +746,17 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
-        <ProductionChain :project-id="projectId" :excludes-invention="project.excludesInvention" :can-mark="isOwner && !isCompleted" :can-match-jobs="isOwner" @marked="refreshGroupProject.cockpit(projectId)" />
+        <div ref="jobsSection" data-testid="project-jobs-section">
+          <ProductionChain
+            :project-id="projectId"
+            :excludes-invention="project.excludesInvention"
+            :can-mark="isOwner && !isCompleted"
+            :can-match-jobs="isOwner"
+            @marked="refreshGroupProject.cockpit(projectId)"
+            @contribute="openContributeModal"
+            @open-sourcing="activeTab = 'bom'"
+          />
+        </div>
         <ProjectBuyOrBuild
           :project-id="projectId"
           :can-switch="isOwnerOrAdmin && !isCompleted"

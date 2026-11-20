@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
@@ -103,6 +104,7 @@ describe('ChainStatusFilter', () => {
 
 describe('job tree status filter', () => {
   function mountTree(statusFilter?: ChainStatus[]) {
+    setActivePinia(createPinia())
     return mount(ProductionChainJobTree, { props: { nodes: NODES, selectedId: null, statusFilter }, global: { plugins: [i18n()] } })
   }
 
