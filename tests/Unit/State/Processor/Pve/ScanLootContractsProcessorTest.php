@@ -130,6 +130,23 @@ class ScanLootContractsProcessorTest extends TestCase
         $this->assertSame(1260000.0, $detected->suggestedPrice);
     }
 
+    #[Group('issue-1080')]
+    public function testDetectedLootContractCarriesTheEveIdOfTheScannedCharacter(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createUserWithCharacter());
+        $this->incomeRepository->method('getImportedContractIds')->willReturn([]);
+        $this->settingsRepository->method('findByUser')->willReturn(null);
+        $this->knowOnlyThirdTierOverseersPersonalEffects();
+        $this->esiClient->method('getPaginated')->willReturn([$this->finishedLootContractAtPrice(600103, 1100000.0)]);
+        $this->esiClient->method('get')->willReturn([
+            ['type_id' => self::THIRD_TIER_OVERSEERS_PERSONAL_EFFECTS, 'quantity' => 11, 'is_included' => true],
+        ]);
+
+        $result = $this->processor->process(null, new Post());
+
+        $this->assertSame([self::EVE_CHARACTER_ID], array_map(static fn ($contract): ?int => $contract->characterId, $result->detectedContracts));
+    }
+
     #[Group('issue-115')]
     public function testLootContractWithOnlyKnownItemsKeepsTheirSdeNames(): void
     {

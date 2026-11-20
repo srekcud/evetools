@@ -23,4 +23,6 @@ class DetectedExpenseResource
     public string $dateIssued = '';
 
     public string $source = '';
+
+    public ?int $characterId = null;
 }

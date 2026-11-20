@@ -91,6 +91,23 @@ class ScanLootSalesProcessorTest extends TestCase
         $this->assertSame('contract', $sale->source);
     }
 
+    #[Group('issue-1080')]
+    public function testDetectedSalesCarryTheEveIdOfTheScannedCharacter(): void
+    {
+        $processor = $this->createProcessor(
+            [$this->marketSale(820003, self::FIFTH_TIER_OVERSEERS_PERSONAL_EFFECTS, 2, 625000.0, new \DateTimeImmutable('-1 day'))],
+            [$this->finishedContractIssued(self::LOOT_SALE_CONTRACT_ID, 3125000.0, new \DateTimeImmutable('-6 days'))],
+            [self::LOOT_SALE_CONTRACT_ID => [['type_id' => self::FIFTH_TIER_OVERSEERS_PERSONAL_EFFECTS, 'quantity' => 4, 'is_included' => true]]],
+        );
+
+        $result = $processor->process(null, new Post());
+
+        $this->assertSame(
+            [self::EVE_CHARACTER_ID, self::EVE_CHARACTER_ID],
+            array_map(static fn ($sale): ?int => $sale->characterId, $result->detectedSales),
+        );
+    }
+
     public function testKnownLootKeepsItsSdeNameInMarketAndContractSales(): void
     {
         $processor = $this->createProcessor(

@@ -506,3 +506,120 @@ describe('usePveExpenseScanning pending corporation project contribution', () =>
     expect(importBodies).toEqual([{ sales: [], declined: [{ transactionId: 8200017 }] }])
   })
 })
+
+describe('usePveExpenseScanning character attribution', () => {
+  it('sends the scanned character when importing a market loot sale', async () => {
+    const importBodies = respondToScanAndImport([{ ...MARKET_LOOT_SALE, characterId: 2112000002 }], { imported: 1, rejectedZeroPrice: 0, rejectedContributions: 0 })
+    const scanning = mountScanning()
+    await scanning.scanLootSales(30)
+
+    await scanning.importSingleLootSale(present(present(scanning.lootScanResults.value).detectedSales[0]))
+
+    expect(importBodies).toEqual([{
+      sales: [{
+        type: 'loot_sale',
+        typeId: 60459,
+        typeName: '12x Rogue Drone Infestation Data',
+        quantity: 12,
+        price: 4560000,
+        dateIssued: '2026-10-25',
+        transactionId: 8200017,
+        characterId: 2112000002,
+      }],
+      declined: [],
+    }])
+  })
+
+  it('sends the scanned character when importing a loot contract', async () => {
+    const contractBodies: unknown[] = []
+    vi.mocked(authFetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/pve/scan-loot-sales')) return jsonResponse(lootSalesScan({}))
+      if (url.startsWith('/api/pve/scan-loot-contracts')) {
+        return jsonResponse({
+          scannedContracts: 1,
+          detectedContracts: [{
+            contractId: 214748901,
+            description: '12x Rogue Drone Infestation Data',
+            items: [{ typeId: 60459, typeName: 'Rogue Drone Infestation Data', quantity: 12 }],
+            totalQuantity: 12,
+            contractPrice: 4560000,
+            suggestedPrice: 4400000,
+            date: '2026-10-25',
+            characterName: 'Pilot Two',
+            characterId: 2112000002,
+          }],
+        })
+      }
+      if (url === '/api/pve/import-loot-contracts') {
+        contractBodies.push(JSON.parse(String(init?.body)))
+        return jsonResponse({ imported: 1, rejectedZeroPrice: 0 })
+      }
+      throw new Error(`Unexpected request ${url}`)
+    })
+    const scanning = mountScanning()
+    await scanning.scanLootSales(30)
+
+    await scanning.importSingleLootSale(present(present(scanning.lootScanResults.value).detectedSales[0]))
+
+    expect(contractBodies).toEqual([{
+      contracts: [{
+        contractId: 214748901,
+        price: 4560000,
+        description: '12x Rogue Drone Infestation Data',
+        date: '2026-10-25',
+        characterId: 2112000002,
+      }],
+      declined: [],
+    }])
+  })
+
+  it('sends the scanned character when importing the selected expenses', async () => {
+    const expenseBodies: unknown[] = []
+    vi.mocked(authFetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/pve/scan-contracts')) {
+        return jsonResponse({
+          scannedContracts: 0,
+          scannedTransactions: 1,
+          detectedExpenses: [{
+            contractId: 0,
+            transactionId: 810001,
+            type: 'ammo',
+            typeId: 2629,
+            typeName: '500x Scourge Heavy Missile',
+            quantity: 500,
+            price: 5170,
+            dateIssued: '2026-11-15',
+            source: 'market',
+            characterId: 2112000002,
+          }],
+        })
+      }
+      if (url === '/api/pve/import-expenses') {
+        expenseBodies.push(JSON.parse(String(init?.body)))
+        return jsonResponse({ imported: 1 })
+      }
+      throw new Error(`Unexpected request ${url}`)
+    })
+    const scanning = mountScanning()
+    await scanning.scanContracts(30)
+
+    await scanning.importSelectedExpenses()
+
+    expect(expenseBodies).toEqual([{
+      expenses: [{
+        type: 'ammo',
+        typeId: 2629,
+        typeName: '500x Scourge Heavy Missile',
+        quantity: 500,
+        price: 5170,
+        dateIssued: '2026-11-15',
+        contractId: 0,
+        transactionId: 810001,
+        characterId: 2112000002,
+      }],
+      declined: [],
+    }])
+  })
+})

@@ -159,6 +159,39 @@ final class PveSyncServiceCharacterizationTest extends TestCase
         ], $this->persistedIncomeRows());
     }
 
+    #[Group('issue-1080')]
+    public function testEveryImportedLineCarriesTheEveIdOfTheCharacterItWasReadFrom(): void
+    {
+        $settings = $this->settingsWithLootTypes([self::OPE_TIER_4, self::OPE_TIER_6]);
+        $settings->setAmmoTypeIds([self::EMP_AMMO]);
+        $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);
+        $this->incomeRepository->method('getImportedTransactionIds')->willReturn([]);
+        $this->incomeRepository->method('getImportedContractIds')->willReturn([]);
+        $this->expenseRepository->method('getImportedTransactionIds')->willReturn([]);
+        $this->respondWith(
+            [
+                self::JOURNAL_ENDPOINT => [['id' => 7300001, 'ref_type' => 'bounty_prizes', 'amount' => 1_000_000.0, 'date' => self::daysAgo(1)]],
+                self::TRANSACTIONS_ENDPOINT => [
+                    self::transaction(8400001, self::OPE_TIER_4, false, 2, 1_000_000.0, self::daysAgo(1)),
+                    self::transaction(8400002, self::EMP_AMMO, true, 100, 110.0, self::daysAgo(1)),
+                ],
+                self::CONTRACTS_ENDPOINT => [self::lootContract(9500001, 21_000_000.0, self::daysAgo(1))],
+            ],
+            [9500001 => [['type_id' => self::OPE_TIER_6, 'quantity' => 3, 'is_included' => true]]],
+        );
+
+        $this->service->syncWalletJournal($this->user);
+        $this->service->syncLootSalesFromTransactions($this->user);
+        $this->service->syncLootFromContracts($this->user);
+        $this->service->syncExpensesFromTransactions($this->user);
+
+        $this->assertCount(4, $this->persisted);
+        $this->assertSame(
+            array_fill(0, 4, self::CHARACTER_ID),
+            array_map(static fn (object $line): ?int => $line->getCharacterId(), $this->persisted),
+        );
+    }
+
     public function testWalletJournalWithoutPveEntryPersistsAndFlushesNothing(): void
     {
         $this->incomeRepository->method('getImportedJournalEntryIds')->willReturn([]);

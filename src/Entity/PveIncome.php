@@ -52,6 +52,9 @@ class PveIncome
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $contractId = null;
 
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $characterId = null;
+
     #[ORM\Column(type: 'string', length: 36, nullable: true)]
     private ?string $corpProjectId = null;
 
@@ -166,6 +169,17 @@ class PveIncome
     public function setContractId(?int $contractId): static
     {
         $this->contractId = $contractId;
+        return $this;
+    }
+
+    public function getCharacterId(): ?int
+    {
+        return $this->characterId;
+    }
+
+    public function setCharacterId(?int $characterId): static
+    {
+        $this->characterId = $characterId;
         return $this;
     }
 

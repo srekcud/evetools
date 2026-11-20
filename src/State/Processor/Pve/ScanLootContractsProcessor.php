@@ -157,6 +157,7 @@ class ScanLootContractsProcessor implements ProcessorInterface
                     $detected->suggestedPrice = $contractPrice > 0 ? $contractPrice : $totalQuantity * $defaultPricePerItem;
                     $detected->date = $completedDate->format('Y-m-d');
                     $detected->characterName = $character->getName();
+                    $detected->characterId = $characterId;
 
                     $detectedContracts[] = $detected;
                 }

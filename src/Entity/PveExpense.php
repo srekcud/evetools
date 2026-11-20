@@ -52,6 +52,9 @@ class PveExpense
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $transactionId = null;
 
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $characterId = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -145,4 +148,14 @@ class PveExpense
         return $this;
     }
 
+    public function getCharacterId(): ?int
+    {
+        return $this->characterId;
+    }
+
+    public function setCharacterId(?int $characterId): static
+    {
+        $this->characterId = $characterId;
+        return $this;
+    }
 }

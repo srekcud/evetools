@@ -48,6 +48,18 @@ final class EscalationIncomeSynchronizerTest extends IntegrationTestCase
         self::assertSame($escalation->getId()?->toRfc4122(), $incomes[0]->getEscalation()?->getId()?->toRfc4122());
     }
 
+    #[Group('issue-1080')]
+    public function testSoldEscalationIncomeCarriesTheCharacterWhoSoldIt(): void
+    {
+        $escalation = $this->soldEscalation(100_000_000);
+        $this->em->flush();
+
+        $this->synchronizer->synchronize($escalation);
+        $this->flushAndClear();
+
+        self::assertSame([2_112_533_001], array_map(static fn (PveIncome $income): ?int => $income->getCharacterId(), $this->escalationIncomes()));
+    }
+
     public function testChangingThePriceOfASoldEscalationUpdatesTheSameIncomeAndKeepsItsDate(): void
     {
         $escalation = $this->soldEscalation(100_000_000);
