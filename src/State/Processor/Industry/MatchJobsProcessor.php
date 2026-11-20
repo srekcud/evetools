@@ -98,7 +98,11 @@ class MatchJobsProcessor implements ProcessorInterface
             $project = $this->projectRepository->find($projectId) ?? throw new NotFoundHttpException('Project not found');
         }
 
-        $lineFailures = $this->jobMatcher->matchEsiJobs($project);
+        $openProjects = $this->projectRepository->findOpenOfAcceptedParticipant($user);
+        if (!\in_array($project, $openProjects, true)) {
+            $openProjects[] = $project;
+        }
+        $lineFailures = $this->jobMatcher->matchEsiJobs($project, $this->jobMatcher->contestedJobIds($openProjects));
         $this->jobActivityRecorder->recordJobsOf($project);
 
         foreach ($project->getBomItems() as $line) {
