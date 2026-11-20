@@ -97,6 +97,13 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     }
   }
 
+  async function approveContributions(projectId: string, ids: string[]): Promise<void> {
+    for (const id of ids) {
+      await approveContribution(projectId, id)
+      if (error.value !== null) return
+    }
+  }
+
   async function rejectContribution(projectId: string, id: string): Promise<void> {
     error.value = null
     try {
@@ -186,6 +193,7 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     fetchMaterialValuePreview,
     valueContributionAtJitaPrice,
     approveContribution,
+    approveContributions,
     rejectContribution,
     reopenContribution,
     editContribution,
