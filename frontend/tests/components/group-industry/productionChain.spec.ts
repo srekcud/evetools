@@ -526,7 +526,7 @@ describe('ProductionChain end of a copy job', () => {
     ...overrides,
   })
 
-  it('shows the planned duration of a copy without linked job with its copier as title, and nothing on an invention without job', async () => {
+  it('shows the planned duration of a copy without linked job with its copier as title, and only the not-seen-yet hint on an invention without job', async () => {
     const wrapper = await mountChain([
       copyWith(COPY_WITHOUT_JOB_ID, { plannedCopyDuration: { seconds: 31_873, missingData: [], characterName: 'Aurelie Vanth' } }),
       chainNode({ ...HAMMERHEAD_II_INVENTION, jobs: [] }),
@@ -539,7 +539,7 @@ describe('ProductionChain end of a copy job', () => {
     expect(planned.text()).toContain('8h 51m')
     expect(planned.attributes('title')).toContain('Aurelie Vanth')
     expect(planned.text()).toBe(label('en', 'plannedCopyDuration.planned').replace('{duration}', '8h 51m'))
-    expect(cell(wrapper, HAMMERHEAD_II_INVENTION_ID, 'end').text()).toBe('')
+    expect(cell(wrapper, HAMMERHEAD_II_INVENTION_ID, 'end').text()).toBe(label('en', 'jobNotSeenHint'))
   })
 
   it('shows an unknown planned duration with its own cause on each copy, never a zero duration', async () => {

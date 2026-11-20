@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ChainStatus } from '@/stores/group-industry/types'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { useGroupT2BlueprintsToProvideStore } from '@/stores/group-industry/t2BlueprintsToProvide'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useSlotsStore } from '@/stores/industry/slots'
 import { useSyncStore } from '@/stores/sync'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useFormatters } from '@/composables/useFormatters'
@@ -22,19 +24,46 @@ const VIEWS: readonly ChainView[] = ['flow', 'tree']
 const props = defineProps<{
   projectId: string
   canMark?: boolean
+  canMatchJobs?: boolean
   excludesInvention?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   marked: []
 }>()
 
 const { t } = useI18n()
-const { formatNumber } = useFormatters()
+const { formatNumber, formatTimeSince } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const syncStore = useSyncStore()
 const chainStore = useGroupChainStore()
 const toProvideStore = useGroupT2BlueprintsToProvideStore()
+const projectStore = useGroupProjectStore()
+const slotsStore = useSlotsStore()
+
+const isMatchingJobs = ref(false)
+const matchJobsError = ref<string | null>(null)
+
+const jobsSyncLabel = computed(() => {
+  const jobsSyncedAt = slotsStore.data?.jobsSyncedAt ?? null
+  return jobsSyncedAt === null
+    ? t('groupIndustry.chain.jobsSync.unknown')
+    : t('groupIndustry.chain.jobsSync.syncedAgo', { since: formatTimeSince(jobsSyncedAt) })
+})
+
+async function matchJobs(): Promise<void> {
+  isMatchingJobs.value = true
+  matchJobsError.value = null
+  try {
+    await projectStore.matchJobs(props.projectId)
+    await Promise.all([chainStore.fetchChain(props.projectId), slotsStore.fetchSlots()])
+    emit('marked')
+  } catch (e) {
+    matchJobsError.value = e instanceof Error ? e.message : t('groupIndustry.jobs.matchError')
+  } finally {
+    isMatchingJobs.value = false
+  }
+}
 
 const view = ref<ChainView>('flow')
 const selectedNodeId = ref<string | null>(null)
@@ -53,6 +82,7 @@ function showView(next: ChainView): void {
 
 watch(() => props.projectId, projectId => {
   chainStore.fetchChain(projectId)
+  slotsStore.fetchSlots()
   toProvideStore.fetchToProvide(projectId)
 }, { immediate: true })
 
@@ -74,6 +104,7 @@ watch(
   (progress) => {
     if (progress?.data?.projectId !== props.projectId) return
     chainStore.fetchChain(props.projectId)
+    slotsStore.fetchSlots()
     toProvideStore.fetchToProvide(props.projectId)
   },
 )
@@ -85,19 +116,37 @@ watch(
       <h2 class="font-display text-sm font-semibold uppercase tracking-widest text-cyan-400">
         {{ t('groupIndustry.chain.title') }}
       </h2>
-      <div class="inline-flex rounded border border-slate-700 overflow-hidden" role="group">
+      <div class="flex flex-wrap items-center gap-3">
+        <span data-testid="chain-jobs-synced-at" class="text-xs text-slate-500">{{ jobsSyncLabel }}</span>
         <button
-          v-for="candidate in VIEWS"
-          :key="candidate"
+          v-if="canMatchJobs === true"
           type="button"
-          :data-testid="`chain-view-${candidate}`"
-          :aria-pressed="view === candidate"
-          class="px-3 py-1.5 text-xs uppercase tracking-wider transition-colors"
-          :class="view === candidate ? 'bg-cyan-500/15 text-cyan-300' : 'text-slate-400 hover:bg-slate-800'"
-          @click="showView(candidate)"
-        >{{ t(`groupIndustry.chain.views.${candidate}`) }}</button>
+          data-testid="chain-match-jobs"
+          class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-xs font-medium transition-colors disabled:opacity-50"
+          :disabled="isMatchingJobs"
+          @click="matchJobs"
+        >{{ t('groupIndustry.jobs.matchJobs') }}</button>
+        <div class="inline-flex rounded border border-slate-700 overflow-hidden" role="group">
+          <button
+            v-for="candidate in VIEWS"
+            :key="candidate"
+            type="button"
+            :data-testid="`chain-view-${candidate}`"
+            :aria-pressed="view === candidate"
+            class="px-3 py-1.5 text-xs uppercase tracking-wider transition-colors"
+            :class="view === candidate ? 'bg-cyan-500/15 text-cyan-300' : 'text-slate-400 hover:bg-slate-800'"
+            @click="showView(candidate)"
+          >{{ t(`groupIndustry.chain.views.${candidate}`) }}</button>
+        </div>
       </div>
     </header>
+
+    <p
+      v-if="matchJobsError !== null"
+      data-testid="chain-match-jobs-error"
+      role="alert"
+      class="mx-4 mt-3 text-sm text-red-400"
+    >{{ matchJobsError }}</p>
 
     <p
       v-if="chainStore.loading && chainStore.nodes.length === 0"
