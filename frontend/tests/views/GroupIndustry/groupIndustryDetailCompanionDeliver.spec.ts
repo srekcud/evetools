@@ -25,7 +25,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const NOCXIUM_LINE_ID = 'bom-nocxium'
 
 async function mountContributing(contribute: string) {
-  route.query = { tab: 'bom', contribute }
+  route.query = { tab: 'chain', contribute }
   return mountCockpitDetail({
     project: nyxProject('in_progress', 'member'),
     bom: [bomLine({ id: NOCXIUM_LINE_ID, typeId: 38, typeName: 'Nocxium', freeQuantity: 80 })],
@@ -41,7 +41,7 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
 })
 
-describe('project detail opened from the companion deliver action', () => {
+describe('project detail opened from the companion deliver action on the production tab', () => {
   it('opens the contribution modal prefilled on the line of the contribute query and opens nothing for an unknown line', async () => {
     const known = await mountContributing(NOCXIUM_LINE_ID)
     const knownModal = known.findComponent(ContributeModal)

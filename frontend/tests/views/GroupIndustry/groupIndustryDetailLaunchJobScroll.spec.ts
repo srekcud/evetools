@@ -1,6 +1,6 @@
 import { enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import JobsTable from '@/components/group-industry/JobsTable.vue'
+import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import { apiRequest } from '@/services/api'
 import {
@@ -51,22 +51,26 @@ beforeEach(() => {
 })
 
 describe('project cockpit launch job action', () => {
-  it('scrolls the jobs table into view when the materials tab is already open', async () => {
+  it('opens the production tab and scrolls to the jobs section around the production chain when the sourcing tab is open', async () => {
     const wrapper = await mountCockpitDetail({
       project: nyxProject('in_progress'),
       cockpit: cockpitOf('in_progress', LAUNCH_NYX_COPY),
     })
+    const sectionBefore = wrapper.find(JOBS_SECTION).exists()
 
     await clickNextActionButton(wrapper)
 
-    const section = wrapper.get(JOBS_SECTION).element
+    const section = wrapper.find(JOBS_SECTION)
+    const productionChain = wrapper.findComponent(ProductionChain)
     expect({
+      sectionBefore,
+      chainTabSelected: wrapper.get(tabSelector('chain')).attributes('aria-selected'),
       scrolled: scrolledElements(),
-      containsJobsTable: section.contains(wrapper.getComponent(JobsTable).element),
-    }).toEqual({ scrolled: [section], containsJobsTable: true })
+      containsProductionChain: section.exists() && productionChain.exists() && section.element.contains(productionChain.element),
+    }).toEqual({ sectionBefore: false, chainTabSelected: 'true', scrolled: [section.element], containsProductionChain: true })
   })
 
-  it('goes back to the materials tab and scrolls to the jobs table when another tab is open', async () => {
+  it('goes to the production tab and scrolls to the jobs section when another tab is open', async () => {
     const wrapper = await mountCockpitDetail({
       project: nyxProject('in_progress'),
       cockpit: cockpitOf('in_progress', LAUNCH_NYX_COPY),
@@ -80,8 +84,24 @@ describe('project cockpit launch job action', () => {
     expect({
       salesBefore,
       salesAfter: wrapper.findComponent(SalesTable).exists(),
+      chainTabSelected: wrapper.get(tabSelector('chain')).attributes('aria-selected'),
       scrolled: scrolledElements(),
-    }).toEqual({ salesBefore: true, salesAfter: false, scrolled: [wrapper.get(JOBS_SECTION).element] })
+    }).toEqual({ salesBefore: true, salesAfter: false, chainTabSelected: 'true', scrolled: [wrapper.find(JOBS_SECTION).element] })
+  })
+
+  it('scrolls once more to the jobs section when the production tab is already open', async () => {
+    route.query = { tab: 'chain' }
+    const wrapper = await mountCockpitDetail({
+      project: nyxProject('in_progress'),
+      cockpit: cockpitOf('in_progress', LAUNCH_NYX_COPY),
+    })
+
+    await clickNextActionButton(wrapper)
+
+    expect({
+      chainTabSelected: wrapper.get(tabSelector('chain')).attributes('aria-selected'),
+      scrolled: scrolledElements(),
+    }).toEqual({ chainTabSelected: 'true', scrolled: [wrapper.find(JOBS_SECTION).element] })
   })
 
   it('does not scroll for an action that points to another tab', async () => {

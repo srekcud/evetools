@@ -1,12 +1,18 @@
-import { mount } from '@vue/test-utils'
+import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
-import JobsTable from '@/components/group-industry/JobsTable.vue'
+import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem, ContainerVerification, ContainerVerificationStatus, GroupProject } from '@/stores/group-industry/types'
+import { mountProductionJobRows } from '../../productionJobRows'
+
+vi.mock(import('@/services/api'), async importOriginal => ({
+  ...(await importOriginal()),
+  apiRequest: vi.fn(),
+}))
 
 const PROJECT_ID = 'project-fernite-run'
 const CONTAINER_STATUS = '[data-testid="container-line-status"]'
@@ -64,6 +70,14 @@ function i18n() {
   return createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
 }
 
+function productionRows(verifications: ContainerVerification[]) {
+  return mountProductionJobRows({
+    lines: [jobLine(FUEL_BLOCK), jobLine(FERNITE)],
+    projectId: PROJECT_ID,
+    containerVerification: verifications,
+  })
+}
+
 function prepareStore(verifications: ContainerVerification[]) {
   setActivePinia(createPinia())
   const projectStore = useGroupProjectStore()
@@ -72,29 +86,33 @@ function prepareStore(verifications: ContainerVerification[]) {
   projectStore.containerVerification = verifications
 }
 
-describe('Container check of the intermediates', () => {
-  it('shows the state of the container on a component job line', () => {
-    prepareStore([verification(FUEL_BLOCK, 'partial', 30)])
+function statusTexts(wrapper: VueWrapper): string[] {
+  return wrapper.findAll(CONTAINER_STATUS).map(status => status.text())
+}
 
-    const statuses = mount(JobsTable, { global: { plugins: [i18n()] } }).findAll(CONTAINER_STATUS).map(status => status.text())
+enableAutoUnmount(afterEach)
+
+beforeEach(() => {
+  vi.mocked(apiRequest).mockReset()
+})
+
+describe('Container check of the intermediates', () => {
+  it('shows the state of the container on a component job row', async () => {
+    const statuses = statusTexts(await productionRows([verification(FUEL_BLOCK, 'partial', 30)]))
 
     expect(statuses).toEqual(['Partly in container: 30 / 80'])
   })
 
-  it('shows an in-container and a missing intermediate with their own wording', () => {
-    prepareStore([verification(FUEL_BLOCK, 'missing', 0)])
-    const missing = mount(JobsTable, { global: { plugins: [i18n()] } }).findAll(CONTAINER_STATUS).map(status => status.text())
-    prepareStore([verification(FUEL_BLOCK, 'verified', 80)])
-    const verified = mount(JobsTable, { global: { plugins: [i18n()] } }).findAll(CONTAINER_STATUS).map(status => status.text())
+  it('shows an in-container and a missing intermediate with their own wording', async () => {
+    const missing = statusTexts(await productionRows([verification(FUEL_BLOCK, 'missing', 0)]))
+    const verified = statusTexts(await productionRows([verification(FUEL_BLOCK, 'verified', 80)]))
 
     expect([missing, verified]).toEqual([['Missing from container'], ['In container: 80 / 80']])
   })
 
-  it('shows no container state on a final job line or when nothing was verified', () => {
-    prepareStore([verification(FERNITE, 'missing', 0)])
-    const withFinalOnly = mount(JobsTable, { global: { plugins: [i18n()] } }).findAll(CONTAINER_STATUS)
-    prepareStore([])
-    const withoutVerification = mount(JobsTable, { global: { plugins: [i18n()] } }).findAll(CONTAINER_STATUS)
+  it('shows no container state on a final job row or when nothing was verified', async () => {
+    const withFinalOnly = statusTexts(await productionRows([verification(FERNITE, 'missing', 0)]))
+    const withoutVerification = statusTexts(await productionRows([]))
 
     expect([withFinalOnly.length, withoutVerification.length]).toEqual([0, 0])
   })

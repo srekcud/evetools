@@ -20,6 +20,7 @@ import {
   nyxProject,
   route,
   sentPatchBodies,
+  tabSelector,
   textOf,
 } from './projectCockpitFixtures'
 
@@ -181,6 +182,37 @@ describe('project cockpit next action card', () => {
       beforeClick: false,
       afterClick: true,
       prefilled: morphiteLine,
+    })
+  })
+
+  it('opens the production tab for a job to launch and the sourcing tab for a material that is not in the BOM', async () => {
+    const launching = await mountCockpitDetail({
+      project: nyxProject('in_progress'),
+      cockpit: cockpitOf('in_progress', LAUNCH_NYX_COPY),
+    })
+    const launchingBefore = launching.get(tabSelector('bom')).attributes('aria-selected')
+    await clickNextActionButton(launching)
+    const launchingAfter = { chain: launching.get(tabSelector('chain')).attributes('aria-selected'), bom: launching.get(tabSelector('bom')).attributes('aria-selected') }
+    launching.unmount()
+
+    route.query = { tab: 'chain' }
+    const sourcing = await mountCockpitDetail({
+      project: nyxProject('in_progress'),
+      cockpit: cockpitOf('in_progress', SOURCE_MORPHITE),
+    })
+    const sourcingBefore = sourcing.get(tabSelector('chain')).attributes('aria-selected')
+    await clickNextActionButton(sourcing)
+
+    expect({
+      launchingBefore,
+      launchingAfter,
+      sourcingBefore,
+      sourcingAfter: { chain: sourcing.get(tabSelector('chain')).attributes('aria-selected'), bom: sourcing.get(tabSelector('bom')).attributes('aria-selected') },
+    }).toEqual({
+      launchingBefore: 'true',
+      launchingAfter: { chain: 'true', bom: 'false' },
+      sourcingBefore: 'true',
+      sourcingAfter: { chain: 'false', bom: 'true' },
     })
   })
 })

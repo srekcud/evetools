@@ -1,14 +1,14 @@
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import BomTable from '@/components/group-industry/BomTable.vue'
-import JobsTable from '@/components/group-industry/JobsTable.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem, GroupMemberRole, GroupProject, ProjectPurchase } from '@/stores/group-industry/types'
 import { present } from '../../present'
+import { callsTo, mountProductionJobRows } from '../../productionJobRows'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -151,16 +151,17 @@ function projectAs(myRole: GroupMemberRole): GroupProject {
   return { id: PROJECT_ID, name: 'Titan batch', status: 'in_progress', myRole, items: [] } as unknown as GroupProject
 }
 
-function mountComponent(component: typeof JobsTable | typeof BomTable, myRole: GroupMemberRole, lines: BomItem[]): VueWrapper {
+function mountBomTable(myRole: GroupMemberRole, lines: BomItem[]): VueWrapper {
+  setActivePinia(createPinia())
   const projectStore = useGroupProjectStore()
   projectStore.currentProject = projectAs(myRole)
   projectStore.bomItems = lines
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
-  return mount(component, { global: { plugins: [i18n], stubs: { teleport: true } } })
+  return mount(BomTable, { global: { plugins: [i18n], stubs: { teleport: true } } })
 }
 
-function callsTo(url: string): number {
-  return vi.mocked(apiRequest).mock.calls.filter(([calledUrl]) => calledUrl === url).length
+function mountRows(myRole: GroupMemberRole, lines: BomItem[]): Promise<VueWrapper> {
+  return mountProductionJobRows({ lines, projectId: PROJECT_ID, role: myRole, answers: { [SUGGESTIONS_URL]: SUGGESTIONS } })
 }
 
 function sentBody(url: string): unknown {
@@ -174,19 +175,15 @@ async function openPurchases(wrapper: VueWrapper) {
   await flushPromises()
 }
 
+enableAutoUnmount(afterEach)
+
 beforeEach(() => {
-  setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockImplementation((async (url: string) => {
-    if (url === SUGGESTIONS_URL) return SUGGESTIONS
-    if (url === BOM_URL) return [CAPITAL_ARMOR_PLATES]
-    return {}
-  }) as never)
 })
 
-describe('Component line purchases', () => {
+describe('Production job row purchases', () => {
   it('suggests the transactions of the line type, flags the one already linked and links the chosen transaction', async () => {
-    const wrapper = mountComponent(JobsTable, 'owner', [CAPITAL_ARMOR_PLATES])
+    const wrapper = await mountRows('owner', [CAPITAL_ARMOR_PLATES])
 
     await openPurchases(wrapper)
 
@@ -206,7 +203,7 @@ describe('Component line purchases', () => {
   })
 
   it('records a manual purchase of the line type with its quantity and unit price, and shows the message of a refused one', async () => {
-    const wrapper = mountComponent(JobsTable, 'owner', [CAPITAL_ARMOR_PLATES])
+    const wrapper = await mountRows('owner', [CAPITAL_ARMOR_PLATES])
     await openPurchases(wrapper)
 
     await wrapper.get(MANUAL_QUANTITY).setValue('15')
@@ -230,7 +227,7 @@ describe('Component line purchases', () => {
   })
 
   it('deletes a purchase of the line then reloads the BOM', async () => {
-    const wrapper = mountComponent(JobsTable, 'owner', [CAPITAL_ARMOR_PLATES])
+    const wrapper = await mountRows('owner', [CAPITAL_ARMOR_PLATES])
 
     expect(wrapper.findAll(PURCHASE)).toHaveLength(2)
     await wrapper.findAll(PURCHASE)[1].get(PURCHASE_DELETE).trigger('click')
@@ -240,19 +237,19 @@ describe('Component line purchases', () => {
     expect(callsTo(BOM_URL)).toBe(1)
   })
 
-  it('offers the purchase screen to every participant and the deletion of a purchase to the owner or to its buyer only, on component lines and on material lines', () => {
-    const actionsOf = (myRole: GroupMemberRole) => {
-      const components = mountComponent(JobsTable, myRole, [CAPITAL_ARMOR_PLATES])
-      const materials = mountComponent(BomTable, myRole, [PYERITE])
+  it('offers the purchase screen to every participant and the deletion of a purchase to the owner or to its buyer only, on component lines and on material lines', async () => {
+    const actionsOf = async (myRole: GroupMemberRole) => {
+      const components = await mountRows(myRole, [CAPITAL_ARMOR_PLATES])
+      const componentActions = { componentOpen: components.findAll(OPEN_PURCHASES).length, componentDelete: components.findAll(PURCHASE_DELETE).length }
+      const materials = mountBomTable(myRole, [PYERITE])
       return {
-        componentOpen: components.findAll(OPEN_PURCHASES).length,
-        componentDelete: components.findAll(PURCHASE_DELETE).length,
+        ...componentActions,
         materialOpen: materials.findAll(OPEN_PURCHASES).length,
         materialDelete: materials.findAll(PURCHASE_DELETE).length,
       }
     }
 
-    expect({ owner: actionsOf('owner'), admin: actionsOf('admin'), member: actionsOf('member') }).toEqual({
+    expect({ owner: await actionsOf('owner'), admin: await actionsOf('admin'), member: await actionsOf('member') }).toEqual({
       owner: { componentOpen: 1, componentDelete: 2, materialOpen: 1, materialDelete: 1 },
       admin: { componentOpen: 1, componentDelete: 0, materialOpen: 1, materialDelete: 0 },
       member: { componentOpen: 1, componentDelete: 0, materialOpen: 1, materialDelete: 0 },
