@@ -9,6 +9,8 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Service\Industry\Project\ChainManufacturingLevels;
 use App\Service\Industry\Project\ChainMaterialSupply;
+use App\Service\Industry\Project\ContainerStockState;
+use App\Service\Industry\Project\ProjectLineFulfillments;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -234,6 +236,95 @@ final class ChainMaterialSupplyTest extends TestCase
         self::assertNull($supply->firstConsumerLevel(self::ZULU_PART));
     }
 
+    #[Group('issue-1109')]
+    public function testJobIsSuppliedWhenTheContainerStockCoversTheRemainingOfItsMaterial(): void
+    {
+        $component = $this->jobLine(self::COMPONENT, 'Component', 'component', null);
+        $tritanium = $this->materialLine(self::TRITANIUM, 'Tritanium', 100, 30);
+
+        $supply = $this->supplyOf([$component, $tritanium], [self::lineId($component) => [self::TRITANIUM => 100]], new ProjectLineFulfillments(ContainerStockState::Known, [self::TRITANIUM => 100]));
+
+        self::assertTrue($supply->isSupplied(self::lineId($component)));
+    }
+
+    #[Group('issue-1109')]
+    public function testJobIsNotSuppliedWhenTheContainerStockLeavesOneUnitMissing(): void
+    {
+        $component = $this->jobLine(self::COMPONENT, 'Component', 'component', null);
+        $tritanium = $this->materialLine(self::TRITANIUM, 'Tritanium', 100, 30);
+
+        $supply = $this->supplyOf([$component, $tritanium], [self::lineId($component) => [self::TRITANIUM => 100]], new ProjectLineFulfillments(ContainerStockState::Known, [self::TRITANIUM => 99]));
+
+        self::assertFalse($supply->isSupplied(self::lineId($component)));
+    }
+
+    #[Group('issue-1109')]
+    public function testContainerStockIsSharedBetweenJobsInTheOrderOfTheAllocation(): void
+    {
+        $reaction = $this->jobLine(self::REACTION, 'Reaction', 'component', self::COMPONENT, activityType: 'reaction');
+        $component = $this->jobLine(self::COMPONENT, 'Component', 'component', null);
+        $tritanium = $this->materialLine(self::TRITANIUM, 'Tritanium', 200, 0);
+
+        $supply = $this->supplyOf(
+            [$component, $reaction, $tritanium],
+            [self::lineId($reaction) => [self::TRITANIUM => 100], self::lineId($component) => [self::TRITANIUM => 100]],
+            new ProjectLineFulfillments(ContainerStockState::Known, [self::TRITANIUM => 150]),
+        );
+
+        self::assertSame([true, false], [$supply->isSupplied(self::lineId($reaction)), $supply->isSupplied(self::lineId($component))]);
+    }
+
+    #[Group('issue-1109')]
+    public function testUnreadableContainerStockLeavesAJobShortOfThatMaterialUnknown(): void
+    {
+        $component = $this->jobLine(self::COMPONENT, 'Component', 'component', null);
+        $tritanium = $this->materialLine(self::TRITANIUM, 'Tritanium', 100, 40);
+
+        $supply = $this->supplyOf([$component, $tritanium], [self::lineId($component) => [self::TRITANIUM => 100]], new ProjectLineFulfillments(ContainerStockState::Unknown));
+
+        self::assertNull($supply->isSupplied(self::lineId($component)));
+    }
+
+    #[Group('issue-1109')]
+    public function testUnreadableContainerStockStillSuppliesAJobWhoseMaterialIsFulfilled(): void
+    {
+        $component = $this->jobLine(self::COMPONENT, 'Component', 'component', null);
+        $tritanium = $this->materialLine(self::TRITANIUM, 'Tritanium', 100, 100);
+
+        $supply = $this->supplyOf([$component, $tritanium], [self::lineId($component) => [self::TRITANIUM => 100]], new ProjectLineFulfillments(ContainerStockState::Unknown));
+
+        self::assertTrue($supply->isSupplied(self::lineId($component)));
+    }
+
+    #[Group('issue-1109')]
+    public function testJobShortOfAComponentIsNotSuppliedEvenWhenItsOtherMaterialIsUnreadable(): void
+    {
+        $reaction = $this->jobLine(self::REACTION, 'Reaction', 'component', self::COMPONENT);
+        $component = $this->jobLine(self::COMPONENT, 'Component', 'component', null);
+        $reaction->setRequiredQuantity(100)->setFulfilledQuantity(20);
+        $tritanium = $this->materialLine(self::TRITANIUM, 'Tritanium', 100, 40);
+
+        $supply = $this->supplyOf(
+            [$component, $reaction, $tritanium],
+            [self::lineId($component) => [self::TRITANIUM => 100, self::REACTION => 100]],
+            new ProjectLineFulfillments(ContainerStockState::Unknown),
+        );
+
+        self::assertFalse($supply->isSupplied(self::lineId($component)));
+    }
+
+    #[Group('issue-1109')]
+    public function testContainerStockOfAComponentJobLineIsNotAddedToItsOwnFulfilledQuantity(): void
+    {
+        $reaction = $this->jobLine(self::REACTION, 'Reaction', 'component', self::COMPONENT, activityType: 'reaction');
+        $component = $this->jobLine(self::COMPONENT, 'Component', 'component', null);
+        $reaction->setRequiredQuantity(100)->setFulfilledQuantity(20);
+
+        $supply = $this->supplyOf([$component, $reaction], [self::lineId($component) => [self::REACTION => 100]], new ProjectLineFulfillments(ContainerStockState::Known, [self::REACTION => 100]));
+
+        self::assertFalse($supply->isSupplied(self::lineId($component)));
+    }
+
     private function linkJob(IndustryProjectBomLine $line, string $status, int $runs): void
     {
         $line->addJobMatch((new IndustryProjectJobMatch())->setStatus($status)->setRuns($runs));
@@ -243,8 +334,8 @@ final class ChainMaterialSupplyTest extends TestCase
      * @param array<IndustryProjectBomLine>           $lines
      * @param array<string, array<int, int>>|null     $needs
      */
-    private function supplyOf(array $lines, ?array $needs): ChainMaterialSupply
+    private function supplyOf(array $lines, ?array $needs, ?ProjectLineFulfillments $fulfillments = null): ChainMaterialSupply
     {
-        return ChainMaterialSupply::allocate($lines, ChainManufacturingLevels::byTypeId($lines), $needs);
+        return ChainMaterialSupply::allocate($lines, ChainManufacturingLevels::byTypeId($lines), $needs, $fulfillments ?? ProjectLineFulfillments::none());
     }
 }
