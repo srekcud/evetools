@@ -2981,6 +2981,11 @@
     },
     "chain": {
       "title": "Production chain",
+      "jobsSync": {
+        "syncedAgo": "Jobs synced {since}",
+        "unknown": "Jobs sync unknown"
+      },
+      "jobNotSeenHint": "A job launched in game shows up after the next jobs sync.",
       "t2ToProvide": {
         "title": "T2 BPCs to provide",
         "description": "The invention is excluded from this plan: these T2 blueprint copies must be provided to manufacture the products.",
