@@ -4280,6 +4280,7 @@
         "buy": "To buy",
         "build": "To build"
       },
+      "waitingForComponents": "Waiting for components",
       "claim": "I'll handle it",
       "release": "Release",
       "deliver": "Deliver",

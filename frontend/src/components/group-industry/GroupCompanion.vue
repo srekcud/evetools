@@ -295,6 +295,11 @@ function unknownReasonText(output: JobLocation): string | null {
                       <span class="min-w-0 truncate text-sm text-slate-100" :title="item.typeName">{{ item.typeName }}</span>
                       <BlueprintNameCopyButton :blueprint-name="item.blueprintName ?? null" />
                     </p>
+                    <span
+                      v-if="item.isJob && tasks.waitingForComponents.includes(item.id)"
+                      data-testid="companion-waiting"
+                      class="inline-block rounded border border-amber-500/40 px-1 text-xs text-amber-300"
+                    >{{ t('groupIndustry.companion.waitingForComponents') }}</span>
                     <p v-if="item.isJob" class="truncate text-xs text-slate-400">
                       <template v-if="activityLabel(item.activityType) !== null">{{ activityLabel(item.activityType) }}</template>
                       <template v-else><span data-unknown="true">{{ t('common.unknownValue') }}</span></template>
@@ -370,6 +375,11 @@ function unknownReasonText(output: JobLocation): string | null {
                     <BlueprintNameCopyButton :blueprint-name="entry.item.blueprintName ?? null" />
                     <OpenInGameButton v-if="!entry.item.isJob" type="market" :target-id="entry.item.typeId" />
                   </p>
+                  <span
+                    v-if="entry.item.isJob && tasks.waitingForComponents.includes(entry.item.id)"
+                    data-testid="companion-waiting"
+                    class="inline-block rounded border border-amber-500/40 px-1 text-xs text-amber-300"
+                  >{{ t('groupIndustry.companion.waitingForComponents') }}</span>
                   <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(entry.quantity, 0) }}</p>
                 </div>
                 <button

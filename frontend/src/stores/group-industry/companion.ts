@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useSyncStore } from '@/stores/sync'
-import type { BomItem, GroupMember, GroupProject, ProjectCockpit, ProjectPriceAlert, ProjectSellOrder } from './types'
+import type { BomItem, ChainNode, GroupMember, GroupProject, ProjectChain, ProjectCockpit, ProjectPriceAlert, ProjectSellOrder } from './types'
 
 const MEMBER_EVENT_PREFIX = 'member_'
 const RECONNECTION_REFRESH = 'reconnected'
@@ -12,6 +12,7 @@ const CHARACTER_ORDERS_SYNC = 'character-orders'
 export const useGroupCompanionStore = defineStore('group-companion', () => {
   const projectId = ref<string | null>(null)
   const bomItems = ref<BomItem[]>([])
+  const chainNodes = ref<ChainNode[] | null>(null)
   const project = ref<GroupProject | null>(null)
   const members = ref<GroupMember[]>([])
   const priceAlert = ref<ProjectPriceAlert | null>(null)
@@ -48,6 +49,18 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     }
   }
 
+  async function loadChain(id: string): Promise<void> {
+    try {
+      const loaded = await apiRequest<ProjectChain>(`/industry/projects/${id}/chain`)
+      if (isStillOpen(id)) chainNodes.value = loaded.nodes
+    } catch (failure) {
+      if (isStillOpen(id)) {
+        chainNodes.value = null
+        reportFailure(failure, 'Failed to fetch production chain')
+      }
+    }
+  }
+
   async function loadCockpitAlerts(id: string): Promise<void> {
     try {
       const cockpit = await apiRequest<ProjectCockpit>(`/industry/projects/${id}/cockpit`)
@@ -72,18 +85,20 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   async function open(id: string): Promise<void> {
     projectId.value = id
     bomItems.value = []
+    chainNodes.value = null
     project.value = null
     members.value = []
     priceAlert.value = null
     undercutOrders.value = []
     error.value = null
-    await Promise.all([loadProject(id), loadBom(id), loadCockpitAlerts(id)])
+    await Promise.all([loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id)])
     if (isStillOpen(id) && isAdmin.value) await loadMembers(id)
   }
 
   function close(): void {
     projectId.value = null
     bomItems.value = []
+    chainNodes.value = null
     project.value = null
     members.value = []
     priceAlert.value = null
@@ -123,7 +138,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   async function handleEvent(action: string): Promise<void> {
     const id = projectId.value
     if (id === null) return
-    const loads = [loadProject(id), loadBom(id), loadCockpitAlerts(id)]
+    const loads = [loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id)]
     if (action.startsWith(MEMBER_EVENT_PREFIX) && isAdmin.value) loads.push(loadMembers(id))
     await Promise.all(loads)
   }
@@ -136,5 +151,5 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
 
   useRefetchOnReconnect(() => handleEvent(RECONNECTION_REFRESH))
 
-  return { projectId, bomItems, project, members, priceAlert, undercutOrders, error, open, close, claim, release, handleEvent }
+  return { projectId, bomItems, chainNodes, project, members, priceAlert, undercutOrders, error, open, close, claim, release, handleEvent }
 })

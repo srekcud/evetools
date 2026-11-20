@@ -1,5 +1,5 @@
 import { pendingQuantityOf } from './pendingContributions'
-import type { BomItem, GroupMember, GroupProject, JobMatch, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
+import type { BomItem, ChainNode, GroupMember, GroupProject, JobMatch, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
 
 export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'move_products' | 'price_below_break_even' | 'undercut_sell_order'
 
@@ -20,10 +20,12 @@ export type CompanionTasks = {
   moveProducts: MoveProducts
   priceAlert: ProjectPriceAlert | null
   undercutOrders: ProjectSellOrder[]
+  waitingForComponents: string[]
 }
 
 export type CompanionTasksInput = {
   bomItems: BomItem[]
+  chainNodes: ChainNode[] | null
   project: GroupProject
   members: GroupMember[]
   myCharacterNames: string[]
@@ -43,6 +45,7 @@ const OUTPUT_UNKNOWN = 'unknown'
 const MOVE_PRODUCTS_ALERT_KEY = 'move_products'
 const PRICE_ALERT_KEY = 'price_below_break_even'
 const UNDERCUT_ORDER_ALERT_KEY = 'undercut_sell_order'
+const BLOCKED_CHAIN_STATUS = 'blocked'
 
 function isFree(item: BomItem): boolean {
   const alreadyHasLinkedJob = item.isJob && item.jobMatches.length > 0
@@ -77,23 +80,33 @@ function moveProductsOf(jobs: CompanionTasks['jobs']): MoveProducts {
   return moveProducts
 }
 
+function inChainOrder<Entry>(entries: Entry[], lineOf: (entry: Entry) => BomItem, chainNodes: ChainNode[] | null): Entry[] {
+  if (chainNodes === null) return entries
+  const rankByLineId = new Map(chainNodes.map((node, index) => [node.id, index]))
+  const rankOf = (entry: Entry): number => rankByLineId.get(lineOf(entry).id) ?? chainNodes.length
+  const orderedJobs = entries.filter(entry => lineOf(entry).isJob).sort((left, right) => rankOf(left) - rankOf(right))
+  let nextJob = 0
+  return entries.map(entry => (lineOf(entry).isJob ? orderedJobs[nextJob++] : entry))
+}
+
 function isAdmin(project: GroupProject): boolean {
   return project.myRole === 'owner' || project.myRole === 'admin'
 }
 
 export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks {
-  const { bomItems, project, members, myCharacterNames, priceAlert, undercutOrders, now } = input
+  const { bomItems, chainNodes, project, members, myCharacterNames, priceAlert, undercutOrders, now } = input
 
-  const free = bomItems.filter(isFree)
+  const free = inChainOrder(bomItems.filter(isFree), item => item, chainNodes)
 
   const myReservations = bomItems.flatMap((item) => {
     const reservation = item.reservations.find(candidate => candidate.isMine)
     return !item.isFulfilled && reservation !== undefined ? [{ item, reservation }] : []
   })
 
-  const mine = myReservations
+  const reservationsToDeliver = myReservations
     .map(({ item, reservation }) => ({ item, quantity: reservation.quantity - pendingQuantityOf(item, reservation.participantId) }))
     .filter(entry => entry.quantity > 0)
+  const mine = inChainOrder(reservationsToDeliver, entry => entry.item, chainNodes)
 
   const awaitingApproval = bomItems.flatMap((item) => {
     const quantity = item.pendingContributions
@@ -131,6 +144,11 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     alerts.push({ key: 'bom_complete', kind: 'bom_complete' })
   }
 
+  const waitingForComponents = (chainNodes ?? [])
+    .filter(node => node.status === BLOCKED_CHAIN_STATUS)
+    .map(node => node.id)
+    .filter(nodeId => bomItems.some(item => item.isJob && item.id === nodeId))
+
   return {
     free,
     mine,
@@ -144,5 +162,6 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     moveProducts,
     priceAlert,
     undercutOrders,
+    waitingForComponents,
   }
 }

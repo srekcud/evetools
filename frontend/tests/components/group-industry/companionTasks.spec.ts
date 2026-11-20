@@ -1,5 +1,6 @@
 import { buildCompanionTasks, type CompanionTasks } from '@/components/group-industry/companionTasks'
-import type { BomItem, GroupMember, GroupProject, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
+import type { BomItem, ChainNode, GroupMember, GroupProject, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
+import { chainNode } from '../../productionChainNodes'
 import { sellOrder } from '../../sellOrderFixtures'
 import { bomLine, companionProject, jobLocations, jobMatch, member } from './companionFixtures'
 
@@ -9,7 +10,7 @@ const ONE_HOUR = 3_600_000
 
 function tasksOf(
   bomItems: BomItem[],
-  options: { project?: GroupProject; members?: GroupMember[]; priceAlert?: ProjectPriceAlert | null; undercutOrders?: ProjectSellOrder[] } = {},
+  options: { project?: GroupProject; members?: GroupMember[]; priceAlert?: ProjectPriceAlert | null; undercutOrders?: ProjectSellOrder[]; chainNodes?: ChainNode[] | null } = {},
 ): CompanionTasks {
   return buildCompanionTasks({
     bomItems,
@@ -17,6 +18,7 @@ function tasksOf(
     members: options.members ?? [],
     priceAlert: options.priceAlert ?? null,
     undercutOrders: options.undercutOrders ?? [],
+    chainNodes: options.chainNodes ?? null,
     myCharacterNames: ['Alpha'],
     now: NOW,
   })
@@ -541,5 +543,78 @@ describe('buildCompanionTasks awaiting approval', () => {
     const completed = { ...reservedLine(50, 50), isFulfilled: true }
 
     expect(summaryOf(tasksOf([completed])).mine).toEqual([])
+  })
+  describe('craft line order of the production chain', () => {
+    const ISHTAR = manufacturingJobLine('bom-ishtar', 12_005, { typeName: 'Ishtar', jobGroup: 'final', freeQuantity: 2 })
+    const HULL = manufacturingJobLine('bom-hull', 12_006, { typeName: 'Hull', jobGroup: 'component', freeQuantity: 2 })
+    const SENSOR_CLUSTER = manufacturingJobLine('bom-sensor-cluster', 12_007, { typeName: 'Sensor Cluster', jobGroup: 'component', freeQuantity: 2 })
+    const ARMOR_PLATE = manufacturingJobLine('bom-armor-plate', 12_008, { typeName: 'Armor Plate', jobGroup: 'component', freeQuantity: 2 })
+    const CAPACITOR_CONSOLE = manufacturingJobLine('bom-capacitor-console', 12_009, { typeName: 'Capacitor Console', jobGroup: 'component', freeQuantity: 2 })
+    const TRITANIUM = bomLine({ id: 'bom-tritanium', typeId: 34, typeName: 'Tritanium', freeQuantity: 400 })
+    const BOM_ORDER = [ISHTAR, HULL, SENSOR_CLUSTER, ARMOR_PLATE, CAPACITOR_CONSOLE]
+    const CHAIN = [
+      chainNode({ id: CAPACITOR_CONSOLE.id, stage: 'component', status: 'todo' }),
+      chainNode({ id: ARMOR_PLATE.id, stage: 'component', status: 'missing_materials' }),
+      chainNode({ id: SENSOR_CLUSTER.id, stage: 'component', status: 'unknown' }),
+      chainNode({ id: HULL.id, stage: 'component', status: 'active' }),
+      chainNode({ id: ISHTAR.id, stage: 'product', status: 'blocked' }),
+    ]
+    const idsOf = (items: BomItem[]): string[] => items.map(item => item.id)
+
+    it('puts the launchable component lines first and the final product last in the free lines', () => {
+      expect(idsOf(tasksOf(BOM_ORDER, { chainNodes: CHAIN }).free)).toEqual([
+        'bom-capacitor-console',
+        'bom-armor-plate',
+        'bom-sensor-cluster',
+        'bom-hull',
+        'bom-ishtar',
+      ])
+    })
+
+    it('orders my build lines to deliver like the chain', () => {
+      const reserved = BOM_ORDER.map(item => ({
+        ...item,
+        reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 1, isMine: true }],
+      }))
+
+      expect(tasksOf(reserved, { chainNodes: CHAIN }).mine.map(entry => entry.item.id)).toEqual([
+        'bom-capacitor-console',
+        'bom-armor-plate',
+        'bom-sensor-cluster',
+        'bom-hull',
+        'bom-ishtar',
+      ])
+    })
+
+    it('keeps a material at its own slot while the job lines are reordered around it', () => {
+      const bom = [ISHTAR, TRITANIUM, CAPACITOR_CONSOLE]
+
+      expect(idsOf(tasksOf(bom, { chainNodes: CHAIN }).free)).toEqual(['bom-capacitor-console', 'bom-tritanium', 'bom-ishtar'])
+    })
+
+    it('keeps the BOM order and tags nothing while the chain is not loaded', () => {
+      const tasks = tasksOf(BOM_ORDER, { chainNodes: null })
+
+      expect({ free: idsOf(tasks.free), waiting: tasks.waitingForComponents }).toEqual({
+        free: ['bom-ishtar', 'bom-hull', 'bom-sensor-cluster', 'bom-armor-plate', 'bom-capacitor-console'],
+        waiting: [],
+      })
+    })
+
+    it('lists the blocked job lines as waiting for components, and no other status', () => {
+      expect(tasksOf(BOM_ORDER, { chainNodes: CHAIN }).waitingForComponents).toEqual(['bom-ishtar'])
+    })
+
+    it('puts a job line missing from the loaded chain after every ranked job line', () => {
+      const chainWithoutHull = CHAIN.filter(node => node.id !== HULL.id)
+
+      expect(idsOf(tasksOf(BOM_ORDER, { chainNodes: chainWithoutHull }).free)).toEqual([
+        'bom-capacitor-console',
+        'bom-armor-plate',
+        'bom-sensor-cluster',
+        'bom-ishtar',
+        'bom-hull',
+      ])
+    })
   })
 })

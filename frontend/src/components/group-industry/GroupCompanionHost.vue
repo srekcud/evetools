@@ -44,6 +44,7 @@ const tasks = computed(() => {
   if (project === null) return null
   return buildCompanionTasks({
     bomItems: companion.bomItems,
+    chainNodes: companion.chainNodes,
     project,
     members: companion.members,
     myCharacterNames: authStore.user === null ? [] : authStore.user.characters.map(character => character.name),
