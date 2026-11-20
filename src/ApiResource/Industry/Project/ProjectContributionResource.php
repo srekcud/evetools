@@ -176,6 +176,8 @@ class ProjectContributionResource
 
     public bool $editableByViewer = false;
 
+    public bool $reviewableByViewer = false;
+
     public ?string $reviewedByCharacterName = null;
 
     public ?string $reviewedAt = null;

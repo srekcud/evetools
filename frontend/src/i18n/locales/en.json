@@ -3703,6 +3703,7 @@
       },
       "awaitingUnits": "{count} units awaiting wallet transaction",
       "valueUnknown": "Value unknown",
+      "approveAll": "Approve all ({count})",
       "approveBlockedAwaiting": "Cannot be approved while units await a wallet transaction",
       "valueAtJitaPrice": "Value at Jita price",
       "methods": {

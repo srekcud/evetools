@@ -211,6 +211,18 @@ async function handleApprove(id: string): Promise<void> {
   await store.approveContribution(props.projectId, id)
 }
 
+const isApprovingAll = ref(false)
+
+const approvableContributions = computed(() =>
+  store.contributions.filter(c => isPending(c.status) && c.reviewableByViewer === true && !isAwaitingUnits(c)),
+)
+
+async function handleApproveAll(): Promise<void> {
+  isApprovingAll.value = true
+  await store.approveContributions(props.projectId, approvableContributions.value.map(c => c.id))
+  isApprovingAll.value = false
+}
+
 async function handleReject(id: string): Promise<void> {
   await store.rejectContribution(props.projectId, id)
 }
@@ -255,7 +267,15 @@ onMounted(() => {
         <option value="none">{{ t('groupIndustry.contributions.walletProofFilter.none') }}</option>
       </select>
     </div>
-    <slot name="actions" />
+    <div class="flex items-center gap-3">
+      <button
+        v-if="isAdmin && approvableContributions.length > 0"
+        :disabled="isApprovingAll"
+        class="px-3 py-2 rounded-lg bg-emerald-600/20 text-emerald-400 text-sm font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30 disabled:opacity-50"
+        @click="handleApproveAll"
+      >{{ t('groupIndustry.contributions.approveAll', { count: approvableContributions.length }) }}</button>
+      <slot name="actions" />
+    </div>
   </div>
 
   <!-- Loading -->
