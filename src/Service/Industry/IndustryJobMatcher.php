@@ -16,6 +16,7 @@ use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\Project\ProjectContainerService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -35,15 +36,17 @@ class IndustryJobMatcher
         private readonly IndustryProjectJobMatchRepository $jobMatchRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly ProjectContainerService $containerService,
     ) {
     }
 
     /**
-     * @param array<int, true> $contestedJobIds
+     * @param array<int, true>         $contestedJobIds
+     * @param array<int, list<string>> $containerOwnersByLocationId
      *
      * @return list<LineMatchFailure>
      */
-    public function matchEsiJobs(IndustryProject $project, array $contestedJobIds = []): array
+    public function matchEsiJobs(IndustryProject $project, array $contestedJobIds = [], array $containerOwnersByLocationId = []): array
     {
         $characterIds = $this->characterIdsOf($project);
         if ($characterIds === []) {
@@ -53,7 +56,7 @@ class IndustryJobMatcher
         $this->clearAutomaticMatches($this->recomputableJobLinesOf($project));
         $this->entityManager->flush();
 
-        $candidates = $this->candidatesOf($project, $characterIds);
+        $candidates = $this->candidatesOf($project, $characterIds, $containerOwnersByLocationId);
         foreach ($candidates['failures'] as $failure) {
             $this->reported($project, $failure);
         }
@@ -71,9 +74,36 @@ class IndustryJobMatcher
     /**
      * @param list<IndustryProject> $projects
      *
+     * @return array<int, list<string>>
+     */
+    public function containerOwnersByLocationId(array $projects): array
+    {
+        $owners = [];
+        foreach ($projects as $project) {
+            if ($project->getStatus() === ProjectStatus::Draft) {
+                continue;
+            }
+
+            $scope = $this->containerService->containerScopeOf($project);
+            if (!$scope->isKnown()) {
+                continue;
+            }
+
+            foreach ($scope->containerItemIds as $itemId) {
+                $owners[$itemId][] = $project->getId()->toRfc4122();
+            }
+        }
+
+        return $owners;
+    }
+
+    /**
+     * @param list<IndustryProject>    $projects
+     * @param array<int, list<string>> $containerOwnersByLocationId
+     *
      * @return array<int, true>
      */
-    public function contestedJobIds(array $projects): array
+    public function contestedJobIds(array $projects, array $containerOwnersByLocationId = []): array
     {
         $plans = [];
         foreach ($projects as $project) {
@@ -86,7 +116,7 @@ class IndustryJobMatcher
                 continue;
             }
 
-            $plans[] = [$this->candidatesOf($project, $characterIds)['lines'], $this->unavailableJobIdsOf($project)];
+            $plans[] = [$this->candidatesOf($project, $characterIds, $containerOwnersByLocationId)['lines'], $this->unavailableJobIdsOf($project)];
         }
 
         $contestedJobIds = [];
@@ -133,12 +163,15 @@ class IndustryJobMatcher
     }
 
     /**
-     * @param list<Uuid|int|null> $characterIds
+     * @param list<Uuid|int|null>      $characterIds
+     * @param array<int, list<string>> $containerOwnersByLocationId
      *
      * @return array{lines: list<array{0: IndustryProjectBomLine, 1: int, 2: list<CachedIndustryJob>}>, failures: list<LineMatchFailure>}
      */
-    private function candidatesOf(IndustryProject $project, array $characterIds): array
+    private function candidatesOf(IndustryProject $project, array $characterIds, array $containerOwnersByLocationId): array
     {
+        $projectId = $project->getId()->toRfc4122();
+
         $lines = [];
         $failures = [];
         foreach ($this->recomputableJobLinesOf($project) as $line) {
@@ -165,12 +198,25 @@ class IndustryJobMatcher
                         null,
                         $project->getCreatedAt(),
                     ),
-                    static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput(),
+                    fn (CachedIndustryJob $job): bool => !$job->hasNoOutput() && !$this->takesItsInputFromAnotherProjectContainer($job, $projectId, $containerOwnersByLocationId),
                 )),
             ];
         }
 
         return ['lines' => $lines, 'failures' => $failures];
+    }
+
+    /**
+     * @param array<int, list<string>> $containerOwnersByLocationId
+     */
+    private function takesItsInputFromAnotherProjectContainer(CachedIndustryJob $job, string $projectId, array $containerOwnersByLocationId): bool
+    {
+        $inputLocationId = $job->getBlueprintLocationId();
+        if ($inputLocationId === null || !isset($containerOwnersByLocationId[$inputLocationId])) {
+            return false;
+        }
+
+        return !\in_array($projectId, $containerOwnersByLocationId[$inputLocationId], true);
     }
 
     /**

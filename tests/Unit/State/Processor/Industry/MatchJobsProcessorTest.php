@@ -94,6 +94,8 @@ final class MatchJobsProcessorTest extends TestCase
     private array $contestedQueries = [];
 
     private array $contestedPassedToMatching = [];
+    private array $containerOwnerQueries = [];
+    private array $containerOwnersPassed = [];
 
     protected function setUp(): void
     {
@@ -512,6 +514,19 @@ final class MatchJobsProcessorTest extends TestCase
         $this->assertSame([[7_124_900 => true]], $this->contestedPassedToMatching);
     }
 
+    #[Group('issue-1125')]
+    public function testTheContainerOwnersOfTheOpenProjectsAndTheProjectArePassedToTheContestedJobsAndToTheMatching(): void
+    {
+        $otherProject = (new IndustryProject())->setOwner($this->user);
+        $this->openProjectsOfUser = [$otherProject];
+
+        $this->matchJobs();
+
+        $owners = [1_040_000_000_001 => ['owner-project-id']];
+        $this->assertSame([[$otherProject, $this->project]], $this->containerOwnerQueries);
+        $this->assertSame([$owners, $owners], $this->containerOwnersPassed);
+    }
+
     #[Group('issue-1124')]
     public function testTheProjectAlreadyAmongTheOpenProjectsOfTheUserIsNotCountedTwice(): void
     {
@@ -545,13 +560,20 @@ final class MatchJobsProcessorTest extends TestCase
         });
 
         $jobMatcher = $this->createStub(IndustryJobMatcher::class);
-        $jobMatcher->method('contestedJobIds')->willReturnCallback(function (array $projects): array {
+        $jobMatcher->method('containerOwnersByLocationId')->willReturnCallback(function (array $projects): array {
+            $this->containerOwnerQueries[] = $projects;
+
+            return [1_040_000_000_001 => ['owner-project-id']];
+        });
+        $jobMatcher->method('contestedJobIds')->willReturnCallback(function (array $projects, array $containerOwners = []): array {
+            $this->containerOwnersPassed[] = $containerOwners;
             $this->contestedQueries[] = $projects;
 
             return [7_124_900 => true];
         });
-        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project, array $contestedJobIds = []): array {
+        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project, array $contestedJobIds = [], array $containerOwners = []): array {
             $this->assertSame($this->project, $project);
+            $this->containerOwnersPassed[] = $containerOwners;
             $this->matchEsiJobsCalls++;
             $this->contestedPassedToMatching[] = $contestedJobIds;
 

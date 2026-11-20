@@ -21,6 +21,8 @@ use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
+use App\Service\Industry\Project\ProjectContainerScope;
+use App\Service\Industry\Project\ProjectContainerService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -47,6 +49,9 @@ final class IndustryJobMatcherTest extends TestCase
     private const int TRITANIUM_TYPE_ID = 34;
     private const int ESI_REACTION_ACTIVITY_ID = 9;
     private const int SOTIYO_STATION_ID = 1_035_466_617_946;
+    private const int OWNER_CONTAINER_ID = 1_040_000_000_001;
+    private const int OTHER_CONTAINER_ID = 1_040_000_000_002;
+    private const int HANGAR_LOCATION_ID = 60_003_760;
     private const string PROJECT_CREATED_AT = '2026-11-01 10:00:00';
 
     private CachedIndustryJobRepository $jobRepository;
@@ -61,6 +66,8 @@ final class IndustryJobMatcherTest extends TestCase
     private array $projectsInPlay = [];
 
     private array $jobQueries = [];
+
+    private array $scopesByProjectId = [];
 
     private User $owner;
     private Character $mainCharacter;
@@ -105,6 +112,11 @@ final class IndustryJobMatcherTest extends TestCase
             static fn (int $stationId): string => 'Sotiyo '.$stationId,
         );
 
+        $containerService = $this->createStub(ProjectContainerService::class);
+        $containerService->method('containerScopeOf')->willReturnCallback(
+            fn (IndustryProject $project): ProjectContainerScope => $this->scopesByProjectId[$project->getId()->toRfc4122()] ?? new ProjectContainerScope('no_container_name'),
+        );
+
         $this->matcher = new IndustryJobMatcher(
             $calculationService,
             $this->jobRepository,
@@ -112,6 +124,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->jobMatchRepository,
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
+            $containerService,
         );
 
         $this->owner = new User();
@@ -502,6 +515,163 @@ final class IndustryJobMatcherTest extends TestCase
         $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_124_071, 5, '2026-11-02 08:00:00'));
 
         self::assertSame([], $this->matcher->contestedJobIds([$this->project($withoutRuns), $this->project($ishtarLine)]));
+    }
+
+    #[Group('issue-1125')]
+    #[DataProvider('projectOrders')]
+    public function testAJobTakingItsInputFromTheContainerOfOneProjectGoesToThatProjectWhateverTheProjectOrder(bool $containerOwnerFirst): void
+    {
+        $lineOfOwner = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $lineOfOther = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $owner = $this->project($lineOfOwner);
+        $other = $this->project($lineOfOther);
+        $this->givenContainer($owner, self::OWNER_CONTAINER_ID);
+        $this->givenContainer($other, self::OTHER_CONTAINER_ID);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_001, 5, '2026-11-02 08:00:00')
+            ->setBlueprintLocationId(self::OWNER_CONTAINER_ID)
+            ->setOutputLocationId(self::OTHER_CONTAINER_ID));
+        $ordered = $containerOwnerFirst ? [$owner, $other] : [$other, $owner];
+
+        $this->matchAll($ordered);
+
+        self::assertSame([[7_125_001], []], [$this->matchedJobIdsOf($lineOfOwner), $this->matchedJobIdsOf($lineOfOther)]);
+    }
+
+    #[Group('issue-1125')]
+    public function testTheOutputLocationAloneNeverDecidesWhichProjectGetsTheJob(): void
+    {
+        $lineOfFirst = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $lineOfSecond = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $first = $this->project($lineOfFirst);
+        $second = $this->project($lineOfSecond);
+        $this->givenContainer($first, self::OWNER_CONTAINER_ID);
+        $this->givenContainer($second, self::OTHER_CONTAINER_ID);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_011, 5, '2026-11-02 08:00:00')
+            ->setBlueprintLocationId(self::HANGAR_LOCATION_ID)
+            ->setOutputLocationId(self::OTHER_CONTAINER_ID));
+
+        $contested = $this->matchAll([$first, $second]);
+
+        self::assertSame([7_125_011 => true], $contested);
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfFirst), $this->matchedJobIdsOf($lineOfSecond)]);
+    }
+
+    #[Group('issue-1125')]
+    #[DataProvider('inputsOutsideEveryProjectContainer')]
+    public function testAJobWhoseInputIsOutsideEveryProjectContainerKeepsTheUniqueCandidateRule(?int $inputLocationId): void
+    {
+        $smallLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 2, 'manufacturing');
+        $fittingLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $small = $this->project($smallLine);
+        $fitting = $this->project($fittingLine);
+        $this->givenContainer($small, self::OWNER_CONTAINER_ID);
+        $this->givenContainer($fitting, self::OTHER_CONTAINER_ID);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_021, 5, '2026-11-02 08:00:00')
+            ->setBlueprintLocationId($inputLocationId));
+
+        $this->matchAll([$small, $fitting]);
+
+        self::assertSame([[], [7_125_021]], [$this->matchedJobIdsOf($smallLine), $this->matchedJobIdsOf($fittingLine)]);
+    }
+
+    /**
+     * @return iterable<string, array{?int}>
+     */
+    public static function inputsOutsideEveryProjectContainer(): iterable
+    {
+        yield 'hangar' => [self::HANGAR_LOCATION_ID];
+        yield 'unresolved input' => [null];
+    }
+
+    #[Group('issue-1125')]
+    public function testAJobTakingItsInputFromASharedContainerIsContestedBetweenTheProjectsUsingIt(): void
+    {
+        $lineOfFirst = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $lineOfSecond = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $first = $this->project($lineOfFirst);
+        $second = $this->project($lineOfSecond);
+        $this->givenContainer($first, self::OWNER_CONTAINER_ID);
+        $this->givenContainer($second, self::OWNER_CONTAINER_ID);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_031, 5, '2026-11-02 08:00:00')
+            ->setBlueprintLocationId(self::OWNER_CONTAINER_ID));
+
+        $contested = $this->matchAll([$first, $second]);
+
+        self::assertSame([7_125_031 => true], $contested);
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfFirst), $this->matchedJobIdsOf($lineOfSecond)]);
+    }
+
+    #[Group('issue-1125')]
+    public function testTheContainerOfADraftProjectOrOfAProjectWithAnUnknownScopeClaimsNoJob(): void
+    {
+        $lineOfActive = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $active = $this->project($lineOfActive);
+        $draft = $this->draftProject($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing'));
+        $unknown = $this->project($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 2, 'manufacturing'));
+        $this->givenContainer($draft, self::OTHER_CONTAINER_ID);
+        $this->scopesByProjectId[$unknown->getId()->toRfc4122()] = new ProjectContainerScope('corporation_assets_not_synced', [self::OTHER_CONTAINER_ID]);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_041, 5, '2026-11-02 08:00:00')
+            ->setBlueprintLocationId(self::OTHER_CONTAINER_ID));
+
+        self::assertSame([], $this->matcher->containerOwnersByLocationId([$active, $draft, $unknown]));
+        $this->matchAll([$active, $draft, $unknown]);
+
+        self::assertSame([7_125_041], $this->matchedJobIdsOf($lineOfActive));
+    }
+
+    #[Group('issue-1125')]
+    public function testContainerOwnersListTheProjectsOwningEachLocation(): void
+    {
+        $first = $this->project($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing'));
+        $second = $this->project($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing'));
+        $this->givenContainer($first, self::OWNER_CONTAINER_ID, self::OTHER_CONTAINER_ID);
+        $this->givenContainer($second, self::OTHER_CONTAINER_ID);
+
+        self::assertSame(
+            [
+                self::OWNER_CONTAINER_ID => [$first->getId()->toRfc4122()],
+                self::OTHER_CONTAINER_ID => [$first->getId()->toRfc4122(), $second->getId()->toRfc4122()],
+            ],
+            $this->matcher->containerOwnersByLocationId([$first, $second]),
+        );
+    }
+
+    #[Group('issue-1125')]
+    public function testAJobTakingItsInputFromTheContainerOfAProjectIsNotOfferedToAnotherProjectWhenItDoesNotFitTheOwner(): void
+    {
+        $lineOfOwner = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 2, 'manufacturing');
+        $lineOfOther = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $owner = $this->project($lineOfOwner);
+        $other = $this->project($lineOfOther);
+        $this->givenContainer($owner, self::OWNER_CONTAINER_ID);
+        $this->givenContainer($other, self::OTHER_CONTAINER_ID);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_051, 5, '2026-11-02 08:00:00')
+            ->setBlueprintLocationId(self::OWNER_CONTAINER_ID));
+
+        $this->matchAll([$owner, $other]);
+
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOwner), $this->matchedJobIdsOf($lineOfOther)]);
+    }
+
+    /**
+     * @param list<IndustryProject> $projects
+     *
+     * @return array<int, true>
+     */
+    private function matchAll(array $projects): array
+    {
+        $containerOwners = $this->matcher->containerOwnersByLocationId($projects);
+        $contested = $this->matcher->contestedJobIds($projects, $containerOwners);
+        foreach ($projects as $project) {
+            $this->matcher->matchEsiJobs($project, $contested, $containerOwners);
+        }
+
+        return $contested;
+    }
+
+    private function givenContainer(IndustryProject $project, int ...$itemIds): void
+    {
+        $this->scopesByProjectId[$project->getId()->toRfc4122()] = new ProjectContainerScope(null, array_values($itemIds));
     }
 
     private function givenParticipant(IndustryProject $project, ParticipantStatus $status, Character $character): void
