@@ -3,6 +3,26 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.27 (2026-11-20)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Contributions : bouton "Tout approuver (n)" pour valider en un clic les
+  contributions en attente que vous pouvez approuver
+- Onglet Chaine : la colonne "Entree -> sortie" affiche le conteneur ou le
+  hangar d'entree et de sortie de chaque job, et signale une entree prise
+  hors du conteneur du projet
+- Onglet Chaine : le tableau des jobs tient dans la page, le bouton de
+  reclamation reste visible
+- Un job annule en jeu passe en annule a la sync suivante au lieu de
+  rester actif jusqu'a sa date de fin (slots, prochaines fins de job)
+- Les projets en brouillon ne prennent plus de jobs ESI automatiquement,
+  et liberent ceux qu'ils avaient pris au profit du projet qui les a lances
+- Un job n'est lie automatiquement que si un seul projet lui correspond,
+  sinon il est propose ; seuls les projets proprietaires du conteneur
+  d'entree du job sont candidats
+
+--------------------------------------------------------------------------------
 Version 0.26 (2026-11-20)
 --------------------------------------------------------------------------------
 
