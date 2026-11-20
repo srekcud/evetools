@@ -143,14 +143,96 @@ final class AutomaticPurchaseLinkerTest extends TestCase
         self::assertSame([[$firstBuy], 300], [array_map(static fn (IndustryProjectPurchase $purchase): ?CachedWalletTransaction => $purchase->getTransaction(), $this->persistedEntities), $this->ramLine->getPurchasedQuantity()]);
     }
 
-    public function testBuyMatchingALineInTwoOpenProjectsIsLeftToTheSuggestions(): void
+    #[Group('issue-1100')]
+    public function testBuyMatchingALineInTwoOpenProjectsIsLinkedToTheOldestProject(): void
     {
+        $this->createdAt($this->hecateProject, '2026-10-25T10:00:00+00:00');
         $this->openProjects = [$this->ishtarProject, $this->hecateProject];
         $buy = $this->buy($this->ownerMainCharacter, 6_750_000_005, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
 
         $this->linkNew($this->ownerMainCharacter, [$buy]);
 
+        self::assertSame([[$this->hecateTritaniumLine], 1_000, 0], [array_map(static fn (IndustryProjectPurchase $purchase): ?IndustryProjectBomLine => $purchase->getBomLine(), $this->persistedEntities), $this->hecateTritaniumLine->getPurchasedQuantity(), $this->tritaniumLine->getPurchasedQuantity()]);
+    }
+
+    #[Group('issue-1100')]
+    public function testOldestProjectWhoseRemainingToBuyDoesNotCoverTheBuyIsSkipped(): void
+    {
+        $this->createdAt($this->hecateProject, '2026-10-25T10:00:00+00:00');
+        $this->hecateTritaniumLine->setRequiredQuantity(500);
+        $this->openProjects = [$this->ishtarProject, $this->hecateProject];
+        $buy = $this->buy($this->ownerMainCharacter, 6_100_000_001, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[$this->tritaniumLine], 1_000, 0], [array_map(static fn (IndustryProjectPurchase $purchase): ?IndustryProjectBomLine => $purchase->getBomLine(), $this->persistedEntities), $this->tritaniumLine->getPurchasedQuantity(), $this->hecateTritaniumLine->getPurchasedQuantity()]);
+    }
+
+    #[Group('issue-1100')]
+    public function testBuyIsLeftToTheSuggestionsWhenNoOpenProjectCoversIt(): void
+    {
+        $this->createdAt($this->hecateProject, '2026-10-25T10:00:00+00:00');
+        $this->hecateTritaniumLine->setRequiredQuantity(500);
+        $this->tritaniumLine->setRequiredQuantity(800);
+        $this->openProjects = [$this->ishtarProject, $this->hecateProject];
+        $buy = $this->buy($this->ownerMainCharacter, 6_100_000_002, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
         self::assertSame([[], 0], [$this->persistedEntities, $this->flushCount]);
+    }
+
+    #[Group('issue-1100')]
+    public function testSecondBuyOfABatchMovesToTheNextProjectOnceTheOldestOneIsFull(): void
+    {
+        $this->createdAt($this->hecateProject, '2026-10-25T10:00:00+00:00');
+        $this->hecateTritaniumLine->setRequiredQuantity(1_000);
+        $this->openProjects = [$this->ishtarProject, $this->hecateProject];
+        $firstBuy = $this->buy($this->ownerMainCharacter, 6_100_000_003, self::TRITANIUM_TYPE_ID, 600, 4.4, '2026-11-02T12:00:00+00:00');
+        $secondBuy = $this->buy($this->ownerMainCharacter, 6_100_000_004, self::TRITANIUM_TYPE_ID, 600, 4.4, '2026-11-02T13:00:00+00:00');
+
+        $this->linkNew($this->ownerMainCharacter, [$secondBuy, $firstBuy]);
+
+        self::assertSame([[$this->hecateTritaniumLine, $this->tritaniumLine], [$firstBuy, $secondBuy]], [
+            array_map(static fn (IndustryProjectPurchase $purchase): ?IndustryProjectBomLine => $purchase->getBomLine(), $this->persistedEntities),
+            array_map(static fn (IndustryProjectPurchase $purchase): ?CachedWalletTransaction => $purchase->getTransaction(), $this->persistedEntities),
+        ]);
+    }
+
+    #[Group('issue-1100')]
+    public function testOldestProjectWithTwoLinesOfTheTypeLeavesTheBuyToTheSuggestions(): void
+    {
+        $this->createdAt($this->hecateProject, '2026-10-25T10:00:00+00:00');
+        $this->materialLineOf($this->hecateProject, self::TRITANIUM_TYPE_ID, 5_000);
+        $this->openProjects = [$this->ishtarProject, $this->hecateProject];
+        $buy = $this->buy($this->ownerMainCharacter, 6_100_000_005, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[], 0], [$this->persistedEntities, $this->flushCount]);
+    }
+
+    #[Group('issue-1100')]
+    public function testProjectCreatedAfterTheBuyIsNeverChosenEvenWhenItIsTheOldestInTheList(): void
+    {
+        $this->createdAt($this->hecateProject, '2026-11-03T10:00:00+00:00');
+        $this->openProjects = [$this->hecateProject, $this->ishtarProject];
+        $buy = $this->buy($this->ownerMainCharacter, 6_100_000_006, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[$this->tritaniumLine]], [array_map(static fn (IndustryProjectPurchase $purchase): ?IndustryProjectBomLine => $purchase->getBomLine(), $this->persistedEntities)]);
+    }
+
+    #[Group('issue-1100')]
+    public function testProjectsCreatedAtTheSameInstantKeepTheOrderOfTheRepository(): void
+    {
+        $this->openProjects = [$this->hecateProject, $this->ishtarProject];
+        $buy = $this->buy($this->ownerMainCharacter, 6_100_000_007, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[$this->hecateTritaniumLine]], [array_map(static fn (IndustryProjectPurchase $purchase): ?IndustryProjectBomLine => $purchase->getBomLine(), $this->persistedEntities)]);
     }
 
     public function testBuyMatchingTwoLinesOfTheSameProjectIsLeftToTheSuggestions(): void
@@ -316,6 +398,11 @@ final class AutomaticPurchaseLinkerTest extends TestCase
             ->setIsBuy(true)
             ->setLocationId(self::JITA_4_4_STATION_ID)
             ->setDate(new \DateTimeImmutable($date));
+    }
+
+    private function createdAt(IndustryProject $project, string $date): void
+    {
+        (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($project, new \DateTimeImmutable($date));
     }
 
     private function materialLineOf(IndustryProject $project, int $typeId, int $quantity): IndustryProjectBomLine
