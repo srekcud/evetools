@@ -39,6 +39,7 @@ const STAGE_RANK: Partial<Record<ChainStage, number>> = {
   product: 2,
 }
 
+const JOB_NOT_SEEN_STATUSES: readonly ChainStatus[] = ['todo', 'missing_materials']
 const UNKNOWN_LEVEL_KEY = 'unknown'
 const PLANNED_OUTSIDE_FAVORITE_SYSTEM = 'best_outside_favorite_system'
 
@@ -256,6 +257,11 @@ function plansStructure(node: ChainNode): boolean {
                 <span v-for="missing in item.node.plannedCopyDuration.missingData" :key="missing.reason" class="block text-xs text-violet-300 whitespace-normal max-w-56">{{ t(`groupIndustry.chain.plannedCopyDuration.reason.${missing.reason}`) }}</span>
               </template>
             </template>
+            <p
+              v-if="item.node.jobs.length === 0 && JOB_NOT_SEEN_STATUSES.includes(item.node.status)"
+              data-testid="chain-job-not-seen-hint"
+              class="text-xs text-slate-500 whitespace-normal max-w-56"
+            >{{ t('groupIndustry.chain.jobNotSeenHint') }}</p>
           </td>
 
           <td class="py-2 px-3">
