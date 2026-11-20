@@ -20,6 +20,7 @@ use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
+use App\Service\Industry\Project\ProjectContainerService;
 use App\State\Processor\Industry\LinkJobProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -169,6 +170,7 @@ final class LinkJobProcessorTest extends TestCase
             $jobMatchRepository,
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
+            $this->createStub(ProjectContainerService::class),
         );
 
         return new LinkJobProcessor(

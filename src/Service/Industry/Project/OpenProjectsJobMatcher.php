@@ -33,11 +33,12 @@ class OpenProjectsJobMatcher
         }
 
         $released = array_filter($launched, $this->releaseAutomaticMatchesOf(...));
-        $contestedJobIds = $this->jobMatcher->contestedJobIds(array_values($released));
+        $containerOwners = $this->jobMatcher->containerOwnersByLocationId(array_values($released));
+        $contestedJobIds = $this->jobMatcher->contestedJobIds(array_values($released), $containerOwners);
 
         foreach ($released as $project) {
-            $this->process($project, function () use ($project, $contestedJobIds): void {
-                $this->jobMatcher->matchEsiJobs($project, $contestedJobIds);
+            $this->process($project, function () use ($project, $contestedJobIds, $containerOwners): void {
+                $this->jobMatcher->matchEsiJobs($project, $contestedJobIds, $containerOwners);
                 $this->jobActivityRecorder->recordJobsOf($project);
             });
         }

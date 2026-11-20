@@ -25,6 +25,7 @@ final class OpenProjectsJobMatcherTest extends TestCase
 {
     private const int ISHTAR_TYPE_ID = 12005;
     private const int TRITANIUM_TYPE_ID = 34;
+    private const int CONTAINER_ITEM_ID = 1_040_000_000_001;
 
     private array $steps = [];
     private array $projectsOfUser = [];
@@ -33,6 +34,8 @@ final class OpenProjectsJobMatcherTest extends TestCase
     private array $contestedQueries = [];
     private array $stepsWhenContestedWasComputed = [];
     private array $contestedPassedToMatching = [];
+    private array $containerOwnerQueries = [];
+    private array $containerOwnersPassed = [];
     private ?IndustryProject $failingProject = null;
     private BufferingLogger $logger;
     private OpenProjectsJobMatcher $matcher;
@@ -45,16 +48,23 @@ final class OpenProjectsJobMatcherTest extends TestCase
         );
 
         $jobMatcher = $this->createStub(IndustryJobMatcher::class);
-        $jobMatcher->method('contestedJobIds')->willReturnCallback(function (array $projects): array {
+        $jobMatcher->method('containerOwnersByLocationId')->willReturnCallback(function (array $projects): array {
+            $this->containerOwnerQueries[] = array_map(static fn (IndustryProject $project): ?string => $project->getName(), $projects);
+
+            return [self::CONTAINER_ITEM_ID => ['owner-project-id']];
+        });
+        $jobMatcher->method('contestedJobIds')->willReturnCallback(function (array $projects, array $containerOwners = []): array {
+            $this->containerOwnersPassed[] = ['contested', $containerOwners];
             $this->contestedQueries[] = array_map(static fn (IndustryProject $project): ?string => $project->getName(), $projects);
             $this->stepsWhenContestedWasComputed = $this->steps;
 
             return $this->contestedJobs;
         });
-        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project, array $contestedJobIds = []): array {
+        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project, array $contestedJobIds = [], array $containerOwners = []): array {
             if ($project === $this->failingProject) {
                 throw new \RuntimeException('matching failed');
             }
+            $this->containerOwnersPassed[] = [$project->getName(), $containerOwners];
             $this->steps[] = ['match', $project->getName()];
             $this->contestedPassedToMatching[] = [$project->getName(), $contestedJobIds];
 
@@ -216,6 +226,25 @@ final class OpenProjectsJobMatcherTest extends TestCase
         self::assertSame(
             [['Launch', [7_124_800 => true]], ['Selling batch', [7_124_800 => true]]],
             $this->contestedPassedToMatching,
+        );
+    }
+
+    #[Group('issue-1125')]
+    public function testTheContainerOwnersAreComputedOnceOverTheSameProjectsAsTheContestedJobsAndPassedToEveryCall(): void
+    {
+        $this->projectsOfUser = [
+            $this->project('Launch', ProjectStatus::InProgress),
+            $this->project('Nomad 18', ProjectStatus::Draft),
+            $this->project('Selling batch', ProjectStatus::Selling),
+        ];
+
+        $this->matcher->matchOpenProjectsOf(new User());
+
+        $owners = [1_040_000_000_001 => ['owner-project-id']];
+        self::assertSame([['Launch', 'Selling batch']], $this->containerOwnerQueries);
+        self::assertSame(
+            [['contested', $owners], ['Launch', $owners], ['Selling batch', $owners]],
+            $this->containerOwnersPassed,
         );
     }
 
