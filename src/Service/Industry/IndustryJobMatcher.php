@@ -11,12 +11,14 @@ use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 
 class IndustryJobMatcher
 {
@@ -37,65 +39,71 @@ class IndustryJobMatcher
     }
 
     /**
+     * @param array<int, true> $contestedJobIds
+     *
      * @return list<LineMatchFailure>
      */
-    public function matchEsiJobs(IndustryProject $project): array
+    public function matchEsiJobs(IndustryProject $project, array $contestedJobIds = []): array
     {
-        $characterIds = [];
-        foreach ($this->usersWhoseJobsAreMatched($project) as $user) {
-            foreach ($user->getCharacters() as $character) {
-                $characterIds[] = $character->getId();
-            }
-        }
-
+        $characterIds = $this->characterIdsOf($project);
         if ($characterIds === []) {
             return [];
         }
 
-        $jobLines = $project->getBomItems()->filter(
-            static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob(),
-        );
-        $recomputableLines = $this->recomputableJobLinesOf($project);
-
-        $this->clearAutomaticMatches($recomputableLines);
+        $this->clearAutomaticMatches($this->recomputableJobLinesOf($project));
         $this->entityManager->flush();
 
-        $assignedJobIds = array_fill_keys([
-            ...$this->jobMatchRepository->findEsiJobIdsMatchedToOtherProjects($project),
-            ...$this->jobIdsKeptByManualLines($jobLines->toArray()),
-        ], true);
+        $candidates = $this->candidatesOf($project, $characterIds);
+        foreach ($candidates['failures'] as $failure) {
+            $this->reported($project, $failure);
+        }
 
-        $failures = [];
-        foreach ($recomputableLines as $line) {
-            $runs = $line->getRuns();
-            if ($runs === null) {
-                $failures[] = $this->reported($project, LineMatchFailure::noRuns($line));
-                continue;
-            }
-
-            try {
-                $producer = $this->productRepository->producerOf($line->getTypeId());
-            } catch (ProducerMissingFromSdeException) {
-                $failures[] = $this->reported($project, LineMatchFailure::producerMissingFromSde($line));
-                continue;
-            }
-
-            $jobs = array_filter(
-                $this->jobRepository->findManufacturingJobsByBlueprint(
-                    $producer->getTypeId(),
-                    $characterIds,
-                    null,
-                    $project->getCreatedAt(),
-                ),
-                static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput(),
-            );
-
-            $this->matchJobsToLine($line, $runs, $jobs, $assignedJobIds);
+        $assignedJobIds = $this->unavailableJobIdsOf($project) + $contestedJobIds;
+        foreach ($this->jobsFittingLines($candidates['lines'], $assignedJobIds) as [$line, $job]) {
+            $line->addJobMatch($this->createJobMatch($job, $line, false));
         }
 
         $this->entityManager->flush();
 
-        return $failures;
+        return $candidates['failures'];
+    }
+
+    /**
+     * @param list<IndustryProject> $projects
+     *
+     * @return array<int, true>
+     */
+    public function contestedJobIds(array $projects): array
+    {
+        $plans = [];
+        foreach ($projects as $project) {
+            if ($project->getStatus() === ProjectStatus::Draft) {
+                continue;
+            }
+
+            $characterIds = $this->characterIdsOf($project);
+            if ($characterIds === []) {
+                continue;
+            }
+
+            $plans[] = [$this->candidatesOf($project, $characterIds)['lines'], $this->unavailableJobIdsOf($project)];
+        }
+
+        $contestedJobIds = [];
+        do {
+            $proposals = [];
+            foreach ($plans as $planIndex => [$lines, $unavailableJobIds]) {
+                $assignedJobIds = $unavailableJobIds + $contestedJobIds;
+                foreach ($this->jobsFittingLines($lines, $assignedJobIds) as [, $job]) {
+                    $proposals[$job->getJobId()][] = $planIndex;
+                }
+            }
+
+            $newlyContestedJobIds = array_keys(array_filter($proposals, static fn (array $planIndexes): bool => \count($planIndexes) > 1));
+            $contestedJobIds += array_fill_keys($newlyContestedJobIds, true);
+        } while ($newlyContestedJobIds !== []);
+
+        return $contestedJobIds;
     }
 
     public function isJobOfBomLineActivity(CachedIndustryJob $job, IndustryProjectBomLine $line): bool
@@ -125,39 +133,102 @@ class IndustryJobMatcher
     }
 
     /**
-     * @param CachedIndustryJob[] $jobs
-     * @param array<int, true>    $assignedJobIds
+     * @param list<Uuid|int|null> $characterIds
+     *
+     * @return array{lines: list<array{0: IndustryProjectBomLine, 1: int, 2: list<CachedIndustryJob>}>, failures: list<LineMatchFailure>}
      */
-    private function matchJobsToLine(IndustryProjectBomLine $line, int $remainingRuns, array $jobs, array &$assignedJobIds): void
+    private function candidatesOf(IndustryProject $project, array $characterIds): array
     {
-        foreach ($jobs as $job) {
-            if ($remainingRuns <= 0) {
-                break;
-            }
-
-            if (isset($assignedJobIds[$job->getJobId()]) || $job->getRuns() > $remainingRuns) {
+        $lines = [];
+        $failures = [];
+        foreach ($this->recomputableJobLinesOf($project) as $line) {
+            $runs = $line->getRuns();
+            if ($runs === null) {
+                $failures[] = LineMatchFailure::noRuns($line);
                 continue;
             }
 
-            $assignedJobIds[$job->getJobId()] = true;
-            $remainingRuns -= $job->getRuns();
-            $line->addJobMatch($this->createJobMatch($job, $line, false));
-        }
-
-        if ($remainingRuns <= 0) {
-            return;
-        }
-
-        foreach ($jobs as $job) {
-            if (isset($assignedJobIds[$job->getJobId()]) || $job->getRuns() <= $remainingRuns) {
+            try {
+                $producer = $this->productRepository->producerOf($line->getTypeId());
+            } catch (ProducerMissingFromSdeException) {
+                $failures[] = LineMatchFailure::producerMissingFromSde($line);
                 continue;
             }
 
-            $assignedJobIds[$job->getJobId()] = true;
-            $line->addJobMatch($this->createJobMatch($job, $line, false));
-
-            return;
+            $lines[] = [
+                $line,
+                $runs,
+                array_values(array_filter(
+                    $this->jobRepository->findManufacturingJobsByBlueprint(
+                        $producer->getTypeId(),
+                        $characterIds,
+                        null,
+                        $project->getCreatedAt(),
+                    ),
+                    static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput(),
+                )),
+            ];
         }
+
+        return ['lines' => $lines, 'failures' => $failures];
+    }
+
+    /**
+     * @param list<array{0: IndustryProjectBomLine, 1: int, 2: list<CachedIndustryJob>}> $lines
+     * @param array<int, true>                                                            $assignedJobIds
+     *
+     * @return list<array{0: IndustryProjectBomLine, 1: CachedIndustryJob}>
+     */
+    private function jobsFittingLines(array $lines, array &$assignedJobIds): array
+    {
+        $fits = [];
+        foreach ($lines as [$line, $remainingRuns, $jobs]) {
+            foreach ($jobs as $job) {
+                if ($remainingRuns <= 0) {
+                    break;
+                }
+
+                if (isset($assignedJobIds[$job->getJobId()]) || $job->getRuns() > $remainingRuns) {
+                    continue;
+                }
+
+                $assignedJobIds[$job->getJobId()] = true;
+                $remainingRuns -= $job->getRuns();
+                $fits[] = [$line, $job];
+            }
+        }
+
+        return $fits;
+    }
+
+    /**
+     * @return array<int, true>
+     */
+    private function unavailableJobIdsOf(IndustryProject $project): array
+    {
+        $jobLines = $project->getBomItems()->filter(
+            static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob(),
+        );
+
+        return array_fill_keys([
+            ...$this->jobMatchRepository->findEsiJobIdsMatchedToOtherProjects($project),
+            ...$this->jobIdsKeptByManualLines($jobLines->toArray()),
+        ], true);
+    }
+
+    /**
+     * @return list<Uuid|int|null>
+     */
+    private function characterIdsOf(IndustryProject $project): array
+    {
+        $characterIds = [];
+        foreach ($this->usersWhoseJobsAreMatched($project) as $user) {
+            foreach ($user->getCharacters() as $character) {
+                $characterIds[] = $character->getId();
+            }
+        }
+
+        return $characterIds;
     }
 
     public function releaseAutomaticMatches(IndustryProject $project): void
