@@ -3,6 +3,29 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.26 (2026-11-20)
+--------------------------------------------------------------------------------
+
+### Industrie
+- L'onglet "Approvisionnement & jobs" devient "Approvisionnement" : il ne
+  liste plus que les materiaux
+- L'onglet Production est la seule liste des jobs : verification du
+  conteneur, jobs lies, liaison manuelle, achats, reservation et
+  contribution se font directement sur l'arbre des jobs
+- Production : le stock du conteneur du projet compte comme fourni, comme
+  sur l'onglet Approvisionnement ; un job dont les materiaux sont dans le
+  conteneur n'affiche plus "Materiaux manquants"
+- Production : heure de la derniere sync des jobs et bouton "Associer les
+  jobs" en tete d'onglet
+- Un job lance en jeu mais pas encore vu indique qu'il apparaitra apres la
+  prochaine sync des jobs
+- Le flux affiche une carte "N / M lignes de materiaux fournies" qui ouvre
+  l'onglet Approvisionnement
+- Compagnon : les lignes a fabriquer suivent l'ordre de l'onglet
+  Production, et une ligne qui attend ses composants porte l'etiquette
+  "En attente des composants"
+
+--------------------------------------------------------------------------------
 Version 0.25 (2026-11-20)
 --------------------------------------------------------------------------------
 
