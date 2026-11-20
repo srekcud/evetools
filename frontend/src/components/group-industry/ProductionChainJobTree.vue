@@ -80,6 +80,20 @@ const { formatDateTime, formatDuration, formatNumber } = useFormatters()
 
 const COLUMN_KEYS = ['element', 'activity', 'runs', 'meTe', 'character', 'status', 'realCost', 'end', 'inOut', 'structure', 'reservation'] as const
 
+const COLUMN_WIDTH_PERCENT: Record<(typeof COLUMN_KEYS)[number], number> = {
+  element: 16,
+  activity: 6,
+  runs: 5,
+  meTe: 6,
+  character: 9,
+  status: 9,
+  realCost: 7,
+  end: 9,
+  inOut: 11,
+  structure: 9,
+  reservation: 13,
+}
+
 const rowElements = new Map<string, Element>()
 
 const jobNodes = computed(() => props.nodes.filter(node => STAGE_RANK[node.stage] !== undefined))
@@ -163,14 +177,17 @@ function plansStructure(node: ChainNode): boolean {
 </script>
 
 <template>
-  <div data-testid="chain-tree" class="overflow-x-auto">
-    <table class="w-full text-sm">
+  <div data-testid="chain-tree">
+    <table class="w-full table-fixed text-sm">
+      <colgroup>
+        <col v-for="column in COLUMN_KEYS" :key="column" :style="{ width: `${COLUMN_WIDTH_PERCENT[column]}%` }" />
+      </colgroup>
       <thead>
         <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
           <th
             v-for="column in COLUMN_KEYS"
             :key="column"
-            class="py-2.5 px-3 whitespace-nowrap"
+            class="py-2.5 px-3 break-words"
             :class="column === 'runs' || column === 'realCost' ? 'text-right' : 'text-left'"
           >{{ column === 'reservation' ? (isSoloProject ? '' : t('groupIndustry.reservation.reservedBy')) : t(`groupIndustry.chain.columns.${column}`) }}</th>
         </tr>
@@ -212,7 +229,7 @@ function plansStructure(node: ChainNode): boolean {
                 @error="onImageError"
               />
               <span v-else data-testid="chain-icon-placeholder" class="w-6 h-6 shrink-0" aria-hidden="true"></span>
-              <span class="block truncate min-w-0 max-w-64 font-medium text-slate-200" :title="item.node.typeName ?? undefined">{{ item.node.typeName }}</span>
+              <span class="block truncate min-w-0 font-medium text-slate-200" :title="item.node.typeName ?? undefined">{{ item.node.typeName }}</span>
               <BlueprintNameCopyButton :blueprint-name="item.node.blueprintName" />
             </div>
             <template v-if="bomItemOf(item.node) !== undefined">
@@ -271,12 +288,12 @@ function plansStructure(node: ChainNode): boolean {
             >{{ t('groupIndustry.jobs.matchedRuns', { runs: formatNumber(bomItemOf(item.node)!.matchedRuns!, 0) }) }}</span>
           </td>
 
-          <td class="py-2 px-3 text-slate-400 whitespace-nowrap">
+          <td class="py-2 px-3 text-slate-400 break-words">
             <template v-if="showsBlueprintEfficiency(item.node.activity) && item.node.meLevel !== null && item.node.teLevel !== null">{{ t('groupIndustry.chain.meTeValue', { me: item.node.meLevel, te: item.node.teLevel }) }}</template>
           </td>
 
           <td class="py-2 px-3 text-slate-300">
-            <span v-for="entry in characterEntries(item.node)" :key="entry.key" class="block truncate max-w-48" :title="entry.name ?? undefined">
+            <span v-for="entry in characterEntries(item.node)" :key="entry.key" class="block truncate" :title="entry.name ?? undefined">
               <template v-if="entry.name !== null">{{ entry.name }}</template>
               <span v-else class="text-violet-300">{{ t('groupIndustry.chain.characterUnknown') }}</span>
               <span v-if="entry.quantity !== null" class="ml-1 font-mono text-xs text-slate-500">×{{ formatNumber(entry.quantity, 0) }}</span>
@@ -285,7 +302,7 @@ function plansStructure(node: ChainNode): boolean {
 
           <td class="py-2 px-3">
             <span
-              class="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm border text-xs whitespace-nowrap"
+              class="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm border text-xs"
               :class="chainStatusChipClass(item.node.status)"
             >
               <i class="inline-block w-1.5 h-1.5 rounded-full" :class="chainStatusDotClass(item.node.status)"></i>{{ t(`groupIndustry.chain.status.${item.node.status}`) }}
@@ -303,12 +320,12 @@ function plansStructure(node: ChainNode): boolean {
             <IskAmount v-if="item.node.costState === 'known'" :value="item.node.realCost" short />
             <template v-else-if="item.node.costState === 'unknown'">
               <UnknownContributionValue data-testid="chain-cost-unknown" />
-              <span class="block mt-1 text-xs font-sans text-violet-300 whitespace-normal max-w-56 ml-auto">{{ t('groupIndustry.chain.unknownCostCause') }}</span>
+              <span class="block mt-1 text-xs font-sans text-violet-300 whitespace-normal ml-auto">{{ t('groupIndustry.chain.unknownCostCause') }}</span>
             </template>
             <span v-else class="text-slate-500">—</span>
           </td>
 
-          <td class="py-2 px-3 text-slate-400 whitespace-nowrap">
+          <td class="py-2 px-3 text-slate-400 break-words">
             <template v-if="item.endDate !== null">{{ formatDateTime(item.endDate) }}</template>
             <template v-else-if="item.node.plannedCopyDuration !== null">
               <span
@@ -319,13 +336,13 @@ function plansStructure(node: ChainNode): boolean {
               >{{ t('groupIndustry.chain.plannedCopyDuration.planned', { duration: formatDuration(item.node.plannedCopyDuration.seconds) }) }}</span>
               <template v-else>
                 <span data-testid="chain-planned-copy-duration-unknown" class="block text-violet-300">{{ t('groupIndustry.chain.plannedCopyDuration.unknown') }}</span>
-                <span v-for="missing in item.node.plannedCopyDuration.missingData" :key="missing.reason" class="block text-xs text-violet-300 whitespace-normal max-w-56">{{ t(`groupIndustry.chain.plannedCopyDuration.reason.${missing.reason}`) }}</span>
+                <span v-for="missing in item.node.plannedCopyDuration.missingData" :key="missing.reason" class="block text-xs text-violet-300 whitespace-normal">{{ t(`groupIndustry.chain.plannedCopyDuration.reason.${missing.reason}`) }}</span>
               </template>
             </template>
             <p
               v-if="item.node.jobs.length === 0 && JOB_NOT_SEEN_STATUSES.includes(item.node.status)"
               data-testid="chain-job-not-seen-hint"
-              class="text-xs text-slate-500 whitespace-normal max-w-56"
+              class="text-xs text-slate-500 whitespace-normal"
             >{{ t('groupIndustry.chain.jobNotSeenHint') }}</p>
           </td>
 
@@ -336,7 +353,7 @@ function plansStructure(node: ChainNode): boolean {
           </td>
 
           <td class="py-2 px-3 text-slate-300">
-            <div class="w-48">
+            <div class="min-w-0">
               <span v-for="structure in item.node.structures" :key="structure" class="block truncate" :title="structure">{{ structure }}</span>
               <template v-if="item.node.plannedStructure !== null">
                 <span data-testid="chain-planned-structure" class="block text-xs text-slate-400">

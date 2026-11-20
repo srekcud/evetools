@@ -56,7 +56,7 @@ async function remove(): Promise<void> {
     <span
       v-if="node.mark !== null"
       data-testid="chain-step-mark-badge"
-      class="inline-flex items-center px-1.5 py-0.5 rounded-sm border border-cyan-500/30 bg-cyan-500/10 text-xs text-cyan-300 whitespace-nowrap"
+      class="inline-flex items-center px-1.5 py-0.5 rounded-sm border border-cyan-500/30 bg-cyan-500/10 text-xs text-cyan-300"
       :title="t('groupIndustry.chain.mark.badge')"
     >{{ t(node.mark.state === 'done' ? 'groupIndustry.chain.mark.markedDone' : 'groupIndustry.chain.mark.markedLaunched', { runs: node.mark.runs }) }}</span>
 
