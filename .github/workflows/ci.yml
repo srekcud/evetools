@@ -69,6 +69,10 @@ jobs:
       - name: Frontend lint
         run: npm --prefix frontend run lint
 
+      - name: Frontend type-check
+        working-directory: frontend
+        run: npx vue-tsc -b
+
   integration:
     name: Integration
     runs-on: ubuntu-24.04
