@@ -53,7 +53,6 @@ async function openEditModalOf(project: GroupProject, settings: Settings): Promi
         IndustryModuleTabs: true,
         teleport: true,
         BomTable: true,
-        JobsTable: true,
         ContainerBanner: true,
         ProjectCourier: true,
         ContributeModal: true,

@@ -73,7 +73,6 @@ async function mountDetailOf(project: GroupProject): Promise<VueWrapper> {
         IndustryModuleTabs: true,
         teleport: true,
         BomTable: true,
-        JobsTable: true,
         ContainerBanner: true,
         ProjectCourier: true,
         ContributeModal: true,

@@ -4,12 +4,12 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import BomTable from '@/components/group-industry/BomTable.vue'
-import JobsTable from '@/components/group-industry/JobsTable.vue'
 import LineReservation from '@/components/group-industry/LineReservation.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem, GroupProject } from '@/stores/group-industry/types'
 import { present } from '../../present'
+import { mountProductionJobRows } from '../../productionJobRows'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -333,25 +333,37 @@ describe('BomTable on a solo project', () => {
   })
 })
 
-describe('JobsTable on a solo project', () => {
-  function mountJobsTable(solo: boolean): VueWrapper {
-    setActivePinia(createPinia())
-    const store = useGroupProjectStore()
-    store.currentProject = { ...project('in_progress'), solo }
-    store.bomItems = [line({ id: 'job-ishtar', typeName: 'Ishtar', isJob: true, jobGroup: 'final', activityType: 'manufacturing', runs: 2 })]
-    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
+describe('Production job row on a solo project', () => {
+  const ISHTAR_JOB = line({ id: 'job-ishtar', typeName: 'Ishtar', isJob: true, jobGroup: 'final', activityType: 'manufacturing', runs: 2 })
 
-    return mount(JobsTable, { global: { plugins: [i18n], stubs: { teleport: true } } })
+  function mountJobRows(solo: boolean): Promise<VueWrapper> {
+    return mountProductionJobRows({ lines: [ISHTAR_JOB], projectId: PROJECT_ID, solo })
   }
 
-  it('drops the Reserved by column but keeps the line action', () => {
-    const wrapper = mountJobsTable(true)
+  it('drops the Reserved by column but keeps the line action', async () => {
+    const wrapper = await mountJobRows(true)
 
     expect(wrapper.text()).not.toContain('Reserved by')
     expect(buttonLabelled(wrapper, 'I supplied it')).toBeDefined()
   })
 
-  it('keeps the Reserved by column on a group project', () => {
-    expect(mountJobsTable(false).text()).toContain('Reserved by')
+  it('keeps the Reserved by column on a group project', async () => {
+    expect((await mountJobRows(false)).text()).toContain('Reserved by')
+  })
+
+  it('keeps the reservation column and the line action for a member who is not the owner', async () => {
+    const wrapper = await mountProductionJobRows({ lines: [ISHTAR_JOB], projectId: PROJECT_ID, role: 'member' })
+
+    expect(wrapper.text()).toContain('Reserved by')
+    expect(buttonLabelled(wrapper, "I'll handle it")).toBeDefined()
+  })
+
+  it('re-emits the contribution asked from the line action up to the project', async () => {
+    const wrapper = await mountJobRows(true)
+
+    expect(buttonLabelled(wrapper, 'I supplied it')).toBeDefined()
+    await buttonLabelled(wrapper, 'I supplied it')?.trigger('click')
+
+    expect(wrapper.emitted('contribute')).toEqual([[ISHTAR_JOB]])
   })
 })

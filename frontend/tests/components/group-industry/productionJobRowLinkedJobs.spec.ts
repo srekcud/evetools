@@ -1,14 +1,13 @@
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import BomTable from '@/components/group-industry/BomTable.vue'
-import JobsTable from '@/components/group-industry/JobsTable.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BomItem, GroupMemberRole, GroupProject } from '@/stores/group-industry/types'
-import { present } from '../../present'
+import { callsTo, chainNodeOfLine, mountProductionJobRows } from '../../productionJobRows'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -18,7 +17,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const PROJECT_ID = 'project-ishtar-batch'
 const MATCH_JOBS_URL = `/industry/projects/${PROJECT_ID}/match-jobs`
 const BOM_URL = `/industry/projects/${PROJECT_ID}/bom`
-const MATCH_JOBS_LABEL = 'Match jobs'
+const CHAIN_URL = `/industry/projects/${PROJECT_ID}/chain`
 const MATCHED_RUNS = '[data-testid="matched-runs"]'
 const JOB_MATCH = '[data-testid="job-match"]'
 const PURCHASED_QUANTITY = '[data-testid="purchased-quantity"]'
@@ -103,30 +102,36 @@ function projectAs(myRole: GroupMemberRole): GroupProject {
   return { id: PROJECT_ID, name: 'Ishtar batch', status: 'in_progress', myRole, items: [] } as unknown as GroupProject
 }
 
-function mountComponent(component: typeof JobsTable | typeof BomTable, myRole: GroupMemberRole, lines: BomItem[]): VueWrapper {
+function mountBomTable(myRole: GroupMemberRole, lines: BomItem[]): VueWrapper {
+  setActivePinia(createPinia())
   const projectStore = useGroupProjectStore()
   projectStore.currentProject = projectAs(myRole)
   projectStore.bomItems = lines
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
-  return mount(component, { global: { plugins: [i18n] } })
+  return mount(BomTable, { global: { plugins: [i18n] } })
+}
+
+function mountRows(myRole: GroupMemberRole, lines: BomItem[], answers: Record<string, unknown> = {}): Promise<VueWrapper> {
+  return mountProductionJobRows({ lines, projectId: PROJECT_ID, role: myRole, answers })
 }
 
 function matchJobsButton(wrapper: VueWrapper) {
-  return wrapper.findAll('button').find(button => button.text() === MATCH_JOBS_LABEL)
+  return wrapper.find('[data-testid="chain-match-jobs"]')
 }
 
-function callsTo(url: string): number {
-  return vi.mocked(apiRequest).mock.calls.filter(([calledUrl]) => calledUrl === url).length
+function matchJobsAnswer(failedCharacters: unknown[], failedLines: unknown[]): Record<string, unknown> {
+  return { [MATCH_JOBS_URL]: { jobMatches: [], jobsCost: null, syncedCharacters: 1, failedCharacters, failedLines } }
 }
+
+enableAutoUnmount(afterEach)
 
 beforeEach(() => {
-  setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
 })
 
-describe('JobsTable linked jobs', () => {
-  it('shows the matched runs and each linked job of a job line', () => {
-    const wrapper = mountComponent(JobsTable, 'owner', [ISHTAR_JOB])
+describe('Production job row linked jobs', () => {
+  it('shows the matched runs and each linked job of a job line', async () => {
+    const wrapper = await mountRows('owner', [ISHTAR_JOB])
 
     expect(wrapper.get(MATCHED_RUNS).text()).toContain('5')
     const linkedJobs = wrapper.findAll(JOB_MATCH).map(linkedJob => linkedJob.text())
@@ -137,59 +142,39 @@ describe('JobsTable linked jobs', () => {
     expect(linkedJobs[1]).toContain('2')
   })
 
-  it('offers the match jobs button to the owner only', () => {
+  it('offers the match jobs button to the owner only', async () => {
     expect({
-      owner: matchJobsButton(mountComponent(JobsTable, 'owner', [ISHTAR_JOB])) !== undefined,
-      admin: matchJobsButton(mountComponent(JobsTable, 'admin', [ISHTAR_JOB])) !== undefined,
-      member: matchJobsButton(mountComponent(JobsTable, 'member', [ISHTAR_JOB])) !== undefined,
+      owner: matchJobsButton(await mountRows('owner', [ISHTAR_JOB])).exists(),
+      admin: matchJobsButton(await mountRows('admin', [ISHTAR_JOB])).exists(),
+      member: matchJobsButton(await mountRows('member', [ISHTAR_JOB])).exists(),
     }).toEqual({ owner: true, admin: false, member: false })
   })
 
-  it('posts the matching, reloads the BOM and names the character whose jobs could not be synced', async () => {
-    vi.mocked(apiRequest).mockImplementation((async (url: string) => {
-      if (url === MATCH_JOBS_URL) {
-        return {
-          jobMatches: [],
-          jobsCost: null,
-          syncedCharacters: 1,
-          failedCharacters: [{ characterName: 'Cyra Lune', reason: 'ESI token expired', statusCode: 403 }],
-          failedLines: [],
-        }
-      }
-      return [ISHTAR_JOB]
-    }) as never)
-    const wrapper = mountComponent(JobsTable, 'owner', [ISHTAR_JOB])
+  it('posts the matching, reloads the BOM and the chain and names the character whose jobs could not be synced', async () => {
+    const wrapper = await mountRows('owner', [ISHTAR_JOB], matchJobsAnswer([{ characterName: 'Cyra Lune', reason: 'ESI token expired', statusCode: 403 }], []))
 
-    expect(matchJobsButton(wrapper)).toBeDefined()
-    await present(matchJobsButton(wrapper)).trigger('click')
+    expect(matchJobsButton(wrapper).exists()).toBe(true)
+    await matchJobsButton(wrapper).trigger('click')
     await flushPromises()
 
     expect(apiRequest).toHaveBeenCalledWith(MATCH_JOBS_URL, { method: 'POST', body: '{}' })
     expect(callsTo(BOM_URL)).toBe(1)
+    expect(callsTo(CHAIN_URL)).toBe(2)
     expect(wrapper.text()).toContain('Cyra Lune')
     expect(wrapper.text()).toContain('ESI token expired')
   })
 
   it('lists the characters not synced with a readable reason and the lines not matched with their type and reason', async () => {
-    vi.mocked(apiRequest).mockImplementation((async (url: string) => {
-      if (url === MATCH_JOBS_URL) {
-        return {
-          jobMatches: [],
-          jobsCost: null,
-          syncedCharacters: 1,
-          failedCharacters: [{ characterName: 'Cyra Lune', reason: 'sync_failed', statusCode: null }],
-          failedLines: [
-            { typeId: 12005, typeName: 'Ishtar', reason: 'producer_missing_from_sde' },
-            { typeId: 11478, typeName: 'R.A.M.- Starship Tech', reason: 'no_runs' },
-            { typeId: 16683, typeName: 'Ferrogel', reason: 'contribution_not_refreshed' },
-          ],
-        }
-      }
-      return [ISHTAR_JOB]
-    }) as never)
-    const wrapper = mountComponent(JobsTable, 'owner', [ISHTAR_JOB])
+    const wrapper = await mountRows('owner', [ISHTAR_JOB], matchJobsAnswer(
+      [{ characterName: 'Cyra Lune', reason: 'sync_failed', statusCode: null }],
+      [
+        { typeId: 12005, typeName: 'Ishtar', reason: 'producer_missing_from_sde' },
+        { typeId: 11478, typeName: 'R.A.M.- Starship Tech', reason: 'no_runs' },
+        { typeId: 16683, typeName: 'Ferrogel', reason: 'contribution_not_refreshed' },
+      ],
+    ))
 
-    await present(matchJobsButton(wrapper)).trigger('click')
+    await matchJobsButton(wrapper).trigger('click')
     await flushPromises()
 
     const failedLines = wrapper.findAll('[data-testid="match-failed-line"]').map(line => line.text())
@@ -206,24 +191,42 @@ describe('JobsTable linked jobs', () => {
   })
 
   it('shows no failed lines panel when every line was matched', async () => {
-    vi.mocked(apiRequest).mockImplementation((async (url: string) => {
-      if (url === MATCH_JOBS_URL) {
-        return { jobMatches: [], jobsCost: null, syncedCharacters: 1, failedCharacters: [], failedLines: [] }
-      }
-      return [ISHTAR_JOB]
-    }) as never)
-    const wrapper = mountComponent(JobsTable, 'owner', [ISHTAR_JOB])
+    const wrapper = await mountRows('owner', [ISHTAR_JOB], matchJobsAnswer([], []))
 
-    await present(matchJobsButton(wrapper)).trigger('click')
+    await matchJobsButton(wrapper).trigger('click')
     await flushPromises()
 
     expect(wrapper.find('[data-testid="match-failed-line"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Some lines could not be matched:')
+    expect(wrapper.text()).not.toContain('Some characters could not be synced:')
+  })
+
+  it('shows the message of a refused matching and keeps the failure lists empty', async () => {
+    const wrapper = await mountRows('owner', [ISHTAR_JOB])
+    vi.mocked(apiRequest).mockRejectedValue(new Error('Match refused'))
+
+    await matchJobsButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="chain-match-jobs-error"]').text()).toBe('Match refused')
+    expect(wrapper.find('[data-testid="match-failed-line"]').exists()).toBe(false)
+  })
+})
+
+describe('Production job row without a loaded BOM line', () => {
+  it('lists the job node without any action and without crashing while the BOM lines are not loaded', async () => {
+    const wrapper = await mountProductionJobRows({ lines: [], nodes: [chainNodeOfLine(ISHTAR_JOB)], projectId: PROJECT_ID, role: 'owner' })
+
+    const row = wrapper.get('[data-testid="chain-row-job-ishtar"]')
+    expect(row.text()).toContain('Ishtar')
+    expect(row.find('[data-testid="link-job-open"]').exists()).toBe(false)
+    expect(row.find(JOB_MATCH).exists()).toBe(false)
+    expect(row.find(MATCHED_RUNS).exists()).toBe(false)
   })
 })
 
 describe('BOM lines without linked job data', () => {
-  it('renders no matched runs and no purchased quantity when the line does not carry them', () => {
+  it('renders no matched runs and no purchased quantity when the line does not carry them', async () => {
     const jobWithoutMatching = { ...ISHTAR_JOB } as Partial<BomItem>
     delete jobWithoutMatching.matchedRuns
     delete jobWithoutMatching.jobMatches
@@ -231,9 +234,9 @@ describe('BOM lines without linked job data', () => {
     delete tritaniumWithoutPurchases.purchasedQuantity
     const pyeriteWithPurchases = bomLine({ id: 'bom-pyerite', typeId: 35, typeName: 'Pyerite', requiredQuantity: 45_000, purchasedQuantity: 15_000 })
 
-    const jobsTable = mountComponent(JobsTable, 'owner', [jobWithoutMatching as BomItem])
-    const jobsRendering = { matchedRuns: jobsTable.findAll(MATCHED_RUNS).length, linkedJobs: jobsTable.findAll(JOB_MATCH).length }
-    const bomTable = mountComponent(BomTable, 'owner', [tritaniumWithoutPurchases as BomItem, pyeriteWithPurchases])
+    const productionRows = await mountRows('owner', [jobWithoutMatching as BomItem])
+    const jobsRendering = { matchedRuns: productionRows.findAll(MATCHED_RUNS).length, linkedJobs: productionRows.findAll(JOB_MATCH).length }
+    const bomTable = mountBomTable('owner', [tritaniumWithoutPurchases as BomItem, pyeriteWithPurchases])
 
     expect({
       ...jobsRendering,

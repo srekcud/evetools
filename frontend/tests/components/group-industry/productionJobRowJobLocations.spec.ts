@@ -1,11 +1,14 @@
-import { mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { createI18n } from 'vue-i18n'
-import en from '@/i18n/locales/en.json'
-import fr from '@/i18n/locales/fr.json'
-import JobsTable from '@/components/group-industry/JobsTable.vue'
-import { useGroupProjectStore } from '@/stores/group-industry/project'
-import type { BomItem, GroupProject, JobLocation, JobLocations, JobMatch } from '@/stores/group-industry/types'
+import { enableAutoUnmount } from '@vue/test-utils'
+import { apiRequest } from '@/services/api'
+import type { BomItem, JobLocation, JobLocations, JobMatch } from '@/stores/group-industry/types'
+import { mountProductionJobRows } from '../../productionJobRows'
+
+vi.mock(import('@/services/api'), async importOriginal => ({
+  ...(await importOriginal()),
+  apiRequest: vi.fn(),
+}))
+
+const PROJECT_ID = 'project-ishtar-batch'
 
 const LOCATIONS_LINE = '[data-testid="job-match-locations"]'
 const LOCATIONS_CHECK = '[data-testid="job-match-check"]'
@@ -68,20 +71,18 @@ function jobLineWith(locations: JobLocations | null): BomItem {
 }
 
 function mountWith(locations: JobLocations | null) {
-  const projectStore = useGroupProjectStore()
-  projectStore.currentProject = { id: 'project-ishtar-batch', name: 'Ishtar batch', status: 'in_progress', myRole: 'owner', items: [] } as unknown as GroupProject
-  projectStore.bomItems = [jobLineWith(locations)]
-  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
-  return mount(JobsTable, { global: { plugins: [i18n] } })
+  return mountProductionJobRows({ lines: [jobLineWith(locations)], projectId: PROJECT_ID, role: 'owner' })
 }
 
+enableAutoUnmount(afterEach)
+
 beforeEach(() => {
-  setActivePinia(createPinia())
+  vi.mocked(apiRequest).mockReset()
 })
 
-describe('JobsTable job locations', () => {
-  it('shows the entry and the exit of a linked job under the job with its check', () => {
-    const wrapper = mountWith({
+describe('Production job row job locations', () => {
+  it('shows the entry and the exit of a linked job under the job with its check', async () => {
+    const wrapper = await mountWith({
       blueprint: side({ name: 'Perso box', divisionName: null, status: 'outside' }),
       output: side({ kind: 'hangar', name: 'Jita IV - Moon 4', divisionName: null, status: 'outside' }),
     })
@@ -93,21 +94,21 @@ describe('JobsTable job locations', () => {
     expect(wrapper.get(LOCATIONS_CHECK).attributes('data-check')).toBe('output-outside')
   })
 
-  it('checks a job whose entry and exit are in the project container', () => {
-    const wrapper = mountWith({ blueprint: side({}), output: side({}) })
+  it('checks a job whose entry and exit are in the project container', async () => {
+    const wrapper = await mountWith({ blueprint: side({}), output: side({}) })
 
     expect(wrapper.get(LOCATIONS_CHECK).attributes('data-check')).toBe('ok')
   })
 
-  it('does not warn about an entry outside the project container', () => {
-    const wrapper = mountWith({ blueprint: side({ name: 'Perso box', divisionName: null, status: 'outside' }), output: side({}) })
+  it('does not warn about an entry outside the project container', async () => {
+    const wrapper = await mountWith({ blueprint: side({ name: 'Perso box', divisionName: null, status: 'outside' }), output: side({}) })
 
     expect(wrapper.get(LOCATIONS_CHECK).attributes('data-check')).toBe('ok')
     expect(wrapper.get(LOCATIONS_LINE).text()).toContain('Perso box')
   })
 
-  it('shows no line when the locations are not shared with the viewer', () => {
-    const wrapper = mountWith(null)
+  it('shows no line when the locations are not shared with the viewer', async () => {
+    const wrapper = await mountWith(null)
 
     expect(wrapper.find(LOCATIONS_LINE).exists()).toBe(false)
   })

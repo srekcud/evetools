@@ -38,13 +38,13 @@ A project you run alone is a solo project: the **Contributions** and **Team** ta
 
 ## Step 3: read the project and start it
 
-The phase rail (**Prepare**, **Supply**, **Produce**, **Sell**, **Close**) and the **Next action** card tell you where the project stands. The useful tabs: **Sourcing & jobs**, **Production**, **Invention**, **Sales**, **Finances**.
+The phase rail (**Prepare**, **Supply**, **Produce**, **Sell**, **Close**) and the **Next action** card tell you where the project stands. The useful tabs: **Sourcing**, **Production**, **Invention**, **Sales**, **Finances**.
 
 In the header, click **Start** (or **Publish** to open the project to others). The project moves to **In Progress**. There is no other condition: you can start before everything is bought.
 
 ## Step 4: bring the materials at the real price
 
-Tab **Sourcing & jobs**. The **Materials to Source** table gives, per material, **Required**, **Fulfilled**, **Remaining** and **Est. Cost**. The **Where to buy the materials** block compares **Jita + import** and **Structure** and tells you where to **Buy at**. Buy in game.
+Tab **Sourcing**. The **Materials to Source** table gives, per material, **Required**, **Fulfilled**, **Remaining** and **Est. Cost**. The **Where to buy the materials** block compares **Jita + import** and **Structure** and tells you where to **Buy at**. Buy in game.
 
 For each material, two ways to record it:
 
@@ -53,14 +53,14 @@ For each material, two ways to record it:
 
 A transaction already linked to another project is not offered. An unknown price gives a contribution of unknown value, never 0: the totals that include it are unknown too. Details: [Group projects FAQ](/help?page=faq/group-projects).
 
-For a T2, the **Invention** tab compares the decryptors read-only: nothing is saved and the project plan does not change. In the **Sourcing & jobs** tab, the **Owned T2 BPCs** card (button **Declare my T2 blueprint copies**) is used to declare the T2 BPCs you already own, and **Use my stock** to declare the intermediates you hold in stock (owner, project not completed).
+For a T2, the **Invention** tab compares the decryptors read-only: nothing is saved and the project plan does not change. In the **Sourcing** tab, the **Owned T2 BPCs** card (button **Declare my T2 blueprint copies**) is used to declare the T2 BPCs you already own, and **Use my stock** to declare the intermediates you hold in stock (owner, project not completed).
 
 ## Step 5: start the jobs in game
 
 Jobs are started in the game, not in EVE Tools. The app matches them to the project lines:
 
 - **automatically** after each jobs synchronization, for the uncompleted projects where you are an accepted participant. Only jobs started after the project was created count;
-- on demand: in the **Jobs to Launch** table, the **Match jobs** button (owner) first re-reads the ESI jobs of your characters, then matches them;
+- on demand: in the **Production** tab, the **Match jobs** button (owner) first re-reads the ESI jobs of your characters, then matches them;
 - by hand: **Link a job** on a line (**Unlink** to undo).
 
 The value of a job is its **Job cost** as given by ESI ("real cost (ESI)"), one contribution per participant who started the job. A cost that ESI does not give stays unknown. Synchronization frequency: [Sync frequencies](/help?page=data/sync-frequencies); a job that has just finished can take a while to show up (see [Numbers that look wrong](/help?page=faq/numbers-that-look-wrong)).

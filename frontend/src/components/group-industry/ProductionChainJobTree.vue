@@ -5,11 +5,18 @@ import { useI18n } from 'vue-i18n'
 import IskAmount from '@/components/common/IskAmount.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
-import type { ChainJob, ChainNode, ChainStage, ChainStatus } from '@/stores/group-industry/types'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
+import type { BomItem, ChainJob, ChainNode, ChainStage, ChainStatus } from '@/stores/group-industry/types'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import { chainStatusChipClass, chainStatusDotClass } from './chainStatus'
 import { filterChainNodes } from './chainStatusFilter'
+import ContainerLineStatus from './ContainerLineStatus.vue'
+import { containerLineOf, isPartlyCoveredByTheContainer } from './jobContainerCoverage'
+import JobLocationBadge from './JobLocationBadge.vue'
+import LinePurchases from './LinePurchases.vue'
+import LineReservation from './LineReservation.vue'
+import UnclaimedStockBadge from './UnclaimedStockBadge.vue'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
 type LevelHeader = {
@@ -48,18 +55,29 @@ const props = defineProps<{
   selectedId: string | null
   projectId?: string
   canMark?: boolean
+  canLinkJobs?: boolean
   statusFilter?: readonly ChainStatus[]
 }>()
 
 defineEmits<{
   marked: []
+  contribute: [bomItem: BomItem]
+  'link-job': [line: BomItem]
+  'unlink-job': [matchId: string]
 }>()
 
 const { t } = useI18n()
+const projectStore = useGroupProjectStore()
+const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
+const bomItemById = computed(() => new Map(projectStore.bomItems.map(item => [item.id, item])))
+
+function bomItemOf(node: ChainNode): BomItem | undefined {
+  return bomItemById.value.get(node.id)
+}
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { formatDateTime, formatDuration, formatNumber } = useFormatters()
 
-const COLUMN_KEYS = ['element', 'activity', 'runs', 'meTe', 'character', 'status', 'realCost', 'end', 'inOut', 'structure'] as const
+const COLUMN_KEYS = ['element', 'activity', 'runs', 'meTe', 'character', 'status', 'realCost', 'end', 'inOut', 'structure', 'reservation'] as const
 
 const rowElements = new Map<string, Element>()
 
@@ -153,7 +171,7 @@ function plansStructure(node: ChainNode): boolean {
             :key="column"
             class="py-2.5 px-3 whitespace-nowrap"
             :class="column === 'runs' || column === 'realCost' ? 'text-right' : 'text-left'"
-          >{{ t(`groupIndustry.chain.columns.${column}`) }}</th>
+          >{{ column === 'reservation' ? (isSoloProject ? '' : t('groupIndustry.reservation.reservedBy')) : t(`groupIndustry.chain.columns.${column}`) }}</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-800/30">
@@ -196,6 +214,47 @@ function plansStructure(node: ChainNode): boolean {
               <span class="block truncate min-w-0 max-w-64 font-medium text-slate-200" :title="item.node.typeName ?? undefined">{{ item.node.typeName }}</span>
               <BlueprintNameCopyButton :blueprint-name="item.node.blueprintName" />
             </div>
+            <template v-if="bomItemOf(item.node) !== undefined">
+              <ContainerLineStatus v-if="containerLineOf(bomItemOf(item.node)!) !== undefined" :verification="containerLineOf(bomItemOf(item.node)!)!" />
+              <p
+                v-if="isPartlyCoveredByTheContainer(bomItemOf(item.node)!)"
+                data-testid="job-container-remaining"
+                class="mt-1 text-xs text-sky-400"
+              >{{ t('groupIndustry.jobs.containerRemaining', { covered: formatNumber(bomItemOf(item.node)!.containerQuantity ?? 0, 0), required: formatNumber(bomItemOf(item.node)!.requiredQuantity, 0), remaining: formatNumber(bomItemOf(item.node)!.remainingQuantity, 0) }) }}</p>
+              <UnclaimedStockBadge v-if="bomItemOf(item.node)!.jobGroup === 'component'" :item="bomItemOf(item.node)!" />
+              <ul v-if="bomItemOf(item.node)!.jobMatches !== undefined && bomItemOf(item.node)!.jobMatches.length > 0" class="mt-1 space-y-0.5">
+                <li
+                  v-for="jobMatch in bomItemOf(item.node)!.jobMatches"
+                  :key="jobMatch.id"
+                  data-testid="job-match"
+                  class="text-xs text-slate-500"
+                >
+                  <span v-if="jobMatch.characterName !== null" class="text-slate-400">{{ jobMatch.characterName }}</span>
+                  &middot; {{ formatNumber(jobMatch.runs, 0) }} {{ t('groupIndustry.jobs.runs') }}
+                  &middot; {{ jobMatch.status }}
+                  <span v-if="jobMatch.locations" data-testid="job-match-locations" class="block text-slate-500">
+                    {{ jobMatch.locations.blueprint.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
+                    &rarr; {{ jobMatch.locations.output.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
+                    <JobLocationBadge :locations="jobMatch.locations" data-testid="job-match-check" class="ml-1" />
+                  </span>
+                  <button
+                    v-if="canLinkJobs === true"
+                    type="button"
+                    data-testid="job-match-unlink"
+                    class="ml-2 px-1.5 py-0.5 rounded-sm text-xs text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition-colors"
+                    @click="$emit('unlink-job', jobMatch.id)"
+                  >{{ t('groupIndustry.jobs.unlink') }}</button>
+                </li>
+              </ul>
+              <button
+                v-if="canLinkJobs === true"
+                type="button"
+                data-testid="link-job-open"
+                class="mt-1 px-2 py-0.5 rounded-sm text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
+                @click="$emit('link-job', bomItemOf(item.node)!)"
+              >{{ t('groupIndustry.jobs.linkJob') }}</button>
+              <LinePurchases v-if="bomItemOf(item.node)!.jobGroup === 'component'" :item="bomItemOf(item.node)!" />
+            </template>
           </td>
 
           <td class="py-2 px-3 text-slate-300">
@@ -204,6 +263,11 @@ function plansStructure(node: ChainNode): boolean {
 
           <td class="py-2 px-3 text-right font-mono text-slate-300">
             <template v-if="item.node.runs !== null">{{ formatNumber(item.node.runs, 0) }}</template>
+            <span
+              v-if="bomItemOf(item.node)?.matchedRuns !== undefined"
+              data-testid="matched-runs"
+              class="block text-xs font-sans text-cyan-400"
+            >{{ t('groupIndustry.jobs.matchedRuns', { runs: formatNumber(bomItemOf(item.node)!.matchedRuns!, 0) }) }}</span>
           </td>
 
           <td class="py-2 px-3 text-slate-400 whitespace-nowrap">
@@ -292,7 +356,11 @@ function plansStructure(node: ChainNode): boolean {
               </template>
             </div>
           </td>
-                  </tr>
+
+          <td class="py-2 px-3">
+            <LineReservation v-if="bomItemOf(item.node) !== undefined" :item="bomItemOf(item.node)!" @contribute="$emit('contribute', $event)" />
+          </td>
+          </tr>
         </template>
       </tbody>
     </table>

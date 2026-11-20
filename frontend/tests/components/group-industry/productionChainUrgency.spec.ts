@@ -23,6 +23,8 @@ const COMPONENT_TO_LAUNCH = chainNode({ id: 'component-to-launch', stage: 'compo
 const COMPONENT_MISSING = chainNode({ id: 'component-missing', stage: 'component', typeId: 2, typeName: 'Bravo part', activity: 'manufacturing', runs: 10, status: 'missing_materials', level: 1 })
 const COMPONENT_DONE = chainNode({ id: 'component-done', stage: 'component', typeId: 3, typeName: 'Charlie part', activity: 'manufacturing', runs: 10, status: 'done', level: 1 })
 const COMPONENT_DONE_TOO = chainNode({ id: 'component-done-too', stage: 'component', typeId: 4, typeName: 'Delta part', activity: 'manufacturing', runs: 10, status: 'done', level: 2 })
+const BLUEPRINT_TODO = chainNode({ id: 'blueprint-todo', stage: 'blueprint', typeId: 6, typeName: 'Echo blueprint', activity: 'copy', runs: 10, requiredQuantity: 10, status: 'todo', level: 1 })
+const BLUEPRINT_DONE = chainNode({ id: 'blueprint-done', stage: 'blueprint', typeId: 7, typeName: 'Foxtrot blueprint', activity: 'copy', runs: 10, requiredQuantity: 10, status: 'done', level: 1 })
 const MATERIAL_TODO = chainNode({ id: 'material-todo', stage: 'material', typeId: 34, typeName: 'Tritanium', requiredQuantity: 100, fulfilledQuantity: 0, status: 'todo', level: 1 })
 const MATERIAL_DONE = chainNode({ id: 'material-done', stage: 'material', typeId: 35, typeName: 'Pyerite', requiredQuantity: 100, fulfilledQuantity: 100, status: 'done', level: 1 })
 const PRODUCT_TO_LAUNCH = chainNode({ id: 'product-to-launch', stage: 'product', typeId: 5, typeName: 'Omega ship', activity: 'manufacturing', runs: 1, status: 'todo', level: 2 })
@@ -76,13 +78,14 @@ describe('production chain overview urgency', () => {
     expect(children[children.length - 1].getAttribute('data-testid')).toBe('chain-done-components')
   })
 
-  it('folds the done nodes of the invention and materials column and of the product column separately', async () => {
+  it('folds the done nodes of the invention column, which hold no material node, and of the product column separately', async () => {
     const product = chainNode({ ...PRODUCT_TO_LAUNCH, id: 'product-done', status: 'done' })
-    const wrapper = await mountChain([MATERIAL_TODO, MATERIAL_DONE, product, PRODUCT_TO_LAUNCH])
+    const wrapper = await mountChain([BLUEPRINT_TODO, BLUEPRINT_DONE, MATERIAL_TODO, MATERIAL_DONE, product, PRODUCT_TO_LAUNCH])
 
     expect(wrapper.get('[data-testid="chain-done-inventionMaterials"]').text()).toContain(text('en', 'flow.doneCount').replace('{count}', '1'))
     expect(wrapper.get('[data-testid="chain-done-product"]').text()).toContain(text('en', 'flow.doneCount').replace('{count}', '1'))
-    expect(nodeIdsOutsideTheFold(wrapper, 'inventionMaterials')).toEqual(['material-todo'])
+    expect(nodeIdsOutsideTheFold(wrapper, 'inventionMaterials')).toEqual(['blueprint-todo'])
+    expect(wrapper.get('[data-testid="chain-done-inventionMaterials"]').findAll('[data-testid^="chain-node-"]').map(node => node.attributes('data-testid'))).toEqual(['chain-node-blueprint-done'])
   })
 
   it('shows no fold in a column without done node', async () => {
