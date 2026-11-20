@@ -71,7 +71,7 @@ describe('Production job rows and the estimated cost of the jobs', () => {
     ] })
 
     expect(wrapper.text()).not.toContain(en.groupIndustry.bom.totalEstCost)
-    expect(wrapper.text()).not.toContain(en.groupIndustry.jobs.totalJobs)
+    expect(wrapper.text()).not.toContain('Total Jobs')
     expect(wrapper.text()).not.toContain(en.groupIndustry.bom.estCost)
   })
 

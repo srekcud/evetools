@@ -55,13 +55,13 @@ From top to bottom:
 - the header, with the status, the "Publish" and "Start" buttons (in draft) and the "Edit" and "Delete" icons;
 - the phase rail: "Prepare", "Supply", "Produce", "Sell", "Close", each with a counter;
 - "Next action": the one thing to do now, with its button;
-- the tabs. Alone, you see "Sourcing & jobs" (open by default), "Finances", "Sales", "Production", "Planning", "Journal" and "Invention". "Contributions" and "Team" are hidden as long as you are the only participant.
+- the tabs. Alone, you see "Sourcing" (open by default), "Finances", "Sales", "Production", "Planning", "Journal" and "Invention". "Contributions" and "Team" are hidden as long as you are the only participant.
 
 When the plan suits you, click "Start" (the project goes "In Progress"). Ignore "Publish", meant for projects other people have to join.
 
 ## 4. Buy the materials
 
-"Sourcing & jobs" tab. "Materials to Source" lists the materials to buy (the BOM only holds these leaves; components and blueprints are under "Jobs to Launch"), with "Required", "Fulfilled", "Remaining", "Progress" and "Est. Cost".
+"Sourcing" tab. "Materials to Source" lists the materials to buy (the BOM only holds these leaves; components and blueprints are under the "Production" tab), with "Required", "Fulfilled", "Remaining", "Progress" and "Est. Cost".
 
 - **"Est. Cost" is not the analysis price.** It is the 5th percentile Jita price read when the project was created, and it is never refreshed. The analysis uses the weighted price of the quantity. A material without a price shows "---".
 - **"Where to buy the materials"** compares, for the quantity you took with "I'll handle it" (minus what you already delivered), "Jita + import" and "Structure" (your preferred market structure), and says "Buy at". With no preferred structure, or if its market is not synced, everything goes to Jita; with no favorite system for the activity, the import is unknown. The "Copy Jita (N)" and "Copy <structure> (N)" buttons copy the **remaining** quantities, one "name, tab, quantity" line per material.
@@ -78,7 +78,7 @@ When all the materials are covered, the sourcing section (including "Where to bu
 
 ## 5. Launch the jobs
 
-Same tab, "Jobs to Launch", in three groups: "Blueprints" (T1 copy and invention), "Components" and "Final Products". The "Production" tab shows the order to follow: a job is "Blocked" until a component is "Done", and "Missing materials" when its sub-components are done but its materials are not. Launch the jobs in game, then:
+"Production" tab, "Job tree" view: the jobs (T1 copy and invention, components, final products) are listed by level, in the order to follow: a job is "Blocked" until a component is "Done", and "Missing materials" when its sub-components are done but its materials are not. Launch the jobs in game, then:
 
 - **Manufacturing and reactions.** The ESI jobs of your characters are linked at every jobs sync (every 30 minutes), or when you click "Match jobs" (owner only). A job is kept if it uses the line's blueprint, started after the project was created, has an output (neither cancelled nor reverted) and its runs fit in the rest of the line (plus, if needed, one single bigger job). The "Link a job" button fixes it by hand. The install cost read from ESI becomes a "Job Install" contribution; if ESI gives no cost, it is unknown, never 0.
 - **Invention and T1 copy.** No ESI job links to them. The plan's "Attempts" is the number of runs to invent divided by (runs of the invented BPC × base probability), rounded up, with no skills and no decryptor: the analysis, which takes them into account, can give another figure. For these lines to count and for their cost to enter the project, click "I supplied it" on the line: the "BPC" type is preselected, the quantity is prefilled, and you enter an "Estimated Value" above 0, meaning what the datacores and the invention cost you. If you already own T2 BPCs, open "Owned T2 BPCs" instead ("Declare my T2 blueprint copies"): the declared runs leave the plan. That panel only shows up if the plan finds T2 BPCs in your synced blueprints.

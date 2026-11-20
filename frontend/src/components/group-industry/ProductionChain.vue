@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ChainStatus } from '@/stores/group-industry/types'
+import type { BomItem, ChainStatus } from '@/stores/group-industry/types'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { useGroupT2BlueprintsToProvideStore } from '@/stores/group-industry/t2BlueprintsToProvide'
-import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { useSyncStore } from '@/stores/sync'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
@@ -15,7 +14,9 @@ import { CHAIN_STATUSES, chainStatusDotClass } from './chainStatus'
 import { recallChainStatusFilter, rememberChainStatusFilter } from './chainStatusFilter'
 import ProductionChainFlow from './ProductionChainFlow.vue'
 import ProductionChainJobTree from './ProductionChainJobTree.vue'
+import JobLinkModal from './JobLinkModal.vue'
 import ProjectReactionSteps from './ProjectReactionSteps.vue'
+import { useProjectJobActions } from './useProjectJobActions'
 
 type ChainView = 'flow' | 'tree'
 
@@ -30,6 +31,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   marked: []
+  contribute: [bomItem: BomItem]
+  'open-sourcing': []
 }>()
 
 const { t } = useI18n()
@@ -38,11 +41,21 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const syncStore = useSyncStore()
 const chainStore = useGroupChainStore()
 const toProvideStore = useGroupT2BlueprintsToProvideStore()
-const projectStore = useGroupProjectStore()
 const slotsStore = useSlotsStore()
 
-const isMatchingJobs = ref(false)
-const matchJobsError = ref<string | null>(null)
+const jobActions = useProjectJobActions()
+const {
+  isMatchingJobs,
+  matchJobsError,
+  failedCharacters,
+  failedLines,
+  linkScreenLine,
+  availableJobs,
+  isLoadingAvailableJobs,
+  linkingEsiJobId,
+  jobLinkError,
+  characterFailureReason,
+} = jobActions
 
 const jobsSyncLabel = computed(() => {
   const jobsSyncedAt = slotsStore.data?.jobsSyncedAt ?? null
@@ -52,16 +65,13 @@ const jobsSyncLabel = computed(() => {
 })
 
 async function matchJobs(): Promise<void> {
-  isMatchingJobs.value = true
-  matchJobsError.value = null
+  const matched = await jobActions.matchJobs(props.projectId)
+  if (!matched) return
   try {
-    await projectStore.matchJobs(props.projectId)
     await Promise.all([chainStore.fetchChain(props.projectId), slotsStore.fetchSlots()])
     emit('marked')
   } catch (e) {
     matchJobsError.value = e instanceof Error ? e.message : t('groupIndustry.jobs.matchError')
-  } finally {
-    isMatchingJobs.value = false
   }
 }
 
@@ -147,6 +157,39 @@ watch(
       role="alert"
       class="mx-4 mt-3 text-sm text-red-400"
     >{{ matchJobsError }}</p>
+    <div v-if="failedCharacters.length > 0" class="mx-4 mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+      <p class="text-sm text-amber-400">{{ t('groupIndustry.jobs.matchFailedCharacters') }}</p>
+      <ul class="mt-1 space-y-0.5 text-xs text-amber-400/80">
+        <li v-for="failure in failedCharacters" :key="failure.characterName">
+          <span class="font-medium">{{ failure.characterName }}</span>: {{ characterFailureReason(failure) }}
+        </li>
+      </ul>
+    </div>
+    <div v-if="failedLines.length > 0" class="mx-4 mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+      <p class="text-sm text-amber-400">{{ t('groupIndustry.jobs.matchFailedLines') }}</p>
+      <ul class="mt-1 space-y-0.5 text-xs text-amber-400/80">
+        <li v-for="(failure, index) in failedLines" :key="`${failure.typeId}-${failure.reason}-${index}`" data-testid="match-failed-line">
+          <span class="font-medium">{{ failure.typeName }}</span>: {{ t(`groupIndustry.jobs.matchLineReasons.${failure.reason}`) }}
+        </li>
+      </ul>
+    </div>
+    <p
+      v-if="jobLinkError !== null && linkScreenLine === null"
+      data-testid="job-link-error"
+      role="alert"
+      class="mx-4 mt-3 text-sm text-red-400"
+    >{{ jobLinkError }}</p>
+    <JobLinkModal
+      v-if="canMatchJobs === true"
+      :show="linkScreenLine !== null"
+      :line-name="linkScreenLine?.typeName ?? ''"
+      :jobs="availableJobs"
+      :loading="isLoadingAvailableJobs"
+      :error="jobLinkError"
+      :linking-esi-job-id="linkingEsiJobId"
+      @close="jobActions.closeLinkScreen"
+      @link="jobActions.linkJob(projectId, $event)"
+    />
 
     <p
       v-if="chainStore.loading && chainStore.nodes.length === 0"
@@ -171,6 +214,7 @@ watch(
         :nodes="chainStore.nodes"
         :status-filter="statusFilter"
         @select="openInTree"
+        @open-sourcing="$emit('open-sourcing')"
       />
       <ProductionChainJobTree
         v-else
@@ -179,7 +223,11 @@ watch(
         :selected-id="selectedNodeId"
         :project-id="projectId"
         :can-mark="canMark === true"
+        :can-link-jobs="canMatchJobs === true"
         @marked="$emit('marked')"
+        @contribute="$emit('contribute', $event)"
+        @link-job="jobActions.openLinkScreen(projectId, $event)"
+        @unlink-job="jobActions.unlinkJob(projectId, $event)"
       />
       <p v-if="view !== 'flow'" data-testid="chain-io-unknown-cause" class="px-4 pt-3 text-xs text-violet-300">
         {{ t('groupIndustry.chain.ioUnknownCause') }}

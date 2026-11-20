@@ -55,13 +55,13 @@ De haut en bas :
 - l'en-tête, avec le statut, les boutons « Publier » et « Démarrer » (en brouillon) et les icônes « Modifier » et « Supprimer » ;
 - le rail des phases : « Préparer », « Approvisionner », « Produire », « Vendre », « Clôturer », chacune avec un compteur ;
 - « Prochaine action » : l'unique chose à faire maintenant, avec son bouton ;
-- les onglets. Seul, vous voyez « Approvisionnement & jobs » (ouvert par défaut), « Finances », « Ventes », « Production », « Planning », « Journal » et « Invention ». « Contributions » et « Équipe » sont masqués tant que vous êtes le seul participant.
+- les onglets. Seul, vous voyez « Approvisionnement » (ouvert par défaut), « Finances », « Ventes », « Production », « Planning », « Journal » et « Invention ». « Contributions » et « Équipe » sont masqués tant que vous êtes le seul participant.
 
 Quand le plan vous convient, cliquez sur « Démarrer » (le projet passe « En cours »). Ignorez « Publier », réservé aux projets que d'autres doivent rejoindre.
 
 ## 4. Acheter les matériaux
 
-Onglet « Approvisionnement & jobs ». « Materiaux a sourcer » liste les matériaux à acheter (la BOM ne contient que ces feuilles ; composants et blueprints sont dans « Jobs a lancer »), avec « Requis », « Fourni », « Restant », « Progression » et « Cout est. ».
+Onglet « Approvisionnement ». « Materiaux a sourcer » liste les matériaux à acheter (la BOM ne contient que ces feuilles ; composants et blueprints sont dans l'onglet « Production »), avec « Requis », « Fourni », « Restant », « Progression » et « Cout est. ».
 
 - **« Cout est. » n'est pas le prix de l'analyse.** C'est le prix percentile 5 % de Jita lu à la création du projet, et il n'est jamais rafraîchi. L'analyse utilise le prix pondéré de la quantité. Un matériau sans prix affiche « --- ».
 - **« Où acheter les matériaux »** compare, pour la quantité que vous avez prise avec « Je m'en charge » (moins ce que vous avez déjà livré), « Jita + import » et « Structure » (votre structure de marché préférée), et indique « Acheter à ». Sans structure préférée, ou si son marché n'est pas synchronisé, tout part à Jita ; sans système favori pour l'activité, l'import est inconnu. Les boutons « Copier Jita (N) » et « Copier <structure> (N) » copient les quantités **restantes**, une ligne « nom, tabulation, quantité » par matériau.
@@ -78,7 +78,7 @@ Quand tous les matériaux sont couverts, l'approvisionnement (dont « Où achete
 
 ## 5. Lancer les jobs
 
-Même onglet, « Jobs a lancer », en trois groupes : « Blueprints » (copie T1 et invention), « Composants » et « Produits finaux ». L'onglet « Production » montre l'ordre à suivre : un job est « Bloqué » tant qu'un composant n'est pas « Terminé », et « Matériaux manquants » quand ses sous-composants sont faits mais pas ses matériaux. Lancez les jobs en jeu, puis :
+Onglet « Production », vue « Arbre des jobs » : les jobs (copie T1 et invention, composants, produits finaux) sont listés par niveau, dans l'ordre à suivre : un job est « Bloqué » tant qu'un composant n'est pas « Terminé », et « Matériaux manquants » quand ses sous-composants sont faits mais pas ses matériaux. Lancez les jobs en jeu, puis :
 
 - **Fabrications et réactions.** Les jobs ESI de vos personnages sont rattachés à chaque synchro des jobs (toutes les 30 minutes), ou quand vous cliquez sur « Associer les jobs » (propriétaire seul). Un job est retenu s'il utilise le blueprint de la ligne, a démarré après la création du projet, a une production (ni annulé ni revenu) et que ses runs tiennent dans le reste de la ligne (plus, au besoin, un seul job plus gros). Le bouton « Lier un job » corrige à la main. Le coût d'installation lu dans l'ESI devient un apport « Job Install » ; si l'ESI ne donne pas de coût, il est inconnu, jamais 0.
 - **Invention et copie T1.** Aucun job ESI ne s'y rattache. Le nombre de « Tentatives » du plan est le nombre de runs à inventer divisé par (runs du BPC inventé × probabilité de base), arrondi au supérieur, sans compétences ni décrypteur : l'analyse, qui en tient compte, peut donner un autre chiffre. Pour que ces lignes comptent et que leur coût entre dans le projet, cliquez sur « J'ai fourni » sur la ligne : le type « BPC » est présélectionné, la quantité est préremplie, et vous saisissez une « Valeur estimee » supérieure à 0, c'est-à-dire ce que les datacores et l'invention vous ont coûté. Si vous avez déjà des BPC T2, ouvrez plutôt « BPC T2 possédés » (« Déclarer mes BPC T2 ») : les runs déclarés sortent du plan. Ce panneau n'apparaît que si le plan trouve des BPC T2 dans vos blueprints synchronisés.

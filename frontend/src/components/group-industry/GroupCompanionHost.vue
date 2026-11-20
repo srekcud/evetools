@@ -119,7 +119,7 @@ async function goToProject(query: Record<string, string>): Promise<void> {
   const projectId = companion.projectId
   if (projectId === null) return
   window.focus()
-  await router.push({ name: 'industry-project', params: { id: projectId }, query: { tab: 'bom', ...query } })
+  await router.push({ name: 'industry-project', params: { id: projectId }, query: { tab: 'chain', ...query } })
 }
 
 function deliver(lineId: string): Promise<void> {

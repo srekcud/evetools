@@ -25,11 +25,11 @@ Open the project from "My Projects". Under the header you find the phase bar ("P
 - "Launch a job", button "See the jobs".
 - "Nothing to do for you" ("The project is moving along without you for now"): what is left belongs to the owner and the admins (review, change the status, record sales).
 
-The tabs that matter to you: "Sourcing & jobs", "Contributions", "Finances", "Team" and "Journal". The "Companion" button in the header (absent once the project is "Completed") opens a detached window with the "To assign" lines and "I'll handle it".
+The tabs that matter to you: "Sourcing", "Production", "Contributions", "Finances", "Team" and "Journal". The "Companion" button in the header (absent once the project is "Completed") opens a detached window with the "To assign" lines and "I'll handle it".
 
 ## 3. Choose what you bring
 
-"Sourcing & jobs" tab. "Materials to Source" gives, per line, "Required", "Fulfilled", "Remaining" and "Progress"; "Jobs to Launch" does the same for the work.
+"Sourcing" tab. "Materials to Source" gives, per line, "Required", "Fulfilled", "Remaining" and "Progress". The jobs (blueprints, components, final products) are followed in the "Production" tab.
 
 - "Fulfilled" counts **approved** contributions. If the project names a container whose stock can be read, it is the larger of that number and the container content, capped at the required quantity. When the container cannot be read, the figure carries "≥" and "Cannot be checked".
 - A pending contribution does not change "Fulfilled": a line stays to be covered until someone approves.
@@ -99,7 +99,7 @@ You can still tick "Received" after the project is completed.
 
 | Figure | Where | Good to know | Page |
 |---|---|---|---|
-| "Est. Cost" | "Sourcing & jobs" | BOM estimate, Jita 5th percentile, not your real cost | [FAQ](/help?page=faq/faq) |
+| "Est. Cost" | "Sourcing" | BOM estimate, Jita 5th percentile, not your real cost | [FAQ](/help?page=faq/faq) |
 | "Valuation" of a contribution | "Contributions" | Deposit-day price, ESI cost or entered value | [group contributions](/help?page=calculations/group-contributions) |
 | "Costs Engaged", "Share %", "Payout Total" | "Finances" | Computed on approved contributions | [group contributions](/help?page=calculations/group-contributions), [margin](/help?page=calculations/margin) |
 | Amount of a transfer | "Finances" | Revenue held by each seller minus their payout | [group contributions](/help?page=calculations/group-contributions) |
