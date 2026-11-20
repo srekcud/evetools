@@ -18,6 +18,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Industry\LineMatchFailure;
+use App\Service\Industry\Project\ProjectContainerService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -78,6 +79,7 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
             $jobMatchRepository,
             $this->createStub(EntityManagerInterface::class),
             $this->logger,
+            $this->createStub(ProjectContainerService::class),
         );
     }
 
