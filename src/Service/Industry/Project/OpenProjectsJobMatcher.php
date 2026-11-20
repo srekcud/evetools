@@ -32,11 +32,28 @@ class OpenProjectsJobMatcher
             $this->process($draft, fn () => $this->jobMatcher->releaseAutomaticMatches($draft));
         }
 
-        foreach ($launched as $project) {
-            $this->process($project, function () use ($project): void {
-                $this->jobMatcher->matchEsiJobs($project);
+        $released = array_filter($launched, $this->releaseAutomaticMatchesOf(...));
+        $containerOwners = $this->jobMatcher->containerOwnersByLocationId(array_values($released));
+        $contestedJobIds = $this->jobMatcher->contestedJobIds(array_values($released), $containerOwners);
+
+        foreach ($released as $project) {
+            $this->process($project, function () use ($project, $contestedJobIds, $containerOwners): void {
+                $this->jobMatcher->matchEsiJobs($project, $contestedJobIds, $containerOwners);
                 $this->jobActivityRecorder->recordJobsOf($project);
             });
+        }
+    }
+
+    private function releaseAutomaticMatchesOf(IndustryProject $project): bool
+    {
+        try {
+            $this->jobMatcher->releaseAutomaticMatches($project);
+
+            return true;
+        } catch (\Throwable $exception) {
+            $this->logFailure($project, $exception);
+
+            return false;
         }
     }
 
@@ -50,10 +67,15 @@ class OpenProjectsJobMatcher
                 }
             }
         } catch (\Throwable $exception) {
-            $this->logger->warning('Failed to match jobs of project', [
-                'projectId' => $project->getId()->toRfc4122(),
-                'error' => $exception->getMessage(),
-            ]);
+            $this->logFailure($project, $exception);
         }
+    }
+
+    private function logFailure(IndustryProject $project, \Throwable $exception): void
+    {
+        $this->logger->warning('Failed to match jobs of project', [
+            'projectId' => $project->getId()->toRfc4122(),
+            'error' => $exception->getMessage(),
+        ]);
     }
 }
