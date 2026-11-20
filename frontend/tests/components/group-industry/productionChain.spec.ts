@@ -5,7 +5,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import { apiRequest } from '@/services/api'
-import type { ChainNode } from '@/stores/group-industry/types'
+import type { ChainNode, JobLocation, JobLocations } from '@/stores/group-industry/types'
 import { deferred } from '../../deferred'
 import { messageOf, type TestLocale } from '../../localeTexts'
 import {
@@ -98,6 +98,30 @@ function shownRowIds(wrapper: VueWrapper): string[] {
 
 function nodeIdsOf(column: FoundElement): string[] {
   return column.findAll('[data-testid^="chain-node-"]').map(node => testIdOf(node, 'chain-node-'))
+}
+
+const PROJECT_CONTAINER_TAG = 'Project container'
+const INPUT_OUTSIDE_FLAG = 'Input outside the project container: the job probably belongs to another project'
+
+function sideOf(status: JobLocation['status'], overrides: Partial<JobLocation> = {}): JobLocation {
+  return { locationId: 1_049_000_000_001, kind: 'container', name: 'ISHTAR-319', divisionName: null, status, unknownReason: null, ...overrides }
+}
+
+function locationsOf(blueprint: JobLocation, output: JobLocation): JobLocations {
+  return { blueprint, output }
+}
+
+function jobWith(esiJobId: number, locations?: JobLocations | null) {
+  const job = { esiJobId, status: 'active', runs: 10, characterName: 'Wenzel Roth', endDate: null, cost: null, facilityName: null }
+  return locations === undefined ? job : { ...job, locations }
+}
+
+function jobNode(id: string, jobs: ReturnType<typeof jobWith>[]): ChainNode {
+  return chainNode({ id, stage: 'component', level: 1, typeName: id, activity: 'manufacturing', runs: 10, status: 'todo', jobs })
+}
+
+function ioEntries(wrapper: VueWrapper, nodeId: string): DOMWrapper<Element>[] {
+  return cell(wrapper, nodeId, 'inOut').findAll('[data-testid="chain-job-io"]')
 }
 
 const scrollIntoView = vi.fn()
@@ -278,33 +302,101 @@ describe('ProductionChain job tree', () => {
     expect(hammerheadI('structure').text()).toContain('Raitaru Alpha')
   })
 
-  it('shows the input and output locations as unknown on each job without repeating their cause in the cell', async () => {
-    const wrapper = await mountChain(PRODUCTION_CHAIN)
+  it('fills the input and output cell of a job with the names and statuses of its locations and tags the sides inside the project container', async () => {
+    const wrapper = await mountChain([jobNode('job-ishtar', [jobWith(920_001, locationsOf(sideOf('inside'), sideOf('inside')))])])
     await openTree(wrapper)
 
-    const ioCells = [HAMMERHEAD_I_ID, HAMMERHEAD_II_ID, HAMMERHEAD_II_INVENTION_ID].map(nodeId => cell(wrapper, nodeId, 'inOut'))
+    const entries = ioEntries(wrapper, 'job-ishtar')
+    const input = entries[0]?.get('[data-testid="chain-job-input"]')
+    const output = entries[0]?.get('[data-testid="chain-job-output"]')
 
-    for (const ioCell of ioCells) {
-      const unknown = ioCell.get('[data-testid="chain-io-unknown"]')
-      expect(unknown.attributes('title')).toBe(messageOf('en', 'common.unknownValue'))
-      expect(ioCell.text()).toBe(unknown.text())
+    expect(entries).toHaveLength(1)
+    expect(input?.attributes('data-status')).toBe('inside')
+    expect(input?.text()).toContain('ISHTAR-319')
+    expect(input?.text()).toContain(PROJECT_CONTAINER_TAG)
+    expect(output?.attributes('data-status')).toBe('inside')
+    expect(output?.text()).toContain('ISHTAR-319')
+    expect(output?.text()).toContain(PROJECT_CONTAINER_TAG)
+    expect(entries[0]?.get('[data-testid="chain-job-check"]').attributes('data-check')).toBe('ok')
+    expect(entries[0]?.find('[data-testid="chain-job-input-outside"]').exists()).toBe(false)
+  })
+
+  it('flags, on each job of a node and in the order of the jobs, an input outside the project container whether it sits in another container or in a hangar', async () => {
+    const wrapper = await mountChain([jobNode('job-ishtar', [
+      jobWith(920_001, locationsOf(sideOf('outside', { name: 'Perso' }), sideOf('outside', { name: 'Perso' }))),
+      jobWith(920_002, locationsOf(sideOf('outside', { kind: 'hangar', name: 'Jita 4-4', divisionName: 'Hangar 3' }), sideOf('inside'))),
+      jobWith(920_003, locationsOf(sideOf('inside'), sideOf('inside'))),
+    ])])
+    await openTree(wrapper)
+
+    const entries = ioEntries(wrapper, 'job-ishtar')
+    const flagsOf = (index: number) => entries[index]?.findAll('[data-testid="chain-job-input-outside"]') ?? []
+
+    expect(entries.map(entry => entry.get('[data-testid="chain-job-input"]').text())).toEqual([
+      expect.stringContaining('Perso'),
+      expect.stringContaining('Jita 4-4'),
+      expect.stringContaining('ISHTAR-319'),
+    ])
+    expect(flagsOf(0)).toHaveLength(1)
+    expect(flagsOf(0)[0]?.text()).toContain(INPUT_OUTSIDE_FLAG)
+    expect(flagsOf(1)).toHaveLength(1)
+    expect(flagsOf(1)[0]?.text()).toContain(INPUT_OUTSIDE_FLAG)
+    expect(flagsOf(2)).toHaveLength(0)
+  })
+
+  it('keeps the output check on a job whose output is outside and flags no input when the input is unknown', async () => {
+    const wrapper = await mountChain([jobNode('job-ishtar', [
+      jobWith(920_001, locationsOf(sideOf('unknown', { name: null, unknownReason: 'assets_not_synced' }), sideOf('outside', { name: 'Perso' }))),
+    ])])
+    await openTree(wrapper)
+
+    const entries = ioEntries(wrapper, 'job-ishtar')
+    const entry = entries[0]
+
+    expect(entries).toHaveLength(1)
+    expect(entry?.get('[data-testid="chain-job-check"]').attributes('data-check')).toBe('output-outside')
+    expect(entry?.find('[data-testid="chain-job-input-outside"]').exists()).toBe(false)
+  })
+
+  it('names an unknown location as unknown and shows the cause of the unknown sides once', async () => {
+    const unknownSide = sideOf('unknown', { name: null, unknownReason: 'assets_not_synced' })
+    const wrapper = await mountChain([jobNode('job-ishtar', [jobWith(920_001, locationsOf(unknownSide, unknownSide))])])
+    await openTree(wrapper)
+
+    const entries = ioEntries(wrapper, 'job-ishtar')
+    const entry = entries[0]
+    const reasons = cell(wrapper, 'job-ishtar', 'inOut').findAll('[data-testid="chain-job-io-reason"]')
+
+    expect(entries).toHaveLength(1)
+    expect(entry?.get('[data-testid="chain-job-input"]').text()).toContain(messageOf('en', 'groupIndustry.jobLocations.unknownLocation'))
+    expect(entry?.get('[data-testid="chain-job-input"]').attributes('data-status')).toBe('unknown')
+    expect(entry?.get('[data-testid="chain-job-output"]').text()).toContain(messageOf('en', 'groupIndustry.jobLocations.unknownLocation'))
+    expect(entry?.get('[data-testid="chain-job-output"]').attributes('data-status')).toBe('unknown')
+    expect(reasons.map(reason => reason.text())).toEqual([messageOf('en', 'groupIndustry.jobLocations.reasons.assets_not_synced')])
+  })
+
+  it('shows nothing in the input and output cell of a job whose locations are null or absent and of a node without job', async () => {
+    const wrapper = await mountChain([
+      jobNode('job-locations-null', [jobWith(920_001, null)]),
+      jobNode('job-locations-absent', [jobWith(920_002)]),
+      jobNode('job-not-launched', []),
+    ])
+    await openTree(wrapper)
+
+    for (const nodeId of ['job-locations-null', 'job-locations-absent', 'job-not-launched']) {
+      expect(cell(wrapper, nodeId, 'inOut').text(), nodeId).toBe('')
+      expect(cell(wrapper, nodeId, 'inOut').find('[data-testid="chain-io-unknown"]').exists(), nodeId).toBe(false)
     }
   })
 
-  it('shows the cause of the unknown input and output locations once in the job tree and not in the flow view', async () => {
+  it('no longer shows the static cause note in the tree nor keeps its translation', async () => {
     const wrapper = await mountChain(PRODUCTION_CHAIN)
     await openTree(wrapper)
 
-    const causes = wrapper.findAll('[data-testid="chain-io-unknown-cause"]')
-    await wrapper.get('[data-testid="chain-view-flow"]').trigger('click')
-
-    expect(causes).toHaveLength(1)
-    expect(causes[0]?.text()).toContain(label('en', 'ioUnknownCause'))
     expect(wrapper.find('[data-testid="chain-io-unknown-cause"]').exists()).toBe(false)
-  })
-
-  it.each<TestLocale>(['en', 'fr'])('never names an issue number in the %s cause of the unknown input and output locations', locale => {
-    expect(label(locale, 'ioUnknownCause')).not.toContain('#319')
+    expect(wrapper.find('[data-testid="chain-io-unknown"]').exists()).toBe(false)
+    expect((en.groupIndustry.chain as Record<string, unknown>).ioUnknownCause).toBeUndefined()
+    expect((fr.groupIndustry.chain as Record<string, unknown>).ioUnknownCause).toBeUndefined()
   })
 
   it('keeps the structure names in a fixed-width wrapper, each name truncated on one line with its full name as title', async () => {

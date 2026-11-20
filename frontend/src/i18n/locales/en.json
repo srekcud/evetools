@@ -3067,7 +3067,6 @@
       "legendTitle": "Status legend",
       "meTeValue": "ME {me} · TE {te}",
       "characterUnknown": "Character unknown",
-      "ioUnknownCause": "Input → output: job locations not synchronized yet",
       "unknownCostCause": "a contribution has no known price: the cost stays unknown, never partial",
       "plannedCopyDuration": {
         "planned": "Planned: {duration}",
@@ -3567,6 +3566,8 @@
       "output": "Output",
       "control": "Check",
       "unknownLocation": "Unknown location",
+      "projectContainer": "Project container",
+      "inputOutside": "Input outside the project container: the job probably belongs to another project",
       "check": {
         "ok": "✓ In the project container",
         "outputOutside": "To move into the project container",

@@ -46,6 +46,7 @@ use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectContainerService;
 use App\Service\Industry\Project\ProjectContainerStock;
 use App\Service\Industry\Project\ProjectChainNode;
+use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectChainProvider;
@@ -242,6 +243,7 @@ final class ProjectChainProviderTest extends TestCase
             new ProjectJobMaterialNeedsLoader($projectService),
             $this->blueprintNames(),
             $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
+            $this->createStub(ProjectJobLocationResolver::class),
         );
 
         $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
@@ -274,6 +276,7 @@ final class ProjectChainProviderTest extends TestCase
             new ProjectJobMaterialNeedsLoader($projectService),
             $this->blueprintNames(),
             $this->containerFulfillmentOf(new ProjectContainerStock(null, [34 => 1_000])),
+            $this->createStub(ProjectJobLocationResolver::class),
         );
 
         $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
@@ -312,6 +315,7 @@ final class ProjectChainProviderTest extends TestCase
                 new ProjectJobMaterialNeedsLoader($this->projectService),
                 $this->blueprintNames(),
                 $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
+                $this->createStub(ProjectJobLocationResolver::class),
             );
             $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
             $installersByViewer[] = array_column($this->node($chain, $job->getId()->toRfc4122())->jobs, 'characterName');
@@ -347,6 +351,7 @@ final class ProjectChainProviderTest extends TestCase
                 new ProjectJobMaterialNeedsLoader($this->projectService),
                 $this->blueprintNames(),
                 $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
+                $this->createStub(ProjectJobLocationResolver::class),
             );
             $copyNode = $this->node($provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]), $copy->getId()->toRfc4122());
             self::assertObjectHasProperty('plannedCopyDuration', $copyNode);
@@ -392,6 +397,100 @@ final class ProjectChainProviderTest extends TestCase
         ksort($actual);
 
         self::assertSame($expected, $actual);
+    }
+
+    #[Group('issue-1126')]
+    public function testJobsOfTheChainCarryTheLocationsOfTheResolverForTheOwner(): void
+    {
+        $ishtar = $this->jobLine(self::ISHTAR, 'Ishtar', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $ishtar->addJobMatch($this->activeJobMatch(7_001));
+        $this->bomLineRepository->method('findBy')->willReturn([$ishtar]);
+        $this->quietRepositories();
+        $locations = ['blueprint' => $this->insideSide(1_031_000_000_001, 'ISHTAR-319'), 'output' => $this->insideSide(1_031_000_000_001, 'ISHTAR-319')];
+        $resolver = $this->createStub(ProjectJobLocationResolver::class);
+        $resolver->method('locationsOf')->willReturn([7_001 => $locations]);
+
+        $chain = $this->providerSeenBy($this->owner, ParticipantRole::Member, $resolver)->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame([7_001 => $locations], array_column($this->node($chain, $ishtar->getId()->toRfc4122())->jobs, 'locations', 'esiJobId'));
+    }
+
+    #[Group('issue-1126')]
+    public function testJobsOfTheChainCarryTheLocationsOfTheResolverForAnAdminMember(): void
+    {
+        $nocxium = $this->jobLine(self::NOCXIUM_ATOMS, 'Nocxium Atoms', 'reaction', Uuid::v7()->toRfc4122(), 'best_configured');
+        $nocxium->addJobMatch($this->activeJobMatch(7_002));
+        $this->bomLineRepository->method('findBy')->willReturn([$nocxium]);
+        $this->quietRepositories();
+        $locations = [
+            'blueprint' => $this->insideSide(1_031_000_000_002, 'REACT-12'),
+            'output' => ['locationId' => 60_003_760, 'kind' => 'station', 'name' => 'Jita IV - Moon 4', 'divisionName' => 'Hangar 2', 'status' => 'outside', 'unknownReason' => null],
+        ];
+        $resolver = $this->createStub(ProjectJobLocationResolver::class);
+        $resolver->method('locationsOf')->willReturn([7_002 => $locations]);
+
+        $chain = $this->providerSeenBy($this->member, ParticipantRole::Admin, $resolver)->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame([7_002 => $locations], array_column($this->node($chain, $nocxium->getId()->toRfc4122())->jobs, 'locations', 'esiJobId'));
+    }
+
+    #[Group('issue-1126')]
+    public function testJobsOfTheChainHaveNoLocationsAndTheResolverIsNotCalledForAMemberWhoIsNotAdmin(): void
+    {
+        $ishtar = $this->jobLine(self::ISHTAR, 'Ishtar', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $ishtar->addJobMatch($this->activeJobMatch(7_001));
+        $nocxium = $this->jobLine(self::NOCXIUM_ATOMS, 'Nocxium Atoms', 'reaction', Uuid::v7()->toRfc4122(), 'best_configured');
+        $nocxium->addJobMatch($this->activeJobMatch(7_002));
+        $this->bomLineRepository->method('findBy')->willReturn([$ishtar, $nocxium]);
+        $this->quietRepositories();
+        $resolver = $this->createMock(ProjectJobLocationResolver::class);
+        $resolver->expects(self::never())->method('locationsOf');
+
+        $chain = $this->providerSeenBy($this->member, ParticipantRole::Member, $resolver)->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame(
+            [[7_001 => null], [7_002 => null]],
+            [
+                array_column($this->node($chain, $ishtar->getId()->toRfc4122())->jobs, 'locations', 'esiJobId'),
+                array_column($this->node($chain, $nocxium->getId()->toRfc4122())->jobs, 'locations', 'esiJobId'),
+            ],
+        );
+    }
+
+    #[Group('issue-1126')]
+    public function testJobWhoseCachedJobIsGoneHasNoLocations(): void
+    {
+        $ishtar = $this->jobLine(self::ISHTAR, 'Ishtar', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $ishtar->addJobMatch($this->activeJobMatch(7_001));
+        $ishtar->addJobMatch($this->activeJobMatch(7_003));
+        $this->bomLineRepository->method('findBy')->willReturn([$ishtar]);
+        $this->quietRepositories();
+        $locations = ['blueprint' => $this->insideSide(1_031_000_000_001, 'ISHTAR-319'), 'output' => $this->insideSide(1_031_000_000_001, 'ISHTAR-319')];
+        $resolver = $this->createStub(ProjectJobLocationResolver::class);
+        $resolver->method('locationsOf')->willReturn([7_001 => $locations]);
+
+        $chain = $this->providerSeenBy($this->owner, ParticipantRole::Member, $resolver)->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame([7_001 => $locations, 7_003 => null], array_column($this->node($chain, $ishtar->getId()->toRfc4122())->jobs, 'locations', 'esiJobId'));
+    }
+
+    #[Group('issue-1126')]
+    public function testResolverIsCalledOnceWithTheJobMatchesOfAllTheBomLines(): void
+    {
+        $ishtar = $this->jobLine(self::ISHTAR, 'Ishtar', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $ishtarMatch = $this->activeJobMatch(7_001);
+        $ishtar->addJobMatch($ishtarMatch);
+        $nocxium = $this->jobLine(self::NOCXIUM_ATOMS, 'Nocxium Atoms', 'reaction', Uuid::v7()->toRfc4122(), 'best_configured');
+        $nocxiumMatches = [$this->activeJobMatch(7_002), $this->activeJobMatch(7_004)];
+        foreach ($nocxiumMatches as $nocxiumMatch) {
+            $nocxium->addJobMatch($nocxiumMatch);
+        }
+        $this->bomLineRepository->method('findBy')->willReturn([$ishtar, $this->materialLine(), $nocxium]);
+        $this->quietRepositories();
+        $resolver = $this->createMock(ProjectJobLocationResolver::class);
+        $resolver->expects(self::once())->method('locationsOf')->with($this->project, [$ishtarMatch, ...$nocxiumMatches])->willReturn([]);
+
+        $this->providerSeenBy($this->owner, ParticipantRole::Member, $resolver)->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
     }
 
     private function blueprintNames(): ChainBlueprintNames
@@ -478,7 +577,51 @@ final class ProjectChainProviderTest extends TestCase
             new ProjectJobMaterialNeedsLoader($this->projectService),
             $this->blueprintNames(),
             $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
+            $this->createStub(ProjectJobLocationResolver::class),
         );
+    }
+
+    private function providerSeenBy(User $viewer, ParticipantRole $role, ProjectJobLocationResolver $resolver): ProjectChainProvider
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($viewer);
+        $participant = (new IndustryProjectParticipant())->setUser($viewer)->setRole($role)->setStatus(ParticipantStatus::Accepted);
+        $participants = $this->createStub(IndustryProjectParticipantRepository::class);
+        $participants->method('findOneBy')->willReturnCallback(
+            static fn (array $criteria): ?IndustryProjectParticipant => ($criteria['user'] ?? null) === $viewer && (!isset($criteria['role']) || $criteria['role'] === $role) ? $participant : null,
+        );
+
+        return new ProjectChainProvider(
+            $security,
+            $this->projectRepository,
+            $this->bomLineRepository,
+            $this->contributionRepository,
+            $this->saleRepository,
+            $this->structureConfigRepository,
+            new ProjectAccessChecker($participants),
+            $this->chainBuilder(),
+            new ProjectJobMaterialNeedsLoader($this->projectService),
+            $this->blueprintNames(),
+            $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
+            $resolver,
+        );
+    }
+
+    private function quietRepositories(): void
+    {
+        $this->contributionRepository->method('findApprovedByProject')->willReturn([]);
+        $this->saleRepository->method('findByProjectForListing')->willReturn([]);
+        $this->structureConfigRepository->method('findByUser')->willReturn([]);
+    }
+
+    private function activeJobMatch(int $esiJobId): IndustryProjectJobMatch
+    {
+        return (new IndustryProjectJobMatch())->setEsiJobId($esiJobId)->setStatus('active')->setRuns(10)->setCharacterName('Aria Solberg');
+    }
+
+    private function insideSide(int $locationId, string $name): array
+    {
+        return ['locationId' => $locationId, 'kind' => 'container', 'name' => $name, 'divisionName' => null, 'status' => 'inside', 'unknownReason' => null];
     }
 
     private function plannedStructuresByNodeId(ProjectChainResource $chain): array

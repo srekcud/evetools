@@ -7,6 +7,8 @@ namespace App\State\Provider\Industry\Project;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\ProjectChainResource;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectContributionRepository;
@@ -18,6 +20,7 @@ use App\Service\Industry\Project\JobInstallerName;
 use App\Service\Industry\Project\ProjectChainBuilder;
 use App\Service\Industry\Project\ProjectChainNode;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
+use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -41,6 +44,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
         private ProjectJobMaterialNeedsLoader $jobMaterialNeedsLoader,
         private ChainBlueprintNames $blueprintNames,
         private ProjectContainerFulfillment $containerFulfillment,
+        private ProjectJobLocationResolver $jobLocationResolver,
     ) {
     }
 
@@ -83,16 +87,37 @@ final readonly class ProjectChainProvider implements ProviderInterface
 
         $blueprintNameByNodeId = $this->blueprintNames->of($chain->nodes);
 
+        $locationsByJobId = $this->accessChecker->isAdminOrOwner($user, $project)
+            ? $this->jobLocationResolver->locationsOf($project, $this->jobMatchesOf($bomLines))
+            : [];
+
         $resource = new ProjectChainResource();
         $resource->id = $projectId;
         $resource->nodes = array_map(
             static fn (ProjectChainNode $node): ProjectChainNode => $node->withJobs(array_map(
-                static fn (array $job): array => [...$job, 'characterName' => JobInstallerName::seenBy($job['characterName'], $project, $user)],
+                static fn (array $job): array => [...$job, 'characterName' => JobInstallerName::seenBy($job['characterName'], $project, $user), 'locations' => $locationsByJobId[$job['esiJobId']] ?? null],
                 $node->jobs,
             ))->withPlannedCopyDurationSeenBy($project->getOwner(), $user)->withBlueprintName($blueprintNameByNodeId[$node->id] ?? null),
             $chain->nodes,
         );
 
         return $resource;
+    }
+
+    /**
+     * @param list<IndustryProjectBomLine> $bomLines
+     *
+     * @return list<IndustryProjectJobMatch>
+     */
+    private function jobMatchesOf(array $bomLines): array
+    {
+        $matches = [];
+        foreach ($bomLines as $bomLine) {
+            foreach ($bomLine->getJobMatches() as $match) {
+                $matches[] = $match;
+            }
+        }
+
+        return $matches;
     }
 }

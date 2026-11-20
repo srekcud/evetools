@@ -11,6 +11,7 @@ import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import { chainStatusChipClass, chainStatusDotClass } from './chainStatus'
 import { filterChainNodes } from './chainStatusFilter'
+import ChainJobLocations from './ChainJobLocations.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
 import { containerLineOf, isPartlyCoveredByTheContainer } from './jobContainerCoverage'
 import JobLocationBadge from './JobLocationBadge.vue'
@@ -329,8 +330,8 @@ function plansStructure(node: ChainNode): boolean {
           </td>
 
           <td class="py-2 px-3">
-            <template v-if="item.node.activity !== null">
-              <UnknownContributionValue data-testid="chain-io-unknown" />
+            <template v-for="job in item.node.jobs" :key="job.esiJobId">
+              <ChainJobLocations v-if="job.locations" :locations="job.locations" />
             </template>
           </td>
 
