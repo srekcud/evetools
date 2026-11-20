@@ -34,6 +34,7 @@ function contribution(overrides: Partial<GroupContribution>): GroupContribution 
     reviewedAt: null,
     note: null,
     createdAt: '2026-11-20T09:00:00+00:00',
+    reviewableByViewer: true,
     ...overrides,
   }
 }
@@ -41,7 +42,9 @@ function contribution(overrides: Partial<GroupContribution>): GroupContribution 
 const PENDING_MATERIAL = contribution({ id: 'pending-material', bomItemTypeName: 'Tritanium' })
 const PENDING_JOB = contribution({ id: 'pending-job', bomItemTypeName: 'Ishtar', type: 'job_install', quantity: 5 })
 const AWAITING_WALLET = contribution({ id: 'awaiting-wallet', bomItemTypeName: 'Pyerite', awaitingQuantity: 20 })
-const OWN_PENDING = contribution({ id: 'own-pending', bomItemTypeName: 'Mexallon', editableByViewer: true })
+const OWN_PENDING = contribution({ id: 'own-pending', bomItemTypeName: 'Mexallon', editableByViewer: true, reviewableByViewer: false })
+const OWN_ESI_DELIVERY = contribution({ id: 'own-esi-delivery', bomItemTypeName: 'Zydrine', isAutoDetected: true, reviewableByViewer: false })
+const SOLE_OWNER_OWN_PENDING = contribution({ id: 'sole-owner-own', bomItemTypeName: 'Megacyte', editableByViewer: true })
 const APPROVED = contribution({ id: 'approved', bomItemTypeName: 'Isogen', status: 'approved' })
 
 async function mountTable(contributions: GroupContribution[], isAdmin: boolean, locale: 'en' | 'fr' = 'en'): Promise<VueWrapper> {
@@ -69,7 +72,13 @@ beforeEach(() => {
 
 describe('ContributionTable approve all', () => {
   it('offers an admin Approve all counting only the contributions the admin can approve', async () => {
-    const wrapper = await mountTable([PENDING_MATERIAL, PENDING_JOB, AWAITING_WALLET, OWN_PENDING, APPROVED], true)
+    const wrapper = await mountTable([PENDING_MATERIAL, PENDING_JOB, AWAITING_WALLET, OWN_PENDING, OWN_ESI_DELIVERY, APPROVED], true)
+
+    expect(approveAllButton(wrapper)?.text()).toBe('Approve all (2)')
+  })
+
+  it('counts the own contribution of an owner nobody else could review', async () => {
+    const wrapper = await mountTable([PENDING_MATERIAL, SOLE_OWNER_OWN_PENDING], true)
 
     expect(approveAllButton(wrapper)?.text()).toBe('Approve all (2)')
   })
@@ -87,13 +96,13 @@ describe('ContributionTable approve all', () => {
   })
 
   it('offers no Approve all when nothing can be approved', async () => {
-    const wrapper = await mountTable([AWAITING_WALLET, OWN_PENDING, APPROVED], true)
+    const wrapper = await mountTable([AWAITING_WALLET, OWN_PENDING, OWN_ESI_DELIVERY, APPROVED], true)
 
     expect(approveAllButton(wrapper)).toBeUndefined()
   })
 
   it('approves every approvable contribution and leaves the others pending', async () => {
-    const wrapper = await mountTable([PENDING_MATERIAL, PENDING_JOB, AWAITING_WALLET, OWN_PENDING], true)
+    const wrapper = await mountTable([PENDING_MATERIAL, OWN_ESI_DELIVERY, PENDING_JOB, AWAITING_WALLET, OWN_PENDING], true)
     vi.mocked(apiRequest)
       .mockResolvedValueOnce({ ...PENDING_MATERIAL, status: 'approved' })
       .mockResolvedValueOnce({ ...PENDING_JOB, status: 'approved' })

@@ -214,7 +214,7 @@ async function handleApprove(id: string): Promise<void> {
 const isApprovingAll = ref(false)
 
 const approvableContributions = computed(() =>
-  store.contributions.filter(c => isPending(c.status) && !c.editableByViewer && !isAwaitingUnits(c)),
+  store.contributions.filter(c => isPending(c.status) && c.reviewableByViewer === true && !isAwaitingUnits(c)),
 )
 
 async function handleApproveAll(): Promise<void> {

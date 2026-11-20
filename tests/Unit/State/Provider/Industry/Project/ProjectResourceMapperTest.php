@@ -109,7 +109,7 @@ class ProjectResourceMapperTest extends TestCase
     public function testContributionOfADeletedAccountHasNoMemberCharacterName(): void
     {
         $contribution = (new IndustryProjectContribution())
-            ->setProject(new IndustryProject())
+            ->setProject((new IndustryProject())->setOwner(new User()))
             ->setMember($this->anonymizedMember())
             ->setType(ContributionType::Material)
             ->setQuantity(12_000)
@@ -128,7 +128,7 @@ class ProjectResourceMapperTest extends TestCase
     public function testContributionWithAnUnknownValueIsMappedWithANullValueNotZero(): void
     {
         $contribution = (new IndustryProjectContribution())
-            ->setProject(new IndustryProject())
+            ->setProject((new IndustryProject())->setOwner(new User()))
             ->setMember($this->anonymizedMember())
             ->setType(ContributionType::JobInstall)
             ->setQuantity(5)
@@ -188,6 +188,41 @@ class ProjectResourceMapperTest extends TestCase
                 $this->mapper->contributionToResource($contribution->setAwaitingQuantity(0), $contributor)->switchableToJitaPrice,
             ],
         );
+    }
+
+    public function testOnlyAViewerTheReviewRuleAllowsMayReviewAContribution(): void
+    {
+        $owner = new User();
+        $admin = new User();
+        $contributor = new User();
+        $project = $this->projectOf($owner);
+        $this->addParticipant($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addParticipant($project, $admin, ParticipantRole::Admin, ParticipantStatus::Accepted);
+        $ownersContribution = $this->contributionOf(ContributionType::Material, 500.0)->setProject($project)->setStatus(ContributionStatus::Pending);
+        $ownersContribution->getMember()->setUser($owner);
+        $contributorsContribution = $this->contributionOf(ContributionType::Material, 500.0)->setProject($project)->setStatus(ContributionStatus::Pending);
+        $contributorsContribution->getMember()->setUser($contributor);
+
+        $this->assertSame(
+            [false, true, true, false],
+            [
+                $this->mapper->contributionToResource($ownersContribution, $owner)->reviewableByViewer,
+                $this->mapper->contributionToResource($ownersContribution, $admin)->reviewableByViewer,
+                $this->mapper->contributionToResource($contributorsContribution, $owner)->reviewableByViewer,
+                $this->mapper->contributionToResource($contributorsContribution)->reviewableByViewer,
+            ],
+        );
+    }
+
+    public function testTheOwnerMayReviewHisOwnContributionWhenNobodyElseCould(): void
+    {
+        $owner = new User();
+        $project = $this->projectOf($owner);
+        $this->addParticipant($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $contribution = $this->contributionOf(ContributionType::Material, 500.0)->setProject($project)->setStatus(ContributionStatus::Pending);
+        $contribution->getMember()->setUser($owner);
+
+        $this->assertTrue($this->mapper->contributionToResource($contribution, $owner)->reviewableByViewer);
     }
 
     #[Group('issue-1009')]
@@ -250,7 +285,7 @@ class ProjectResourceMapperTest extends TestCase
     private function contributionOf(ContributionType $type, ?float $estimatedValue): IndustryProjectContribution
     {
         $contribution = (new IndustryProjectContribution())
-            ->setProject(new IndustryProject())
+            ->setProject((new IndustryProject())->setOwner(new User()))
             ->setMember($this->anonymizedMember())
             ->setType($type)
             ->setQuantity(5)

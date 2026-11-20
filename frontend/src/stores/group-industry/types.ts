@@ -264,6 +264,7 @@ export type GroupContribution = {
   switchableToJitaPrice?: boolean
   reopenable: boolean
   editableByViewer?: boolean
+  reviewableByViewer?: boolean
   reviewedByCharacterName: string | null
   reviewedAt: string | null
   note: string | null

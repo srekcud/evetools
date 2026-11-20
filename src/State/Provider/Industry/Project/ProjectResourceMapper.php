@@ -162,6 +162,7 @@ class ProjectResourceMapper
             && $contribution->getAwaitingQuantity() > 0;
         $resource->reopenable = $contribution->isReopenable();
         $resource->editableByViewer = null !== $viewer && $contribution->getMember()->getUser() === $viewer && $contribution->isEditableByItsContributor();
+        $resource->reviewableByViewer = null !== $viewer && $contribution->getProject()->canReviewContribution($contribution, $viewer);
         $resource->reviewedByCharacterName = $contribution->getReviewedBy()?->getMainCharacter()?->getName();
         $resource->reviewedAt = $contribution->getReviewedAt()?->format(\DateTimeInterface::ATOM);
         $resource->note = $contribution->getNote();
