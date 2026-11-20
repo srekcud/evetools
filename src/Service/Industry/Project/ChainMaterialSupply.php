@@ -13,7 +13,7 @@ final readonly class ChainMaterialSupply
     private const array JOB_GROUPS = [self::GROUP_COMPONENT, 'final'];
 
     /**
-     * @param array<string, bool> $suppliedByLineId
+     * @param array<string, bool|null> $suppliedByLineId
      * @param array<int, int>     $firstConsumerLevelByTypeId
      */
     private function __construct(private array $suppliedByLineId, private array $firstConsumerLevelByTypeId)
@@ -25,18 +25,22 @@ final readonly class ChainMaterialSupply
      * @param array<int, int>                     $levelByTypeId
      * @param array<string, array<int, int>>|null $jobMaterialNeeds null when the plan could not be computed
      */
-    public static function allocate(array $bomLines, array $levelByTypeId, ?array $jobMaterialNeeds): self
+    public static function allocate(array $bomLines, array $levelByTypeId, ?array $jobMaterialNeeds, ProjectLineFulfillments $fulfillments): self
     {
         if (null === $jobMaterialNeeds) {
             return new self([], []);
         }
 
         $remainingByMaterialTypeId = [];
+        $unreadableStockTypeIds = [];
         $jobLines = [];
         foreach ($bomLines as $line) {
             if (!$line->isJob()) {
                 $remainingByMaterialTypeId[$line->getTypeId()] ??= 0;
-                $remainingByMaterialTypeId[$line->getTypeId()] += $line->getFulfilledQuantity();
+                $remainingByMaterialTypeId[$line->getTypeId()] += $fulfillments->fulfilledOf($line);
+                if (ContainerStockState::Unknown === $fulfillments->stateOf($line)) {
+                    $unreadableStockTypeIds[$line->getTypeId()] = true;
+                }
             } elseif (\in_array($line->getJobGroup(), self::JOB_GROUPS, true)) {
                 $remainingByMaterialTypeId[$line->getTypeId()] ??= 0;
                 $remainingByMaterialTypeId[$line->getTypeId()] += $line->getFulfilledQuantity() + self::deliveredProductionOf($line);
@@ -54,17 +58,28 @@ final readonly class ChainMaterialSupply
         $firstConsumerLevelByTypeId = [];
         foreach ($jobLines as $line) {
             $lineId = $line->getId()->toRfc4122();
-            $supplied = true;
+            $isShort = false;
+            $dependsOnUnreadableStock = false;
             foreach ($jobMaterialNeeds[$lineId] as $materialTypeId => $neededQuantity) {
                 if (!isset($remainingByMaterialTypeId[$materialTypeId])) {
                     continue;
                 }
                 $grantedQuantity = min($neededQuantity, $remainingByMaterialTypeId[$materialTypeId]);
                 $remainingByMaterialTypeId[$materialTypeId] -= $grantedQuantity;
-                $supplied = $supplied && $grantedQuantity >= $neededQuantity;
+                if ($grantedQuantity < $neededQuantity) {
+                    if (isset($unreadableStockTypeIds[$materialTypeId])) {
+                        $dependsOnUnreadableStock = true;
+                    } else {
+                        $isShort = true;
+                    }
+                }
                 $firstConsumerLevelByTypeId[$materialTypeId] ??= self::levelOf($line, $levelByTypeId);
             }
-            $suppliedByLineId[$lineId] = $supplied;
+            $suppliedByLineId[$lineId] = match (true) {
+                $isShort => false,
+                $dependsOnUnreadableStock => null,
+                default => true,
+            };
         }
 
         return new self($suppliedByLineId, $firstConsumerLevelByTypeId);

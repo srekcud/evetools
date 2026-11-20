@@ -17,6 +17,7 @@ use App\Service\Industry\Project\ChainBlueprintNames;
 use App\Service\Industry\Project\JobInstallerName;
 use App\Service\Industry\Project\ProjectChainBuilder;
 use App\Service\Industry\Project\ProjectChainNode;
+use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -39,6 +40,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
         private ProjectChainBuilder $chainBuilder,
         private ProjectJobMaterialNeedsLoader $jobMaterialNeedsLoader,
         private ChainBlueprintNames $blueprintNames,
+        private ProjectContainerFulfillment $containerFulfillment,
     ) {
     }
 
@@ -76,6 +78,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
             $this->saleRepository->findByProjectForListing($project),
             $structureNamesById,
             $this->jobMaterialNeedsLoader->load($project, $bomLines),
+            $this->containerFulfillment->of($project),
         );
 
         $blueprintNameByNodeId = $this->blueprintNames->of($chain->nodes);

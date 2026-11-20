@@ -42,6 +42,9 @@ use App\Service\Industry\Project\ChainBlueprintNames;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\PlanningBlueprintNames;
 use App\Service\Industry\Project\ProjectChainBuilder;
+use App\Service\Industry\Project\ProjectContainerFulfillment;
+use App\Service\Industry\Project\ProjectContainerService;
+use App\Service\Industry\Project\ProjectContainerStock;
 use App\Service\Industry\Project\ProjectChainNode;
 use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -238,11 +241,47 @@ final class ProjectChainProviderTest extends TestCase
             $this->chainBuilder(),
             new ProjectJobMaterialNeedsLoader($projectService),
             $this->blueprintNames(),
+            $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
         );
 
         $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
 
         self::assertSame('missing_materials', $this->node($chain, $job->getId()->toRfc4122())->status);
+    }
+
+    #[Group('issue-1109')]
+    public function testJobWhoseMaterialSitsInTheContainerIsToLaunchFromTheContainerStockOfTheProject(): void
+    {
+        $this->security->method('getUser')->willReturn($this->member);
+        $job = $this->jobLine(449_001, 'Hammerhead II', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $tritanium = $this->materialLine();
+        $planJob = new Job(449_001, ActivityKind::Manufacturing, new Runs(10), new MaterialEfficiency(0), new TimeEfficiency(0), [34 => new Quantity(1_000)]);
+        $projectService = $this->createMock(IndustryProjectService::class);
+        $projectService->method('planOf')->willReturn(new PlannedProduction(new Plan([$planJob], [], []), []));
+        $this->bomLineRepository->method('findBy')->willReturn([$job, $tritanium]);
+        $this->contributionRepository->method('findApprovedByProject')->willReturn([]);
+        $this->saleRepository->method('findByProjectForListing')->willReturn([]);
+        $this->structureConfigRepository->method('findByUser')->willReturn([]);
+        $provider = new ProjectChainProvider(
+            $this->security,
+            $this->projectRepository,
+            $this->bomLineRepository,
+            $this->contributionRepository,
+            $this->saleRepository,
+            $this->structureConfigRepository,
+            new ProjectAccessChecker($this->participantRepository),
+            $this->chainBuilder(),
+            new ProjectJobMaterialNeedsLoader($projectService),
+            $this->blueprintNames(),
+            $this->containerFulfillmentOf(new ProjectContainerStock(null, [34 => 1_000])),
+        );
+
+        $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame(
+            ['todo', 1_000],
+            [$this->node($chain, $job->getId()->toRfc4122())->status, $this->node($chain, $tritanium->getId()->toRfc4122())->fulfilledQuantity],
+        );
     }
 
     #[Group('issue-339')]
@@ -272,6 +311,7 @@ final class ProjectChainProviderTest extends TestCase
                 $this->chainBuilder(),
                 new ProjectJobMaterialNeedsLoader($this->projectService),
                 $this->blueprintNames(),
+                $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
             );
             $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
             $installersByViewer[] = array_column($this->node($chain, $job->getId()->toRfc4122())->jobs, 'characterName');
@@ -306,6 +346,7 @@ final class ProjectChainProviderTest extends TestCase
                 $this->chainBuilder(),
                 new ProjectJobMaterialNeedsLoader($this->projectService),
                 $this->blueprintNames(),
+                $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
             );
             $copyNode = $this->node($provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]), $copy->getId()->toRfc4122());
             self::assertObjectHasProperty('plannedCopyDuration', $copyNode);
@@ -381,6 +422,14 @@ final class ProjectChainProviderTest extends TestCase
         return new ChainBlueprintNames(new PlanningBlueprintNames($products, $types));
     }
 
+    private function containerFulfillmentOf(ProjectContainerStock $stock): ProjectContainerFulfillment
+    {
+        $containerService = $this->createStub(ProjectContainerService::class);
+        $containerService->method('containerStockOf')->willReturn($stock);
+
+        return new ProjectContainerFulfillment($containerService);
+    }
+
     private function chainBuilder(): ProjectChainBuilder
     {
         return new ProjectChainBuilder(new PlannedCopyDurations(
@@ -428,6 +477,7 @@ final class ProjectChainProviderTest extends TestCase
             $this->chainBuilder(),
             new ProjectJobMaterialNeedsLoader($this->projectService),
             $this->blueprintNames(),
+            $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
         );
     }
 

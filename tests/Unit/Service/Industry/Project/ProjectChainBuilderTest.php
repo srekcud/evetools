@@ -25,9 +25,11 @@ use App\Industry\Application\StructureType;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\SecurityClass;
+use App\Service\Industry\Project\ContainerStockState;
 use App\Service\Industry\Project\ProjectChain;
 use App\Service\Industry\Project\ProjectChainBuilder;
 use App\Service\Industry\Project\ProjectChainNode;
+use App\Service\Industry\Project\ProjectLineFulfillments;
 use App\Tests\Unit\Industry\Application\Double\InMemoryCharacterSkillLevels;
 use App\Tests\Unit\Industry\Application\Double\InMemoryResearchBaseTimes;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
@@ -821,6 +823,92 @@ final class ProjectChainBuilderTest extends TestCase
         self::assertSame(['Material A', 'Material C', 'Material B'], $this->typeNamesOfStage($chain, 'material'));
     }
 
+    #[Group('issue-1109')]
+    public function testMaterialCoveredByTheContainerStockIsDoneAndCarriesTheContainerQuantityAsSupplied(): void
+    {
+        $chain = $this->chainWithNeeds($this->hammerheadLines(), $this->hammerheadNeeds(), fulfillments: $this->knownContainerOf([self::TRITANIUM => 1_000]));
+
+        $material = $this->node($chain, self::TRITANIUM_LINE_ID);
+        self::assertSame([1_000, 1_000, 'done'], [$material->requiredQuantity, $material->fulfilledQuantity, $material->status]);
+    }
+
+    #[Group('issue-1109')]
+    public function testMaterialPartlyFulfilledAndPartlyInTheContainerShowsTheLargerOfTheTwoAsActive(): void
+    {
+        $this->tritanium->setFulfilledQuantity(300);
+
+        $chain = $this->chainWithNeeds($this->hammerheadLines(), $this->hammerheadNeeds(), fulfillments: $this->knownContainerOf([self::TRITANIUM => 600]));
+
+        $material = $this->node($chain, self::TRITANIUM_LINE_ID);
+        self::assertSame([600, 'active'], [$material->fulfilledQuantity, $material->status]);
+    }
+
+    #[Group('issue-1109')]
+    public function testContainerStockAboveTheRequiredQuantityIsCappedAtTheRequiredQuantity(): void
+    {
+        $chain = $this->chainWithNeeds($this->hammerheadLines(), $this->hammerheadNeeds(), fulfillments: $this->knownContainerOf([self::TRITANIUM => 2_500]));
+
+        self::assertSame(1_000, $this->node($chain, self::TRITANIUM_LINE_ID)->fulfilledQuantity);
+    }
+
+    #[Group('issue-1109')]
+    public function testComponentWhoseMaterialSitsInTheContainerIsToLaunchNotMissingMaterials(): void
+    {
+        $chain = $this->chainWithNeeds($this->hammerheadLines(), $this->hammerheadNeeds(), fulfillments: $this->knownContainerOf([self::TRITANIUM => 1_000]));
+
+        self::assertSame('todo', $this->node($chain, self::COMPONENT_LINE_ID)->status);
+    }
+
+    #[Group('issue-1109')]
+    public function testComponentStillShortAfterTheContainerStockIsMissingMaterials(): void
+    {
+        $this->tritanium->setFulfilledQuantity(300);
+
+        $chain = $this->chainWithNeeds($this->hammerheadLines(), $this->hammerheadNeeds(), fulfillments: $this->knownContainerOf([self::TRITANIUM => 999]));
+
+        self::assertSame('missing_materials', $this->node($chain, self::COMPONENT_LINE_ID)->status);
+    }
+
+    #[Group('issue-1109')]
+    public function testUnreadableContainerStockKeepsTheFulfilledQuantityAndMakesTheShortJobUnknown(): void
+    {
+        $this->tritanium->setFulfilledQuantity(400);
+
+        $chain = $this->chainWithNeeds($this->hammerheadLines(), $this->hammerheadNeeds(), fulfillments: new ProjectLineFulfillments(ContainerStockState::Unknown));
+
+        $material = $this->node($chain, self::TRITANIUM_LINE_ID);
+        self::assertSame([400, 'active', 'unknown'], [$material->fulfilledQuantity, $material->status, $this->node($chain, self::COMPONENT_LINE_ID)->status]);
+    }
+
+    #[Group('issue-1109')]
+    public function testUnreadableContainerStockStillLetsAFullyFulfilledJobBeToLaunch(): void
+    {
+        $this->tritanium->setFulfilledQuantity(1_000);
+
+        $chain = $this->chainWithNeeds($this->hammerheadLines(), $this->hammerheadNeeds(), fulfillments: new ProjectLineFulfillments(ContainerStockState::Unknown));
+
+        self::assertSame('todo', $this->node($chain, self::COMPONENT_LINE_ID)->status);
+    }
+
+    #[Group('issue-1109')]
+    public function testWithoutContainerTheMaterialAndTheJobKeepTheFulfilledQuantityOnly(): void
+    {
+        $this->tritanium->setFulfilledQuantity(400);
+
+        $chain = $this->chainWithNeeds($this->hammerheadLines(), $this->hammerheadNeeds(), fulfillments: ProjectLineFulfillments::none());
+
+        self::assertSame([400, 'active', 'missing_materials'], [
+            $this->node($chain, self::TRITANIUM_LINE_ID)->fulfilledQuantity,
+            $this->node($chain, self::TRITANIUM_LINE_ID)->status,
+            $this->node($chain, self::COMPONENT_LINE_ID)->status,
+        ]);
+    }
+
+    private function knownContainerOf(array $quantitiesByTypeId): ProjectLineFulfillments
+    {
+        return new ProjectLineFulfillments(ContainerStockState::Known, $quantitiesByTypeId);
+    }
+
     private function hammerheadNeeds(): array
     {
         return [
@@ -862,9 +950,9 @@ final class ProjectChainBuilderTest extends TestCase
         return $this->chainWithNeeds($bomLines, $this->noMaterialNeedsOf($bomLines), $contributions, $sales, $structureNamesById);
     }
 
-    private function chainWithNeeds(array $bomLines, ?array $jobMaterialNeeds, array $contributions = [], array $sales = [], array $structureNamesById = []): ProjectChain
+    private function chainWithNeeds(array $bomLines, ?array $jobMaterialNeeds, array $contributions = [], array $sales = [], array $structureNamesById = [], ?ProjectLineFulfillments $fulfillments = null): ProjectChain
     {
-        return (new ProjectChainBuilder($this->plannedCopyDurations()))->build($this->project, $bomLines, $contributions, $sales, $structureNamesById, $jobMaterialNeeds);
+        return (new ProjectChainBuilder($this->plannedCopyDurations()))->build($this->project, $bomLines, $contributions, $sales, $structureNamesById, $jobMaterialNeeds, $fulfillments ?? ProjectLineFulfillments::none());
     }
 
     private function plannedCopyDurations(): PlannedCopyDurations

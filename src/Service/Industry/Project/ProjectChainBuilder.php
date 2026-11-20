@@ -97,7 +97,7 @@ final readonly class ProjectChainBuilder
      * @param array<string, string>              $structureNamesById
      * @param array<string, array<int, int>>|null $jobMaterialNeeds null when the plan of the owner could not be computed
      */
-    public function build(IndustryProject $project, array $bomLines, array $contributions, array $sales, array $structureNamesById, ?array $jobMaterialNeeds): ProjectChain
+    public function build(IndustryProject $project, array $bomLines, array $contributions, array $sales, array $structureNamesById, ?array $jobMaterialNeeds, ProjectLineFulfillments $fulfillments): ProjectChain
     {
         $orderedLines = $this->orderedLines($bomLines);
         $contributionsByLineId = $this->approvedContributionsByLineId($contributions);
@@ -114,7 +114,7 @@ final readonly class ProjectChainBuilder
         }
 
         $levelByTypeId = ChainManufacturingLevels::byTypeId($bomLines);
-        $supply = ChainMaterialSupply::allocate($bomLines, $levelByTypeId, $jobMaterialNeeds);
+        $supply = ChainMaterialSupply::allocate($bomLines, $levelByTypeId, $jobMaterialNeeds, $fulfillments);
 
         $owner = $project->getOwner();
         $ownerId = $owner->getId() ?? throw new \LogicException('The owner of a project has no id.');
@@ -135,6 +135,7 @@ final readonly class ProjectChainBuilder
                 $jobStatusByLineId,
                 $levelByTypeId,
                 $supply,
+                $fulfillments,
                 self::ACTIVITY_COPY === $line->getActivityType() ? $this->plannedCopyDurationOf($line, $ownerId->toRfc4122(), $ownerCharacterNames) : null,
             );
         }
@@ -267,6 +268,7 @@ final readonly class ProjectChainBuilder
         array &$jobStatusByLineId,
         array $levelByTypeId,
         ChainMaterialSupply $supply,
+        ProjectLineFulfillments $fulfillments,
         ?array $plannedCopyDuration,
     ): ProjectChainNode {
         $stage = $this->stageOf($line);
@@ -285,8 +287,8 @@ final readonly class ProjectChainBuilder
             $isJob ? $line->getMeLevel() : null,
             $isJob ? $line->getTeLevel() : null,
             $line->getRequiredQuantity(),
-            $line->getFulfilledQuantity(),
-            $isJob ? $this->jobStatusOf($line, $componentsByParentId, $jobStatusByLineId, $supply) : $this->materialStatusOf($line),
+            $isJob ? $line->getFulfilledQuantity() : $fulfillments->fulfilledOf($line),
+            $isJob ? $this->jobStatusOf($line, $componentsByParentId, $jobStatusByLineId, $supply) : $this->materialStatusOf($line, $fulfillments),
             $costState,
             $realCost,
             $this->suppliersOf($approvedContributions),
@@ -345,11 +347,13 @@ final readonly class ProjectChainBuilder
         ];
     }
 
-    private function materialStatusOf(IndustryProjectBomLine $line): string
+    private function materialStatusOf(IndustryProjectBomLine $line, ProjectLineFulfillments $fulfillments): string
     {
+        $fulfilledQuantity = $fulfillments->fulfilledOf($line);
+
         return match (true) {
-            $line->getFulfilledQuantity() >= $line->getRequiredQuantity() => self::STATUS_DONE,
-            $line->getFulfilledQuantity() > 0 => self::STATUS_ACTIVE,
+            $fulfilledQuantity >= $line->getRequiredQuantity() => self::STATUS_DONE,
+            $fulfilledQuantity > 0 => self::STATUS_ACTIVE,
             default => self::STATUS_TODO,
         };
     }
