@@ -10,7 +10,7 @@ final readonly class ProjectChainNode
 {
     /**
      * @param list<array{participantId: string, characterName: string|null, type: string, quantity: int}>                                                                          $suppliers
-     * @param list<array{esiJobId: int, status: string, runs: int, characterName: string|null, endDate: string|null, cost: float|null, facilityName: string|null}> $jobs
+     * @param list<array{esiJobId: int, status: string, runs: int, characterName: string|null, endDate: string|null, cost: float|null, facilityName: string|null, locations?: array{blueprint: array<string, mixed>, output: array<string, mixed>}|null}> $jobs
      * @param list<string>                                                                                                                                                         $structures
      * @param array{name: string|null, status: string}|null                                                                                                                        $plannedStructure
      * @param array{seconds: int|null, missingData: list<array{reason: string, typeId: int|null}>, characterName: string|null}|null $plannedCopyDuration
@@ -45,7 +45,7 @@ final readonly class ProjectChainNode
     }
 
     /**
-     * @param list<array{esiJobId: int, status: string, runs: int, characterName: string|null, endDate: string|null, cost: float|null, facilityName: string|null}> $jobs
+     * @param list<array{esiJobId: int, status: string, runs: int, characterName: string|null, endDate: string|null, cost: float|null, facilityName: string|null, locations?: array{blueprint: array<string, mixed>, output: array<string, mixed>}|null}> $jobs
      */
     public function withJobs(array $jobs): self
     {

@@ -753,6 +753,7 @@ export type ChainJob = {
   endDate: string | null
   cost: number | null
   facilityName: string | null
+  locations?: JobLocations | null
 }
 
 export type ChainPlannedStructure = {

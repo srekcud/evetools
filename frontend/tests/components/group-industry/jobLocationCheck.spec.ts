@@ -1,4 +1,4 @@
-import { jobLocationCheck, jobLocationUnknownReasons } from '@/components/group-industry/jobLocationCheck'
+import { jobInputOutside, jobLocationCheck, jobLocationUnknownReasons } from '@/components/group-industry/jobLocationCheck'
 import type { JobLocation, JobLocations } from '@/stores/group-industry/types'
 
 function side(status: JobLocation['status'], unknownReason: string | null = null): JobLocation {
@@ -30,5 +30,16 @@ describe('jobLocationUnknownReasons', () => {
 
     expect(reasons).toEqual(['no_director'])
     expect(jobLocationUnknownReasons(locations(side('outside'), side('inside')))).toEqual([])
+  })
+})
+
+describe('jobInputOutside', () => {
+  it.each([
+    ['input in another container', { ...side('outside'), kind: 'container' as const }, side('inside'), true],
+    ['input in a hangar', { ...side('outside'), kind: 'hangar' as const, name: 'Jita 4-4' }, side('inside'), true],
+    ['input in the project container', side('inside'), side('outside'), false],
+    ['input unknown and output outside', side('unknown', 'no_director'), side('outside'), false],
+  ])('%s', (_label, blueprint, output, expected) => {
+    expect(jobInputOutside(locations(blueprint, output))).toBe(expected)
   })
 })

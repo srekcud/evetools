@@ -14,3 +14,7 @@ export function jobLocationUnknownReasons(locations: JobLocations): string[] {
     .map(side => side.unknownReason as string)
   return [...new Set(reasons)]
 }
+
+export function jobInputOutside(locations: JobLocations): boolean {
+  return locations.blueprint.status === 'outside'
+}

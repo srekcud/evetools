@@ -3067,7 +3067,6 @@
       "legendTitle": "Légende des statuts",
       "meTeValue": "ME {me} · TE {te}",
       "characterUnknown": "Personnage inconnu",
-      "ioUnknownCause": "Entrée → sortie : lieux des jobs pas encore synchronisés",
       "unknownCostCause": "un apport n'a pas de prix connu : le coût reste inconnu, jamais partiel",
       "plannedCopyDuration": {
         "planned": "Prévue : {duration}",
@@ -3567,6 +3566,8 @@
       "output": "Sortie",
       "control": "Contrôle",
       "unknownLocation": "Lieu inconnu",
+      "projectContainer": "Container du projet",
+      "inputOutside": "Entrée hors du container du projet : le job appartient probablement à un autre projet",
       "check": {
         "ok": "✓ Dans le container du projet",
         "outputOutside": "À déplacer dans le container du projet",
