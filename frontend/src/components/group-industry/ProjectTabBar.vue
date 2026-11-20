@@ -18,7 +18,7 @@ const visibleTabs = computed(() => DETAIL_TABS.filter(tab => !props.hiddenTabs?.
 const { t } = useI18n()
 
 const TAB_LABEL_KEYS: Record<ProjectDetailTab, string> = {
-  bom: 'groupIndustry.tabs.materialsJobs',
+  bom: 'groupIndustry.tabs.sourcing',
   contributions: 'groupIndustry.tabs.contributions',
   distribution: 'groupIndustry.tabs.finances',
   sales: 'groupIndustry.tabs.sales',

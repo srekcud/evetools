@@ -38,13 +38,13 @@ Un projet que vous menez seul est un projet solo : les onglets **Contributions**
 
 ## Étape 3 : lire le projet et le démarrer
 
-Le bandeau des phases (**Préparer**, **Approvisionner**, **Produire**, **Vendre**, **Clôturer**) et la carte **Prochaine action** disent où en est le projet. Les onglets utiles : **Approvisionnement & jobs**, **Production**, **Invention**, **Ventes**, **Finances**.
+Le bandeau des phases (**Préparer**, **Approvisionner**, **Produire**, **Vendre**, **Clôturer**) et la carte **Prochaine action** disent où en est le projet. Les onglets utiles : **Approvisionnement**, **Production**, **Invention**, **Ventes**, **Finances**.
 
 Dans l'en-tête, cliquez sur **Démarrer** (ou **Publier** pour ouvrir le projet à d'autres). Le projet passe à **En cours**. Il n'y a pas d'autre condition : vous pouvez démarrer avant d'avoir tout acheté.
 
 ## Étape 4 : apporter les matériaux au prix réel
 
-Onglet **Approvisionnement & jobs**. Le tableau **Materiaux a sourcer** donne, par matériau, **Requis**, **Fourni**, **Restant** et **Cout est.**. Le bloc **Où acheter les matériaux** compare **Jita + import** et **Structure** et indique **Acheter à**. Achetez en jeu.
+Onglet **Approvisionnement**. Le tableau **Materiaux a sourcer** donne, par matériau, **Requis**, **Fourni**, **Restant** et **Cout est.**. Le bloc **Où acheter les matériaux** compare **Jita + import** et **Structure** et indique **Acheter à**. Achetez en jeu.
 
 Pour chaque matériau, deux façons de l'enregistrer :
 
@@ -53,14 +53,14 @@ Pour chaque matériau, deux façons de l'enregistrer :
 
 Une transaction déjà liée à un autre projet n'est pas proposée. Un prix inconnu donne un apport de valeur inconnue, jamais 0 : les totaux qui l'incluent sont inconnus aussi. Détail : [Projets de groupe, FAQ](/help?page=faq/group-projects).
 
-Pour un T2, l'onglet **Invention** compare les décrypteurs en lecture seule : rien n'est enregistré et le plan du projet ne change pas. Dans l'onglet **Approvisionnement & jobs**, la carte **BPC T2 possédés** (bouton **Déclarer mes BPC T2**) sert à déclarer vos BPC T2 déjà possédés, et **Utiliser mon stock** à déclarer vos intermédiaires en stock (propriétaire, projet non terminé).
+Pour un T2, l'onglet **Invention** compare les décrypteurs en lecture seule : rien n'est enregistré et le plan du projet ne change pas. Dans l'onglet **Approvisionnement**, la carte **BPC T2 possédés** (bouton **Déclarer mes BPC T2**) sert à déclarer vos BPC T2 déjà possédés, et **Utiliser mon stock** à déclarer vos intermédiaires en stock (propriétaire, projet non terminé).
 
 ## Étape 5 : lancer les jobs en jeu
 
 Les jobs se lancent dans le jeu, pas dans EVE Tools. L'application les rapproche des lignes du projet :
 
 - **automatiquement** après chaque synchronisation des jobs, pour les projets non terminés dont vous êtes participant accepté. Seuls les jobs lancés après la création du projet comptent ;
-- à la demande : dans le tableau **Jobs a lancer**, bouton **Associer les jobs** (propriétaire) : il relit d'abord les jobs ESI de vos personnages, puis les rapproche ;
+- à la demande : dans l'onglet **Production**, bouton **Associer les jobs** (propriétaire) : il relit d'abord les jobs ESI de vos personnages, puis les rapproche ;
 - à la main : **Lier un job** sur une ligne (**Délier** pour défaire).
 
 La valeur d'un job est son **Coût du job** donné par l'ESI (« coût réel (ESI) »), un apport par participant qui a lancé le job. Un coût que l'ESI ne donne pas reste inconnu. Fréquence de la synchronisation : [Fréquences de synchronisation](/help?page=data/sync-frequencies) ; un job tout juste terminé peut mettre un moment à apparaître (voir [Des chiffres qui semblent faux](/help?page=faq/numbers-that-look-wrong)).

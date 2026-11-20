@@ -4,11 +4,12 @@ import { useI18n } from 'vue-i18n'
 import type { ChainNode, ChainStage, ChainStatus } from '@/stores/group-industry/types'
 import { filterChainNodes } from './chainStatusFilter'
 import ProductionChainFlowNode from './ProductionChainFlowNode.vue'
+import ProductionChainMaterialsSummary from './ProductionChainMaterialsSummary.vue'
 
 type FlowColumnKey = 'inventionMaterials' | 'components' | 'product' | 'sale'
 
 const FLOW_COLUMNS: readonly { key: FlowColumnKey; stages: readonly ChainStage[]; foldsDone: boolean }[] = [
-  { key: 'inventionMaterials', stages: ['blueprint', 'material'], foldsDone: true },
+  { key: 'inventionMaterials', stages: ['blueprint'], foldsDone: true },
   { key: 'components', stages: ['component'], foldsDone: true },
   { key: 'product', stages: ['product'], foldsDone: true },
   { key: 'sale', stages: ['sale'], foldsDone: false },
@@ -21,9 +22,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [nodeId: string]
+  'open-sourcing': []
 }>()
 
 const { t } = useI18n()
+
+const materialNodes = computed(() => props.nodes.filter(node => node.stage === 'material'))
 
 const columns = computed(() => FLOW_COLUMNS.map((column) => {
   const nodes = filterChainNodes(props.nodes, props.statusFilter ?? []).filter(node => column.stages.includes(node.stage))
@@ -45,6 +49,11 @@ const columns = computed(() => FLOW_COLUMNS.map((column) => {
           <span class="text-xs uppercase tracking-widest text-slate-500 px-1">
             {{ t(`groupIndustry.chain.flow.${column.key}`) }}
           </span>
+          <ProductionChainMaterialsSummary
+            v-if="column.key === 'inventionMaterials' && materialNodes.length > 0"
+            :materials="materialNodes"
+            @open-sourcing="emit('open-sourcing')"
+          />
           <ProductionChainFlowNode
             v-for="node in column.openNodes"
             :key="node.id"

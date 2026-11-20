@@ -25,11 +25,11 @@ Ouvrez le projet depuis « Mes projets ». Sous l'en-tête, la barre de phases (
 - « Lancer un job », bouton « Voir les jobs ».
 - « Rien à faire pour vous » (« Le projet avance sans vous pour le moment ») : les actions qui restent sont celles du propriétaire et des admins (relire, changer le statut, enregistrer les ventes).
 
-Les onglets utiles pour vous : « Approvisionnement & jobs », « Contributions », « Finances », « Équipe » et « Journal ». Le bouton « Compagnon » de l'en-tête (absent quand le projet est « Termine ») ouvre une fenêtre détachée avec les lignes « À attribuer » et « Je m'en charge ».
+Les onglets utiles pour vous : « Approvisionnement », « Production », « Contributions », « Finances », « Équipe » et « Journal ». Le bouton « Compagnon » de l'en-tête (absent quand le projet est « Termine ») ouvre une fenêtre détachée avec les lignes « À attribuer » et « Je m'en charge ».
 
 ## 3. Choisir ce que vous apportez
 
-Onglet « Approvisionnement & jobs ». « Materiaux a sourcer » donne, par ligne, « Requis », « Fourni », « Restant » et « Progression » ; « Jobs a lancer » fait de même pour le travail.
+Onglet « Approvisionnement ». « Materiaux a sourcer » donne, par ligne, « Requis », « Fourni », « Restant » et « Progression ». Les jobs (blueprints, composants, produits finaux) se suivent dans l'onglet « Production ».
 
 - « Fourni » compte les contributions **approuvées**. Si le projet nomme un container dont le stock est lisible, c'est le plus grand de ce nombre et du contenu du container, borné au requis. Container illisible : le chiffre porte « ≥ » et « Non vérifiable ».
 - Une contribution en attente ne change pas « Fourni » : une ligne reste à couvrir tant que personne ne l'a approuvée.
@@ -99,7 +99,7 @@ Vous pouvez cocher « Reçu » même après la fin du projet.
 
 | Chiffre | Où | À savoir | Page |
 |---|---|---|---|
-| « Cout est. » | « Approvisionnement & jobs » | Estimation de la BOM, Jita percentile 5 %, pas votre coût réel | [FAQ](/help?page=faq/faq) |
+| « Cout est. » | « Approvisionnement » | Estimation de la BOM, Jita percentile 5 %, pas votre coût réel | [FAQ](/help?page=faq/faq) |
 | « Valuation » d'une contribution | « Contributions » | Prix du jour d'apport, coût ESI ou valeur saisie | [contributions de groupe](/help?page=calculations/group-contributions) |
 | « Costs Engaged », « Share % », « Payout Total » | « Finances » | Calculés sur les contributions approuvées | [contributions de groupe](/help?page=calculations/group-contributions), [marge](/help?page=calculations/margin) |
 | Montant d'un virement | « Finances » | Revenu détenu par chaque vendeur moins son payout | [contributions de groupe](/help?page=calculations/group-contributions) |

@@ -262,10 +262,11 @@ describe('ProductionChain job tree', () => {
     const cellsCount = cellsOf(wrapper, HAMMERHEAD_I_ID).length
     const hammerheadI = (column: keyof typeof COLUMN) => cell(wrapper, HAMMERHEAD_I_ID, column)
 
-    expect(headers).toEqual(
-      ['element', 'activity', 'runs', 'meTe', 'character', 'status', 'realCost', 'end', 'inOut', 'structure'].map(column => label('en', `columns.${column}`)),
-    )
-    expect(cellsCount).toBe(10)
+    expect(headers).toEqual([
+      ...['element', 'activity', 'runs', 'meTe', 'character', 'status', 'realCost', 'end', 'inOut', 'structure'].map(column => label('en', `columns.${column}`)),
+      en.groupIndustry.reservation.reservedBy,
+    ])
+    expect(cellsCount).toBe(11)
     expect(hammerheadI('element').text()).toContain('Hammerhead I')
     expect(hammerheadI('activity').text()).toBe(label('en', 'activity.manufacturing'))
     expect(hammerheadI('runs').text()).toBe('50')

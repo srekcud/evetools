@@ -3033,6 +3033,9 @@
         "grossRevenue": "Revenu brut",
         "openInTree": "Ouvrir dans l'arbre des jobs",
         "supplied": "{fulfilled} / {required} fournis",
+        "materialsSummary": "{supplied} / {total} lignes de matériaux fournies",
+        "materialsSummaryUnknown": "{count} inconnues",
+        "openSourcing": "Ouvrir l'onglet Approvisionnement",
         "doneCount": "Terminés : {count}"
       },
       "columns": {
@@ -3479,6 +3482,7 @@
       "completed": "Termine"
     },
     "bom": {
+      "jobsOnProduction": "Composants et BPC dans l'onglet Production",
       "materialsToSource": "Materiaux a sourcer",
       "item": "Item",
       "required": "Requis",
@@ -3522,13 +3526,11 @@
       "failed": "La réservation n'a pas pu être enregistrée"
     },
     "jobs": {
-      "title": "Jobs a lancer",
       "product": "Produit",
       "activity": "Activite",
       "runs": "Runs",
       "attempts": "Tentatives",
       "status": "Statut",
-      "totalJobs": "Total jobs",
       "blueprints": "Blueprints",
       "components": "Composants",
       "finalProducts": "Produits finaux",
@@ -4059,7 +4061,7 @@
       "available": "Disponibles",
       "sameCorp": "meme corp",
       "materialsAndJobs": "Materiaux & Jobs",
-      "materialsJobs": "Approvisionnement & jobs",
+      "sourcing": "Approvisionnement",
       "contributions": "Contributions",
       "distribution": "Distribution",
       "members": "Membres",
