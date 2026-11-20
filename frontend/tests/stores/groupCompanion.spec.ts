@@ -2,8 +2,9 @@ import { createPinia, setActivePinia } from 'pinia'
 import { apiRequest } from '@/services/api'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
 import { useSyncStore } from '@/stores/sync'
-import type { BomItem, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
+import type { BomItem, ChainNode, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
 import { bomLine, companionProject, COMPANION_PROJECT_ID } from '../components/group-industry/companionFixtures'
+import { chainNode } from '../productionChainNodes'
 import { sellOrder } from '../sellOrderFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -14,6 +15,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const PROJECT_PATH = `/industry/projects/${COMPANION_PROJECT_ID}`
 const BOM_PATH = `${PROJECT_PATH}/bom`
 const COCKPIT_PATH = `${PROJECT_PATH}/cockpit`
+const CHAIN_PATH = `${PROJECT_PATH}/chain`
 const RESERVATION_PATH = `${BOM_PATH}/bom-nocxium/reservation`
 
 const PRICE_ALERT: ProjectPriceAlert = {
@@ -28,6 +30,8 @@ const PRICE_ALERT: ProjectPriceAlert = {
 let currentBom: BomItem[]
 let currentPriceAlert: ProjectPriceAlert | null
 let currentUndercutOrders: ProjectSellOrder[]
+let currentChainNodes: ChainNode[]
+let chainFails: boolean
 
 function nocxium(overrides: Partial<BomItem> = {}): BomItem {
   return bomLine({
@@ -51,11 +55,17 @@ beforeEach(() => {
   currentBom = [nocxium()]
   currentPriceAlert = null
   currentUndercutOrders = []
+  currentChainNodes = []
+  chainFails = false
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
     if (endpoint === PROJECT_PATH) return companionProject()
     if (endpoint === BOM_PATH) return currentBom
     if (endpoint === COCKPIT_PATH) return { priceAlert: currentPriceAlert, undercutOrders: currentUndercutOrders }
+    if (endpoint === CHAIN_PATH) {
+      if (chainFails) throw new Error('Chain unavailable')
+      return { id: COMPANION_PROJECT_ID, nodes: currentChainNodes }
+    }
     return []
   })
 })
@@ -155,5 +165,45 @@ describe('useGroupCompanionStore', () => {
     await vi.waitFor(() => expect(store.undercutOrders).toEqual([sellOrder()]))
 
     expect({ afterOtherSync, cockpitLoads: callsTo(COCKPIT_PATH) }).toEqual({ afterOtherSync: [], cockpitLoads: 2 })
+  })
+  it('loads the production chain with the project and keeps its nodes in the order served', async () => {
+    currentChainNodes = [
+      chainNode({ id: 'bom-capacitor', stage: 'component', status: 'todo' }),
+      chainNode({ id: 'bom-ishtar', stage: 'product', status: 'blocked' }),
+    ]
+    const store = useGroupCompanionStore()
+
+    await store.open(COMPANION_PROJECT_ID)
+
+    expect(store.chainNodes?.map(node => node.id)).toEqual(['bom-capacitor', 'bom-ishtar'])
+  })
+
+  it('reloads the chain on a project event, and forgets it when the companion is closed', async () => {
+    const store = useGroupCompanionStore()
+    await store.open(COMPANION_PROJECT_ID)
+    currentChainNodes = [chainNode({ id: 'bom-hull', stage: 'component', status: 'active' })]
+
+    await store.handleEvent('line_reserved')
+    const reloaded = store.chainNodes?.map(node => node.id)
+    store.close()
+
+    expect({ reloaded, chainLoads: callsTo(CHAIN_PATH), afterClose: store.chainNodes }).toEqual({
+      reloaded: ['bom-hull'],
+      chainLoads: 2,
+      afterClose: null,
+    })
+  })
+
+  it('keeps the chain unknown and reports the failure when the chain cannot be loaded', async () => {
+    chainFails = true
+    const store = useGroupCompanionStore()
+
+    await store.open(COMPANION_PROJECT_ID)
+
+    expect({ chainNodes: store.chainNodes, error: store.error, bomLoaded: store.bomItems.length }).toEqual({
+      chainNodes: null,
+      error: 'Chain unavailable',
+      bomLoaded: 1,
+    })
   })
 })
