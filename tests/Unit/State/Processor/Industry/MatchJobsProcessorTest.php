@@ -89,6 +89,12 @@ final class MatchJobsProcessorTest extends TestCase
 
     private array $charactersMissingAtReload = [];
 
+    private array $openProjectsOfUser = [];
+
+    private array $contestedQueries = [];
+
+    private array $contestedPassedToMatching = [];
+
     protected function setUp(): void
     {
         $this->user = new User();
@@ -494,6 +500,29 @@ final class MatchJobsProcessorTest extends TestCase
         return $character;
     }
 
+    #[Group('issue-1124')]
+    public function testTheJobsContestedByTheOpenProjectsOfTheUserAndTheProjectAreLeftToTheirProjects(): void
+    {
+        $otherProject = (new IndustryProject())->setOwner($this->user);
+        $this->openProjectsOfUser = [$otherProject];
+
+        $this->matchJobs();
+
+        $this->assertSame([[$otherProject, $this->project]], $this->contestedQueries);
+        $this->assertSame([[7_124_900 => true]], $this->contestedPassedToMatching);
+    }
+
+    #[Group('issue-1124')]
+    public function testTheProjectAlreadyAmongTheOpenProjectsOfTheUserIsNotCountedTwice(): void
+    {
+        $otherProject = (new IndustryProject())->setOwner($this->user);
+        $this->openProjectsOfUser = [$this->project, $otherProject];
+
+        $this->matchJobs();
+
+        $this->assertSame([[$this->project, $otherProject]], $this->contestedQueries);
+    }
+
     private function matchJobs(): MatchJobsResultResource
     {
         $security = $this->createStub(Security::class);
@@ -505,6 +534,7 @@ final class MatchJobsProcessorTest extends TestCase
 
             return $this->foundProject;
         });
+        $projectRepository->method('findOpenOfAcceptedParticipant')->willReturnCallback(fn (): array => $this->openProjectsOfUser);
 
         $jobSyncService = $this->createStub(IndustryJobSyncService::class);
         $jobSyncService->method('syncCharacterJobs')->willReturnCallback(function (Character $character): void {
@@ -515,9 +545,15 @@ final class MatchJobsProcessorTest extends TestCase
         });
 
         $jobMatcher = $this->createStub(IndustryJobMatcher::class);
-        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project): array {
+        $jobMatcher->method('contestedJobIds')->willReturnCallback(function (array $projects): array {
+            $this->contestedQueries[] = $projects;
+
+            return [7_124_900 => true];
+        });
+        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project, array $contestedJobIds = []): array {
             $this->assertSame($this->project, $project);
             $this->matchEsiJobsCalls++;
+            $this->contestedPassedToMatching[] = $contestedJobIds;
 
             return $this->lineMatchFailures;
         });
