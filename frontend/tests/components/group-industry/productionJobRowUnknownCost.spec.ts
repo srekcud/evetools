@@ -9,7 +9,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-const REAL_COST_COLUMN_INDEX = 6
+const REAL_COST_COLUMN_INDEX = 4
 
 function jobLine(overrides: Partial<BomItem>): BomItem {
   return {

@@ -65,16 +65,30 @@ function row(wrapper: VueWrapper, nodeId: string): FoundElement {
 
 const COLUMN = {
   element: 0,
-  activity: 1,
-  runs: 2,
-  meTe: 3,
-  character: 4,
-  status: 5,
-  realCost: 6,
-  end: 7,
-  inOut: 8,
-  structure: 9,
+  runs: 1,
+  character: 2,
+  status: 3,
+  realCost: 4,
+  inOut: 5,
+  structure: 6,
+  reservation: 7,
 } as const
+
+const MERGED_PART_TEST_ID = {
+  activity: 'chain-activity',
+  runs: 'chain-runs',
+  meTe: 'chain-me-te',
+  statusChip: 'chain-status',
+  end: 'chain-end',
+} as const
+
+const MERGED_PART_COLUMN: Record<keyof typeof MERGED_PART_TEST_ID, keyof typeof COLUMN> = {
+  activity: 'element',
+  runs: 'runs',
+  meTe: 'runs',
+  statusChip: 'status',
+  end: 'status',
+}
 
 function cellsOf(wrapper: VueWrapper, nodeId: string): DOMWrapper<Element>[] {
   return row(wrapper, nodeId).findAll('td')
@@ -84,6 +98,10 @@ function cell(wrapper: VueWrapper, nodeId: string, column: keyof typeof COLUMN):
   const found = cellsOf(wrapper, nodeId)[COLUMN[column]]
   if (found === undefined) throw new Error(`no ${column} cell on ${nodeId}`)
   return found
+}
+
+function part(wrapper: VueWrapper, nodeId: string, name: keyof typeof MERGED_PART_TEST_ID): FoundElement {
+  return cell(wrapper, nodeId, MERGED_PART_COLUMN[name]).get(`[data-testid="${MERGED_PART_TEST_ID[name]}"]`)
 }
 
 function testIdOf(element: FoundElement, prefix: string): string {
@@ -287,18 +305,18 @@ describe('ProductionChain job tree', () => {
     const hammerheadI = (column: keyof typeof COLUMN) => cell(wrapper, HAMMERHEAD_I_ID, column)
 
     expect(headers).toEqual([
-      ...['element', 'activity', 'runs', 'meTe', 'character', 'status', 'realCost', 'end', 'inOut', 'structure'].map(column => label('en', `columns.${column}`)),
+      ...['element', 'runs', 'character', 'status', 'realCost', 'inOut', 'structure'].map(column => label('en', `columns.${column}`)),
       en.groupIndustry.reservation.reservedBy,
     ])
-    expect(cellsCount).toBe(11)
+    expect(cellsCount).toBe(8)
     expect(hammerheadI('element').text()).toContain('Hammerhead I')
-    expect(hammerheadI('activity').text()).toBe(label('en', 'activity.manufacturing'))
-    expect(hammerheadI('runs').text()).toBe('50')
-    expect(hammerheadI('meTe').text()).toBe(label('en', 'meTeValue').replace('{me}', '10').replace('{te}', '20'))
+    expect(part(wrapper, HAMMERHEAD_I_ID, 'activity').text()).toBe(label('en', 'activity.manufacturing'))
+    expect(part(wrapper, HAMMERHEAD_I_ID, 'runs').text()).toBe('50')
+    expect(part(wrapper, HAMMERHEAD_I_ID, 'meTe').text()).toBe(label('en', 'meTeValue').replace('{me}', '10').replace('{te}', '20'))
     expect(hammerheadI('character').text()).toBe('Wenzel Roth')
-    expect(hammerheadI('status').text()).toBe(label('en', 'status.done'))
+    expect(part(wrapper, HAMMERHEAD_I_ID, 'statusChip').text()).toBe(label('en', 'status.done'))
     expect(hammerheadI('realCost').text()).toBe('214.00 K')
-    expect(hammerheadI('end').text()).toContain('03/11')
+    expect(part(wrapper, HAMMERHEAD_I_ID, 'end').text()).toContain('03/11')
     expect(hammerheadI('structure').text()).toContain('Raitaru Alpha')
   })
 
@@ -522,7 +540,7 @@ describe('ProductionChain job tree', () => {
     })))
     await openTree(wrapper)
 
-    const labels = statuses.map(status => cell(wrapper, `node-${status}`, 'status').text())
+    const labels = statuses.map(status => part(wrapper, `node-${status}`, 'statusChip').text())
 
     expect(labels).toEqual(statuses.map(status => label('en', `status.${status}`)))
   })
@@ -665,6 +683,44 @@ describe('ProductionChain job tree fits the page width', () => {
   })
 })
 
+describe('ProductionChain job tree keeps every column inside the page width', () => {
+  const MAXIMUM_COLUMNS = 8
+
+  it('merges the activity into the element cell, the ME and TE into the runs cell and the end into the status cell', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await openTree(wrapper)
+
+    const tree = wrapper.get('[data-testid="chain-tree"]')
+
+    expect(tree.findAll('thead th').length).toBeLessThanOrEqual(MAXIMUM_COLUMNS)
+    expect(cell(wrapper, HAMMERHEAD_I_ID, 'element').find('[data-testid="chain-activity"]').exists()).toBe(true)
+    expect(cell(wrapper, HAMMERHEAD_I_ID, 'runs').find('[data-testid="chain-me-te"]').exists()).toBe(true)
+    expect(cell(wrapper, HAMMERHEAD_I_ID, 'status').find('[data-testid="chain-end"]').exists()).toBe(true)
+    expect(tree.findAll('thead th').map(header => header.text())).not.toContain(label('en', 'columns.activity'))
+    expect(tree.findAll('thead th').map(header => header.text())).not.toContain(label('en', 'columns.end'))
+  })
+
+  it('keeps the activity of a job without runs, the ME and TE of a copy and the end of a job still to do in their own cells, never blank labels', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await openTree(wrapper)
+
+    expect(part(wrapper, HAMMERHEAD_I_COPY_ID, 'activity').text()).toBe(label('en', 'activity.copy'))
+    expect(part(wrapper, HAMMERHEAD_I_COPY_ID, 'meTe').text()).toBe('')
+    expect(part(wrapper, HAMMERHEAD_II_INVENTION_ID, 'end').text()).toBe(label('en', 'jobNotSeenHint'))
+  })
+
+  it('uses a compact cell padding so that eight columns hold their content at a 1366 px screen', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await openTree(wrapper)
+
+    const tree = wrapper.get('[data-testid="chain-tree"]')
+    const classesOfCells = tree.findAll('td, th').filter(element => element.attributes('colspan') === undefined).flatMap(element => element.classes())
+
+    expect(classesOfCells).toContain('px-2')
+    expect(classesOfCells).not.toContain('px-3')
+  })
+})
+
 describe('ProductionChain end of a copy job', () => {
   const COPY_WITHOUT_JOB_ID = 'node-ishtar-copy'
   const copyWith = (id: string, overrides: Partial<ChainNode>): ChainNode => chainNode({
@@ -686,13 +742,13 @@ describe('ProductionChain end of a copy job', () => {
     ])
     await openTree(wrapper)
 
-    const planned = cell(wrapper, COPY_WITHOUT_JOB_ID, 'end').find('[data-testid="chain-planned-copy-duration"]')
+    const planned = part(wrapper, COPY_WITHOUT_JOB_ID, 'end').find('[data-testid="chain-planned-copy-duration"]')
 
     expect(planned.exists()).toBe(true)
     expect(planned.text()).toContain('8h 51m')
     expect(planned.attributes('title')).toContain('Aurelie Vanth')
     expect(planned.text()).toBe(label('en', 'plannedCopyDuration.planned').replace('{duration}', '8h 51m'))
-    expect(cell(wrapper, HAMMERHEAD_II_INVENTION_ID, 'end').text()).toBe(label('en', 'jobNotSeenHint'))
+    expect(part(wrapper, HAMMERHEAD_II_INVENTION_ID, 'end').text()).toBe(label('en', 'jobNotSeenHint'))
   })
 
   it('shows an unknown planned duration with its own cause on each copy, never a zero duration', async () => {
@@ -702,11 +758,11 @@ describe('ProductionChain end of a copy job', () => {
     })))
     await openTree(wrapper)
 
-    const unknownMarkers = reasons.map(reason => cell(wrapper, `copy-${reason}`, 'end').find('[data-testid="chain-planned-copy-duration-unknown"]'))
+    const unknownMarkers = reasons.map(reason => part(wrapper, `copy-${reason}`, 'end').find('[data-testid="chain-planned-copy-duration-unknown"]'))
 
     expect(unknownMarkers.map(marker => marker.exists())).toEqual(reasons.map(() => true))
     for (const reason of reasons) {
-      const shown = cell(wrapper, `copy-${reason}`, 'end').text()
+      const shown = part(wrapper, `copy-${reason}`, 'end').text()
       expect(shown).toContain(label('en', 'plannedCopyDuration.unknown'))
       expect(shown).toContain(label('en', `plannedCopyDuration.reason.${reason}`))
       expect(shown, reason).not.toMatch(/\b0s\b/)
@@ -721,7 +777,7 @@ describe('ProductionChain end of a copy job', () => {
     })])
     await openTree(wrapper)
 
-    const end = cell(wrapper, 'copy-launched', 'end')
+    const end = part(wrapper, 'copy-launched', 'end')
 
     expect(end.text()).toContain('12/11')
     expect(end.find('[data-testid="chain-planned-copy-duration"]').exists()).toBe(false)

@@ -222,6 +222,19 @@ describe('LineReservation', () => {
     expect(name.classes()).toContain('truncate')
   })
 
+  it('lets the pending chip shrink inside a narrow column and truncate the name instead of overflowing the cell', () => {
+    const wrapper = mountReservation(line({
+      pendingContributions: [{ participantId: 'm-1', characterName: 'Ishukone Logistics Director Of The Long Name Division', quantity: 88, isMine: false }],
+    }))
+    const chip = wrapper.get('[data-testid="pending-contribution"]')
+    const name = wrapper.get('[data-testid="pending-contribution-name"]')
+
+    expect(chip.classes()).toContain('flex')
+    expect(chip.classes()).not.toContain('whitespace-nowrap')
+    expect(name.classes()).toContain('min-w-0')
+    expect(name.classes()).not.toContain('max-w-[12rem]')
+  })
+
   it('hides the pending chips of a solo project like the reservations', () => {
     const wrapper = mountReservation(line({
       pendingContributions: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 40, isMine: true }],

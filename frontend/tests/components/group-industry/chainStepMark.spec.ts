@@ -56,6 +56,12 @@ beforeEach(() => {
 })
 
 describe('ChainStepMark', () => {
+  it('lets the form wrap so that it fits a narrow status cell', () => {
+    const wrapper = mountMark(COMPONENT, true)
+
+    expect(wrapper.get('[data-testid="chain-step-mark-form"]').classes()).toContain('flex-wrap')
+  })
+
   it('shows the badge of a mark done to a member and gives him neither the form nor the removal', () => {
     const wrapper = mountMark({ ...COMPONENT, mark: { state: 'done', runs: 4 } }, false)
 
