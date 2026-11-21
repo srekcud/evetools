@@ -176,7 +176,7 @@ describe('ProjectCourier', () => {
     expect(clipboard.writeText.mock.calls).toEqual([[shownContract]])
   })
 
-  it('shows the transport state of the contract and of every purchased line once a contract is linked', async () => {
+  it('shows the transport state of the contract but no purchased line once a contract is linked', async () => {
     const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
       contract: LINKED_IN_TRANSIT,
       lines: [
@@ -186,9 +186,10 @@ describe('ProjectCourier', () => {
     }))
 
     expect(wrapper.get('[data-testid="courier-state"]').attributes('data-state')).toBe('in_transit')
-    expect(wrapper.get(`[data-testid="courier-line-${TRITANIUM_TYPE_ID}"]`).attributes('data-state')).toBe('in_transit')
-    expect(wrapper.get(`[data-testid="courier-line-${NOCXIUM_TYPE_ID}"]`).attributes('data-state')).toBe('delivered')
-    expect(digitsOf(wrapper, `courier-line-${TRITANIUM_TYPE_ID}`)).toContain('8000')
+    expect(wrapper.find(`[data-testid="courier-line-${TRITANIUM_TYPE_ID}"]`).exists()).toBe(false)
+    expect(wrapper.find(`[data-testid="courier-line-${NOCXIUM_TYPE_ID}"]`).exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Purchased lines')
+    expect(wrapper.find('[data-testid="courier-linked-contract"]').exists()).toBe(true)
   })
 
   it('lists the candidate contracts of the owner and marks only the one matching the quote', async () => {
@@ -245,10 +246,10 @@ describe('ProjectCourier', () => {
 
     expect(apiRequest).toHaveBeenCalledWith(LINK_PATH, { method: 'POST', body: JSON.stringify({ contractId: OUTSTANDING_CONTRACT_ID }) })
     expect(wrapper.get('[data-testid="courier-state"]').attributes('data-state')).toBe('waiting')
-    expect(wrapper.get(`[data-testid="courier-line-${TRITANIUM_TYPE_ID}"]`).attributes('data-state')).toBe('waiting')
+    expect(wrapper.find(`[data-testid="courier-line-${TRITANIUM_TYPE_ID}"]`).exists()).toBe(false)
   })
 
-  it('unlinks the contract and shows every line as not shipped again', async () => {
+  it('unlinks the contract and shows no purchased line in the courier card', async () => {
     const wrapper = await mountCourier(readyCourier(PROJECT_ID, { contract: LINKED_IN_TRANSIT, lines: [
       { bomLineId: 'line-tritanium', typeId: TRITANIUM_TYPE_ID, purchasedQuantity: 8000, transportState: 'in_transit' },
     ] }), readyCourier(PROJECT_ID, { lines: [
@@ -260,6 +261,6 @@ describe('ProjectCourier', () => {
 
     expect(apiRequest).toHaveBeenCalledWith(LINK_PATH, { method: 'DELETE' })
     expect(wrapper.find('[data-testid="courier-state"]').exists()).toBe(false)
-    expect(wrapper.get(`[data-testid="courier-line-${TRITANIUM_TYPE_ID}"]`).attributes('data-state')).toBe('not_shipped')
+    expect(wrapper.find(`[data-testid="courier-line-${TRITANIUM_TYPE_ID}"]`).exists()).toBe(false)
   })
 })
