@@ -44,7 +44,7 @@ final readonly class ProjectSaleSuggestionProvider implements ProviderInterface
         }
 
         $project = $this->projectOf($this->projectRepository, $uriVariables);
-        $this->accessChecker->assertAdminOrOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $transactions = $this->transactionRepository->findUnlinkedSaleTransactions(
             $user->getCharacters()->toArray(),

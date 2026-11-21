@@ -59,7 +59,7 @@ final readonly class RecordSaleFromContractProcessor implements ProcessorInterfa
         assert($data->contractId !== null && $data->characterId !== null);
 
         $project = $this->projectOf($this->projectRepository, $uriVariables);
-        $this->accessChecker->assertAdminOrOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         if ($project->isCompleted()) {
             throw new BadRequestHttpException('Cannot record a sale on a completed project');

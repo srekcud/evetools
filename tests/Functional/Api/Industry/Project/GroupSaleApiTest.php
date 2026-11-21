@@ -35,6 +35,7 @@ final class GroupSaleApiTest extends WebTestCase
     private User $owner;
     private User $admin;
     private User $member;
+    private User $stranger;
     private IndustryProject $sabreDoctrine;
     private IndustryProject $hecateBatch;
     private IndustryProjectSale $sabreSale;
@@ -49,6 +50,7 @@ final class GroupSaleApiTest extends WebTestCase
         $this->owner = $this->persistPilot('Aria Solberg', self::OWNER_CORPORATION_ID);
         $this->admin = $this->persistPilot('Brann Holt', self::FOREIGN_CORPORATION_ID);
         $this->member = $this->persistPilot('Dorn Achar', self::FOREIGN_CORPORATION_ID);
+        $this->stranger = $this->persistPilot('Cael Voss', self::FOREIGN_CORPORATION_ID);
         $this->sabreDoctrine = $this->persistProject('Sabre doctrine', ProjectStatus::Selling);
         $this->addMembership($this->sabreDoctrine, $this->owner, ParticipantRole::Owner);
         $this->addMembership($this->sabreDoctrine, $this->admin, ParticipantRole::Admin);
@@ -365,11 +367,22 @@ final class GroupSaleApiTest extends WebTestCase
         );
     }
 
-    #[Group('issue-241')]
-    public function testPlainMemberIsRefusedTheSaleSuggestions(): void
+    #[Group('issue-1212')]
+    public function testPlainMemberIsOfferedNoSuggestionFromTheTransactionsOfTheOwner(): void
     {
         $this->persistSabreSaleOfTheOwnerMain();
         $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->saleSuggestionsUri());
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->responseJson()['suggestions']);
+    }
+
+    #[Group('issue-241')]
+    public function testStrangerIsRefusedTheSaleSuggestions(): void
+    {
+        $this->persistSabreSaleOfTheOwnerMain();
+        $this->client->loginUser($this->stranger, 'api');
         $this->request('GET', $this->saleSuggestionsUri());
 
         self::assertResponseStatusCodeSame(403);
@@ -475,11 +488,22 @@ final class GroupSaleApiTest extends WebTestCase
         self::assertSame([['transactions[0].quantity'], 1], [$this->violatedPaths(), $this->salesCountOf($this->sabreDoctrine)]);
     }
 
-    #[Group('issue-1152')]
-    public function testPlainMemberCannotRecordABatch(): void
+    #[Group('issue-1212')]
+    public function testPlainMemberRecordingTheTransactionOfTheOwnerInABatchRecordsNothingAndListsItAsRefused(): void
     {
         $t1 = $this->persistSabreSaleOfTheOwnerMain();
         $this->client->loginUser($this->member, 'api');
+        $this->request('POST', $this->salesFromWalletTransactionsUri(), ['transactions' => [['transactionId' => $t1->getId()?->toRfc4122()]]]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([[], 1], [$this->responseJson()['recorded'], $this->salesCountOf($this->sabreDoctrine)]);
+    }
+
+    #[Group('issue-1152')]
+    public function testStrangerCannotRecordABatch(): void
+    {
+        $t1 = $this->persistSabreSaleOfTheOwnerMain();
+        $this->client->loginUser($this->stranger, 'api');
         $this->request('POST', $this->salesFromWalletTransactionsUri(), ['transactions' => [['transactionId' => $t1->getId()?->toRfc4122()]]]);
 
         self::assertResponseStatusCodeSame(403);

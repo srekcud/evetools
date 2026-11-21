@@ -194,16 +194,16 @@ final class UpdateSaleProcessorTest extends TestCase
     {
         yield 'A1 owner' => [self::OWNER, self::GRANTED];
         yield 'A2 accepted admin' => [self::ACCEPTED_ADMIN, self::GRANTED];
-        yield 'C6 A3 accepted member' => [self::ACCEPTED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A4 pending member' => [self::PENDING_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A8 removed member' => [self::REMOVED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A9 stranger' => [self::STRANGER, self::ADMIN_OR_OWNER_ONLY];
+        yield 'C6 A3 accepted member who did not sell it' => [self::ACCEPTED_MEMBER, self::OWN_SALES_ONLY];
+        yield 'A4 pending member' => [self::PENDING_MEMBER, self::NO_ACCESS];
+        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::NO_ACCESS];
+        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::NO_ACCESS];
+        yield 'A8 removed member' => [self::REMOVED_MEMBER, self::NO_ACCESS];
+        yield 'A9 stranger' => [self::STRANGER, self::NO_ACCESS];
     }
 
     #[DataProvider('correctionAccessMatrix')]
-    public function testOnlyTheOwnerAndAcceptedAdminsCorrectASale(string $profile, string $expectedOutcome): void
+    public function testOnlyTheManagersAndTheSellerCorrectASale(string $profile, string $expectedOutcome): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
 
@@ -256,19 +256,19 @@ final class UpdateSaleProcessorTest extends TestCase
     }
 
     #[DataProvider('profilesRefusedTheCorrection')]
-    public function testProcessorRefusesTheCorrectionOfANonAdminWithoutRelyingOnTheProvider(string $profile): void
+    public function testProcessorRefusesTheCorrectionOfAParticipantWhoDidNotSellItWithoutRelyingOnTheProvider(string $profile, string $expectedRefusal): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
 
         $outcome = $this->outcomeOf(fn () => $this->correctThroughTheProcessorOnly($this->sabreSaleUri()));
 
-        self::assertSame([self::ADMIN_OR_OWNER_ONLY, [900000.0, 2, 1800000.0], 0, []], [$outcome, $this->persistedSabreSaleAmounts(), $this->flushes, $this->publishedUpdates]);
+        self::assertSame([$expectedRefusal, [900000.0, 2, 1800000.0], 0, []], [$outcome, $this->persistedSabreSaleAmounts(), $this->flushes, $this->publishedUpdates]);
     }
 
     public static function profilesRefusedTheCorrection(): iterable
     {
-        yield 'accepted member' => [self::ACCEPTED_MEMBER];
-        yield 'stranger' => [self::STRANGER];
+        yield 'accepted member' => [self::ACCEPTED_MEMBER, self::OWN_SALES_ONLY];
+        yield 'stranger' => [self::STRANGER, self::NO_ACCESS];
     }
 
     public function testProcessorRefusesACorrectionWithoutUser(): void
@@ -422,14 +422,40 @@ final class UpdateSaleProcessorTest extends TestCase
         self::assertSame($this->oAlt, $this->sabreSale->getSeller());
     }
 
-    #[Group('issue-241')]
-    public function testMemberNamingHisOwnCharacterAsSellerIsStillRefusedTheCorrection(): void
+    #[Group('issue-1212')]
+    public function testMemberCorrectsTheSaleSoldByHisCharacterAndKeepsHisCharacterAsSeller(): void
     {
+        $this->sabreSale->setSeller($this->mMain);
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain));
+
+        $sale = $this->correctSabreSale(['unitPrice' => 950000.0, 'sellerCharacterId' => self::M_MAIN_EVE_CHARACTER_ID]);
+
+        self::assertSame([950000.0, 1900000.0, self::M_MAIN_EVE_CHARACTER_ID, 1], [$sale->unitPrice, $sale->totalPrice, $sale->sellerCharacterId, $this->flushes]);
+        self::assertSame($this->mMain, $this->sabreSale->getSeller());
+    }
+
+    #[Group('issue-1212')]
+    public function testMemberCorrectsASaleHeRecordedWithoutSeller(): void
+    {
+        $member = $this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain);
+        (new \ReflectionProperty(IndustryProjectSale::class, 'recordedBy'))->setValue($this->sabreSale, $member);
+        $this->security->method('getUser')->willReturn($member);
+
+        $sale = $this->correctSabreSale(['quantity' => 3]);
+
+        self::assertSame([3, 2700000.0], [$sale->quantity, $sale->totalPrice]);
+    }
+
+    #[Group('issue-1212')]
+    public function testMemberCannotMoveTheSaleOfAnotherParticipantToHisCharacter(): void
+    {
+        $this->sabreSale->setSeller($this->oMain);
         $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain));
 
         $outcome = $this->outcomeOf(fn () => $this->correctSabreSale(['sellerCharacterId' => self::M_MAIN_EVE_CHARACTER_ID]));
 
-        self::assertSame([self::ADMIN_OR_OWNER_ONLY, 0, []], [$outcome, $this->flushes, $this->publishedUpdates]);
+        self::assertSame([self::OWN_SALES_ONLY, 0, []], [$outcome, $this->flushes, $this->publishedUpdates]);
+        self::assertSame($this->oMain, $this->sabreSale->getSeller());
     }
 
     #[Group('issue-241')]

@@ -325,7 +325,6 @@ final class RecordSaleFromWalletTransactionProcessorTest extends TestCase
 
     public static function profilesRefusedTheRecording(): iterable
     {
-        yield 'L10 accepted member' => [self::ACCEPTED_MEMBER];
         yield 'pending member' => [self::PENDING_MEMBER];
         yield 'owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER];
         yield 'removed member' => [self::REMOVED_MEMBER];
@@ -333,11 +332,35 @@ final class RecordSaleFromWalletTransactionProcessorTest extends TestCase
     }
 
     #[DataProvider('profilesRefusedTheRecording')]
-    public function testOnlyTheOwnerAndAcceptedAdminsRecordASaleFromAWalletTransaction(string $profile): void
+    public function testOnlyTheAcceptedParticipantsRecordASaleFromAWalletTransaction(string $profile): void
     {
         $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile($profile), $this->mMain));
 
-        self::assertSame([self::ADMIN_OR_OWNER_ONLY, 0, []], $this->refusalOf($this->t1));
+        self::assertSame([self::NO_ACCESS, 0, []], $this->refusalOf($this->t1));
+    }
+
+    #[Group('issue-1212')]
+    public function testMemberRecordsASaleFromATransactionOfHisCharacter(): void
+    {
+        $memberTransaction = $this->walletTransaction(6_100_000_010, $this->mMain, false, self::SABRE_TYPE_ID, 2, 61_000_000.0, '2026-10-25T10:00:00+00:00', self::JITA_STATION_ID);
+        $member = $this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain);
+        $this->security->method('getUser')->willReturn($member);
+
+        $sale = $this->recordSaleFrom($memberTransaction);
+
+        self::assertSame(
+            [2, 122_000_000.0, self::M_MAIN_EVE_CHARACTER_ID, 'M-Main'],
+            [$sale->quantity, $sale->totalPrice, $sale->sellerCharacterId, $sale->sellerCharacterName],
+        );
+        self::assertSame([$memberTransaction, $member, $this->mMain], [$this->persistedSales[0]->getWalletTransaction(), $this->persistedSales[0]->getRecordedBy(), $this->persistedSales[0]->getSeller()]);
+    }
+
+    #[Group('issue-1212')]
+    public function testMemberRecordingTheTransactionOfAnotherParticipantIsNotFound(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain));
+
+        self::assertSame([self::TRANSACTION_NOT_FOUND, 0, []], $this->refusalOf($this->t1));
     }
 
     public function testRecordingOnAnUnknownProjectIsNotFound(): void

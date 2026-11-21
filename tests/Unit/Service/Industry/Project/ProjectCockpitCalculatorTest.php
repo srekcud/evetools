@@ -198,7 +198,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         self::assertSame(self::NOTHING_TO_DO, $this->actionRow($memberCockpit));
     }
 
-    public function testSellingProjectWithSixtyOfAHundredFinalUnitsSoldAsksTheManagerToRecordFortyWhileAMemberHasNothingToDo(): void
+    public function testSellingProjectWithSixtyOfAHundredFinalUnitsSoldAsksTheManagerAndTheMemberToRecordForty(): void
     {
         $lines = [
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 30_000, 30_000),
@@ -217,7 +217,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             ['close', 'upcoming', 0, 1, null, null],
         ], $this->phaseRows($managerCockpit));
         self::assertSame(['record_sale', false, 'sales', null, null, null, null, 40], $this->actionRow($managerCockpit));
-        self::assertSame(self::NOTHING_TO_DO, $this->actionRow($memberCockpit));
+        self::assertSame(['record_sale', false, 'sales', null, null, null, null, 40], $this->actionRow($memberCockpit));
     }
 
     public function testSellingProjectWithEveryFinalUnitSoldIsCompletedByTheManagerWhileAMemberHasNothingToDo(): void

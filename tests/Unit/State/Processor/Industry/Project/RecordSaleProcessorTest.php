@@ -175,20 +175,20 @@ class RecordSaleProcessorTest extends TestCase
     {
         yield 'A1 owner' => [self::OWNER, self::GRANTED];
         yield 'A2 accepted admin' => [self::ACCEPTED_ADMIN, self::GRANTED];
-        yield 'A3 accepted member' => [self::ACCEPTED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A4 pending member' => [self::PENDING_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A8 removed member' => [self::REMOVED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A9 stranger' => [self::STRANGER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A10 user without corporation' => [self::USER_WITHOUT_CORPORATION, self::ADMIN_OR_OWNER_ONLY];
+        yield 'A3 accepted member' => [self::ACCEPTED_MEMBER, self::GRANTED];
+        yield 'A4 pending member' => [self::PENDING_MEMBER, self::NO_ACCESS];
+        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::NO_ACCESS];
+        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, self::NO_ACCESS];
+        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::NO_ACCESS];
+        yield 'A8 removed member' => [self::REMOVED_MEMBER, self::NO_ACCESS];
+        yield 'A9 stranger' => [self::STRANGER, self::NO_ACCESS];
+        yield 'A10 user without corporation' => [self::USER_WITHOUT_CORPORATION, self::NO_ACCESS];
         yield 'A12 accepted admin of a completed project' => [self::ACCEPTED_ADMIN_OF_COMPLETED_PROJECT, self::COMPLETED_PROJECT_REFUSAL];
-        yield 'A13 stranger to a completed project' => [self::STRANGER_TO_COMPLETED_PROJECT, self::ADMIN_OR_OWNER_ONLY];
+        yield 'A13 stranger to a completed project' => [self::STRANGER_TO_COMPLETED_PROJECT, self::NO_ACCESS];
     }
 
     #[DataProvider('recordSaleMatrix')]
-    public function testOnlyTheOwnerAndAcceptedAdminsRecordASaleOnAProjectInProgress(string $profile, string $expectedOutcome): void
+    public function testOnlyTheOwnerAndAcceptedParticipantsRecordASaleOnAProjectInProgress(string $profile, string $expectedOutcome): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
 
@@ -285,15 +285,39 @@ class RecordSaleProcessorTest extends TestCase
         self::assertSame([self::SELLER_OF_ANOTHER_USER, 0, []], [$outcome, $this->persistedSales, $this->publishedUpdates]);
     }
 
-    #[Group('issue-241')]
-    public function testMemberNamingHisOwnCharacterAsSellerIsStillRefusedTheRecording(): void
+    #[Group('issue-1212')]
+    public function testMemberRecordsASaleWithHisOwnCharacterAsSeller(): void
     {
         $member = $this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain);
         $this->security->method('getUser')->willReturn($member);
 
-        $outcome = $this->outcomeOf(fn () => $this->recordBaseSabreSale(['sellerCharacterId' => self::M_MAIN_EVE_CHARACTER_ID]));
+        $resource = $this->recordBaseSabreSale(['sellerCharacterId' => self::M_MAIN_EVE_CHARACTER_ID]);
 
-        self::assertSame([self::ADMIN_OR_OWNER_ONLY, 0], [$outcome, $this->persistedSales]);
+        self::assertSame([1, self::M_MAIN_EVE_CHARACTER_ID, 'M-Main'], [$this->persistedSales, $resource->sellerCharacterId, $resource->sellerCharacterName]);
+        self::assertSame($this->mMain, $this->persistedSale?->getSeller());
+        self::assertSame($member, $this->persistedSale?->getRecordedBy());
+    }
+
+    #[Group('issue-1212')]
+    public function testMemberNamingTheCharacterOfAnotherParticipantAsSellerIsRefusedAndNothingIsRecorded(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain));
+        $this->capturePublishedUpdates();
+
+        $outcome = $this->outcomeOf(fn () => $this->recordBaseSabreSale(['sellerCharacterId' => self::O_MAIN_EVE_CHARACTER_ID]));
+
+        self::assertSame([self::SELLER_OF_ANOTHER_USER, 0, []], [$outcome, $this->persistedSales, $this->publishedUpdates]);
+    }
+
+    #[Group('issue-1212')]
+    public function testMemberRecordingOnACompletedProjectIsStillRefused(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain));
+        $this->sabreBatch->setStatus(ProjectStatus::Completed);
+
+        $outcome = $this->outcomeOf(fn () => $this->recordOrcaSale($this->sabreBatch->getId()));
+
+        self::assertSame([self::COMPLETED_PROJECT_REFUSAL, 0], [$outcome, $this->persistedSales]);
     }
 
     #[Group('issue-241')]

@@ -182,6 +182,7 @@ const isOwner = computed(() => project.value?.myRole === 'owner')
 const isAcceptedMember = computed(() => project.value?.myStatus === 'accepted')
 const isCompleted = computed(() => project.value?.status === 'completed')
 const markableNodeIds = computed(() => (isCompleted.value ? [] : reservedLineIdsOfMine(projectStore.bomItems)))
+const canRecordSales = computed(() => isOwnerOrAdmin.value || isAcceptedMember.value)
 const isWorkedOnAlone = computed(() => {
   const current = project.value
   if (!membersLoaded.value || !current) return false
@@ -276,7 +277,7 @@ const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<v
   members: loadMembers,
   projectDetail: projectStore.fetchProjectDetail,
   sales: distributionStore.fetchSales,
-  saleSuggestions: id => (isOwnerOrAdmin.value ? distributionStore.fetchSaleSuggestions(id) : Promise.resolve()),
+  saleSuggestions: id => (canRecordSales.value ? distributionStore.fetchSaleSuggestions(id) : Promise.resolve()),
   distribution: id => Promise.all([distributionStore.fetchDistribution(id), settlementStore.fetchForProject(id)]).then(() => undefined),
   settlement: settlementStore.fetchForProject,
   cockpit: loadCockpit,
@@ -899,9 +900,9 @@ function applyShareLinkShortcut(): void {
       <div v-else-if="activeTab === 'sales'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <template v-for="section in salesTabSections" :key="section">
           <ProjectSellOrdersSection v-if="section === 'sellOrders'" :project-id="projectId" />
-          <SalesTable v-else-if="section === 'sales'" :project-id="projectId" :is-admin="isOwnerOrAdmin" />
-          <SaleSuggestionsPanel v-else-if="section === 'transactionsToLink' && isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
-          <ContractSaleSuggestions v-else-if="section === 'contractsToLink' && isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
+          <SalesTable v-else-if="section === 'sales'" :project-id="projectId" :is-admin="isOwnerOrAdmin" :can-record="canRecordSales" />
+          <SaleSuggestionsPanel v-else-if="section === 'transactionsToLink' && canRecordSales" :project-id="projectId" :recording-disabled="isCompleted" />
+          <ContractSaleSuggestions v-else-if="section === 'contractsToLink' && canRecordSales" :project-id="projectId" :recording-disabled="isCompleted" />
         </template>
       </div>
 

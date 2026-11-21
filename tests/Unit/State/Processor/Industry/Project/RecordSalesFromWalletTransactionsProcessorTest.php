@@ -201,13 +201,27 @@ final class RecordSalesFromWalletTransactionsProcessorTest extends TestCase
         );
     }
 
-    public function testAMemberWhoIsNeitherOwnerNorAdminRecordsNothingAndPublishesNothing(): void
+    public function testAPendingMemberRecordsNothingAndPublishesNothing(): void
     {
-        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain));
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::PENDING_MEMBER), $this->mMain));
 
         $outcome = $this->outcomeOf(fn () => $this->recordBatch([[$this->t1, null], [$this->t7, null]]));
 
-        self::assertSame([self::ADMIN_OR_OWNER_ONLY, 0, []], [$outcome, count($this->persistedSales), $this->publishedUpdates]);
+        self::assertSame([self::NO_ACCESS, 0, []], [$outcome, count($this->persistedSales), $this->publishedUpdates]);
+    }
+
+    #[Group('issue-1212')]
+    public function testAMemberRecordsInOneRequestTheSalesOfHisOwnCharactersAndTheTransactionsOfOthersAreListedAsRefused(): void
+    {
+        $memberTransaction = $this->walletTransaction(6_100_000_010, $this->mMain, false, self::SABRE_TYPE_ID, 2, 61_000_000.0, '2026-10-25T10:00:00+00:00', self::JITA_STATION_ID);
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain));
+
+        $batch = $this->recordBatch([[$memberTransaction, null], [$this->t1, null]]);
+
+        self::assertSame(
+            [1, [['transactionId' => $this->t1->getId()?->toRfc4122(), 'message' => self::TRANSACTION_NOT_FOUND]]],
+            [count($batch->recorded), $batch->failures],
+        );
     }
 
     public function testACompletedProjectRefusesTheWholeRequest(): void

@@ -73,7 +73,7 @@ final readonly class RecordSaleFromWalletTransactionProcessor implements Process
 
     public function assertMayRecord(User $user, IndustryProject $project): void
     {
-        $this->accessChecker->assertAdminOrOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         if ($project->isCompleted()) {
             throw new BadRequestHttpException('Cannot record a sale on a completed project');

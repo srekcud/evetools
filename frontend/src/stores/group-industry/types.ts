@@ -304,6 +304,7 @@ export type GroupSale = {
   sellerCharacterId: number | null
   sellerCharacterName: string | null
   linkedToWalletTransaction: boolean
+  heldByViewer?: boolean
   contractId?: number | null
   contractFees?: number | null
   createdAt: string

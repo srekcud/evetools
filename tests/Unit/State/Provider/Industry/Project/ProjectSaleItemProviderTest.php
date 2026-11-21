@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Provider\Industry\Project;
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Industry\Project\ProjectSaleResource;
 use App\Entity\Character;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -86,23 +87,54 @@ final class ProjectSaleItemProviderTest extends TestCase
         self::assertSame([2120000001, 'O-Main'], [$sale->sellerCharacterId, $sale->sellerCharacterName]);
     }
 
+    #[Group('issue-1212')]
+    public function testSaleIsHeldByTheViewerWhenOneOfHisCharactersSoldIt(): void
+    {
+        $member = $this->userWithProfile(self::ACCEPTED_MEMBER);
+        $seller = (new Character())->setEveCharacterId(2120000021)->setName('M-Main');
+        $member->method('getCharacters')->willReturn(new ArrayCollection([$seller]));
+        $this->sabreSale->setSeller($seller);
+        $this->security->method('getUser')->willReturn($member);
+
+        self::assertTrue($this->provideSale($this->sabreSaleUri())->heldByViewer);
+    }
+
+    #[Group('issue-1212')]
+    public function testSaleIsNotHeldByTheViewerWhenAnotherParticipantSoldIt(): void
+    {
+        $this->sabreSale->setSeller((new Character())->setEveCharacterId(2120000001)->setName('O-Main'));
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        self::assertFalse($this->provideSale($this->sabreSaleUri())->heldByViewer);
+    }
+
+    #[Group('issue-1212')]
+    public function testSaleWithoutSellerIsHeldByTheViewerWhoRecordedIt(): void
+    {
+        $member = $this->userWithProfile(self::ACCEPTED_MEMBER);
+        (new \ReflectionProperty(IndustryProjectSale::class, 'recordedBy'))->setValue($this->sabreSale, $member);
+        $this->security->method('getUser')->willReturn($member);
+
+        self::assertTrue($this->provideSale($this->sabreSaleUri())->heldByViewer);
+    }
+
     public static function saleAccessMatrix(): iterable
     {
         yield 'A1 owner' => [self::OWNER, self::GRANTED];
         yield 'A2 accepted admin' => [self::ACCEPTED_ADMIN, self::GRANTED];
-        yield 'A3 accepted member' => [self::ACCEPTED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A4 pending member' => [self::PENDING_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A8 removed member' => [self::REMOVED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A9 stranger' => [self::STRANGER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A10 user without corporation' => [self::USER_WITHOUT_CORPORATION, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A13 stranger to a completed project' => [self::STRANGER_TO_COMPLETED_PROJECT, self::ADMIN_OR_OWNER_ONLY];
+        yield 'A3 accepted member who did not sell it' => [self::ACCEPTED_MEMBER, self::OWN_SALES_ONLY];
+        yield 'A4 pending member' => [self::PENDING_MEMBER, self::NO_ACCESS];
+        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::NO_ACCESS];
+        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, self::NO_ACCESS];
+        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::NO_ACCESS];
+        yield 'A8 removed member' => [self::REMOVED_MEMBER, self::NO_ACCESS];
+        yield 'A9 stranger' => [self::STRANGER, self::NO_ACCESS];
+        yield 'A10 user without corporation' => [self::USER_WITHOUT_CORPORATION, self::NO_ACCESS];
+        yield 'A13 stranger to a completed project' => [self::STRANGER_TO_COMPLETED_PROJECT, self::NO_ACCESS];
     }
 
     #[DataProvider('saleAccessMatrix')]
-    public function testOnlyTheOwnerAndAcceptedAdminsReachASaleToCorrectOrDelete(string $profile, string $expectedOutcome): void
+    public function testOnlyTheManagersAndTheSellerReachASaleToCorrectOrDelete(string $profile, string $expectedOutcome): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
 
