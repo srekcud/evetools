@@ -3978,7 +3978,7 @@
     },
     "modals": {
       "newProject": {
-        "title": "New Group Project",
+        "title": "New Project",
         "subtitle": "Create a new multi-item project",
         "nameLabel": "Name",
         "namePlaceholder": "Custom project name (e.g. Fleet Doctrine Build)",
@@ -4204,8 +4204,8 @@
       }
     },
     "empty": {
-      "title": "No group projects yet",
-      "description": "Create a new project to start collaborating with your corporation."
+      "title": "No projects yet",
+      "description": "Create a new project to get started."
     },
     "detail": {
       "backToList": "Back to Projects",
