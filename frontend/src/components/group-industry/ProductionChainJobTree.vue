@@ -14,7 +14,6 @@ import { filterChainNodes } from './chainStatusFilter'
 import ChainJobLocations from './ChainJobLocations.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
 import { containerLineOf, isPartlyCoveredByTheContainer } from './jobContainerCoverage'
-import JobLocationBadge from './JobLocationBadge.vue'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import UnclaimedStockBadge from './UnclaimedStockBadge.vue'
@@ -253,11 +252,6 @@ function plansStructure(node: ChainNode): boolean {
                   <span v-if="jobMatch.characterName !== null" class="text-slate-400">{{ jobMatch.characterName }}</span>
                   &middot; {{ formatNumber(jobMatch.runs, 0) }} {{ t('groupIndustry.jobs.runs') }}
                   &middot; {{ jobMatch.status }}
-                  <span v-if="jobMatch.locations" data-testid="job-match-locations" class="block text-slate-500">
-                    {{ jobMatch.locations.blueprint.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
-                    &rarr; {{ jobMatch.locations.output.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
-                    <JobLocationBadge :locations="jobMatch.locations" data-testid="job-match-check" class="ml-1" />
-                  </span>
                   <button
                     v-if="canLinkJobs === true"
                     type="button"

@@ -23,7 +23,6 @@ import CollapsibleSourcing from '@/components/group-industry/CollapsibleSourcing
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
-import JobContainersTable from '@/components/group-industry/JobContainersTable.vue'
 import ProjectSellOrdersSection from '@/components/group-industry/ProjectSellOrdersSection.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import { containerNamesFromText, containerNamesToText } from '@/utils/containerNames'
@@ -620,6 +619,7 @@ function applyShareLinkShortcut(): void {
           <!-- Actions -->
           <div class="flex flex-wrap gap-2 max-w-full">
             <button
+              v-if="activeTab !== 'members'"
               data-testid="share-link"
               @click="copyShareLink"
               class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm flex items-center gap-2 transition-all hover:-translate-y-px disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-slate-700 disabled:cursor-not-allowed"
@@ -807,7 +807,6 @@ function applyShareLinkShortcut(): void {
             </button>
           </template>
         </ContributionTable>
-        <JobContainersTable v-if="isOwnerOrAdmin" />
       </div>
 
       <!-- Tab Content: Distribution -->
@@ -883,24 +882,12 @@ function applyShareLinkShortcut(): void {
 
       <!-- Tab Content: Members -->
       <div v-else-if="activeTab === 'members'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <!-- Header with member summary and copy link button -->
-        <div class="flex items-center justify-between mb-6">
-          <p class="text-sm text-slate-400">
-            {{ distributionStore.members.filter(m => m.status === 'accepted').length }} active members
-            <template v-if="distributionStore.members.filter(m => m.status === 'pending').length > 0">
-              &middot; {{ distributionStore.members.filter(m => m.status === 'pending').length }} pending
-            </template>
-          </p>
-          <button
-            @click="copyShareLink"
-            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2 transition-all hover:-translate-y-px"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-            Copy Join Link
-          </button>
-        </div>
+        <p class="mb-6 text-sm text-slate-400">
+          {{ distributionStore.members.filter(m => m.status === 'accepted').length }} active members
+          <template v-if="distributionStore.members.filter(m => m.status === 'pending').length > 0">
+            &middot; {{ distributionStore.members.filter(m => m.status === 'pending').length }} pending
+          </template>
+        </p>
 
         <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" :is-owner="isOwner" :owner-corporation-id="project.ownerCorporationId" @left="handleLeaveProject" />
         <PendingRequestsTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
