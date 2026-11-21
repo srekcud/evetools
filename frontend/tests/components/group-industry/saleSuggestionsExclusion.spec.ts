@@ -136,7 +136,7 @@ function rowSoldBy(wrapper: VueWrapper, characterName: string): DOMWrapper<Eleme
   return row
 }
 
-function checkboxOf(wrapper: VueWrapper, characterName: string): DOMWrapper<HTMLInputElement> {
+function checkboxOf(wrapper: VueWrapper, characterName: string): Omit<DOMWrapper<HTMLInputElement>, 'exists'> {
   return rowSoldBy(wrapper, characterName).get<HTMLInputElement>(INCLUDE_CHECKBOX)
 }
 
