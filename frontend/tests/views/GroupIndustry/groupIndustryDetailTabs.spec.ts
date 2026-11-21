@@ -35,13 +35,15 @@ const COMING_SOON_FRENCH = 'À venir'
 const ACTIVE_TABS = ['bom', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
 const COMING_SOON_TABS: string[] = []
 
-async function mountSellingNyxOn(tab: string | undefined, locale: TestLocale = 'fr') {
+async function mountSellingNyxOn(tab: string | undefined, locale: TestLocale = 'fr', teamSize = 1) {
   route.query = tab === undefined ? {} : { tab }
   return mountCockpitDetail({
-    project: nyxProject('selling', 'owner'),
+    project: nyxProject('selling', 'owner', { membersCount: teamSize }),
     cockpit: cockpitOf('selling', nextAction({ code: 'record_sale', tab: 'sales', quantity: 40 })),
   }, locale)
 }
+
+const TEAM_OF_TWO = 2
 
 const JOBS_SECTION = '[data-testid="project-jobs-section"]'
 const SOURCING_TAB_LABELS: Record<TestLocale, string> = { en: 'Sourcing', fr: 'Approvisionnement' }
@@ -110,14 +112,14 @@ describe('project cockpit tabs', () => {
   })
 
   it('shows the financial summary and the distribution on the distribution query and the sales with their suggestions on the sales query', async () => {
-    const finances = await mountSellingNyxOn('distribution')
+    const finances = await mountSellingNyxOn('distribution', 'fr', TEAM_OF_TWO)
     const financesPanels = {
       financialSummary: finances.findComponent(FinancialSummary).exists(),
       distributionTable: finances.findComponent(DistributionTable).exists(),
       salesTable: finances.findComponent(SalesTable).exists(),
       saleSuggestions: finances.findComponent(SaleSuggestionsPanel).exists(),
     }
-    const sales = await mountSellingNyxOn('sales')
+    const sales = await mountSellingNyxOn('sales', 'fr', TEAM_OF_TWO)
 
     expect({
       finances: financesPanels,
