@@ -245,6 +245,7 @@ class IndustryProject
     {
         return $this->contributions->filter(
             fn (IndustryProjectContribution $contribution): bool => $contribution->getStatus() === ContributionStatus::Pending
+                && 0 === $contribution->getAwaitingQuantity()
                 && $this->canReviewContribution($contribution, $reviewer),
         )->count();
     }

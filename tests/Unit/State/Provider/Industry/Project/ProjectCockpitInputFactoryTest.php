@@ -169,6 +169,18 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         self::assertSame(1, (new ProjectCockpitInputFactory())->create($project, $owner)->pendingContributionCount);
     }
 
+    #[Group('issue-1176')]
+    public function testSoleOwnerDoesNotCountHisContributionAwaitingWalletUnits(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $ownerMembership = $this->membershipOf($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->contributionOf($project, $ownerMembership, 1_200, ContributionStatus::Pending);
+        $project->getContributions()->first()->setAwaitingQuantity(40);
+
+        self::assertSame(0, (new ProjectCockpitInputFactory())->create($project, $owner)->pendingContributionCount);
+    }
+
     #[Group('issue-866')]
     public function testMaterialLineCarriesTheEffectiveFulfilledQuantityAndJobLinesTheirOwn(): void
     {
