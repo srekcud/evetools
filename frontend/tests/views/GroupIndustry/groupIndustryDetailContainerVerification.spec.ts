@@ -63,6 +63,7 @@ const TRITANIUM_VERIFICATION: ContainerVerification = {
   typeName: 'Tritanium',
   requiredQuantity: 12_000,
   containerQuantity: 7_000,
+  consumedQuantity: 0,
   status: 'partial',
   unknownReason: null,
   assetsSyncedAt: null,

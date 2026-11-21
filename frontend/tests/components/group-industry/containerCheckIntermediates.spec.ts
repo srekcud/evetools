@@ -59,6 +59,7 @@ function verification(line: JobLine, status: ContainerVerificationStatus, contai
     typeName: line.typeName,
     requiredQuantity: line.requiredQuantity,
     containerQuantity,
+    consumedQuantity: containerQuantity === null ? null : 0,
     status,
     unknownReason: null,
     assetsSyncedAt: null,

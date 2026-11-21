@@ -31,6 +31,7 @@ function line(status: ContainerVerificationStatus, assetsSyncedAt: string | null
     typeName: 'Tritanium',
     requiredQuantity: 500,
     containerQuantity: null,
+    consumedQuantity: null,
     status,
     unknownReason: null,
     assetsSyncedAt,

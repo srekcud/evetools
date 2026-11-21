@@ -35,6 +35,25 @@ class IndustryProjectBomLineRepository extends ServiceEntityRepository
         return $this->findBy(['project' => $project, 'isJob' => true, 'jobGroup' => 'component']);
     }
 
+    /**
+     * @return IndustryProjectBomLine[]
+     */
+    public function findJobLinesWithMatchesByProject(IndustryProject $project): array
+    {
+        return $this->createQueryBuilder('line')
+            ->addSelect('jobMatch')
+            ->leftJoin('line.jobMatches', 'jobMatch')
+            ->andWhere('line.project = :project')
+            ->andWhere('line.isJob = true')
+            ->andWhere('line.jobGroup IN (:jobGroups)')
+            ->setParameter('project', $project)
+            ->setParameter('jobGroups', ['component', 'final'])
+            ->orderBy('line.id', 'ASC')
+            ->addOrderBy('jobMatch.esiJobId', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function loadJobMatchesOfProject(IndustryProject $project): void
     {
         $this->createQueryBuilder('line')

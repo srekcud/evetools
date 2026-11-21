@@ -7,8 +7,10 @@ namespace App\Tests\Unit\Service\Industry\Project;
 use App\ApiResource\Industry\Project\ProjectContainerVerificationResource;
 use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
+use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
@@ -16,6 +18,8 @@ use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\Service\Industry\Project\ProjectContainerScope;
 use App\Service\Industry\Project\ProjectContainerService;
+use App\Service\Industry\Project\StartedJobConsumption;
+use App\Service\Industry\Project\StartedJobConsumptionReader;
 use App\Tests\Unit\Service\ESI\BuildsCorporationDirectorAccess;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -28,6 +32,7 @@ use Symfony\Component\Uid\Uuid;
 #[Group('issue-319')]
 #[Group('issue-707')]
 #[Group('issue-800')]
+#[Group('issue-1140')]
 final class ProjectContainerServiceTest extends TestCase
 {
     use BuildsCorporationDirectorAccess;
@@ -45,6 +50,7 @@ final class ProjectContainerServiceTest extends TestCase
     private const int PYERITE = 35;
     private const int MEXALLON = 36;
     private const int HYDROGEN_FUEL_BLOCK = 4_246;
+    private const int CADMIUM = 16_647;
     private const int TRITANIUM_REQUIRED = 500;
     private const int PYERITE_REQUIRED = 800;
     private const int MEXALLON_REQUIRED = 200;
@@ -54,6 +60,7 @@ final class ProjectContainerServiceTest extends TestCase
         self::PYERITE => 'Pyerite',
         self::MEXALLON => 'Mexallon',
         self::HYDROGEN_FUEL_BLOCK => 'Hydrogen Fuel Block',
+        self::CADMIUM => 'Cadmium',
         self::STATION_CONTAINER => 'Station Container',
     ];
 
@@ -70,6 +77,7 @@ final class ProjectContainerServiceTest extends TestCase
     private CachedAssetRepository $cachedAssetRepository;
     private CorpAssetVisibilityRepository $visibilityRepository;
     private IndustryProjectBomLineRepository $bomItemRepository;
+    private StartedJobConsumption $startedJobConsumption;
     private ProjectContainerService $service;
 
     protected function setUp(): void
@@ -115,6 +123,7 @@ final class ProjectContainerServiceTest extends TestCase
 
         $this->corporationMember(self::CORPORATION_ID, ['Director']);
 
+        $this->startedJobConsumption = StartedJobConsumption::none();
         $this->service = $this->serviceReading($this->cachedAssetRepository);
     }
 
@@ -979,19 +988,155 @@ final class ProjectContainerServiceTest extends TestCase
         self::assertArrayHasKey($spare, $scope->visibleAssetsByItemId);
     }
 
+    #[Group('issue-1140')]
+    public function testQuantityConsumedByAStartedJobIsDeductedFromWhatTheLineExpects(): void
+    {
+        $this->materialLines = [$this->materialLine(self::CADMIUM, 38_200), $this->materialLine(self::TRITANIUM, self::TRITANIUM_REQUIRED)];
+        $build = $this->containerInHangar(self::CONTAINER_NAME);
+        $this->storeInside($build, self::CADMIUM, 34_987);
+        $this->storeInside($build, self::TRITANIUM, self::TRITANIUM_REQUIRED);
+        $this->startedJobConsumption = $this->consumptionOf(self::CADMIUM, 3_213);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [
+                [self::CADMIUM, 38_200, 34_987, 'verified', null, 3_213],
+                [self::TRITANIUM, self::TRITANIUM_REQUIRED, self::TRITANIUM_REQUIRED, 'verified', null, 0],
+            ],
+            $this->consumptionVerificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    #[Group('issue-1140')]
+    public function testLineStaysPartialOneUnitBelowWhatIsExpectedAfterTheConsumption(): void
+    {
+        $this->materialLines = [$this->materialLine(self::CADMIUM, 38_200)];
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::CADMIUM, 34_986);
+        $this->startedJobConsumption = $this->consumptionOf(self::CADMIUM, 3_213);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [[self::CADMIUM, 38_200, 34_986, 'partial', null, 3_213]],
+            $this->consumptionVerificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    #[Group('issue-1140')]
+    public function testLineWithoutStartedJobReportsNoConsumedQuantityAndKeepsItsRequiredQuantity(): void
+    {
+        $this->materialLines = [$this->materialLine(self::CADMIUM, 38_200), $this->materialLine(self::PYERITE, self::PYERITE_REQUIRED)];
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::CADMIUM, 38_200);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [
+                [self::CADMIUM, 38_200, 38_200, 'verified', null, 0],
+                [self::PYERITE, self::PYERITE_REQUIRED, 0, 'missing', null, 0],
+            ],
+            $this->consumptionVerificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    #[Group('issue-1140')]
+    public function testLineFullyConsumedByStartedJobsIsVerifiedWithAnEmptyContainerShare(): void
+    {
+        $this->materialLines = [$this->materialLine(self::CADMIUM, 1_000)];
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::CADMIUM, 600);
+        $this->startedJobConsumption = $this->consumptionOf(self::CADMIUM, 1_300);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [[self::CADMIUM, 1_000, 600, 'verified', null, 1_300]],
+            $this->consumptionVerificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    #[Group('issue-1140')]
+    public function testIntermediateConsumedByAStartedParentJobIsDeductedFromWhatItExpects(): void
+    {
+        $this->materialLines = [];
+        $this->componentLines = [$this->componentLine(self::HYDROGEN_FUEL_BLOCK, 50)];
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::HYDROGEN_FUEL_BLOCK, 20);
+        $this->startedJobConsumption = $this->consumptionOf(self::HYDROGEN_FUEL_BLOCK, 30);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [[self::HYDROGEN_FUEL_BLOCK, 50, 20, 'verified', null, 30]],
+            $this->consumptionVerificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    #[Group('issue-1140')]
+    public function testEveryLineIsUnknownWhenTheConsumptionOfTheStartedJobsCannotBeComputed(): void
+    {
+        $this->materialLines = [$this->materialLine(self::CADMIUM, 1_000)];
+        $this->componentLines = [$this->componentLine(self::HYDROGEN_FUEL_BLOCK, 50)];
+        $build = $this->containerInHangar(self::CONTAINER_NAME);
+        $this->storeInside($build, self::CADMIUM, 600);
+        $this->storeInside($build, self::HYDROGEN_FUEL_BLOCK, 20);
+        $this->startedJobConsumption = StartedJobConsumption::unknown();
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [
+                [self::CADMIUM, 1_000, null, 'unknown', 'job_consumption_unknown', null],
+                [self::HYDROGEN_FUEL_BLOCK, 50, null, 'unknown', 'job_consumption_unknown', null],
+            ],
+            $this->consumptionVerificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    #[Group('issue-1140')]
+    public function testConsumptionIsNotReadWhenTheContainerIsNotFound(): void
+    {
+        $this->materialLines = [$this->materialLine(self::CADMIUM, 1_000)];
+        $this->containerInHangar('Another box');
+        $this->allowDivisions(2);
+        $consumptionReader = $this->createMock(StartedJobConsumptionReader::class);
+        $consumptionReader->expects(self::never())->method('of');
+
+        $results = $this->serviceReading($this->cachedAssetRepository, $consumptionReader)->verifyContainer($this->projectUsingContainer(self::CONTAINER_NAME));
+
+        self::assertSame(
+            [['container_not_found', null, null, null]],
+            array_map(static fn (ProjectContainerVerificationResource $line): array => [$line->status, $line->unknownReason, $line->containerQuantity, $line->consumedQuantity], $results),
+        );
+    }
+
+    #[Group('issue-1140')]
+    public function testConsumptionIsNotReadWhenTheCorporationAssetsCannotBeRead(): void
+    {
+        $this->materialLines = [$this->materialLine(self::CADMIUM, 1_000)];
+        $consumptionReader = $this->createMock(StartedJobConsumptionReader::class);
+        $consumptionReader->expects(self::never())->method('of');
+
+        $results = $this->serviceReading($this->cachedAssetRepository, $consumptionReader)->verifyContainer($this->projectUsingContainer(self::CONTAINER_NAME, $this->ownerOfCorporation(null)));
+
+        self::assertSame(
+            [['unknown', 'owner_without_corporation', null, null]],
+            array_map(static fn (ProjectContainerVerificationResource $line): array => [$line->status, $line->unknownReason, $line->containerQuantity, $line->consumedQuantity], $results),
+        );
+    }
+
     private function scopeOf(IndustryProject $project): ProjectContainerScope
     {
         return $this->service->containerScopeOf($project);
     }
 
-    private function serviceReading(CachedAssetRepository $cachedAssetRepository): ProjectContainerService
+    private function serviceReading(CachedAssetRepository $cachedAssetRepository, ?StartedJobConsumptionReader $consumptionReader = null): ProjectContainerService
     {
+        if ($consumptionReader === null) {
+            $consumptionReader = $this->createStub(StartedJobConsumptionReader::class);
+            $consumptionReader->method('of')->willReturnCallback(fn (): StartedJobConsumption => $this->startedJobConsumption);
+        }
+
         return new ProjectContainerService(
             new VisibleCorporationAssetsFinder($cachedAssetRepository, $this->visibilityRepository),
             $this->bomItemRepository,
             $cachedAssetRepository,
             $this->visibilityRepository,
             $this->corporationDirectorAccess(),
+            $consumptionReader,
         );
     }
 
@@ -1001,6 +1146,22 @@ final class ProjectContainerServiceTest extends TestCase
             static fn (ProjectContainerVerificationResource $line): array => [$line->typeId, $line->requiredQuantity, $line->containerQuantity, $line->status, $line->unknownReason],
             $this->service->verifyContainer($project),
         );
+    }
+
+    private function consumptionVerificationOf(IndustryProject $project): array
+    {
+        return array_map(
+            static fn (ProjectContainerVerificationResource $line): array => [$line->typeId, $line->requiredQuantity, $line->containerQuantity, $line->status, $line->unknownReason, $line->consumedQuantity],
+            $this->service->verifyContainer($project),
+        );
+    }
+
+    private function consumptionOf(int $typeId, int $quantity): StartedJobConsumption
+    {
+        $jobLine = $this->componentLine(self::STATION_CONTAINER, 1);
+        $jobLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(1_140_000 + $typeId)->setStatus(CachedIndustryJob::STATUS_ACTIVE)->setRuns(1));
+
+        return StartedJobConsumption::of([$jobLine], [$jobLine->getId()->toRfc4122() => [$typeId => $quantity]]);
     }
 
     private function projectUsingContainers(array $containerNames, ?User $owner = null): IndustryProject

@@ -3925,8 +3925,10 @@
         "corporation_assets_not_synced": "Synchronisez les assets corpo",
         "no_visible_division": "Aucune division partagée",
         "no_director": "Aucun directeur connecté",
-        "owner_without_corporation": "L'owner n'a pas de corporation"
+        "owner_without_corporation": "L'owner n'a pas de corporation",
+        "job_consumption_unknown": "Consommation des jobs lancés incalculable"
       },
+      "consumedByStartedJobs": "{quantity} utilisés par les jobs lancés",
       "assetsSyncedAt": "Assets de la corporation synchronisés le {date}",
       "refreshAssets": "Rafraîchir les assets corpo",
       "refreshingAssets": "Rafraîchissement...",

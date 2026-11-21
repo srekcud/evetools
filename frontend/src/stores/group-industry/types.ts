@@ -24,7 +24,7 @@ export type ContainerVerificationStatus =
   | 'corporation_assets_stale'
   | 'unknown'
 
-export type ContainerCheckUnknownReason = 'owner_without_corporation' | 'corporation_assets_not_synced' | 'no_visible_division' | 'no_director'
+export type ContainerCheckUnknownReason = 'owner_without_corporation' | 'corporation_assets_not_synced' | 'no_visible_division' | 'no_director' | 'job_consumption_unknown'
 
 export type JobGroup = 'blueprint' | 'component' | 'final'
 
@@ -468,6 +468,7 @@ export type ContainerVerification = {
   typeName: string
   requiredQuantity: number
   containerQuantity: number | null
+  consumedQuantity: number | null
   status: ContainerVerificationStatus
   unknownReason: ContainerCheckUnknownReason | null
   assetsSyncedAt: string | null

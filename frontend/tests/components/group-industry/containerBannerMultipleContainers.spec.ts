@@ -16,6 +16,7 @@ function line(missingContainerNames: string[], status: ContainerVerification['st
     typeName: 'Tritanium',
     requiredQuantity: 500,
     containerQuantity: 500,
+    consumedQuantity: 0,
     status,
     unknownReason: null,
     assetsSyncedAt: null,
