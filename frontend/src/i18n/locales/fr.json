@@ -3888,6 +3888,7 @@
       "record": "Enregistrer comme vente",
       "empty": "Aucune transaction wallet à rattacher",
       "quantityLabel": "Quantité à enregistrer",
+      "includeInRecordAll": "Inclure dans Tout enregistrer",
       "recordAll": "Tout enregistrer comme ventes",
       "recordAllCount": "{count} transactions du wallet seront enregistrées comme ventes",
       "recordAllQuantity": "{quantity} unités au total",

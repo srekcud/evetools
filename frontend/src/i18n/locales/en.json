@@ -3888,6 +3888,7 @@
       "record": "Record as sale",
       "empty": "No wallet transaction to link",
       "quantityLabel": "Quantity to record",
+      "includeInRecordAll": "Include in Record all",
       "recordAll": "Record all as sales",
       "recordAllCount": "{count} wallet transactions will be recorded as sales",
       "recordAllQuantity": "{quantity} units in total",
