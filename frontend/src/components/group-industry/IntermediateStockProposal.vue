@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useFormatters } from '@/composables/useFormatters'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useGroupIntermediateStockProposalStore } from '@/stores/group-industry/intermediateStockProposal'
 import type { GroupProjectStatus, IntermediateStockProposalLine, IntermediateStockSelection } from '@/stores/group-industry/types'
+import { useSyncStore } from '@/stores/sync'
 
 const props = defineProps<{
   projectId: string
@@ -17,6 +20,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { formatNumber } = useFormatters()
 const proposalStore = useGroupIntermediateStockProposalStore()
+const syncStore = useSyncStore()
 
 const selected = ref<Record<string, boolean>>({})
 const quantities = ref<Record<string, number | string>>({})
@@ -28,12 +32,8 @@ const lines = computed(() => proposal.value?.lines ?? [])
 const isReady = computed(() => proposal.value?.state === 'ready')
 const isUnknown = computed(() => proposal.value?.state === 'assets_unknown')
 const hasLoadFailed = computed(() => proposal.value === null && proposalStore.error !== null)
-const isVisible = computed(() => {
-  if (hasLoadFailed.value) return true
-  if (isDraft.value) return isReady.value || isUnknown.value
-  return isReady.value
-})
-const isOpen = computed(() => isDraft.value || hasLoadFailed.value || !folded.value)
+const isVisible = computed(() => hasLoadFailed.value || isReady.value || isUnknown.value)
+const isOpen = computed(() => isDraft.value || hasLoadFailed.value || isUnknown.value || !folded.value)
 
 function isValidQuantity(line: IntermediateStockProposalLine): boolean {
   const quantity = quantities.value[line.bomItemId]
@@ -45,12 +45,43 @@ const canValidate = computed(() =>
   !proposalStore.validating && selectedLines.value.length > 0 && selectedLines.value.every(isValidQuantity),
 )
 
+function keptQuantity(line: IntermediateStockProposalLine): number | string {
+  const previous = quantities.value[line.bomItemId]
+  if (previous === undefined) return line.proposedQuantity
+  return typeof previous === 'number' && previous > line.proposedQuantity ? line.proposedQuantity : previous
+}
+
 watch(lines, current => {
-  selected.value = Object.fromEntries(current.map(line => [line.bomItemId, true]))
-  quantities.value = Object.fromEntries(current.map(line => [line.bomItemId, line.proposedQuantity]))
+  selected.value = Object.fromEntries(current.map(line => [line.bomItemId, selected.value[line.bomItemId] ?? true]))
+  quantities.value = Object.fromEntries(current.map(line => [line.bomItemId, keptQuantity(line)]))
 }, { immediate: true })
 
 watch(() => props.projectId, projectId => proposalStore.fetchProposal(projectId), { immediate: true })
+
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => proposalStore.fetchProposal(props.projectId),
+)
+
+useRefetchOnReconnect(() => proposalStore.fetchProposal(props.projectId))
+
+watch(
+  () => syncStore.getSyncProgress('industry-project'),
+  (progress) => {
+    if (progress?.data?.projectId !== props.projectId) return
+    void proposalStore.fetchProposal(props.projectId)
+  },
+)
+
+for (const assetsSyncType of ['character-assets', 'corporation-assets']) {
+  watch(
+    () => syncStore.getSyncProgress(assetsSyncType),
+    (progress) => {
+      if (progress?.status !== 'completed') return
+      void proposalStore.fetchProposal(props.projectId)
+    },
+  )
+}
 
 async function validate(): Promise<void> {
   const selections: IntermediateStockSelection[] = selectedLines.value.map(line => ({
@@ -75,7 +106,7 @@ async function validate(): Promise<void> {
         {{ t('groupIndustry.intermediateStockProposal.title') }}
       </h2>
       <button
-        v-if="!isDraft && !hasLoadFailed"
+        v-if="!isDraft && !hasLoadFailed && !isUnknown"
         type="button"
         data-testid="intermediate-stock-proposal-toggle"
         :aria-expanded="!folded"
