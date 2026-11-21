@@ -3618,6 +3618,10 @@
       "emptyHintUnbounded": "No wallet has been read yet. Use the manual entry to record it now."
     },
     "purchases": {
+      "declareStock": {
+        "title": "Your own stock",
+        "button": "Declare from my stock (Jita price)"
+      },
       "open": "Purchases",
       "modalTitle": "Purchases of {name}",
       "suggestionsTitle": "Wallet transactions",
@@ -3646,6 +3650,13 @@
       "deleteError": "Failed to delete the purchase"
     },
     "contribute": {
+      "walletFirst": {
+        "title": "Link your wallet transactions first",
+        "link": "Link",
+        "stockHint": "Declaring stock now would duplicate these purchases once the wallet sync links them. Link them first.",
+        "loadError": "Wallet transactions could not be loaded.",
+        "linkError": "Failed to link the transaction"
+      },
       "title": "Add Contribution",
       "type": "Contribution Type",
       "item": "Item",

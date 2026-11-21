@@ -3618,6 +3618,10 @@
       "emptyHintUnbounded": "Aucun wallet n'a encore été lu. Utilise la saisie manuelle pour l'enregistrer maintenant."
     },
     "purchases": {
+      "declareStock": {
+        "title": "Votre propre stock",
+        "button": "Déclarer depuis mon stock (prix Jita)"
+      },
       "open": "Achats",
       "modalTitle": "Achats de {name}",
       "suggestionsTitle": "Transactions du wallet",
@@ -3646,6 +3650,13 @@
       "deleteError": "Échec de la suppression de l'achat"
     },
     "contribute": {
+      "walletFirst": {
+        "title": "Liez d'abord vos transactions wallet",
+        "link": "Lier",
+        "stockHint": "Déclarer du stock maintenant ferait doublon avec ces achats dès que la synchro du wallet les liera. Liez-les d'abord.",
+        "loadError": "Impossible de charger les transactions wallet.",
+        "linkError": "Échec de la liaison de la transaction"
+      },
       "title": "Ajouter une contribution",
       "type": "Type de contribution",
       "item": "Item",
