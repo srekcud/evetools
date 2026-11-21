@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
         </ul>
       </div>
 
-      <div v-if="courier.canLink" class="border-t border-slate-800">
+      <div v-if="courier.canLink && (hasQuote || hasUnknownOrigin)" class="border-t border-slate-800">
         <h3 class="px-4 pt-3 text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.candidates.title') }}</h3>
         <p
           v-if="courier.candidates.length === 0"

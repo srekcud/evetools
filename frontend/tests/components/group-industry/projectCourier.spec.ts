@@ -180,6 +180,39 @@ describe('ProjectCourier', () => {
     expect(wrapper.find('[data-testid="courier-empty"]').exists()).toBe(true)
   })
 
+  it('hides the courier contracts of the owner while the project has no purchase, even with a linked contract', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
+      volumeCubicMeters: null,
+      collateral: null,
+      reward: null,
+      jumps: null,
+      quoteStatus: 'no_purchases',
+      lines: [],
+      candidates: [],
+      contract: LINKED_IN_TRANSIT,
+    }))
+
+    expect(wrapper.text()).not.toContain('Your courier contracts')
+    expect(wrapper.find('[data-testid="courier-no-candidate"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="courier-card"]').exists()).toBe(true)
+  })
+
+  it('shows the courier contracts of the owner when the purchases are all of unknown origin', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
+      volumeCubicMeters: null,
+      collateral: null,
+      reward: null,
+      jumps: null,
+      quoteStatus: 'no_purchases',
+      lines: [],
+      candidates: [],
+      unknownOriginLines: UNKNOWN_ORIGIN_LINES,
+    }))
+
+    expect(wrapper.text()).toContain('Your courier contracts')
+    expect(wrapper.find('[data-testid="courier-no-candidate"]').exists()).toBe(true)
+  })
+
   it('copies exactly the shown contract to the clipboard', async () => {
     const wrapper = await mountCourier(readyCourier(PROJECT_ID))
     const shownContract = wrapper.get('[data-testid="courier-contract-text"]').element.textContent ?? ''
