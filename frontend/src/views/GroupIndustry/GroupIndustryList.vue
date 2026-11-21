@@ -133,7 +133,7 @@ async function fetchProjects() {
     availableProjects.value = groupProjectStore.availableProjects
     error.value = myProjectsError ?? availableProjectsError
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load projects'
+    error.value = e instanceof Error ? e.message : t('groupIndustry.available.loadError')
   } finally {
     isLoading.value = false
   }
@@ -182,7 +182,7 @@ onMounted(() => {
                 <img
                   v-if="corporationId > 0"
                   :src="getCorporationLogoUrl(corporationId, 32)"
-                  alt="Corp"
+                  :alt="t('groupIndustry.members.corporationLogoAlt')"
                   class="w-5 h-5 rounded"
                   @error="onImageError"
                 />

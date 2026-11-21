@@ -16,6 +16,7 @@ import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesP
 import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import { containerNamesFromText } from '@/utils/containerNames'
+import { defaultLineRentalRates, lineRentalRateLabelKey, lineRentalRateUnitKey, type LineRentalRate } from '@/components/group-industry/lineRentalRates'
 import {
   MAXIMUM_MATERIAL_EFFICIENCY,
   MAXIMUM_BLUEPRINT_COPIES,
@@ -166,21 +167,21 @@ const hasValidMinimumOutsideSaving = computed(() =>
 // Blacklist categories
 type BlacklistCategory = {
   id: string
-  label: string
   checked: boolean
 }
-const blacklistCategories = ref<BlacklistCategory[]>([
-  { id: 'advanced_components', label: 'Advanced Components', checked: false },
-  { id: 'capital_components', label: 'Capital Components', checked: false },
-  { id: 'advanced_capital_components', label: 'Advanced Capital Components', checked: false },
-  { id: 'hybrid_components', label: 'Hybrid Components', checked: false },
-  { id: 'fuel_blocks', label: 'Fuel Blocks', checked: false },
-  { id: 'tools', label: 'Tools (R.A.M.)', checked: false },
-  { id: 'simple_reactions', label: 'Simple Reactions', checked: false },
-  { id: 'complex_reactions', label: 'Composite Reactions', checked: false },
-  { id: 'hybrid_reactions', label: 'Hybrid Reactions', checked: false },
-  { id: 'biochem_reactions', label: 'Biochemical Reactions', checked: false },
-])
+const BLACKLIST_CATEGORY_IDS = [
+  'advanced_components',
+  'capital_components',
+  'advanced_capital_components',
+  'hybrid_components',
+  'fuel_blocks',
+  'tools',
+  'simple_reactions',
+  'complex_reactions',
+  'hybrid_reactions',
+  'biochem_reactions',
+]
+const blacklistCategories = ref<BlacklistCategory[]>(BLACKLIST_CATEGORY_IDS.map(id => ({ id, checked: false })))
 const blacklistEdited = ref(false)
 const blacklistDefaultsUnavailable = ref(false)
 const settingsLockedCategoryIds = ref<string[]>([])
@@ -219,22 +220,7 @@ function isLockedBySettings(categoryId: string): boolean {
 const showLineRentalOverride = ref(false)
 const lineRentalOverrideEnabled = ref(false)
 
-type LineRentalRate = {
-  key: string
-  label: string
-  value: number
-  unit: string
-}
-const lineRentalRates = ref<LineRentalRate[]>([
-  { key: 'component_t1', label: 'Component T1', value: 250, unit: 'ISK/run' },
-  { key: 'module_t1', label: 'Module T1', value: 10_000, unit: 'ISK/run' },
-  { key: 'ship_t1', label: 'Ship T1', value: 100_000, unit: 'ISK/run' },
-  { key: 'module_t2', label: 'Module T2', value: 100_000, unit: 'ISK/run' },
-  { key: 'ship_t2', label: 'Ship T2', value: 2_500_000, unit: 'ISK/run' },
-  { key: 'capital_t1', label: 'Capital T1', value: 25_000, unit: 'ISK/run' },
-  { key: 'capital_t2', label: 'Capital T2', value: 125_000, unit: 'ISK/run' },
-  { key: 'location_factor', label: 'Location Factor', value: 1_000_000, unit: 'ISK/day' },
-])
+const lineRentalRates = ref<LineRentalRate[]>(defaultLineRentalRates())
 
 function toggleLineRentalOverride() {
   showLineRentalOverride.value = !showLineRentalOverride.value
@@ -491,7 +477,7 @@ async function handleCreate() {
     const project = await groupProjectStore.createProject(input)
     emit('created', project)
   } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : 'Failed to create project'
+    errorMsg.value = e instanceof Error ? e.message : t('groupIndustry.modals.newProject.createError')
     isCreating.value = false
   }
 }
@@ -625,8 +611,8 @@ function handleClose() {
               v-model.number="itemRuns"
               type="number"
               min="1"
-              placeholder="Runs"
-              title="Runs"
+              :placeholder="t('groupIndustry.modals.newProject.columnRuns')"
+              :title="t('groupIndustry.modals.newProject.columnRuns')"
               class="form-input w-20 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2.5 text-sm text-slate-200 font-mono text-center"
             />
             <button
@@ -859,7 +845,7 @@ function handleClose() {
           <!-- Table Footer -->
           <div class="px-3 py-2 border-t border-slate-700 flex items-center justify-between">
             <span class="text-xs text-slate-400 font-medium">
-              {{ items.length }} {{ items.length === 1 ? 'item' : 'items' }} &middot; {{ totalRuns }} {{ t('groupIndustry.modals.newProject.totalRuns') }}
+              {{ t('groupIndustry.modals.newProject.itemsCount', items.length) }} &middot; {{ totalRuns }} {{ t('groupIndustry.modals.newProject.totalRuns') }}
             </span>
           </div>
         </div>
@@ -976,7 +962,7 @@ function handleClose() {
                 class="text-sm group-hover:text-slate-100"
                 :class="cat.checked ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-300'"
               >
-                {{ cat.label }}
+                {{ t(`groupIndustry.modals.newProject.blacklistCategories.${cat.id}`) }}
               </span>
             </label>
             <span v-if="isLockedBySettings(cat.id)" class="text-xs uppercase tracking-wide text-cyan-500/80">
@@ -1060,17 +1046,17 @@ function handleClose() {
                   class="hover:bg-slate-800/30"
                   :class="{ 'border-t-2 border-slate-600': rate.key === 'location_factor' }"
                 >
-                  <td class="py-2 px-4 text-slate-300">{{ rate.label }}</td>
+                  <td class="py-2 px-4 text-slate-300">{{ t(lineRentalRateLabelKey(rate.key)) }}</td>
                   <td class="py-2 px-4 text-right">
                     <input
                       v-model.number="rate.value"
-                      :aria-label="rate.label"
+                      :aria-label="t(lineRentalRateLabelKey(rate.key))"
                       type="text"
                       class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none"
                       style="font-variant-numeric: tabular-nums;"
                     />
                   </td>
-                  <td class="py-2 px-4 text-xs text-slate-500">{{ rate.unit }}</td>
+                  <td class="py-2 px-4 text-xs text-slate-500">{{ t(lineRentalRateUnitKey(rate.unit)) }}</td>
                 </tr>
               </tbody>
             </table>

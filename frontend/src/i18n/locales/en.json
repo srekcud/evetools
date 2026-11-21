@@ -2903,6 +2903,7 @@
   "groupIndustry": {
     "title": "Projects",
     "available": {
+      "loadError": "Failed to load projects",
       "runs": "Runs",
       "members": "members",
       "joinProject": "Join Project",
@@ -3488,6 +3489,9 @@
       "completed": "Completed"
     },
     "bom": {
+      "priceBasisHint": "(Jita 5% avg)",
+      "pricesNote": "Prices: Jita top 5% sell avg",
+      "fulfillment": "BOM Fulfillment",
       "jobsOnProduction": "Components & BPCs in the Production tab",
       "materialsToSource": "Materials to Source",
       "item": "Item",
@@ -3542,6 +3546,15 @@
       "correctionFailed": "The correction could not be saved"
     },
     "jobs": {
+      "esiStatus": {
+        "active": "Running",
+        "paused": "Paused",
+        "ready": "Ready",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled",
+        "reverted": "Reverted",
+        "unknown": "Unknown status"
+      },
       "product": "Product",
       "activity": "Activity",
       "runs": "Runs",
@@ -3647,6 +3660,10 @@
       "deleteError": "Failed to delete the purchase"
     },
     "contribute": {
+      "project": "Project: {name}",
+      "typeId": "Type ID: {id}",
+      "remaining": "{quantity} remaining",
+      "estimatedValueIsk": "Estimated Value (ISK)",
       "title": "Add Contribution",
       "type": "Contribution Type",
       "item": "Item",
@@ -3696,6 +3713,44 @@
       }
     },
     "contributions": {
+      "typeLabels": {
+        "material": "Material",
+        "job_install": "Job Install",
+        "bpc": "BPC",
+        "line_rental": "Line Rental",
+        "courier": "Courier"
+      },
+      "statusLabels": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "table": {
+        "allTypes": "All Types",
+        "allStatuses": "All Statuses",
+        "empty": "No contributions yet",
+        "emptyHint": "Contributions will appear here once members start contributing",
+        "columns": {
+          "character": "Character",
+          "type": "Type",
+          "item": "Item / Description",
+          "quantity": "Qty",
+          "valuation": "Valuation",
+          "method": "Method",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "confirmDelivery": "Confirm delivery",
+        "approve": "Approve",
+        "reject": "Reject",
+        "reopen": "Reopen",
+        "totalEngagedCosts": "Total Engaged Costs",
+        "approvedValue": "Approved Value",
+        "pendingValue": "Pending Value",
+        "approvedCount": "Approved: {count}",
+        "pendingCount": "Pending: {count}",
+        "rejectedCount": "Rejected: {count}"
+      },
       "own": {
         "edit": "Edit",
         "withdraw": "Withdraw",
@@ -3732,6 +3787,32 @@
       }
     },
     "distribution": {
+      "table": {
+        "title": "Profit Distribution",
+        "totalPayout": "Total Payout",
+        "columns": {
+          "character": "Character",
+          "costsEngaged": "Costs Engaged",
+          "sharePercent": "Share %",
+          "profitPart": "Profit Part",
+          "payoutTotal": "Payout Total"
+        },
+        "showBreakdown": "Show breakdown",
+        "hideBreakdown": "Hide breakdown",
+        "breakdown": {
+          "materials": "Materials",
+          "jobInstall": "Job Install",
+          "bpc": "BPC",
+          "lineRental": "Line Rental"
+        },
+        "formulaTitle": "Distribution Formula",
+        "formulaPayout": "Payout = Costs Engaged x (1 + Margin%)",
+        "formulaDetail": "= Costs Engaged x (Net Revenue / Total Project Cost)",
+        "lossBadge": "LOSS",
+        "lossTitle": "Loss Scenario",
+        "lossText": "This project resulted in a loss (negative margin). Each contributor absorbs their proportional share. The formula remains the same, but {factor} becomes less than 1, meaning each contributor receives less than their initial costs engaged.",
+        "lossFactor": "(1 + margin%)"
+      },
       "undistributable": "Undistributable distribution: no approved contribution has a cost, the net revenue cannot be split",
       "unknownContributionValue": "An approved contribution has no known price: the production cost, the profit and the payouts stay unknown until it has one.",
       "unclaimedStockNotice": "Container stock is still unclaimed: the project cost, the profit and the payouts stay unknown until it is claimed, assigned or donated.",
@@ -3848,6 +3929,23 @@
       }
     },
     "sales": {
+      "form": {
+        "title": "Sales",
+        "record": "Record Sale",
+        "recordTitle": "Record a Sale",
+        "columns": {
+          "date": "Date",
+          "quantity": "Quantity",
+          "unitPrice": "Unit Price",
+          "revenue": "Revenue",
+          "venue": "Venue"
+        },
+        "itemName": "Item Name",
+        "itemNamePlaceholder": "e.g. Ishtar",
+        "unitPriceIsk": "Unit Price (ISK)",
+        "venuePlaceholder": "e.g. Jita 4-4",
+        "save": "Save"
+      },
       "empty": "No sales recorded yet",
       "emptyHint": "Sales show up here once recorded. Link the wallet transactions and contracts listed under “{transactions}”, or add one by hand.",
       "item": "Item",
@@ -3898,6 +3996,18 @@
       "recordAllFailure": "{date} · {character}: {message}"
     },
     "members": {
+      "confirm": {
+        "promoteTitle": "Promote to Admin",
+        "promoteSubtitle": "Promote {name} to admin?",
+        "promote": "Promote",
+        "demoteTitle": "Demote to Member",
+        "demoteSubtitle": "Demote {name} to member?",
+        "demote": "Demote",
+        "kickTitle": "Kick Member",
+        "kickSubtitle": "Remove {name} from the project?",
+        "kick": "Kick"
+      },
+      "corporationLogoAlt": "Corporation logo",
       "roles": {
         "owner": "Owner",
         "admin": "Admin",
@@ -3909,6 +4019,9 @@
       "noPending": "No pending membership requests.",
       "noPendingHint": "Share the join link to invite new members",
       "columns": {
+        "role": "Role",
+        "status": "Status",
+        "joined": "Joined",
         "character": "Character",
         "corporation": "Corporation",
         "requested": "Requested",
@@ -3937,6 +4050,7 @@
       "otherCorp": "Other players will need approval."
     },
     "container": {
+      "linkedToCorpOffices": "linked to corp offices",
       "verify": "Verify All",
       "verifyAll": "Verify All",
       "verifying": "Verifying...",
@@ -3982,6 +4096,20 @@
     },
     "modals": {
       "newProject": {
+        "itemsCount": "{count} item | {count} items",
+        "createError": "Failed to create project",
+        "blacklistCategories": {
+          "advanced_components": "Advanced Components",
+          "capital_components": "Capital Components",
+          "advanced_capital_components": "Advanced Capital Components",
+          "hybrid_components": "Hybrid Components",
+          "fuel_blocks": "Fuel Blocks",
+          "tools": "Tools (R.A.M.)",
+          "simple_reactions": "Simple Reactions",
+          "complex_reactions": "Composite Reactions",
+          "hybrid_reactions": "Hybrid Reactions",
+          "biochem_reactions": "Biochemical Reactions"
+        },
         "title": "New Project",
         "subtitle": "Create a new multi-item project",
         "nameLabel": "Name",
@@ -4110,6 +4238,7 @@
       "comingSoon": "Coming soon"
     },
     "templates": {
+      "saveError": "Failed to save project template",
       "templateColumn": "Template",
       "itemsColumn": "Items",
       "sharedColumn": "Shared",
@@ -4215,6 +4344,17 @@
       "description": "Create a new project to get started."
     },
     "detail": {
+      "itemsCount": "{count} item | {count} items",
+      "runsCount": "{count} run | {count} runs",
+      "manager": "Manager: {name}",
+      "contributorsCount": "{count} contributor | {count} contributors",
+      "leafMaterials": "Leaf materials for {count} items",
+      "blacklistedCategories": "{count} category blacklisted | {count} categories blacklisted",
+      "addContribution": "Add Contribution",
+      "activeMembers": "{count} active member | {count} active members",
+      "pendingMembers": "{count} pending",
+      "linkCopied": "Link copied!",
+      "linkCopyFailed": "Failed to copy link",
       "backToList": "Back to Projects",
       "shareLink": "Share Link",
       "invite": "Invite",

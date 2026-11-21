@@ -115,7 +115,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
     <p class="text-sm text-red-400">{{ store.distributionError }}</p>
   </div>
   <div v-if="dist">
-    <h2 class="text-lg font-semibold text-slate-100 mb-4">Profit Distribution</h2>
+    <h2 class="text-lg font-semibold text-slate-100 mb-4">{{ t('groupIndustry.distribution.table.title') }}</h2>
     <div
       v-if="isAwaitingSales"
       data-testid="awaiting-sales-banner"
@@ -194,7 +194,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
             />
           </svg>
           <div class="absolute inset-0 flex flex-col items-center justify-center">
-            <p class="text-xs text-slate-500 uppercase tracking-wider">Total Payout</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('groupIndustry.distribution.table.totalPayout') }}</p>
             <p data-testid="total-payout" class="text-xl font-mono font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
               <AwaitingSalesValue v-if="isAwaitingSales" />
               <IskAmount v-else :value="totalPayout" />
@@ -226,11 +226,11 @@ const BREAKDOWN_COLORS: Record<string, string> = {
           <table class="w-full text-sm">
             <thead>
               <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-                <th class="text-left py-3 px-6">Character</th>
-                <th class="text-right py-3 px-3">Costs Engaged</th>
-                <th class="text-right py-3 px-3">Share %</th>
-                <th class="text-right py-3 px-3">Profit Part</th>
-                <th class="text-right py-3 px-6">Payout Total</th>
+                <th class="text-left py-3 px-6">{{ t('groupIndustry.distribution.table.columns.character') }}</th>
+                <th class="text-right py-3 px-3">{{ t('groupIndustry.distribution.table.columns.costsEngaged') }}</th>
+                <th class="text-right py-3 px-3">{{ t('groupIndustry.distribution.table.columns.sharePercent') }}</th>
+                <th class="text-right py-3 px-3">{{ t('groupIndustry.distribution.table.columns.profitPart') }}</th>
+                <th class="text-right py-3 px-6">{{ t('groupIndustry.distribution.table.columns.payoutTotal') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800/30">
@@ -261,7 +261,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                           </svg>
                           <span class="text-xs text-cyan-400">
-                            {{ isExpanded(member.memberId) ? 'Hide breakdown' : 'Show breakdown' }}
+                            {{ t(isExpanded(member.memberId) ? 'groupIndustry.distribution.table.hideBreakdown' : 'groupIndustry.distribution.table.showBreakdown') }}
                           </span>
                         </div>
                       </div>
@@ -299,7 +299,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                       <div v-if="member.materialCosts === null || member.materialCosts > 0" class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                           <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.material"></span>
-                          <span class="text-slate-400">Materials</span>
+                          <span class="text-slate-400">{{ t('groupIndustry.distribution.table.breakdown.materials') }}</span>
                         </div>
                         <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                           <UnknownContributionValue v-if="member.materialCosts === null" />
@@ -309,7 +309,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                       <div v-if="member.jobInstallCosts === null || member.jobInstallCosts > 0" class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                           <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.job_install"></span>
-                          <span class="text-slate-400">Job Install</span>
+                          <span class="text-slate-400">{{ t('groupIndustry.distribution.table.breakdown.jobInstall') }}</span>
                         </div>
                         <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                           <UnknownContributionValue v-if="member.jobInstallCosts === null" />
@@ -319,7 +319,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                       <div v-if="member.bpcCosts === null || member.bpcCosts > 0" class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                           <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.bpc"></span>
-                          <span class="text-slate-400">BPC</span>
+                          <span class="text-slate-400">{{ t('groupIndustry.distribution.table.breakdown.bpc') }}</span>
                         </div>
                         <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                           <UnknownContributionValue v-if="member.bpcCosts === null" />
@@ -329,7 +329,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                       <div v-if="member.lineRentalCosts === null || member.lineRentalCosts > 0" class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                           <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.line_rental"></span>
-                          <span class="text-slate-400">Line Rental</span>
+                          <span class="text-slate-400">{{ t('groupIndustry.distribution.table.breakdown.lineRental') }}</span>
                         </div>
                         <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                           <UnknownContributionValue v-if="member.lineRentalCosts === null" />
@@ -394,10 +394,10 @@ const BREAKDOWN_COLORS: Record<string, string> = {
           </svg>
         </div>
         <div>
-          <h4 class="text-sm font-semibold text-slate-200 mb-2">Distribution Formula</h4>
+          <h4 class="text-sm font-semibold text-slate-200 mb-2">{{ t('groupIndustry.distribution.table.formulaTitle') }}</h4>
           <div class="font-mono text-xs text-slate-400 space-y-1">
-            <p>Payout = Costs Engaged x (1 + Margin%)</p>
-            <p class="text-slate-500">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = Costs Engaged x (Net Revenue / Total Project Cost)</p>
+            <p>{{ t('groupIndustry.distribution.table.formulaPayout') }}</p>
+            <p class="text-slate-500">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ t('groupIndustry.distribution.table.formulaDetail') }}</p>
           </div>
         </div>
       </div>
@@ -411,15 +411,13 @@ const BREAKDOWN_COLORS: Record<string, string> = {
     >
       <div class="flex items-start gap-4">
         <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <span class="text-xs font-bold text-red-400">LOSS</span>
+          <span class="text-xs font-bold text-red-400">{{ t('groupIndustry.distribution.table.lossBadge') }}</span>
         </div>
         <div>
-          <h4 class="text-sm font-semibold text-red-300 mb-1">Loss Scenario</h4>
-          <p class="text-xs text-slate-400">
-            This project resulted in a loss (negative margin). Each contributor absorbs their proportional share.
-            The formula remains the same, but <span class="font-mono text-red-400">(1 + margin%)</span> becomes less than 1,
-            meaning each contributor receives less than their initial costs engaged.
-          </p>
+          <h4 class="text-sm font-semibold text-red-300 mb-1">{{ t('groupIndustry.distribution.table.lossTitle') }}</h4>
+          <i18n-t keypath="groupIndustry.distribution.table.lossText" scope="global" tag="p" class="text-xs text-slate-400">
+            <template #factor><span class="font-mono text-red-400">{{ t('groupIndustry.distribution.table.lossFactor') }}</span></template>
+          </i18n-t>
         </div>
       </div>
     </div>

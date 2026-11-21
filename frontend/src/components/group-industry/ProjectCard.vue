@@ -162,7 +162,7 @@ function progressBarClass(): string {
         </div>
       </div>
       <div class="flex-1">
-        <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">BOM Fulfillment</p>
+        <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('groupIndustry.bom.fulfillment') }}</p>
         <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
           <div
             class="h-full rounded-full relative"

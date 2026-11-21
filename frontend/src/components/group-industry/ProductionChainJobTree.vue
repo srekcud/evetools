@@ -2,6 +2,7 @@
 import ChainStepMark from './ChainStepMark.vue'
 import { computed, nextTick, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useEsiJobStatusLabel } from '@/composables/useEsiJobStatusLabel'
 import IskAmount from '@/components/common/IskAmount.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
@@ -67,6 +68,7 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { esiJobStatusLabel } = useEsiJobStatusLabel()
 const projectStore = useGroupProjectStore()
 const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
 const bomItemById = computed(() => new Map(projectStore.bomItems.map(item => [item.id, item])))
@@ -251,7 +253,7 @@ function plansStructure(node: ChainNode): boolean {
                 >
                   <span v-if="jobMatch.characterName !== null" class="text-slate-400">{{ jobMatch.characterName }}</span>
                   &middot; {{ formatNumber(jobMatch.runs, 0) }} {{ t('groupIndustry.jobs.runs') }}
-                  &middot; {{ jobMatch.status }}
+                  &middot; {{ esiJobStatusLabel(jobMatch.status) }}
                   <button
                     v-if="canLinkJobs === true"
                     type="button"

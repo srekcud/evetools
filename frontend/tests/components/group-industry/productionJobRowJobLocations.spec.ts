@@ -97,7 +97,7 @@ describe('Production job row job locations', () => {
     const match = wrapper.get('[data-testid="job-match"]').text()
     expect(match).toContain('Aria Solberg')
     expect(match).toContain('3 Runs')
-    expect(match).toContain('delivered')
+    expect(match).toContain('Delivered')
   })
 
   it('shows no location line when the locations are not shared with the viewer', async () => {

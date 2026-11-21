@@ -139,7 +139,7 @@ function ringStrokeColor(percent: number): string {
                   {{ t('groupIndustry.bom.remainingEstCost') }}
                   <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
-                <div class="text-xs text-slate-500 font-normal normal-case tracking-normal mt-0.5">(Jita 5% avg)</div>
+                <div class="text-xs text-slate-500 font-normal normal-case tracking-normal mt-0.5">{{ t('groupIndustry.bom.priceBasisHint') }}</div>
               </th>
             </tr>
           </thead>
@@ -283,7 +283,7 @@ function ringStrokeColor(percent: number): string {
       </div>
     </div>
     <p class="text-xs text-slate-500 mt-3">
-      Prices: <span class="text-cyan-400/60">Jita top 5%</span> sell avg
+      {{ t('groupIndustry.bom.pricesNote') }}
     </p>
   </div>
 </template>

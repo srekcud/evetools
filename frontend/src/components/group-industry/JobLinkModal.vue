@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { useEsiJobStatusLabel } from '@/composables/useEsiJobStatusLabel'
 import { useFormatters } from '@/composables/useFormatters'
 import BaseModal from '@/components/common/BaseModal.vue'
 import IskAmount from '@/components/common/IskAmount.vue'
@@ -21,6 +22,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { esiJobStatusLabel } = useEsiJobStatusLabel()
 const { formatDateTime, formatNumber } = useFormatters()
 </script>
 
@@ -85,7 +87,7 @@ const { formatDateTime, formatNumber } = useFormatters()
               </td>
               <td class="py-2.5 px-3 text-slate-300">{{ job.productTypeName ?? job.productTypeId }}</td>
               <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">{{ formatNumber(job.runs, 0) }}</td>
-              <td class="py-2.5 px-3 text-slate-400">{{ job.status }}</td>
+              <td class="py-2.5 px-3 text-slate-400">{{ esiJobStatusLabel(job.status) }}</td>
               <td class="py-2.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;"><IskAmount :value="job.cost" /></td>
               <td class="py-2.5 px-4 text-right">
                 <span

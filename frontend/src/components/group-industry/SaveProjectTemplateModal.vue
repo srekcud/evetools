@@ -46,7 +46,7 @@ async function submit(): Promise<void> {
     })
     emit('saved')
   } catch (cause) {
-    errorMessage.value = cause instanceof Error ? cause.message : 'Failed to save project template'
+    errorMessage.value = cause instanceof Error ? cause.message : t('groupIndustry.templates.saveError')
   } finally {
     isSaving.value = false
   }

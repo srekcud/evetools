@@ -260,29 +260,25 @@ watch(selectedBomItemId, async (bomItemId) => {
   }
 })
 
-const allContributionTypeOptions: { key: ContributionType; icon: string; label: string; activeColor: string }[] = [
+const allContributionTypeOptions: { key: ContributionType; icon: string; activeColor: string }[] = [
   {
     key: 'material',
     icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
-    label: 'Material',
     activeColor: 'text-cyan-400',
   },
   {
     key: 'job_install',
     icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
-    label: 'Job Install',
     activeColor: 'text-amber-400',
   },
   {
     key: 'bpc',
     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-    label: 'BPC',
     activeColor: 'text-violet-400',
   },
   {
     key: 'line_rental',
     icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
-    label: 'Line Rental',
     activeColor: 'text-pink-400',
   },
 ]
@@ -368,7 +364,7 @@ async function submit(): Promise<void> {
         <div>
           <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ t('groupIndustry.contribute.title') }}</h2>
           <p class="text-sm text-slate-500 mt-0.5">
-            Project: {{ projectStore.currentProject?.name || '---' }}
+            {{ t('groupIndustry.contribute.project', { name: projectStore.currentProject?.name || '---' }) }}
           </p>
         </div>
         <button
@@ -414,7 +410,7 @@ async function submit(): Promise<void> {
               class="text-xs font-medium"
               :class="selectedType === opt.key ? opt.activeColor : 'text-slate-500'"
             >
-              {{ opt.label }}
+              {{ t(`groupIndustry.contributions.typeLabels.${opt.key}`) }}
             </span>
           </button>
         </div>
@@ -440,7 +436,7 @@ async function submit(): Promise<void> {
               />
             </div>
             <span>{{ selectedBomItem.typeName }}</span>
-            <span class="text-xs text-slate-500 ml-auto">Type ID: {{ selectedBomItem.typeId }}</span>
+            <span class="text-xs text-slate-500 ml-auto">{{ t('groupIndustry.contribute.typeId', { id: selectedBomItem.typeId }) }}</span>
             <button
               @click="selectedBomItemId = ''"
               class="text-slate-500 hover:text-slate-300 ml-2"
@@ -459,7 +455,7 @@ async function submit(): Promise<void> {
             <option value="" disabled>{{ t('groupIndustry.contribute.selectItem') }}</option>
             <option v-for="item in availableBomItems" :key="item.id" :value="item.id">
               {{ item.typeName }}
-              <template v-if="item.remainingQuantity > 0"> ({{ formatNumber(item.remainingQuantity, 0) }} remaining)</template>
+              <template v-if="item.remainingQuantity > 0"> ({{ t('groupIndustry.contribute.remaining', { quantity: formatNumber(item.remainingQuantity, 0) }) }})</template>
             </option>
           </select>
         </div>
@@ -522,7 +518,7 @@ async function submit(): Promise<void> {
         <!-- Manual estimated value for BPC / Line Rental -->
         <div v-if="requiresEnteredValue">
           <label :for="estimatedValueFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">
-            {{ t('groupIndustry.contribute.estimatedValue') }} (ISK)
+            {{ t('groupIndustry.contribute.estimatedValueIsk') }}
           </label>
           <input
             :id="estimatedValueFieldId"

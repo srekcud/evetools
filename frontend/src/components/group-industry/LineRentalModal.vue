@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { defaultLineRentalRates, lineRentalRateLabelKey, lineRentalRateUnitKey, type LineRentalRate } from './lineRentalRates'
 
 const { t } = useI18n()
 const distributionStore = useGroupDistributionStore()
@@ -17,23 +18,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-type RateRow = {
-  key: string
-  label: string
-  value: number
-  unit: string
-}
-
-const rates = ref<RateRow[]>([
-  { key: 'component_t1', label: 'Component T1', value: 250, unit: 'ISK/run' },
-  { key: 'module_t1', label: 'Module T1', value: 10_000, unit: 'ISK/run' },
-  { key: 'ship_t1', label: 'Ship T1', value: 100_000, unit: 'ISK/run' },
-  { key: 'module_t2', label: 'Module T2', value: 100_000, unit: 'ISK/run' },
-  { key: 'ship_t2', label: 'Ship T2', value: 2_500_000, unit: 'ISK/run' },
-  { key: 'capital_t1', label: 'Capital T1', value: 25_000, unit: 'ISK/run' },
-  { key: 'capital_t2', label: 'Capital T2', value: 125_000, unit: 'ISK/run' },
-  { key: 'location_factor', label: 'Location Factor', value: 1_000_000, unit: 'ISK/day' },
-])
+const rates = ref<LineRentalRate[]>(defaultLineRentalRates())
 
 const isSaving = ref(false)
 const saveError = ref<string | null>(null)
@@ -122,17 +107,17 @@ function handleClose() {
                 class="hover:bg-slate-800/30"
                 :class="{ 'border-t-2 border-slate-600': rate.key === 'location_factor' }"
               >
-                <td class="py-2.5 px-4 text-slate-300">{{ rate.label }}</td>
+                <td class="py-2.5 px-4 text-slate-300">{{ t(lineRentalRateLabelKey(rate.key)) }}</td>
                 <td class="py-2.5 px-4 text-right">
                   <input
                     v-model.number="rate.value"
-                    :aria-label="rate.label"
+                    :aria-label="t(lineRentalRateLabelKey(rate.key))"
                     type="text"
                     class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none"
                     style="font-variant-numeric: tabular-nums;"
                   />
                 </td>
-                <td class="py-2.5 px-4 text-xs text-slate-500">{{ rate.unit }}</td>
+                <td class="py-2.5 px-4 text-xs text-slate-500">{{ t(lineRentalRateUnitKey(rate.unit)) }}</td>
               </tr>
             </tbody>
           </table>
