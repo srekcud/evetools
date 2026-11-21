@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupCourierStore } from '@/stores/group-industry/courier'
-import type { CourierCandidate, CourierLine, CourierQuoteStatus, CourierTransportState, CourierUnknownOriginLine } from '@/stores/group-industry/types'
+import type { CourierCandidate, CourierQuoteStatus, CourierTransportState, CourierUnknownOriginLine } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
 import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
@@ -91,10 +91,6 @@ const unknownCause = computed(() => {
 
 function stateLabel(state: CourierTransportState): string {
   return t(`groupIndustry.courier.state.${state}`)
-}
-
-function lineLabel(line: CourierLine): string {
-  return line.typeName ?? `#${line.typeId}`
 }
 
 function unknownOriginLabel(line: CourierUnknownOriginLine): string {
@@ -303,32 +299,6 @@ onBeforeUnmount(() => {
             data-testid="courier-contract-unknown-reason"
             class="mt-2 text-xs text-violet-300 break-words"
           >{{ courier.contract.unknownReason }}</p>
-        </div>
-
-        <div v-if="courier.lines.length > 0" class="border-t border-slate-800">
-          <h3 class="px-4 pt-3 text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.lines') }}</h3>
-          <ul class="p-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <li
-              v-for="line in courier.lines"
-              :key="line.bomLineId"
-              :data-testid="`courier-line-${line.typeId}`"
-              :data-state="line.transportState"
-              class="flex items-center gap-2 min-w-0 p-2 rounded border border-slate-800 bg-slate-800/30"
-            >
-              <img
-                :src="getTypeIconUrl(line.typeId, 32)"
-                alt=""
-                class="w-8 h-8 rounded border border-slate-700 bg-slate-800 flex-shrink-0"
-                @error="onImageError"
-              />
-              <span class="truncate font-medium text-slate-100" :title="lineLabel(line)">{{ lineLabel(line) }}</span>
-              <span class="ml-auto font-mono tabular-nums text-sm text-slate-300">{{ formatNumber(line.purchasedQuantity) }}</span>
-              <span
-                class="inline-block flex-shrink-0 px-2 py-0.5 rounded border text-xs uppercase tracking-wider"
-                :class="STATE_CHIP_CLASSES[line.transportState]"
-              >{{ stateLabel(line.transportState) }}</span>
-            </li>
-          </ul>
         </div>
       </template>
 
