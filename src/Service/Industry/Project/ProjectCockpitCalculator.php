@@ -44,12 +44,15 @@ final readonly class ProjectCockpitCalculator
     private const string TAB_CONTRIBUTIONS = 'contributions';
     private const string TAB_SALES = 'sales';
 
+    private const string JOB_GROUP_BLUEPRINT = 'blueprint';
+    private const string JOB_GROUP_COMPONENT = 'component';
     private const string JOB_GROUP_FINAL = 'final';
     private const array JOB_GROUP_RANK = [
-        'blueprint' => 0,
-        'component' => 1,
+        self::JOB_GROUP_BLUEPRINT => 0,
+        self::JOB_GROUP_COMPONENT => 1,
         self::JOB_GROUP_FINAL => 2,
     ];
+    private const array BLOCKABLE_JOB_GROUPS = [self::JOB_GROUP_COMPONENT, self::JOB_GROUP_FINAL];
 
     private const int SINGLE_STEP = 1;
     private const int NONE = 0;
@@ -85,7 +88,7 @@ final readonly class ProjectCockpitCalculator
         return new ProjectCockpit(
             $input->status,
             $phases,
-            $this->nextAction($input, $uncoveredMaterials, $undeliveredJobs, $unitsToSell - $unitsSold, $isSourcingPhase),
+            $this->nextAction($input, $uncoveredMaterials, $jobLines, $undeliveredJobs, $unitsToSell - $unitsSold, $isSourcingPhase),
         );
     }
 
@@ -190,9 +193,10 @@ final readonly class ProjectCockpitCalculator
 
     /**
      * @param list<CockpitBomLine> $uncoveredMaterials
+     * @param list<CockpitBomLine> $jobLines
      * @param list<CockpitBomLine> $undeliveredJobs
      */
-    private function nextAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $undeliveredJobs, int $unitsLeftToSell, bool $isSourcingPhase): CockpitNextAction
+    private function nextAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $jobLines, array $undeliveredJobs, int $unitsLeftToSell, bool $isSourcingPhase): CockpitNextAction
     {
         if ($input->status === ProjectStatus::Completed) {
             return new CockpitNextAction(self::ACTION_PROJECT_COMPLETED, false, null, null, null, null, null, null);
@@ -207,7 +211,7 @@ final readonly class ProjectCockpitCalculator
             ProjectStatus::Published => $uncoveredMaterials !== []
                 ? $this->sourceMaterial($input, $uncoveredMaterials)
                 : $this->managerStatusAction($input, self::ACTION_START_PROJECT, ProjectStatus::InProgress),
-            ProjectStatus::InProgress => $this->inProgressAction($input, $uncoveredMaterials, $undeliveredJobs, $isSourcingPhase),
+            ProjectStatus::InProgress => $this->inProgressAction($input, $uncoveredMaterials, $jobLines, $undeliveredJobs, $isSourcingPhase),
             ProjectStatus::Selling => $unitsLeftToSell > self::NONE
                 ? $this->managerAction($input, new CockpitNextAction(self::ACTION_RECORD_SALE, false, self::TAB_SALES, null, null, null, null, $unitsLeftToSell))
                 : $this->managerStatusAction($input, self::ACTION_COMPLETE_PROJECT, ProjectStatus::Completed),
@@ -216,16 +220,17 @@ final readonly class ProjectCockpitCalculator
 
     /**
      * @param list<CockpitBomLine> $uncoveredMaterials
+     * @param list<CockpitBomLine> $jobLines
      * @param list<CockpitBomLine> $undeliveredJobs
      */
-    private function inProgressAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $undeliveredJobs, bool $isSourcingPhase): CockpitNextAction
+    private function inProgressAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $jobLines, array $undeliveredJobs, bool $isSourcingPhase): CockpitNextAction
     {
         if ($uncoveredMaterials !== []) {
             return $this->sourceMaterial($input, $uncoveredMaterials, !$isSourcingPhase);
         }
 
         if ($undeliveredJobs !== []) {
-            $jobsToLaunch = $this->jobsToLaunch($undeliveredJobs);
+            $jobsToLaunch = $this->jobsToLaunch($undeliveredJobs, $jobLines);
 
             return $jobsToLaunch !== [] ? $this->launchJob($jobsToLaunch) : $this->awaitJobs($undeliveredJobs);
         }
@@ -261,15 +266,39 @@ final readonly class ProjectCockpitCalculator
 
     /**
      * @param list<CockpitBomLine> $undeliveredJobs
+     * @param list<CockpitBomLine> $jobLines
      *
      * @return list<CockpitBomLine>
      */
-    private function jobsToLaunch(array $undeliveredJobs): array
+    private function jobsToLaunch(array $undeliveredJobs, array $jobLines): array
     {
         return array_values(array_filter(
             $undeliveredJobs,
-            static fn (CockpitBomLine $line): bool => $line->runs === null || $line->runs > $line->matchedRuns,
+            fn (CockpitBomLine $line): bool => ($line->runs === null || $line->runs > $line->matchedRuns) && !$this->isBlocked($line, $jobLines),
         ));
+    }
+
+    /**
+     * @param list<CockpitBomLine> $jobLines
+     */
+    private function isBlocked(CockpitBomLine $line, array $jobLines): bool
+    {
+        if (!\in_array($line->jobGroup, self::BLOCKABLE_JOB_GROUPS, true) || $line->matchedRuns > self::NONE || $line->deliveredRuns > self::NONE) {
+            return false;
+        }
+
+        foreach ($jobLines as $component) {
+            if ($component->jobGroup === self::JOB_GROUP_COMPONENT && $component->parentTypeId === $line->typeId && !$this->isDelivered($component)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isDelivered(CockpitBomLine $line): bool
+    {
+        return $line->runs !== null && $line->deliveredRuns >= $line->runs;
     }
 
     /**
@@ -294,9 +323,11 @@ final readonly class ProjectCockpitCalculator
     {
         usort($undeliveredJobs, fn (CockpitBomLine $first, CockpitBomLine $second): int => [
             $this->jobGroupRank($first),
+            $this->chainLevelRank($first),
             $first->typeName,
         ] <=> [
             $this->jobGroupRank($second),
+            $this->chainLevelRank($second),
             $second->typeName,
         ]);
         $line = $undeliveredJobs[0];
@@ -312,6 +343,15 @@ final readonly class ProjectCockpitCalculator
         }
 
         return self::JOB_GROUP_RANK[$line->jobGroup];
+    }
+
+    private function chainLevelRank(CockpitBomLine $line): int
+    {
+        if ($line->jobGroup === self::JOB_GROUP_BLUEPRINT) {
+            return self::NONE;
+        }
+
+        return $line->chainLevel ?? throw new \UnexpectedValueException(sprintf('Job line %s has no chain level', $line->id));
     }
 
     private function managerStatusAction(ProjectCockpitInput $input, string $code, ProjectStatus $targetStatus): CockpitNextAction

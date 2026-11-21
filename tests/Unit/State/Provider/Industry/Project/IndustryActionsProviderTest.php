@@ -28,6 +28,7 @@ use App\Service\Industry\SellOrders\ProjectSellOrdersReader;
 use App\Enum\OrderPositionState;
 use App\State\Provider\Industry\Project\IndustryActionsProvider;
 use App\State\Provider\Industry\Project\ProjectCockpitInputFactory;
+use App\Tests\Unit\Service\Industry\Project\InMemoryChainRecipeIngredients;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
@@ -70,7 +71,7 @@ final class IndustryActionsProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(null);
-        $provider = new IndustryActionsProvider($security, $this->memberRepository, new ProjectCockpitInputFactory(), new ProjectCockpitCalculator(), new ActionQueueSorter(), new ActionAssessor($this->marketPrices), $this->priceAlertReader, $this->sellOrdersReader);
+        $provider = new IndustryActionsProvider($security, $this->memberRepository, new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])), new ProjectCockpitCalculator(), new ActionQueueSorter(), new ActionAssessor($this->marketPrices), $this->priceAlertReader, $this->sellOrdersReader);
 
         $this->expectException(UnauthorizedHttpException::class);
 
@@ -411,7 +412,7 @@ final class IndustryActionsProviderTest extends TestCase
         return (new IndustryActionsProvider(
             $this->security,
             $this->memberRepository,
-            new ProjectCockpitInputFactory(),
+            new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])),
             new ProjectCockpitCalculator(),
             new ActionQueueSorter(),
             new ActionAssessor($this->marketPrices),

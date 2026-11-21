@@ -12,11 +12,13 @@ use App\Enum\ContributionStatus;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
+use App\Service\Industry\Project\ChainRecipeIngredients;
 use App\Service\Industry\Project\CockpitBomLine;
 use App\Service\Industry\Project\ContainerStockState;
 use App\Service\Industry\Project\ProjectCockpitInput;
 use App\Service\Industry\Project\ProjectLineFulfillments;
 use App\State\Provider\Industry\Project\ProjectCockpitInputFactory;
+use App\Tests\Unit\Service\Industry\Project\InMemoryChainRecipeIngredients;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -31,6 +33,8 @@ final class ProjectCockpitInputFactoryTest extends TestCase
     private const int ISOGEN_TYPE_ID = 37;
     private const int SABRE_TYPE_ID = 22456;
     private const int GILA_TYPE_ID = 17715;
+    private const int FUSION_THRUSTER_TYPE_ID = 11531;
+    private const int RAM_STARSHIP_TECH_TYPE_ID = 11478;
 
     public function testJobLineCarriesTheRunsOfItsDeliveredEsiJobsOnly(): void
     {
@@ -44,7 +48,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $this->jobMatchOn($sabreJob, 4, 'cancelled');
         $this->jobMatchOn($sabreJob, 5, 'reverted');
 
-        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+        $input = (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $owner);
 
         self::assertSame(3, $input->bomLines[0]->deliveredRuns);
         self::assertSame(15, $input->bomLines[0]->matchedRuns);
@@ -62,7 +66,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $this->jobMatchEndingOn($sabreJob, 3, 'delivered', '2026-11-25 09:00:00');
         $this->jobMatchEndingOn($sabreJob, 4, 'cancelled', '2026-11-26 09:00:00');
 
-        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+        $input = (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $owner);
 
         self::assertSame('2026-11-22 20:00:00', $input->bomLines[0]->latestJobEndDate?->format('Y-m-d H:i:s'));
     }
@@ -77,7 +81,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $this->jobMatchEndingOn($sabreJob, 1, 'delivered', '2026-11-25 09:00:00');
         $this->jobMatchOn($sabreJob, 2, 'active');
 
-        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+        $input = (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $owner);
 
         self::assertNull($input->bomLines[0]->latestJobEndDate);
     }
@@ -92,7 +96,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $sabreJob->setMark(new IndustryProjectBomLineMark(BomLineMarkState::Done, 10, new \DateTimeImmutable('2026-11-13T09:00:00+00:00')));
         $this->jobMatchOn($sabreJob, 6, 'delivered');
 
-        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+        $input = (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $owner);
 
         self::assertSame([10, 10], [$input->bomLines[0]->matchedRuns, $input->bomLines[0]->deliveredRuns]);
     }
@@ -106,7 +110,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 2, 2, 0);
         $sabreJob->setMark(new IndustryProjectBomLineMark(BomLineMarkState::Done, 2, new \DateTimeImmutable('2026-11-13T09:00:00+00:00')));
 
-        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+        $input = (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $owner);
 
         self::assertSame([2, 2], [$input->bomLines[0]->matchedRuns, $input->bomLines[0]->deliveredRuns]);
     }
@@ -120,7 +124,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 2, 2, 0);
         $sabreJob->setMark(new IndustryProjectBomLineMark(BomLineMarkState::Launched, 2, new \DateTimeImmutable('2026-11-13T09:00:00+00:00')));
 
-        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+        $input = (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $owner);
 
         self::assertSame([2, 0], [$input->bomLines[0]->matchedRuns, $input->bomLines[0]->deliveredRuns]);
     }
@@ -145,7 +149,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $this->contributionOf($project, $contributorMembership, 400, ContributionStatus::Approved);
         $this->contributionOf($project, $contributorMembership, 300, ContributionStatus::Rejected);
 
-        $input = (new ProjectCockpitInputFactory())->create($project, $viewer);
+        $input = (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $viewer);
 
         self::assertEquals(
             new ProjectCockpitInput(
@@ -161,6 +165,48 @@ final class ProjectCockpitInputFactoryTest extends TestCase
             ),
             $input,
         );
+    }
+
+    #[Group('issue-1196')]
+    public function testInProgressJobLinesCarryTheirChainLevelAndTheirParentType(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 5);
+        $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 5, 5, 0);
+        $this->jobOf($project, self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 'component', 9, 45, 0)->setParentTypeId(self::SABRE_TYPE_ID);
+        $this->jobOf($project, self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 'component', 3, 300, 0)->setParentTypeId(self::FUSION_THRUSTER_TYPE_ID);
+        $this->materialOf($project, self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 0);
+        $recipes = new InMemoryChainRecipeIngredients([
+            self::SABRE_TYPE_ID => [self::FUSION_THRUSTER_TYPE_ID],
+            self::FUSION_THRUSTER_TYPE_ID => [self::RAM_STARSHIP_TECH_TYPE_ID],
+        ]);
+
+        $input = (new ProjectCockpitInputFactory($recipes))->create($project, $owner);
+
+        self::assertSame(
+            [[3, null], [2, self::SABRE_TYPE_ID], [1, self::FUSION_THRUSTER_TYPE_ID], [null, null]],
+            array_map(static fn (CockpitBomLine $line): array => [$line->chainLevel, $line->parentTypeId], $input->bomLines),
+        );
+    }
+
+    #[Group('issue-1196')]
+    public function testChainLevelsAreOnlyComputedForAnInProgressProject(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::Selling, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 5);
+        $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 5, 5, 5);
+        $recipes = new class implements ChainRecipeIngredients {
+            public function producedIngredientsOf(array $productTypeIds): array
+            {
+                throw new \LogicException('The recipes must not be read outside the in progress status.');
+            }
+        };
+
+        $input = (new ProjectCockpitInputFactory($recipes))->create($project, $owner);
+
+        self::assertNull($input->bomLines[0]->chainLevel);
     }
 
     #[Group('issue-1021')]
@@ -179,7 +225,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $this->contributionOf($project, $contributorMembership, 300, ContributionStatus::Pending);
         $this->contributionOf($project, $contributorMembership, 100, ContributionStatus::Approved);
 
-        $factory = new ProjectCockpitInputFactory();
+        $factory = new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([]));
 
         self::assertSame(
             ['owner' => 2, 'admin' => 3],
@@ -198,7 +244,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $ownerMembership = $this->membershipOf($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
         $this->contributionOf($project, $ownerMembership, 1_200, ContributionStatus::Pending);
 
-        self::assertSame(1, (new ProjectCockpitInputFactory())->create($project, $owner)->pendingContributionCount);
+        self::assertSame(1, (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $owner)->pendingContributionCount);
     }
 
     #[Group('issue-1176')]
@@ -210,7 +256,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $this->contributionOf($project, $ownerMembership, 1_200, ContributionStatus::Pending);
         $project->getContributions()->first()->setAwaitingQuantity(40);
 
-        self::assertSame(0, (new ProjectCockpitInputFactory())->create($project, $owner)->pendingContributionCount);
+        self::assertSame(0, (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $owner)->pendingContributionCount);
     }
 
     #[Group('issue-866')]
@@ -223,7 +269,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 5, 5, 0);
         $fulfillments = new ProjectLineFulfillments(ContainerStockState::Known, [self::TRITANIUM_TYPE_ID => 25_000, self::SABRE_TYPE_ID => 5]);
 
-        $input = (new ProjectCockpitInputFactory())->create($project, $owner, $fulfillments);
+        $input = (new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])))->create($project, $owner, $fulfillments);
 
         self::assertSame(
             [$tritanium->getId()->toRfc4122() => 25_000, $sabreJob->getId()->toRfc4122() => 0],
@@ -243,7 +289,7 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         $this->membershipOf($project, $acceptedMember, ParticipantRole::Member, ParticipantStatus::Accepted);
         $this->membershipOf($project, $pendingAdmin, ParticipantRole::Admin, ParticipantStatus::Pending);
         $this->membershipOf($project, $removedAdmin, ParticipantRole::Admin, ParticipantStatus::Removed);
-        $factory = new ProjectCockpitInputFactory();
+        $factory = new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([]));
 
         $viewerIsManager = array_map(
             static fn ($viewer): bool => $factory->create($project, $viewer)->viewerIsManager,
