@@ -75,7 +75,8 @@ final readonly class ProjectCockpitCalculator
         ];
         $isSourcingPhase = $input->status === ProjectStatus::InProgress && $uncoveredMaterials !== [] && !$this->productionStarted($jobLines);
         $blockedReasons = $this->blockedReasons($input->status, \count($uncoveredMaterials), \count($undeliveredJobs), $isSourcingPhase);
-        $currentIndex = $isSourcingPhase ? array_search(self::PHASE_SUPPLY, self::PHASE_KEYS, true) : $this->currentPhaseIndex($input->status);
+        $unitsLeftToSell = $unitsToSell - $unitsSold;
+        $currentIndex = $isSourcingPhase ? array_search(self::PHASE_SUPPLY, self::PHASE_KEYS, true) : $this->currentPhaseIndex($input->status, $unitsLeftToSell);
 
         $phases = [];
         foreach (self::PHASE_KEYS as $index => $key) {
@@ -87,7 +88,7 @@ final readonly class ProjectCockpitCalculator
         return new ProjectCockpit(
             $input->status,
             $phases,
-            $this->nextAction($input, $uncoveredMaterials, $undeliveredJobs, $unitsToSell - $unitsSold, $isSourcingPhase),
+            $this->nextAction($input, $uncoveredMaterials, $undeliveredJobs, $unitsLeftToSell, $isSourcingPhase),
         );
     }
 
@@ -170,13 +171,13 @@ final readonly class ProjectCockpitCalculator
         return $reasons;
     }
 
-    private function currentPhaseIndex(ProjectStatus $status): int
+    private function currentPhaseIndex(ProjectStatus $status, int $unitsLeftToSell): int
     {
         return match ($status) {
             ProjectStatus::Draft => 0,
             ProjectStatus::Published => 1,
             ProjectStatus::InProgress => 2,
-            ProjectStatus::Selling => 3,
+            ProjectStatus::Selling => $unitsLeftToSell > self::NONE ? 3 : 4,
             ProjectStatus::Completed => \count(self::PHASE_KEYS),
         };
     }
@@ -249,13 +250,7 @@ final readonly class ProjectCockpitCalculator
      */
     private function sourceMaterial(ProjectCockpitInput $input, array $uncoveredMaterials, bool $blocked = false): CockpitNextAction
     {
-        usort($uncoveredMaterials, static fn (CockpitBomLine $first, CockpitBomLine $second): int => [
-            $second->requiredQuantity - $second->fulfilledQuantity,
-            $first->typeName,
-        ] <=> [
-            $first->requiredQuantity - $first->fulfilledQuantity,
-            $second->typeName,
-        ]);
+        usort($uncoveredMaterials, fn (CockpitBomLine $first, CockpitBomLine $second): int => $this->compareMaterialsToSource($first, $second));
         $line = $uncoveredMaterials[0];
 
         return new CockpitNextAction(
@@ -268,6 +263,35 @@ final readonly class ProjectCockpitCalculator
             $line->typeName,
             $line->requiredQuantity - $line->fulfilledQuantity,
         );
+    }
+
+    private function compareMaterialsToSource(CockpitBomLine $first, CockpitBomLine $second): int
+    {
+        $firstValue = $this->remainingValueOf($first);
+        $secondValue = $this->remainingValueOf($second);
+
+        if ($firstValue !== null && $secondValue !== null) {
+            return [$secondValue, $first->typeName] <=> [$firstValue, $second->typeName];
+        }
+
+        if ($firstValue !== null || $secondValue !== null) {
+            return $firstValue !== null ? -1 : 1;
+        }
+
+        return [
+            $second->requiredQuantity - $second->fulfilledQuantity,
+            $first->typeName,
+        ] <=> [
+            $first->requiredQuantity - $first->fulfilledQuantity,
+            $second->typeName,
+        ];
+    }
+
+    private function remainingValueOf(CockpitBomLine $line): ?float
+    {
+        return $line->estimatedPrice === null
+            ? null
+            : ($line->requiredQuantity - $line->fulfilledQuantity) * $line->estimatedPrice;
     }
 
     /**

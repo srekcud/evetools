@@ -18,6 +18,7 @@ final readonly class CockpitBomLine
         public int $matchedRuns,
         public int $deliveredRuns,
         public ?\DateTimeImmutable $latestJobEndDate = null,
+        public ?float $estimatedPrice = null,
     ) {
     }
 }
