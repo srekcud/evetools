@@ -368,7 +368,48 @@ final class ProjectCockpitCalculatorTest extends TestCase
             ['sell', 'done', 1, 2, null, null],
             ['close', 'done', 1, 1, null, null],
         ], $this->phaseRows($cockpit));
-        self::assertSame(['project_completed', false, null, null, null, null, null, null], $this->actionRow($cockpit));
+        self::assertSame(['copy_recap', false, 'finances', null, null, null, null, null], $this->actionRow($cockpit));
+    }
+
+    #[Group('issue-1218')]
+    public function testCompletedProjectWithUnreceivedTransfersLeadsToSettlingThemWhateverTheRoleOfTheViewer(): void
+    {
+        $managerCockpit = $this->cockpitOf(ProjectStatus::Completed, 1, [], [], 3, true, 2);
+        $memberCockpit = $this->cockpitOf(ProjectStatus::Completed, 1, [], [], 0, false, 2);
+
+        self::assertSame(['settle_transfers', false, 'finances', null, null, null, null, 2], $this->actionRow($managerCockpit));
+        self::assertSame(['settle_transfers', false, 'finances', null, null, null, null, 2], $this->actionRow($memberCockpit));
+    }
+
+    #[Group('issue-1218')]
+    public function testCompletedProjectWithEveryTransferReceivedOrNoneToMakeLeadsToCopyingTheRecap(): void
+    {
+        $allReceived = $this->cockpitOf(ProjectStatus::Completed, 1, [], [], 0, false, 0);
+        $noTransfer = $this->cockpitOf(ProjectStatus::Completed, 1, [], [], 0, true, 0);
+
+        self::assertSame(['copy_recap', false, 'finances', null, null, null, null, null], $this->actionRow($allReceived));
+        self::assertSame(['copy_recap', false, 'finances', null, null, null, null, null], $this->actionRow($noTransfer));
+    }
+
+    #[Group('issue-1218')]
+    public function testCompletedProjectWithUnknownTransfersLeadsToCopyingTheRecapNotToSettlingThem(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::Completed, 1, [], [], 0, true, null);
+
+        self::assertSame(['copy_recap', false, 'finances', null, null, null, null, null], $this->actionRow($cockpit));
+    }
+
+    #[Group('issue-1218')]
+    public function testUnreceivedTransferCountDoesNotChangeTheActionOfAProjectThatIsNotCompleted(): void
+    {
+        $lines = [
+            $this->material('line-pyerite', self::PYERITE_TYPE_ID, 'Pyerite', 8_000, 8_000),
+            $this->job('line-hammerhead', 'final', self::HAMMERHEAD_II_TYPE_ID, 'Hammerhead II', 100, 100, 10, 10),
+        ];
+
+        $cockpit = $this->cockpitOf(ProjectStatus::Selling, 1, $lines, [self::HAMMERHEAD_II_TYPE_ID => 100], 0, true, 2);
+
+        self::assertSame(['complete_project', false, null, 'completed', null, null, null, null], $this->actionRow($cockpit));
     }
 
     public function testInProgressProjectWhoseJobLinesAreCoveredByDeliveredEsiJobsCountsThemProducedAndStartsSelling(): void
@@ -516,6 +557,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         array $soldQuantityByTypeId,
         int $pendingContributionCount,
         bool $viewerIsManager,
+        ?int $unreceivedTransferCount = null,
     ): ProjectCockpit {
         return $this->calculator->calculate(new ProjectCockpitInput(
             $status,
@@ -524,6 +566,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             $soldQuantityByTypeId,
             $pendingContributionCount,
             $viewerIsManager,
+            $unreceivedTransferCount,
         ));
     }
 

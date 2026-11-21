@@ -4154,6 +4154,16 @@
           "title": "Projet terminé",
           "description": "Les comptes sont figés : il n'y a plus rien à faire sur ce projet."
         },
+        "settle_transfers": {
+          "title": "Régler les virements",
+          "description": "{quantity} virements attendent encore d'être reçus : les destinataires les cochent dans l'onglet Finances.",
+          "button": "Ouvrir les virements"
+        },
+        "copy_recap": {
+          "title": "Copier le récapitulatif",
+          "description": "Les comptes sont figés : copiez le récapitulatif Discord depuis l'onglet Finances pour partager le résultat.",
+          "button": "Ouvrir le récapitulatif"
+        },
         "review_contributions": {
           "title": "Contributions à relire",
           "description": "{quantity} contributions attendent votre décision avant d'être comptées dans la BOM.",

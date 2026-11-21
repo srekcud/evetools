@@ -8,6 +8,7 @@ use App\Entity\CachedWalletJournalEntry;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectTransferReceipt;
 use App\Entity\User;
+use App\Enum\ProjectStatus;
 use App\Enum\SaleChannel;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -299,6 +300,28 @@ final class ProjectSettlementApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame([true, true], [$this->responseJson()['transfers'][0]['received'], $this->responseJson()['transfers'][0]['journalVerified']]);
+    }
+
+    #[Group('issue-1218')]
+    public function testCompletedProjectCockpitLeadsToTheTransfersUntilTheRecipientTicksThemThenToTheRecap(): void
+    {
+        $this->ishtarBatch->setStatus(ProjectStatus::Completed);
+        $this->em->flush();
+
+        $this->actAs($this->member);
+        $this->request('GET', $this->projectUri($this->ishtarBatch).'/cockpit');
+        self::assertResponseStatusCodeSame(200);
+        $beforeReceipt = $this->responseJson()['nextAction'];
+
+        $this->actAs($this->member);
+        $this->request('POST', $this->receiptUri($this->ownerMembership, $this->memberMembership), ['received' => true]);
+        self::assertResponseStatusCodeSame(200);
+        $this->actAs($this->member);
+        $this->request('GET', $this->projectUri($this->ishtarBatch).'/cockpit');
+        $afterReceipt = $this->responseJson()['nextAction'];
+
+        self::assertSame(['settle_transfers', 'finances', 1], [$beforeReceipt['code'], $beforeReceipt['tab'], $beforeReceipt['quantity']]);
+        self::assertSame(['copy_recap', 'finances', null], [$afterReceipt['code'], $afterReceipt['tab'], $afterReceipt['quantity']]);
     }
 
     private function settlementUri(): string

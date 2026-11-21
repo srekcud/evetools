@@ -29,7 +29,8 @@ final readonly class ProjectCockpitCalculator
     private const string BLOCKED_MATERIALS_MISSING = 'materials_missing';
     private const string BLOCKED_JOBS_UNFINISHED = 'jobs_unfinished';
 
-    private const string ACTION_PROJECT_COMPLETED = 'project_completed';
+    private const string ACTION_SETTLE_TRANSFERS = 'settle_transfers';
+    private const string ACTION_COPY_RECAP = 'copy_recap';
     private const string ACTION_REVIEW_CONTRIBUTIONS = 'review_contributions';
     private const string ACTION_START_PROJECT = 'start_project';
     private const string ACTION_SOURCE_MATERIAL = 'source_material';
@@ -43,6 +44,7 @@ final readonly class ProjectCockpitCalculator
     private const string TAB_MATERIALS = 'materials';
     private const string TAB_CONTRIBUTIONS = 'contributions';
     private const string TAB_SALES = 'sales';
+    private const string TAB_FINANCES = 'finances';
 
     private const string JOB_GROUP_FINAL = 'final';
     private const array JOB_GROUP_RANK = [
@@ -195,7 +197,7 @@ final readonly class ProjectCockpitCalculator
     private function nextAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $undeliveredJobs, int $unitsLeftToSell, bool $isSourcingPhase): CockpitNextAction
     {
         if ($input->status === ProjectStatus::Completed) {
-            return new CockpitNextAction(self::ACTION_PROJECT_COMPLETED, false, null, null, null, null, null, null);
+            return $this->closedProjectAction($input);
         }
 
         if ($input->viewerIsManager && $input->pendingContributionCount > self::NONE) {
@@ -212,6 +214,15 @@ final readonly class ProjectCockpitCalculator
                 ? $this->managerAction($input, new CockpitNextAction(self::ACTION_RECORD_SALE, false, self::TAB_SALES, null, null, null, null, $unitsLeftToSell))
                 : $this->managerStatusAction($input, self::ACTION_COMPLETE_PROJECT, ProjectStatus::Completed),
         };
+    }
+
+    private function closedProjectAction(ProjectCockpitInput $input): CockpitNextAction
+    {
+        if ($input->unreceivedTransferCount !== null && $input->unreceivedTransferCount > self::NONE) {
+            return new CockpitNextAction(self::ACTION_SETTLE_TRANSFERS, false, self::TAB_FINANCES, null, null, null, null, $input->unreceivedTransferCount);
+        }
+
+        return new CockpitNextAction(self::ACTION_COPY_RECAP, false, self::TAB_FINANCES, null, null, null, null, null);
     }
 
     /**
