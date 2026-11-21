@@ -133,7 +133,7 @@ See [T2 project](/help?page=playbooks/t2-project).
 
 ### Buy or build?
 
-The "Buy or build" card of the "Production" tab compares each intermediate of the plan:
+The "Buy or build" card of the "Sourcing" tab compares each intermediate of the plan:
 
 - **build**: the total cost of its jobs, direct materials bought included;
 - **buy**: the weighted Jita price of the requested quantity, plus the import to the workshop: volume in m³ × jumps from Jita to the favorite system × 150 ISK per m³ and per jump.

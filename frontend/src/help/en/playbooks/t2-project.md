@@ -84,7 +84,7 @@ When all the materials are covered, the sourcing section (including "Where to bu
 - **Invention and T1 copy.** No ESI job links to them. The plan's "Attempts" is the number of runs to invent divided by (runs of the invented BPC × base probability), rounded up, with no skills and no decryptor: the analysis, which takes them into account, can give another figure. For these lines to count and for their cost to enter the project, click "I supplied it" on the line: the "BPC" type is preselected, the quantity is prefilled, and you enter an "Estimated Value" above 0, meaning what the datacores and the invention cost you. If you already own T2 BPCs, open "Owned T2 BPCs" instead ("Declare my T2 blueprint copies"): the declared runs leave the plan. That panel only shows up if the plan finds T2 BPCs in your synced blueprints.
 - **"Mark".** In the "Production" tab, "Job tree" view, the owner can mark a line "Launched" or "Done" for a number of runs. The mark changes the line's status and its remaining runs, but creates no cost. Pitfall: it does not move the "Produce" counter of the phases. A line only counts there as delivered if its linked jobs are delivered or if its contributions cover its quantity. After a "Done" mark on an invention, "Next action" can therefore stay on "Launch a job". The "Move to Selling" button in the header stays available.
 
-In the "Production" tab, "Buy or build" compares each built intermediate with buying it at Jita plus import, and "Switch to buy" takes it out of production.
+In the "Sourcing" tab, "Buy or build" compares each built intermediate with buying it at Jita plus import, and "Switch to buy" takes it out of production.
 
 ## 6. Sell
 

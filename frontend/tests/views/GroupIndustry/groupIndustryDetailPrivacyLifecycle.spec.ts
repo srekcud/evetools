@@ -74,6 +74,7 @@ async function mountDetailOf(project: GroupProject): Promise<VueWrapper> {
         BomTable: true,
         ContainerBanner: true,
         ProjectCourier: true,
+        ProjectBuyOrBuild: true,
         ContributeModal: true,
         ContributionTable: true,
         FinancialSummary: true,

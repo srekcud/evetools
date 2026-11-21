@@ -667,6 +667,13 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           @saved="onInventionExclusionSaved"
         />
 
+        <ProjectBuyOrBuild
+          :project-id="projectId"
+          :can-switch="isOwnerOrAdmin && !isCompleted"
+          :blacklist-type-ids="project.blacklistTypeIds"
+          @switched="onBuyOrBuildSwitched"
+        />
+
         <CollapsibleSourcing
           :complete="sourcingComplete"
           :collapsed="sourcingCollapsed"
@@ -757,12 +764,6 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             @open-sourcing="activeTab = 'bom'"
           />
         </div>
-        <ProjectBuyOrBuild
-          :project-id="projectId"
-          :can-switch="isOwnerOrAdmin && !isCompleted"
-          :blacklist-type-ids="project.blacklistTypeIds"
-          @switched="onBuyOrBuildSwitched"
-        />
         <ProjectResearch :project-id="projectId" />
         <ProjectStructures
           :project-id="projectId"
