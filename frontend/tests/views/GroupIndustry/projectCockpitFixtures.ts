@@ -13,6 +13,7 @@ import type {
   GroupProject,
   GroupProjectStatus,
   ProjectCockpit,
+  ProjectInventionProduct,
   ProjectNextAction,
   ProjectPhase,
   ProjectPhaseKey,
@@ -153,7 +154,24 @@ export type CockpitAnswers = {
   cockpitFailure?: string
   members?: GroupMember[] | Error | Promise<GroupMember[]>
   distribution?: unknown
+  invention?: ProjectInventionProduct[] | Error | Promise<ProjectInventionProduct[]>
 }
+
+export const NYX_INVENTION_PRODUCTS: ProjectInventionProduct[] = [{
+  typeId: 23_913,
+  typeName: 'Nyx',
+  runs: 2,
+  me: 2,
+  te: 4,
+  invention: {
+    baseProbability: 0.34,
+    unknownReason: null,
+    datacores: [],
+    datacoresCostPerAttempt: null,
+    inventor: null,
+    options: [],
+  },
+}]
 
 export const NYX_DISTRIBUTION: Distribution = {
   id: 'distribution-nyx-batch',
@@ -169,7 +187,7 @@ export const NYX_DISTRIBUTION: Distribution = {
   members: [],
 }
 
-export function answerApi({ project, bom = [], cockpit, cockpitFailure, members = [], distribution = NYX_DISTRIBUTION }: CockpitAnswers): void {
+export function answerApi({ project, bom = [], cockpit, cockpitFailure, members = [], distribution = NYX_DISTRIBUTION, invention = NYX_INVENTION_PRODUCTS }: CockpitAnswers): void {
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
     if (options?.method === 'PATCH') return { ...project, ...JSON.parse(String(options.body)) }
     if (endpoint === PROJECT_PATH) return project
@@ -182,6 +200,10 @@ export function answerApi({ project, bom = [], cockpit, cockpitFailure, members 
     if (endpoint === `${PROJECT_PATH}/members`) {
       if (members instanceof Error) throw members
       return members
+    }
+    if (endpoint.split('?')[0] === `${PROJECT_PATH}/invention`) {
+      if (invention instanceof Error) throw invention
+      return { id: 'invention-nyx-batch', products: await invention }
     }
     if (endpoint === COCKPIT_PATH) {
       if (cockpitFailure !== undefined) throw new Error(cockpitFailure)
