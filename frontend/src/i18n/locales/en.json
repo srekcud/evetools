@@ -4042,6 +4042,7 @@
         "overrideForProject": "Override for this project",
         "collapse": "Collapse",
         "lineRentalOverrideHint": "These rates override your default settings for this project only.",
+        "lineRentalUnavailable": "Your rates could not be loaded. Close the table: the project will use your default rates.",
         "bomNote": "BOM will be aggregated from all items",
         "createButton": "Create Project",
         "privateLabel": "Private project",
