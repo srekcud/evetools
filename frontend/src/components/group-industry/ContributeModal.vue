@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
+import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { pendingQuantityOf } from './pendingContributions'
@@ -45,6 +46,7 @@ const estimatedValueFieldId = useId()
 const noteFieldId = useId()
 const projectStore = useGroupProjectStore()
 const contributionStore = useGroupContributionStore()
+const distributionStore = useGroupDistributionStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { formatNumber, formatIskFull } = useFormatters()
 
@@ -258,7 +260,7 @@ watch(selectedBomItemId, async (bomItemId) => {
   }
 })
 
-const contributionTypeOptions: { key: ContributionType; icon: string; label: string; activeColor: string }[] = [
+const allContributionTypeOptions: { key: ContributionType; icon: string; label: string; activeColor: string }[] = [
   {
     key: 'material',
     icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
@@ -284,6 +286,23 @@ const contributionTypeOptions: { key: ContributionType; icon: string; label: str
     activeColor: 'text-pink-400',
   },
 ]
+
+const contributionTypeOptions = computed(() =>
+  isSoloProject.value ? allContributionTypeOptions.filter(option => option.key !== 'line_rental') : allContributionTypeOptions
+)
+
+const REVIEWING_ROLES = ['owner', 'admin']
+
+const isOnlyReviewerOfOwnContributions = computed(() => {
+  const reviewers = distributionStore.members.filter(member => member.status === 'accepted' && REVIEWING_ROLES.includes(member.role))
+  return projectStore.currentProject?.myRole === 'owner' && reviewers.length === 1
+})
+
+const isReviewNoteShown = computed(() => {
+  if (isSoloProject.value) return false
+  if (projectStore.currentProject?.myRole !== 'owner') return true
+  return distributionStore.members.length > 0 && !isOnlyReviewerOfOwnContributions.value
+})
 
 function selectType(type: ContributionType): void {
   selectedType.value = type
@@ -587,7 +606,7 @@ async function submit(): Promise<void> {
 
     <!-- Footer -->
     <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-between">
-      <p v-if="projectStore.currentProject?.solo !== true" class="text-xs text-slate-500">
+      <p v-if="isReviewNoteShown" class="text-xs text-slate-500">
         {{ t('groupIndustry.contribute.pendingNote') }}
       </p>
       <span v-else></span>
