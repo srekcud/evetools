@@ -31,6 +31,8 @@ final class ProjectCockpitCalculatorTest extends TestCase
     private const int ISHTAR_BLUEPRINT_TYPE_ID = 12006;
     private const int HAMMERHEAD_II_BLUEPRINT_TYPE_ID = 2186;
 
+    private const int DEFAULT_CHAIN_LEVEL = 1;
+
     private const array NOTHING_TO_DO = ['nothing_to_do', false, null, null, null, null, null, null];
 
     private ProjectCockpitCalculator $calculator;
@@ -477,6 +479,95 @@ final class ProjectCockpitCalculatorTest extends TestCase
         self::assertSame('source_material', $cockpit->nextAction->code);
     }
 
+    #[Group('issue-1196')]
+    public function testLaunchJobPicksTheLowestChainLevelBeforeTheTypeName(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->chainJob('line-fusion-thruster', 'component', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 6, 0, 0, 2),
+            $this->chainJob('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 4, 0, 0, 1),
+        ], [], 0, true);
+
+        self::assertSame(
+            ['launch_job', false, 'materials', null, 'line-ram', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 4],
+            $this->actionRow($cockpit),
+        );
+    }
+
+    #[Group('issue-1196')]
+    public function testLaunchJobSkipsAStepBlockedByAComponentStillInProduction(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->chainJob('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 3, 0, 1, self::FUSION_THRUSTER_TYPE_ID, '2026-11-22 08:00:00'),
+            $this->chainJob('line-fusion-thruster', 'component', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 6, 0, 0, 2),
+            $this->chainJob('line-robotics', 'component', self::ROBOTICS_TYPE_ID, 'Robotics', 5, 0, 0, 3),
+        ], [], 0, true);
+
+        self::assertSame(
+            ['launch_job', false, 'materials', null, 'line-robotics', self::ROBOTICS_TYPE_ID, 'Robotics', 5],
+            $this->actionRow($cockpit),
+        );
+    }
+
+    #[Group('issue-1196')]
+    public function testEveryStepToLaunchBlockedByUnfinishedComponentsAwaitsTheJobsInProduction(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->chainJob('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 3, 0, 1, self::FUSION_THRUSTER_TYPE_ID, '2026-11-22 08:00:00'),
+            $this->chainJob('line-fusion-thruster', 'component', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 6, 0, 0, 2, self::ISHTAR_TYPE_ID),
+            $this->chainJob('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 2, 0, 0, 3),
+        ], [], 0, true);
+
+        self::assertSame(['await_jobs', false, 'materials', null, null, null, null, null], $this->actionRow($cockpit));
+        self::assertSame('2026-11-22 08:00:00', $cockpit->nextAction->endsAt?->format('Y-m-d H:i:s'));
+    }
+
+    #[Group('issue-1196')]
+    public function testStepWhoseComponentsAreAllDeliveredIsNotBlocked(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->chainJob('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 3, 3, 1, self::FUSION_THRUSTER_TYPE_ID),
+            $this->chainJob('line-fusion-thruster', 'component', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 6, 0, 0, 2),
+            $this->chainJob('line-robotics', 'component', self::ROBOTICS_TYPE_ID, 'Robotics', 5, 0, 0, 3),
+        ], [], 0, true);
+
+        self::assertSame(
+            ['launch_job', false, 'materials', null, 'line-fusion-thruster', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 6],
+            $this->actionRow($cockpit),
+        );
+    }
+
+    #[Group('issue-1196')]
+    public function testStepWithRunsAlreadyLaunchedIsNotBlockedByAnUnfinishedComponent(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->chainJob('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 3, 0, 1, self::FUSION_THRUSTER_TYPE_ID, '2026-11-22 08:00:00'),
+            $this->chainJob('line-fusion-thruster', 'component', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 6, 2, 0, 2),
+            $this->chainJob('line-robotics', 'component', self::ROBOTICS_TYPE_ID, 'Robotics', 5, 0, 0, 3),
+        ], [], 0, true);
+
+        self::assertSame(
+            ['launch_job', false, 'materials', null, 'line-fusion-thruster', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 4],
+            $this->actionRow($cockpit),
+        );
+    }
+
+    #[Group('issue-1196')]
+    public function testComponentAndFinalJobsWithoutAChainLevelCannotBeOrdered(): void
+    {
+        $this->expectException(\UnexpectedValueException::class);
+
+        $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            new CockpitBomLine('line-fusion-thruster', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 6, 0, true, 'component', 6, 0, 0),
+            new CockpitBomLine('line-ram', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 4, 0, true, 'component', 4, 0, 0),
+        ], [], 0, true);
+    }
+
     private function material(string $id, int $typeId, string $typeName, int $requiredQuantity, int $fulfilledQuantity): CockpitBomLine
     {
         return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, false, null, null, 0, 0);
@@ -493,7 +584,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         int $matchedRuns,
         int $deliveredRuns = 0,
     ): CockpitBomLine {
-        return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, true, $jobGroup, $runs, $matchedRuns, $deliveredRuns);
+        return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, true, $jobGroup, $runs, $matchedRuns, $deliveredRuns, null, null, $jobGroup === 'blueprint' ? null : self::DEFAULT_CHAIN_LEVEL);
     }
 
     private function jobEnding(
@@ -506,7 +597,36 @@ final class ProjectCockpitCalculatorTest extends TestCase
         int $deliveredRuns,
         string $latestJobEndDate,
     ): CockpitBomLine {
-        return new CockpitBomLine($id, $typeId, $typeName, $runs, 0, true, $jobGroup, $runs, $matchedRuns, $deliveredRuns, new \DateTimeImmutable($latestJobEndDate));
+        return new CockpitBomLine($id, $typeId, $typeName, $runs, 0, true, $jobGroup, $runs, $matchedRuns, $deliveredRuns, new \DateTimeImmutable($latestJobEndDate), null, $jobGroup === 'blueprint' ? null : self::DEFAULT_CHAIN_LEVEL);
+    }
+
+    private function chainJob(
+        string $id,
+        string $jobGroup,
+        int $typeId,
+        string $typeName,
+        int $runs,
+        int $matchedRuns,
+        int $deliveredRuns,
+        int $chainLevel,
+        ?int $parentTypeId = null,
+        ?string $latestJobEndDate = null,
+    ): CockpitBomLine {
+        return new CockpitBomLine(
+            $id,
+            $typeId,
+            $typeName,
+            $runs,
+            0,
+            true,
+            $jobGroup,
+            $runs,
+            $matchedRuns,
+            $deliveredRuns,
+            $latestJobEndDate === null ? null : new \DateTimeImmutable($latestJobEndDate),
+            $parentTypeId,
+            $chainLevel,
+        );
     }
 
     private function cockpitOf(

@@ -28,6 +28,7 @@ use App\Service\Industry\SellOrders\ProjectSellOrdersReader;
 use App\Enum\OrderPositionState;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectCockpitInputFactory;
+use App\Tests\Unit\Service\Industry\Project\InMemoryChainRecipeIngredients;
 use App\State\Provider\Industry\Project\ProjectCockpitProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -288,7 +289,7 @@ final class ProjectCockpitProviderTest extends TestCase
             $this->sabreBatchProjectRepository(),
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             new ProjectCockpitCalculator(),
-            new ProjectCockpitInputFactory(),
+            new ProjectCockpitInputFactory(new InMemoryChainRecipeIngredients([])),
             $this->priceAlertReader,
             $this->sellOrdersReader,
             new ProjectContainerFulfillment($this->containerWithoutName(), $this->createStub(StartedJobConsumptionReader::class)),

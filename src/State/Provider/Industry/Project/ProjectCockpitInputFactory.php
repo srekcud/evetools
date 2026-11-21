@@ -12,6 +12,9 @@ use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
+use App\Service\Industry\Project\ChainManufacturingLevels;
+use App\Service\Industry\Project\ChainRecipeIngredients;
 use App\Service\Industry\Project\CockpitBomLine;
 use App\Service\Industry\Project\ProjectCockpitInput;
 use App\Service\Industry\Project\ProjectLineFulfillments;
@@ -21,21 +24,46 @@ final readonly class ProjectCockpitInputFactory
     private const array MANAGER_ROLES = [ParticipantRole::Owner, ParticipantRole::Admin];
     private const array RUNNING_JOB_STATUSES = [CachedIndustryJob::STATUS_ACTIVE, CachedIndustryJob::STATUS_PAUSED, CachedIndustryJob::STATUS_READY];
 
+    public function __construct(private ChainRecipeIngredients $recipeIngredients)
+    {
+    }
+
     public function create(IndustryProject $project, User $user, ?ProjectLineFulfillments $fulfillments = null): ProjectCockpitInput
     {
         $fulfillments ??= ProjectLineFulfillments::none();
+        $chainLevelByTypeId = $this->chainLevelByTypeId($project);
 
         return new ProjectCockpitInput(
             $project->getStatus(),
             $project->getItems()->count(),
-            array_values($project->getBomItems()->map(fn (IndustryProjectBomLine $line): CockpitBomLine => $this->toCockpitBomLine($line, $fulfillments))->toArray()),
+            array_values($project->getBomItems()->map(fn (IndustryProjectBomLine $line): CockpitBomLine => $this->toCockpitBomLine($line, $fulfillments, $chainLevelByTypeId))->toArray()),
             $this->soldQuantityByTypeId($project),
             $project->pendingContributionCountReviewableBy($user),
             $this->isManager($user, $project),
         );
     }
 
-    private function toCockpitBomLine(IndustryProjectBomLine $line, ProjectLineFulfillments $fulfillments): CockpitBomLine
+    /**
+     * @return array<int, int>
+     */
+    private function chainLevelByTypeId(IndustryProject $project): array
+    {
+        if ($project->getStatus() !== ProjectStatus::InProgress) {
+            return [];
+        }
+
+        $bomLines = array_values($project->getBomItems()->toArray());
+
+        return ChainManufacturingLevels::byTypeId(
+            $bomLines,
+            $this->recipeIngredients->producedIngredientsOf(ChainManufacturingLevels::jobTypeIdsOf($bomLines)),
+        );
+    }
+
+    /**
+     * @param array<int, int> $chainLevelByTypeId
+     */
+    private function toCockpitBomLine(IndustryProjectBomLine $line, ProjectLineFulfillments $fulfillments, array $chainLevelByTypeId): CockpitBomLine
     {
         return new CockpitBomLine(
             $line->getId()->toRfc4122(),
@@ -49,6 +77,8 @@ final readonly class ProjectCockpitInputFactory
             $line->getCountedRuns(),
             $line->getDeliveredRuns(),
             $this->latestRunningJobEndDate($line),
+            $line->getParentTypeId(),
+            $line->isJob() ? $chainLevelByTypeId[$line->getTypeId()] ?? null : null,
         );
     }
 
