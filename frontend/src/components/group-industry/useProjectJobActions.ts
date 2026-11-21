@@ -63,27 +63,31 @@ export function useProjectJobActions() {
     linkScreenLine.value = null
   }
 
-  async function linkJob(projectId: string, esiJobId: number): Promise<void> {
+  async function linkJob(projectId: string, esiJobId: number): Promise<boolean> {
     const line = linkScreenLine.value
-    if (line === null) return
+    if (line === null) return false
     linkingEsiJobId.value = esiJobId
     jobLinkError.value = null
     try {
       await projectStore.linkJob(projectId, line.id, esiJobId)
       closeLinkScreen()
+      return true
     } catch (e) {
       jobLinkError.value = failureMessage(e, 'groupIndustry.jobs.linkError')
+      return false
     } finally {
       linkingEsiJobId.value = null
     }
   }
 
-  async function unlinkJob(projectId: string, matchId: string): Promise<void> {
+  async function unlinkJob(projectId: string, matchId: string): Promise<boolean> {
     jobLinkError.value = null
     try {
       await projectStore.unlinkJob(projectId, matchId)
+      return true
     } catch (e) {
       jobLinkError.value = failureMessage(e, 'groupIndustry.jobs.unlinkError')
+      return false
     }
   }
 

@@ -76,6 +76,20 @@ async function matchJobs(): Promise<void> {
   }
 }
 
+async function reloadAfterJobLinkChange(changed: boolean): Promise<void> {
+  if (!changed) return
+  await chainStore.fetchChain(props.projectId)
+  emit('marked')
+}
+
+async function linkJob(esiJobId: number): Promise<void> {
+  await reloadAfterJobLinkChange(await jobActions.linkJob(props.projectId, esiJobId))
+}
+
+async function unlinkJob(matchId: string): Promise<void> {
+  await reloadAfterJobLinkChange(await jobActions.unlinkJob(props.projectId, matchId))
+}
+
 const view = ref<ChainView>('flow')
 const selectedNodeId = ref<string | null>(null)
 const statusFilter = ref<ChainStatus[]>(recallChainStatusFilter())
@@ -189,7 +203,7 @@ watch(
       :error="jobLinkError"
       :linking-esi-job-id="linkingEsiJobId"
       @close="jobActions.closeLinkScreen"
-      @link="jobActions.linkJob(projectId, $event)"
+      @link="linkJob"
     />
 
     <p
@@ -228,7 +242,7 @@ watch(
         @marked="$emit('marked')"
         @contribute="$emit('contribute', $event)"
         @link-job="jobActions.openLinkScreen(projectId, $event)"
-        @unlink-job="jobActions.unlinkJob(projectId, $event)"
+        @unlink-job="unlinkJob"
       />
 
       <footer class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 border-t border-slate-800 text-xs text-slate-400">
