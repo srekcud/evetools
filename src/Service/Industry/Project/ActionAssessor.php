@@ -11,7 +11,7 @@ final readonly class ActionAssessor
 {
     private const string CODE_SOURCE_MATERIAL = 'source_material';
     private const string CODE_AWAIT_JOBS = 'await_jobs';
-    private const array CODES_WITH_QUANTITY = ['review_contributions', 'source_material', 'launch_job', 'record_sale'];
+    private const array CODES_WITH_QUANTITY = ['review_join_requests', 'review_contributions', 'source_material', 'launch_job', 'record_sale'];
     private const int ISK_DECIMALS = 2;
 
     public function __construct(private MarketPrices $marketPrices)

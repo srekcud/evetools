@@ -661,6 +661,7 @@ export type ProjectNextActionCode =
   | 'project_completed'
   | 'settle_transfers'
   | 'copy_recap'
+  | 'review_join_requests'
   | 'review_contributions'
   | 'start_project'
   | 'source_material'

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry\Project;
 
+use App\Enum\ParticipantStatus;
 use App\Service\JitaMarketService;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
@@ -29,6 +30,7 @@ final class IndustryActionsApiTest extends WebTestCase
 
     public function testOwnerOfTwoProjectsReadsTheBlockedProjectBeforeTheContributionsToReview(): void
     {
+        $this->acceptThePendingMember();
         $this->givenJitaWeightedSellPrices([self::TRITANIUM_TYPE_ID => ['weightedPrice' => 4.25, 'coverage' => 1.0, 'ordersUsed' => 3]]);
         $this->client->loginUser($this->owner, 'api');
         $this->request('GET', self::ACTIONS_URI);
@@ -79,6 +81,7 @@ final class IndustryActionsApiTest extends WebTestCase
 
     public function testBlockedMaterialWithoutJitaPriceKeepsAnUnknownImpactInsteadOfZero(): void
     {
+        $this->acceptThePendingMember();
         $this->client->loginUser($this->owner, 'api');
         $this->request('GET', self::ACTIONS_URI);
 
@@ -89,6 +92,23 @@ final class IndustryActionsApiTest extends WebTestCase
                 static fn (array $entry): array => [$entry['code'] ?? null, $entry['severity'] ?? null, array_key_exists('impactIsk', $entry) ? $entry['impactIsk'] : 'absent'],
                 $this->responseJson(),
             ),
+        );
+    }
+
+    #[Group('issue-1219')]
+    public function testOwnerReadsThePendingJoinRequestsBeforeTheContributionsToReview(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::ACTIONS_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        $ishtarAction = array_values(array_filter(
+            $this->responseJson(),
+            fn (array $entry): bool => $entry['projectId'] === $this->ishtarBatch->getId()->toRfc4122(),
+        ))[0];
+        self::assertSame(
+            ['review_join_requests', 'members', 1, 'info'],
+            [$ishtarAction['code'], $ishtarAction['tab'], $ishtarAction['quantity'], $ishtarAction['severity']],
         );
     }
 
@@ -136,5 +156,11 @@ final class IndustryActionsApiTest extends WebTestCase
     private function givenJitaWeightedSellPrices(array $pricesByTypeId): void
     {
         $this->jitaMarket->method('getWeightedSellPricesWithFallback')->willReturn($pricesByTypeId);
+    }
+
+    private function acceptThePendingMember(): void
+    {
+        $this->pendingMembership->setStatus(ParticipantStatus::Accepted);
+        $this->em->flush();
     }
 }

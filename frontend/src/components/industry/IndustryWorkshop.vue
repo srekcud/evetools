@@ -31,7 +31,7 @@ const SECONDS_PER_MINUTE = 60
 const MINUTES_PAD = 2
 const TEAM_FILTERS: TeamFilter[] = ['all', 'solo', 'group']
 const SOLO_MEMBERS_COUNT = 1
-const QUANTITY_CODES: readonly IndustryActionCode[] = ['review_contributions', 'source_material', 'launch_job', 'record_sale']
+const QUANTITY_CODES: readonly IndustryActionCode[] = ['review_join_requests', 'review_contributions', 'source_material', 'launch_job', 'record_sale']
 const LIFECYCLE_STEPS: Record<GroupProjectStatus, number> = {
   draft: 1,
   published: 2,

@@ -1118,6 +1118,11 @@
           "text": "Production is finished: open the sale of the products.",
           "button": "Move to selling"
         },
+        "review_join_requests": {
+          "text": "{quantity} join requests are waiting for your decision.",
+          "textUnknownQuantity": "Join requests are waiting for your decision, their number is unknown.",
+          "button": "Handle the requests"
+        },
         "review_contributions": {
           "text": "{quantity} contributions are waiting for your decision.",
           "textUnknownQuantity": "Contributions are waiting for your decision, their number is unknown.",
@@ -4163,6 +4168,11 @@
           "title": "Copy the recap",
           "description": "The accounts are frozen: copy the Discord recap from the Finances tab to share the result.",
           "button": "Open the recap"
+        },
+        "review_join_requests": {
+          "title": "Join requests to handle",
+          "description": "{quantity} pilots are waiting for you to accept or decline their request to join the project.",
+          "button": "Handle the requests"
         },
         "review_contributions": {
           "title": "Contributions to review",

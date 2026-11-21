@@ -116,6 +116,17 @@ final class ActionAssessorTest extends TestCase
         );
     }
 
+    #[Group('issue-1219')]
+    public function testJoinRequestsWithoutKnownCountAreUnknown(): void
+    {
+        $assessor = $this->assessorPricing([]);
+
+        $known = $assessor->assess($this->action('review_join_requests', quantity: 2));
+        $unknown = $assessor->assess($this->action('review_join_requests', quantity: null));
+
+        self::assertSame([ActionSeverity::Info, ActionSeverity::Unknown], [$known->severity, $unknown->severity]);
+    }
+
     public function testSaleToRecordWithoutKnownQuantityIsUnknown(): void
     {
         $assessor = $this->assessorPricing([]);

@@ -339,6 +339,36 @@ final class ProjectCockpitCalculatorTest extends TestCase
         );
     }
 
+    #[Group('issue-1219')]
+    public function testPendingJoinRequestsAreHandledByTheManagerBeforeTheContributionsWhileAMemberIsNotAskedToAct(): void
+    {
+        $lines = [$this->material('line-pyerite', self::PYERITE_TYPE_ID, 'Pyerite', 3_000, 3_000)];
+
+        $managerCockpit = $this->cockpitOf(ProjectStatus::Published, 1, $lines, [], 2, true, pendingJoinRequestCount: 3);
+        $memberCockpit = $this->cockpitOf(ProjectStatus::Published, 1, $lines, [], 2, false, pendingJoinRequestCount: 3);
+
+        self::assertSame(['review_join_requests', false, 'members', null, null, null, null, 3], $this->actionRow($managerCockpit));
+        self::assertSame(self::NOTHING_TO_DO, $this->actionRow($memberCockpit));
+    }
+
+    #[Group('issue-1219')]
+    public function testManagerWithoutPendingJoinRequestKeepsTheContributionsToReview(): void
+    {
+        $lines = [$this->material('line-pyerite', self::PYERITE_TYPE_ID, 'Pyerite', 3_000, 3_000)];
+
+        $cockpit = $this->cockpitOf(ProjectStatus::Published, 1, $lines, [], 2, true, pendingJoinRequestCount: 0);
+
+        self::assertSame(['review_contributions', false, 'contributions', null, null, null, null, 2], $this->actionRow($cockpit));
+    }
+
+    #[Group('issue-1219')]
+    public function testCompletedProjectLeadsToTheRecapEvenWithPendingJoinRequests(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::Completed, 1, [], [], 0, true, pendingJoinRequestCount: 2);
+
+        self::assertSame('copy_recap', $cockpit->nextAction->code);
+    }
+
     public function testPublishedProjectWithEveryMaterialCoveredIsStartedByTheManagerWhileAMemberHasNothingToDo(): void
     {
         $lines = [
@@ -558,6 +588,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         int $pendingContributionCount,
         bool $viewerIsManager,
         ?int $unreceivedTransferCount = null,
+        int $pendingJoinRequestCount = 0,
     ): ProjectCockpit {
         return $this->calculator->calculate(new ProjectCockpitInput(
             $status,
@@ -567,6 +598,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             $pendingContributionCount,
             $viewerIsManager,
             $unreceivedTransferCount,
+            $pendingJoinRequestCount,
         ));
     }
 

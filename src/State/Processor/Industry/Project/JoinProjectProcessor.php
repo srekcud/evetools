@@ -14,6 +14,7 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\JoinRequestNotifier;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -35,6 +36,7 @@ class JoinProjectProcessor implements ProcessorInterface
         private readonly ProjectResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly JoinRequestNotifier $joinRequestNotifier,
     ) {
     }
 
@@ -88,6 +90,10 @@ class JoinProjectProcessor implements ProcessorInterface
                 'status' => $member->getStatus()->value,
             ],
         );
+
+        if ($member->getStatus() === ParticipantStatus::Pending) {
+            $this->joinRequestNotifier->notifyManagers($member);
+        }
 
         return $this->mapper->projectToResource($project, $member);
     }
