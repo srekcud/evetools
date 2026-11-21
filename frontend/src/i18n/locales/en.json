@@ -4305,6 +4305,13 @@
         "message": "Closing the project freezes its accounts: no more contributions, reviews, sales or fee changes, and it can no longer be deleted. This action cannot be undone.",
         "checksTitle": "Before closing",
         "confirm": "Close the project"
+      },
+      "sellingConfirm": {
+        "title": "Move to selling",
+        "message": "Moving to selling cannot be undone: contributions can no longer be reopened and the project cannot go back to sourcing or production.",
+        "uncoveredTitle": "Materials not covered",
+        "undeliveredTitle": "Jobs not delivered",
+        "confirm": "Move to selling"
       }
     },
     "contractSales": {
