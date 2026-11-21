@@ -4122,7 +4122,10 @@
       "requestSent": "Demande envoyée",
       "requestSentDescription": "Votre demande d'adhésion a été envoyée et attend l'approbation d'un admin du projet. Vous serez notifié dès qu'elle sera acceptée.",
       "unableToJoin": "Adhésion impossible",
-      "backToGroupIndustry": "Retour aux projets"
+      "backToGroupIndustry": "Retour aux projets",
+      "notAvailable": "Ce lien d'invitation n'est pas disponible. Demandez un lien valide au responsable du projet.",
+      "notOpenYet": "Ce projet n'est pas encore ouvert. Demandez à son responsable de le publier, puis réessayez.",
+      "closed": "Ce projet n'accepte plus de nouveaux membres."
     },
     "tabs": {
       "myProjects": "Mes projets",
@@ -4286,6 +4289,14 @@
         "message": "Etes-vous sur de vouloir supprimer ce projet ? Cette action est irreversible. Toutes les contributions, ventes et donnees de distribution seront definitivement perdues."
       },
       "nextStatus": "Passer à {status}",
+      "shareLinkReason": {
+        "private": "Un projet privé ne peut pas être rejoint par lien. Rendez-le public pour inviter des personnes.",
+        "draft": "Un projet en brouillon n'est pas encore ouvert. Publiez-le pour inviter des personnes."
+      },
+      "shareLinkShortcut": {
+        "makePublic": "Rendre public",
+        "publish": "Publier"
+      },
       "draftActions": {
         "published": "Publier",
         "in_progress": "Démarrer"

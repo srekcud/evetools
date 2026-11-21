@@ -59,6 +59,10 @@ class JoinProjectProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
+        if ($project->getStatus() === ProjectStatus::Draft) {
+            throw new BadRequestHttpException('This project is not open to new members yet');
+        }
+
         // Only allow joining published or in_progress projects
         if (!in_array($project->getStatus(), [ProjectStatus::Published, ProjectStatus::InProgress], true)) {
             throw new BadRequestHttpException('This project is no longer accepting new members');

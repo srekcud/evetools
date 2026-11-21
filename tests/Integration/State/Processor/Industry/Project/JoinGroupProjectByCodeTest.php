@@ -100,7 +100,7 @@ final class JoinGroupProjectByCodeTest extends IntegrationTestCase
         $refusal = $this->refusalOfJoining($this->corpmateId, self::OPEN_DRAFT_CODE);
 
         self::assertInstanceOf(BadRequestHttpException::class, $refusal);
-        self::assertSame('This project is no longer accepting new members', $refusal->getMessage());
+        self::assertSame('This project is not open to new members yet', $refusal->getMessage());
         self::assertSame(0, $this->participantsOf('Open draft', ParticipantRole::Member));
     }
 
