@@ -6,6 +6,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useGroupResearchStore } from '@/stores/group-industry/research'
 import type { ResearchCost, ResearchDuration, ResearchRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
@@ -41,10 +42,9 @@ function durationReasons(duration: ResearchDuration | ResearchCost): string {
 
 watch(() => props.projectId, projectId => researchStore.fetchResearch(projectId), { immediate: true })
 
-watch(
-  () => syncStore.getGroupProjectEvent(props.projectId),
-  (event) => {
-    if (!event) return
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => {
     researchStore.fetchResearch(props.projectId)
   },
 )

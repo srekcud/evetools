@@ -8,6 +8,7 @@ import { useGroupMaterialSourcingStore } from '@/stores/group-industry/materialS
 import type { MaterialSourcingRow, MaterialSourcingSide } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
 import { multibuyText } from '@/utils/multibuy'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
@@ -61,10 +62,9 @@ function columnAlignment(column: (typeof COLUMNS)[number]): string {
 
 watch(() => props.projectId, projectId => sourcingStore.fetchMaterialSourcing(projectId), { immediate: true })
 
-watch(
-  () => syncStore.getGroupProjectEvent(props.projectId),
-  (event) => {
-    if (!event) return
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => {
     sourcingStore.fetchMaterialSourcing(props.projectId)
   },
 )
