@@ -4222,6 +4222,11 @@
           "description": "Les matériaux sont prêts à être apportés : passez le projet en cours.",
           "descriptionLocks": "Vérifiez d'abord le bloc Préparer : le démarrage verrouille la blacklist et l'exclusion de l'invention, plus rien n'y sera modifiable ensuite."
         },
+        "deliver_purchases": {
+          "title": "Amener les achats au container",
+          "description": "Lignes achetées encore à amener dans le container du projet : {quantity}. Expédiez-les et déposez-les avant de lancer les jobs.",
+          "button": "Voir les achats"
+        },
         "source_material": {
           "title": "Approvisionner un matériau",
           "description": "Il manque {quantity} {typeName} pour couvrir la BOM.",

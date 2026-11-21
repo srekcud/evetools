@@ -148,7 +148,7 @@ describe('ProjectCourier', () => {
     expect(shown(wrapper, 'courier-unknown-cause')).toContain(String(NOCXIUM_TYPE_ID))
   })
 
-  it('says no purchase is attached and shows no contract figure when the project has no purchase', async () => {
+  it('hides the whole card and shows no contract figure when the project has no purchase', async () => {
     const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
       volumeCubicMeters: null,
       collateral: null,
@@ -159,9 +159,25 @@ describe('ProjectCourier', () => {
       candidates: [],
     }))
 
-    expect(wrapper.find('[data-testid="courier-empty"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="courier-card"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="courier-contract-text"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="courier-copy"]').exists()).toBe(false)
+  })
+
+  it('keeps the card with its empty state while a courier contract is still linked and no purchase remains', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
+      volumeCubicMeters: null,
+      collateral: null,
+      reward: null,
+      jumps: null,
+      quoteStatus: 'no_purchases',
+      lines: [],
+      candidates: [],
+      contract: LINKED_IN_TRANSIT,
+    }))
+
+    expect(wrapper.find('[data-testid="courier-card"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="courier-empty"]').exists()).toBe(true)
   })
 
   it('copies exactly the shown contract to the clipboard', async () => {

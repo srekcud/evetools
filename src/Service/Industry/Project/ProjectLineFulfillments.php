@@ -38,6 +38,23 @@ final readonly class ProjectLineFulfillments
         return max($line->getFulfilledQuantity(), min($containerQuantity + $consumedQuantity, $line->getRequiredQuantity()));
     }
 
+    public function missingPurchasedQuantityOf(IndustryProjectBomLine $line): ?int
+    {
+        $containerQuantity = $this->containerQuantityOf($line);
+        if (null === $containerQuantity) {
+            return null;
+        }
+
+        $purchasedQuantity = 0;
+        foreach ($line->getPurchases() as $purchase) {
+            if ($purchase->getQuantity() > 0) {
+                $purchasedQuantity += $purchase->getQuantity();
+            }
+        }
+
+        return max(0, $purchasedQuantity - $containerQuantity);
+    }
+
     public function remainingOf(IndustryProjectBomLine $line): int
     {
         return max(0, $line->getRequiredQuantity() - $this->fulfilledOf($line));

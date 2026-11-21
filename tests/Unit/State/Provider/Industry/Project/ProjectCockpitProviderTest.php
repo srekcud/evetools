@@ -131,6 +131,7 @@ final class ProjectCockpitProviderTest extends TestCase
                 'quantity' => 3,
                 'endsAt' => null,
             ],
+            'purchasesToDeliverCount' => 0,
             'priceAlert' => null,
             'undercutOrders' => [],
         ], get_object_vars($cockpit));

@@ -39,6 +39,7 @@ const MORPHITE_LINE_ID = 'line-morphite'
 
 const SOURCE_MORPHITE = nextAction({ code: 'source_material', blocked: true, tab: 'materials', bomLineId: MORPHITE_LINE_ID, typeId: 11_399, typeName: 'Morphite', quantity: 340 })
 const LAUNCH_NYX_COPY = nextAction({ code: 'launch_job', tab: 'materials', bomLineId: 'job-nyx-copy', typeId: 23_914, typeName: 'Nyx Blueprint Copy', quantity: 7 })
+const DELIVER_PURCHASES = nextAction({ code: 'deliver_purchases', tab: 'materials', quantity: 3 })
 const RECORD_SALE = nextAction({ code: 'record_sale', tab: 'sales', quantity: 40 })
 const REVIEW_CONTRIBUTIONS = nextAction({ code: 'review_contributions', tab: 'contributions', quantity: 2 })
 const NOTHING_TO_DO = nextAction({ code: 'nothing_to_do' })
@@ -214,5 +215,29 @@ describe('project cockpit next action card', () => {
       sourcingBefore: 'true',
       sourcingAfter: { chain: 'false', bom: 'true' },
     })
+  })
+})
+
+describe('project cockpit deliver purchases action', () => {
+  it('asks to bring the purchases to the container with the number of lines, in each locale, with a button on the sourcing tab', async () => {
+    const observed: Record<string, { title: string; rawKey: boolean; count: boolean; button: boolean }> = {}
+
+    for (const locale of TEST_LOCALES) {
+      const wrapper = await mountCockpitDetail({
+        project: nyxProject('in_progress'),
+        cockpit: cockpitOf('in_progress', DELIVER_PURCHASES),
+      }, locale)
+      const card = textOf(wrapper, NEXT_ACTION_CARD)
+      observed[locale] = {
+        title: textOf(wrapper, NEXT_ACTION_TITLE),
+        rawKey: card.includes('groupIndustry.'),
+        count: /\b3\b/.test(card),
+        button: wrapper.find(NEXT_ACTION_BUTTON).exists(),
+      }
+      wrapper.unmount()
+    }
+
+    expect(Object.values(observed).every(entry => entry.title !== '' && !entry.rawKey && entry.count && entry.button)).toBe(true)
+    expect(new Set(Object.values(observed).map(entry => entry.title)).size).toBe(TEST_LOCALES.length)
   })
 })

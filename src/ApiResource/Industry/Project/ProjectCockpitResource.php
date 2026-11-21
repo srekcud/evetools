@@ -63,6 +63,8 @@ class ProjectCockpitResource
      */
     public array $nextAction;
 
+    public int $purchasesToDeliverCount;
+
     /**
      * @var array{
      *     typeId: int,

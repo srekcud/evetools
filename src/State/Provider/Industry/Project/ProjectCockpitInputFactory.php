@@ -36,6 +36,7 @@ final readonly class ProjectCockpitInputFactory
             $this->isManager($user, $project),
             $this->unreceivedTransferCount($settlement),
             $project->pendingJoinRequestCount(),
+            $this->purchasesToDeliverCount($project, $fulfillments),
         );
     }
 
@@ -46,6 +47,14 @@ final readonly class ProjectCockpitInputFactory
         }
 
         return \count(array_filter($settlement->transfers, static fn (SettlementTransfer $transfer): bool => !$transfer->isReceived()));
+    }
+
+    private function purchasesToDeliverCount(IndustryProject $project, ProjectLineFulfillments $fulfillments): int
+    {
+        return \count(array_filter(
+            $project->getBomItems()->toArray(),
+            static fn (IndustryProjectBomLine $line): bool => ($fulfillments->missingPurchasedQuantityOf($line) ?? 0) > 0,
+        ));
     }
 
     private function toCockpitBomLine(IndustryProjectBomLine $line, ProjectLineFulfillments $fulfillments): CockpitBomLine

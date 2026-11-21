@@ -21,6 +21,7 @@ final readonly class ProjectCockpitInput
         public bool $viewerIsManager,
         public ?int $unreceivedTransferCount = null,
         public int $pendingJoinRequestCount = 0,
+        public int $purchasesToDeliverCount = 0,
     ) {
     }
 }

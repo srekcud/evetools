@@ -543,7 +543,7 @@ const projectDisplayName = computed(() => {
 })
 
 const sourcingOverride = ref<SourcingOverride | null>(null)
-const sourcingComplete = computed(() => isSourcingComplete(projectStore.materials))
+const sourcingComplete = computed(() => isSourcingComplete(projectStore.materials, cockpit.value?.purchasesToDeliverCount ?? null))
 const sourcingCollapsed = computed(() => isSourcingCollapsed(sourcingComplete.value, sourcingOverride.value))
 
 watch(projectId, id => {
@@ -817,30 +817,6 @@ function applyShareLinkShortcut(): void {
           />
         </ProjectPrepareBlock>
 
-        <CollapsibleSourcing
-          :complete="sourcingComplete"
-          :collapsed="sourcingCollapsed"
-          :material-count="projectStore.materials.length"
-          @toggle="toggleSourcing"
-          @open-chain="activeTab = 'chain'"
-        >
-          <!-- Container Banner -->
-          <ContainerBanner
-            v-if="project.containerNames.length > 0"
-            :container-names="project.containerNames"
-            :project-id="projectId"
-            :can-verify="isOwnerOrAdmin"
-          />
-
-          <ProjectCourier :project-id="projectId" />
-
-          <ProjectPurchasesToDeliver
-            :project-id="projectId"
-            :can-edit="isOwnerOrAdmin"
-            @edit-containers="openEditModalOnContainers"
-          />
-        </CollapsibleSourcing>
-
         <IntermediateStockProposal
           v-if="isOwner && !isCompleted"
           :project-id="projectId"
@@ -858,7 +834,30 @@ function applyShareLinkShortcut(): void {
         <!-- Materials Table -->
         <BomTable @contribute="openContributeModal" />
 
-        <MaterialSourcing v-if="!sourcingCollapsed" :project-id="projectId" />
+        <CollapsibleSourcing
+          :complete="sourcingComplete"
+          :collapsed="sourcingCollapsed"
+          :material-count="projectStore.materials.length"
+          @toggle="toggleSourcing"
+          @open-chain="activeTab = 'chain'"
+        >
+          <MaterialSourcing :project-id="projectId" />
+
+          <ProjectPurchasesToDeliver
+            :project-id="projectId"
+            :can-edit="isOwnerOrAdmin"
+            @edit-containers="openEditModalOnContainers"
+          />
+
+          <ProjectCourier :project-id="projectId" />
+
+          <ContainerBanner
+            v-if="project.containerNames.length > 0"
+            :container-names="project.containerNames"
+            :project-id="projectId"
+            :can-verify="isOwnerOrAdmin"
+          />
+        </CollapsibleSourcing>
 
         <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
       </div>

@@ -18,15 +18,19 @@ function memoryStorage(initial: Record<string, string> = {}): Storage {
 
 describe('sourcing completeness', () => {
   it('is complete when every material line is fulfilled', () => {
-    expect(isSourcingComplete([{ isFulfilled: true }, { isFulfilled: true }])).toBe(true)
+    expect(isSourcingComplete([{ isFulfilled: true }, { isFulfilled: true }], 0)).toBe(true)
   })
 
   it('is not complete while one material line is still open', () => {
-    expect(isSourcingComplete([{ isFulfilled: true }, { isFulfilled: false }])).toBe(false)
+    expect(isSourcingComplete([{ isFulfilled: true }, { isFulfilled: false }], 0)).toBe(false)
+  })
+
+  it('is not complete while a purchased line is still to be delivered to the container', () => {
+    expect(isSourcingComplete([{ isFulfilled: true }, { isFulfilled: true }], 2)).toBe(false)
   })
 
   it('is not complete for a project without material line', () => {
-    expect(isSourcingComplete([])).toBe(false)
+    expect(isSourcingComplete([], 0)).toBe(false)
   })
 })
 
