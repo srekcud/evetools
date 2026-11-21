@@ -78,6 +78,7 @@ async function matchJobs(): Promise<void> {
 const view = ref<ChainView>('flow')
 const selectedNodeId = ref<string | null>(null)
 const statusFilter = ref<ChainStatus[]>(recallChainStatusFilter())
+const stepNodes = computed(() => chainStore.nodes.filter(node => node.stage !== 'material'))
 
 watch(statusFilter, statuses => rememberChainStatusFilter(statuses))
 
@@ -208,7 +209,7 @@ watch(
     </div>
 
     <template v-else-if="chainStore.nodes.length > 0">
-      <ChainStatusFilter v-model="statusFilter" :nodes="chainStore.nodes" />
+      <ChainStatusFilter v-model="statusFilter" :nodes="stepNodes" />
       <ProductionChainFlow
         v-if="view === 'flow'"
         :nodes="chainStore.nodes"
