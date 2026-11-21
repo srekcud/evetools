@@ -556,7 +556,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
             $this->material('line-morphite', self::MORPHITE_TYPE_ID, 'Morphite', 120, 120),
             $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
-        ], [], 0, true, 2);
+        ], [], 0, true, purchasesToDeliverCount: 2);
 
         self::assertSame(['supply', 'current', 2, 2, null, null], $this->phaseRow($cockpit, 'supply'));
         self::assertSame(['deliver_purchases', false, 'materials', null, null, null, null, 2], $this->actionRow($cockpit));
@@ -569,7 +569,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
             $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
-        ], [], 0, false, 1);
+        ], [], 0, false, purchasesToDeliverCount: 1);
 
         self::assertSame('deliver_purchases', $cockpit->nextAction->code);
     }
@@ -580,7 +580,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
             $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
-        ], [], 2, true, 3);
+        ], [], 2, true, purchasesToDeliverCount: 3);
 
         self::assertSame(['review_contributions', 3], [$cockpit->nextAction->code, $cockpit->purchasesToDeliverCount]);
     }
@@ -591,7 +591,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 8_000),
             $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
-        ], [], 0, true, 2);
+        ], [], 0, true, purchasesToDeliverCount: 2);
 
         self::assertSame('source_material', $cockpit->nextAction->code);
     }
@@ -603,7 +603,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
             $this->job('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 0, 3, 3),
             $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
-        ], [], 0, true, 2);
+        ], [], 0, true, purchasesToDeliverCount: 2);
 
         self::assertSame(['launch_job', 0], [$cockpit->nextAction->code, $cockpit->purchasesToDeliverCount]);
     }
@@ -614,7 +614,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
             $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
-        ], [], 0, true, 0);
+        ], [], 0, true, purchasesToDeliverCount: 0);
 
         self::assertSame(['launch_job', 0], [$cockpit->nextAction->code, $cockpit->purchasesToDeliverCount]);
     }
