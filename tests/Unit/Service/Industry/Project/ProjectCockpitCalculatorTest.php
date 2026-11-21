@@ -231,7 +231,8 @@ final class ProjectCockpitCalculatorTest extends TestCase
         $managerCockpit = $this->cockpitOf(ProjectStatus::Selling, 1, $lines, $sold, 0, true);
         $memberCockpit = $this->cockpitOf(ProjectStatus::Selling, 1, $lines, $sold, 0, false);
 
-        self::assertSame(['sell', 'current', 100, 100, null, null], $this->phaseRow($managerCockpit, 'sell'));
+        self::assertSame(['sell', 'done', 100, 100, null, null], $this->phaseRow($managerCockpit, 'sell'));
+        self::assertSame(['close', 'current', 0, 1, null, null], $this->phaseRow($managerCockpit, 'close'));
         self::assertSame(['complete_project', false, null, 'completed', null, null, null, null], $this->actionRow($managerCockpit));
         self::assertSame(self::NOTHING_TO_DO, $this->actionRow($memberCockpit));
     }

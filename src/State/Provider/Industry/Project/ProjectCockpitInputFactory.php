@@ -61,6 +61,7 @@ final readonly class ProjectCockpitInputFactory
             $line->getCountedRuns(),
             $line->getDeliveredRuns(),
             $this->latestRunningJobEndDate($line),
+            $line->getEstimatedPrice(),
         );
     }
 
