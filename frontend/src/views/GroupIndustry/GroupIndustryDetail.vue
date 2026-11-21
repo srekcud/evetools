@@ -67,10 +67,10 @@ import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
 import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
-import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
+import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit, ProjectPhaseKey } from '@/stores/group-industry/types'
 import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
-import { DETAIL_TABS, detailTabOfNextAction, type ProjectDetailTab } from './projectDetailTabs'
+import { DETAIL_TABS, detailTabOfNextAction, detailTabOfPhase, openingTabOf, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
 import { isSourcingCollapsed, isSourcingComplete, readSourcingOverride, writeSourcingOverride, type SourcingOverride } from './sourcingCollapse'
 import { refreshesVisibleOn, type GroupProjectRefresh } from './groupProjectRefreshes'
@@ -236,6 +236,9 @@ onMounted(async () => {
     loadMembers(projectId.value),
     inventionStore.fetchInvention(projectId.value, null),
   ])
+  if (cockpit.value !== null && route.query.tab === undefined) {
+    activeTab.value = openingTabOf(cockpit.value.phases)
+  }
   if (projectStore.currentProject && projectStore.currentProject.containerNames.length > 0) {
     await projectStore.fetchContainerVerification(projectId.value)
   }
@@ -298,6 +301,11 @@ watch(activeTab, (tab) => {
     activityStore.fetchActivity(projectId.value)
   }
 })
+
+function openPhaseTab(key: ProjectPhaseKey): void {
+  const tab = detailTabOfPhase(key)
+  if (tab !== null) activeTab.value = tab
+}
 
 function goBack(): void {
   router.push(PROJECTS_HOME)
@@ -682,7 +690,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <template v-if="cockpit">
-        <ProjectPhaseRail :phases="cockpit.phases" />
+        <ProjectPhaseRail :phases="cockpit.phases" @select="openPhaseTab" />
         <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" @act="actOnNextAction" />
         <ProjectPriceAlertBanner v-if="cockpit.priceAlert !== null" :price-alert="cockpit.priceAlert" @view-sales="activeTab = 'sales'" />
       </template>
