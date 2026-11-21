@@ -1336,3 +1336,15 @@ export interface T2BlueprintCopySelection {
   productTypeId: number
   runs: number
 }
+
+export interface JobsSyncInstaller {
+  name: string
+  isViewer: boolean
+  lastSyncedAt: string | null
+}
+
+export interface ProjectJobsSync {
+  id: string
+  intervalSeconds: number
+  installers: JobsSyncInstaller[]
+}

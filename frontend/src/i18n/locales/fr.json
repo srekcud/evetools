@@ -2988,6 +2988,7 @@
       "title": "Chaîne de production",
       "jobsSync": {
         "syncedAgo": "Jobs synchronisés {since}",
+        "next": "prochaine vers {time}",
         "unknown": "Synchro des jobs inconnue"
       },
       "jobNotSeenHint": "Un job lancé en jeu apparaît après la prochaine synchro des jobs.",

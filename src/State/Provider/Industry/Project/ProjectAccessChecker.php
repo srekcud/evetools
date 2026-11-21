@@ -53,7 +53,15 @@ class ProjectAccessChecker
             return [$user];
         }
 
-        $users = [$user];
+        return $this->acceptedParticipantsOf($project);
+    }
+
+    /**
+     * @return list<User> the owner first, then the accepted participants in the order they joined
+     */
+    public function acceptedParticipantsOf(IndustryProject $project): array
+    {
+        $users = [$project->getOwner()];
         foreach ($project->getMembers() as $member) {
             $participant = $member->getUser();
             if (ParticipantStatus::Accepted === $member->getStatus() && null !== $participant && !\in_array($participant, $users, true)) {

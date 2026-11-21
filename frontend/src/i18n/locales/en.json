@@ -2988,6 +2988,7 @@
       "title": "Production chain",
       "jobsSync": {
         "syncedAgo": "Jobs synced {since}",
+        "next": "next around {time}",
         "unknown": "Jobs sync unknown"
       },
       "jobNotSeenHint": "A job launched in game shows up after the next jobs sync.",

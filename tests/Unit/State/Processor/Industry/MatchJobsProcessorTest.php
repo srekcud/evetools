@@ -267,9 +267,10 @@ final class MatchJobsProcessorTest extends TestCase
     }
 
     #[Group('issue-321')]
-    public function testTheJobsAreNotRecordedWhenTheOwnerCheckRefusesTheMatch(): void
+    #[Group('issue-1200')]
+    public function testTheJobsAreNotRecordedWhenTheAccessCheckRefusesTheMatch(): void
     {
-        $this->authenticatedUser = $this->admin;
+        $this->authenticatedUser = new User();
 
         $this->outcomeOfMatchJobs();
 
@@ -288,13 +289,50 @@ final class MatchJobsProcessorTest extends TestCase
         );
     }
 
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedWithoutSyncingNorMatching(): void
+    #[Group('issue-1200')]
+    public function testAnAcceptedAdminWhoIsNotTheOwnerSyncsOnlyHisOwnCharactersThenMatchesTheProject(): void
     {
         $this->authenticatedUser = $this->admin;
+        $this->admin->addCharacter($this->characterWithToken('Admin Pilot', 2_112_000_901));
 
         self::assertSame(
-            ['403 Only the project owner can perform this action', 0, [], []],
+            ['matched', 1, ['Admin Pilot']],
+            [$this->outcomeOfMatchJobs(), $this->matchEsiJobsCalls, $this->syncedCharacterNames],
+        );
+    }
+
+    #[Group('issue-1200')]
+    public function testAnAcceptedMemberSyncsNoneOfTheCharactersOfTheOwner(): void
+    {
+        $this->authenticatedUser = $this->admin;
+        $this->admin->addCharacter($this->characterWithToken('Admin Pilot', 2_112_000_901));
+
+        $this->outcomeOfMatchJobs();
+
+        self::assertNotContains(self::PILOT_ONE, $this->syncedCharacterNames);
+    }
+
+    #[Group('issue-1200')]
+    public function testAUserWithoutAccessIsDeniedWithoutSyncingNorMatching(): void
+    {
+        $this->authenticatedUser = new User();
+
+        self::assertSame(
+            ['403 You do not have access to this project', 0, [], []],
             [$this->outcomeOfMatchJobs(), $this->matchEsiJobsCalls, $this->syncedCharacterNames, $this->refreshedLines],
+        );
+    }
+
+    #[Group('issue-1200')]
+    public function testAPendingParticipantIsDeniedWithoutSyncingNorMatching(): void
+    {
+        $pending = new User();
+        $this->project->addMember((new IndustryProjectParticipant())->setUser($pending)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Pending));
+        $this->authenticatedUser = $pending;
+
+        self::assertSame(
+            ['403 You do not have access to this project', 0, []],
+            [$this->outcomeOfMatchJobs(), $this->matchEsiJobsCalls, $this->syncedCharacterNames],
         );
     }
 
@@ -493,11 +531,18 @@ final class MatchJobsProcessorTest extends TestCase
 
     private function addCharacterWithToken(string $name, int $eveCharacterId): Character
     {
+        $character = $this->characterWithToken($name, $eveCharacterId);
+        $this->user->addCharacter($character);
+
+        return $character;
+    }
+
+    private function characterWithToken(string $name, int $eveCharacterId): Character
+    {
         $character = (new Character())
             ->setName($name)
             ->setEveCharacterId($eveCharacterId);
         $character->setEveToken(new EveToken());
-        $this->user->addCharacter($character);
 
         return $character;
     }
@@ -607,7 +652,7 @@ final class MatchJobsProcessorTest extends TestCase
         $characterRepository->method('findByEveCharacterId')->willReturnCallback(
             fn (int $eveCharacterId): ?Character => \in_array($eveCharacterId, $this->charactersMissingAtReload, true)
                 ? null
-                : array_find($this->user->getCharacters()->toArray(), static fn (Character $character): bool => $character->getEveCharacterId() === $eveCharacterId),
+                : array_find(($this->authenticatedUser ?? $this->user)->getCharacters()->toArray(), static fn (Character $character): bool => $character->getEveCharacterId() === $eveCharacterId),
         );
 
         $syncIsolation = $this->createStub(CharacterSyncIsolation::class);
