@@ -75,6 +75,7 @@ async function mountDetailOf(project: GroupProject): Promise<VueWrapper> {
         ContainerBanner: true,
         ProjectCourier: true,
         ProjectBuyOrBuild: true,
+        ProjectStructures: true,
         ContributeModal: true,
         ContributionTable: true,
         FinancialSummary: true,
@@ -148,6 +149,8 @@ describe('group project detail leaving the draft status', () => {
       shared: sharedOffersPublish,
     }).toEqual({ private: false, shared: true })
     await present(buttonLabelled(privateDraft, 'Start the project')).trigger('click')
+    await flushPromises()
+    await privateDraft.get('[data-testid="start-confirm-button"]').trigger('click')
     await flushPromises()
 
     expect(sentPatchBodies()).toEqual([{ status: 'in_progress' }])

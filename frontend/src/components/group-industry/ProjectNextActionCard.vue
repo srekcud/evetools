@@ -4,10 +4,13 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { ProjectNextAction } from '@/stores/group-industry/types'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   nextAction: ProjectNextAction
   disabled: boolean
-}>()
+  locksOnStart?: boolean
+}>(), {
+  locksOnStart: false,
+})
 
 defineEmits<{
   act: []
@@ -18,6 +21,7 @@ const { formatDateTime } = useFormatters()
 
 const messageKey = computed(() => `groupIndustry.cockpit.nextAction.${props.nextAction.code}`)
 const descriptionKey = computed(() => {
+  if (props.nextAction.code === 'start_project' && props.locksOnStart) return `${messageKey.value}.descriptionLocks`
   if (props.nextAction.code === 'launch_job' && props.nextAction.quantity === null) return `${messageKey.value}.descriptionUnknownRuns`
   if (props.nextAction.code === 'await_jobs' && props.nextAction.endsAt === null) return `${messageKey.value}.descriptionUnknownEnd`
   return `${messageKey.value}.description`

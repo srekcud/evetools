@@ -13,7 +13,7 @@ Un admin voit les mêmes écrans que vous et peut relire les contributions, trai
 
 ## 1. Publier le projet
 
-Menu « Industrie », onglet « Projets », « Mes projets » : ouvrez le projet (après sa création, vous y arrivez directement). En « Brouillon », la carte « Prochaine action » propose « Démarrer le projet » (le projet passe à « En cours »), et l'en-tête propose « Publier » sur un projet qui n'est pas privé (le projet passe à « Publié »). Une fois publié, la carte « Prochaine action » ou l'en-tête propose « Démarrer le projet ».
+Menu « Industrie », onglet « Projets », « Mes projets » : ouvrez le projet (après sa création, vous y arrivez directement). En « Brouillon », la carte « Prochaine action » propose « Démarrer le projet » (le projet passe à « En cours »), et l'en-tête propose « Publier » sur un projet qui n'est pas privé (le projet passe à « Publié »). Une fois publié, la carte « Prochaine action » ou l'en-tête propose « Démarrer le projet ». En « Brouillon », le bloc « Préparer » de l'onglet Approvisionnement regroupe la blacklist, l'exclusion de l'invention, acheter ou fabriquer et les structures ; « Démarrer le projet » demande une confirmation qui liste la blacklist et l'exclusion de l'invention, car le démarrage les verrouille.
 
 **Piège : un projet est privé par défaut, et « Publier » n'y change rien.** Un projet privé n'apparaît pas dans « Disponibles », et son lien répond comme un lien inconnu. Pour ouvrir le projet : icône « Modifier » de l'en-tête, décochez « Projet privé », puis « Enregistrer ». Le badge « Privé » disparaît à côté du statut.
 

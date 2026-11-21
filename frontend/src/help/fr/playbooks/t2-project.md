@@ -57,7 +57,7 @@ De haut en bas :
 - « Prochaine action » : l'unique chose à faire maintenant, avec son bouton ;
 - les onglets. Seul, vous voyez « Approvisionnement » (ouvert par défaut), « Finances », « Ventes », « Production », « Planning », « Journal » et « Invention ». « Contributions » et « Équipe » sont masqués tant que vous êtes le seul participant.
 
-Quand le plan vous convient, cliquez sur « Démarrer le projet » dans la carte « Prochaine action » (le projet passe « En cours »). Ignorez « Publier », réservé aux projets que d'autres doivent rejoindre.
+Quand le plan vous convient, cliquez sur « Démarrer le projet » dans la carte « Prochaine action » (le projet passe « En cours » ; une confirmation liste la blacklist et l'exclusion de l'invention, que le démarrage verrouille). Ignorez « Publier », réservé aux projets que d'autres doivent rejoindre.
 
 ## 4. Acheter les matériaux
 

@@ -40,7 +40,7 @@ Un projet que vous menez seul est un projet solo : les onglets **Contributions**
 
 Le bandeau des phases (**Préparer**, **Approvisionner**, **Produire**, **Vendre**, **Clôturer**) et la carte **Prochaine action** disent où en est le projet. Les onglets utiles : **Approvisionnement**, **Production**, **Invention**, **Ventes**, **Finances**.
 
-Cliquez sur **Démarrer le projet** dans la carte **Prochaine action** (ou sur **Publier** dans l'en-tête pour ouvrir le projet à d'autres). Le projet passe à **En cours**. Il n'y a pas d'autre condition : vous pouvez démarrer avant d'avoir tout acheté.
+Cliquez sur **Démarrer le projet** dans la carte **Prochaine action** (ou sur **Publier** dans l'en-tête pour ouvrir le projet à d'autres). Le projet passe à **En cours**. Une confirmation liste la blacklist et l'exclusion de l'invention, que le démarrage verrouille. Il n'y a pas d'autre condition : vous pouvez démarrer avant d'avoir tout acheté.
 
 ## Étape 4 : apporter les matériaux au prix réel
 

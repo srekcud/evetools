@@ -13,7 +13,7 @@ An admin sees the same screens as you and can review contributions, handle reque
 
 ## 1. Publish the project
 
-Menu "Industry", tab "Projects", "My Projects": open the project (right after creating it, you land on it). While it is a "Draft", the "Next action" card offers "Start the project" (the project becomes "In Progress"), and the header offers "Publish" on a project that is not private (the project becomes "Published"). Once published, the "Next action" card or the header offers "Start the project".
+Menu "Industry", tab "Projects", "My Projects": open the project (right after creating it, you land on it). While it is a "Draft", the "Next action" card offers "Start the project" (the project becomes "In Progress"), and the header offers "Publish" on a project that is not private (the project becomes "Published"). Once published, the "Next action" card or the header offers "Start the project". In a Draft, the "Prepare" block of the Sourcing tab groups the blacklist, the invention exclusion, buy or build and the structures; "Start the project" asks for a confirmation that lists the blacklist and the invention exclusion, because starting locks them.
 
 **Trap: a project is private by default, and "Publish" changes nothing about that.** A private project does not show in "Available", and its link answers like an unknown link. To open the project: "Edit" icon in the header, untick "Private project", then "Save". The "Private" badge next to the status goes away.
 

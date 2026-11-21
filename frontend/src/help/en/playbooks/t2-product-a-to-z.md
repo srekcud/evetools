@@ -40,7 +40,7 @@ A project you run alone is a solo project: the **Contributions** and **Team** ta
 
 The phase rail (**Prepare**, **Supply**, **Produce**, **Sell**, **Close**) and the **Next action** card tell you where the project stands. The useful tabs: **Sourcing**, **Production**, **Invention**, **Sales**, **Finances**.
 
-Click **Start the project** in the **Next action** card (or **Publish** in the header to open the project to others). The project moves to **In Progress**. There is no other condition: you can start before everything is bought.
+Click **Start the project** in the **Next action** card (or **Publish** in the header to open the project to others). The project moves to **In Progress**. A confirmation lists the blacklist and the invention exclusion, which starting locks. There is no other condition: you can start before everything is bought.
 
 ## Step 4: bring the materials at the real price
 

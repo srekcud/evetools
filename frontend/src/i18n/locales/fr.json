@@ -3359,6 +3359,10 @@
       "cancel": "Annuler",
       "saveError": "La blacklist n'a pas pu être enregistrée"
     },
+    "prepare": {
+      "title": "Préparer",
+      "help": "Réglez la blacklist, l'exclusion de l'invention, acheter ou fabriquer et les structures avant de démarrer. Le démarrage verrouille la blacklist et l'exclusion de l'invention ; acheter ou fabriquer et les structures restent modifiables."
+    },
     "inventionExclusion": {
       "label": "Exclure l'invention",
       "help": "Les BPC T2 sont à fournir : le plan ne contient plus l'invention, la copie T1 ni les datacores.",
@@ -4215,7 +4219,8 @@
         },
         "start_project": {
           "title": "Démarrer le projet",
-          "description": "Les matériaux sont prêts à être apportés : passez le projet en cours."
+          "description": "Les matériaux sont prêts à être apportés : passez le projet en cours.",
+          "descriptionLocks": "Vérifiez d'abord le bloc Préparer : le démarrage verrouille la blacklist et l'exclusion de l'invention, plus rien n'y sera modifiable ensuite."
         },
         "source_material": {
           "title": "Approvisionner un matériau",
@@ -4312,6 +4317,14 @@
         "uncoveredTitle": "Matériaux non couverts",
         "undeliveredTitle": "Jobs non livrés",
         "confirm": "Passer à la vente"
+      },
+      "startConfirm": {
+        "message": "Démarrer le projet verrouille la blacklist et l'exclusion de l'invention : elles ne seront plus modifiables. Acheter ou fabriquer et les structures restent modifiables.",
+        "locksTitle": "Verrouillé au démarrage",
+        "blacklist": "Blacklist : {groups} groupes et {items} objets exclus",
+        "blacklistNone": "Blacklist : rien d'exclu",
+        "inventionExcluded": "Invention : exclue du plan",
+        "inventionIncluded": "Invention : incluse dans le plan"
       }
     },
     "contractSales": {

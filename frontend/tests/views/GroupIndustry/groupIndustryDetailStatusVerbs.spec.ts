@@ -116,6 +116,8 @@ describe('group project detail draft transitions', () => {
     const start = headerTransitionButton(wrapper, VERBS.en.start)
     await start?.trigger('click')
     await flushPromises()
+    await wrapper.get('[data-testid="start-confirm-button"]').trigger('click')
+    await flushPromises()
 
     expect({ offered: start !== undefined, patches: sentPatchBodies() }).toEqual({ offered: true, patches: [{ status: 'in_progress' }] })
   })

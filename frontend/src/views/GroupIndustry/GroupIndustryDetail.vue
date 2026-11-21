@@ -62,6 +62,7 @@ import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
 import IntermediateStockProposal from '@/components/group-industry/IntermediateStockProposal.vue'
 import T2BlueprintCopyProposal from '@/components/group-industry/T2BlueprintCopyProposal.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
+import ProjectPrepareBlock from '@/components/group-industry/ProjectPrepareBlock.vue'
 import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
@@ -155,7 +156,22 @@ const isDeleting = ref(false)
 
 const showCompleteConfirm = ref(false)
 const showSellingConfirm = ref(false)
+const showStartConfirm = ref(false)
 const unfinishedLines = computed(() => unfinishedLinesOf(projectStore.bomItems))
+const startLocks = computed(() => {
+  const lockedProject = project.value
+  if (!lockedProject) return null
+  const blacklistedGroups = lockedProject.blacklistGroupIds.length
+  const blacklistedItems = lockedProject.blacklistTypeIds.length
+  return {
+    blacklist: blacklistedGroups + blacklistedItems > 0
+      ? t('groupIndustry.detail.startConfirm.blacklist', { groups: blacklistedGroups, items: blacklistedItems })
+      : t('groupIndustry.detail.startConfirm.blacklistNone'),
+    invention: lockedProject.excludesInvention
+      ? t('groupIndustry.detail.startConfirm.inventionExcluded')
+      : t('groupIndustry.detail.startConfirm.inventionIncluded'),
+  }
+})
 const isAdvancingStatus = ref(false)
 const statusError = ref<string | null>(null)
 
@@ -459,6 +475,10 @@ function requestNextStatus(target: GroupProjectStatus): void {
     showSellingConfirm.value = true
     return
   }
+  if (target === 'in_progress' && project.value?.status === 'draft') {
+    showStartConfirm.value = true
+    return
+  }
   advanceStatus()
 }
 
@@ -470,6 +490,7 @@ async function advanceStatus(): Promise<void> {
     await projectStore.updateProject(projectId.value, { status: pendingStatus.value })
     showCompleteConfirm.value = false
     showSellingConfirm.value = false
+    showStartConfirm.value = false
     if (pendingStatus.value === 'completed') activeTab.value = 'distribution'
     await loadCockpit(projectId.value)
   } catch (e) {
@@ -728,12 +749,12 @@ function applyShareLinkShortcut(): void {
           data-testid="publish-help"
           class="mt-3 text-xs text-slate-500"
         >{{ t('groupIndustry.detail.publishHelp') }}</p>
-        <p v-if="statusError && !showCompleteConfirm && !showSellingConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
+        <p v-if="statusError && !showCompleteConfirm && !showSellingConfirm && !showStartConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>
 
       <template v-if="cockpit">
         <ProjectPhaseRail :phases="cockpit.phases" @select="openPhaseTab" />
-        <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" @act="actOnNextAction" />
+        <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" :locks-on-start="project.status === 'draft'" @act="actOnNextAction" />
         <ProjectPriceAlertBanner v-if="cockpit.priceAlert !== null" :price-alert="cockpit.priceAlert" @view-sales="activeTab = 'sales'" />
       </template>
       <p v-else-if="projectStore.cockpitError" class="mb-6 text-xs text-slate-500">
@@ -762,29 +783,39 @@ function applyShareLinkShortcut(): void {
           &middot; <span class="text-slate-400">{{ t('groupIndustry.bom.jobsOnProduction') }}</span>
         </p>
 
-        <ProjectBlacklistEditor
-          :project-id="projectId"
-          :status="project.status"
-          :can-edit="isOwnerOrAdmin"
-          :blacklist-group-ids="project.blacklistGroupIds"
-          :blacklist-type-ids="project.blacklistTypeIds"
-          @saved="onBlacklistSaved"
-        />
+        <ProjectPrepareBlock :status="project.status">
+          <ProjectBlacklistEditor
+            :project-id="projectId"
+            :status="project.status"
+            :can-edit="isOwnerOrAdmin"
+            :blacklist-group-ids="project.blacklistGroupIds"
+            :blacklist-type-ids="project.blacklistTypeIds"
+            @saved="onBlacklistSaved"
+          />
 
-        <ProjectInventionExclusionToggle
-          :project-id="projectId"
-          :status="project.status"
-          :can-edit="isOwnerOrAdmin"
-          :excludes-invention="project.excludesInvention"
-          @saved="onInventionExclusionSaved"
-        />
+          <ProjectInventionExclusionToggle
+            :project-id="projectId"
+            :status="project.status"
+            :can-edit="isOwnerOrAdmin"
+            :excludes-invention="project.excludesInvention"
+            @saved="onInventionExclusionSaved"
+          />
 
-        <ProjectBuyOrBuild
-          :project-id="projectId"
-          :can-switch="isOwnerOrAdmin && !isCompleted"
-          :blacklist-type-ids="project.blacklistTypeIds"
-          @switched="onBuyOrBuildSwitched"
-        />
+          <ProjectBuyOrBuild
+            :project-id="projectId"
+            :can-switch="isOwnerOrAdmin && !isCompleted"
+            :blacklist-type-ids="project.blacklistTypeIds"
+            @switched="onBuyOrBuildSwitched"
+          />
+
+          <ProjectStructures
+            v-if="project.status === 'draft'"
+            :project-id="projectId"
+            :can-switch="isOwnerOrAdmin && !isCompleted"
+            class="mt-4"
+            @switched="onBuyOrBuildSwitched"
+          />
+        </ProjectPrepareBlock>
 
         <CollapsibleSourcing
           :complete="sourcingComplete"
@@ -892,6 +923,7 @@ function applyShareLinkShortcut(): void {
         </div>
         <ProjectResearch :project-id="projectId" />
         <ProjectStructures
+          v-if="project.status !== 'draft'"
           :project-id="projectId"
           :can-switch="isOwnerOrAdmin && !isCompleted"
           @switched="onBuyOrBuildSwitched"
@@ -1229,6 +1261,51 @@ function applyShareLinkShortcut(): void {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           {{ t('groupIndustry.detail.sellingConfirm.confirm') }}
+        </button>
+      </div>
+    </BaseModal>
+    <BaseModal
+      :show="showStartConfirm"
+      :title="nextStatusLabel('in_progress')"
+      panel-class="border-slate-700 max-w-lg"
+      @close="showStartConfirm = false"
+    >
+      <template #title="{ titleId }">
+        <div class="px-6 py-5 border-b border-slate-800">
+          <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ nextStatusLabel('in_progress') }}</h2>
+        </div>
+      </template>
+
+      <div class="px-6 py-5" data-testid="start-confirm">
+        <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.startConfirm.message') }}</p>
+        <section v-if="startLocks" class="mt-4" data-testid="start-confirm-locks">
+          <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{{ t('groupIndustry.detail.startConfirm.locksTitle') }}</h3>
+          <ul class="space-y-1 rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-200">
+            <li class="text-xs">{{ startLocks.blacklist }}</li>
+            <li class="text-xs">{{ startLocks.invention }}</li>
+          </ul>
+        </section>
+        <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
+      </div>
+
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+        <button
+          class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+          data-testid="start-confirm-cancel"
+          @click="showStartConfirm = false"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          class="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+          data-testid="start-confirm-button"
+          :disabled="isAdvancingStatus"
+          @click="advanceStatus"
+        >
+          <svg v-if="isAdvancingStatus" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {{ nextStatusLabel('in_progress') }}
         </button>
       </div>
     </BaseModal>

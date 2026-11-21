@@ -3359,6 +3359,10 @@
       "cancel": "Cancel",
       "saveError": "The blacklist could not be saved"
     },
+    "prepare": {
+      "title": "Prepare",
+      "help": "Set up the blacklist, the invention exclusion, buy or build and the structures before starting. Starting locks the blacklist and the invention exclusion; buy or build and the structures stay editable."
+    },
     "inventionExclusion": {
       "label": "Exclude the invention",
       "help": "The T2 BPCs are to be provided: the plan no longer includes the invention, the T1 copy or the datacores.",
@@ -4215,7 +4219,8 @@
         },
         "start_project": {
           "title": "Start the project",
-          "description": "Materials are ready to be contributed: move the project to in progress."
+          "description": "Materials are ready to be contributed: move the project to in progress.",
+          "descriptionLocks": "Check the Prepare block first: starting locks the blacklist and the invention exclusion, and nothing can be changed there afterwards."
         },
         "source_material": {
           "title": "Source a material",
@@ -4312,6 +4317,14 @@
         "uncoveredTitle": "Materials not covered",
         "undeliveredTitle": "Jobs not delivered",
         "confirm": "Move to selling"
+      },
+      "startConfirm": {
+        "message": "Starting the project locks the blacklist and the invention exclusion: they can no longer be changed. Buy or build and the structures stay editable.",
+        "locksTitle": "Locked at start",
+        "blacklist": "Blacklist: {groups} groups and {items} items excluded",
+        "blacklistNone": "Blacklist: nothing excluded",
+        "inventionExcluded": "Invention: excluded from the plan",
+        "inventionIncluded": "Invention: included in the plan"
       }
     },
     "contractSales": {

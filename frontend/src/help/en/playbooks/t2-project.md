@@ -57,7 +57,7 @@ From top to bottom:
 - "Next action": the one thing to do now, with its button;
 - the tabs. Alone, you see "Sourcing" (open by default), "Finances", "Sales", "Production", "Planning", "Journal" and "Invention". "Contributions" and "Team" are hidden as long as you are the only participant.
 
-When the plan suits you, click "Start the project" in the "Next action" card (the project goes "In Progress"). Ignore "Publish", meant for projects other people have to join.
+When the plan suits you, click "Start the project" in the "Next action" card (the project goes "In Progress"; a confirmation lists the blacklist and the invention exclusion, which starting locks). Ignore "Publish", meant for projects other people have to join.
 
 ## 4. Buy the materials
 
