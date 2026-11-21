@@ -2,6 +2,7 @@
 import ChainStepMark from './ChainStepMark.vue'
 import { computed, nextTick, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useEsiJobStatusLabel } from '@/composables/useEsiJobStatusLabel'
 import IskAmount from '@/components/common/IskAmount.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
@@ -14,7 +15,6 @@ import { filterChainNodes } from './chainStatusFilter'
 import ChainJobLocations from './ChainJobLocations.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
 import { containerLineOf, isPartlyCoveredByTheContainer } from './jobContainerCoverage'
-import JobLocationBadge from './JobLocationBadge.vue'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import UnclaimedStockBadge from './UnclaimedStockBadge.vue'
@@ -70,6 +70,7 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { esiJobStatusLabel } = useEsiJobStatusLabel()
 const projectStore = useGroupProjectStore()
 const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
 const bomItemById = computed(() => new Map(projectStore.bomItems.map(item => [item.id, item])))
@@ -254,12 +255,7 @@ function plansStructure(node: ChainNode): boolean {
                 >
                   <span v-if="jobMatch.characterName !== null" class="text-slate-400">{{ jobMatch.characterName }}</span>
                   &middot; {{ formatNumber(jobMatch.runs, 0) }} {{ t('groupIndustry.jobs.runs') }}
-                  &middot; {{ jobMatch.status }}
-                  <span v-if="jobMatch.locations" data-testid="job-match-locations" class="block text-slate-500">
-                    {{ jobMatch.locations.blueprint.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
-                    &rarr; {{ jobMatch.locations.output.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
-                    <JobLocationBadge :locations="jobMatch.locations" data-testid="job-match-check" class="ml-1" />
-                  </span>
+                  &middot; {{ esiJobStatusLabel(jobMatch.status) }}
                   <button
                     v-if="canUnlinkJobs === true"
                     type="button"

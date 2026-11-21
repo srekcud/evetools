@@ -114,7 +114,7 @@ watch(() => syncStore.corporationAssetsProgress?.status, async status => {
       </div>
       <div>
         <span data-testid="container-names" class="text-sm text-violet-400 font-medium">{{ quoted(containerNames) }}</span>
-        <span class="text-xs text-slate-500 ml-2">linked to corp offices</span>
+        <span class="text-xs text-slate-500 ml-2">{{ t('groupIndustry.container.linkedToCorpOffices') }}</span>
         <p v-if="containerCheckProblem" class="text-xs text-amber-400 mt-1">
           <template v-if="containerCheckProblem.status === 'unknown' && containerCheckProblem.unknownReason !== null">
             {{ t('groupIndustry.container.statuses.unknown') }}: {{ t(`groupIndustry.container.unknownReasons.${containerCheckProblem.unknownReason}`) }}

@@ -8,7 +8,7 @@ const activeTab = defineModel<ProjectDetailTab>({ required: true })
 
 const props = defineProps<{
   materialsCount: string
-  contributionCount: number
+  pendingContributionCount: number | null
   memberCount: number
   hiddenTabs?: readonly ProjectDetailTab[]
 }>()
@@ -54,7 +54,7 @@ function badgeClasses(tab: ProjectDetailTab): string {
       >
         {{ t(TAB_LABEL_KEYS[tab]) }}
         <span v-if="tab === 'bom'" class="ml-1.5 text-xs px-1.5 py-0.5 rounded" :class="badgeClasses(tab)">{{ materialsCount }}</span>
-        <span v-else-if="tab === 'contributions'" class="ml-1.5 text-xs px-1.5 py-0.5 rounded" :class="badgeClasses(tab)">{{ contributionCount }}</span>
+        <span v-else-if="tab === 'contributions' && pendingContributionCount !== null && pendingContributionCount > 0" class="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">{{ pendingContributionCount }}</span>
         <span v-else-if="tab === 'members'" class="ml-1.5 text-xs px-1.5 py-0.5 rounded" :class="badgeClasses(tab)">{{ memberCount }}</span>
       </button>
       <button

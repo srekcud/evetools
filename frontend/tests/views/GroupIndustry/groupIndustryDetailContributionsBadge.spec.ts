@@ -20,13 +20,14 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-const PROJECT_CONTRIBUTIONS_COUNT = 4
+const PROJECT_PENDING_CONTRIBUTIONS_COUNT = 4
+const PROJECT_CONTRIBUTIONS_COUNT = 9
 const CONTRIBUTIONS_ENDPOINT_FRAGMENT = '/contributions'
 
-async function mountTeamProject(tab: string | undefined, contributionsCount: number): Promise<VueWrapper> {
+async function mountTeamProject(tab: string | undefined, pendingContributionCount: number, contributionsCount = PROJECT_CONTRIBUTIONS_COUNT): Promise<VueWrapper> {
   route.query = tab === undefined ? {} : { tab }
   return mountCockpitDetail({
-    project: nyxProject('in_progress', 'owner', { membersCount: 3, pendingContributionCount: 0, contributionsCount }),
+    project: nyxProject('in_progress', 'owner', { membersCount: 3, pendingContributionCount, contributionsCount }),
     cockpit: cockpitOf('in_progress', nextAction({ code: 'nothing_to_do' })),
     members: [],
   })
@@ -49,21 +50,22 @@ beforeEach(() => {
 })
 
 describe('contributions tab badge', () => {
-  it('shows the count carried by the project payload before the tab is ever opened', async () => {
-    const wrapper = await mountTeamProject(undefined, PROJECT_CONTRIBUTIONS_COUNT)
+  it('shows the pending contributions carried by the project payload before the tab is ever opened', async () => {
+    const wrapper = await mountTeamProject(undefined, PROJECT_PENDING_CONTRIBUTIONS_COUNT)
 
     expect(contributionsWereFetched()).toBe(false)
-    expect(contributionsBadge(wrapper)).toContain(String(PROJECT_CONTRIBUTIONS_COUNT))
+    expect(contributionsBadge(wrapper)).toMatch(new RegExp(`${PROJECT_PENDING_CONTRIBUTIONS_COUNT}$`))
+    expect(contributionsBadge(wrapper)).not.toContain(String(PROJECT_CONTRIBUTIONS_COUNT))
   })
 
-  it('shows zero for a project without contribution', async () => {
+  it('shows no count when no contribution waits for review', async () => {
     const wrapper = await mountTeamProject(undefined, 0)
 
-    expect(contributionsBadge(wrapper)).toMatch(/0$/)
+    expect(contributionsBadge(wrapper)).not.toMatch(/\d/)
   })
 
   it('keeps the members badge on the project payload', async () => {
-    const wrapper = await mountTeamProject(undefined, PROJECT_CONTRIBUTIONS_COUNT)
+    const wrapper = await mountTeamProject(undefined, PROJECT_PENDING_CONTRIBUTIONS_COUNT)
 
     expect(wrapper.get('[data-testid="project-tab-members"]').text()).toContain('3')
   })

@@ -25,7 +25,6 @@ import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import { projectDisplayNameOf } from '@/components/group-industry/projectDisplayName'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
-import JobContainersTable from '@/components/group-industry/JobContainersTable.vue'
 import ProjectSellOrdersSection from '@/components/group-industry/ProjectSellOrdersSection.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import { containerNamesFromText, containerNamesToText } from '@/utils/containerNames'
@@ -339,9 +338,9 @@ async function copyShareLink(): Promise<void> {
   const link = groupJoinUrl(window.location.origin, project.value.shortLinkCode)
   try {
     await navigator.clipboard.writeText(link)
-    showToast('Link copied!', 'success')
+    showToast(t('groupIndustry.detail.linkCopied'), 'success')
   } catch {
-    showToast('Failed to copy link', 'error')
+    showToast(t('groupIndustry.detail.linkCopyFailed'), 'error')
   }
 }
 
@@ -567,8 +566,8 @@ const totalRuns = computed(() =>
 )
 
 const bomItemCount = computed(() => projectStore.materials.length)
-const materialsCount = computed(() => `${bomItemCount.value} ${bomItemCount.value === 1 ? 'item' : 'items'}`)
-const contributionCount = computed(() => project.value?.contributionsCount ?? 0)
+const materialsCount = computed(() => t('groupIndustry.detail.itemsCount', bomItemCount.value))
+const pendingContributionCount = computed(() => project.value?.pendingContributionCount ?? null)
 const shareLinkLabel = computed(() => t(isWorkedOnAlone.value ? 'groupIndustry.detail.invite' : 'groupIndustry.detail.shareLink'))
 const memberCount = computed(() => project.value?.membersCount ?? 0)
 const shareLinkBlockedReason = computed<'private' | 'draft' | null>(() => {
@@ -663,16 +662,17 @@ function applyShareLinkShortcut(): void {
               </span>
             </div>
             <p class="text-sm text-slate-500">
-              {{ project.items.length }} {{ project.items.length === 1 ? 'item' : 'items' }}
-              &middot; {{ totalRuns }} runs
-              &middot; Manager: {{ project.ownerCharacterName }}
-              &middot; {{ project.membersCount }} {{ project.membersCount === 1 ? 'contributor' : 'contributors' }}
+              {{ t('groupIndustry.detail.itemsCount', project.items.length) }}
+              &middot; {{ t('groupIndustry.detail.runsCount', totalRuns) }}
+              &middot; {{ t('groupIndustry.detail.manager', { name: project.ownerCharacterName }) }}
+              &middot; {{ t('groupIndustry.detail.contributorsCount', project.membersCount) }}
             </p>
           </div>
 
           <!-- Actions -->
           <div class="flex flex-wrap gap-2 max-w-full">
             <button
+              v-if="activeTab !== 'members'"
               data-testid="share-link"
               @click="copyShareLink"
               class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm flex items-center gap-2 transition-all hover:-translate-y-px disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-slate-700 disabled:cursor-not-allowed"
@@ -764,7 +764,7 @@ function applyShareLinkShortcut(): void {
       <ProjectTabBar
         v-model="activeTab"
         :materials-count="materialsCount"
-        :contribution-count="contributionCount"
+        :pending-contribution-count="pendingContributionCount"
         :member-count="memberCount"
         :hidden-tabs="hiddenTabs"
       />
@@ -773,12 +773,12 @@ function applyShareLinkShortcut(): void {
       <div v-if="activeTab === 'bom'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <!-- BOM description -->
         <p class="text-xs text-slate-500 mb-4">
-          Leaf materials for {{ project.items.length }} items
+          {{ t('groupIndustry.detail.leafMaterials', { count: project.items.length }) }}
           (<template v-for="(item, idx) in project.items" :key="item.typeId">
             <span class="text-slate-400">{{ item.typeName }}</span> x{{ item.runs }}<template v-if="idx < project.items.length - 1">, </template>
           </template>)
           <template v-if="project.blacklistGroupIds.length > 0">
-            &middot; <span class="text-amber-400/60">{{ project.blacklistGroupIds.length }} categories blacklisted</span>
+            &middot; <span class="text-amber-400/60">{{ t('groupIndustry.detail.blacklistedCategories', project.blacklistGroupIds.length) }}</span>
           </template>
           &middot; <span class="text-slate-400">{{ t('groupIndustry.bom.jobsOnProduction') }}</span>
         </p>
@@ -874,11 +874,10 @@ function applyShareLinkShortcut(): void {
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-              Add Contribution
+              {{ t('groupIndustry.detail.addContribution') }}
             </button>
           </template>
         </ContributionTable>
-        <JobContainersTable v-if="isOwnerOrAdmin" />
       </div>
 
       <!-- Tab Content: Distribution -->
@@ -958,24 +957,12 @@ function applyShareLinkShortcut(): void {
 
       <!-- Tab Content: Members -->
       <div v-else-if="activeTab === 'members'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <!-- Header with member summary and copy link button -->
-        <div class="flex items-center justify-between mb-6">
-          <p class="text-sm text-slate-400">
-            {{ distributionStore.members.filter(m => m.status === 'accepted').length }} active members
-            <template v-if="distributionStore.members.filter(m => m.status === 'pending').length > 0">
-              &middot; {{ distributionStore.members.filter(m => m.status === 'pending').length }} pending
-            </template>
-          </p>
-          <button
-            @click="copyShareLink"
-            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium flex items-center gap-2 transition-all hover:-translate-y-px"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-            Copy Join Link
-          </button>
-        </div>
+        <p class="mb-6 text-sm text-slate-400">
+          {{ t('groupIndustry.detail.activeMembers', distributionStore.members.filter(m => m.status === 'accepted').length) }}
+          <template v-if="distributionStore.members.filter(m => m.status === 'pending').length > 0">
+            &middot; {{ t('groupIndustry.detail.pendingMembers', { count: distributionStore.members.filter(m => m.status === 'pending').length }) }}
+          </template>
+        </p>
 
         <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" :is-owner="isOwner" :owner-corporation-id="project.ownerCorporationId" @left="handleLeaveProject" />
         <PendingRequestsTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />

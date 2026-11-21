@@ -77,19 +77,8 @@ const STATUS_BADGE_CLASSES: Record<ContributionStatus, string> = {
   rejected: 'bg-red-500/[0.12] text-red-400 border-red-500/25',
 }
 
-const TYPE_LABELS: Record<ContributionType, string> = {
-  material: 'Material',
-  job_install: 'Job Install',
-  bpc: 'BPC',
-  line_rental: 'Line Rental',
-  courier: 'Courier',
-}
-
-const STATUS_LABELS: Record<ContributionStatus, string> = {
-  pending: 'Pending',
-  approved: 'Approved',
-  rejected: 'Rejected',
-}
+const CONTRIBUTION_TYPES: ContributionType[] = ['material', 'job_install', 'bpc', 'line_rental', 'courier']
+const CONTRIBUTION_STATUSES: ContributionStatus[] = ['pending', 'approved', 'rejected']
 
 function methodLabelKey(contribution: GroupContribution): string {
   if (contribution.isAutoDetected && contribution.type === 'material') return 'groupIndustry.contributions.methods.paidPrice'
@@ -245,16 +234,16 @@ onMounted(() => {
         :aria-label="t('a11y.zoneB.groupIndustry.contributionTypeFilter')"
         class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
       >
-        <option value="all">{{ t('common.status.all') }} Types</option>
-        <option v-for="(label, key) in TYPE_LABELS" :key="key" :value="key">{{ label }}</option>
+        <option value="all">{{ t('groupIndustry.contributions.table.allTypes') }}</option>
+        <option v-for="type in CONTRIBUTION_TYPES" :key="type" :value="type">{{ t(`groupIndustry.contributions.typeLabels.${type}`) }}</option>
       </select>
       <select
         v-model="statusFilter"
         :aria-label="t('a11y.zoneB.groupIndustry.contributionStatusFilter')"
         class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none"
       >
-        <option value="all">{{ t('common.status.all') }} Statuses</option>
-        <option v-for="(label, key) in STATUS_LABELS" :key="key" :value="key">{{ label }}</option>
+        <option value="all">{{ t('groupIndustry.contributions.table.allStatuses') }}</option>
+        <option v-for="status in CONTRIBUTION_STATUSES" :key="status" :value="status">{{ t(`groupIndustry.contributions.statusLabels.${status}`) }}</option>
       </select>
       <select
         v-model="walletProofFilter"
@@ -291,8 +280,8 @@ onMounted(() => {
     <svg class="w-10 h-10 mx-auto text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
     </svg>
-    <p class="text-sm text-slate-500">No contributions yet</p>
-    <p class="text-xs text-slate-500 mt-1">Contributions will appear here once members start contributing</p>
+    <p class="text-sm text-slate-500">{{ t('groupIndustry.contributions.table.empty') }}</p>
+    <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.contributions.table.emptyHint') }}</p>
   </div>
 
   <!-- Contributions Table -->
@@ -302,14 +291,14 @@ onMounted(() => {
         <table class="w-full text-sm">
           <thead>
             <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-              <th class="text-left py-3 px-6">Character</th>
-              <th class="text-left py-3 px-3">Type</th>
-              <th class="text-left py-3 px-3">Item / Description</th>
-              <th class="text-right py-3 px-3">Qty</th>
-              <th class="text-right py-3 px-3">Valuation</th>
-              <th class="text-left py-3 px-3">Method</th>
-              <th class="text-center py-3 px-3">Status</th>
-              <th class="text-center py-3 px-6">Actions</th>
+              <th class="text-left py-3 px-6">{{ t('groupIndustry.contributions.table.columns.character') }}</th>
+              <th class="text-left py-3 px-3">{{ t('groupIndustry.contributions.table.columns.type') }}</th>
+              <th class="text-left py-3 px-3">{{ t('groupIndustry.contributions.table.columns.item') }}</th>
+              <th class="text-right py-3 px-3">{{ t('groupIndustry.contributions.table.columns.quantity') }}</th>
+              <th class="text-right py-3 px-3">{{ t('groupIndustry.contributions.table.columns.valuation') }}</th>
+              <th class="text-left py-3 px-3">{{ t('groupIndustry.contributions.table.columns.method') }}</th>
+              <th class="text-center py-3 px-3">{{ t('groupIndustry.contributions.table.columns.status') }}</th>
+              <th class="text-center py-3 px-6">{{ t('groupIndustry.contributions.table.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/30">
@@ -337,7 +326,7 @@ onMounted(() => {
                   class="text-xs px-2 py-0.5 rounded border font-medium"
                   :class="TYPE_BADGE_CLASSES[contrib.type]"
                 >
-                  {{ TYPE_LABELS[contrib.type] }}
+                  {{ t(`groupIndustry.contributions.typeLabels.${contrib.type}`) }}
                 </span>
               </td>
               <!-- Item / Description -->
@@ -431,7 +420,7 @@ onMounted(() => {
                     class="whitespace-nowrap text-xs px-2 py-0.5 rounded border font-medium"
                     :class="STATUS_BADGE_CLASSES[contrib.status]"
                   >
-                    {{ STATUS_LABELS[contrib.status] }}
+                    {{ t(`groupIndustry.contributions.statusLabels.${contrib.status}`) }}
                   </span>
                   <span
                     v-if="contrib.isAutoDetected"
@@ -513,11 +502,11 @@ onMounted(() => {
                     :disabled="isAwaitingUnits(contrib)"
                     :title="isAwaitingUnits(contrib) ? t('groupIndustry.contributions.approveBlockedAwaiting') : undefined"
                     @click="handleApprove(contrib.id)"
-                  >{{ isDeliveryProposal(contrib) ? 'Confirm delivery' : 'Approve' }}</button>
+                  >{{ t(isDeliveryProposal(contrib) ? 'groupIndustry.contributions.table.confirmDelivery' : 'groupIndustry.contributions.table.approve') }}</button>
                   <button
                     class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
                     @click="handleReject(contrib.id)"
-                  >Reject</button>
+                  >{{ t('groupIndustry.contributions.table.reject') }}</button>
                 </div>
                 <div
                   v-else-if="isAdmin && contrib.reopenable"
@@ -526,7 +515,7 @@ onMounted(() => {
                   <button
                     class="px-2.5 py-1 rounded bg-slate-600/20 text-slate-300 text-xs font-medium hover:bg-slate-600/30 transition-colors border border-slate-600/30"
                     @click="handleReopen(contrib.id)"
-                  >Reopen</button>
+                  >{{ t('groupIndustry.contributions.table.reopen') }}</button>
                 </div>
                 <div
                   v-else-if="isAdmin && contrib.duplicatesDerived"
@@ -535,7 +524,7 @@ onMounted(() => {
                   <button
                     class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
                     @click="handleReject(contrib.id)"
-                  >Reject</button>
+                  >{{ t('groupIndustry.contributions.table.reject') }}</button>
                 </div>
                 <span v-else-if="!contrib.switchableToJitaPrice" class="text-xs text-slate-500">--</span>
               </td>
@@ -550,29 +539,29 @@ onMounted(() => {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-8">
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Engaged Costs</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('groupIndustry.contributions.table.totalEngagedCosts') }}</p>
             <p class="text-xl font-mono font-bold text-slate-100" style="font-variant-numeric: tabular-nums;"><UnknownContributionValue v-if="totalValue === null" /><template v-else>{{ formatIsk(totalValue) }}</template></p>
           </div>
           <div class="w-px h-10 bg-slate-800"></div>
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Approved Value</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('groupIndustry.contributions.table.approvedValue') }}</p>
             <p class="text-xl font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;"><UnknownContributionValue v-if="approvedValue === null" /><template v-else>{{ formatIsk(approvedValue) }}</template></p>
           </div>
           <div class="w-px h-10 bg-slate-800"></div>
           <div>
-            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Pending Value</p>
+            <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('groupIndustry.contributions.table.pendingValue') }}</p>
             <p class="text-xl font-mono font-bold text-amber-400" style="font-variant-numeric: tabular-nums;"><UnknownContributionValue v-if="pendingValue === null" /><template v-else>{{ formatIsk(pendingValue) }}</template></p>
           </div>
         </div>
         <div class="flex items-center gap-4 text-xs text-slate-500">
           <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Approved: {{ approvedCount }}
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> {{ t('groupIndustry.contributions.table.approvedCount', { count: approvedCount }) }}
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-amber-400"></span> Pending: {{ pendingCount }}
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span> {{ t('groupIndustry.contributions.table.pendingCount', { count: pendingCount }) }}
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-red-400"></span> Rejected: {{ rejectedCount }}
+            <span class="w-2 h-2 rounded-full bg-red-400"></span> {{ t('groupIndustry.contributions.table.rejectedCount', { count: rejectedCount }) }}
           </div>
         </div>
       </div>

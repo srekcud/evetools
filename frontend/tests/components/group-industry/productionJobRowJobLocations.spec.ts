@@ -81,35 +81,29 @@ beforeEach(() => {
 })
 
 describe('Production job row job locations', () => {
-  it('shows the entry and the exit of a linked job under the job with its check', async () => {
+  it('does not repeat the entry and the exit of a linked job under the job', async () => {
     const wrapper = await mountWith({
       blueprint: side({ name: 'Perso box', divisionName: null, status: 'outside' }),
       output: side({ kind: 'hangar', name: 'Jita IV - Moon 4', divisionName: null, status: 'outside' }),
     })
 
-    const line = wrapper.get(LOCATIONS_LINE).text()
-    expect(line).toContain('Perso box')
-    expect(line).toContain('Jita IV - Moon 4')
-    expect(line.indexOf('Perso box')).toBeLessThan(line.indexOf('Jita IV - Moon 4'))
-    expect(wrapper.get(LOCATIONS_CHECK).attributes('data-check')).toBe('output-outside')
+    expect(wrapper.find(LOCATIONS_LINE).exists()).toBe(false)
+    expect(wrapper.find(LOCATIONS_CHECK).exists()).toBe(false)
   })
 
-  it('checks a job whose entry and exit are in the project container', async () => {
+  it('keeps the pilot, the runs and the status of the linked job under the job', async () => {
     const wrapper = await mountWith({ blueprint: side({}), output: side({}) })
 
-    expect(wrapper.get(LOCATIONS_CHECK).attributes('data-check')).toBe('ok')
+    const match = wrapper.get('[data-testid="job-match"]').text()
+    expect(match).toContain('Aria Solberg')
+    expect(match).toContain('3 Runs')
+    expect(match).toContain('Delivered')
   })
 
-  it('does not warn about an entry outside the project container', async () => {
-    const wrapper = await mountWith({ blueprint: side({ name: 'Perso box', divisionName: null, status: 'outside' }), output: side({}) })
-
-    expect(wrapper.get(LOCATIONS_CHECK).attributes('data-check')).toBe('ok')
-    expect(wrapper.get(LOCATIONS_LINE).text()).toContain('Perso box')
-  })
-
-  it('shows no line when the locations are not shared with the viewer', async () => {
+  it('shows no location line when the locations are not shared with the viewer', async () => {
     const wrapper = await mountWith(null)
 
     expect(wrapper.find(LOCATIONS_LINE).exists()).toBe(false)
+    expect(wrapper.get('[data-testid="job-match"]').text()).toContain('Aria Solberg')
   })
 })

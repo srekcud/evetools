@@ -2917,6 +2917,7 @@
     },
     "title": "Projets",
     "available": {
+      "loadError": "Échec du chargement des projets",
       "runs": "Runs",
       "members": "membres",
       "joinProject": "Rejoindre le projet",
@@ -3052,8 +3053,8 @@
         "soldUnits": "Unités vendues",
         "grossRevenue": "Revenu brut",
         "openInTree": "Ouvrir dans l'arbre des jobs",
-        "supplied": "{fulfilled} / {required} fournis",
-        "materialsSummary": "{supplied} / {total} lignes de matériaux fournies",
+        "supplied": "{fulfilled} / {required} livrés",
+        "materialsSummary": "{supplied} / {total} lignes de matériaux livrées",
         "materialsSummaryUnknown": "{count} inconnues",
         "openSourcing": "Ouvrir l'onglet Approvisionnement",
         "doneCount": "Terminés : {count}"
@@ -3496,7 +3497,9 @@
     },
     "kpis": {
       "activeProjects": "Projets actifs",
-      "activeDesc": "en cours de production",
+      "activeDesc": "en production",
+      "sellingProjects": "En vente",
+      "sellingDesc": "en attente de ventes ou de clôture",
       "totalContributions": "Contributions totales",
       "contributionsDesc": "sur tous les projets",
       "pendingApprovals": "Approbations en attente",
@@ -3514,11 +3517,14 @@
       "completed": "Terminé"
     },
     "bom": {
+      "priceBasisHint": "(moy. Jita 5 %)",
+      "pricesNote": "Prix : moyenne des 5 % meilleurs ordres de vente Jita",
+      "fulfillment": "Avancement de la BOM",
       "jobsOnProduction": "Composants et BPC dans l'onglet Production",
       "materialsToSource": "Materiaux a sourcer",
       "item": "Item",
       "required": "Requis",
-      "fulfilled": "Fourni",
+      "fulfilled": "Livré",
       "remaining": "Restant",
       "progress": "Progression",
       "estCost": "Cout est.",
@@ -3568,6 +3574,15 @@
       "correctionFailed": "La correction n'a pas pu être enregistrée"
     },
     "jobs": {
+      "esiStatus": {
+        "active": "En cours",
+        "paused": "En pause",
+        "ready": "Terminé",
+        "delivered": "Livré",
+        "cancelled": "Annulé",
+        "reverted": "Rétabli",
+        "unknown": "Statut inconnu"
+      },
       "product": "Produit",
       "activity": "Activite",
       "runs": "Runs",
@@ -3684,6 +3699,10 @@
         "loadError": "Impossible de charger les transactions wallet.",
         "linkError": "Échec de la liaison de la transaction"
       },
+      "project": "Projet : {name}",
+      "typeId": "ID de type : {id}",
+      "remaining": "{quantity} restant",
+      "estimatedValueIsk": "Valeur estimée (ISK)",
       "title": "Ajouter une contribution",
       "type": "Type de contribution",
       "item": "Item",
@@ -3733,6 +3752,44 @@
       }
     },
     "contributions": {
+      "typeLabels": {
+        "material": "Matériaux",
+        "job_install": "Installation de job",
+        "bpc": "BPC",
+        "line_rental": "Location de ligne",
+        "courier": "Courrier"
+      },
+      "statusLabels": {
+        "pending": "En attente",
+        "approved": "Approuvé",
+        "rejected": "Rejeté"
+      },
+      "table": {
+        "allTypes": "Tous les types",
+        "allStatuses": "Tous les statuts",
+        "empty": "Aucun apport pour le moment",
+        "emptyHint": "Les apports apparaîtront ici dès que les membres commenceront à contribuer",
+        "columns": {
+          "character": "Personnage",
+          "type": "Type",
+          "item": "Objet / Description",
+          "quantity": "Qté",
+          "valuation": "Valorisation",
+          "method": "Méthode",
+          "status": "Statut",
+          "actions": "Actions"
+        },
+        "confirmDelivery": "Confirmer la livraison",
+        "approve": "Approuver",
+        "reject": "Rejeter",
+        "reopen": "Rouvrir",
+        "totalEngagedCosts": "Total des coûts engagés",
+        "approvedValue": "Valeur approuvée",
+        "pendingValue": "Valeur en attente",
+        "approvedCount": "Approuvés : {count}",
+        "pendingCount": "En attente : {count}",
+        "rejectedCount": "Rejetés : {count}"
+      },
       "own": {
         "edit": "Modifier",
         "withdraw": "Retirer",
@@ -3769,6 +3826,32 @@
       }
     },
     "distribution": {
+      "table": {
+        "title": "Répartition du profit",
+        "totalPayout": "Total à verser",
+        "columns": {
+          "character": "Personnage",
+          "costsEngaged": "Coûts engagés",
+          "sharePercent": "Part %",
+          "profitPart": "Part du profit",
+          "payoutTotal": "Total à verser"
+        },
+        "showBreakdown": "Afficher le détail",
+        "hideBreakdown": "Masquer le détail",
+        "breakdown": {
+          "materials": "Matériaux",
+          "jobInstall": "Installation de job",
+          "bpc": "BPC",
+          "lineRental": "Location de ligne"
+        },
+        "formulaTitle": "Formule de répartition",
+        "formulaPayout": "Versement = Coûts engagés x (1 + Marge %)",
+        "formulaDetail": "= Coûts engagés x (Revenu net / Coût total du projet)",
+        "lossBadge": "PERTE",
+        "lossTitle": "Scénario de perte",
+        "lossText": "Ce projet s'est soldé par une perte (marge négative). Chaque contributeur absorbe sa part proportionnelle. La formule reste la même, mais {factor} devient inférieur à 1 : chaque contributeur reçoit moins que ses coûts engagés initiaux.",
+        "lossFactor": "(1 + marge %)"
+      },
       "undistributable": "Répartition impossible : aucune contribution approuvée n'a de coût, le revenu net ne peut pas être réparti",
       "unknownContributionValue": "Un apport approuvé n'a pas de prix connu : le coût de production, le profit et les payouts restent inconnus tant qu'il n'en a pas.",
       "unclaimedStockNotice": "Du stock en container n'est pas encore réclamé : le coût du projet, le profit et les payouts restent inconnus tant qu'il n'est pas réclamé, attribué ou donné.",
@@ -3885,6 +3968,23 @@
       }
     },
     "sales": {
+      "form": {
+        "title": "Ventes",
+        "record": "Enregistrer une vente",
+        "recordTitle": "Enregistrer une vente",
+        "columns": {
+          "date": "Date",
+          "quantity": "Quantité",
+          "unitPrice": "Prix unitaire",
+          "revenue": "Revenu",
+          "venue": "Lieu"
+        },
+        "itemName": "Nom de l'objet",
+        "itemNamePlaceholder": "ex. Ishtar",
+        "unitPriceIsk": "Prix unitaire (ISK)",
+        "venuePlaceholder": "ex. Jita 4-4",
+        "save": "Enregistrer"
+      },
       "empty": "Aucune vente enregistrée",
       "emptyHint": "Les ventes apparaissent ici une fois enregistrées. Rattache les transactions du wallet et les contrats listés sous « {transactions} », ou ajoute-en une à la main.",
       "item": "Item",
@@ -3938,8 +4038,20 @@
       "recordAllFailure": "{date} · {character} : {message}"
     },
     "members": {
+      "confirm": {
+        "promoteTitle": "Promouvoir en admin",
+        "promoteSubtitle": "Promouvoir {name} en admin ?",
+        "promote": "Promouvoir",
+        "demoteTitle": "Rétrograder en membre",
+        "demoteSubtitle": "Rétrograder {name} en membre ?",
+        "demote": "Rétrograder",
+        "kickTitle": "Exclure le membre",
+        "kickSubtitle": "Retirer {name} du projet ?",
+        "kick": "Exclure"
+      },
+      "corporationLogoAlt": "Logo de la corporation",
       "roles": {
-        "owner": "Proprietaire",
+        "owner": "Propriétaire",
         "admin": "Admin",
         "member": "Membre"
       },
@@ -3949,6 +4061,9 @@
       "noPending": "Aucune demande d'adhesion en attente.",
       "noPendingHint": "Partagez le lien d'invitation pour inviter de nouveaux membres",
       "columns": {
+        "role": "Rôle",
+        "status": "Statut",
+        "joined": "Rejoint le",
         "character": "Personnage",
         "corporation": "Corporation",
         "requested": "Demandé le",
@@ -3977,6 +4092,7 @@
       "otherCorp": "Les autres joueurs devront etre approuves."
     },
     "container": {
+      "linkedToCorpOffices": "lié aux bureaux de la corporation",
       "verify": "Tout verifier",
       "verifyAll": "Tout verifier",
       "verifying": "Verification...",
@@ -4022,6 +4138,20 @@
     },
     "modals": {
       "newProject": {
+        "itemsCount": "{count} objet | {count} objets",
+        "createError": "Échec de la création du projet",
+        "blacklistCategories": {
+          "advanced_components": "Composants avancés",
+          "capital_components": "Composants capitaux",
+          "advanced_capital_components": "Composants capitaux avancés",
+          "hybrid_components": "Composants hybrides",
+          "fuel_blocks": "Blocs de carburant",
+          "tools": "Outils (R.A.M.)",
+          "simple_reactions": "Réactions simples",
+          "complex_reactions": "Réactions composites",
+          "hybrid_reactions": "Réactions hybrides",
+          "biochem_reactions": "Réactions biochimiques"
+        },
         "title": "Nouveau projet",
         "subtitle": "Creer un nouveau projet industriel multi-items",
         "nameLabel": "Nom",
@@ -4072,10 +4202,10 @@
         "containerLabel": "Containers corp",
         "containerPlaceholder": "ex: Fleet Doctrine Materials",
         "containerHint": "Si defini, les admins peuvent verifier les contributions materielles contre le contenu de ces containers dans les bureaux corp partages. Un nom par ligne, la casse est ignoree.",
-        "blacklist": "Liste noire",
-        "blacklistLabel": "Liste noire",
-        "blacklistDesc": "Les items ci-dessous seront achetes, pas fabriques.",
-        "blacklistHint": "Defauts issus de vos parametres industrie. Surcharge par projet.",
+        "blacklist": "Blacklist",
+        "blacklistLabel": "Blacklist",
+        "blacklistDesc": "Les items ci-dessous seront achetés, pas fabriqués.",
+        "blacklistHint": "Défauts issus de vos paramètres industrie. Surcharge par projet.",
         "blacklistFromSettings": "depuis vos réglages",
         "blacklistSettingsItems": "{count} item exclu par vos réglages | {count} items exclus par vos réglages",
         "lineRentalInfo": "Tarifs location de ligne :",
@@ -4151,6 +4281,7 @@
       "comingSoon": "À venir"
     },
     "templates": {
+      "saveError": "Échec de l'enregistrement du modèle de projet",
       "templateColumn": "Modèle",
       "itemsColumn": "Items",
       "sharedColumn": "Partagé",
@@ -4165,7 +4296,7 @@
       "deleteMessage": "{name} sera supprimé. Les projets déjà créés avec ce modèle ne sont pas touchés.",
       "empty": "Aucun modèle : enregistre un projet comme modèle",
       "saveTitle": "Enregistrer comme modèle",
-      "saveSubtitle": "Garde les items, la liste noire et les options de ce projet pour les suivants",
+      "saveSubtitle": "Garde les items, la blacklist et les options de ce projet pour les suivants",
       "nameLabel": "Nom du modèle",
       "namePlaceholder": "ex. Chaîne Hammerhead",
       "shareLabel": "Partager avec ma corporation",
@@ -4274,6 +4405,17 @@
       "description": "Creez un nouveau projet pour commencer."
     },
     "detail": {
+      "itemsCount": "{count} objet | {count} objets",
+      "runsCount": "{count} run | {count} runs",
+      "manager": "Gestionnaire : {name}",
+      "contributorsCount": "{count} contributeur | {count} contributeurs",
+      "leafMaterials": "Matériaux de base pour {count} objets",
+      "blacklistedCategories": "{count} catégorie en blacklist | {count} catégories en blacklist",
+      "addContribution": "Ajouter un apport",
+      "activeMembers": "{count} membre actif | {count} membres actifs",
+      "pendingMembers": "{count} en attente",
+      "linkCopied": "Lien copié !",
+      "linkCopyFailed": "Échec de la copie du lien",
       "backToList": "Retour aux projets",
       "shareLink": "Lien de partage",
       "invite": "Inviter",
@@ -4296,6 +4438,7 @@
         "title": "Supprimer le projet",
         "message": "Etes-vous sur de vouloir supprimer ce projet ? Cette action est irreversible. Toutes les contributions, ventes et donnees de distribution seront definitivement perdues."
       },
+      "nextStatus": "Passer à {status}",
       "shareLinkReason": {
         "private": "Un projet privé ne peut pas être rejoint par lien. Rendez-le public pour inviter des personnes.",
         "draft": "Un projet en brouillon n'est pas encore ouvert. Publiez-le pour inviter des personnes."
@@ -4303,6 +4446,10 @@
       "shareLinkShortcut": {
         "makePublic": "Rendre public",
         "publish": "Publier"
+      },
+      "draftActions": {
+        "published": "Publier",
+        "in_progress": "Démarrer"
       },
       "statusActions": {
         "published": "Publier",
