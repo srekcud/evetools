@@ -13,21 +13,19 @@ import { useEveImages } from '@/composables/useEveImages'
 import ChainStatusFilter from './ChainStatusFilter.vue'
 import { CHAIN_STATUSES, chainStatusDotClass } from './chainStatus'
 import { recallChainStatusFilter, rememberChainStatusFilter } from './chainStatusFilter'
+import { CHAIN_VIEWS, recallChainView, rememberChainView, type ChainFocusRequest, type ChainView } from './chainView'
 import ProductionChainFlow from './ProductionChainFlow.vue'
 import ProductionChainJobTree from './ProductionChainJobTree.vue'
 import JobLinkModal from './JobLinkModal.vue'
 import ProjectReactionSteps from './ProjectReactionSteps.vue'
 import { useProjectJobActions } from './useProjectJobActions'
 
-type ChainView = 'flow' | 'tree'
-
-const VIEWS: readonly ChainView[] = ['flow', 'tree']
-
 const props = defineProps<{
   projectId: string
   canMark?: boolean
   canMatchJobs?: boolean
   excludesInvention?: boolean
+  focusRequest?: ChainFocusRequest | null
 }>()
 
 const emit = defineEmits<{
@@ -76,21 +74,27 @@ async function matchJobs(): Promise<void> {
   }
 }
 
-const view = ref<ChainView>('flow')
+const view = ref<ChainView>(recallChainView())
 const selectedNodeId = ref<string | null>(null)
 const statusFilter = ref<ChainStatus[]>(recallChainStatusFilter())
 const stepNodes = computed(() => chainStore.nodes.filter(node => node.stage !== 'material'))
 
 watch(statusFilter, statuses => rememberChainStatusFilter(statuses))
 
-function openInTree(nodeId: string): void {
-  selectedNodeId.value = nodeId
-  view.value = 'tree'
-}
-
 function showView(next: ChainView): void {
   view.value = next
+  rememberChainView(next)
 }
+
+function openInTree(nodeId: string | null): void {
+  selectedNodeId.value = nodeId
+  showView('tree')
+}
+
+watch(() => props.focusRequest, request => {
+  if (request === null || request === undefined) return
+  openInTree(request.nodeId)
+}, { immediate: true })
 
 watch(() => props.projectId, projectId => {
   chainStore.fetchChain(projectId)
@@ -139,7 +143,7 @@ watch(
         >{{ t('groupIndustry.jobs.matchJobs') }}</button>
         <div class="inline-flex rounded border border-slate-700 overflow-hidden" role="group">
           <button
-            v-for="candidate in VIEWS"
+            v-for="candidate in CHAIN_VIEWS"
             :key="candidate"
             type="button"
             :data-testid="`chain-view-${candidate}`"
