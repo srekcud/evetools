@@ -365,6 +365,16 @@ async function handleEditSave(): Promise<void> {
 }
 
 const jobsSection = ref<HTMLElement | null>(null)
+const sourcingSection = ref<HTMLElement | null>(null)
+const sourceMaterialLine = computed(() => {
+  const action = cockpit.value?.nextAction
+  if (action?.code !== 'source_material' || action.bomLineId === null) return undefined
+  return projectStore.bomItems.find(item => item.id === action.bomLineId)
+})
+
+function contributeToSourceMaterial(): void {
+  if (sourceMaterialLine.value !== undefined) openContributeModal(sourceMaterialLine.value)
+}
 const chainFocusRequest = ref<ChainFocusRequest | null>(null)
 
 function actOnNextAction(): void {
@@ -374,11 +384,11 @@ function actOnNextAction(): void {
     requestNextStatus(action.targetStatus)
     return
   }
-  const bomLine = action.code === 'source_material' && action.bomLineId !== null
-    ? projectStore.bomItems.find(item => item.id === action.bomLineId)
-    : undefined
-  if (bomLine) {
-    openContributeModal(bomLine)
+  if (action.code === 'source_material') {
+    activeTab.value = 'bom'
+    void nextTick(() => {
+      sourcingSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
     return
   }
   if (action.code === 'launch_job' || action.code === 'await_jobs') {
@@ -651,7 +661,14 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
       <template v-if="cockpit">
         <ProjectPhaseRail :phases="cockpit.phases" />
-        <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" @act="actOnNextAction" />
+        <ProjectNextActionCard
+          :next-action="cockpit.nextAction"
+          :disabled="isAdvancingStatus"
+          :solo="project?.solo === true"
+          :contributable="sourceMaterialLine !== undefined"
+          @act="actOnNextAction"
+          @contribute="contributeToSourceMaterial"
+        />
         <ProjectPriceAlertBanner v-if="cockpit.priceAlert !== null" :price-alert="cockpit.priceAlert" @view-sales="activeTab = 'sales'" />
       </template>
       <p v-else-if="projectStore.cockpitError" class="mb-6 text-xs text-slate-500">
@@ -741,7 +758,9 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <!-- Materials Table -->
         <BomTable @contribute="openContributeModal" />
 
-        <MaterialSourcing v-if="!sourcingCollapsed" :project-id="projectId" />
+        <div v-if="!sourcingCollapsed" ref="sourcingSection" data-testid="material-sourcing-section">
+          <MaterialSourcing :project-id="projectId" />
+        </div>
 
         <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
       </div>
