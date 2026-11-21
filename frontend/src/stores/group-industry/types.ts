@@ -659,6 +659,8 @@ export type ProjectPhaseBlockedReasonCode = 'materials_missing' | 'jobs_unfinish
 
 export type ProjectNextActionCode =
   | 'project_completed'
+  | 'settle_transfers'
+  | 'copy_recap'
   | 'review_contributions'
   | 'start_project'
   | 'source_material'

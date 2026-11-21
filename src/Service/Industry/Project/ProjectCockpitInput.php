@@ -19,6 +19,7 @@ final readonly class ProjectCockpitInput
         public array $soldQuantityByTypeId,
         public int $pendingContributionCount,
         public bool $viewerIsManager,
+        public ?int $unreceivedTransferCount = null,
     ) {
     }
 }

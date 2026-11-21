@@ -453,6 +453,7 @@ async function advanceStatus(): Promise<void> {
   try {
     await projectStore.updateProject(projectId.value, { status: pendingStatus.value })
     showCompleteConfirm.value = false
+    if (pendingStatus.value === 'completed') activeTab.value = 'distribution'
     await loadCockpit(projectId.value)
   } catch (e) {
     statusError.value = e instanceof Error ? e.message : t('groupIndustry.detail.editError')
