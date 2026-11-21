@@ -43,11 +43,25 @@ final class BomLineMarkProviderTest extends TestCase
         self::assertSame('404 No mark on this line', $this->outcomeOf(fn () => $this->provide($this->owner, $this->ishtarProject, $this->ramLine)));
     }
 
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDenied(): void
+    public function testAcceptedAdminWhoIsNotTheOwnerGetsTheStepMark(): void
     {
         $this->markOn($this->ramLine, BomLineMarkState::Launched, 3);
 
-        self::assertSame(self::OWNER_ONLY, $this->outcomeOf(fn () => $this->provide($this->admin, $this->ishtarProject, $this->ramLine)));
+        self::assertSame('launched', $this->provide($this->admin, $this->ishtarProject, $this->ramLine)->state);
+    }
+
+    public function testMemberGetsTheStepMarkOfTheLineTheyReserved(): void
+    {
+        $this->markOn($this->ramLine, BomLineMarkState::Launched, 3);
+
+        self::assertSame('launched', $this->provide($this->reservingMember, $this->ishtarProject, $this->ramLine)->state);
+    }
+
+    public function testMemberWhoDidNotReserveTheLineIsDenied(): void
+    {
+        $this->markOn($this->ramLine, BomLineMarkState::Launched, 3);
+
+        self::assertSame(self::NOT_MARKER, $this->outcomeOf(fn () => $this->provide($this->bystanderMember, $this->ishtarProject, $this->ramLine)));
     }
 
     public function testLineOfAnotherProjectIsNotFoundEvenWhenItCarriesAStepMark(): void
@@ -60,7 +74,7 @@ final class BomLineMarkProviderTest extends TestCase
 
     private function provide(User $user, IndustryProject $project, IndustryProjectBomLine $line): object
     {
-        $provider = new BomLineMarkProvider($this->securityOf($user), $this->projectRepository(), $this->bomLineRepository(), $this->accessChecker());
+        $provider = new BomLineMarkProvider($this->securityOf($user), $this->projectRepository(), $this->bomLineRepository(), $this->accessChecker(), $this->lineMarkAccess());
 
         return $provider->provide(new Delete(), $this->lineUriVariables($project, $line));
     }

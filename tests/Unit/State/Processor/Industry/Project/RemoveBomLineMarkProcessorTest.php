@@ -65,11 +65,29 @@ final class RemoveBomLineMarkProcessorTest extends TestCase
         self::assertSame([0, []], [$this->flushCount, $this->publishedIndustryProjectEvents()]);
     }
 
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedAndTheStepMarkStays(): void
+    public function testAcceptedAdminWhoIsNotTheOwnerRemovesTheStepMark(): void
+    {
+        $this->markOn($this->ramLine, BomLineMarkState::Done, 4);
+
+        $this->remove($this->admin, $this->ramLine);
+
+        self::assertNull($this->ramLine->getMark());
+    }
+
+    public function testMemberRemovesTheStepMarkOfTheLineTheyReserved(): void
+    {
+        $this->markOn($this->ramLine, BomLineMarkState::Done, 4);
+
+        $this->remove($this->reservingMember, $this->ramLine);
+
+        self::assertSame([null, 1], [$this->ramLine->getMark(), $this->flushCount]);
+    }
+
+    public function testMemberWhoDidNotReserveTheLineIsDeniedAndTheStepMarkStays(): void
     {
         $stepMark = $this->markOn($this->ramLine, BomLineMarkState::Done, 4);
 
-        self::assertSame(self::OWNER_ONLY, $this->outcomeOf(fn () => $this->remove($this->admin, $this->ramLine)));
+        self::assertSame(self::NOT_MARKER, $this->outcomeOf(fn () => $this->remove($this->bystanderMember, $this->ramLine)));
 
         self::assertSame($stepMark, $this->ramLine->getMark());
         self::assertSame([0, []], [$this->flushCount, $this->publishedIndustryProjectEvents()]);
@@ -82,6 +100,7 @@ final class RemoveBomLineMarkProcessorTest extends TestCase
             $this->projectRepository(),
             $this->bomLineRepository(),
             $this->accessChecker(),
+            $this->lineMarkAccess(),
             $this->entityManager(),
             $this->mercurePublisher(),
         );
