@@ -769,8 +769,8 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           <FinancialCascade />
           <FinancialSummary v-if="!project?.personalUse" />
           <SellForecastCard v-if="!project?.personalUse" :project-id="projectId" />
-          <DistributionTable />
-          <ProjectTransfers :project-id="projectId" />
+          <DistributionTable v-if="!isWorkedOnAlone" />
+          <ProjectTransfers v-if="!isWorkedOnAlone" :project-id="projectId" />
           <ProjectDiscordRecap class="mt-8" />
         </template>
       </div>
