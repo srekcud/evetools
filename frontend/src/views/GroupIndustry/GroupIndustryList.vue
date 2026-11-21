@@ -33,6 +33,7 @@ const availableProjects = ref<GroupProject[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const joinNotice = ref<string | null>(null)
+const joinFailure = ref<{ message: string; shortLinkCode: string } | null>(null)
 
 // --- Tabs ---
 
@@ -95,6 +96,7 @@ function navigateToProject(project: GroupProject) {
 
 async function handleJoinProject(shortLinkCode: string) {
   joinNotice.value = null
+  joinFailure.value = null
   try {
     const project = await groupProjectStore.joinProject(shortLinkCode)
     if (!project) return
@@ -104,8 +106,11 @@ async function handleJoinProject(shortLinkCode: string) {
     }
     await fetchProjects()
     joinNotice.value = t('groupIndustry.join.pendingApproval')
-  } catch {
-    error.value = 'Failed to join project'
+  } catch (e) {
+    joinFailure.value = {
+      message: e instanceof Error ? e.message : t('groupIndustry.join.joinFailed'),
+      shortLinkCode,
+    }
   }
 }
 
@@ -121,9 +126,12 @@ async function fetchProjects() {
   error.value = null
   try {
     await groupProjectStore.fetchMyProjects()
+    const myProjectsError = groupProjectStore.error
     await groupProjectStore.fetchAvailableProjects()
+    const availableProjectsError = groupProjectStore.error
     myProjects.value = groupProjectStore.myProjects
     availableProjects.value = groupProjectStore.availableProjects
+    error.value = myProjectsError ?? availableProjectsError
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load projects'
   } finally {
@@ -244,6 +252,20 @@ onMounted(() => {
 
       <div v-if="joinNotice" class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6 text-center">
         <p class="text-amber-400 text-sm">{{ joinNotice }}</p>
+      </div>
+
+      <div
+        v-if="joinFailure"
+        role="alert"
+        class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6 flex items-center justify-between gap-4"
+      >
+        <p class="text-red-400 text-sm">{{ joinFailure.message }}</p>
+        <button
+          class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 transition-colors"
+          @click="handleJoinProject(joinFailure.shortLinkCode)"
+        >
+          {{ t('common.actions.retry') }}
+        </button>
       </div>
 
       <!-- Loading state -->

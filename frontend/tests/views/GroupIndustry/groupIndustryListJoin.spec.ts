@@ -45,7 +45,19 @@ function callsTo(url: string): number {
   return vi.mocked(apiRequest).mock.calls.filter(([calledUrl]) => calledUrl === url).length
 }
 
-async function mountListAndJoin(locale: TestLocale = 'en'): Promise<VueWrapper> {
+function answerLists(answers: { myProjects?: () => Promise<GroupProject[]>; availableProjects?: () => Promise<GroupProject[]> }): void {
+  vi.mocked(apiRequest).mockImplementation(((url: string) => {
+    if (url === MY_PROJECTS_URL) return (answers.myProjects ?? (() => Promise.resolve([])))()
+    if (url === AVAILABLE_PROJECTS_URL) return (answers.availableProjects ?? (() => Promise.resolve([AVAILABLE_PROJECT])))()
+    return Promise.reject(new Error(`unexpected ${url}`))
+  }) as never)
+}
+
+function retryButton(wrapper: VueWrapper) {
+  return wrapper.findAll('button').filter(button => button.text() === messageOf('en', 'common.actions.retry'))[0]
+}
+
+async function mountList(locale: TestLocale = 'en'): Promise<VueWrapper> {
   const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   const wrapper = mount(GroupIndustryList, {
     global: {
@@ -67,6 +79,11 @@ async function mountListAndJoin(locale: TestLocale = 'en'): Promise<VueWrapper> 
     },
   })
   await flushPromises()
+  return wrapper
+}
+
+async function mountListAndJoin(locale: TestLocale = 'en'): Promise<VueWrapper> {
+  const wrapper = await mountList(locale)
   await wrapper.get('.join-project').trigger('click')
   await flushPromises()
   return wrapper
@@ -126,6 +143,98 @@ describe('GroupIndustryList join from the available projects', () => {
     expect(push).not.toHaveBeenCalled()
     expect(callsTo(MY_PROJECTS_URL)).toBe(1)
     expect(callsTo(AVAILABLE_PROJECTS_URL)).toBe(1)
-    expect(wrapper.text()).toContain('Failed to join project')
+    expect(wrapper.text()).toContain('Project is full')
+  })
+
+  it('keeps the available projects visible above the join failure banner', async () => {
+    answerApi(() => Promise.reject(new Error('Project is full')))
+
+    const wrapper = await mountListAndJoin()
+
+    expect(wrapper.find('.join-project').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Project is full')
+    expect(retryButton(wrapper)).toBeDefined()
+  })
+
+  it('retries the join and not the list reload when Retry is clicked after a join failure', async () => {
+    let joinAttempts = 0
+    answerApi(() => (++joinAttempts === 1 ? Promise.reject(new Error('Project is full')) : Promise.resolve(ACCEPTED_PROJECT)))
+    const wrapper = await mountListAndJoin()
+
+    await retryButton(wrapper)?.trigger('click')
+    await flushPromises()
+
+    expect(callsTo(JOIN_URL)).toBe(2)
+    expect(callsTo(MY_PROJECTS_URL)).toBe(1)
+    expect(push).toHaveBeenCalledWith({ name: 'industry-project', params: { id: 'project-512' } })
+  })
+
+  it('clears the join failure banner once the retried join succeeds', async () => {
+    let joinAttempts = 0
+    answerApi(() => (++joinAttempts === 1 ? Promise.reject(new Error('Project is full')) : Promise.resolve(PENDING_PROJECT)))
+    const wrapper = await mountListAndJoin()
+
+    await retryButton(wrapper)?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Project is full')
+    expect(wrapper.text()).toContain(messageOf('en', 'groupIndustry.join.pendingApproval'))
+  })
+})
+
+describe('GroupIndustryList loading failure', () => {
+  const EMPTY_STATE_TITLE = messageOf('en', 'groupIndustry.empty.title')
+
+  it('shows the server message and not the empty state when my projects fail to load', async () => {
+    route.query = { tab: 'my-projects' }
+    answerLists({ myProjects: () => Promise.reject(new Error('Service unavailable')) })
+
+    const wrapper = await mountList()
+
+    expect(wrapper.text()).toContain('Service unavailable')
+    expect(wrapper.text()).not.toContain(EMPTY_STATE_TITLE)
+  })
+
+  it('shows the server message when the available projects fail to load', async () => {
+    answerLists({ availableProjects: () => Promise.reject(new Error('Gateway timeout')) })
+
+    const wrapper = await mountList()
+
+    expect(wrapper.text()).toContain('Gateway timeout')
+    expect(wrapper.find('.join-project').exists()).toBe(false)
+  })
+
+  it('shows the server message of the first failure when both lists fail to load', async () => {
+    answerLists({
+      myProjects: () => Promise.reject(new Error('Service unavailable')),
+      availableProjects: () => Promise.reject(new Error('Gateway timeout')),
+    })
+
+    const wrapper = await mountList()
+
+    expect(wrapper.text()).toContain('Service unavailable')
+  })
+
+  it('reloads both lists and shows them when Retry is clicked after a loading failure', async () => {
+    let myProjectsAttempts = 0
+    answerLists({ myProjects: () => (++myProjectsAttempts === 1 ? Promise.reject(new Error('Service unavailable')) : Promise.resolve([])) })
+    const wrapper = await mountList()
+
+    await retryButton(wrapper)?.trigger('click')
+    await flushPromises()
+
+    expect(callsTo(MY_PROJECTS_URL)).toBe(2)
+    expect(callsTo(AVAILABLE_PROJECTS_URL)).toBe(2)
+    expect(wrapper.text()).not.toContain('Service unavailable')
+    expect(wrapper.find('.join-project').exists()).toBe(true)
+  })
+
+  it('shows the empty state when my projects load as an empty list', async () => {
+    route.query = { tab: 'my-projects' }
+    answerLists({})
+
+    const wrapper = await mountList()
+
+    expect(wrapper.text()).toContain(EMPTY_STATE_TITLE)
   })
 })
