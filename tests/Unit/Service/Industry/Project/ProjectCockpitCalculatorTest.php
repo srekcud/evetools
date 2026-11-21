@@ -40,7 +40,19 @@ final class ProjectCockpitCalculatorTest extends TestCase
         $this->calculator = new ProjectCockpitCalculator();
     }
 
-    public function testInProgressProjectWithTwoUncoveredMaterialsBlocksSupplyAndSourcesTheLargestRemainder(): void
+    #[Group('issue-1178')]
+    public function testInProgressProjectWithAnUncoveredMaterialAndAFulfilledJobLineBlocksSupply(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-robotics', self::ROBOTICS_TYPE_ID, 'Robotics', 25, 15),
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 2, 2, 2, 0),
+        ], [], 0, false);
+
+        self::assertSame(['supply', 'blocked', 0, 1, 'materials_missing', 1], $this->phaseRow($cockpit, 'supply'));
+    }
+
+    #[Group('issue-1178')]
+    public function testInProgressProjectWithTwoUncoveredMaterialsAndNoJobLaunchedKeepsSupplyCurrentAndSourcesTheLargestRemainder(): void
     {
         $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 24_000, 24_000),
@@ -54,15 +66,45 @@ final class ProjectCockpitCalculatorTest extends TestCase
 
         self::assertSame([
             ['prepare', 'done', 1, 1, null, null],
-            ['supply', 'blocked', 3, 5, 'materials_missing', 2],
-            ['produce', 'current', 0, 2, null, null],
+            ['supply', 'current', 3, 5, null, null],
+            ['produce', 'upcoming', 0, 2, null, null],
             ['sell', 'upcoming', 0, 2, null, null],
             ['close', 'upcoming', 0, 1, null, null],
         ], $this->phaseRows($cockpit));
         self::assertSame(
-            ['source_material', true, 'materials', null, 'line-fusion-thruster', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 50],
+            ['source_material', false, 'materials', null, 'line-fusion-thruster', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 50],
             $this->actionRow($cockpit),
         );
+    }
+
+    #[Group('issue-1178')]
+    public function testInProgressProjectWithAnUncoveredMaterialAndAJobMatchedToAnEsiJobBlocksSupplyAndWarnsTheSourcingAction(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 24_000, 24_000),
+            $this->material('line-robotics', self::ROBOTICS_TYPE_ID, 'Robotics', 25, 15),
+            $this->job('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 300, 0, 3, 1),
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 2, 0, 2, 0),
+        ], [], 0, false);
+
+        self::assertSame(['supply', 'blocked', 1, 2, 'materials_missing', 1], $this->phaseRow($cockpit, 'supply'));
+        self::assertSame(['produce', 'current', 0, 2, null, null], $this->phaseRow($cockpit, 'produce'));
+        self::assertSame(
+            ['source_material', true, 'materials', null, 'line-robotics', self::ROBOTICS_TYPE_ID, 'Robotics', 10],
+            $this->actionRow($cockpit),
+        );
+    }
+
+    #[Group('issue-1178')]
+    public function testInProgressProjectWithAnUncoveredMaterialAndADeliveredJobRunBlocksSupply(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-robotics', self::ROBOTICS_TYPE_ID, 'Robotics', 25, 15),
+            $this->job('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 300, 0, 3, 0, 1),
+        ], [], 0, false);
+
+        self::assertSame(['supply', 'blocked', 0, 1, 'materials_missing', 1], $this->phaseRow($cockpit, 'supply'));
+        self::assertTrue($this->actionRow($cockpit)[1]);
     }
 
     public function testInProgressProjectWithCoveredMaterialsAndOneOfSixJobsDeliveredLaunchesTheFirstBlueprintJobByTypeName(): void
@@ -129,7 +171,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, true);
 
         self::assertSame(
-            ['source_material', true, 'materials', null, 'line-isogen', self::ISOGEN_TYPE_ID, 'Isogen', 40],
+            ['source_material', false, 'materials', null, 'line-isogen', self::ISOGEN_TYPE_ID, 'Isogen', 40],
             $this->actionRow($cockpit),
         );
     }
