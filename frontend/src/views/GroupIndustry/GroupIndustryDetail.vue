@@ -46,6 +46,7 @@ import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.
 import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { useGroupT2BlueprintCopyProposalStore } from '@/stores/group-industry/t2BlueprintCopyProposal'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
+import type { ChainFocusRequest } from '@/components/group-industry/chainView'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
@@ -364,6 +365,7 @@ async function handleEditSave(): Promise<void> {
 }
 
 const jobsSection = ref<HTMLElement | null>(null)
+const chainFocusRequest = ref<ChainFocusRequest | null>(null)
 
 function actOnNextAction(): void {
   const action = cockpit.value?.nextAction
@@ -380,8 +382,12 @@ function actOnNextAction(): void {
     return
   }
   if (action.code === 'launch_job' || action.code === 'await_jobs') {
+    chainFocusRequest.value = { nodeId: action.bomLineId }
     activeTab.value = 'chain'
-    void nextTick(() => jobsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    void nextTick(() => {
+      chainFocusRequest.value = null
+      jobsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
     return
   }
   if (action.tab !== null) {
@@ -791,6 +797,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             :excludes-invention="project.excludesInvention"
             :can-mark="isOwner && !isCompleted"
             :can-match-jobs="isOwner"
+            :focus-request="chainFocusRequest"
             @marked="refreshGroupProject.cockpit(projectId)"
             @contribute="openContributeModal"
             @open-sourcing="activeTab = 'bom'"
