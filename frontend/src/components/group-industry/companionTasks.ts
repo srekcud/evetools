@@ -7,7 +7,24 @@ export type CompanionAlert = { key: string; kind: CompanionAlertKind }
 
 export type MoveProducts = { quantity: number; jobCount: number; unknownJobCount: number }
 
+export type ActivityGroup = 'copy' | 'invention' | 'reaction' | 'manufacturing' | 'material' | 'unknown'
+
+export type ActivityProgress = { group: ActivityGroup; delivered: number; total: number; percent: number }
+
+export type CompanionProduct = { typeId: number; typeName: string; runs: number; otherCount: number }
+
+export type FreeValue = { total: number | null; unknownLines: number }
+
+export type JobTiming = { state: 'ready' | 'paused' | 'running'; remainingMs: number | null }
+
 export type CompanionTasks = {
+  now: number
+  product: CompanionProduct | null
+  activityProgress: ActivityProgress[]
+  deliveredLines: number
+  totalLines: number
+  freeValue: FreeValue
+  readyJobCount: number
   free: BomItem[]
   mine: { item: BomItem; quantity: number }[]
   awaitingApproval: { item: BomItem; quantity: number }[]
@@ -93,6 +110,18 @@ function isAdmin(project: GroupProject): boolean {
   return project.myRole === 'owner' || project.myRole === 'admin'
 }
 
+export function activityGroupOf(_item: BomItem): ActivityGroup {
+  return 'unknown'
+}
+
+export function groupByActivity<Entry>(_entries: Entry[], _itemOf: (entry: Entry) => BomItem): { group: ActivityGroup; entries: Entry[] }[] {
+  return []
+}
+
+export function jobTimingOf(_match: JobMatch, _now: number): JobTiming {
+  return { state: 'running', remainingMs: null }
+}
+
 export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks {
   const { bomItems, chainNodes, project, members, myCharacterNames, priceAlert, undercutOrders, now } = input
 
@@ -150,6 +179,13 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     .filter(nodeId => bomItems.some(item => item.isJob && item.id === nodeId))
 
   return {
+    now,
+    product: null,
+    activityProgress: [],
+    deliveredLines: 0,
+    totalLines: 0,
+    freeValue: { total: null, unknownLines: 0 },
+    readyJobCount: 0,
     free,
     mine,
     awaitingApproval,
