@@ -2,7 +2,7 @@
 
 Ce playbook suit un projet de groupe du côté d'une personne qui n'en est pas propriétaire : rejoindre par le lien d'invitation, apporter des matériaux ou du travail, attendre la relecture, lire sa part, recevoir ses virements. Pour le côté propriétaire (publier, inviter, relire, vendre, terminer), voir [Mener un projet de groupe en tant que propriétaire](/help?page=playbooks/group-project-owner).
 
-Les libellés entre guillemets « » sont ceux de l'écran. Plusieurs sont en anglais dans l'application, quelle que soit la langue (« Add Contribution », « Material », « Job Install », « Pending », « Approved », « Profit Distribution »), ou écrits sans accent (« Publie », « Termine », « Quantite », « Etape BOM »). Ils sont repris tels quels.
+Les libellés entre guillemets « » sont ceux de l'écran. Plusieurs sont en anglais dans l'application, quelle que soit la langue (« Add Contribution », « Material », « Job Install », « Pending », « Approved », « Profit Distribution »), ou écrits sans accent (« Quantite », « Etape BOM »). Ils sont repris tels quels.
 
 ## 1. Rejoindre
 
@@ -11,9 +11,9 @@ Le propriétaire vous envoie un lien de la forme `<adresse d'EVE Tools>/industry
 - **Pas encore connecté.** Vous arrivez sur l'écran de connexion, puis sur l'Accueil : le lien n'est pas rejoué. Rouvrez-le une fois connecté.
 - **Corporation du propriétaire = la vôtre.** C'est la corporation de votre personnage principal, comparée à celle du personnage principal du propriétaire. Après « Adhésion au projet... », vous ouvrez directement le projet.
 - **Autre corporation, ou corporation inconnue.** Vous voyez « Demande envoyée » et le bouton « Retour aux projets ». L'écran promet une notification à l'acceptation, mais EVE Tools n'en envoie aucune : prévenez le propriétaire, ou revenez voir. Sans réponse, rien ne change : le projet n'apparaît ni dans « Mes projets » ni dans « Disponibles », et rouvrir le lien vous ramène à la liste des projets, sans message. Une fois la demande acceptée, le projet apparaît dans « Mes projets ».
-- **« Adhésion impossible ».** Le message est celui du serveur, en anglais. « Project not found » : le code est inconnu, ou le projet est privé (les deux cas sont indiscernables). « This project is no longer accepting new members » : le projet n'est plus « Publie » ni « En cours ».
+- **« Adhésion impossible ».** Le message est celui du serveur, en anglais. « Project not found » : le code est inconnu, ou le projet est privé (les deux cas sont indiscernables). « This project is no longer accepting new members » : le projet n'est plus « Publié » ni « En cours ».
 
-Autre porte d'entrée, si vous êtes de la corporation du propriétaire : Menu « Industrie », onglet « Projets », onglet « Disponibles ». Il liste les projets « Publie » et non privés de votre corporation, avec « Rejoindre le projet » et l'acceptation immédiate.
+Autre porte d'entrée, si vous êtes de la corporation du propriétaire : Menu « Industrie », onglet « Projets », onglet « Disponibles ». Il liste les projets « Publié » et non privés de votre corporation, avec « Rejoindre le projet » et l'acceptation immédiate.
 
 **Piège : un participant retiré ou parti repasse toujours par une demande, même dans la corporation du propriétaire.** Le projet n'est plus listé dans « Disponibles » : rouvrez le lien, vous recevez « Demande envoyée » et le rôle de membre. Voir [Qui peut rejoindre un projet, et qui approuve ?](/help?page=faq/faq).
 
@@ -25,7 +25,7 @@ Ouvrez le projet depuis « Mes projets ». Sous l'en-tête, la barre de phases (
 - « Lancer un job », bouton « Voir les jobs ».
 - « Rien à faire pour vous » (« Le projet avance sans vous pour le moment ») : les actions qui restent sont celles du propriétaire et des admins (relire, changer le statut, enregistrer les ventes).
 
-Les onglets utiles pour vous : « Approvisionnement », « Production », « Contributions », « Finances », « Équipe » et « Journal ». Le bouton « Compagnon » de l'en-tête (absent quand le projet est « Termine ») ouvre une fenêtre détachée avec les lignes « À attribuer » et « Je m'en charge ».
+Les onglets utiles pour vous : « Approvisionnement », « Production », « Contributions », « Finances », « Équipe » et « Journal ». Le bouton « Compagnon » de l'en-tête (absent quand le projet est « Terminé ») ouvre une fenêtre détachée avec les lignes « À attribuer » et « Je m'en charge ».
 
 ## 3. Choisir ce que vous apportez
 
@@ -39,7 +39,7 @@ Onglet « Approvisionnement ». « Materiaux a sourcer » donne, par ligne, « R
 
 ## 4. Déclarer une contribution
 
-Trois accès au même formulaire : « Contribuer » sur une ligne (type, item et quantité sont préremplis, la quantité étant votre réservation, sinon le restant), « Add Contribution » dans l'onglet « Contributions » (absent quand le projet est « Termine »), ou « Contribuer » dans la carte « Prochaine action ».
+Trois accès au même formulaire : « Contribuer » sur une ligne (type, item et quantité sont préremplis, la quantité étant votre réservation, sinon le restant), « Add Contribution » dans l'onglet « Contributions » (absent quand le projet est « Terminé »), ou « Contribuer » dans la carte « Prochaine action ».
 
 La fenêtre « Ajouter une contribution » demande un « Type de contribution », l'« Item » (« Etape BOM » pour un job), la « Quantite », des « Notes » facultatives, puis « Soumettre la contribution ». Elle rappelle : « Votre contribution sera examinee par un admin du projet. »
 

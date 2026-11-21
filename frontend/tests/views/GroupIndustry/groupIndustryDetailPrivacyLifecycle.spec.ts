@@ -136,11 +136,18 @@ describe('group project detail privacy', () => {
 })
 
 describe('group project detail leaving the draft status', () => {
-  it('offers Publish and Start on a draft project and starts it with a status PATCH', async () => {
-    const wrapper = await mountDetailOf(FEROX_BATCH)
+  it('offers Publish on a shared draft project only and starts it with a status PATCH', async () => {
+    const sharedDraft = await mountDetailOf({ ...FEROX_BATCH, private: false })
+    const sharedOffersPublish = buttonLabelled(sharedDraft, 'Publish') !== undefined
+    sharedDraft.unmount()
+    setActivePinia(createPinia())
+    const privateDraft = await mountDetailOf(FEROX_BATCH)
 
-    expect(buttonLabelled(wrapper, 'Publish')).toBeDefined()
-    await present(buttonLabelled(wrapper, 'Start')).trigger('click')
+    expect({
+      private: buttonLabelled(privateDraft, 'Publish') !== undefined,
+      shared: sharedOffersPublish,
+    }).toEqual({ private: false, shared: true })
+    await present(buttonLabelled(privateDraft, 'Start the project')).trigger('click')
     await flushPromises()
 
     expect(sentPatchBodies()).toEqual([{ status: 'in_progress' }])

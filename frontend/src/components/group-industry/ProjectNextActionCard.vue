@@ -22,6 +22,9 @@ const descriptionKey = computed(() => {
   if (props.nextAction.code === 'await_jobs' && props.nextAction.endsAt === null) return `${messageKey.value}.descriptionUnknownEnd`
   return `${messageKey.value}.description`
 })
+const buttonLabel = computed(() => (props.nextAction.targetStatus !== null
+  ? t(`groupIndustry.detail.statusActions.${props.nextAction.targetStatus}`)
+  : t(`${messageKey.value}.button`)))
 const hasButton = computed(() => props.nextAction.targetStatus !== null || props.nextAction.tab !== null)
 </script>
 
@@ -52,7 +55,7 @@ const hasButton = computed(() => props.nextAction.targetStatus !== null || props
       :disabled="disabled"
       @click="$emit('act')"
     >
-      {{ t(`${messageKey}.button`) }}
+      {{ buttonLabel }}
     </button>
   </section>
 </template>

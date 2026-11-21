@@ -11,3 +11,14 @@ const NEXT_PROJECT_STATUSES: Record<GroupProjectStatus, GroupProjectStatus[]> = 
 export function nextProjectStatuses(status: GroupProjectStatus): GroupProjectStatus[] {
   return NEXT_PROJECT_STATUSES[status]
 }
+
+export function headerStatuses(
+  status: GroupProjectStatus,
+  isPrivate: boolean,
+  nextActionTarget: GroupProjectStatus | null,
+): GroupProjectStatus[] {
+  return nextProjectStatuses(status).filter(target => {
+    const isPublishingPrivateProject = target === 'published' && isPrivate
+    return !isPublishingPrivateProject && target !== nextActionTarget
+  })
+}
