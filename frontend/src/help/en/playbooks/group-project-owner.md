@@ -13,12 +13,7 @@ An admin sees the same screens as you and can review contributions, handle reque
 
 ## 1. Publish the project
 
-Menu "Industry", tab "Projects", "My Projects": open the project (right after creating it, you land on it). While it is a "Draft", the header offers two buttons:
-
-- "Publish": the project becomes "Published".
-- "Start": the project becomes "In Progress", skipping "Published".
-
-From "Published", the button becomes "Move to In Progress".
+Menu "Industry", tab "Projects", "My Projects": open the project (right after creating it, you land on it). While it is a "Draft", the "Next action" card offers "Start the project" (the project becomes "In Progress"), and the header offers "Publish" on a project that is not private (the project becomes "Published"). Once published, the "Next action" card or the header offers "Start the project".
 
 **Trap: a project is private by default, and "Publish" changes nothing about that.** A private project does not show in "Available", and its link answers like an unknown link. To open the project: "Edit" icon in the header, untick "Private project", then "Save". The "Private" badge next to the status goes away.
 
@@ -67,7 +62,7 @@ The table gives, per row: the type, the quantity, the "Valuation", the "Method" 
 - **Your own contributions.** While you are the only reviewer (no other accepted admin), they are approved when submitted. As soon as you appoint an admin, the following ones stay "Pending" and only that admin can review them: nobody reviews their own contribution.
 - **Unknown value.** A contribution with no known price makes the totals that include it unknown, never partial. The table footer ("Total Engaged Costs", "Approved Value", "Pending Value") says so.
 
-When every material is covered and every job delivered, the card offers "Move to selling". The "Move to Selling" button in the header is available in every case: EVE Tools does not check that production is finished.
+When every material is covered and every job delivered, the card offers "Move to selling". The "Move to selling" button in the header is available in every case: EVE Tools does not check that production is finished.
 
 ## 5. Record sales
 
@@ -106,11 +101,11 @@ The "Transfers between members" section offers the plan of in-game transfers tha
 
 The plan is recomputed when read. A tick only counts while the transfer amount is unchanged: if you correct a sale, check them again. A "Rounding gap absorbed by the largest payout" may be shown.
 
-## 8. Complete
+## 8. Close
 
-When everything is sold, the card offers "Close the project"; the header offers "Move to Completed". The "Complete Project" window shows "Before completing": pending contributions, unsold products, "Final margin: …%" (or "Final margin unknown: a cost or a fee is missing") and "Transfers ticked as received: x / y".
+When everything is sold, the card offers "Close the project"; the header offers "Close the project" as long as the card carries another action. The "Close the project" window shows "Before closing": pending contributions, unsold products, "Final margin: …%" (or "Final margin unknown: a cost or a fee is missing") and "Transfers ticked as received: x / y".
 
-- **These checks block nothing.** "Complete" stays clickable, even with pending contributions or unsold products.
+- **These checks block nothing.** "Close the project" stays clickable, even with pending contributions or unsold products.
 - **Irreversible.** No more contributions, reviews, sales or fee changes, and the project can no longer be deleted.
 - Recipients can still tick "Received" after the project is completed.
 - Once completed, "Copy for Discord" (in "Discord recap") copies a text ready to paste. Nothing is posted for you.

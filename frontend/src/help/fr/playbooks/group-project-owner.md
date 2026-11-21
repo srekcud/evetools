@@ -2,7 +2,7 @@
 
 Ce playbook suit un projet de groupe du côté de la personne qui l'a créé : publier, inviter, accepter les demandes, approuver les contributions, enregistrer les ventes, lire la répartition, faire les virements, terminer. Pour créer le projet, acheter les matériaux et lancer les jobs, voir [Fabriquer un produit T2](/help?page=playbooks/t2-project) : un projet seul est un projet comme un autre. Côté invité : [participant d'un projet de groupe](/help?page=playbooks/group-project-member).
 
-Les libellés entre guillemets « » sont ceux de l'écran. Plusieurs sont en anglais dans l'application, quelle que soit la langue (« Approve », « Reject », « Record Sale », « Promote », « Kick », « Profit Distribution »), ou écrits sans accent (« Publie », « Termine »). Ils sont repris tels quels.
+Les libellés entre guillemets « » sont ceux de l'écran. Plusieurs sont en anglais dans l'application, quelle que soit la langue (« Approve », « Reject », « Record Sale », « Promote », « Kick », « Profit Distribution »), ou écrits sans accent. Ils sont repris tels quels.
 
 Un admin voit les mêmes écrans que vous et peut relire les contributions, traiter les demandes, enregistrer les ventes et changer le statut. Restent au propriétaire : nommer un admin, les achats (« Achats », « Lier un job », « Délier ») et l'association de vos jobs ESI aux lignes du projet (« Associer les jobs » dans « Production »).
 
@@ -13,12 +13,7 @@ Un admin voit les mêmes écrans que vous et peut relire les contributions, trai
 
 ## 1. Publier le projet
 
-Menu « Industrie », onglet « Projets », « Mes projets » : ouvrez le projet (après sa création, vous y arrivez directement). En « Brouillon », l'en-tête propose deux boutons :
-
-- « Publier » : le projet passe à « Publie ».
-- « Démarrer » : le projet passe à « En cours », sans passer par « Publie ».
-
-Depuis « Publie », le bouton devient « Passer à En cours ».
+Menu « Industrie », onglet « Projets », « Mes projets » : ouvrez le projet (après sa création, vous y arrivez directement). En « Brouillon », la carte « Prochaine action » propose « Démarrer le projet » (le projet passe à « En cours »), et l'en-tête propose « Publier » sur un projet qui n'est pas privé (le projet passe à « Publié »). Une fois publié, la carte « Prochaine action » ou l'en-tête propose « Démarrer le projet ».
 
 **Piège : un projet est privé par défaut, et « Publier » n'y change rien.** Un projet privé n'apparaît pas dans « Disponibles », et son lien répond comme un lien inconnu. Pour ouvrir le projet : icône « Modifier » de l'en-tête, décochez « Projet privé », puis « Enregistrer ». Le badge « Privé » disparaît à côté du statut.
 
@@ -26,8 +21,8 @@ Ce qui est ouvert, et à qui :
 
 | Porte d'entrée | Condition |
 |---|---|
-| Lien d'invitation | Projet non privé, au statut « Publie » ou « En cours » |
-| Onglet « Disponibles » | Projet non privé, au statut « Publie » seulement, et de la même corporation que vous (celle de votre personnage principal) |
+| Lien d'invitation | Projet non privé, au statut « Publié » ou « En cours » |
+| Onglet « Disponibles » | Projet non privé, au statut « Publié » seulement, et de la même corporation que vous (celle de votre personnage principal) |
 | À partir de « En vente » | Plus personne ne peut rejoindre |
 
 Pour fermer à nouveau l'accès, recochez « Projet privé » : les participants déjà acceptés restent.
@@ -67,7 +62,7 @@ Le tableau donne, par ligne : le type, la quantité, la « Valuation », la « M
 - **Vos propres contributions.** Tant que vous êtes le seul relecteur (aucun autre admin accepté), elles sont approuvées au dépôt. Dès que vous nommez un admin, les suivantes restent « Pending » et seul cet admin peut les relire : on ne relit pas sa propre contribution.
 - **Valeur inconnue.** Une contribution sans prix connu rend inconnus les totaux qui l'incluent, jamais partiels. Le pied de tableau (« Total Engaged Costs », « Approved Value », « Pending Value ») le dit.
 
-Quand toutes les matières sont couvertes et les jobs livrés, la carte propose « Passer à la vente ». Le bouton « Passer à En vente » de l'en-tête est disponible dans tous les cas : EVE Tools ne vérifie pas que la production est finie.
+Quand toutes les matières sont couvertes et les jobs livrés, la carte propose « Passer à la vente ». Le bouton « Passer à la vente » de l'en-tête est disponible dans tous les cas : EVE Tools ne vérifie pas que la production est finie.
 
 ## 5. Enregistrer les ventes
 
@@ -106,11 +101,11 @@ La section « Virements entre membres » propose le plan de virements en jeu qui
 
 Le plan se recalcule à la lecture. Une coche ne compte que tant que le montant du virement est inchangé : si vous corrigez une vente, vérifiez-les de nouveau. Un « Écart d'arrondi absorbé par le plus gros payout » peut être indiqué.
 
-## 8. Terminer
+## 8. Clôturer
 
-Quand tout est vendu, la carte propose « Clôturer le projet » ; l'en-tête propose « Passer à Termine ». La fenêtre « Terminer le projet » affiche « Avant de terminer » : contributions en attente, produits invendus, « Marge finale : … % » (ou « Marge finale inconnue : un coût ou un frais manque ») et « Virements cochés comme reçus : x / y ».
+Quand tout est vendu, la carte propose « Clôturer le projet » ; l'en-tête propose « Clôturer le projet » tant que la carte porte une autre action. La fenêtre « Clôturer le projet » affiche « Avant de clôturer » : contributions en attente, produits invendus, « Marge finale : … % » (ou « Marge finale inconnue : un coût ou un frais manque ») et « Virements cochés comme reçus : x / y ».
 
-- **Ces vérifications n'empêchent rien.** « Terminer » reste cliquable, même avec des contributions en attente ou des invendus.
+- **Ces vérifications n'empêchent rien.** « Clôturer le projet » reste cliquable, même avec des contributions en attente ou des invendus.
 - **Irréversible.** Plus de contribution, de revue, de vente ni de changement de frais, et le projet ne peut plus être supprimé.
 - Les destinataires peuvent encore cocher « Reçu » après la fin du projet.
 - Une fois terminé, « Copier pour Discord » (dans « Récapitulatif Discord ») copie un texte prêt à coller. Rien n'est posté à votre place.

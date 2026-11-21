@@ -34,7 +34,7 @@ L'onglet « Contributions » est masqué tant que vous êtes seul sur le projet,
 
 - **Contribution déclarée** : sa valeur est fixée au dépôt. Une fois « Approved », elle ne se rejette plus, sauf si elle double une contribution détectée (« Doublon avec un apport ESI »).
 - **Contribution détectée** (achat lié, job lié, courrier) : elle arrive « Approved » et suit ses liens, sauf l'achat lié d'un projet où un autre propriétaire ou admin peut relire : c'est une proposition d'apport « Pending », qui compte à la confirmation de livraison (voir [valeur des apports](/help?page=calculations/group-contribution-and-distribution)). Lier ou supprimer un achat, lier ou délier un job la recalcule ; la synchro des jobs (toutes les 30 minutes) recopie le coût ESI. Le courrier est relu à l'affichage du courrier du projet : livré, la récompense compte ; en attente, en route, échoué ou délié, il est retiré ; statut illisible, la dernière valeur reste.
-- **Projet « Termine »** : plus aucun recalcul. Les valeurs sont figées.
+- **Projet « Terminé »** : plus aucun recalcul. Les valeurs sont figées.
 - Quand une contribution détectée apparaît, une contribution déclarée encore « Pending » du même participant, sur la même ligne et du même type, est rejetée d'office (note « Replaced by the ESI/wallet contribution »).
 
 ## La répartition du revenu
