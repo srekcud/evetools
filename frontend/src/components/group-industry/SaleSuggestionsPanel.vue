@@ -97,21 +97,26 @@ async function recordAllPlanned(): Promise<void> {
   isRecordingAll.value = true
   linkingError.value = null
   recordAllFailures.value = []
-  const failures: RecordAllFailure[] = []
-  for (const suggestion of toRecord) {
-    try {
-      await store.recordSaleFromWalletTransaction(props.projectId, recordingInputOf(suggestion))
-    } catch (e) {
-      failures.push({
+  try {
+    const { failures } = await store.recordSalesFromWalletTransactions(props.projectId, toRecord.map(recordingInputOf))
+    for (const failure of failures) {
+      const suggestion = toRecord.find(candidate => candidate.transactionId === failure.transactionId)
+      if (suggestion === undefined) {
+        linkingError.value = failure.message
+        continue
+      }
+      recordAllFailures.value = [...recordAllFailures.value, {
         transactionId: suggestion.transactionId,
         date: suggestion.date,
         sellerCharacterName: suggestion.sellerCharacterName,
-        message: e instanceof Error ? e.message : t('groupIndustry.saleSuggestions.recordFailed'),
-      })
+        message: failure.message,
+      }]
     }
+  } catch (e) {
+    linkingError.value = e instanceof Error ? e.message : t('groupIndustry.saleSuggestions.recordFailed')
+  } finally {
+    isRecordingAll.value = false
   }
-  recordAllFailures.value = failures
-  isRecordingAll.value = false
   await store.fetchSaleSuggestions(props.projectId)
 }
 

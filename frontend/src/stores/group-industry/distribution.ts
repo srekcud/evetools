@@ -9,6 +9,7 @@ import type {
   GroupMember,
   LineRentalRates,
   RecordSaleFromWalletTransactionInput,
+  RecordedWalletSales,
   RecordSaleInput,
   UpdateSaleInput,
   WalletReading,
@@ -129,6 +130,18 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
 
   function recordSaleFromWalletTransaction(projectId: string, input: RecordSaleFromWalletTransactionInput): Promise<GroupSale> {
     return postSale(projectId, 'sales/from-wallet-transaction', input)
+  }
+
+  async function recordSalesFromWalletTransactions(projectId: string, inputs: RecordSaleFromWalletTransactionInput[]): Promise<RecordedWalletSales> {
+    const batch = await apiRequest<RecordedWalletSales>(
+      `/industry/projects/${projectId}/sales/from-wallet-transactions`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ transactions: inputs }),
+      },
+    )
+    sales.value = [...[...batch.recorded].reverse(), ...sales.value]
+    return { recorded: batch.recorded, failures: batch.failures }
   }
 
   async function updateSale(projectId: string, saleId: string, input: UpdateSaleInput): Promise<GroupSale> {
@@ -275,6 +288,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     saleSuggestionsError,
     fetchSaleSuggestions,
     recordSaleFromWalletTransaction,
+    recordSalesFromWalletTransactions,
     fetchMembers,
     updateMember,
     kickMember,
