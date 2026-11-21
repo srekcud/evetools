@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
+import { useProjectDetailRequestQueueStore } from './projectDetailRequestQueue'
 import type { ProjectResearch, ResearchRow } from './types'
 
 export const useGroupResearchStore = defineStore('group-research', () => {
@@ -19,7 +20,7 @@ export const useGroupResearchStore = defineStore('group-research', () => {
     loading.value = true
     error.value = null
     try {
-      const research = await apiRequest<ProjectResearch>(`/industry/projects/${projectId}/research`)
+      const research = await useProjectDetailRequestQueueStore().runAfterPreviousReadsOf(projectId, () => apiRequest<ProjectResearch>(`/industry/projects/${projectId}/research`))
       if (request === latestRequest) {
         rows.value = research.rows
       }

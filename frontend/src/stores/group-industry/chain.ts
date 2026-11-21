@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
+import { useProjectDetailRequestQueueStore } from './projectDetailRequestQueue'
 import type { ChainNode, ChainStepMarkState, ProjectChain } from './types'
 
 const NULLABLE_NODE_FIELDS = [
@@ -46,7 +47,7 @@ export const useGroupChainStore = defineStore('group-chain', () => {
     loading.value = true
     error.value = null
     try {
-      const chain = await apiRequest<ProjectChain>(`/industry/projects/${projectId}/chain`)
+      const chain = await useProjectDetailRequestQueueStore().runAfterPreviousReadsOf(projectId, () => apiRequest<ProjectChain>(`/industry/projects/${projectId}/chain`))
       if (request === latestRequest) {
         nodes.value = chain.nodes.map(withExplicitNulls)
       }
