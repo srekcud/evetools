@@ -56,6 +56,7 @@ const props = defineProps<{
   selectedId: string | null
   projectId?: string
   canMark?: boolean
+  markableNodeIds?: readonly string[]
   canLinkJobs?: boolean
   statusFilter?: readonly ChainStatus[]
 }>()
@@ -316,7 +317,7 @@ function plansStructure(node: ChainNode): boolean {
               v-if="item.node.activity !== null && projectId !== undefined"
               :project-id="projectId"
               :node="item.node"
-              :can-mark="canMark === true"
+              :can-mark="canMark === true || markableNodeIds?.includes(item.node.id) === true"
               @marked="$emit('marked')"
             />
 

@@ -168,6 +168,11 @@ trait TracksJobsAndPurchasesOnIshtarBom
 
     private function accessChecker(): ProjectAccessChecker
     {
+        return new ProjectAccessChecker($this->participantRepository());
+    }
+
+    private function participantRepository(): IndustryProjectParticipantRepository
+    {
         $repository = $this->createStub(IndustryProjectParticipantRepository::class);
         $repository->method('findOneBy')->willReturnCallback(
             fn (array $criteria): ?IndustryProjectParticipant => array_find(
@@ -179,7 +184,7 @@ trait TracksJobsAndPurchasesOnIshtarBom
             ),
         );
 
-        return new ProjectAccessChecker($repository);
+        return $repository;
     }
 
     private function outcomeOf(callable $operation): string

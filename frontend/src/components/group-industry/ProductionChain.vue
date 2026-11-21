@@ -23,6 +23,7 @@ import { useProjectJobActions } from './useProjectJobActions'
 const props = defineProps<{
   projectId: string
   canMark?: boolean
+  markableNodeIds?: readonly string[]
   canMatchJobs?: boolean
   excludesInvention?: boolean
   focusRequest?: ChainFocusRequest | null
@@ -228,6 +229,7 @@ watch(
         :selected-id="selectedNodeId"
         :project-id="projectId"
         :can-mark="canMark === true"
+        :markable-node-ids="markableNodeIds"
         :can-link-jobs="canMatchJobs === true"
         @marked="$emit('marked')"
         @contribute="$emit('contribute', $event)"

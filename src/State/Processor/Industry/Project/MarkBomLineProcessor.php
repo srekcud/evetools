@@ -14,6 +14,7 @@ use App\Enum\BomLineMarkState;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Industry\Project\LineMarkAccess;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,6 +33,7 @@ final readonly class MarkBomLineProcessor implements ProcessorInterface
         private IndustryProjectRepository $projectRepository,
         private IndustryProjectBomLineRepository $bomLineRepository,
         private ProjectAccessChecker $accessChecker,
+        private LineMarkAccess $lineMarkAccess,
         private EntityManagerInterface $entityManager,
         private MercurePublisherService $mercurePublisher,
     ) {
@@ -51,12 +53,14 @@ final readonly class MarkBomLineProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $line = $this->bomLineRepository->find(UuidOrNotFound::of($uriVariables['lineId'] ?? null, 'BOM line not found'));
         if (null === $line || $line->getProject() !== $project) {
             throw new NotFoundHttpException('BOM line not found');
         }
+
+        $this->lineMarkAccess->assertMayMark($user, $project, $line);
 
         if ($project->isCompleted()) {
             throw new BadRequestHttpException('The project is completed, its lines can no longer be marked');

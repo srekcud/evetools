@@ -10,6 +10,7 @@ use App\ApiResource\Industry\Project\ProjectBomLineMarkResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\LineMarkAccess;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -25,6 +26,7 @@ final readonly class BomLineMarkProvider implements ProviderInterface
         private IndustryProjectRepository $projectRepository,
         private IndustryProjectBomLineRepository $bomLineRepository,
         private ProjectAccessChecker $accessChecker,
+        private LineMarkAccess $lineMarkAccess,
     ) {
     }
 
@@ -40,12 +42,14 @@ final readonly class BomLineMarkProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $line = $this->bomLineRepository->find(UuidOrNotFound::of($uriVariables['lineId'] ?? null, 'BOM line not found'));
         if (null === $line || $line->getProject() !== $project) {
             throw new NotFoundHttpException('BOM line not found');
         }
+
+        $this->lineMarkAccess->assertMayMark($user, $project, $line);
 
         if (null === $line->getMark()) {
             throw new NotFoundHttpException('No mark on this line');

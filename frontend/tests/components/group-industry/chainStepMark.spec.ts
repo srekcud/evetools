@@ -149,4 +149,30 @@ describe('ProductionChainJobTree step mark', () => {
     expect(rowsWithForm).toEqual([`chain-row-${HAMMERHEAD_I_COPY.id}`])
     expect([TRITANIUM_ID, SALE_ID].filter(id => wrapper.find(`[data-testid="chain-row-${id}"]`).exists())).toEqual([])
   })
+
+  it('offers the form only on the job nodes the member reserved when the user cannot mark every step', () => {
+    setActivePinia(createPinia())
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
+    const nodes = [{ ...HAMMERHEAD_I_COPY, runs: 20 }, { ...HAMMERHEAD_I, runs: COMPONENT_RUNS }]
+    const wrapper = mount(ProductionChainJobTree, {
+      props: { nodes, selectedId: null, projectId: PROJECT_ID, canMark: false, markableNodeIds: [HAMMERHEAD_I.id] },
+      global: { plugins: [i18n] },
+    })
+
+    const rowsWithForm = wrapper.findAll('[data-testid^="chain-row-"]').filter(found => found.find('[data-testid="chain-step-mark-form"]').exists()).map(found => found.attributes('data-testid'))
+
+    expect(rowsWithForm).toEqual([`chain-row-${HAMMERHEAD_I.id}`])
+  })
+
+  it('keeps every job node markable for a user who can mark every step', () => {
+    setActivePinia(createPinia())
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
+    const nodes = [{ ...HAMMERHEAD_I_COPY, runs: 20 }, { ...HAMMERHEAD_I, runs: COMPONENT_RUNS }]
+    const wrapper = mount(ProductionChainJobTree, {
+      props: { nodes, selectedId: null, projectId: PROJECT_ID, canMark: true, markableNodeIds: [] },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.findAll('[data-testid="chain-step-mark-form"]')).toHaveLength(2)
+  })
 })

@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectLineReservation;
 use App\Entity\User;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Service\Mercure\MercurePublisherService;
 use PHPUnit\Framework\Attributes\Group;
@@ -16,6 +19,7 @@ use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
 #[Group('issue-807')]
+#[Group('issue-1209')]
 final class ProjectBomLineMarkApiTest extends WebTestCase
 {
     use BuildsIshtarGroupProject;
@@ -105,6 +109,40 @@ final class ProjectBomLineMarkApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
 
         self::assertSame([['state' => 'launched', 'runs' => 2]], $this->storedMarksOf($this->ramJobLine));
+    }
+
+    public function testMemberMarksThenRemovesTheMarkOfTheLineTheyReservedButCannotMarkAnotherLine(): void
+    {
+        $this->em->persist(new IndustryProjectLineReservation($this->ramJobLine, $this->memberMembership, self::RAM_RUNS * self::RAM_UNITS_PER_RUN));
+        $this->em->flush();
+
+        $this->requestAs($this->member, 'POST', $this->markUri($this->ramJobLine), ['state' => 'done', 'runs' => 3]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([['state' => 'done', 'runs' => 3]], $this->storedMarksOf($this->ramJobLine));
+
+        $this->requestAs($this->member, 'DELETE', $this->markUri($this->ramJobLine));
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame([], $this->storedMarksOf($this->ramJobLine));
+
+        $this->requestAs($this->member, 'POST', $this->markUri($this->ishtarJobLine), ['state' => 'done', 'runs' => 1]);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame([], $this->storedMarksOf($this->ishtarJobLine));
+    }
+
+    public function testAcceptedAdminMarksALineNobodyReservedAndTheChainShowsItsMark(): void
+    {
+        $admin = $this->persistPilot('Fenn Ador', self::OWNER_CORPORATION_ID);
+        $this->addMembership($this->ishtarBatch, $admin, ParticipantRole::Admin, ParticipantStatus::Accepted);
+        $this->em->flush();
+
+        $this->requestAs($admin, 'POST', $this->markUri($this->ramJobLine), ['state' => 'launched', 'runs' => 2]);
+        self::assertResponseStatusCodeSame(200);
+
+        self::assertSame([['state' => 'launched', 'runs' => 2]], $this->storedMarksOf($this->ramJobLine));
+
+        $this->requestAs($admin, 'GET', $this->chainUri());
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['state' => 'launched', 'runs' => 2], $this->chainNode($this->ramJobLine)['mark']);
     }
 
     public function testPilotOfAnotherCorporationCannotMarkALine(): void

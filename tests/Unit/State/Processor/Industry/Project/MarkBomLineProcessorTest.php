@@ -116,15 +116,34 @@ final class MarkBomLineProcessorTest extends TestCase
         self::assertSame([0, []], [$this->flushCount, $this->publishedIndustryProjectEvents()]);
     }
 
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDenied(): void
+    public function testAcceptedAdminWhoIsNotTheOwnerMarksAnyLine(): void
     {
-        self::assertSame(
-            self::OWNER_ONLY,
-            $this->outcomeOf(fn () => $this->mark($this->admin, $this->ramLine, 'done', 2)),
-        );
+        $this->mark($this->admin, $this->ramLine, 'done', 2);
+
+        self::assertSame([BomLineMarkState::Done, 2], [$this->ramLine->getMark()?->getState(), $this->ramLine->getMark()?->getRuns()]);
+    }
+
+    public function testMemberMarksTheLineTheyReserved(): void
+    {
+        $this->mark($this->reservingMember, $this->ramLine, 'launched', 3);
+
+        self::assertSame([BomLineMarkState::Launched, 3, 1], [$this->ramLine->getMark()?->getState(), $this->ramLine->getMark()?->getRuns(), $this->flushCount]);
+        self::assertSame($this->expectedIndustryProjectEvents($this->ramLine), $this->publishedIndustryProjectEvents());
+    }
+
+    public function testMemberWhoReservedAnotherLineOnlyIsDeniedAndTheLineStaysUnmarked(): void
+    {
+        self::assertSame(self::NOT_MARKER, $this->outcomeOf(fn () => $this->mark($this->bystanderMember, $this->ramLine, 'done', 2)));
 
         self::assertNull($this->ramLine->getMark());
         self::assertSame([0, []], [$this->flushCount, $this->publishedIndustryProjectEvents()]);
+    }
+
+    public function testUserOutsideTheProjectIsDeniedAccess(): void
+    {
+        self::assertSame(self::NO_ACCESS, $this->outcomeOf(fn () => $this->mark($this->stranger, $this->ramLine, 'done', 2)));
+
+        self::assertNull($this->ramLine->getMark());
     }
 
     public function testLineOfAnotherProjectIsNotFound(): void
@@ -172,6 +191,7 @@ final class MarkBomLineProcessorTest extends TestCase
             $this->projectRepository(),
             $this->bomLineRepository(),
             $this->accessChecker(),
+            $this->lineMarkAccess(),
             $this->entityManager(),
             $this->mercurePublisher(),
         );

@@ -46,6 +46,7 @@ import ProjectPriceAlertBanner from '@/components/group-industry/ProjectPriceAle
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
+import { reservedLineIdsOfMine } from '@/components/group-industry/reservedLineIds'
 import { useGroupT2BlueprintCopyProposalStore } from '@/stores/group-industry/t2BlueprintCopyProposal'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import type { ChainFocusRequest } from '@/components/group-industry/chainView'
@@ -160,6 +161,7 @@ const isOwnerOrAdmin = computed(() =>
 const isOwner = computed(() => project.value?.myRole === 'owner')
 const isAcceptedMember = computed(() => project.value?.myStatus === 'accepted')
 const isCompleted = computed(() => project.value?.status === 'completed')
+const markableNodeIds = computed(() => (isCompleted.value ? [] : reservedLineIdsOfMine(projectStore.bomItems)))
 const isWorkedOnAlone = computed(() => {
   const current = project.value
   if (!membersLoaded.value || !current) return false
@@ -828,7 +830,8 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           <ProductionChain
             :project-id="projectId"
             :excludes-invention="project.excludesInvention"
-            :can-mark="isOwner && !isCompleted"
+            :can-mark="isOwnerOrAdmin && !isCompleted"
+            :markable-node-ids="markableNodeIds"
             :can-match-jobs="isOwner"
             :focus-request="chainFocusRequest"
             @marked="refreshGroupProject.cockpit(projectId)"
