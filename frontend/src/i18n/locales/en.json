@@ -3868,7 +3868,15 @@
       "possibleDuplicateHint": "Matches a sale already recorded with the same quantity and unit price",
       "record": "Record as sale",
       "empty": "No wallet transaction to link",
-      "quantityLabel": "Quantity to record"
+      "quantityLabel": "Quantity to record",
+      "recordAll": "Record all as sales",
+      "recordAllCount": "{count} wallet transactions will be recorded as sales",
+      "recordAllQuantity": "{quantity} units in total",
+      "recordAllTotal": "{amount} in total",
+      "recordAllLeftOut": "{count} transaction is left out (possible duplicate or invalid quantity) | {count} transactions are left out (possible duplicate or invalid quantity)",
+      "recordAllConfirm": "Confirm",
+      "recordAllFailures": "{count} transaction could not be recorded | {count} transactions could not be recorded",
+      "recordAllFailure": "{date} · {character}: {message}"
     },
     "members": {
       "roles": {

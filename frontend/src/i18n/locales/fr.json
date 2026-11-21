@@ -3868,7 +3868,15 @@
       "possibleDuplicateHint": "Correspond à une vente déjà enregistrée de même quantité et de même prix unitaire",
       "record": "Enregistrer comme vente",
       "empty": "Aucune transaction wallet à rattacher",
-      "quantityLabel": "Quantité à enregistrer"
+      "quantityLabel": "Quantité à enregistrer",
+      "recordAll": "Tout enregistrer comme ventes",
+      "recordAllCount": "{count} transactions du wallet seront enregistrées comme ventes",
+      "recordAllQuantity": "{quantity} unités au total",
+      "recordAllTotal": "{amount} au total",
+      "recordAllLeftOut": "{count} transaction est laissée de côté (doublon possible ou quantité invalide) | {count} transactions sont laissées de côté (doublon possible ou quantité invalide)",
+      "recordAllConfirm": "Confirmer",
+      "recordAllFailures": "{count} transaction n’a pas pu être enregistrée | {count} transactions n’ont pas pu être enregistrées",
+      "recordAllFailure": "{date} · {character} : {message}"
     },
     "members": {
       "roles": {
