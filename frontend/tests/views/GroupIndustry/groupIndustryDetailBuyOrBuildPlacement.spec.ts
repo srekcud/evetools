@@ -25,7 +25,7 @@ async function mountOwnerNyxOn(tab: string) {
   route.query = { tab }
   return mountCockpitDetail({
     project: { ...nyxProject('in_progress', 'owner'), blacklistTypeIds: [11399, 11400] },
-    cockpit: cockpitOf('in_progress', nextAction({ code: 'launch_job', tab: 'chain' })),
+    cockpit: cockpitOf('in_progress', nextAction({ code: 'launch_job', tab: 'materials' })),
   })
 }
 
