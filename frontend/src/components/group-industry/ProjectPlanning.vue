@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupPlanningStore } from '@/stores/group-industry/planning'
 import { useSyncStore } from '@/stores/sync'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import PlanningWaitLabel from './PlanningWaitLabel.vue'
@@ -37,10 +38,9 @@ const delayText = computed((): string => {
 
 watch(() => props.projectId, projectId => planningStore.fetchPlanning(projectId), { immediate: true })
 
-watch(
-  () => syncStore.getGroupProjectEvent(props.projectId),
-  (event) => {
-    if (!event) return
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => {
     planningStore.fetchPlanning(props.projectId)
   },
 )

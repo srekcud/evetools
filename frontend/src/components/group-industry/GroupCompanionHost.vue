@@ -11,11 +11,11 @@ import {
   rememberCompanionWindowSize,
   type CompanionWindowSizeKey,
 } from '@/components/group-industry/companionWindowSize'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useDetachedWindow } from '@/composables/useDetachedWindow'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
-import { useSyncStore } from '@/stores/sync'
 
 const CLOCK_TICK_MS = 30_000
 const BACKGROUND_RGB = '2 6 23'
@@ -23,7 +23,6 @@ const BACKGROUND_RGB = '2 6 23'
 const { t } = useI18n()
 const router = useRouter()
 const companion = useGroupCompanionStore()
-const syncStore = useSyncStore()
 const authStore = useAuthStore()
 const { showToast } = useToast()
 const detached = useDetachedWindow('group')
@@ -149,12 +148,7 @@ watch(detached.isOpen, (isOpen) => {
   companion.close()
 })
 
-watch(
-  () => (companion.projectId === null ? null : syncStore.getGroupProjectEvent(companion.projectId)),
-  (event) => {
-    if (event !== null) companion.handleEvent(event.action)
-  },
-)
+useCoalescedGroupProjectEvents(() => companion.projectId, actions => companion.handleEvents(actions))
 
 useEventListener(window, 'pagehide', () => detached.close())
 

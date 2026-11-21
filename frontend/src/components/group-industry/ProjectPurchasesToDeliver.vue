@@ -3,6 +3,7 @@ import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useGroupCourierStore } from '@/stores/group-industry/courier'
 import { useGroupPurchasesToDeliverStore } from '@/stores/group-industry/purchasesToDeliver'
@@ -94,10 +95,10 @@ function refetch(): void {
 
 watch(() => props.projectId, refetch, { immediate: true })
 
-watch(
-  () => syncStore.getGroupProjectEvent(props.projectId),
-  (event) => {
-    if (event) refetch()
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => {
+    refetch()
   },
 )
 

@@ -8,6 +8,7 @@ import { useGroupBuyOrBuildStore } from '@/stores/group-industry/buyOrBuild'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BuyOrBuildChoice, BuyOrBuildRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
@@ -73,10 +74,9 @@ function columnAlignment(column: (typeof COLUMNS)[number]): string {
 
 watch(() => props.projectId, projectId => buyOrBuildStore.fetchBuyOrBuild(projectId), { immediate: true })
 
-watch(
-  () => syncStore.getGroupProjectEvent(props.projectId),
-  (event) => {
-    if (!event) return
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => {
     buyOrBuildStore.fetchBuyOrBuild(props.projectId)
   },
 )

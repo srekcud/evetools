@@ -6,6 +6,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useGroupCourierStore } from '@/stores/group-industry/courier'
 import type { CourierCandidate, CourierLine, CourierQuoteStatus, CourierTransportState, CourierUnknownOriginLine } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
@@ -119,10 +120,9 @@ async function copyContract(): Promise<void> {
 
 watch(() => props.projectId, projectId => courierStore.fetchCourier(projectId), { immediate: true })
 
-watch(
-  () => syncStore.getGroupProjectEvent(props.projectId),
-  (event) => {
-    if (!event) return
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => {
     courierStore.fetchCourier(props.projectId)
   },
 )

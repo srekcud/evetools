@@ -6,6 +6,7 @@ import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { useGroupT2BlueprintsToProvideStore } from '@/stores/group-industry/t2BlueprintsToProvide'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { useSyncStore } from '@/stores/sync'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
@@ -99,10 +100,9 @@ watch(() => props.projectId, projectId => {
 
 watch(() => props.excludesInvention, () => toProvideStore.fetchToProvide(props.projectId))
 
-watch(
-  () => syncStore.getGroupProjectEvent(props.projectId),
-  (event) => {
-    if (!event) return
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => {
     chainStore.fetchChain(props.projectId)
     toProvideStore.fetchToProvide(props.projectId)
   },

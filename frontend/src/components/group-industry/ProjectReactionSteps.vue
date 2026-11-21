@@ -5,6 +5,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useGroupReactionStepsStore } from '@/stores/group-industry/reactionSteps'
 import { useSyncStore } from '@/stores/sync'
 import type { ReactionStep } from '@/stores/group-industry/types'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 
 const SECONDS_PER_HOUR = 3_600
@@ -42,10 +43,9 @@ function quantityOrDash(quantity: number | null): string {
 
 watch(() => props.projectId, projectId => reactionStepsStore.fetchReactionSteps(projectId), { immediate: true })
 
-watch(
-  () => syncStore.getGroupProjectEvent(props.projectId),
-  (event) => {
-    if (!event) return
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => {
     reactionStepsStore.fetchReactionSteps(props.projectId)
   },
 )
