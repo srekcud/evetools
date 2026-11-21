@@ -53,7 +53,8 @@ const onlyMySales = ref(false)
 const projectItems = computed(() => projectStore.currentProject?.items ?? [])
 const productSales = computed(() => buildProductSales(projectItems.value, projectStore.bomItems, store.sales))
 const pickedItemTypeId = ref<number | null>(null)
-const itemChosenByList = computed(() => projectItems.value.length > 0 && correctedSale.value === null)
+const correctedSaleIsLinked = computed(() => correctedSale.value?.linkedToWalletTransaction === true)
+const itemChosenByList = computed(() => projectItems.value.length > 0 && !correctedSaleIsLinked.value)
 
 function pickItem(typeId: number | null): void {
   pickedItemTypeId.value = typeId
@@ -62,7 +63,6 @@ function pickItem(typeId: number | null): void {
   saleForm.value.typeName = item?.typeName ?? ''
 }
 
-const correctedSaleIsLinked = computed(() => correctedSale.value?.linkedToWalletTransaction === true)
 const myCharacters = computed(() => authStore.user?.characters ?? [])
 const myEveCharacterIds = computed(() => new Set(myCharacters.value.map(character => character.eveCharacterId)))
 const shownSales = computed(() =>
@@ -81,6 +81,13 @@ function ownSellerOf(sale: GroupSale): number | null {
   return sale.sellerCharacterId !== null && myEveCharacterIds.value.has(sale.sellerCharacterId)
     ? sale.sellerCharacterId
     : null
+}
+
+function itemOfSale(sale: GroupSale): number | null {
+  const items = projectItems.value
+  const byTypeId = items.find(item => item.typeId === sale.typeId)
+  if (byTypeId !== undefined) return byTypeId.typeId
+  return items.find(item => item.typeName === sale.typeName)?.typeId ?? null
 }
 
 function toggleSaleForm(): void {
@@ -103,6 +110,7 @@ function startCorrection(sale: GroupSale): void {
     venue: sale.venue ?? '',
     channel: sale.channel,
   }
+  pickedItemTypeId.value = itemOfSale(sale)
   chosenSellerCharacterId.value = ownSellerOf(sale)
   showSaleForm.value = true
 }
@@ -110,6 +118,7 @@ function startCorrection(sale: GroupSale): void {
 function changesOf(sale: GroupSale, form: RecordSaleInput): UpdateSaleInput {
   const changes: UpdateSaleInput = {}
   if (form.typeName !== sale.typeName) changes.typeName = form.typeName
+  if (itemChosenByList.value && form.typeId !== 0 && form.typeId !== sale.typeId) changes.typeId = form.typeId
   if (form.quantity !== sale.quantity) changes.quantity = form.quantity
   if (form.unitPrice !== sale.unitPrice) changes.unitPrice = form.unitPrice
   if (form.venue && form.venue !== sale.venue) changes.venue = form.venue
