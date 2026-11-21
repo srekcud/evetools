@@ -8,6 +8,7 @@ import { useGroupBuyOrBuildStore } from '@/stores/group-industry/buyOrBuild'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BuyOrBuildChoice, BuyOrBuildRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { projectRefusalMessage } from '@/utils/projectRefusal'
 import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
@@ -40,6 +41,7 @@ const projectStore = useGroupProjectStore()
 
 const isSwitching = ref(false)
 const switchError = ref<string | null>(null)
+const rowAwaitingConfirmation = ref<number | null>(null)
 
 const COLUMNS = ['intermediate', 'quantity', 'build', 'jita', 'import', 'buy', 'choice'] as const
 
@@ -51,7 +53,16 @@ function jitaCoveragePercent(row: BuyOrBuildRow): number | null {
   return row.warnings.find(warning => warning.typeId === row.typeId)?.coveragePercent ?? null
 }
 
+function askToSwitch(row: BuyOrBuildRow): void {
+  rowAwaitingConfirmation.value = row.typeId
+}
+
+function cancelSwitch(): void {
+  rowAwaitingConfirmation.value = null
+}
+
 async function switchRow(row: BuyOrBuildRow): Promise<void> {
+  rowAwaitingConfirmation.value = null
   const blacklistTypeIds = row.blacklisted
     ? props.blacklistTypeIds.filter(typeId => typeId !== row.typeId)
     : [...props.blacklistTypeIds, row.typeId]
@@ -62,7 +73,7 @@ async function switchRow(row: BuyOrBuildRow): Promise<void> {
     await buyOrBuildStore.fetchBuyOrBuild(props.projectId)
     emit('switched')
   } catch (e) {
-    switchError.value = e instanceof Error ? e.message : t('groupIndustry.buyOrBuild.switch.error')
+    switchError.value = e instanceof Error ? projectRefusalMessage(e.message, t) : t('groupIndustry.buyOrBuild.switch.error')
   } finally {
     isSwitching.value = false
   }
@@ -238,8 +249,31 @@ watch(
                   :data-testid="`buy-or-build-row-${row.typeId}-switch`"
                   :disabled="isSwitching"
                   class="mt-2 block px-2 py-1 rounded border border-cyan-500/40 text-xs text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                  @click="switchRow(row)"
+                  @click="askToSwitch(row)"
                 >{{ t(row.blacklisted ? 'groupIndustry.buyOrBuild.switch.toBuild' : 'groupIndustry.buyOrBuild.switch.toBuy') }}</button>
+                <div
+                  v-if="canSwitch && rowAwaitingConfirmation === row.typeId"
+                  :data-testid="`buy-or-build-row-${row.typeId}-switch-confirmation`"
+                  role="group"
+                  class="mt-2 max-w-[16rem] space-y-2 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-slate-200"
+                >
+                  <p>{{ t(row.blacklisted ? 'groupIndustry.buyOrBuild.switch.confirmToBuild' : 'groupIndustry.buyOrBuild.switch.confirmToBuy', { name: typeLabel(row) }) }}</p>
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      :data-testid="`buy-or-build-row-${row.typeId}-switch-confirm`"
+                      :disabled="isSwitching"
+                      class="px-2 py-1 rounded border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      @click="switchRow(row)"
+                    >{{ t('groupIndustry.buyOrBuild.switch.confirm') }}</button>
+                    <button
+                      type="button"
+                      :data-testid="`buy-or-build-row-${row.typeId}-switch-cancel`"
+                      class="px-2 py-1 rounded border border-slate-600 text-slate-300 hover:bg-slate-700/40"
+                      @click="cancelSwitch"
+                    >{{ t('common.actions.cancel') }}</button>
+                  </div>
+                </div>
               </td>
             </tr>
           </tbody>

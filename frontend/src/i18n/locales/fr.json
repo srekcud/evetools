@@ -2901,6 +2901,15 @@
     }
   },
   "groupIndustry": {
+    "refusals": {
+      "workedLineDropped": "La ligne « {line} » a un job lié, un achat ou un apport : elle ne peut pas être retirée de la BOM.",
+      "lineOverReceived": "La ligne « {line} » a déjà reçu {received}, plus que les {needed} dont la nouvelle BOM a besoin.",
+      "lineOverLinked": "La ligne « {line} » a {runs} runs liés à des jobs ESI, plus que les {needed} dont la nouvelle BOM a besoin.",
+      "lineOverMarked": "La ligne « {line} » a {runs} runs marqués, plus que les {needed} dont la nouvelle BOM a besoin.",
+      "tooManyLines": "La BOM aurait {count} lignes, au-delà de la limite de {limit} lignes par projet.",
+      "projectCompleted": "Le projet est terminé : sa BOM ne peut plus changer.",
+      "blacklistDraftOnly": "Les catégories en blacklist ne peuvent changer que tant que le projet est en brouillon."
+    },
     "title": "Projets",
     "available": {
       "runs": "Runs",
@@ -3125,7 +3134,10 @@
         "toBuy": "Passer en achat",
         "toBuild": "Passer en fabrication",
         "blacklisted": "acheté (blacklist)",
-        "error": "Le composant n'a pas pu être basculé"
+        "error": "Le composant n'a pas pu être basculé",
+        "confirmToBuy": "{name} sera acheté au lieu d'être fabriqué. La BOM sera recalculée ; une ligne qui a un job lié, un achat ou un apport ne peut pas être retirée.",
+        "confirmToBuild": "{name} sera fabriqué au lieu d'être acheté. La BOM sera recalculée ; une ligne qui a un job lié, un achat ou un apport ne peut pas être retirée.",
+        "confirm": "Confirmer"
       }
     },
     "invention": {
@@ -3319,6 +3331,11 @@
         "allow": "Autoriser pour ce projet",
         "revert": "Revenir au système préféré",
         "error": "Le projet n'a pas pu être mis à jour"
+      },
+      "threshold": {
+        "label": "Économie minimale (ISK)",
+        "save": "Enregistrer",
+        "hint": "Une structure hors du système préféré n'est retenue que si elle économise au moins ce montant. L'enregistrement recalcule la BOM."
       },
       "banner": {
         "onlyFavoriteSystem": "{structure} reviendrait {amount} moins cher, transport compris. Non retenue : le projet n'accepte que le système préféré.",

@@ -58,10 +58,18 @@ async function mountSwitchable(rows: BuyOrBuildRow[], blacklistTypeIds: number[]
   return wrapper
 }
 
-async function clickSwitch(wrapper: VueWrapper, typeId: number): Promise<void> {
+async function openSwitch(wrapper: VueWrapper, typeId: number): Promise<void> {
   const button = part(wrapper, typeId, 'switch')
   expect(button.exists()).toBe(true)
   if (button.exists()) await button.trigger('click')
+  await flushPromises()
+}
+
+async function clickSwitch(wrapper: VueWrapper, typeId: number): Promise<void> {
+  await openSwitch(wrapper, typeId)
+  const confirm = part(wrapper, typeId, 'switch-confirm')
+  expect(confirm.exists()).toBe(true)
+  if (confirm.exists()) await confirm.trigger('click')
   await flushPromises()
 }
 
@@ -240,8 +248,73 @@ describe('ProjectBuyOrBuild', () => {
     const alert = wrapper.get('[data-testid="buy-or-build-switch-error"]')
     expect(alert.attributes('role')).toBe('alert')
     expect(alert.text()).toContain(text('groupIndustry.buyOrBuild.switch.error'))
-    expect(alert.text()).toContain(WORKED_LINE_REFUSAL)
+    expect(alert.text()).toContain('The line "Fernite Composite" has a linked job, a purchase or a contribution: it cannot be removed from the material list.')
+    expect(alert.text()).not.toContain(WORKED_LINE_REFUSAL)
     expect(wrapper.emitted('switched')).toBeUndefined()
     expect(comparisonReads()).toBe(1)
+  })
+
+  it('translates the refusal of the server in the language of the user', async () => {
+    i18n.global.locale.value = 'fr'
+    const wrapper = await mountSwitchable([FERNITE_COMPOSITE_BLACKLISTED], [FERNITE_COMPOSITE_TYPE_ID], () => Promise.reject(new Error(WORKED_LINE_REFUSAL)))
+
+    await clickSwitch(wrapper, FERNITE_COMPOSITE_TYPE_ID)
+
+    const alertText = wrapper.get('[data-testid="buy-or-build-switch-error"]').text()
+    i18n.global.locale.value = 'en'
+    expect(alertText).toContain('Fernite Composite')
+    expect(alertText).not.toContain(WORKED_LINE_REFUSAL)
+  })
+
+  it('asks for confirmation before switching, names the line, says the material list will be recalculated and sends nothing yet', async () => {
+    const wrapper = await mountSwitchable([HOBGOBLIN_II_BUILT], [])
+
+    expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'switch-confirmation').exists()).toBe(false)
+
+    await openSwitch(wrapper, HOBGOBLIN_II_TYPE_ID)
+
+    const confirmation = part(wrapper, HOBGOBLIN_II_TYPE_ID, 'switch-confirmation')
+    expect(confirmation.exists()).toBe(true)
+    expect(confirmation.text()).toContain(text('groupIndustry.buyOrBuild.switch.confirmToBuy', { name: 'Hobgoblin II' }))
+    expect(confirmation.text()).toMatch(/recalculated/i)
+    expect(patchesSent()).toEqual([])
+  })
+
+  it('words the confirmation for a switch back to build as a build, not as a purchase', async () => {
+    const wrapper = await mountSwitchable([FERNITE_COMPOSITE_BLACKLISTED], [FERNITE_COMPOSITE_TYPE_ID])
+
+    await openSwitch(wrapper, FERNITE_COMPOSITE_TYPE_ID)
+
+    expect(part(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'switch-confirmation').text()).toContain(text('groupIndustry.buyOrBuild.switch.confirmToBuild', { name: 'Fernite Composite' }))
+  })
+
+  it('sends nothing and hides the confirmation when it is cancelled', async () => {
+    const wrapper = await mountSwitchable([HOBGOBLIN_II_BUILT], [])
+    await openSwitch(wrapper, HOBGOBLIN_II_TYPE_ID)
+
+    await part(wrapper, HOBGOBLIN_II_TYPE_ID, 'switch-cancel').trigger('click')
+    await flushPromises()
+
+    expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'switch-confirmation').exists()).toBe(false)
+    expect(patchesSent()).toEqual([])
+    expect(wrapper.emitted('switched')).toBeUndefined()
+  })
+
+  it('asks the confirmation of one line at a time', async () => {
+    const wrapper = await mountSwitchable([HOBGOBLIN_II_BUILT, FERNITE_COMPOSITE_BLACKLISTED], [FERNITE_COMPOSITE_TYPE_ID])
+    await openSwitch(wrapper, HOBGOBLIN_II_TYPE_ID)
+
+    await openSwitch(wrapper, FERNITE_COMPOSITE_TYPE_ID)
+
+    expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'switch-confirmation').exists()).toBe(false)
+    expect(part(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'switch-confirmation').exists()).toBe(true)
+  })
+
+  it('closes the confirmation once it is confirmed', async () => {
+    const wrapper = await mountSwitchable([HOBGOBLIN_II_BUILT], [])
+
+    await clickSwitch(wrapper, HOBGOBLIN_II_TYPE_ID)
+
+    expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'switch-confirmation').exists()).toBe(false)
   })
 })
