@@ -174,6 +174,7 @@ class IndustryActionsProvider implements ProviderInterface
         $resource->typeId = $nextAction->typeId;
         $resource->typeName = $nextAction->typeName;
         $resource->quantity = $nextAction->quantity;
+        $resource->endsAt = $nextAction->endsAt?->format(\DATE_ATOM);
         $resource->severity = $assessment->severity->value;
         $resource->impactIsk = $assessment->impactIsk;
 

@@ -379,7 +379,7 @@ function actOnNextAction(): void {
     openContributeModal(bomLine)
     return
   }
-  if (action.code === 'launch_job') {
+  if (action.code === 'launch_job' || action.code === 'await_jobs') {
     activeTab.value = 'chain'
     void nextTick(() => jobsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     return

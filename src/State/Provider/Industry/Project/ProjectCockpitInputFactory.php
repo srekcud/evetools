@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\State\Provider\Industry\Project;
 
+use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectParticipant;
@@ -18,6 +19,7 @@ use App\Service\Industry\Project\ProjectLineFulfillments;
 final readonly class ProjectCockpitInputFactory
 {
     private const array MANAGER_ROLES = [ParticipantRole::Owner, ParticipantRole::Admin];
+    private const array RUNNING_JOB_STATUSES = [CachedIndustryJob::STATUS_ACTIVE, CachedIndustryJob::STATUS_PAUSED, CachedIndustryJob::STATUS_READY];
 
     public function create(IndustryProject $project, User $user, ?ProjectLineFulfillments $fulfillments = null): ProjectCockpitInput
     {
@@ -46,7 +48,24 @@ final readonly class ProjectCockpitInputFactory
             $line->getRuns(),
             $line->getCountedRuns(),
             $line->getDeliveredRuns(),
+            $this->latestRunningJobEndDate($line),
         );
+    }
+
+    private function latestRunningJobEndDate(IndustryProjectBomLine $line): ?\DateTimeImmutable
+    {
+        $latest = null;
+        foreach ($line->getJobMatches() as $jobMatch) {
+            $endDate = $jobMatch->getEndDate();
+            if ($endDate === null || !\in_array($jobMatch->getStatus(), self::RUNNING_JOB_STATUSES, true)) {
+                continue;
+            }
+            if ($latest === null || $endDate > $latest) {
+                $latest = $endDate;
+            }
+        }
+
+        return $latest;
     }
 
     /**

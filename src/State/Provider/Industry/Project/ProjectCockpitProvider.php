@@ -83,6 +83,7 @@ class ProjectCockpitProvider implements ProviderInterface
             'typeId' => $cockpit->nextAction->typeId,
             'typeName' => $cockpit->nextAction->typeName,
             'quantity' => $cockpit->nextAction->quantity,
+            'endsAt' => $cockpit->nextAction->endsAt?->format(\DATE_ATOM),
         ];
         $resource->priceAlert = $priceAlert === null ? null : [
             'typeId' => $priceAlert->typeId,

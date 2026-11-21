@@ -58,6 +58,7 @@ class ProjectCockpitResource
      *     typeId: int|null,
      *     typeName: string|null,
      *     quantity: int|null,
+     *     endsAt: string|null,
      * }
      */
     public array $nextAction;

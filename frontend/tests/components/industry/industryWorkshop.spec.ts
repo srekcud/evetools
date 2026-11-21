@@ -198,6 +198,31 @@ describe('IndustryWorkshop action queue', () => {
     expect(rows[3].text()).not.toMatch(/(^|\D)0(\D|$)/)
   })
 
+  it('words an awaited job with its end date, or an unknown end, and never asks to launch runs', async () => {
+    const endsAt = '2026-11-23T10:30:00+00:00'
+    const wrapper = await mountWorkshop({
+      actions: [
+        industryAction({ projectId: HECATE_PROJECT_ID, projectName: 'Hecate in progress', code: 'await_jobs', tab: 'materials', endsAt }),
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'await_jobs', tab: 'materials', endsAt: null, severity: 'unknown' }),
+      ],
+    })
+    const rows = queueRows(wrapper)
+    const known = rows[0].text()
+    const unknown = rows[1].text()
+    const formatted = [
+      new Date(endsAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      new Date(endsAt).toLocaleString('en-US', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+    ]
+
+    expect(known).not.toContain('industry.workshop.actions')
+    expect(known).not.toMatch(/(^|\D)0(\D|$)/)
+    expect(formatted.some(text => known.includes(text))).toBe(true)
+    expect(unknown).not.toContain('industry.workshop.actions')
+    expect(formatted.some(text => unknown.includes(text))).toBe(false)
+    expect(unknown).not.toContain('Invalid')
+    expect(rows[0].get('[data-testid="workshop-action-button"]').text()).not.toBe('')
+  })
+
   it('shows the severity of each row, the impact in ISK of a material to source and an unknown mark instead of zero when its price is unknown', async () => {
     const wrapper = await mountWorkshop({
       actions: [

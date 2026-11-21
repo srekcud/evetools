@@ -137,6 +137,7 @@ export function nextAction(overrides: Partial<ProjectNextAction> & Pick<ProjectN
     typeId: null,
     typeName: null,
     quantity: null,
+    endsAt: null,
     ...overrides,
   }
 }

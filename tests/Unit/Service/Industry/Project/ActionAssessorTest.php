@@ -87,6 +87,20 @@ final class ActionAssessorTest extends TestCase
         self::assertSame([ActionSeverity::Unknown, null], [$assessment->severity, $assessment->impactIsk]);
     }
 
+    #[Group('issue-1195')]
+    public function testAwaitedJobsAreInfoWhenTheirEndIsKnownAndUnknownOtherwise(): void
+    {
+        $assessor = $this->assessorPricing([]);
+
+        $known = $assessor->assess(new CockpitNextAction('await_jobs', false, 'materials', null, null, null, null, null, new \DateTimeImmutable('2026-11-22 08:00:00')));
+        $unknown = $assessor->assess(new CockpitNextAction('await_jobs', false, 'materials', null, null, null, null, null, null));
+
+        self::assertSame(
+            [[ActionSeverity::Info, null], [ActionSeverity::Unknown, null]],
+            [[$known->severity, $known->impactIsk], [$unknown->severity, $unknown->impactIsk]],
+        );
+    }
+
     public function testActionsWithoutQuantityAreInfoAndNeverAskTheMarket(): void
     {
         $marketPrices = $this->createMock(MarketPrices::class);

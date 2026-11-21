@@ -50,6 +50,7 @@ final class ProjectCockpitApiTest extends WebTestCase
                     'typeId' => self::TRITANIUM_TYPE_ID,
                     'typeName' => 'Tritanium',
                     'quantity' => 12_000,
+                    'endsAt' => null,
                 ],
             ],
             [

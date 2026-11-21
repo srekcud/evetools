@@ -15,6 +15,7 @@ final readonly class CockpitNextAction
         public ?int $typeId,
         public ?string $typeName,
         public ?int $quantity,
+        public ?\DateTimeImmutable $endsAt = null,
     ) {
     }
 }

@@ -414,6 +414,69 @@ final class ProjectCockpitCalculatorTest extends TestCase
         self::assertSame(['produce', 'current', 0, 1, null, null], $this->phaseRow($cockpit, 'produce'));
     }
 
+    #[Group('issue-1195')]
+    public function testInProgressProjectWhoseJobRunsAreAllLaunchedAwaitsTheJobsUntilTheLatestEndDate(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->jobEnding('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 3, 1, '2026-11-22 08:00:00'),
+            $this->jobEnding('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 2, 2, 0, '2026-11-23 10:30:00'),
+        ], [], 0, true);
+
+        self::assertSame(['await_jobs', false, 'materials', null, null, null, null, null], $this->actionRow($cockpit));
+        self::assertSame('2026-11-23 10:30:00', $cockpit->nextAction->endsAt?->format('Y-m-d H:i:s'));
+    }
+
+    #[Group('issue-1195')]
+    public function testAwaitedJobsWithoutAnyKnownEndDateKeepAnUnknownEndInsteadOfADefault(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->job('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 300, 0, 3, 3, 1),
+        ], [], 0, true);
+
+        self::assertSame(['await_jobs', false, 'materials', null, null, null, null, null], $this->actionRow($cockpit));
+        self::assertNull($cockpit->nextAction->endsAt);
+    }
+
+    #[Group('issue-1195')]
+    public function testLaunchJobSkipsALineWhoseRunsAreAllLaunchedAndPicksTheLineStillToLaunch(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->jobEnding('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 3, 1, '2026-11-22 08:00:00'),
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 5, 0, 5, 2, 0),
+        ], [], 0, true);
+
+        self::assertSame(
+            ['launch_job', false, 'materials', null, 'line-ishtar', self::ISHTAR_TYPE_ID, 'Ishtar', 3],
+            $this->actionRow($cockpit),
+        );
+        self::assertNull($cockpit->nextAction->endsAt);
+    }
+
+    #[Group('issue-1195')]
+    public function testMemberSeesTheAwaitedJobsLikeTheManager(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->jobEnding('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 3, 1, '2026-11-22 08:00:00'),
+        ], [], 0, false);
+
+        self::assertSame('await_jobs', $cockpit->nextAction->code);
+    }
+
+    #[Group('issue-1195')]
+    public function testUncoveredMaterialStillComesBeforeTheAwaitedJobs(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 4_000),
+            $this->jobEnding('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 3, 1, '2026-11-22 08:00:00'),
+        ], [], 0, true);
+
+        self::assertSame('source_material', $cockpit->nextAction->code);
+    }
+
     private function material(string $id, int $typeId, string $typeName, int $requiredQuantity, int $fulfilledQuantity): CockpitBomLine
     {
         return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, false, null, null, 0, 0);
@@ -431,6 +494,19 @@ final class ProjectCockpitCalculatorTest extends TestCase
         int $deliveredRuns = 0,
     ): CockpitBomLine {
         return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, true, $jobGroup, $runs, $matchedRuns, $deliveredRuns);
+    }
+
+    private function jobEnding(
+        string $id,
+        string $jobGroup,
+        int $typeId,
+        string $typeName,
+        int $runs,
+        int $matchedRuns,
+        int $deliveredRuns,
+        string $latestJobEndDate,
+    ): CockpitBomLine {
+        return new CockpitBomLine($id, $typeId, $typeName, $runs, 0, true, $jobGroup, $runs, $matchedRuns, $deliveredRuns, new \DateTimeImmutable($latestJobEndDate));
     }
 
     private function cockpitOf(
