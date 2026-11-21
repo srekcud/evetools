@@ -112,6 +112,18 @@ describe('LineReservation, correcting what was supplied on a solo project', () =
     expect(buttonLabelled(wrapper, 'Correct')).toBeDefined()
   })
 
+  it('tells that a supplied contribution is awaiting the wallet sync', () => {
+    const wrapper = mountLine(line(), [contribution({ status: 'pending', awaitingQuantity: 40 })])
+
+    expect(wrapper.find('[data-testid="supplied-contribution"]').text()).toContain('40 units awaiting wallet sync')
+  })
+
+  it('shows no waiting notice once the wallet has seen every unit', () => {
+    const wrapper = mountLine(line(), [contribution({ status: 'pending', awaitingQuantity: 0 })])
+
+    expect(wrapper.find('[data-testid="supplied-contribution"]').text()).not.toContain('awaiting wallet sync')
+  })
+
   it('offers nothing to correct on a project worked on by a team', () => {
     const wrapper = mountLine(line(), [contribution()], false)
 

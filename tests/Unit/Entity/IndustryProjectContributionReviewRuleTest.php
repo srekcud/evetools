@@ -93,6 +93,32 @@ final class IndustryProjectContributionReviewRuleTest extends TestCase
         self::assertSame(2, $this->project->pendingContributionCountReviewableBy($this->owner));
     }
 
+    #[Group('issue-1176')]
+    public function testContributionAwaitingWalletUnitsIsNotCountedToReview(): void
+    {
+        $this->addContribution($this->ownerMembership, ContributionStatus::Pending)->setAwaitingQuantity(40);
+
+        self::assertSame(0, $this->project->pendingContributionCountReviewableBy($this->owner));
+    }
+
+    #[Group('issue-1176')]
+    public function testOnlyTheContributionWithoutAwaitedUnitsIsCounted(): void
+    {
+        $this->addContribution($this->ownerMembership, ContributionStatus::Pending);
+        $this->addContribution($this->ownerMembership, ContributionStatus::Pending)->setAwaitingQuantity(40);
+
+        self::assertSame(1, $this->project->pendingContributionCountReviewableBy($this->owner));
+    }
+
+    #[Group('issue-1176')]
+    public function testContributionIsCountedAgainOnceTheWalletHasSeenEveryUnit(): void
+    {
+        $contribution = $this->addContribution($this->ownerMembership, ContributionStatus::Pending)->setAwaitingQuantity(40);
+        $contribution->setAwaitingQuantity(0);
+
+        self::assertSame(1, $this->project->pendingContributionCountReviewableBy($this->owner));
+    }
+
     private function membership(User $user, ParticipantRole $role, ParticipantStatus $status): IndustryProjectParticipant
     {
         $membership = (new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus($status);

@@ -163,6 +163,11 @@ function release(): Promise<void> {
         class="flex flex-wrap items-center gap-1.5 text-xs"
       >
         <span class="rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300" style="font-variant-numeric: tabular-nums;">{{ t('groupIndustry.reservation.supplied', { quantity: formatNumber(contribution.quantity, 0) }) }}</span>
+        <span
+          v-if="contribution.awaitingQuantity !== undefined && contribution.awaitingQuantity > 0"
+          data-testid="awaiting-wallet-sync"
+          class="text-violet-300"
+        >{{ t('groupIndustry.reservation.awaitingWalletSync', { count: formatNumber(contribution.awaitingQuantity, 0) }) }}</span>
         <button
           v-if="correctingId !== contribution.id"
           type="button"
