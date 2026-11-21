@@ -4165,7 +4165,7 @@
         "source_material": {
           "title": "Source a material",
           "description": "{quantity} {typeName} are still missing to cover the BOM.",
-          "button": "Contribute"
+          "button": "Where to buy"
         },
         "await_jobs": {
           "title": "Jobs running",

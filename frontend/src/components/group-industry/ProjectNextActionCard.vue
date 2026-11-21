@@ -7,10 +7,13 @@ import type { ProjectNextAction } from '@/stores/group-industry/types'
 const props = defineProps<{
   nextAction: ProjectNextAction
   disabled: boolean
+  solo?: boolean
+  contributable?: boolean
 }>()
 
 defineEmits<{
   act: []
+  contribute: []
 }>()
 
 const { t } = useI18n()
@@ -23,6 +26,7 @@ const descriptionKey = computed(() => {
   return `${messageKey.value}.description`
 })
 const hasButton = computed(() => props.nextAction.targetStatus !== null || props.nextAction.tab !== null)
+const showContribute = computed(() => props.nextAction.code === 'source_material' && props.contributable === true)
 </script>
 
 <template>
@@ -43,16 +47,27 @@ const hasButton = computed(() => props.nextAction.targetStatus !== null || props
         {{ t(descriptionKey, { typeName: nextAction.typeName, quantity: nextAction.quantity, endsAt: nextAction.endsAt === null ? '' : formatDateTime(nextAction.endsAt) }) }}
       </p>
     </div>
-    <button
-      v-if="hasButton"
-      data-testid="next-action-button"
-      type="button"
-      class="flex-shrink-0 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-px disabled:opacity-50"
-      :class="nextAction.blocked ? 'bg-amber-600 hover:bg-amber-500' : 'bg-cyan-600 hover:bg-cyan-500'"
-      :disabled="disabled"
-      @click="$emit('act')"
-    >
-      {{ t(`${messageKey}.button`) }}
-    </button>
+    <div v-if="hasButton" class="flex flex-shrink-0 flex-wrap items-center gap-2">
+      <button
+        v-if="showContribute"
+        data-testid="next-action-contribute"
+        type="button"
+        class="rounded-lg bg-slate-700 px-4 py-2.5 text-sm text-slate-200 transition-all hover:-translate-y-px hover:bg-slate-600 disabled:opacity-50"
+        :disabled="disabled"
+        @click="$emit('contribute')"
+      >
+        {{ t(solo ? 'groupIndustry.reservation.contributeSolo' : 'groupIndustry.reservation.contribute') }}
+      </button>
+      <button
+        data-testid="next-action-button"
+        type="button"
+        class="rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-px disabled:opacity-50"
+        :class="nextAction.blocked ? 'bg-amber-600 hover:bg-amber-500' : 'bg-cyan-600 hover:bg-cyan-500'"
+        :disabled="disabled"
+        @click="$emit('act')"
+      >
+        {{ t(`${messageKey}.button`) }}
+      </button>
+    </div>
   </section>
 </template>

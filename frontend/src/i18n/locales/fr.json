@@ -4165,7 +4165,7 @@
         "source_material": {
           "title": "Approvisionner un matériau",
           "description": "Il manque {quantity} {typeName} pour couvrir la BOM.",
-          "button": "Contribuer"
+          "button": "Où acheter"
         },
         "await_jobs": {
           "title": "Jobs en cours",

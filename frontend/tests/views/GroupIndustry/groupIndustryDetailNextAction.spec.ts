@@ -2,7 +2,6 @@ import { enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/test-uti
 import { createPinia, setActivePinia } from 'pinia'
 import en from '@/i18n/locales/en.json'
 import BomTable from '@/components/group-industry/BomTable.vue'
-import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import { apiRequest } from '@/services/api'
@@ -10,7 +9,6 @@ import type { ProjectNextAction, ProjectPriceAlert } from '@/stores/group-indust
 import { TEST_LOCALES } from '../../localeTexts'
 import {
   attributeOf,
-  bomLine,
   cockpitOf,
   mountCockpitDetail,
   nextAction,
@@ -163,25 +161,6 @@ describe('project cockpit next action card', () => {
       beforeClick: { sales: false, bom: true },
       afterSaleClick: { sales: true, bom: false },
       contributions: true,
-    })
-  })
-
-  it('opens the contribution modal prefilled with the material line to source when it is in the BOM', async () => {
-    const morphiteLine = bomLine({ id: MORPHITE_LINE_ID, typeId: 11_399, typeName: 'Morphite', requiredQuantity: 500, fulfilledQuantity: 160, remainingQuantity: 340 })
-    const wrapper = await mountCockpitDetail({
-      project: nyxProject('in_progress'),
-      bom: [bomLine({ id: 'line-pyerite', typeId: 35, typeName: 'Pyerite' }), morphiteLine],
-      cockpit: cockpitOf('in_progress', SOURCE_MORPHITE),
-    })
-    const modal = () => wrapper.findComponent(ContributeModal)
-    const beforeClick = modal().props('show')
-
-    await clickNextActionButton(wrapper)
-
-    expect({ beforeClick, afterClick: modal().props('show'), prefilled: modal().props('prefilledBomItem') }).toEqual({
-      beforeClick: false,
-      afterClick: true,
-      prefilled: morphiteLine,
     })
   })
 
