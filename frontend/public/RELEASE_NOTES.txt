@@ -3,6 +3,24 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.28 (2026-11-21)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Projets de groupe : l'onglet Chaine et ses sections (acheter ou
+  fabriquer, recherche, structures) se chargent a nouveau sans expirer
+- Verification du conteneur : les materiaux deja consommes par les jobs
+  lances sont deduits de la quantite attendue, avec la mention
+  "N utilises par les jobs lances"
+- La couverture des lignes de materiaux compte aussi ce que les jobs
+  lances ont consomme : un materiau livre puis entame par un job n'est
+  plus compte comme a approvisionner
+- Transactions a lier : bouton "Tout enregistrer comme ventes" pour
+  enregistrer en une action confirmee toutes les ventes suggerees
+- Onglet Chaine : le tableau des jobs passe a huit colonnes et tient sur
+  un ecran de 1366 px sans chevauchement
+
+--------------------------------------------------------------------------------
 Version 0.27 (2026-11-20)
 --------------------------------------------------------------------------------
 
