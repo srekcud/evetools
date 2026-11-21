@@ -8,6 +8,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
+import { useGroupInventionStore } from '@/stores/group-industry/invention'
 import { useGroupContractSalesStore } from '@/stores/group-industry/contractSales'
 import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
 import { useGroupActivityStore } from '@/stores/group-industry/activity'
@@ -86,6 +87,7 @@ const chainStore = useGroupChainStore()
 const t2ProposalStore = useGroupT2BlueprintCopyProposalStore()
 const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
+const inventionStore = useGroupInventionStore()
 const contractSalesStore = useGroupContractSalesStore()
 const settlementStore = useGroupSettlementStore()
 
@@ -111,6 +113,7 @@ const projectId = computed(() => route.params.id as string)
 
 const MINIMUM_TEAM_SIZE = 2
 const TEAM_ONLY_TABS: readonly ProjectDetailTab[] = ['contributions', 'members']
+const INVENTION_TABS: readonly ProjectDetailTab[] = ['invention']
 
 const requestedTab = useTabQuery<ProjectDetailTab>(DETAIL_TABS, 'bom')
 const membersLoaded = ref(false)
@@ -162,8 +165,27 @@ const isWorkedOnAlone = computed(() => {
   const hasContributionToReview = typeof pendingContributions === 'number' && pendingContributions > 0
   return current.membersCount < MINIMUM_TEAM_SIZE && !hasPendingMember && !hasContributionToReview
 })
+const isTeamUnknownOnSoloProject = computed(() =>
+  !membersLoaded.value && distributionStore.membersError === null && project.value?.solo === true
+)
+const hasNoInventedProduct = computed(() => {
+  if (project.value?.excludesInvention === true) return true
+  return Array.isArray(inventionStore.products) && inventionStore.products.length === 0
+})
+const isInventedProductUnknown = computed(() =>
+  project.value?.excludesInvention !== true && inventionStore.products === null && inventionStore.error === null
+)
+const hiddenTabs = computed<ProjectDetailTab[]>(() => [
+  ...(isWorkedOnAlone.value || isTeamUnknownOnSoloProject.value ? TEAM_ONLY_TABS : []),
+  ...(hasNoInventedProduct.value || isInventedProductUnknown.value ? INVENTION_TABS : []),
+])
 const activeTab = computed<ProjectDetailTab>({
-  get: () => isWorkedOnAlone.value && TEAM_ONLY_TABS.includes(requestedTab.value) ? 'bom' : requestedTab.value,
+  get: () => {
+    const requested = requestedTab.value
+    const isTeamTabOfSoloProject = isWorkedOnAlone.value && TEAM_ONLY_TABS.includes(requested)
+    const isInventionTabWithoutProduct = hasNoInventedProduct.value && INVENTION_TABS.includes(requested)
+    return isTeamTabOfSoloProject || isInventionTabWithoutProduct ? 'bom' : requested
+  },
   set: (tab) => { requestedTab.value = tab },
 })
 const nextStatuses = computed(() => (project.value ? nextProjectStatuses(project.value.status) : []))
@@ -207,6 +229,7 @@ onMounted(async () => {
     projectStore.fetchBom(projectId.value),
     loadCockpit(projectId.value),
     loadMembers(projectId.value),
+    inventionStore.fetchInvention(projectId.value, null),
   ])
   if (projectStore.currentProject && projectStore.currentProject.containerNames.length > 0) {
     await projectStore.fetchContainerVerification(projectId.value)
@@ -657,7 +680,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         :materials-count="materialsCount"
         :contribution-count="contributionCount"
         :member-count="memberCount"
-        :hidden-tabs="isWorkedOnAlone ? TEAM_ONLY_TABS : []"
+        :hidden-tabs="hiddenTabs"
       />
 
       <!-- Tab Content: Materials & Jobs -->
