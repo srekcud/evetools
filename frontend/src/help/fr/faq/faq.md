@@ -133,7 +133,7 @@ Voir [projet T2](/help?page=playbooks/t2-project).
 
 ### Acheter ou fabriquer ?
 
-La carte « Acheter ou fabriquer » de l'onglet « Production » compare chaque intermédiaire du plan :
+La carte « Acheter ou fabriquer » de l'onglet « Approvisionnement » compare chaque intermédiaire du plan :
 
 - **fabriquer** : le coût total de ses jobs, matériaux directs achetés compris ;
 - **acheter** : le prix Jita pondéré de la quantité demandée, plus l'import jusqu'à l'atelier : volume en m³ × sauts depuis Jita jusqu'au système favori × 150 ISK par m³ et par saut.
