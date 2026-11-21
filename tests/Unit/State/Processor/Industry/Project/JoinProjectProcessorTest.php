@@ -136,9 +136,23 @@ class JoinProjectProcessorTest extends TestCase
     }
 
     #[Group('issue-362')]
-    public function testDraftProjectThatIsNotPrivateIsClosedToNewMembers(): void
+    #[Group('issue-1174')]
+    public function testDraftProjectThatIsNotPrivateIsNotOpenToNewMembersYet(): void
     {
         $this->project->setStatus(ProjectStatus::Draft);
+        $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('This project is not open to new members yet');
+
+        $this->join();
+    }
+
+    #[Group('issue-1174')]
+    public function testSellingProjectIsNoLongerAcceptingNewMembers(): void
+    {
+        $this->project->setStatus(ProjectStatus::Selling);
         $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
         $this->entityManager->expects($this->never())->method('flush');
 
