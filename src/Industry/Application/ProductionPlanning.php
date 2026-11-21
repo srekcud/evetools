@@ -41,13 +41,17 @@ final readonly class ProductionPlanning
 
         $uncappedPlan = $planner->plan(new PlanRequest($targets, $materialModifiers, $request->startingStock, $request->blacklist, intermediateEfficiencies: $ownedEfficiencies), $recipes);
 
+        $smallestCopyRunsByProduct = self::smallestOwnedCopyRunsByProduct($request, $recipes);
         $maxRunsByProduct = [];
         foreach ($uncappedPlan->jobs as $job) {
             if ($request->ownedBlueprints[$job->productTypeId]->original ?? false) {
                 continue;
             }
-            $maxRunsByProduct[$job->productTypeId] = $recipes->recipeFor($job->productTypeId)->maxProductionLimit
+            $maxProductionLimit = $recipes->recipeFor($job->productTypeId)->maxProductionLimit
                 ?? throw new \LogicException(\sprintf('Job of product %d has no recipe.', $job->productTypeId));
+            $maxRunsByProduct[$job->productTypeId] = isset($smallestCopyRunsByProduct[$job->productTypeId])
+                ? new Runs(min($maxProductionLimit->value, $smallestCopyRunsByProduct[$job->productTypeId]->value))
+                : $maxProductionLimit;
         }
 
         $plan = $planner->plan(
@@ -63,6 +67,25 @@ final readonly class ProductionPlanning
         }
 
         return new PlannedProduction($plan, $structureChoices, $selector->select(ActivityKind::Copying, null));
+    }
+
+    /**
+     * @return array<int, Runs> by product typeId
+     */
+    private static function smallestOwnedCopyRunsByProduct(ProductionPlanRequest $request, RecipeMemory $recipes): array
+    {
+        $smallestRuns = [];
+        foreach ($request->targets as $target) {
+            $owned = $request->ownedBlueprints[$target->productTypeId] ?? null;
+            if (null === $owned || $owned->original || ActivityKind::Reaction === $recipes->recipeFor($target->productTypeId)?->activity) {
+                continue;
+            }
+            $smallestRuns[$target->productTypeId] = isset($smallestRuns[$target->productTypeId]) && $smallestRuns[$target->productTypeId]->value < $target->runs->value
+                ? $smallestRuns[$target->productTypeId]
+                : $target->runs;
+        }
+
+        return $smallestRuns;
     }
 
     /**
