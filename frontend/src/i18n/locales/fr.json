@@ -3524,6 +3524,7 @@
       "awaitingApproval": "En attente d'approbation ×{quantity}",
       "failed": "La réservation n'a pas pu être enregistrée",
       "supplied": "Fourni ×{quantity}",
+      "awaitingWalletSync": "{count} unités en attente de la sync wallet",
       "correct": "Corriger",
       "correctedQuantity": "Quantité corrigée",
       "save": "Enregistrer",
