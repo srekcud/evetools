@@ -41,6 +41,7 @@ final readonly class ProjectCockpitCalculator
     private const string ACTION_NOTHING_TO_DO = 'nothing_to_do';
 
     private const string TAB_MATERIALS = 'materials';
+    private const string TAB_PRODUCTION = 'production';
     private const string TAB_CONTRIBUTIONS = 'contributions';
     private const string TAB_SALES = 'sales';
 
@@ -313,7 +314,7 @@ final readonly class ProjectCockpitCalculator
             }
         }
 
-        return new CockpitNextAction(self::ACTION_AWAIT_JOBS, false, self::TAB_MATERIALS, null, null, null, null, null, $endsAt);
+        return new CockpitNextAction(self::ACTION_AWAIT_JOBS, false, self::TAB_PRODUCTION, null, null, null, null, null, $endsAt);
     }
 
     /**
@@ -333,7 +334,7 @@ final readonly class ProjectCockpitCalculator
         $line = $undeliveredJobs[0];
         $remainingRuns = $line->runs === null ? null : max(self::NONE, $line->runs - $line->matchedRuns);
 
-        return new CockpitNextAction(self::ACTION_LAUNCH_JOB, false, self::TAB_MATERIALS, null, $line->id, $line->typeId, $line->typeName, $remainingRuns);
+        return new CockpitNextAction(self::ACTION_LAUNCH_JOB, false, self::TAB_PRODUCTION, null, $line->id, $line->typeId, $line->typeName, $remainingRuns);
     }
 
     private function jobGroupRank(CockpitBomLine $line): int

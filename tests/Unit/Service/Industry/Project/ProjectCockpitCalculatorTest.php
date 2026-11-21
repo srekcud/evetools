@@ -130,7 +130,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             ['close', 'upcoming', 0, 1, null, null],
         ], $this->phaseRows($cockpit));
         self::assertSame(
-            ['launch_job', false, 'materials', null, 'line-hammerhead-blueprint', self::HAMMERHEAD_II_BLUEPRINT_TYPE_ID, 'Hammerhead II Blueprint', 14],
+            ['launch_job', false, 'production', null, 'line-hammerhead-blueprint', self::HAMMERHEAD_II_BLUEPRINT_TYPE_ID, 'Hammerhead II Blueprint', 14],
             $this->actionRow($cockpit),
         );
     }
@@ -146,7 +146,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, true);
 
         self::assertSame(
-            ['launch_job', false, 'materials', null, 'line-ram', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3],
+            ['launch_job', false, 'production', null, 'line-ram', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3],
             $this->actionRow($cockpit),
         );
     }
@@ -159,7 +159,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, false);
 
         self::assertSame(
-            ['launch_job', false, 'materials', null, 'line-ishtar', self::ISHTAR_TYPE_ID, 'Ishtar', null],
+            ['launch_job', false, 'production', null, 'line-ishtar', self::ISHTAR_TYPE_ID, 'Ishtar', null],
             $this->actionRow($cockpit),
         );
     }
@@ -393,7 +393,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
 
         self::assertSame(['produce', 'current', 0, 1, null, null], $this->phaseRow($cockpit, 'produce'));
         self::assertSame(
-            ['launch_job', false, 'materials', null, 'line-ram', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 1],
+            ['launch_job', false, 'production', null, 'line-ram', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 1],
             $this->actionRow($cockpit),
         );
     }
@@ -425,7 +425,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             $this->jobEnding('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 2, 2, 0, '2026-11-23 10:30:00'),
         ], [], 0, true);
 
-        self::assertSame(['await_jobs', false, 'materials', null, null, null, null, null], $this->actionRow($cockpit));
+        self::assertSame(['await_jobs', false, 'production', null, null, null, null, null], $this->actionRow($cockpit));
         self::assertSame('2026-11-23 10:30:00', $cockpit->nextAction->endsAt?->format('Y-m-d H:i:s'));
     }
 
@@ -437,7 +437,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             $this->job('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 300, 0, 3, 3, 1),
         ], [], 0, true);
 
-        self::assertSame(['await_jobs', false, 'materials', null, null, null, null, null], $this->actionRow($cockpit));
+        self::assertSame(['await_jobs', false, 'production', null, null, null, null, null], $this->actionRow($cockpit));
         self::assertNull($cockpit->nextAction->endsAt);
     }
 
@@ -451,7 +451,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, true);
 
         self::assertSame(
-            ['launch_job', false, 'materials', null, 'line-ishtar', self::ISHTAR_TYPE_ID, 'Ishtar', 3],
+            ['launch_job', false, 'production', null, 'line-ishtar', self::ISHTAR_TYPE_ID, 'Ishtar', 3],
             $this->actionRow($cockpit),
         );
         self::assertNull($cockpit->nextAction->endsAt);
@@ -489,7 +489,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, true);
 
         self::assertSame(
-            ['launch_job', false, 'materials', null, 'line-ram', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 4],
+            ['launch_job', false, 'production', null, 'line-ram', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 4],
             $this->actionRow($cockpit),
         );
     }
@@ -505,7 +505,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, true);
 
         self::assertSame(
-            ['launch_job', false, 'materials', null, 'line-robotics', self::ROBOTICS_TYPE_ID, 'Robotics', 5],
+            ['launch_job', false, 'production', null, 'line-robotics', self::ROBOTICS_TYPE_ID, 'Robotics', 5],
             $this->actionRow($cockpit),
         );
     }
@@ -520,7 +520,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             $this->chainJob('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 2, 0, 0, 3),
         ], [], 0, true);
 
-        self::assertSame(['await_jobs', false, 'materials', null, null, null, null, null], $this->actionRow($cockpit));
+        self::assertSame(['await_jobs', false, 'production', null, null, null, null, null], $this->actionRow($cockpit));
         self::assertSame('2026-11-22 08:00:00', $cockpit->nextAction->endsAt?->format('Y-m-d H:i:s'));
     }
 
@@ -535,7 +535,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, true);
 
         self::assertSame(
-            ['launch_job', false, 'materials', null, 'line-fusion-thruster', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 6],
+            ['launch_job', false, 'production', null, 'line-fusion-thruster', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 6],
             $this->actionRow($cockpit),
         );
     }
@@ -551,7 +551,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, true);
 
         self::assertSame(
-            ['launch_job', false, 'materials', null, 'line-fusion-thruster', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 4],
+            ['launch_job', false, 'production', null, 'line-fusion-thruster', self::FUSION_THRUSTER_TYPE_ID, 'Fusion Thruster', 4],
             $this->actionRow($cockpit),
         );
     }

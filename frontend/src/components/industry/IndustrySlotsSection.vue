@@ -31,6 +31,7 @@ function navigateToSettings() {
 const SLOT_ACTIVITIES: SlotActivity[] = ['manufacturing', 'reaction', 'science']
 const CIRCUMFERENCE = 2 * Math.PI * 34 // ~213.63
 const TIMELINE_HOURS = 72
+const PRODUCTION_TAB = 'chain'
 
 // Activity badge colors
 const ACTIVITY_BADGE_CLASSES: Record<string, { bg: string; text: string; border: string }> = {
@@ -478,7 +479,7 @@ onMounted(() => {
                 <RouterLink
                   v-if="job.project"
                   data-testid="slot-job-project-link"
-                  :to="{ name: 'industry-project', params: { id: job.project.id } }"
+                  :to="{ name: 'industry-project', params: { id: job.project.id }, query: { tab: PRODUCTION_TAB } }"
                   :title="projectLabel(job.project)"
                   class="block max-w-[16rem] truncate text-xs text-cyan-400 hover:text-cyan-300 hover:underline"
                 >{{ projectLabel(job.project) }}</RouterLink>
@@ -666,7 +667,7 @@ onMounted(() => {
                       <RouterLink
                         v-if="job.project"
                         data-testid="timeline-job-project-link"
-                        :to="{ name: 'industry-project', params: { id: job.project.id } }"
+                        :to="{ name: 'industry-project', params: { id: job.project.id }, query: { tab: PRODUCTION_TAB } }"
                         class="mt-0.5 block max-w-[16rem] truncate text-cyan-400 hover:text-cyan-300 hover:underline"
                       >{{ projectLabel(job.project) }}</RouterLink>
                     </div>

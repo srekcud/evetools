@@ -112,10 +112,10 @@ beforeEach(() => {
 })
 
 describe('IndustrySlotsSection job to project links', () => {
-  it('links a job matched to a project to that project, in the job table and in the timeline tooltip', async () => {
+  it('links a job matched to a project to the production tab of that project, in the job table and in the timeline tooltip', async () => {
     const wrapper = await mountSlotsSection()
 
-    const expectedFirstLink = { href: `/industry/projects/${RIFTER_PROJECT_ID}`, text: RIFTER_PROJECT_NAME }
+    const expectedFirstLink = { href: `/industry/projects/${RIFTER_PROJECT_ID}?tab=chain`, text: RIFTER_PROJECT_NAME }
     expect({
       table: linksOf(wrapper, TABLE_LINK)[0],
       timeline: linksOf(wrapper, TIMELINE_LINK)[0],
@@ -128,8 +128,8 @@ describe('IndustrySlotsSection job to project links', () => {
 
     const fallbackLabel = (en.industry.slots as Record<string, unknown>).projectLinkFallback
     const expectedLinks = [
-      { href: `/industry/projects/${RIFTER_PROJECT_ID}`, text: RIFTER_PROJECT_NAME },
-      { href: `/industry/projects/${MERLIN_PROJECT_ID}`, text: fallbackLabel },
+      { href: `/industry/projects/${RIFTER_PROJECT_ID}?tab=chain`, text: RIFTER_PROJECT_NAME },
+      { href: `/industry/projects/${MERLIN_PROJECT_ID}?tab=chain`, text: fallbackLabel },
     ]
     expect({
       table: linksOf(wrapper, TABLE_LINK),
