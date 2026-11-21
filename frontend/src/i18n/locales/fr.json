@@ -3869,6 +3869,7 @@
     "saleSuggestions": {
       "title": "Transactions à rattacher",
       "date": "Date",
+      "item": "Item",
       "character": "Personnage",
       "quantity": "Quantité",
       "unitPrice": "Prix unitaire",
@@ -3884,6 +3885,7 @@
       "recordAllCount": "{count} transactions du wallet seront enregistrées comme ventes",
       "recordAllQuantity": "{quantity} unités au total",
       "recordAllTotal": "{amount} au total",
+      "recordAllProduct": "{name} : {quantity} unités, {amount}",
       "recordAllLeftOut": "{count} transaction est laissée de côté (doublon possible ou quantité invalide) | {count} transactions sont laissées de côté (doublon possible ou quantité invalide)",
       "recordAllConfirm": "Confirmer",
       "recordAllFailures": "{count} transaction n’a pas pu être enregistrée | {count} transactions n’ont pas pu être enregistrées",
