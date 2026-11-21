@@ -318,6 +318,20 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         return new SettlementTransfer('from-participant', 'Payer', 'to-participant', 'Recipient', 'to-user', 250_000_00, $receivedAt, false);
     }
 
+    #[Group('issue-1219')]
+    public function testInputCountsOnlyThePendingMembersAsJoinRequests(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::Published, $owner);
+        $this->membershipOf($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->membershipOf($project, $this->pilot(), ParticipantRole::Member, ParticipantStatus::Pending);
+        $this->membershipOf($project, $this->pilot(), ParticipantRole::Member, ParticipantStatus::Pending);
+        $this->membershipOf($project, $this->pilot(), ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->membershipOf($project, $this->pilot(), ParticipantRole::Member, ParticipantStatus::Removed);
+
+        self::assertSame(2, (new ProjectCockpitInputFactory())->create($project, $owner)->pendingJoinRequestCount);
+    }
+
     private function jobMatchEndingOn(IndustryProjectBomLine $line, int $runs, string $status, string $endDate): void
     {
         $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(612_337_000 + $runs)->setRuns($runs)->setStatus($status)->setEndDate(new \DateTimeImmutable($endDate)));

@@ -9,6 +9,7 @@ use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectProduct;
+use App\Entity\Notification;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
@@ -16,6 +17,8 @@ use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Industry\Project\JoinRequestNotifier;
+use App\Service\Notification\NotificationDispatcher;
 use App\State\Processor\Industry\Project\JoinProjectProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\Tests\Integration\IntegrationTestCase;
@@ -73,6 +76,23 @@ final class JoinGroupProjectByCodeTest extends IntegrationTestCase
         self::assertSame('Project not found', $privateRefusal->getMessage());
         self::assertSame($unknownRefusal->getMessage(), $privateRefusal->getMessage());
         self::assertSame(0, $this->participantsOf('Private published', ParticipantRole::Member));
+    }
+
+    #[Group('issue-1219')]
+    public function testStrangerJoinRequestNotifiesTheOwnerAndAnAutoAcceptedCorpmateNotifiesNobody(): void
+    {
+        $this->join($this->corpmateId, self::OPEN_PUBLISHED_CODE);
+        $this->em->clear();
+        self::assertSame([], $this->em->getRepository(Notification::class)->findAll());
+
+        $this->join($this->strangerId, self::OPEN_PUBLISHED_CODE);
+        $this->em->clear();
+
+        $notifications = $this->em->getRepository(Notification::class)->findAll();
+        self::assertCount(1, $notifications);
+        self::assertSame(Notification::CATEGORY_INDUSTRY, $notifications[0]->getCategory());
+        self::assertSame('Join request: Open published', $notifications[0]->getTitle());
+        self::assertSame('Aria Solberg', $notifications[0]->getUser()->getMainCharacter()?->getName());
     }
 
     public function testOpenDraftProjectIsClosedToNewMembers(): void
@@ -148,6 +168,7 @@ final class JoinGroupProjectByCodeTest extends IntegrationTestCase
             self::getContainer()->get(ProjectResourceMapper::class),
             self::getContainer()->get(EntityManagerInterface::class),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            new JoinRequestNotifier(self::getContainer()->get(NotificationDispatcher::class)),
         );
     }
 

@@ -1118,6 +1118,11 @@
           "text": "La production est terminée : ouvrez la vente des produits.",
           "button": "Passer en vente"
         },
+        "review_join_requests": {
+          "text": "{quantity} demandes d'adhésion attendent votre décision.",
+          "textUnknownQuantity": "Des demandes d'adhésion attendent votre décision, leur nombre est inconnu.",
+          "button": "Traiter les demandes"
+        },
         "review_contributions": {
           "text": "{quantity} contributions attendent votre décision.",
           "textUnknownQuantity": "Des contributions attendent votre décision, leur nombre est inconnu.",
@@ -4174,6 +4179,11 @@
           "title": "Copier le récapitulatif",
           "description": "Les comptes sont figés : copiez le récapitulatif Discord depuis l'onglet Finances pour partager le résultat.",
           "button": "Ouvrir le récapitulatif"
+        },
+        "review_join_requests": {
+          "title": "Demandes d'adhésion à traiter",
+          "description": "{quantity} pilotes attendent que vous acceptiez ou refusiez leur demande de rejoindre le projet.",
+          "button": "Traiter les demandes"
         },
         "review_contributions": {
           "title": "Contributions à relire",

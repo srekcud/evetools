@@ -31,6 +31,7 @@ final readonly class ProjectCockpitCalculator
 
     private const string ACTION_SETTLE_TRANSFERS = 'settle_transfers';
     private const string ACTION_COPY_RECAP = 'copy_recap';
+    private const string ACTION_REVIEW_JOIN_REQUESTS = 'review_join_requests';
     private const string ACTION_REVIEW_CONTRIBUTIONS = 'review_contributions';
     private const string ACTION_START_PROJECT = 'start_project';
     private const string ACTION_SOURCE_MATERIAL = 'source_material';
@@ -43,6 +44,7 @@ final readonly class ProjectCockpitCalculator
 
     private const string TAB_MATERIALS = 'materials';
     private const string TAB_CONTRIBUTIONS = 'contributions';
+    private const string TAB_MEMBERS = 'members';
     private const string TAB_SALES = 'sales';
     private const string TAB_FINANCES = 'finances';
 
@@ -199,6 +201,10 @@ final readonly class ProjectCockpitCalculator
     {
         if ($input->status === ProjectStatus::Completed) {
             return $this->closedProjectAction($input);
+        }
+
+        if ($input->viewerIsManager && $input->pendingJoinRequestCount > self::NONE) {
+            return new CockpitNextAction(self::ACTION_REVIEW_JOIN_REQUESTS, false, self::TAB_MEMBERS, null, null, null, null, $input->pendingJoinRequestCount);
         }
 
         if ($input->viewerIsManager && $input->pendingContributionCount > self::NONE) {

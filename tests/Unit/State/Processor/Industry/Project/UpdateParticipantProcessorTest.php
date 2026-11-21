@@ -12,7 +12,9 @@ use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Service\Industry\Project\JoinRequestNotifier;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use App\State\Processor\Industry\Project\UpdateParticipantProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -42,6 +44,9 @@ class UpdateParticipantProcessorTest extends TestCase
     private UpdateParticipantProcessor $processor;
     private int $flushes = 0;
     private array $publishedPayloads = [];
+
+    /** @var list<User> */
+    private array $notifiedUsers = [];
 
     private User $adminA;
     private IndustryProjectParticipant $ownerMembership;
@@ -75,6 +80,11 @@ class UpdateParticipantProcessorTest extends TestCase
             return 'update-id';
         });
 
+        $dispatcher = $this->createStub(NotificationDispatcher::class);
+        $dispatcher->method('dispatch')->willReturnCallback(function (User $user): void {
+            $this->notifiedUsers[] = $user;
+        });
+
         $this->processor = new UpdateParticipantProcessor(
             $this->security,
             $this->sabreBatchProjectRepository(),
@@ -83,6 +93,7 @@ class UpdateParticipantProcessorTest extends TestCase
             new ProjectAccessChecker($memberRepository),
             new ProjectResourceMapper(),
             new MercurePublisherService($hub, new NullLogger()),
+            new JoinRequestNotifier($dispatcher),
         );
     }
 
@@ -195,6 +206,36 @@ class UpdateParticipantProcessorTest extends TestCase
             ['memberId' => $this->pendingQ->getId()->toRfc4122(), 'characterName' => 'Vex Tanner'],
             $this->publishedPayloads[0]['data'],
         );
+    }
+
+    #[Group('issue-1219')]
+    public function testAcceptingAPendingMemberNotifiesTheRequesterAndNobodyElse(): void
+    {
+        $this->actAs($this->adminA);
+
+        $this->patch($this->pendingQ, status: 'accepted');
+
+        self::assertSame([$this->pendingQ->getUser()], $this->notifiedUsers);
+    }
+
+    #[Group('issue-1219')]
+    public function testChangingOnlyTheRoleOfAnAcceptedMemberNotifiesNobody(): void
+    {
+        $this->actAs($this->sabreBatchOwner);
+
+        $this->patch($this->memberM, role: 'admin');
+
+        self::assertSame([], $this->notifiedUsers);
+    }
+
+    #[Group('issue-1219')]
+    public function testARefusedAcceptanceNotifiesNobody(): void
+    {
+        $this->actAs($this->adminA);
+
+        $this->patch($this->memberM, status: 'accepted');
+
+        self::assertSame([], $this->notifiedUsers);
     }
 
     #[Group('issue-321')]

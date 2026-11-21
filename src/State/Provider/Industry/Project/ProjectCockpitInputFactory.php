@@ -35,6 +35,7 @@ final readonly class ProjectCockpitInputFactory
             $project->pendingContributionCountReviewableBy($user),
             $this->isManager($user, $project),
             $this->unreceivedTransferCount($settlement),
+            $project->pendingJoinRequestCount(),
         );
     }
 
