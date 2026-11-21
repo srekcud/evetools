@@ -3,6 +3,27 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.29 (2026-11-21)
+--------------------------------------------------------------------------------
+
+### Industrie
+- Projets de groupe : les onglets suivent le deroule du projet (Membres,
+  Approvisionnement, Contributions, Invention, Production, Planning,
+  Ventes, Finances, Journal)
+- La carte "Acheter ou fabriquer" passe de l'onglet Production a l'onglet
+  Approvisionnement, a cote de la liste des materiaux achetes
+- Onglet Production : les compteurs de statut ne comptent plus que les
+  etapes affichees, sans les lignes de materiaux
+- Le niveau d'un job dans la chaine suit la recette : un intermediaire
+  utilise par plusieurs jobs n'abaisse plus le niveau de la reaction qui
+  en depend, qu'il soit fabrique ou achete
+- "Tout enregistrer comme ventes" enregistre toutes les ventes en une
+  seule fois et liste les lignes refusees avec leur motif
+- Projets de groupe ouverts a plusieurs : une rafale de mises a jour ne
+  recharge plus chaque section en boucle, la page reste fluide et ne se
+  recharge pas tant que l'onglet du navigateur est cache
+
+--------------------------------------------------------------------------------
 Version 0.28 (2026-11-21)
 --------------------------------------------------------------------------------
 
