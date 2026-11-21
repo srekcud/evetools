@@ -3216,6 +3216,7 @@
       "loading": "Lecture du stock du container...",
       "error": "Les achats à livrer n'ont pas pu être lus",
       "allDelivered": "Tous les achats sont déjà dans le container du projet.",
+      "nameContainer": "Nommer un container",
       "stock": {
         "unknown": "Le stock du container est illisible, la livraison de ces achats est donc inconnue.",
         "none": "Le projet n'a pas de nom de container, la livraison de ces achats ne peut donc pas être vérifiée."

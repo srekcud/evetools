@@ -79,6 +79,7 @@ import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 const { t } = useI18n()
 const editNameFieldId = useId()
 const editContainerNameFieldId = useId()
+const editContainerNamesField = ref<HTMLTextAreaElement | null>(null)
 const editBrokerFeeFieldId = useId()
 const editSalesTaxFieldId = useId()
 const route = useRoute()
@@ -365,6 +366,12 @@ function openEditModal(): void {
   editError.value = null
   isEditSaving.value = false
   showEditModal.value = true
+}
+
+async function openEditModalOnContainers(): Promise<void> {
+  openEditModal()
+  await nextTick()
+  editContainerNamesField.value?.focus()
 }
 
 async function handleEditSave(): Promise<void> {
@@ -744,7 +751,11 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
           <ProjectCourier :project-id="projectId" />
 
-          <ProjectPurchasesToDeliver :project-id="projectId" />
+          <ProjectPurchasesToDeliver
+            :project-id="projectId"
+            :can-edit="isOwnerOrAdmin"
+            @edit-containers="openEditModalOnContainers"
+          />
         </CollapsibleSourcing>
 
         <IntermediateStockProposal
@@ -952,6 +963,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           <label :for="editContainerNameFieldId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.containerName') }}</label>
           <textarea
             :id="editContainerNameFieldId"
+            ref="editContainerNamesField"
             v-model="editForm.containerNames"
             rows="3"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"

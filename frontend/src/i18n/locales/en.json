@@ -3216,6 +3216,7 @@
       "loading": "Reading the container stock...",
       "error": "The purchases to deliver could not be read",
       "allDelivered": "Every purchase is already in the project container.",
+      "nameContainer": "Name a container",
       "stock": {
         "unknown": "The container stock cannot be read, so the delivery of these purchases is unknown.",
         "none": "The project has no container name, so the delivery of these purchases cannot be checked."
