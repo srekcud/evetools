@@ -3840,6 +3840,8 @@
       }
     },
     "sales": {
+      "empty": "Aucune vente enregistrée",
+      "emptyHint": "Les ventes apparaissent ici une fois enregistrées. Rattache les transactions du wallet et les contrats listés sous « {transactions} », ou ajoute-en une à la main.",
       "item": "Item",
       "chooseItem": "Choisir un item",
       "itemWithRemaining": "{name} · {remaining} restant à vendre",

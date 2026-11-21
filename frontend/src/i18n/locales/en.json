@@ -3840,6 +3840,8 @@
       }
     },
     "sales": {
+      "empty": "No sales recorded yet",
+      "emptyHint": "Sales show up here once recorded. Link the wallet transactions and contracts listed under “{transactions}”, or add one by hand.",
       "item": "Item",
       "chooseItem": "Choose an item",
       "itemWithRemaining": "{name} · {remaining} left to sell",

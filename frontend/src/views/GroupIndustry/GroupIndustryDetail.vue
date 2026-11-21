@@ -8,6 +8,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
+import { useGroupContractSalesStore } from '@/stores/group-industry/contractSales'
 import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
 import { useGroupActivityStore } from '@/stores/group-industry/activity'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
@@ -85,7 +86,21 @@ const chainStore = useGroupChainStore()
 const t2ProposalStore = useGroupT2BlueprintCopyProposalStore()
 const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
+const contractSalesStore = useGroupContractSalesStore()
 const settlementStore = useGroupSettlementStore()
+
+type SalesTabSection = 'sellOrders' | 'sales' | 'transactionsToLink' | 'contractsToLink'
+
+const salesTabSections = computed<SalesTabSection[]>(() => {
+  const waitingToBeLinked: SalesTabSection[] = []
+  if (distributionStore.saleSuggestions.length > 0) waitingToBeLinked.push('transactionsToLink')
+  if (contractSalesStore.suggestions !== null && contractSalesStore.suggestions.candidates.length > 0) waitingToBeLinked.push('contractsToLink')
+  const inDefaultOrder: SalesTabSection[] = ['sellOrders', 'sales', 'transactionsToLink', 'contractsToLink']
+  return [
+    ...waitingToBeLinked,
+    ...inDefaultOrder.filter(section => !waitingToBeLinked.includes(section)),
+  ]
+})
 const activityStore = useGroupActivityStore()
 const companionStore = useGroupCompanionStore()
 const syncStore = useSyncStore()
@@ -761,10 +776,12 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <div v-else-if="activeTab === 'sales'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <ProjectSellOrdersSection :project-id="projectId" />
-        <SalesTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
-        <SaleSuggestionsPanel v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
-        <ContractSaleSuggestions v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
+        <template v-for="section in salesTabSections" :key="section">
+          <ProjectSellOrdersSection v-if="section === 'sellOrders'" :project-id="projectId" />
+          <SalesTable v-else-if="section === 'sales'" :project-id="projectId" :is-admin="isOwnerOrAdmin" />
+          <SaleSuggestionsPanel v-else-if="section === 'transactionsToLink' && isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
+          <ContractSaleSuggestions v-else-if="section === 'contractsToLink' && isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
+        </template>
       </div>
 
       <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
