@@ -31,6 +31,7 @@ class ProjectContainerService
     private const string REASON_CORPORATION_ASSETS_NOT_SYNCED = 'corporation_assets_not_synced';
     private const string REASON_NO_VISIBLE_DIVISION = 'no_visible_division';
     private const string REASON_NO_DIRECTOR = 'no_director';
+    private const string REASON_JOB_CONSUMPTION_UNKNOWN = 'job_consumption_unknown';
     public const string REASON_NO_CONTAINER_NAME = 'no_container_name';
 
     private const string CORPORATION_ASSETS_STALE_AFTER = 'PT48H';
@@ -42,6 +43,7 @@ class ProjectContainerService
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
         private readonly CorporationDirectorAccess $directorAccess,
+        private readonly StartedJobConsumptionReader $consumptionReader,
     ) {
     }
 
@@ -90,7 +92,18 @@ class ProjectContainerService
             );
         }
 
-        return $this->buildVerificationResults($materialItems, $this->quantitiesOf($named['contents']), $assetsSyncedAt, $named['missingContainerNames']);
+        $startedJobConsumption = $this->consumptionReader->of($project);
+        if ($startedJobConsumption->isUnknown()) {
+            return $this->buildAllUnknown($materialItems, self::REASON_JOB_CONSUMPTION_UNKNOWN, $assetsSyncedAt);
+        }
+
+        return $this->buildVerificationResults(
+            $materialItems,
+            $this->quantitiesOf($named['contents']),
+            $startedJobConsumption,
+            $assetsSyncedAt,
+            $named['missingContainerNames'],
+        );
     }
 
     public function containerScopeOf(IndustryProject $project): ProjectContainerScope
@@ -326,7 +339,7 @@ class ProjectContainerService
     private function buildAllUnknown(array $materialItems, string $unknownReason, ?\DateTimeImmutable $assetsSyncedAt): array
     {
         return array_map(
-            fn (IndustryProjectBomLine $item): ProjectContainerVerificationResource => $this->buildResource($item, null, self::STATUS_UNKNOWN, $assetsSyncedAt, $unknownReason),
+            fn (IndustryProjectBomLine $item): ProjectContainerVerificationResource => $this->buildResource($item, null, null, self::STATUS_UNKNOWN, $assetsSyncedAt, $unknownReason),
             $materialItems,
         );
     }
@@ -339,7 +352,7 @@ class ProjectContainerService
     private function buildAllContainerNotFound(array $materialItems, string $status, ?\DateTimeImmutable $assetsSyncedAt, array $missingContainerNames): array
     {
         return array_map(
-            fn (IndustryProjectBomLine $item): ProjectContainerVerificationResource => $this->buildResource($item, null, $status, $assetsSyncedAt, null, $missingContainerNames),
+            fn (IndustryProjectBomLine $item): ProjectContainerVerificationResource => $this->buildResource($item, null, null, $status, $assetsSyncedAt, null, $missingContainerNames),
             $materialItems,
         );
     }
@@ -350,14 +363,15 @@ class ProjectContainerService
      * @param list<string> $missingContainerNames
      * @return ProjectContainerVerificationResource[]
      */
-    private function buildVerificationResults(array $materialItems, array $containerQuantities, ?\DateTimeImmutable $assetsSyncedAt, array $missingContainerNames): array
+    private function buildVerificationResults(array $materialItems, array $containerQuantities, StartedJobConsumption $startedJobConsumption, ?\DateTimeImmutable $assetsSyncedAt, array $missingContainerNames): array
     {
         $results = [];
 
         foreach ($materialItems as $item) {
             $containerQty = isset($containerQuantities[$item->getTypeId()]) ? $containerQuantities[$item->getTypeId()] : 0;
-            $status = $this->determineStatus($containerQty, $item->getRequiredQuantity());
-            $results[] = $this->buildResource($item, $containerQty, $status, $assetsSyncedAt, null, $missingContainerNames);
+            $consumedQty = $startedJobConsumption->consumedOf($item->getTypeId());
+            $status = $this->determineStatus($containerQty, max(0, $item->getRequiredQuantity() - $consumedQty));
+            $results[] = $this->buildResource($item, $containerQty, $consumedQty, $status, $assetsSyncedAt, null, $missingContainerNames);
         }
 
         return $results;
@@ -382,6 +396,7 @@ class ProjectContainerService
     private function buildResource(
         IndustryProjectBomLine $item,
         ?int $containerQuantity,
+        ?int $consumedQuantity,
         string $status,
         ?\DateTimeImmutable $assetsSyncedAt,
         ?string $unknownReason = null,
@@ -393,6 +408,7 @@ class ProjectContainerService
         $resource->typeName = $item->getTypeName();
         $resource->requiredQuantity = $item->getRequiredQuantity();
         $resource->containerQuantity = $containerQuantity;
+        $resource->consumedQuantity = $consumedQuantity;
         $resource->status = $status;
         $resource->unknownReason = $unknownReason;
         $resource->assetsSyncedAt = $assetsSyncedAt;

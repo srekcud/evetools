@@ -70,6 +70,7 @@ function verification(
     typeName: material.typeName,
     requiredQuantity: material.requiredQuantity,
     containerQuantity,
+    consumedQuantity: containerQuantity === null ? null : 0,
     status,
     unknownReason: status === 'unknown' ? 'corporation_assets_not_synced' : null,
     assetsSyncedAt: null,

@@ -13,6 +13,8 @@ use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\Service\Industry\Project\ProjectContainerService;
+use App\Service\Industry\Project\StartedJobConsumption;
+use App\Service\Industry\Project\StartedJobConsumptionReader;
 use App\Tests\Unit\Service\ESI\BuildsCorporationDirectorAccess;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -60,12 +62,16 @@ final class ProjectContainerServiceContainerStockTest extends TestCase
 
         $this->corporationMember(self::CORPORATION_ID, ['Director']);
 
+        $consumptionReader = $this->createStub(StartedJobConsumptionReader::class);
+        $consumptionReader->method('of')->willReturn(StartedJobConsumption::none());
+
         $this->service = new ProjectContainerService(
             new VisibleCorporationAssetsFinder($cachedAssetRepository, $visibilityRepository),
             $this->createStub(IndustryProjectBomLineRepository::class),
             $cachedAssetRepository,
             $visibilityRepository,
             $this->corporationDirectorAccess(),
+            $consumptionReader,
         );
     }
 

@@ -68,6 +68,7 @@ function verification(
     typeName: material.typeName,
     requiredQuantity: material.requiredQuantity,
     containerQuantity,
+    consumedQuantity: containerQuantity === null ? null : 0,
     status,
     unknownReason,
     assetsSyncedAt: null,
@@ -227,11 +228,11 @@ describe('ContainerBanner state of the container check', () => {
   })
 
   it('tells in English that the check cannot be made, with a different action for each reason', () => {
-    const reasons: ContainerCheckUnknownReason[] = ['corporation_assets_not_synced', 'no_visible_division', 'owner_without_corporation']
+    const reasons: ContainerCheckUnknownReason[] = ['corporation_assets_not_synced', 'no_visible_division', 'owner_without_corporation', 'job_consumption_unknown']
     const texts = reasons.map(reason => normalized(mountBanner('en', [verification(TRITANIUM, 'unknown', null, reason)]).text()))
 
-    expect(texts.map(text => occurrencesOf(text, 'Cannot be checked'))).toEqual([1, 1, 1])
-    expect(new Set(texts).size).toBe(3)
+    expect(texts.map(text => occurrencesOf(text, 'Cannot be checked'))).toEqual([1, 1, 1, 1])
+    expect(new Set(texts).size).toBe(4)
     expect(texts.filter(text => RAW_TRANSLATION_KEY.test(text))).toEqual([])
   })
 

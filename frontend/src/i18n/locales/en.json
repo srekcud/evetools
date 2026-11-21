@@ -3933,8 +3933,10 @@
         "corporation_assets_not_synced": "Sync the corp assets",
         "no_visible_division": "No division is shared",
         "no_director": "No Director is connected",
-        "owner_without_corporation": "The owner has no corporation"
+        "owner_without_corporation": "The owner has no corporation",
+        "job_consumption_unknown": "Started jobs used materials, their consumption cannot be computed"
       },
+      "consumedByStartedJobs": "{quantity} used by started jobs",
       "assetsSyncedAt": "Corporation assets synced {date}",
       "refreshAssets": "Refresh corp assets",
       "refreshingAssets": "Refreshing...",

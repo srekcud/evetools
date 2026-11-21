@@ -45,6 +45,8 @@ class ProjectContainerVerificationResource
     /** Quantity found in the corp container(s) */
     public ?int $containerQuantity;
 
+    public ?int $consumedQuantity = null;
+
     public string $status;
 
     public ?string $unknownReason = null;
