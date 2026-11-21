@@ -81,7 +81,8 @@ function displayOf(jobMatch: JobMatch) {
 }
 
 function countdownOf(jobMatch: JobMatch): string | null {
-  if (jobMatch.endDate === null || displayOf(jobMatch).state !== 'running') return null
+  const display = displayOf(jobMatch)
+  if (jobMatch.endDate === null || display.state !== 'running' || display.remainingMs === null) return null
   return formatCountdown(jobMatch.endDate, now.value)
 }
 const projectStore = useGroupProjectStore()

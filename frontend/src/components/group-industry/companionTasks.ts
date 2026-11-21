@@ -1,4 +1,4 @@
-import { jobDisplayOf, type JobDisplay } from './jobDisplayState'
+import { jobDisplayOf, type JobDisplay, type JobDisplayState } from './jobDisplayState'
 import { pendingQuantityOf } from './pendingContributions'
 import type { BomItem, ChainNode, GroupMember, GroupProject, JobMatch, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
 
@@ -53,7 +53,7 @@ export type CompanionTasksInput = {
 }
 
 const MY_JOB_STATUSES = ['active', 'paused', 'ready']
-const RUNNING_STATE = 'running'
+const RUNNING_STATE: JobDisplayState = 'running'
 const FINAL_JOB_GROUP = 'final'
 const PENDING_MEMBER_STATUS = 'pending'
 const PRODUCT_ACTIVITIES = ['manufacturing', 'reaction']

@@ -72,7 +72,7 @@ function dateTimeText(value: string | null): string {
 
 function countdownText(job: ProjectRunningJob): string {
   const display = jobDisplayOf({ status: RUNNING_JOB_STATUS, endDate: job.endsAt }, now.value)
-  const countdown = display.state === 'running' ? formatCountdown(job.endsAt, now.value) : null
+  const countdown = display.state === 'running' && display.remainingMs !== null ? formatCountdown(job.endsAt, now.value) : null
   return countdown ?? jobDisplayLabel(display.state)
 }
 
