@@ -48,13 +48,13 @@ export function refreshesActivityOn(action: string): boolean {
   return ACTIONS_RECORDED_IN_THE_ACTIVITY_FEED.has(action)
 }
 
-const TAB_SHOWING_REFRESH: Partial<Record<GroupProjectRefresh, ProjectDetailTab>> = {
-  contributions: 'contributions',
-  sales: 'sales',
-  saleSuggestions: 'sales',
-  distribution: 'distribution',
-  settlement: 'distribution',
-  activity: 'journal',
+const TABS_SHOWING_REFRESH: Partial<Record<GroupProjectRefresh, ProjectDetailTab[]>> = {
+  contributions: ['contributions'],
+  sales: ['sales', 'distribution'],
+  saleSuggestions: ['sales'],
+  distribution: ['distribution'],
+  settlement: ['distribution'],
+  activity: ['journal'],
 }
 
 export function refreshesVisibleOn(actions: string[], activeTab: ProjectDetailTab): GroupProjectRefresh[] {
@@ -64,7 +64,7 @@ export function refreshesVisibleOn(actions: string[], activeTab: ProjectDetailTa
     if (refreshesActivityOn(action)) wanted.add('activity')
   }
   return [...wanted].filter((refresh) => {
-    const tabShowingIt = TAB_SHOWING_REFRESH[refresh]
-    return tabShowingIt === undefined || tabShowingIt === activeTab
+    const tabsShowingIt = TABS_SHOWING_REFRESH[refresh]
+    return tabsShowingIt === undefined || tabsShowingIt.includes(activeTab)
   })
 }

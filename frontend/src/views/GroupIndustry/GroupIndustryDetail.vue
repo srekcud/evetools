@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
@@ -172,6 +173,18 @@ async function loadCockpit(id: string): Promise<void> {
   cockpit.value = projectStore.cockpit
 }
 
+function loadFinances(id: string): Promise<void> {
+  return Promise.all([
+    distributionStore.fetchDistribution(id),
+    distributionStore.fetchSales(id),
+    settlementStore.fetchForProject(id),
+  ]).then(() => undefined)
+}
+
+if (requestedTab.value === 'distribution') {
+  void loadFinances(projectId.value)
+}
+
 onMounted(async () => {
   void syncStore.ensureGroupProjectSubscribed(projectId.value)
   await Promise.all([
@@ -235,8 +248,7 @@ watch(activeTab, (tab) => {
   if (tab === 'contributions') {
     contributionStore.fetchContributions(projectId.value)
   } else if (tab === 'distribution') {
-    distributionStore.fetchDistribution(projectId.value)
-    settlementStore.fetchForProject(projectId.value)
+    loadFinances(projectId.value)
   } else if (tab === 'members') {
     loadMembers(projectId.value)
   } else if (tab === 'journal') {
@@ -734,12 +746,18 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
       <!-- Tab Content: Distribution -->
       <div v-else-if="activeTab === 'distribution'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <FinancialCascade />
-        <FinancialSummary v-if="!project?.personalUse" />
-        <SellForecastCard v-if="!project?.personalUse" :project-id="projectId" />
-        <DistributionTable />
-        <ProjectTransfers :project-id="projectId" />
-        <ProjectDiscordRecap class="mt-8" />
+        <div v-if="distributionStore.loadingDistribution && !distributionStore.distribution" data-testid="distribution-loading" class="flex items-center gap-3 text-sm text-slate-400 mb-8">
+          <LoadingSpinner size="sm" />
+          <span>{{ t('common.status.loading') }}</span>
+        </div>
+        <template v-else>
+          <FinancialCascade />
+          <FinancialSummary v-if="!project?.personalUse" />
+          <SellForecastCard v-if="!project?.personalUse" :project-id="projectId" />
+          <DistributionTable />
+          <ProjectTransfers :project-id="projectId" />
+          <ProjectDiscordRecap class="mt-8" />
+        </template>
       </div>
 
       <div v-else-if="activeTab === 'sales'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">

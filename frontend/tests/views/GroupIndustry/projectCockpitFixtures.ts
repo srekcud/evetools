@@ -7,6 +7,7 @@ import GroupIndustryDetail from '@/views/GroupIndustry/GroupIndustryDetail.vue'
 import { apiRequest } from '@/services/api'
 import type {
   BomItem,
+  Distribution,
   GroupMember,
   GroupMemberRole,
   GroupProject,
@@ -150,14 +151,33 @@ export type CockpitAnswers = {
   cockpit?: ProjectCockpit
   cockpitFailure?: string
   members?: GroupMember[] | Error | Promise<GroupMember[]>
+  distribution?: unknown
 }
 
-export function answerApi({ project, bom = [], cockpit, cockpitFailure, members = [] }: CockpitAnswers): void {
+export const NYX_DISTRIBUTION: Distribution = {
+  id: 'distribution-nyx-batch',
+  totalRevenue: 0,
+  brokerFee: null,
+  salesTax: null,
+  netRevenue: null,
+  totalProjectCost: null,
+  marginPercent: null,
+  awaitingSales: true,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
+  members: [],
+}
+
+export function answerApi({ project, bom = [], cockpit, cockpitFailure, members = [], distribution = NYX_DISTRIBUTION }: CockpitAnswers): void {
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
     if (options?.method === 'PATCH') return { ...project, ...JSON.parse(String(options.body)) }
     if (endpoint === PROJECT_PATH) return project
     if (endpoint === `${PROJECT_PATH}/bom`) return bom
     if (endpoint === `${PROJECT_PATH}/settlement`) return projectSettlement()
+    if (endpoint === `${PROJECT_PATH}/distribution`) {
+      if (distribution instanceof Error) throw distribution
+      return distribution
+    }
     if (endpoint === `${PROJECT_PATH}/members`) {
       if (members instanceof Error) throw members
       return members

@@ -5,7 +5,8 @@ import en from '@/i18n/locales/en.json'
 import GroupIndustryDetail from '@/views/GroupIndustry/GroupIndustryDetail.vue'
 import { apiRequest } from '@/services/api'
 import type { SellForecast } from '@/stores/group-industry/types'
-import { cockpitOf, COCKPIT_PATH, nextAction, nyxProject, PROJECT_ID, PROJECT_PATH, route } from './projectCockpitFixtures'
+import { projectSettlement } from '../../components/group-industry/projectSettlementFixtures'
+import { cockpitOf, COCKPIT_PATH, nextAction, NYX_DISTRIBUTION, nyxProject, PROJECT_ID, PROJECT_PATH, route } from './projectCockpitFixtures'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -46,6 +47,8 @@ async function mountSellingNyxOn(tab: string): Promise<VueWrapper> {
     if (endpoint === PROJECT_PATH) return project
     if (endpoint === COCKPIT_PATH) return cockpitOf('selling', nextAction({ code: 'record_sale', tab: 'sales', quantity: 40 }))
     if (endpoint === SELL_FORECAST_PATH) return NYX_FORECAST
+    if (endpoint === `${PROJECT_PATH}/distribution`) return NYX_DISTRIBUTION
+    if (endpoint === `${PROJECT_PATH}/settlement`) return projectSettlement()
     return []
   })
   const wrapper = mount(GroupIndustryDetail, {
