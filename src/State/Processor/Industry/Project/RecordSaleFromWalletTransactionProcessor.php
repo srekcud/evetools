@@ -58,12 +58,30 @@ final readonly class RecordSaleFromWalletTransactionProcessor implements Process
         assert($data instanceof RecordSaleFromWalletTransactionInput);
 
         $project = $this->projectOf($this->projectRepository, $uriVariables);
+        $this->assertMayRecord($user, $project);
+
+        $sale = $this->record($user, $project, $data);
+
+        $this->mercurePublisher->publishGroupProjectEvent(
+            $project->getId()->toRfc4122(),
+            'sale_recorded',
+            $this->activityOf($sale),
+        );
+
+        return ProjectSaleResource::fromSale($sale, $user);
+    }
+
+    public function assertMayRecord(User $user, IndustryProject $project): void
+    {
         $this->accessChecker->assertAdminOrOwner($user, $project);
 
         if ($project->isCompleted()) {
             throw new BadRequestHttpException('Cannot record a sale on a completed project');
         }
+    }
 
+    public function record(User $user, IndustryProject $project, RecordSaleFromWalletTransactionInput $data): IndustryProjectSale
+    {
         $transaction = $this->transactionOf($user, $data->transactionId);
         $typeName = $this->assertSellsTheProduction($transaction, $project);
         $quantity = $data->quantity ?? $transaction->getQuantity();
@@ -93,18 +111,20 @@ final readonly class RecordSaleFromWalletTransactionProcessor implements Process
             throw new ConflictHttpException(self::ALREADY_LINKED_MESSAGE, $exception);
         }
 
-        $this->mercurePublisher->publishGroupProjectEvent(
-            $project->getId()->toRfc4122(),
-            'sale_recorded',
-            [
-                'saleId' => $sale->getId()->toRfc4122(),
-                'typeName' => $sale->getTypeName(),
-                'quantity' => $sale->getQuantity(),
-                'totalPrice' => $sale->getTotalPrice(),
-            ],
-        );
+        return $sale;
+    }
 
-        return ProjectSaleResource::fromSale($sale, $user);
+    /**
+     * @return array<string, mixed>
+     */
+    public function activityOf(IndustryProjectSale $sale): array
+    {
+        return [
+            'saleId' => $sale->getId()->toRfc4122(),
+            'typeName' => $sale->getTypeName(),
+            'quantity' => $sale->getQuantity(),
+            'totalPrice' => $sale->getTotalPrice(),
+        ];
     }
 
     private function transactionOf(User $user, string $transactionId): CachedWalletTransaction

@@ -14,4 +14,14 @@ class RecordSaleFromWalletTransactionInput
 
     #[Assert\Range(min: 1, max: RecordSaleInput::MAXIMUM_QUANTITY)]
     public ?int $quantity = null;
+
+    /** @param array<array-key, mixed> $values */
+    public static function fromArray(array $values): self
+    {
+        $input = new self();
+        $input->transactionId = isset($values['transactionId']) && \is_string($values['transactionId']) ? $values['transactionId'] : '';
+        $input->quantity = isset($values['quantity']) && \is_int($values['quantity']) ? $values['quantity'] : null;
+
+        return $input;
+    }
 }

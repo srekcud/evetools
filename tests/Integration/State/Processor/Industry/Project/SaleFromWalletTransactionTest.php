@@ -11,6 +11,7 @@ use App\ApiResource\Industry\Project\ProjectSaleResource;
 use App\ApiResource\Industry\Project\ProjectSaleSuggestionListResource;
 use App\ApiResource\Industry\Project\ProjectSaleSuggestionResource;
 use App\ApiResource\Input\Industry\Project\RecordSaleFromWalletTransactionInput;
+use App\ApiResource\Input\Industry\Project\RecordSalesFromWalletTransactionsInput;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
@@ -30,6 +31,7 @@ use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\WalletReadingStateReader;
 use App\State\Processor\Industry\Project\DeleteSaleProcessor;
 use App\State\Processor\Industry\Project\RecordSaleFromWalletTransactionProcessor;
+use App\State\Processor\Industry\Project\RecordSalesFromWalletTransactionsProcessor;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
 use App\State\Provider\Industry\Project\ProjectSaleSuggestionProvider;
@@ -40,6 +42,7 @@ use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 
 #[Group('issue-241')]
 final class SaleFromWalletTransactionTest extends IntegrationTestCase
@@ -172,6 +175,42 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
         $this->deleteSale($this->manualSaleVId);
 
         self::assertEqualsWithDelta([183_750_000.0, 5_512_500.0, 7_350_000.0, 170_887_500.0], $this->revenueSummary(), self::AMOUNT_TOLERANCE);
+    }
+
+    public function testRecordingT1AndT7TogetherStoresTwoLinkedSalesAndPublishesOneUpdate(): void
+    {
+        $updates = [];
+        $hub = $this->createStub(HubInterface::class);
+        $hub->method('publish')->willReturnCallback(static function (Update $update) use (&$updates): string {
+            $updates[] = json_decode($update->getData(), true, flags: JSON_THROW_ON_ERROR);
+
+            return 'published';
+        });
+        $mercure = new MercurePublisherService($hub, new NullLogger());
+        $input = new RecordSalesFromWalletTransactionsInput();
+        $input->setTransactions([['transactionId' => $this->t1Id], ['transactionId' => $this->t7Id, 'quantity' => 10]]);
+
+        $processor = new RecordSalesFromWalletTransactionsProcessor(
+            $this->ownerSecurity(),
+            self::getContainer()->get(IndustryProjectRepository::class),
+            new RecordSaleFromWalletTransactionProcessor(
+                $this->ownerSecurity(),
+                self::getContainer()->get(IndustryProjectRepository::class),
+                self::getContainer()->get(ProjectAccessChecker::class),
+                self::getContainer()->get(CachedWalletTransactionRepository::class),
+                self::getContainer()->get(IndustryProjectSaleRepository::class),
+                $this->em,
+                $mercure,
+            ),
+            $mercure,
+        );
+        $batch = $processor->process($input, new Post(), ['projectId' => $this->projectId]);
+        $this->em->clear();
+
+        self::assertSame(
+            [2, [], 3, 1, ['sale_recorded', ['count' => 2, 'quantity' => 13, 'totalPrice' => 783_750_000.0]]],
+            [count($batch->recorded), $batch->failures, $this->salesCount(), count($updates), [$updates[0]['action'], $updates[0]['data']]],
+        );
     }
 
     private function recordSaleFrom(string $transactionId): ProjectSaleResource

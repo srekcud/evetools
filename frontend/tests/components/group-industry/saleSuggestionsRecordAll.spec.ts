@@ -16,6 +16,7 @@ const PROJECT_ID = 'project-sabre'
 const SUGGESTIONS_PATH = `/industry/projects/${PROJECT_ID}/sale-suggestions`
 const SALES_PATH = `/industry/projects/${PROJECT_ID}/sales`
 const SALE_FROM_WALLET_TRANSACTION_PATH = `/industry/projects/${PROJECT_ID}/sales/from-wallet-transaction`
+const SALES_FROM_WALLET_TRANSACTIONS_PATH = `/industry/projects/${PROJECT_ID}/sales/from-wallet-transactions`
 const T1_ID = '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e01'
 const T3_ID = '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e03'
 const T4_ID = '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e04'
@@ -106,9 +107,12 @@ const RECORDED_SALE: GroupSale = {
   createdAt: '2026-10-29T08:00:00+00:00',
 }
 
+type RecordedBatch = { id: string, recorded: GroupSale[], failures: { transactionId: string, message: string }[] }
+
 type Responses = {
   suggestions: () => Promise<unknown>
   recording: (body: { transactionId: string, quantity?: number }) => Promise<unknown>
+  batchRecording: (body: { transactions: { transactionId: string, quantity?: number }[] }) => Promise<RecordedBatch>
 }
 
 let responses: Responses
@@ -176,6 +180,16 @@ function postedBodies(): unknown[] {
     .map(([, options]) => JSON.parse(String(options?.body)))
 }
 
+function postedBatches(): unknown[] {
+  return vi.mocked(apiRequest).mock.calls
+    .filter(([endpoint, options]) => endpoint === SALES_FROM_WALLET_TRANSACTIONS_PATH && options?.method === 'POST')
+    .map(([, options]) => JSON.parse(String(options?.body)))
+}
+
+function batchOf(recorded: GroupSale[], failures: RecordedBatch['failures'] = []): RecordedBatch {
+  return { id: 'batch', recorded, failures }
+}
+
 function suggestionReads(): number {
   return vi.mocked(apiRequest).mock.calls.filter(([endpoint]) => endpoint === SUGGESTIONS_PATH).length
 }
@@ -188,12 +202,16 @@ beforeEach(() => {
   responses = {
     suggestions: async () => suggestionList([T7_SUGGESTION, T3_SUGGESTION]),
     recording: async () => RECORDED_SALE,
+    batchRecording: async () => batchOf([RECORDED_SALE]),
   }
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
     if (endpoint === SUGGESTIONS_PATH) return responses.suggestions()
     if (endpoint === SALES_PATH) return []
     if (endpoint === SALE_FROM_WALLET_TRANSACTION_PATH && options?.method === 'POST') {
       return responses.recording(JSON.parse(String(options.body)))
+    }
+    if (endpoint === SALES_FROM_WALLET_TRANSACTIONS_PATH && options?.method === 'POST') {
+      return responses.batchRecording(JSON.parse(String(options.body)))
     }
     throw new Error(`unexpected request ${options?.method ?? 'GET'} ${endpoint}`)
   })
@@ -235,7 +253,8 @@ describe('SaleSuggestionsPanel record all', () => {
     expect(wrapper.get(RECORD_ALL_LEFT_OUT).text()).toContain('1')
     await wrapper.get(RECORD_ALL_CONFIRM).trigger('click')
     await flushPromises()
-    expect(postedBodies()).toEqual([{ transactionId: T3_ID }, { transactionId: T7_ID }])
+    expect(postedBatches()).toEqual([{ transactions: [{ transactionId: T3_ID }, { transactionId: T7_ID }] }])
+    expect(postedBodies()).toEqual([])
   })
 
   it('stops offering record all once recording T3 leaves T7 as the only transaction', async () => {
@@ -271,34 +290,44 @@ describe('SaleSuggestionsPanel record all', () => {
     expect(postedBodies()).toEqual([])
   })
 
-  it('records oldest first by date then transaction id, sending a quantity only for a valid entry, with no failure block', async () => {
+  it('records everything in a single request, oldest first by date then transaction id, sending a quantity only for a valid entry, with no failure block', async () => {
     const wrapper = await mountPanelWith([T7_SUGGESTION, T4_SUGGESTION, T3_SUGGESTION])
     await enterQuantity(wrapper, 'O-Alt', 5)
 
     await confirmRecordAll(wrapper)
 
-    expect(postedBodies()).toEqual([{ transactionId: T3_ID }, { transactionId: T4_ID }, { transactionId: T7_ID, quantity: 5 }])
+    expect(postedBatches()).toEqual([{ transactions: [{ transactionId: T3_ID }, { transactionId: T4_ID }, { transactionId: T7_ID, quantity: 5 }] }])
+    expect(postedBodies()).toEqual([])
     expect(wrapper.find(RECORD_ALL_CONFIRMATION).exists()).toBe(false)
     expect(wrapper.find(RECORD_ALL_FAILURES).exists()).toBe(false)
   })
 
   it('records T7 and T4 when T3 is refused, lists T3 as failed and reads the suggestions once more', async () => {
-    responses.recording = async body => {
-      if (body.transactionId === T3_ID) throw new ApiError(ALREADY_LINKED, 409)
-      return RECORDED_SALE
-    }
+    responses.batchRecording = async () => batchOf([RECORDED_SALE, RECORDED_SALE], [{ transactionId: T3_ID, message: ALREADY_LINKED }])
     const wrapper = await mountPanelWith([T7_SUGGESTION, T3_SUGGESTION, T4_SUGGESTION])
     responses.suggestions = async () => suggestionList([T3_SUGGESTION])
 
     await confirmRecordAll(wrapper)
 
-    expect(postedBodies()).toEqual([{ transactionId: T3_ID }, { transactionId: T4_ID }, { transactionId: T7_ID }])
+    expect(postedBatches()).toEqual([{ transactions: [{ transactionId: T3_ID }, { transactionId: T4_ID }, { transactionId: T7_ID }] }])
     expect(suggestionReads()).toBe(2)
     expect(wrapper.find(RECORD_ALL_CONFIRMATION).exists()).toBe(false)
     const failures = wrapper.findAll(RECORD_ALL_FAILURE)
     expect(failures).toHaveLength(1)
     expect(failures[0].text()).toContain('O-Main')
     expect(failures[0].text()).toContain(ALREADY_LINKED)
+  })
+
+  it('shows the error of a request refused as a whole and lists no failed row', async () => {
+    responses.batchRecording = async () => { throw new ApiError('Only project owner or admin can perform this action', 403) }
+    const wrapper = await mountPanelWith([T7_SUGGESTION, T3_SUGGESTION])
+
+    await confirmRecordAll(wrapper)
+
+    expect(wrapper.text()).toContain('Only project owner or admin can perform this action')
+    expect(wrapper.find(RECORD_ALL_FAILURES).exists()).toBe(false)
+    expect(wrapper.get<HTMLButtonElement>(RECORD_ALL).element.disabled).toBe(false)
+    expect(postedBodies()).toEqual([])
   })
 
   it('disables the record all button when the project no longer accepts recordings', async () => {

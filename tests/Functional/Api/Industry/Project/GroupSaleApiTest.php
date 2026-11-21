@@ -433,6 +433,64 @@ final class GroupSaleApiTest extends WebTestCase
         self::assertSame(1, $this->salesCountOf($this->sabreDoctrine));
     }
 
+    #[Group('issue-1152')]
+    public function testOwnerRecordsTwoWalletTransactionsInOneRequestAndOneLineIsListedAsRefused(): void
+    {
+        $t1 = $this->persistSabreSaleOfTheOwnerMain();
+        $t7 = $this->persistWalletSale($this->owner, 6_100_000_007, 12, 60_000_000.0);
+        $unknownId = '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e51';
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->salesFromWalletTransactionsUri(), ['transactions' => [
+            ['transactionId' => $t1->getId()?->toRfc4122()],
+            ['transactionId' => $unknownId],
+            ['transactionId' => $t7->getId()?->toRfc4122(), 'quantity' => 10],
+        ]]);
+
+        self::assertResponseStatusCodeSame(201);
+        $batch = $this->responseJson();
+        self::assertSame(
+            [[3, 10], [['transactionId' => $unknownId, 'message' => 'Transaction not found']], 3],
+            [array_map(static fn (array $sale): int => $sale['quantity'], $batch['recorded']), $batch['failures'], $this->salesCountOf($this->sabreDoctrine)],
+        );
+    }
+
+    #[Group('issue-1152')]
+    public function testBatchWithoutLinesIsRejectedOnTheLines(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->salesFromWalletTransactionsUri(), ['transactions' => []]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([['transactions'], 1], [$this->violatedPaths(), $this->salesCountOf($this->sabreDoctrine)]);
+    }
+
+    #[Group('issue-1152')]
+    public function testBatchWithALineOfZeroQuantityIsRejectedOnThatLineAndRecordsNothing(): void
+    {
+        $t1 = $this->persistSabreSaleOfTheOwnerMain();
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->salesFromWalletTransactionsUri(), ['transactions' => [['transactionId' => $t1->getId()?->toRfc4122(), 'quantity' => 0]]]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([['transactions[0].quantity'], 1], [$this->violatedPaths(), $this->salesCountOf($this->sabreDoctrine)]);
+    }
+
+    #[Group('issue-1152')]
+    public function testPlainMemberCannotRecordABatch(): void
+    {
+        $t1 = $this->persistSabreSaleOfTheOwnerMain();
+        $this->client->loginUser($this->member, 'api');
+        $this->request('POST', $this->salesFromWalletTransactionsUri(), ['transactions' => [['transactionId' => $t1->getId()?->toRfc4122()]]]);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame(1, $this->salesCountOf($this->sabreDoctrine));
+    }
+
+    private function salesFromWalletTransactionsUri(): string
+    {
+        return sprintf('/api/industry/projects/%s/sales/from-wallet-transactions', $this->sabreDoctrine->getId()?->toRfc4122());
+    }
+
     private function persistSabreSaleOfTheOwnerMain(): CachedWalletTransaction
     {
         return $this->persistWalletSale($this->owner, 6_100_000_001, 3, 61_250_000.0);

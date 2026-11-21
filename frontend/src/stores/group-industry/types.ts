@@ -639,6 +639,16 @@ export type RecordSaleFromWalletTransactionInput = {
   quantity?: number
 }
 
+export type RecordedWalletSalesFailure = {
+  transactionId: string
+  message: string
+}
+
+export type RecordedWalletSales = {
+  recorded: GroupSale[]
+  failures: RecordedWalletSalesFailure[]
+}
+
 // --- Cockpit ---
 
 export type ProjectPhaseKey = 'prepare' | 'supply' | 'produce' | 'sell' | 'close'
