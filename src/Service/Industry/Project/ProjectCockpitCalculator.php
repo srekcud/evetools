@@ -70,8 +70,9 @@ final readonly class ProjectCockpitCalculator
             self::PHASE_SELL => [$unitsSold, $unitsToSell],
             self::PHASE_CLOSE => [$input->status === ProjectStatus::Completed ? self::SINGLE_STEP : self::NONE, self::SINGLE_STEP],
         ];
-        $blockedReasons = $this->blockedReasons($input->status, \count($uncoveredMaterials), \count($undeliveredJobs));
-        $currentIndex = $this->currentPhaseIndex($input->status);
+        $isSourcingPhase = $input->status === ProjectStatus::InProgress && $uncoveredMaterials !== [] && !$this->productionStarted($jobLines);
+        $blockedReasons = $this->blockedReasons($input->status, \count($uncoveredMaterials), \count($undeliveredJobs), $isSourcingPhase);
+        $currentIndex = $isSourcingPhase ? array_search(self::PHASE_SUPPLY, self::PHASE_KEYS, true) : $this->currentPhaseIndex($input->status);
 
         $phases = [];
         foreach (self::PHASE_KEYS as $index => $key) {
@@ -83,7 +84,7 @@ final readonly class ProjectCockpitCalculator
         return new ProjectCockpit(
             $input->status,
             $phases,
-            $this->nextAction($input, $uncoveredMaterials, $undeliveredJobs, $unitsToSell - $unitsSold),
+            $this->nextAction($input, $uncoveredMaterials, $undeliveredJobs, $unitsToSell - $unitsSold, $isSourcingPhase),
         );
     }
 
@@ -98,6 +99,20 @@ final readonly class ProjectCockpitCalculator
             $lines,
             static fn (CockpitBomLine $line): bool => $line->fulfilledQuantity < $line->requiredQuantity,
         ));
+    }
+
+    /**
+     * @param list<CockpitBomLine> $jobLines
+     */
+    private function productionStarted(array $jobLines): bool
+    {
+        foreach ($jobLines as $line) {
+            if ($line->matchedRuns > self::NONE || $line->deliveredRuns > self::NONE || $line->fulfilledQuantity > self::NONE) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -137,11 +152,11 @@ final readonly class ProjectCockpitCalculator
     /**
      * @return array<string, CockpitBlockedReason>
      */
-    private function blockedReasons(ProjectStatus $status, int $uncoveredMaterialCount, int $undeliveredJobCount): array
+    private function blockedReasons(ProjectStatus $status, int $uncoveredMaterialCount, int $undeliveredJobCount, bool $isSourcingPhase): array
     {
         $reasons = [];
 
-        if (\in_array($status, [ProjectStatus::InProgress, ProjectStatus::Selling], true) && $uncoveredMaterialCount > self::NONE) {
+        if (!$isSourcingPhase && \in_array($status, [ProjectStatus::InProgress, ProjectStatus::Selling], true) && $uncoveredMaterialCount > self::NONE) {
             $reasons[self::PHASE_SUPPLY] = new CockpitBlockedReason(self::BLOCKED_MATERIALS_MISSING, $uncoveredMaterialCount);
         }
 
@@ -176,7 +191,7 @@ final readonly class ProjectCockpitCalculator
      * @param list<CockpitBomLine> $uncoveredMaterials
      * @param list<CockpitBomLine> $undeliveredJobs
      */
-    private function nextAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $undeliveredJobs, int $unitsLeftToSell): CockpitNextAction
+    private function nextAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $undeliveredJobs, int $unitsLeftToSell, bool $isSourcingPhase): CockpitNextAction
     {
         if ($input->status === ProjectStatus::Completed) {
             return new CockpitNextAction(self::ACTION_PROJECT_COMPLETED, false, null, null, null, null, null, null);
@@ -191,7 +206,7 @@ final readonly class ProjectCockpitCalculator
             ProjectStatus::Published => $uncoveredMaterials !== []
                 ? $this->sourceMaterial($input, $uncoveredMaterials)
                 : $this->managerStatusAction($input, self::ACTION_START_PROJECT, ProjectStatus::InProgress),
-            ProjectStatus::InProgress => $this->inProgressAction($input, $uncoveredMaterials, $undeliveredJobs),
+            ProjectStatus::InProgress => $this->inProgressAction($input, $uncoveredMaterials, $undeliveredJobs, $isSourcingPhase),
             ProjectStatus::Selling => $unitsLeftToSell > self::NONE
                 ? $this->managerAction($input, new CockpitNextAction(self::ACTION_RECORD_SALE, false, self::TAB_SALES, null, null, null, null, $unitsLeftToSell))
                 : $this->managerStatusAction($input, self::ACTION_COMPLETE_PROJECT, ProjectStatus::Completed),
@@ -202,10 +217,10 @@ final readonly class ProjectCockpitCalculator
      * @param list<CockpitBomLine> $uncoveredMaterials
      * @param list<CockpitBomLine> $undeliveredJobs
      */
-    private function inProgressAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $undeliveredJobs): CockpitNextAction
+    private function inProgressAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $undeliveredJobs, bool $isSourcingPhase): CockpitNextAction
     {
         if ($uncoveredMaterials !== []) {
-            return $this->sourceMaterial($input, $uncoveredMaterials);
+            return $this->sourceMaterial($input, $uncoveredMaterials, !$isSourcingPhase);
         }
 
         if ($undeliveredJobs !== []) {
@@ -218,7 +233,7 @@ final readonly class ProjectCockpitCalculator
     /**
      * @param non-empty-list<CockpitBomLine> $uncoveredMaterials
      */
-    private function sourceMaterial(ProjectCockpitInput $input, array $uncoveredMaterials): CockpitNextAction
+    private function sourceMaterial(ProjectCockpitInput $input, array $uncoveredMaterials, bool $blocked = false): CockpitNextAction
     {
         usort($uncoveredMaterials, static fn (CockpitBomLine $first, CockpitBomLine $second): int => [
             $second->requiredQuantity - $second->fulfilledQuantity,
@@ -231,7 +246,7 @@ final readonly class ProjectCockpitCalculator
 
         return new CockpitNextAction(
             self::ACTION_SOURCE_MATERIAL,
-            $input->status === ProjectStatus::InProgress,
+            $blocked,
             self::TAB_MATERIALS,
             null,
             $line->id,

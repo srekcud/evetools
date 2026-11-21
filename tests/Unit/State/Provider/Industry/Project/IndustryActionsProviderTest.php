@@ -81,6 +81,7 @@ final class IndustryActionsProviderTest extends TestCase
         $cutlassBatch = $this->ownedProject('Cutlass batch', ProjectStatus::Draft);
         $ishtarBatch = $this->ownedProject('Ishtar batch', ProjectStatus::InProgress);
         $this->materialOf($ishtarBatch, self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 0);
+        $this->matchedRunsOn($this->jobOf($ishtarBatch, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 2, 2, 0), 1);
         $sabreBatch = $this->ownedProject('Sabre batch', ProjectStatus::Selling);
         $this->jobOf($sabreBatch, self::SABRE_TYPE_ID, 'Sabre', 'final', 5, 5, 5);
         $this->saleOf($sabreBatch, self::SABRE_TYPE_ID, 'Sabre', 2);
@@ -139,6 +140,7 @@ final class IndustryActionsProviderTest extends TestCase
         $ishtarBatch = $this->ownedProject('Ishtar batch', ProjectStatus::InProgress);
         $this->materialOf($ishtarBatch, self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 12_500);
         $tritaniumLine = $ishtarBatch->getBomItems()->first();
+        $this->matchedRunsOn($this->jobOf($ishtarBatch, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 2, 2, 0), 1);
         $this->memberOfProjects($ishtarBatch);
         $this->marketPrices->method('unitPricesFor')->willReturn([self::TRITANIUM_TYPE_ID => new WeightedPrice(new Isk(5.0), new OrderBookCoverage(1.0))]);
 
@@ -310,6 +312,7 @@ final class IndustryActionsProviderTest extends TestCase
     {
         $ishtarBatch = $this->ownedProject('Ishtar batch', ProjectStatus::InProgress);
         $this->materialOf($ishtarBatch, self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 0);
+        $this->matchedRunsOn($this->jobOf($ishtarBatch, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 2, 2, 0), 1);
         $this->memberOfProjects($ishtarBatch);
 
         self::assertSame(

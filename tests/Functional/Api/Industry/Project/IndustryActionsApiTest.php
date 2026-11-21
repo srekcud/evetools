@@ -21,6 +21,8 @@ final class IndustryActionsApiTest extends WebTestCase
     protected function setUp(): void
     {
         $this->setUpIshtarGroupProject();
+        $this->addJobLine($this->hecateBatch, self::HECATE_TYPE_ID, 'Hecate', 'final', 1, 1, 4, 8, null)->setFulfilledQuantity(1);
+        $this->em->flush();
         $this->jitaMarket = $this->createStub(JitaMarketService::class);
         self::getContainer()->set(JitaMarketService::class, $this->jitaMarket);
     }
