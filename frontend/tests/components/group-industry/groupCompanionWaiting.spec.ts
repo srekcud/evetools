@@ -9,7 +9,7 @@ import { bomLine, companionTasksOf } from './companionFixtures'
 const FREE_LINE = '[data-testid="companion-free-line"]'
 const MINE_LINE = '[data-testid="companion-mine-line"]'
 const WAITING = '[data-testid="companion-waiting"]'
-const MORE_FREE_BUILD = '[data-testid="companion-more-free-build"]'
+const MORE_FREE_BUILD = '[data-testid="companion-more-free"]'
 
 function buildLine(id: string, typeName: string) {
   return bomLine({ id, typeId: 12_000 + id.length, typeName, isJob: true, jobGroup: 'component', activityType: 'manufacturing', runs: 2, freeQuantity: 2 })

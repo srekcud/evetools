@@ -4274,43 +4274,45 @@
       "openTitle": "Open the project companion in a detached window",
       "live": "live",
       "liveTitle": "Updated in real time",
-      "bomPercent": "BOM {percent}%",
       "toBar": "Collapse to the bar",
       "toColumn": "Expand to the column",
       "collapse": "Bar",
       "expand": "Column",
-      "counters": {
-        "free": "{count} to assign",
-        "mine": "{count} to deliver",
-        "freeLabel": "To assign:",
-        "mineLabel": "To deliver:",
-        "toBuy": "{count} to buy",
-        "toBuild": "{count} to build",
-        "review": "{count} to review"
+      "tabs": {
+        "free": "To assign",
+        "mine": "To deliver",
+        "jobs": "My jobs"
+      },
+      "bar": {
+        "review": "To review"
       },
       "sections": {
-        "free": "To assign",
-        "mine": "My lines to deliver",
-        "awaiting": "Awaiting approval",
-        "todo": "To do",
-        "jobs": "My jobs (ESI)",
-        "project": "Project"
+        "awaiting": "Awaiting approval"
       },
       "emptyFree": "Every line has an owner.",
       "emptyMine": "Nothing to deliver.",
       "emptyJobs": "No job of yours on this project.",
       "more": {
-        "buy": "+ {count} more to buy · see the BOM",
-        "build": "+ {count} more to build · see the BOM"
-      },
-      "groups": {
-        "buy": "To buy",
-        "build": "To build"
+        "free": "+ {count} more free lines · see the BOM"
       },
       "waitingForComponents": "Waiting for components",
       "claim": "I'll handle it",
       "release": "Release",
       "deliver": "Deliver",
+      "activityGroups": {
+        "copy": "Copies",
+        "invention": "Inventions",
+        "reaction": "Reactions",
+        "manufacturing": "Manufacturing",
+        "material": "Materials",
+        "unknown": "Unknown activity"
+      },
+      "activities": {
+        "copy": "Copy",
+        "invention": "Invention",
+        "reaction": "Reaction",
+        "manufacturing": "Manufacturing"
+      },
       "runs": "{runs} run | {runs} runs",
       "todo": {
         "contributions": "{count} contributions to review",
@@ -4327,6 +4329,9 @@
       "finalJobsRunning": "Final jobs running: {count}",
       "moveProductsUnknown": "Output location unknown for {count} jobs: check it in the BOM",
       "alerts": {
+        "actionCopyPrice": "Copy",
+        "priceCopied": "Copied",
+        "priceCopyFailed": "Failed",
         "jobReady": "{name} ×{runs} · {character} · to deliver",
         "jobReadyGeneric": "A job is ready to deliver",
         "bomComplete": "BOM complete",
@@ -4334,6 +4339,15 @@
         "joinRequest": "{count} join requests",
         "priceBelowBreakEven": "Jita {jitaPrice} < break-even {breakEven} · do not sell on the market for now",
         "undercutSellOrder": "Undercut: {typeName} ×{quantity} at {market}, best price {best} against your {mine}"
+      },
+      "countdown": {
+        "days": "{days} d {hours} h",
+        "clock": "{hours}:{minutes}"
+      },
+      "footer": {
+        "freeValue": "Free value",
+        "withoutPrice": "+ {count} without price",
+        "lines": "Lines"
       },
       "notices": {
         "popupBlocked": "The browser blocked the popup: allow popups for this site, then open the companion again.",

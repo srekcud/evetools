@@ -2,6 +2,7 @@ import type { CompanionTasks } from '@/components/group-industry/companionTasks'
 import type { BomItem, GroupMember, GroupProject, JobLocation, JobLocationStatus, JobLocations, JobMatch } from '@/stores/group-industry/types'
 
 export const COMPANION_PROJECT_ID = 'project-ishtar-322'
+export const COMPANION_NOW = '2026-11-21T12:00:00+00:00'
 
 export function bomLine(overrides: Partial<BomItem> & Pick<BomItem, 'id' | 'typeId' | 'typeName'>): BomItem {
   return {
@@ -97,6 +98,13 @@ export function member(overrides: Partial<GroupMember> & Pick<GroupMember, 'id' 
 
 export function companionTasksOf(overrides: Partial<CompanionTasks> = {}): CompanionTasks {
   return {
+    now: Date.parse(COMPANION_NOW),
+    product: null,
+    activityProgress: [],
+    deliveredLines: 0,
+    totalLines: 0,
+    freeValue: { total: 0, unknownLines: 0 },
+    readyJobCount: 0,
     free: [],
     mine: [],
     awaitingApproval: [],

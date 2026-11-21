@@ -8,7 +8,7 @@ import { sellOrder } from '../../sellOrderFixtures'
 import { bomLine, companionTasksOf, jobMatch } from './companionFixtures'
 
 const FREE_LINE = '[data-testid="companion-free-line"]'
-const MORE_FREE = '[data-testid="companion-more-free-buy"]'
+const MORE_FREE = '[data-testid="companion-more-free"]'
 const TODO_SECTION = '[data-testid="companion-todo"]'
 const UNKNOWN_VALUE = '[data-unknown="true"]'
 const JOB_LINE = '[data-testid="companion-job"]'

@@ -4274,43 +4274,45 @@
       "openTitle": "Ouvrir le compagnon du projet dans une fenêtre détachée",
       "live": "direct",
       "liveTitle": "Mis à jour en temps réel",
-      "bomPercent": "BOM {percent} %",
       "toBar": "Réduire en barre",
       "toColumn": "Agrandir en colonne",
       "collapse": "Barre",
       "expand": "Colonne",
-      "counters": {
-        "free": "{count} à attribuer",
-        "mine": "{count} à livrer",
-        "freeLabel": "À attribuer :",
-        "mineLabel": "À livrer :",
-        "toBuy": "{count} à acheter",
-        "toBuild": "{count} à fabriquer",
-        "review": "{count} à revoir"
+      "tabs": {
+        "free": "À attribuer",
+        "mine": "À livrer",
+        "jobs": "Mes jobs"
+      },
+      "bar": {
+        "review": "À revoir"
       },
       "sections": {
-        "free": "À attribuer",
-        "mine": "Mes lignes à livrer",
-        "awaiting": "En attente d'approbation",
-        "todo": "À faire",
-        "jobs": "Mes jobs (ESI)",
-        "project": "Projet"
+        "awaiting": "En attente d'approbation"
       },
       "emptyFree": "Toutes les lignes ont un responsable.",
       "emptyMine": "Rien à livrer.",
       "emptyJobs": "Aucun de vos jobs sur ce projet.",
       "more": {
-        "buy": "+ {count} autres achats · voir la BOM",
-        "build": "+ {count} autres crafts · voir la BOM"
-      },
-      "groups": {
-        "buy": "À acheter",
-        "build": "À fabriquer"
+        "free": "+ {count} autres lignes libres · voir la BOM"
       },
       "waitingForComponents": "En attente des composants",
       "claim": "Je m'en charge",
       "release": "Libérer",
       "deliver": "Livrer",
+      "activityGroups": {
+        "copy": "Copies",
+        "invention": "Inventions",
+        "reaction": "Réactions",
+        "manufacturing": "Fabrication",
+        "material": "Matériaux",
+        "unknown": "Activité inconnue"
+      },
+      "activities": {
+        "copy": "Copie",
+        "invention": "Invention",
+        "reaction": "Réaction",
+        "manufacturing": "Fabrication"
+      },
       "runs": "{runs} run | {runs} runs",
       "todo": {
         "contributions": "{count} contributions à revoir",
@@ -4327,6 +4329,9 @@
       "finalJobsRunning": "Jobs finaux en cours : {count}",
       "moveProductsUnknown": "Lieu de sortie inconnu pour {count} jobs : à vérifier dans la BOM",
       "alerts": {
+        "actionCopyPrice": "Copier",
+        "priceCopied": "Copié",
+        "priceCopyFailed": "Échec",
         "jobReady": "{name} ×{runs} · {character} · à livrer",
         "jobReadyGeneric": "Un job est prêt à livrer",
         "bomComplete": "BOM complète",
@@ -4334,6 +4339,15 @@
         "joinRequest": "{count} demandes d'adhésion",
         "priceBelowBreakEven": "Jita {jitaPrice} < seuil {breakEven} · ne pas vendre au marché pour l'instant",
         "undercutSellOrder": "Sous-coté : {typeName} ×{quantity} à {market}, meilleur prix {best} contre {mine}"
+      },
+      "countdown": {
+        "days": "{days} j {hours} h",
+        "clock": "{hours}:{minutes}"
+      },
+      "footer": {
+        "freeValue": "Valeur libre",
+        "withoutPrice": "+ {count} sans prix",
+        "lines": "Lignes"
       },
       "notices": {
         "popupBlocked": "Le navigateur a bloqué la popup : autorisez les popups pour ce site, puis rouvrez le compagnon.",

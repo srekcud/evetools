@@ -38,6 +38,10 @@ export function useEveImages() {
     return `${EVE_IMAGE_SERVER}/types/${typeId}/icon?size=${size}`
   }
 
+  function getTypeRenderUrl(typeId: number, size: ImageSize = 64): string {
+    return `${EVE_IMAGE_SERVER}/types/${typeId}/render?size=${size}`
+  }
+
   function getBlueprintIconUrl(typeId: number, kind: BlueprintImageKind, size: ImageSize = 32): string {
     return `${EVE_IMAGE_SERVER}/types/${typeId}/${BLUEPRINT_IMAGE_VARIATION[kind]}?size=${size}`
   }
@@ -86,6 +90,7 @@ export function useEveImages() {
 
   return {
     getTypeIconUrl,
+    getTypeRenderUrl,
     getBlueprintIconUrl,
     getCharacterPortraitUrl,
     getCorporationLogoUrl,

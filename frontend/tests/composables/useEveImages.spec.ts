@@ -1,7 +1,7 @@
 import { useEveImages } from '@/composables/useEveImages'
 
 describe('useEveImages', () => {
-  const { getBlueprintIconUrl, getTypeIconUrl } = useEveImages()
+  const { getBlueprintIconUrl, getTypeIconUrl, getTypeRenderUrl } = useEveImages()
 
   it('serves a blueprint original from the bp image variation', () => {
     expect(getBlueprintIconUrl(21014, 'bpo')).toBe('https://images.evetech.net/types/21014/bp?size=32')
@@ -21,5 +21,9 @@ describe('useEveImages', () => {
 
   it('serves a skin from the fallback icon without a network request', () => {
     expect(getTypeIconUrl(42000, 32, 91)).toMatch(/^data:image\/svg\+xml,/)
+  })
+
+  it('serves the render of a type from the render variation', () => {
+    expect(getTypeRenderUrl(12005, 128)).toBe('https://images.evetech.net/types/12005/render?size=128')
   })
 })
