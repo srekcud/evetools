@@ -317,8 +317,9 @@ class ProjectContributionServiceTest extends TestCase
         $this->service->submit(
             $this->member,
             $this->bomItem,
-            ContributionType::Material,
-            1000,
+            ContributionType::JobInstall,
+            1,
+            estimatedValue: 50000.0,
         );
     }
 
@@ -337,9 +338,92 @@ class ProjectContributionServiceTest extends TestCase
         $this->service->submit(
             $this->member,
             $this->bomItem,
-            ContributionType::Material,
-            1000,
+            ContributionType::LineRental,
+            1,
+            estimatedValue: 50000.0,
         );
+    }
+
+    #[Group('issue-1169')]
+    public function testSecondMaterialDepositIsAcceptedOnceTheFirstIsApprovedWhileTheLineHasRemainingQuantity(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Approved);
+        $this->jitaPrices = [self::MORPHITE_TYPE_ID => self::MORPHITE_JITA_PRICE];
+        $morphite = $this->morphiteBomItem();
+        $morphite->setRequiredQuantity(500);
+        $morphite->setFulfilledQuantity(336);
+        $this->entityManager->expects($this->once())->method('persist');
+
+        $contribution = $this->service->submit($this->member, $morphite, ContributionType::Material, 164);
+
+        $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
+        $this->assertSame(164, $contribution->getQuantity());
+        $this->assertSame(164 * self::MORPHITE_JITA_PRICE, $contribution->getEstimatedValue());
+    }
+
+    #[Group('issue-1169')]
+    public function testSecondMaterialDepositIsAcceptedWhileTheFirstOneIsStillPending(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Pending);
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE];
+        $tritanium = $this->materialLine(self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_BOM_PRICE);
+        $this->entityManager->expects($this->once())->method('persist');
+
+        $contribution = $this->service->submit($this->member, $tritanium, ContributionType::Material, 1000);
+
+        $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
+        $this->assertSame(7000.0, $contribution->getEstimatedValue());
+    }
+
+    #[Group('issue-1169')]
+    public function testSecondMaterialDepositStaysBoundedByTheRemainingQuantityOfTheLine(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Approved);
+        $this->jitaPrices = [self::MORPHITE_TYPE_ID => self::MORPHITE_JITA_PRICE];
+        $morphite = $this->morphiteBomItem();
+        $morphite->setRequiredQuantity(500);
+        $morphite->setFulfilledQuantity(336);
+        $this->entityManager->expects($this->never())->method('persist');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('The contribution exceeds the remaining quantity of the line');
+
+        $this->service->submit($this->member, $morphite, ContributionType::Material, 165);
+    }
+
+    #[Group('issue-1169')]
+    public function testMaterialDepositOnALineAlreadyFilledByADerivedContributionIsRefusedBecauseNoQuantityRemains(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Approved);
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE];
+        $tritanium = $this->materialLine(self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_BOM_PRICE);
+        $tritanium->setFulfilledQuantity(10000);
+        $this->entityManager->expects($this->never())->method('persist');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('The contribution exceeds the remaining quantity of the line');
+
+        $this->service->submit($this->member, $tritanium, ContributionType::Material, 1);
+    }
+
+    #[Group('issue-1169')]
+    #[DataProvider('typesKeepingOneContributionPerMemberAndLine')]
+    public function testTypesOtherThanMaterialKeepTheOnePerMemberAndLineRuleOnceTheFirstIsApproved(ContributionType $type): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Approved);
+        $this->entityManager->expects($this->never())->method('persist');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('A contribution of this type is already pending or approved for this item');
+
+        $this->service->submit($this->member, $this->bomItem, $type, 1, 36000.0);
+    }
+
+    public static function typesKeepingOneContributionPerMemberAndLine(): iterable
+    {
+        yield 'job install' => [ContributionType::JobInstall];
+        yield 'bpc' => [ContributionType::Bpc];
+        yield 'line rental' => [ContributionType::LineRental];
     }
 
     #[Group('issue-363')]
