@@ -17,6 +17,17 @@ const BULK_CATALOG = [
   { typeId: 22456, typeName: 'Sabre', isT2: false },
 ]
 
+const PLAYER_RATES = {
+  component_t1: 250,
+  module_t1: 10_000,
+  ship_t1: 100_000,
+  module_t2: 100_000,
+  ship_t2: 2_500_000,
+  capital_t1: 25_000,
+  capital_t2: 125_000,
+  location_factor: 1_000_000,
+}
+
 const newProjectLabels = en.groupIndustry.modals.newProject
 const BULK_ITEMS = 'Ferox 2 4 x100\nSabre 4 8 x20'
 
@@ -24,6 +35,7 @@ function mountNewProjectModal() {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async endpoint => {
+    if (endpoint === '/industry/line-rental-rates') return { id: 'rates', rates: PLAYER_RATES }
     if (endpoint.startsWith('/industry/search')) {
       const query = decodeURIComponent(endpoint.split('q=')[1]).toLowerCase()
       return { results: BULK_CATALOG.filter(product => product.typeName.toLowerCase() === query) }
@@ -50,6 +62,7 @@ async function mountWithItemsAndLineRentalOverride() {
   await clickButton(wrapper, newProjectLabels.parseAndAdd)
   await flushPromises()
   await clickButton(wrapper, newProjectLabels.overrideForProject)
+  await flushPromises()
   return wrapper
 }
 

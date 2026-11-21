@@ -4042,6 +4042,7 @@
         "overrideForProject": "Surcharger pour ce projet",
         "collapse": "Replier",
         "lineRentalOverrideHint": "Ces tarifs remplacent vos parametres par defaut pour ce projet uniquement.",
+        "lineRentalUnavailable": "Vos tarifs n'ont pas pu etre charges. Fermez le tableau : le projet utilisera vos tarifs par defaut.",
         "bomNote": "La BOM sera agreg depuis tous les items",
         "createButton": "Creer le projet",
         "privateLabel": "Projet privé",
