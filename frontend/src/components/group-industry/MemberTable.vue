@@ -76,7 +76,11 @@ function isCurrentUser(member: GroupMember): boolean {
 }
 
 function canLeave(member: GroupMember): boolean {
-  return isCurrentUser(member) && member.role !== 'owner' && member.contributionCount === 0
+  return isCurrentUser(member) && member.role !== 'owner'
+}
+
+function hasContributed(member: GroupMember): boolean {
+  return member.contributionCount > 0
 }
 
 function canManage(member: GroupMember): boolean {
@@ -232,7 +236,9 @@ onMounted(() => {
               <!-- Leave button for the current user -->
               <div v-else-if="canLeave(member)" class="flex items-center justify-center">
                 <button
-                  class="px-2.5 py-1 rounded bg-red-600/10 text-red-400/70 text-xs font-medium hover:bg-red-600/20 hover:text-red-400 transition-colors border border-red-600/20"
+                  class="px-2.5 py-1 rounded bg-red-600/10 text-red-400/70 text-xs font-medium hover:bg-red-600/20 hover:text-red-400 transition-colors border border-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600/10 disabled:hover:text-red-400/70"
+                  :disabled="hasContributed(member)"
+                  :title="hasContributed(member) ? t('groupIndustry.members.leaveBlockedByContributions') : undefined"
                   @click="confirmLeave"
                 >{{ t('groupIndustry.members.leaveProject') }}</button>
               </div>

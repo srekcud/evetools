@@ -3924,6 +3924,7 @@
       "viaShortLink": "Lien court",
       "leaveProject": "Quitter",
       "leaveConfirm": "Voulez-vous vraiment quitter ce projet ? Vous pourrez le rejoindre a nouveau via le lien d'invitation.",
+      "leaveBlockedByContributions": "Vous ne pouvez pas quitter : vous avez contribué à ce projet.",
       "leaveSuccess": "Vous avez quitte le projet."
     },
     "shareLink": {
