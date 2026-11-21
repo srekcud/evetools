@@ -6,6 +6,7 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { joinOutcome } from '@/views/GroupIndustry/joinOutcome'
+import { joinRefusalMessageKey } from '@/views/GroupIndustry/joinRefusal'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -50,7 +51,8 @@ onMounted(async () => {
     }
 
     state.value = 'error'
-    errorMessage.value = msg
+    const refusalKey = joinRefusalMessageKey(e)
+    errorMessage.value = refusalKey === null ? msg : t(refusalKey)
   }
 })
 </script>

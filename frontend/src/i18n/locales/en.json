@@ -4097,7 +4097,10 @@
       "requestSent": "Request Sent",
       "requestSentDescription": "Your join request has been sent and is waiting for approval from a project admin. You will be notified once your request is accepted.",
       "unableToJoin": "Unable to Join",
-      "backToGroupIndustry": "Back to Projects"
+      "backToGroupIndustry": "Back to Projects",
+      "notAvailable": "This invitation link is not available. Ask the project owner for a working link.",
+      "notOpenYet": "This project is not open yet. Ask its owner to publish it, then try again.",
+      "closed": "This project is closed to new members."
     },
     "tabs": {
       "myProjects": "My Projects",
@@ -4256,6 +4259,14 @@
         "message": "Are you sure you want to delete this project? This action cannot be undone. All contributions, sales, and distribution data will be permanently lost."
       },
       "nextStatus": "Move to {status}",
+      "shareLinkReason": {
+        "private": "A private project cannot be joined with a link. Make it public to invite people.",
+        "draft": "A draft project is not open yet. Publish it to invite people."
+      },
+      "shareLinkShortcut": {
+        "makePublic": "Make public",
+        "publish": "Publish"
+      },
       "draftActions": {
         "published": "Publish",
         "in_progress": "Start"
