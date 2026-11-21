@@ -3522,7 +3522,15 @@
       "free": "{quantity} libres",
       "mine": "vous",
       "awaitingApproval": "En attente d'approbation ×{quantity}",
-      "failed": "La réservation n'a pas pu être enregistrée"
+      "failed": "La réservation n'a pas pu être enregistrée",
+      "supplied": "Fourni ×{quantity}",
+      "correct": "Corriger",
+      "correctedQuantity": "Quantité corrigée",
+      "save": "Enregistrer",
+      "remove": "Retirer",
+      "confirmRemoval": "Confirmer le retrait",
+      "cancel": "Annuler",
+      "correctionFailed": "La correction n'a pas pu être enregistrée"
     },
     "jobs": {
       "product": "Produit",

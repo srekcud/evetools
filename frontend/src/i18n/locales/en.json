@@ -3522,7 +3522,15 @@
       "free": "{quantity} free",
       "mine": "you",
       "awaitingApproval": "Awaiting approval ×{quantity}",
-      "failed": "The reservation could not be saved"
+      "failed": "The reservation could not be saved",
+      "supplied": "Supplied ×{quantity}",
+      "correct": "Correct",
+      "correctedQuantity": "Corrected quantity",
+      "save": "Save",
+      "remove": "Remove",
+      "confirmRemoval": "Confirm removal",
+      "cancel": "Cancel",
+      "correctionFailed": "The correction could not be saved"
     },
     "jobs": {
       "product": "Product",
