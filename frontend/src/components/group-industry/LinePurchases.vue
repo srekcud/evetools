@@ -14,6 +14,10 @@ const props = defineProps<{
   item: BomItem
 }>()
 
+const emit = defineEmits<{
+  contribute: [item: BomItem]
+}>()
+
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
 const syncStore = useSyncStore()
@@ -112,6 +116,11 @@ function closePanel(): void {
   isOpen.value = false
   isConfirmingLinkAll.value = false
   isReadingWallet.value = false
+}
+
+function declareStock(): void {
+  closePanel()
+  emit('contribute', props.item)
 }
 
 watch(() => syncStore.walletTransactionsProgress, async progress => {
@@ -360,6 +369,16 @@ async function deletePurchase(purchaseId: string): Promise<void> {
               </table>
             </div>
           </template>
+        </section>
+
+        <section v-if="!item.isJob">
+          <h3 class="text-sm font-semibold text-slate-200 mb-3">{{ t('groupIndustry.purchases.declareStock.title') }}</h3>
+          <button
+            type="button"
+            data-testid="purchases-declare-stock"
+            class="px-3 py-1 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20"
+            @click="declareStock"
+          >{{ t('groupIndustry.purchases.declareStock.button') }}</button>
         </section>
 
         <section v-if="isProjectOwner">

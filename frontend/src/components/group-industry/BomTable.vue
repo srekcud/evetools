@@ -191,7 +191,7 @@ function ringStrokeColor(percent: number): string {
                   data-testid="purchased-quantity"
                   class="block text-xs font-sans text-slate-500"
                 >{{ t('groupIndustry.bom.purchasedQuantity', { quantity: formatNumber(item.purchasedQuantity, 0) }) }}</span>
-                <LinePurchases :item="item" class="font-sans" />
+                <LinePurchases :item="item" class="font-sans" @contribute="emit('contribute', $event)" />
               </td>
 
               <!-- Remaining -->
