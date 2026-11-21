@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import GroupCompanion from '@/components/group-industry/GroupCompanion.vue'
 import { buildCompanionTasks } from '@/components/group-industry/companionTasks'
+import { projectDisplayNameOf } from '@/components/group-industry/projectDisplayName'
 import {
   COMPANION_WINDOW_SIZES,
   recallCompanionWindowSize,
@@ -35,7 +36,7 @@ let clockTimer: ReturnType<typeof setInterval> | null = null
 const projectName = computed(() => {
   const project = companion.project
   if (project === null) return ''
-  return project.name || project.items.map(item => `${item.runs}x ${item.typeName}`).join(', ')
+  return projectDisplayNameOf(project)
 })
 
 const tasks = computed(() => {

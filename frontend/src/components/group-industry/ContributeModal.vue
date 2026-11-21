@@ -8,6 +8,7 @@ import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { pendingQuantityOf } from './pendingContributions'
+import { projectDisplayNameOf } from './projectDisplayName'
 import type {
   BomItem,
   ContributionType,
@@ -97,6 +98,7 @@ watch(() => props.show, (visible) => {
     isSuggestionLoadFailed.value = false
     note.value = ''
     isSubmitting.value = false
+    contributionStore.error = null
     valueSource.value = 'jita_price'
     if (props.prefilledBomItem) {
       selectedType.value = contributionTypeOf(props.prefilledBomItem)
@@ -114,6 +116,10 @@ watch(() => props.show, (visible) => {
 
 // BOM items for dropdown, filtered by type
 const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
+const projectDisplayName = computed(() => {
+  const project = projectStore.currentProject
+  return project === null ? '' : projectDisplayNameOf(project)
+})
 
 function isClaimableIntermediateLine(line: BomItem): boolean {
   return isIntermediateLine(line) && (line.unclaimedQuantity ?? 0) > 0 && line.launchPrice != null
@@ -146,6 +152,8 @@ const isGroupIntermediateClaim = computed(() => {
 watch([selectedType, selectedBomItemId], () => {
   if (isGroupIntermediateClaim.value) {
     quantity.value = selectedBomItem.value?.unclaimedQuantity ?? 0
+  } else if (selectedBomItem.value !== null) {
+    quantity.value = prefilledQuantityOf(selectedBomItem.value)
   }
 })
 
@@ -368,7 +376,7 @@ async function submit(): Promise<void> {
         <div>
           <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ t('groupIndustry.contribute.title') }}</h2>
           <p class="text-sm text-slate-500 mt-0.5">
-            Project: {{ projectStore.currentProject?.name || '---' }}
+            Project: {{ projectDisplayName }}
           </p>
         </div>
         <button
@@ -440,10 +448,9 @@ async function submit(): Promise<void> {
               />
             </div>
             <span>{{ selectedBomItem.typeName }}</span>
-            <span class="text-xs text-slate-500 ml-auto">Type ID: {{ selectedBomItem.typeId }}</span>
             <button
               @click="selectedBomItemId = ''"
-              class="text-slate-500 hover:text-slate-300 ml-2"
+              class="text-slate-500 hover:text-slate-300 ml-auto"
               :aria-label="t('common.actions.clear')"
             >
               <svg aria-hidden="true" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>

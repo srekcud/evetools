@@ -22,6 +22,7 @@ import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
 import CollapsibleSourcing from '@/components/group-industry/CollapsibleSourcing.vue'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import ContributeModal from '@/components/group-industry/ContributeModal.vue'
+import { projectDisplayNameOf } from '@/components/group-industry/projectDisplayName'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
 import JobContainersTable from '@/components/group-industry/JobContainersTable.vue'
 import ProjectSellOrdersSection from '@/components/group-industry/ProjectSellOrdersSection.vue'
@@ -497,9 +498,7 @@ function onContributionSubmitted(): void {
 }
 
 const projectDisplayName = computed(() => {
-  if (!project.value) return ''
-  if (project.value.name) return project.value.name
-  return project.value.items.map(i => `${i.runs}x ${i.typeName}`).join(', ')
+  return project.value ? projectDisplayNameOf(project.value) : ''
 })
 
 const sourcingOverride = ref<SourcingOverride | null>(null)
