@@ -58,7 +58,7 @@ The "Refresh wallet" button, in the owner's "Purchases" window, starts reading t
 
 Reason: the coverage of each BOM line and everyone's share rest on the approved contributions. Changing them afterwards would shift the payout of every participant without them seeing it.
 
-On approval, the contributed quantity counts in the served quantity of the line. A contribution that would exceed the remaining quantity of the line is refused, and a participant cannot have two pending or approved contributions of the same type on the same line.
+On approval, the contributed quantity counts in the served quantity of the line. A contribution that would exceed the remaining quantity of the line is refused, and a participant cannot have two pending or approved contributions of the same type on the same line, except for a material, which can be deposited in several times as long as quantity remains.
 
 ## 3. Revenue distribution
 

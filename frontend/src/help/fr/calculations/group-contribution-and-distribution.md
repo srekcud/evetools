@@ -58,7 +58,7 @@ Le bouton « Actualiser le wallet », dans la fenêtre « Achats » du propriét
 
 Raison : la couverture de chaque ligne de la BOM et la part de chacun reposent sur les apports approuvés. Les modifier après coup déplacerait les payouts de tous les participants sans qu'ils le voient.
 
-À l'approbation, la quantité apportée compte dans la quantité servie de la ligne. Une contribution qui dépasserait la quantité restante de la ligne est refusée, et un participant ne peut pas avoir deux apports en attente ou approuvés du même type sur la même ligne.
+À l'approbation, la quantité apportée compte dans la quantité servie de la ligne. Une contribution qui dépasserait la quantité restante de la ligne est refusée, et un participant ne peut pas avoir deux apports en attente ou approuvés du même type sur la même ligne, sauf pour un matériau, qui se dépose en plusieurs fois tant qu'il reste de la quantité.
 
 ## 3. Répartition du revenu
 

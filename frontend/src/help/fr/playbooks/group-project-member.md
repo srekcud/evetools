@@ -54,7 +54,7 @@ Détail de la valorisation : [contributions de groupe](/help?page=calculations/g
 
 Refus à connaître (le message est celui du serveur, en anglais, affiché dans la fenêtre) :
 
-- **Une seule contribution en attente ou approuvée par ligne et par type.** « A contribution of this type is already pending or approved for this item ». Apportez donc la quantité entière en une fois. *Exemple : une ligne demande 200, vous en avez 120. Soumettez 120 ; une fois en attente ou approuvée, vous ne pouvez plus ajouter de « Material » sur cette ligne.* Une contribution rejetée ne bloque pas : vous pouvez en soumettre une autre.
+- **Une seule contribution en attente ou approuvée par ligne et par type, sauf pour « Material ».** « A contribution of this type is already pending or approved for this item » vaut pour « Job Install », « BPC » et « Line Rental ». Une ligne de matériau se remplit par dépôts successifs, chacun valorisé au prix de son jour d'apport, tant qu'il reste de la quantité. *Exemple : une ligne demande 200, votre premier apport de 120 est approuvé. Il reste 80 : vous pouvez soumettre un second apport « Material » de 80, pas de 81.* Une contribution rejetée ne bloque pas : vous pouvez en soumettre une autre.
 - **Quantité au-dessus du restant** : « The contribution exceeds the remaining quantity of the line ».
 - **Pas de prix Jita pour un matériau ce jour-là** : « No market price for type N: no Jita price for the deposit day. ». La contribution est refusée, pas valorisée à 0.
 - **Vous ne pouvez pas retirer une contribution en attente.** Aucun bouton, aucune annulation : demandez à un relecteur de la rejeter, puis soumettez-la de nouveau.

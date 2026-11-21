@@ -196,13 +196,27 @@ final class GroupContributionApiTest extends WebTestCase
         self::assertSame(3, $this->storedContributionCount());
     }
 
-    public function testSecondMaterialContributionOfTheSameMemberOnTheSameLineIsRefused(): void
+    #[Group('issue-1169')]
+    public function testSecondMaterialDepositOfTheSameMemberOnTheSameLineIsAcceptedOnceTheFirstIsApproved(): void
     {
+        $this->givenJitaPercentilePrices([self::MORPHITE_TYPE_ID => 20_000.0]);
         $this->client->loginUser($this->member, 'api');
-        $this->request('POST', $this->contributionsUri(), ['type' => 'material', 'bomItemId' => $this->idOf($this->morphiteLine), 'quantity' => 5]);
+        $this->request('POST', $this->contributionsUri(), ['type' => 'material', 'bomItemId' => $this->idOf($this->morphiteLine), 'quantity' => 147]);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame([147, 2_940_000.0, 'pending'], [$this->responseJson()['quantity'], (float) $this->responseJson()['estimatedValue'], $this->responseJson()['status']]);
+        self::assertSame(4, $this->storedContributionCount());
+    }
+
+    #[Group('issue-1169')]
+    public function testSecondMaterialDepositBeyondTheRemainingQuantityOfTheLineIsRefused(): void
+    {
+        $this->givenJitaPercentilePrices([self::MORPHITE_TYPE_ID => 20_000.0]);
+        $this->client->loginUser($this->member, 'api');
+        $this->request('POST', $this->contributionsUri(), ['type' => 'material', 'bomItemId' => $this->idOf($this->morphiteLine), 'quantity' => 148]);
 
         self::assertResponseStatusCodeSame(400);
-        self::assertSame([400, 'A contribution of this type is already pending or approved for this item'], $this->errorDetail());
+        self::assertSame([400, 'The contribution exceeds the remaining quantity of the line'], $this->errorDetail());
         self::assertSame(3, $this->storedContributionCount());
     }
 

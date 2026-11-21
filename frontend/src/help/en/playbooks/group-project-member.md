@@ -54,7 +54,7 @@ Valuation in detail: [group contributions](/help?page=calculations/group-contrib
 
 Refusals to know (the message comes from the server, in English, shown in the window):
 
-- **One pending or approved contribution per line and per type.** "A contribution of this type is already pending or approved for this item". So bring the whole quantity at once. *Example: a line asks for 200, you hold 120. Submit 120; once it is pending or approved, you cannot add another "Material" on that line.* A rejected contribution does not block: you can submit another one.
+- **One pending or approved contribution per line and per type, except "Material".** "A contribution of this type is already pending or approved for this item" applies to "Job Install", "BPC" and "Line Rental". A material line is filled by successive deposits, each valued at the price of its own deposit day, as long as quantity remains. *Example: a line asks for 200 and your first contribution of 120 is approved. 80 remain: you can submit a second "Material" contribution of 80, not of 81.* A rejected contribution does not block: you can submit another one.
 - **Quantity above the remaining quantity**: "The contribution exceeds the remaining quantity of the line".
 - **No Jita price for a material that day**: "No market price for type N: no Jita price for the deposit day." The contribution is refused, not valued at 0.
 - **You cannot withdraw a pending contribution.** There is no button and no cancellation: ask a reviewer to reject it, then submit it again.

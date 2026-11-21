@@ -81,7 +81,9 @@ class ProjectContributionService
         ?string $note,
         ?ContributionValueSource $valueSource,
     ): IndustryProjectContribution {
-        $this->validateAntiDuplicate($member, $bomItem, $type);
+        if (ContributionType::Material !== $type) {
+            $this->validateAntiDuplicate($member, $bomItem, $type);
+        }
 
         if ($quantity > $bomItem->getRemainingQuantity()) {
             throw new \DomainException('The contribution exceeds the remaining quantity of the line');
