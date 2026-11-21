@@ -44,6 +44,8 @@ const hasQuote = computed(() => courier.value !== null && courier.value.quoteSta
 
 const hasUnknownOrigin = computed(() => courier.value !== null && courier.value.unknownOriginLines.length > 0)
 
+const isVisible = computed(() => courier.value === null || courier.value.contract !== null || hasQuote.value || hasUnknownOrigin.value)
+
 const unknownQuoteStatus = computed<CourierQuoteStatus | null>(() => {
   const status = courier.value?.quoteStatus
   return status !== undefined && UNKNOWN_QUOTE_STATUSES.includes(status) ? status : null
@@ -139,7 +141,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section data-testid="courier-card" class="mb-6 bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
+  <section v-if="isVisible" data-testid="courier-card" class="mb-6 bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
     <header class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-800">
       <h2 class="font-display text-sm font-semibold uppercase tracking-widest text-cyan-400">
         {{ t('groupIndustry.courier.title') }}
