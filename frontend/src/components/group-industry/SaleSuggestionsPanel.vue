@@ -24,6 +24,7 @@ const MIN_TRANSACTIONS_FOR_RECORD_ALL = 2
 type RecordAllFailure = { transactionId: string; date: string; sellerCharacterName: string; message: string }
 
 const enteredQuantities = ref<Record<string, number | ''>>({})
+const excludedTransactionIds = ref<string[]>([])
 const recordingTransactionId = ref<string | null>(null)
 const linkingError = ref<string | null>(null)
 const isReadingWallet = ref(false)
@@ -42,9 +43,30 @@ function hasInvalidEnteredQuantity(suggestion: GroupSaleSuggestion): boolean {
   return typeof enteredQuantity === 'number' && validEnteredQuantity(suggestion) === null
 }
 
+function isPossibleDuplicate(suggestion: GroupSaleSuggestion): boolean {
+  return suggestion.possibleDuplicateSaleIds.length > 0
+}
+
+function isExcluded(suggestion: GroupSaleSuggestion): boolean {
+  return excludedTransactionIds.value.includes(suggestion.transactionId)
+}
+
+function isIncluded(suggestion: GroupSaleSuggestion): boolean {
+  return !isPossibleDuplicate(suggestion) && !isExcluded(suggestion)
+}
+
+function setIncluded(suggestion: GroupSaleSuggestion, included: boolean): void {
+  const others = excludedTransactionIds.value.filter(transactionId => transactionId !== suggestion.transactionId)
+  excludedTransactionIds.value = included ? others : [...others, suggestion.transactionId]
+}
+
+const showInclusionColumn = computed(
+  () => store.saleSuggestions.filter(suggestion => !isPossibleDuplicate(suggestion)).length >= MIN_TRANSACTIONS_FOR_RECORD_ALL,
+)
+
 const recordAllPlan = computed(() => {
   const recordable = store.saleSuggestions.filter(
-    suggestion => suggestion.possibleDuplicateSaleIds.length === 0 && !hasInvalidEnteredQuantity(suggestion),
+    suggestion => isIncluded(suggestion) && !hasInvalidEnteredQuantity(suggestion),
   )
   const selected = [...recordable].sort(
     (first, second) => Date.parse(first.date) - Date.parse(second.date) || first.transactionId.localeCompare(second.transactionId),
@@ -63,7 +85,7 @@ const recordAllPlan = computed(() => {
     products: [...productTotals.values()],
     quantity: selected.reduce((sum, suggestion) => sum + quantityOf(suggestion), 0),
     totalPrice: selected.reduce((sum, suggestion) => sum + quantityOf(suggestion) * suggestion.unitPrice, 0),
-    leftOut: store.saleSuggestions.length - selected.length,
+    leftOut: store.saleSuggestions.filter(suggestion => !isExcluded(suggestion)).length - selected.length,
   }
 })
 const canRecordAll = computed(() => recordAllPlan.value.selected.length >= MIN_TRANSACTIONS_FOR_RECORD_ALL)
@@ -224,6 +246,7 @@ onMounted(() => {
         <table class="w-full text-sm">
           <thead>
             <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+              <th v-if="showInclusionColumn" class="py-3 pl-6 pr-0 w-8"><span class="sr-only">{{ t('groupIndustry.saleSuggestions.includeInRecordAll') }}</span></th>
               <th class="text-left py-3 px-6">{{ t('groupIndustry.saleSuggestions.date') }}</th>
               <th class="text-left py-3 px-3">{{ t('groupIndustry.saleSuggestions.item') }}</th>
               <th class="text-left py-3 px-3">{{ t('groupIndustry.saleSuggestions.character') }}</th>
@@ -239,6 +262,16 @@ onMounted(() => {
               :key="suggestion.transactionId"
               class="hover:bg-slate-800/30"
             >
+              <td v-if="showInclusionColumn" class="py-3 pl-6 pr-0">
+                <input
+                  type="checkbox"
+                  :checked="isIncluded(suggestion)"
+                  :disabled="isPossibleDuplicate(suggestion)"
+                  :aria-label="t('groupIndustry.saleSuggestions.includeInRecordAll')"
+                  class="accent-cyan-500"
+                  @change="setIncluded(suggestion, ($event.target as HTMLInputElement).checked)"
+                />
+              </td>
               <td class="py-3 px-6 text-slate-300">{{ formatDate(suggestion.date) }}</td>
               <td class="py-3 px-3 text-slate-200">{{ suggestion.typeName }}</td>
               <td class="py-3 px-3 text-slate-300">{{ suggestion.sellerCharacterName }}</td>
