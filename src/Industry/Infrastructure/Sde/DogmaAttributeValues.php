@@ -5,15 +5,24 @@ declare(strict_types=1);
 namespace App\Industry\Infrastructure\Sde;
 
 use App\Repository\Sde\DgmTypeAttributeRepository;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Dogma attribute values of a type (sde_dgm_type_attributes). The importer stores a whole number in value_int and
  * any other number in value_float (SdeDogmaImporter): both columns are read.
  */
-final readonly class DogmaAttributeValues
+final class DogmaAttributeValues implements ResetInterface
 {
-    public function __construct(private DgmTypeAttributeRepository $typeAttributeRepository)
+    /** @var array<string, array<int, float>> */
+    private array $valuesByRead = [];
+
+    public function __construct(private readonly DgmTypeAttributeRepository $typeAttributeRepository)
     {
+    }
+
+    public function reset(): void
+    {
+        $this->valuesByRead = [];
     }
 
     /**
@@ -22,6 +31,16 @@ final readonly class DogmaAttributeValues
      * @return array<int, float> value by attribute id; an attribute the type does not carry is absent
      */
     public function of(int $typeId, array $attributeIds): array
+    {
+        return $this->valuesByRead[$typeId.':'.implode(',', $attributeIds)] ??= $this->read($typeId, $attributeIds);
+    }
+
+    /**
+     * @param list<int> $attributeIds
+     *
+     * @return array<int, float>
+     */
+    private function read(int $typeId, array $attributeIds): array
     {
         $values = [];
         foreach ($this->typeAttributeRepository->findBy(['typeId' => $typeId, 'attributeId' => $attributeIds]) as $typeAttribute) {

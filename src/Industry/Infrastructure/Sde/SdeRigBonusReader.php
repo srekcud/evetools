@@ -10,12 +10,13 @@ use App\Industry\Domain\RigBonus;
 use App\Industry\Domain\RigSecurityModifiers;
 use App\Industry\Domain\ScienceRig;
 use App\Repository\Sde\DgmTypeEffectRepository;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Rig bonuses read from the dogma attributes of the rig type (spec R4, D10). The SDE stores a reduction as a
  * negative percent; RigBonus carries it as a positive one. An absent attribute is null, never a default.
  */
-final readonly class SdeRigBonusReader
+final class SdeRigBonusReader implements ResetInterface
 {
     private const int ATTRIBUTE_HI_SEC_MODIFIER = 2355;
     private const int ATTRIBUTE_LOW_SEC_MODIFIER = 2356;
@@ -53,8 +54,16 @@ final readonly class SdeRigBonusReader
         self::EFFECT_RESEARCH_TIME_TIME,
     ];
 
-    public function __construct(private DogmaAttributeValues $dogmaAttributeValues, private DgmTypeEffectRepository $typeEffectRepository)
+    /** @var array<int, list<int>> */
+    private array $effectIdsByRigTypeId = [];
+
+    public function __construct(private readonly DogmaAttributeValues $dogmaAttributeValues, private readonly DgmTypeEffectRepository $typeEffectRepository)
     {
+    }
+
+    public function reset(): void
+    {
+        $this->effectIdsByRigTypeId = [];
     }
 
     /**
@@ -118,7 +127,7 @@ final readonly class SdeRigBonusReader
      */
     private function effectIdsOf(int $rigTypeId): array
     {
-        return array_values(array_map(
+        return $this->effectIdsByRigTypeId[$rigTypeId] ??= array_values(array_map(
             static fn (DgmTypeEffect $typeEffect): int => $typeEffect->getEffectId(),
             $this->typeEffectRepository->findByTypeId($rigTypeId),
         ));

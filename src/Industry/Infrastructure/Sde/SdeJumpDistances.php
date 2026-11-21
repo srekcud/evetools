@@ -6,16 +6,26 @@ namespace App\Industry\Infrastructure\Sde;
 
 use App\Industry\Application\JumpDistances;
 use App\Repository\Sde\MapSolarSystemJumpRepository;
+use Symfony\Contracts\Service\ResetInterface;
 
-final class SdeJumpDistances implements JumpDistances
+final class SdeJumpDistances implements JumpDistances, ResetInterface
 {
     private const int JUMPS_WITHIN_A_SYSTEM = 0;
 
     /** @var array<int, array<int>>|null */
     private ?array $adjacencyList = null;
 
+    /** @var array<int, array<int, int>> jumps to every reachable system, by origin system */
+    private array $jumpsBySourceSystemId = [];
+
     public function __construct(private readonly MapSolarSystemJumpRepository $jumpRepository)
     {
+    }
+
+    public function reset(): void
+    {
+        $this->adjacencyList = null;
+        $this->jumpsBySourceSystemId = [];
     }
 
     public function jumpsBetween(int $fromSolarSystemId, int $toSolarSystemId): ?int
@@ -24,9 +34,17 @@ final class SdeJumpDistances implements JumpDistances
             return self::JUMPS_WITHIN_A_SYSTEM;
         }
 
+        return ($this->jumpsBySourceSystemId[$fromSolarSystemId] ??= $this->jumpsFrom($fromSolarSystemId))[$toSolarSystemId] ?? null;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function jumpsFrom(int $fromSolarSystemId): array
+    {
         $this->adjacencyList ??= $this->jumpRepository->getAdjacencyList();
         if (!\array_key_exists($fromSolarSystemId, $this->adjacencyList)) {
-            return null;
+            return [];
         }
 
         $jumpsTo = [$fromSolarSystemId => self::JUMPS_WITHIN_A_SYSTEM];
@@ -39,15 +57,12 @@ final class SdeJumpDistances implements JumpDistances
                         continue;
                     }
                     $jumpsTo[$neighborId] = $jumpsTo[$solarSystemId] + 1;
-                    if ($neighborId === $toSolarSystemId) {
-                        return $jumpsTo[$neighborId];
-                    }
                     $nextFrontier[] = $neighborId;
                 }
             }
             $frontier = $nextFrontier;
         }
 
-        return null;
+        return $jumpsTo;
     }
 }

@@ -50,19 +50,62 @@ final class SdeJumpDistancesTest extends TestCase
         $this->assertNull($jumps);
     }
 
-    private function jumpDistances(): SdeJumpDistances
+    public function testEverySystemOfTheGraphIsAtItsShortestDistanceWhateverTheOrderOfTheQueries(): void
+    {
+        $jumpDistances = $this->jumpDistances();
+
+        $this->assertSame(1, $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::FIRST_DETOUR_SYSTEM_ID));
+        $this->assertSame(3, $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::THIRD_GATE_SYSTEM_ID));
+        $this->assertSame(2, $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::SECOND_DETOUR_SYSTEM_ID));
+        $this->assertSame(3, $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::THIRD_DETOUR_SYSTEM_ID));
+        $this->assertSame(1, $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::FIRST_GATE_SYSTEM_ID));
+        $this->assertNull($jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::ISOLATED_SYSTEM_ID));
+        $this->assertSame(0, $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::WORKSHOP_SYSTEM_ID));
+        $this->assertSame(3, $jumpDistances->jumpsBetween(self::THIRD_GATE_SYSTEM_ID, self::WORKSHOP_SYSTEM_ID));
+    }
+
+    public function testTheJumpsAreReadOnceForAllTheQueriesOfARequest(): void
+    {
+        $reads = 0;
+        $jumpDistances = $this->jumpDistances($reads);
+
+        $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::THIRD_GATE_SYSTEM_ID);
+        $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::FIRST_GATE_SYSTEM_ID);
+        $jumpDistances->jumpsBetween(self::FIRST_GATE_SYSTEM_ID, self::THIRD_GATE_SYSTEM_ID);
+
+        $this->assertSame(1, $reads);
+    }
+
+    public function testResetForgetsTheGraphSoTheNextRequestReadsTheJumpsAgain(): void
+    {
+        $reads = 0;
+        $jumpDistances = $this->jumpDistances($reads);
+        $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::THIRD_GATE_SYSTEM_ID);
+
+        $jumpDistances->reset();
+        $jumps = $jumpDistances->jumpsBetween(self::WORKSHOP_SYSTEM_ID, self::THIRD_GATE_SYSTEM_ID);
+
+        $this->assertSame(2, $reads);
+        $this->assertSame(3, $jumps);
+    }
+
+    private function jumpDistances(int &$adjacencyReads = 0): SdeJumpDistances
     {
         $repository = $this->createStub(MapSolarSystemJumpRepository::class);
-        $repository->method('getAdjacencyList')->willReturn([
-            self::WORKSHOP_SYSTEM_ID => [self::FIRST_DETOUR_SYSTEM_ID, self::FIRST_GATE_SYSTEM_ID],
-            self::FIRST_GATE_SYSTEM_ID => [self::WORKSHOP_SYSTEM_ID, self::SECOND_GATE_SYSTEM_ID],
-            self::SECOND_GATE_SYSTEM_ID => [self::FIRST_GATE_SYSTEM_ID, self::THIRD_GATE_SYSTEM_ID],
-            self::THIRD_GATE_SYSTEM_ID => [self::SECOND_GATE_SYSTEM_ID, self::THIRD_DETOUR_SYSTEM_ID],
-            self::FIRST_DETOUR_SYSTEM_ID => [self::WORKSHOP_SYSTEM_ID, self::SECOND_DETOUR_SYSTEM_ID],
-            self::SECOND_DETOUR_SYSTEM_ID => [self::FIRST_DETOUR_SYSTEM_ID, self::THIRD_DETOUR_SYSTEM_ID],
-            self::THIRD_DETOUR_SYSTEM_ID => [self::SECOND_DETOUR_SYSTEM_ID, self::THIRD_GATE_SYSTEM_ID],
-            self::ISOLATED_SYSTEM_ID => [],
-        ]);
+        $repository->method('getAdjacencyList')->willReturnCallback(static function () use (&$adjacencyReads): array {
+            ++$adjacencyReads;
+
+            return [
+                self::WORKSHOP_SYSTEM_ID => [self::FIRST_DETOUR_SYSTEM_ID, self::FIRST_GATE_SYSTEM_ID],
+                self::FIRST_GATE_SYSTEM_ID => [self::WORKSHOP_SYSTEM_ID, self::SECOND_GATE_SYSTEM_ID],
+                self::SECOND_GATE_SYSTEM_ID => [self::FIRST_GATE_SYSTEM_ID, self::THIRD_GATE_SYSTEM_ID],
+                self::THIRD_GATE_SYSTEM_ID => [self::SECOND_GATE_SYSTEM_ID, self::THIRD_DETOUR_SYSTEM_ID],
+                self::FIRST_DETOUR_SYSTEM_ID => [self::WORKSHOP_SYSTEM_ID, self::SECOND_DETOUR_SYSTEM_ID],
+                self::SECOND_DETOUR_SYSTEM_ID => [self::FIRST_DETOUR_SYSTEM_ID, self::THIRD_DETOUR_SYSTEM_ID],
+                self::THIRD_DETOUR_SYSTEM_ID => [self::SECOND_DETOUR_SYSTEM_ID, self::THIRD_GATE_SYSTEM_ID],
+                self::ISOLATED_SYSTEM_ID => [],
+            ];
+        });
 
         return new SdeJumpDistances($repository);
     }

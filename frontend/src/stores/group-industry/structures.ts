@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
+import { useProjectDetailRequestQueueStore } from './projectDetailRequestQueue'
 import type { ProjectStructures, StructureComparisonGroup } from './types'
 
 export const useGroupStructuresStore = defineStore('group-structures', () => {
@@ -29,7 +30,7 @@ export const useGroupStructuresStore = defineStore('group-structures', () => {
     loading.value = true
     error.value = null
     try {
-      const comparison = await apiRequest<ProjectStructures>(`/industry/projects/${projectId}/structures`)
+      const comparison = await useProjectDetailRequestQueueStore().runAfterPreviousReadsOf(projectId, () => apiRequest<ProjectStructures>(`/industry/projects/${projectId}/structures`))
       if (request === latestRequest) {
         groups.value = comparison.groups
         acceptsOutsideFavoriteSystem.value = comparison.acceptsOutsideFavoriteSystem

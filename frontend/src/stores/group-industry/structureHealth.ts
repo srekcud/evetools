@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
+import { useProjectDetailRequestQueueStore } from './projectDetailRequestQueue'
 import type { ProjectStructureHealth, StructureHealthRow } from './types'
 
 export const useGroupStructureHealthStore = defineStore('group-structure-health', () => {
@@ -19,7 +20,7 @@ export const useGroupStructureHealthStore = defineStore('group-structure-health'
     loading.value = true
     error.value = null
     try {
-      const health = await apiRequest<ProjectStructureHealth>(`/industry/projects/${projectId}/structure-health`)
+      const health = await useProjectDetailRequestQueueStore().runAfterPreviousReadsOf(projectId, () => apiRequest<ProjectStructureHealth>(`/industry/projects/${projectId}/structure-health`))
       if (request === latestRequest) {
         rows.value = health.rows
       }

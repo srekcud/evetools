@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
+import { useProjectDetailRequestQueueStore } from './projectDetailRequestQueue'
 import type { BuyOrBuildRow, ProjectBuyOrBuild } from './types'
 
 export const useGroupBuyOrBuildStore = defineStore('group-buy-or-build', () => {
@@ -21,7 +22,7 @@ export const useGroupBuyOrBuildStore = defineStore('group-buy-or-build', () => {
     loading.value = true
     error.value = null
     try {
-      const comparison = await apiRequest<ProjectBuyOrBuild>(`/industry/projects/${projectId}/buy-or-build`)
+      const comparison = await useProjectDetailRequestQueueStore().runAfterPreviousReadsOf(projectId, () => apiRequest<ProjectBuyOrBuild>(`/industry/projects/${projectId}/buy-or-build`))
       if (request === latestRequest) {
         rows.value = comparison.rows
         importIskPerCubicMeterJump.value = comparison.importIskPerCubicMeterJump
