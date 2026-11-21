@@ -69,7 +69,7 @@ describe('GroupCompanion copy of the blueprint name', () => {
 
     for (const line of wrapper.findAll(FREE_LINE)) await line.get(COPY_BUTTON).trigger('click')
 
-    expect(writeText.mock.calls).toEqual([[FEROX_BLUEPRINT], [NOCXIUM_FORMULA]])
+    expect(writeText.mock.calls).toEqual([[NOCXIUM_FORMULA], [FEROX_BLUEPRINT]])
   })
 
   it('copies the blueprint name from a line to deliver', async () => {

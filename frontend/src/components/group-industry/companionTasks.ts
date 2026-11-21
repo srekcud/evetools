@@ -63,6 +63,15 @@ const MOVE_PRODUCTS_ALERT_KEY = 'move_products'
 const PRICE_ALERT_KEY = 'price_below_break_even'
 const UNDERCUT_ORDER_ALERT_KEY = 'undercut_sell_order'
 const BLOCKED_CHAIN_STATUS = 'blocked'
+const PAUSED_STATUS = 'paused'
+const PERCENT_BASE = 100
+const MS_PER_MINUTE = 60_000
+const MINUTES_PER_HOUR = 60
+const MINUTES_PER_DAY = 1_440
+const MATERIAL_GROUP: ActivityGroup = 'material'
+const UNKNOWN_GROUP: ActivityGroup = 'unknown'
+const KNOWN_JOB_ACTIVITIES: ActivityGroup[] = ['copy', 'invention', 'reaction', 'manufacturing']
+export const ACTIVITY_GROUP_ORDER: ActivityGroup[] = ['copy', 'invention', 'reaction', 'manufacturing', 'material', 'unknown']
 
 function isFree(item: BomItem): boolean {
   const alreadyHasLinkedJob = item.isJob && item.jobMatches.length > 0
@@ -110,16 +119,54 @@ function isAdmin(project: GroupProject): boolean {
   return project.myRole === 'owner' || project.myRole === 'admin'
 }
 
-export function activityGroupOf(_item: BomItem): ActivityGroup {
-  return 'unknown'
+export function activityGroupOf(item: BomItem): ActivityGroup {
+  if (!item.isJob) return MATERIAL_GROUP
+  const known = KNOWN_JOB_ACTIVITIES.find(activity => activity === item.activityType)
+  return known ?? UNKNOWN_GROUP
 }
 
-export function groupByActivity<Entry>(_entries: Entry[], _itemOf: (entry: Entry) => BomItem): { group: ActivityGroup; entries: Entry[] }[] {
-  return []
+export function groupByActivity<Entry>(entries: Entry[], itemOf: (entry: Entry) => BomItem): { group: ActivityGroup; entries: Entry[] }[] {
+  return ACTIVITY_GROUP_ORDER
+    .map(group => ({ group, entries: entries.filter(entry => activityGroupOf(itemOf(entry)) === group) }))
+    .filter(grouped => grouped.entries.length > 0)
 }
 
-export function jobTimingOf(_match: JobMatch, _now: number): JobTiming {
-  return { state: 'running', remainingMs: null }
+export function jobTimingOf(match: JobMatch, now: number): JobTiming {
+  const endTime = match.endDate === null ? null : Date.parse(match.endDate)
+  if (isReadyToDeliver(match, now)) return { state: 'ready', remainingMs: 0 }
+  const remainingMs = endTime === null ? null : Math.max(0, endTime - now)
+  return { state: match.status === PAUSED_STATUS ? 'paused' : 'running', remainingMs }
+}
+
+export function countdownPartsOf(remainingMs: number): { days: number; hours: number; minutes: number } {
+  const totalMinutes = Math.floor(remainingMs / MS_PER_MINUTE)
+  return {
+    days: Math.floor(totalMinutes / MINUTES_PER_DAY),
+    hours: Math.floor((totalMinutes % MINUTES_PER_DAY) / MINUTES_PER_HOUR),
+    minutes: totalMinutes % MINUTES_PER_HOUR,
+  }
+}
+
+function activityProgressOf(bomItems: BomItem[]): ActivityProgress[] {
+  return groupByActivity(bomItems, item => item)
+    .map(({ group, entries }) => {
+      const delivered = entries.filter(item => item.isFulfilled).length
+      return { group, delivered, total: entries.length, percent: Math.round(delivered / entries.length * PERCENT_BASE) }
+    })
+}
+
+function freeValueOf(free: BomItem[]): FreeValue {
+  const materials = free.filter(item => !item.isJob)
+  const pricedValues = materials.flatMap(item => (item.estimatedPrice === null ? [] : [item.freeQuantity * item.estimatedPrice]))
+  const unknownLines = materials.length - pricedValues.length
+  if (materials.length > 0 && pricedValues.length === 0) return { total: null, unknownLines }
+  return { total: pricedValues.reduce((sum, value) => sum + value, 0), unknownLines }
+}
+
+function productOf(project: GroupProject): CompanionProduct | null {
+  const [first, ...others] = project.items
+  if (first === undefined) return null
+  return { typeId: first.typeId, typeName: first.typeName, runs: first.runs, otherCount: others.length }
 }
 
 export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks {
@@ -180,12 +227,12 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
 
   return {
     now,
-    product: null,
-    activityProgress: [],
-    deliveredLines: 0,
-    totalLines: 0,
-    freeValue: { total: null, unknownLines: 0 },
-    readyJobCount: 0,
+    product: productOf(project),
+    activityProgress: activityProgressOf(bomItems),
+    deliveredLines: bomItems.filter(item => item.isFulfilled).length,
+    totalLines: bomItems.length,
+    freeValue: freeValueOf(free),
+    readyJobCount: jobs.filter(({ match }) => isReadyToDeliver(match, now)).length,
     free,
     mine,
     awaitingApproval,

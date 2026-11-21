@@ -1,8 +1,14 @@
+import { ACTIVITY_GROUP_ORDER, type ActivityGroup } from './companionTasks'
+
 export const COMPANION_COLLAPSED_STORAGE_KEY = 'groupCompanion.collapsed'
 
-export type CompanionSectionKey = 'free' | 'free:buy' | 'free:build' | 'mine' | 'mine:buy' | 'mine:build'
+export type CompanionPane = 'free' | 'mine' | 'jobs'
 
-const SECTION_KEYS: CompanionSectionKey[] = ['free', 'free:buy', 'free:build', 'mine', 'mine:buy', 'mine:build']
+export type CompanionSectionKey = `${CompanionPane}:${ActivityGroup}`
+
+export const COMPANION_PANES: CompanionPane[] = ['free', 'mine', 'jobs']
+
+const SECTION_KEYS: CompanionSectionKey[] = COMPANION_PANES.flatMap(pane => ACTIVITY_GROUP_ORDER.map((group): CompanionSectionKey => `${pane}:${group}`))
 
 function isSectionKey(value: unknown): value is CompanionSectionKey {
   return typeof value === 'string' && SECTION_KEYS.some(key => key === value)
