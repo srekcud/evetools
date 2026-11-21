@@ -77,10 +77,14 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         }
 
         $bomLines = $this->bomLineRepository->findBy(['project' => $project]);
-        $reservedQuantityByLineId = $this->reservedQuantityByLineIdOf($project, $user);
+        $isSolo = $project->isSoloProjectOf($user);
+        $reservedQuantityByLineId = $isSolo ? [] : $this->reservedQuantityByLineIdOf($project, $user);
+        $fulfillments = $this->containerFulfillment->ofWithJobMaterialNeeds($project, $bomLines, JobMaterialNeedsMapper::map($bomLines, $planned->plan));
         $structureId = $user->getEffectiveMarketStructureId();
         $sourcings = $this->comparator->compare(
-            MaterialsToSourceFactory::reservedOf($bomLines, $planned->plan, $reservedQuantityByLineId, $this->containerFulfillment->ofWithJobMaterialNeeds($project, $bomLines, JobMaterialNeedsMapper::map($bomLines, $planned->plan))),
+            $isSolo
+                ? MaterialsToSourceFactory::of($bomLines, $planned->plan, $fulfillments)
+                : MaterialsToSourceFactory::reservedOf($bomLines, $planned->plan, $reservedQuantityByLineId, $fulfillments),
             $structureId,
             $this->projectService->favoriteSystemsOf($owner),
         );
@@ -96,7 +100,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         $resource->structureName = null === $structureId ? null : $user->getEffectiveMarketStructureName();
         $resource->structureSynced = null !== $structureId && $this->structureMarketPrices->isSynced($structureId);
         $resource->structureLastSync = null === $structureId ? null : $this->structureMarketPrices->lastSyncOf($structureId)?->format('c');
-        $resource->hasReservations = [] !== $reservedQuantityByLineId;
+        $resource->hasReservations = $isSolo || [] !== $reservedQuantityByLineId;
         $resource->totals = MaterialSourcingPresenter::totalsOf($sourcings);
         $resource->rows = array_map(
             static fn (MaterialSourcing $sourcing): array => MaterialSourcingPresenter::rowOf($sourcing, $typeNames[$sourcing->typeId]),

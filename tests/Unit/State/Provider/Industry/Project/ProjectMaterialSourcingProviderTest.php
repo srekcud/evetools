@@ -9,6 +9,7 @@ use App\ApiResource\Industry\Project\ProjectMaterialSourcingResource;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\MaterialSourcingComparator;
@@ -20,6 +21,8 @@ use App\Industry\Domain\Plan;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
@@ -54,6 +57,7 @@ final class ProjectMaterialSourcingProviderTest extends TestCase
     {
         $owner = $this->pilot();
         $project = (new IndustryProject())->setOwner($owner)->setName('Cadmium batch');
+        $project->addMember((new IndustryProjectParticipant())->setUser(new User())->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted));
         $job = $this->reactionLine();
         $cadmium = (new IndustryProjectBomLine())
             ->setTypeId(self::CADMIUM)
@@ -95,6 +99,85 @@ final class ProjectMaterialSourcingProviderTest extends TestCase
 
         self::assertInstanceOf(ProjectMaterialSourcingResource::class, $sourcing);
         self::assertSame([], $sourcing->rows);
+    }
+
+    #[Group('issue-1158')]
+    public function testSoloProjectListsEveryMaterialLineStillToSourceWithoutAnyReservation(): void
+    {
+        $owner = $this->pilot();
+        $project = (new IndustryProject())->setOwner($owner)->setName('Cadmium batch');
+
+        $sourcing = $this->sourcingOf($project, $owner, [$this->cadmiumLine()]);
+
+        self::assertCount(1, $sourcing->rows);
+        self::assertSame(self::CADMIUM, $sourcing->rows[0]['typeId']);
+        self::assertSame(self::CADMIUM_REQUIRED, $sourcing->rows[0]['quantity']);
+    }
+
+    #[Group('issue-1158')]
+    public function testSoloProjectNeverReportsMissingReservations(): void
+    {
+        $owner = $this->pilot();
+        $project = (new IndustryProject())->setOwner($owner)->setName('Cadmium batch');
+
+        $sourcing = $this->sourcingOf($project, $owner, [$this->cadmiumLine()]);
+
+        self::assertTrue($sourcing->hasReservations);
+    }
+
+    #[Group('issue-1158')]
+    public function testGroupProjectKeepsListingOnlyTheLinesTheReaderReserved(): void
+    {
+        $owner = $this->pilot();
+        $project = (new IndustryProject())->setOwner($owner)->setName('Cadmium batch');
+        $project->addMember((new IndustryProjectParticipant())->setUser(new User())->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted));
+
+        $sourcing = $this->sourcingOf($project, $owner, [$this->cadmiumLine()]);
+
+        self::assertSame([], $sourcing->rows);
+        self::assertFalse($sourcing->hasReservations);
+    }
+
+    private function cadmiumLine(): IndustryProjectBomLine
+    {
+        return (new IndustryProjectBomLine())
+            ->setTypeId(self::CADMIUM)
+            ->setTypeName('Cadmium')
+            ->setRequiredQuantity(self::CADMIUM_REQUIRED)
+            ->setIsJob(false);
+    }
+
+    /**
+     * @param list<IndustryProjectBomLine> $bomLines
+     */
+    private function sourcingOf(IndustryProject $project, User $reader, array $bomLines): ProjectMaterialSourcingResource
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($reader);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('find')->willReturn($project);
+        $bomLineRepository = $this->createStub(IndustryProjectBomLineRepository::class);
+        $bomLineRepository->method('findBy')->willReturn($bomLines);
+        $projectService = $this->createStub(IndustryProjectService::class);
+        $projectService->method('planOf')->willReturn(new PlannedProduction(new Plan([], [], []), []));
+        $projectService->method('favoriteSystemsOf')->willReturn(FavoriteSystems::none());
+        $containerFulfillment = $this->createStub(ProjectContainerFulfillment::class);
+        $containerFulfillment->method('ofWithJobMaterialNeeds')->willReturn(ProjectLineFulfillments::none());
+        $provider = new ProjectMaterialSourcingProvider(
+            $security,
+            $projectRepository,
+            $bomLineRepository,
+            new ProjectAccessChecker($this->createStub(IndustryProjectParticipantRepository::class)),
+            $projectService,
+            new MaterialSourcingComparator(new InMemoryMarketPrices([]), new InMemoryStructureMarketPrices(), new InMemoryItemVolumes(), new InMemoryJumpDistances()),
+            new InMemoryStructureMarketPrices(),
+            $containerFulfillment,
+            $this->createStub(IndustryProjectParticipantRepository::class),
+            $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(IndustryProjectContributionRepository::class),
+        );
+
+        return $provider->provide(new Get(), ['projectId' => $project->getId()->toRfc4122()]);
     }
 
     private function pilot(): User
