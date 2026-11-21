@@ -15,6 +15,7 @@ use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Industry\Project\RecordSaleFromContractInput;
 use App\ApiResource\Input\Industry\Project\RecordSaleFromWalletTransactionInput;
 use App\ApiResource\Input\Industry\Project\RecordSaleInput;
+use App\ApiResource\Input\Industry\Project\RecordSalesFromWalletTransactionsInput;
 use App\ApiResource\Input\Industry\Project\UpdateSaleInput;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
@@ -23,6 +24,7 @@ use App\State\Processor\Industry\Project\DeleteSaleProcessor;
 use App\State\Processor\Industry\Project\RecordSaleFromContractProcessor;
 use App\State\Processor\Industry\Project\RecordSaleFromWalletTransactionProcessor;
 use App\State\Processor\Industry\Project\RecordSaleProcessor;
+use App\State\Processor\Industry\Project\RecordSalesFromWalletTransactionsProcessor;
 use App\State\Processor\Industry\Project\UpdateSaleProcessor;
 use App\State\Provider\Industry\Project\ProjectSaleCollectionProvider;
 use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
@@ -66,6 +68,20 @@ use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
             openapi: new Model\Operation(
                 summary: 'Record a sale from a wallet transaction',
                 description: 'Records a sale of the project from a sale of one of your wallet transactions (admin/owner only)',
+                tags: ['Group Industry - Sales'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/industry/projects/{projectId}/sales/from-wallet-transactions',
+            uriVariables: [
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+            ],
+            processor: RecordSalesFromWalletTransactionsProcessor::class,
+            input: RecordSalesFromWalletTransactionsInput::class,
+            output: RecordedSalesBatchResource::class,
+            openapi: new Model\Operation(
+                summary: 'Record several sales from wallet transactions',
+                description: 'Records a sale for each listed sale of your wallet transactions and publishes a single project event; refused lines are returned with their message (admin/owner only)',
                 tags: ['Group Industry - Sales'],
             ),
         ),

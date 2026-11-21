@@ -194,11 +194,41 @@ final readonly class MercurePublisherService
         string $action,
         array $data = [],
     ): void {
-        $topic = sprintf('/group-project/%s/events', $projectId);
         $occurredAt = new \DateTimeImmutable();
 
         $this->dispatchGroupProjectEvent(new GroupProjectEventPublished($projectId, $action, $data, $occurredAt));
 
+        $this->publishGroupProjectUpdate($projectId, $action, $data, $occurredAt);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $activities
+     * @param array<string, mixed> $summary
+     */
+    public function publishGroupProjectEvents(
+        string $projectId,
+        string $action,
+        array $activities,
+        array $summary = [],
+    ): void {
+        if ($activities === []) {
+            return;
+        }
+
+        $occurredAt = new \DateTimeImmutable();
+        foreach ($activities as $activity) {
+            $this->dispatchGroupProjectEvent(new GroupProjectEventPublished($projectId, $action, $activity, $occurredAt));
+        }
+
+        $this->publishGroupProjectUpdate($projectId, $action, $summary, $occurredAt);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function publishGroupProjectUpdate(string $projectId, string $action, array $data, \DateTimeImmutable $occurredAt): void
+    {
+        $topic = sprintf('/group-project/%s/events', $projectId);
         $payload = [
             'action' => $action,
             'projectId' => $projectId,
