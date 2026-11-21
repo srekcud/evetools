@@ -50,8 +50,17 @@ const recordAllPlan = computed(() => {
     (first, second) => Date.parse(first.date) - Date.parse(second.date) || first.transactionId.localeCompare(second.transactionId),
   )
   const quantityOf = (suggestion: GroupSaleSuggestion): number => validEnteredQuantity(suggestion) ?? suggestion.quantity
+  const productTotals = new Map<number, { typeId: number, typeName: string, quantity: number, totalPrice: number }>()
+  for (const suggestion of selected) {
+    const quantity = quantityOf(suggestion)
+    const product = productTotals.get(suggestion.typeId) ?? { typeId: suggestion.typeId, typeName: suggestion.typeName, quantity: 0, totalPrice: 0 }
+    product.quantity += quantity
+    product.totalPrice += quantity * suggestion.unitPrice
+    productTotals.set(suggestion.typeId, product)
+  }
   return {
     selected,
+    products: [...productTotals.values()],
     quantity: selected.reduce((sum, suggestion) => sum + quantityOf(suggestion), 0),
     totalPrice: selected.reduce((sum, suggestion) => sum + quantityOf(suggestion) * suggestion.unitPrice, 0),
     leftOut: store.saleSuggestions.length - selected.length,
@@ -182,6 +191,14 @@ onMounted(() => {
           &middot; <span data-testid="sales-record-all-quantity">{{ t('groupIndustry.saleSuggestions.recordAllQuantity', { quantity: formatNumber(recordAllPlan.quantity, 0) }) }}</span>
           &middot; <span data-testid="sales-record-all-total" class="font-mono">{{ t('groupIndustry.saleSuggestions.recordAllTotal', { amount: formatIsk(recordAllPlan.totalPrice, 1) }) }}</span>
         </p>
+        <ul data-testid="sales-record-all-products" class="space-y-0.5">
+          <li
+            v-for="product in recordAllPlan.products"
+            :key="product.typeId"
+            :data-testid="`sales-record-all-product-${product.typeId}`"
+            class="text-xs text-slate-300"
+          >{{ t('groupIndustry.saleSuggestions.recordAllProduct', { name: product.typeName, quantity: formatNumber(product.quantity, 0), amount: formatIsk(product.totalPrice, 1) }) }}</li>
+        </ul>
         <p
           v-if="recordAllPlan.leftOut > 0"
           data-testid="sales-record-all-left-out"
@@ -208,6 +225,7 @@ onMounted(() => {
           <thead>
             <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
               <th class="text-left py-3 px-6">{{ t('groupIndustry.saleSuggestions.date') }}</th>
+              <th class="text-left py-3 px-3">{{ t('groupIndustry.saleSuggestions.item') }}</th>
               <th class="text-left py-3 px-3">{{ t('groupIndustry.saleSuggestions.character') }}</th>
               <th class="text-right py-3 px-3">{{ t('groupIndustry.saleSuggestions.quantity') }}</th>
               <th class="text-right py-3 px-3">{{ t('groupIndustry.saleSuggestions.unitPrice') }}</th>
@@ -222,6 +240,7 @@ onMounted(() => {
               class="hover:bg-slate-800/30"
             >
               <td class="py-3 px-6 text-slate-300">{{ formatDate(suggestion.date) }}</td>
+              <td class="py-3 px-3 text-slate-200">{{ suggestion.typeName }}</td>
               <td class="py-3 px-3 text-slate-300">{{ suggestion.sellerCharacterName }}</td>
               <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                 {{ formatNumber(suggestion.quantity, 0) }}

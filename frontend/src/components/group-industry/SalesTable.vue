@@ -218,6 +218,7 @@ onMounted(() => {
             <thead>
               <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
                 <th class="text-left py-3 px-6">Date</th>
+                <th class="text-left py-3 px-3">{{ t('groupIndustry.sales.item') }}</th>
                 <th class="text-left py-3 px-3">{{ t('groupIndustry.sales.sellerColumn') }}</th>
                 <th class="text-right py-3 px-3">Quantity</th>
                 <th class="text-right py-3 px-3">Unit Price</th>
@@ -234,6 +235,7 @@ onMounted(() => {
                 class="hover:bg-slate-800/30"
               >
                 <td class="py-3 px-6 text-slate-300">{{ formatDate(sale.soldAt) }}</td>
+                <td class="py-3 px-3 text-slate-200">{{ sale.typeName }}</td>
                 <td class="py-3 px-3 text-slate-300">
                   {{ sale.sellerCharacterName ?? t('groupIndustry.sales.unknownSeller') }}
                   <span
@@ -272,6 +274,7 @@ onMounted(() => {
               <!-- Total row -->
               <tr class="bg-slate-800/30 border-t-2 border-slate-700">
                 <td class="py-3 px-6 text-slate-200 font-semibold">{{ onlyMySales ? t('groupIndustry.sales.totalMySales') : t('common.status.total') }}</td>
+                <td class="py-3 px-3"></td>
                 <td class="py-3 px-3"></td>
                 <td class="py-3 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
                   {{ formatNumber(totalQuantity, 0) }}
