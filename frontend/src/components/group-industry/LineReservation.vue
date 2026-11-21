@@ -75,9 +75,9 @@ function release(): Promise<void> {
         v-for="contribution in item.pendingContributions"
         :key="contribution.participantId"
         data-testid="pending-contribution"
-        class="max-w-full whitespace-nowrap rounded border border-amber-500/45 bg-amber-500/10 px-1.5 py-0.5 text-xs text-amber-300"
+        class="flex flex-wrap max-w-full rounded border border-amber-500/45 bg-amber-500/10 px-1.5 py-0.5 text-xs text-amber-300"
       >
-        <span data-testid="pending-contribution-name" :title="contribution.characterName ?? undefined" class="inline-block max-w-[12rem] truncate align-bottom">{{ contribution.characterName }}</span>
+        <span data-testid="pending-contribution-name" :title="contribution.characterName ?? undefined" class="min-w-0 max-w-full truncate">{{ contribution.characterName }}</span>
         <span class="font-mono" style="font-variant-numeric: tabular-nums;">{{ ' · ' + t('groupIndustry.reservation.awaitingApproval', { quantity: formatNumber(contribution.quantity, 0) }) }}</span>
         <span v-if="contribution.isMine" class="text-amber-300/70">{{ ' (' + t('groupIndustry.reservation.mine') + ')' }}</span>
       </li>

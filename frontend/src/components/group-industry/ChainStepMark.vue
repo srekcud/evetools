@@ -63,7 +63,7 @@ async function remove(): Promise<void> {
     <form
       v-if="canMark && node.runs !== null"
       data-testid="chain-step-mark-form"
-      class="flex items-center gap-1"
+      class="flex flex-wrap items-center gap-1"
       @submit.prevent="submit"
     >
       <select

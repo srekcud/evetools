@@ -28,8 +28,6 @@ const STAGE_OF_JOB_GROUP: Record<JobGroup, ChainStage> = {
   final: 'product',
 }
 
-const STATUS_COLUMN_INDEX = 5
-
 export type ProductionRowsOptions = {
   lines: BomItem[]
   projectId?: string
@@ -101,9 +99,7 @@ export function rowOfLine(wrapper: VueWrapper, lineId: string): FoundElement {
 }
 
 export function statusLabelOfRow(wrapper: VueWrapper, lineId: string): string {
-  const cell = rowOfLine(wrapper, lineId).findAll('td')[STATUS_COLUMN_INDEX]
-  if (cell === undefined) throw new Error(`no status cell on ${lineId}`)
-  return cell.text()
+  return rowOfLine(wrapper, lineId).get('[data-testid="chain-status"]').text()
 }
 
 export function callsTo(endpoint: string): number {
