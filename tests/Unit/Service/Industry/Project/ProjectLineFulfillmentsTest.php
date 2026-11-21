@@ -18,6 +18,11 @@ final class ProjectLineFulfillmentsTest extends TestCase
 {
     private const int RAM_STARSHIP_TECH = 11478;
     private const int TRITANIUM = 34;
+    private const int CADMIUM = 16_647;
+    private const int SILICON = 16_636;
+    private const int HYDROGEN_FUEL_BLOCK = 4_246;
+    private const int ZYDRINE = 39;
+    private const int PHOTONIC_UNIT = 16_680;
 
     /**
      * @return iterable<string, array{int, int, int|null, int, int}>
@@ -97,6 +102,59 @@ final class ProjectLineFulfillmentsTest extends TestCase
         self::assertSame(280, $fulfillments->remainingOf($job));
         self::assertNull($fulfillments->containerQuantityOf($job));
         self::assertSame(ContainerStockState::None, $fulfillments->stateOf($job));
+    }
+
+    public static function consumedByStartedJobsCases(): iterable
+    {
+        yield 'issue 1140 case: cadmium consumed by a started reaction is still covered' => [self::CADMIUM, 38_200, 0, 34_987, 3_213, 38_200, 0];
+        yield 'consumed quantity completes a partly covered line' => [self::SILICON, 1_000, 0, 100, 400, 500, 500];
+        yield 'container plus consumed above the requirement is capped' => [self::HYDROGEN_FUEL_BLOCK, 1_000, 0, 900, 300, 1_000, 0];
+        yield 'contribution above container plus consumed wins' => [self::ZYDRINE, 1_000, 700, 100, 200, 700, 300];
+        yield 'nothing in the container and nothing consumed' => [self::PHOTONIC_UNIT, 1_000, 0, 0, 0, 0, 1_000];
+    }
+
+    #[Group('issue-1140')]
+    #[DataProvider('consumedByStartedJobsCases')]
+    public function testFulfilledAddsTheQuantityConsumedByStartedJobsToTheContainerStockBeforeTheCap(int $typeId, int $required, int $contributed, int $containerQuantity, int $consumedQuantity, int $expectedFulfilled, int $expectedRemaining): void
+    {
+        $fulfillments = new ProjectLineFulfillments(ContainerStockState::Known, [$typeId => $containerQuantity], [$typeId => $consumedQuantity]);
+        $line = $this->materialLine($typeId, $required, $contributed);
+
+        self::assertSame($expectedFulfilled, $fulfillments->fulfilledOf($line));
+        self::assertSame($expectedRemaining, $fulfillments->remainingOf($line));
+        self::assertSame($containerQuantity, $fulfillments->containerQuantityOf($line));
+    }
+
+    #[Group('issue-1140')]
+    public function testConsumptionOfAnotherTypeDoesNotCoverTheLine(): void
+    {
+        $fulfillments = new ProjectLineFulfillments(ContainerStockState::Known, [self::CADMIUM => 100], [self::SILICON => 400]);
+        $line = $this->materialLine(self::CADMIUM, 1_000, 0);
+
+        self::assertSame(100, $fulfillments->fulfilledOf($line));
+        self::assertSame(900, $fulfillments->remainingOf($line));
+    }
+
+    #[Group('issue-1140')]
+    public function testConsumedQuantityIsIgnoredWhenTheContainerStockIsUnreadable(): void
+    {
+        $fulfillments = new ProjectLineFulfillments(ContainerStockState::Unknown, [], [self::CADMIUM => 3_213]);
+        $line = $this->materialLine(self::CADMIUM, 38_200, 500);
+
+        self::assertSame(500, $fulfillments->fulfilledOf($line));
+        self::assertSame(37_700, $fulfillments->remainingOf($line));
+        self::assertNull($fulfillments->containerQuantityOf($line));
+    }
+
+    #[Group('issue-1140')]
+    public function testJobLineIsLeftUnchangedByTheConsumptionOfItsType(): void
+    {
+        $fulfillments = new ProjectLineFulfillments(ContainerStockState::Known, [self::CADMIUM => 300], [self::CADMIUM => 3_213]);
+        $job = $this->materialLine(self::CADMIUM, 1_000, 20)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing');
+
+        self::assertSame(20, $fulfillments->fulfilledOf($job));
+        self::assertSame(980, $fulfillments->remainingOf($job));
+        self::assertNull($fulfillments->containerQuantityOf($job));
     }
 
     private function materialLine(int $typeId, int $required, int $contributed): IndustryProjectBomLine

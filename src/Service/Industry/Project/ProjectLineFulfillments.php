@@ -12,10 +12,12 @@ final readonly class ProjectLineFulfillments
 
     /**
      * @param array<int, int> $containerQuantitiesByTypeId
+     * @param array<int, int> $consumedQuantitiesByTypeId
      */
     public function __construct(
         private ContainerStockState $state,
         private array $containerQuantitiesByTypeId = [],
+        private array $consumedQuantitiesByTypeId = [],
     ) {
     }
 
@@ -31,7 +33,9 @@ final readonly class ProjectLineFulfillments
             return $line->getFulfilledQuantity();
         }
 
-        return max($line->getFulfilledQuantity(), min($containerQuantity, $line->getRequiredQuantity()));
+        $consumedQuantity = \array_key_exists($line->getTypeId(), $this->consumedQuantitiesByTypeId) ? $this->consumedQuantitiesByTypeId[$line->getTypeId()] : 0;
+
+        return max($line->getFulfilledQuantity(), min($containerQuantity + $consumedQuantity, $line->getRequiredQuantity()));
     }
 
     public function remainingOf(IndustryProjectBomLine $line): int

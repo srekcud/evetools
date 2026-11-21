@@ -20,6 +20,7 @@ use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\JobMaterialNeedsMapper;
 use App\Service\Industry\Project\MaterialSourcingPresenter;
 use App\Service\Industry\Project\MaterialsToSourceFactory;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
@@ -79,7 +80,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         $reservedQuantityByLineId = $this->reservedQuantityByLineIdOf($project, $user);
         $structureId = $user->getEffectiveMarketStructureId();
         $sourcings = $this->comparator->compare(
-            MaterialsToSourceFactory::reservedOf($bomLines, $planned->plan, $reservedQuantityByLineId, $this->containerFulfillment->of($project)),
+            MaterialsToSourceFactory::reservedOf($bomLines, $planned->plan, $reservedQuantityByLineId, $this->containerFulfillment->ofWithJobMaterialNeeds($project, $bomLines, JobMaterialNeedsMapper::map($bomLines, $planned->plan))),
             $structureId,
             $this->projectService->favoriteSystemsOf($owner),
         );
