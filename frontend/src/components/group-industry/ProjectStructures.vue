@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupStructuresStore } from '@/stores/group-industry/structures'
-import type { StructureComparisonGroup, StructureComparisonRow } from '@/stores/group-industry/types'
+import type { StructureComparisonGroup, StructureComparisonRow, UpdateGroupProjectInput } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { projectRefusalMessage } from '@/utils/projectRefusal'
 import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
@@ -42,6 +43,17 @@ const projectStore = useGroupProjectStore()
 
 const isSwitching = ref(false)
 const switchError = ref<string | null>(null)
+const thresholdFieldId = useId()
+const thresholdDraft = ref<number | string>(structuresStore.minimumOutsideSaving)
+
+const isThresholdOffered = computed(() => props.canSwitch && structuresStore.acceptsOutsideFavoriteSystem)
+const canSaveThreshold = computed(() =>
+  typeof thresholdDraft.value === 'number'
+  && Number.isFinite(thresholdDraft.value)
+  && thresholdDraft.value >= 0
+  && thresholdDraft.value !== structuresStore.minimumOutsideSaving
+  && !isSwitching.value,
+)
 
 function productLabel(group: StructureComparisonGroup): string {
   return group.typeName ?? `#${group.typeId}`
@@ -88,19 +100,32 @@ function bannerTextOf(group: StructureComparisonGroup, kind: BannerKind): string
   })
 }
 
-async function switchPolicy(acceptsOutsideFavoriteSystem: boolean): Promise<void> {
+async function updatePolicy(changes: UpdateGroupProjectInput): Promise<void> {
   isSwitching.value = true
   switchError.value = null
   try {
-    await projectStore.updateProject(props.projectId, { acceptsOutsideFavoriteSystem })
+    await projectStore.updateProject(props.projectId, changes)
     await structuresStore.fetchStructures(props.projectId)
     emit('switched')
   } catch (e) {
-    switchError.value = e instanceof Error ? e.message : t('groupIndustry.structures.switch.error')
+    switchError.value = e instanceof Error ? projectRefusalMessage(e.message, t) : t('groupIndustry.structures.switch.error')
   } finally {
     isSwitching.value = false
   }
 }
+
+function switchPolicy(acceptsOutsideFavoriteSystem: boolean): Promise<void> {
+  return updatePolicy({ acceptsOutsideFavoriteSystem })
+}
+
+async function saveThreshold(): Promise<void> {
+  if (!canSaveThreshold.value || typeof thresholdDraft.value !== 'number') return
+  await updatePolicy({ minimumOutsideSaving: thresholdDraft.value })
+}
+
+watch(() => structuresStore.minimumOutsideSaving, minimumOutsideSaving => {
+  thresholdDraft.value = minimumOutsideSaving
+})
 
 watch(() => props.projectId, projectId => structuresStore.fetchStructures(projectId), { immediate: true })
 
@@ -158,6 +183,33 @@ watch(
     >{{ t('groupIndustry.structures.empty') }}</p>
 
     <template v-else>
+      <form
+        v-if="isThresholdOffered"
+        data-testid="structures-threshold"
+        class="flex flex-wrap items-end gap-3 px-4 py-3 border-b border-slate-800"
+        @submit.prevent="saveThreshold"
+      >
+        <div>
+          <label :for="thresholdFieldId" class="block text-xs text-slate-500 mb-1.5">{{ t('groupIndustry.structures.threshold.label') }}</label>
+          <input
+            :id="thresholdFieldId"
+            v-model.number="thresholdDraft"
+            data-testid="structures-threshold-input"
+            type="number"
+            min="0"
+            step="1"
+            class="form-input w-44 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono"
+          />
+        </div>
+        <button
+          type="button"
+          data-testid="structures-threshold-save"
+          :disabled="!canSaveThreshold"
+          @click="saveThreshold"
+          class="px-3 py-2 rounded border border-cyan-500/40 text-xs text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+        >{{ t('groupIndustry.structures.threshold.save') }}</button>
+        <p class="min-w-0 flex-1 basis-64 text-xs text-slate-500">{{ t('groupIndustry.structures.threshold.hint') }}</p>
+      </form>
       <div
         v-if="switchError !== null"
         data-testid="structures-switch-error"

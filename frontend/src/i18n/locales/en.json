@@ -2906,6 +2906,15 @@
     }
   },
   "groupIndustry": {
+    "refusals": {
+      "workedLineDropped": "The line \"{line}\" has a linked job, a purchase or a contribution: it cannot be removed from the material list.",
+      "lineOverReceived": "The line \"{line}\" has already received {received}, more than the {needed} the new material list needs.",
+      "lineOverLinked": "The line \"{line}\" has {runs} runs linked to ESI jobs, more than the {needed} the new material list needs.",
+      "lineOverMarked": "The line \"{line}\" has {runs} runs marked, more than the {needed} the new material list needs.",
+      "tooManyLines": "The material list would have {count} lines, above the limit of {limit} lines per project.",
+      "projectCompleted": "The project is completed: its material list can no longer change.",
+      "blacklistDraftOnly": "Blacklisted categories can only change while the project is a draft."
+    },
     "title": "Projects",
     "available": {
       "runs": "Runs",
@@ -3130,7 +3139,10 @@
         "toBuy": "Switch to buy",
         "toBuild": "Switch to build",
         "blacklisted": "bought (blacklist)",
-        "error": "The component could not be switched"
+        "error": "The component could not be switched",
+        "confirmToBuy": "{name} will be bought instead of built. The material list will be recalculated; a line with a linked job, a purchase or a contribution cannot be removed.",
+        "confirmToBuild": "{name} will be built instead of bought. The material list will be recalculated; a line with a linked job, a purchase or a contribution cannot be removed.",
+        "confirm": "Confirm"
       }
     },
     "invention": {
@@ -3324,6 +3336,11 @@
         "allow": "Allow for this project",
         "revert": "Back to the favorite system",
         "error": "The project could not be updated"
+      },
+      "threshold": {
+        "label": "Minimum saving (ISK)",
+        "save": "Save",
+        "hint": "A structure outside the favorite system is retained only when it saves at least this amount. Saving recalculates the material list."
       },
       "banner": {
         "onlyFavoriteSystem": "{structure} would cost {amount} less, transport included. Not retained: the project only accepts the favorite system.",

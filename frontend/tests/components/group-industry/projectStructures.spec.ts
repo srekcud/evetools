@@ -304,8 +304,8 @@ describe('ProjectStructures', () => {
       const withoutRight = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: false }, false)
       const withoutBanner = await mountStructures([FERNITE_COMPOSITE_UNKNOWN_PRICE], { acceptsOutsideFavoriteSystem: true }, true)
 
-      expect(withoutRight.findAll('button')).toHaveLength(0)
-      expect(withoutBanner.findAll('button')).toHaveLength(0)
+      expect(withoutRight.findAll('[data-testid$="-switch"]')).toHaveLength(0)
+      expect(withoutBanner.findAll('[data-testid$="-switch"]')).toHaveLength(0)
     })
 
     it('disables the button while the project is being updated', async () => {
@@ -340,9 +340,123 @@ describe('ProjectStructures', () => {
       const alert = wrapper.get('[data-testid="structures-switch-error"]')
       expect(alert.attributes('role')).toBe('alert')
       expect(alert.text()).toContain(text('groupIndustry.structures.switch.error'))
-      expect(alert.text()).toContain(SWITCH_REFUSAL)
+      expect(alert.text()).toContain('The line "Fernite Composite" has a linked job, a purchase or a contribution: it cannot be removed from the material list.')
+      expect(alert.text()).not.toContain(SWITCH_REFUSAL)
       expect(wrapper.emitted('switched')).toBeUndefined()
       expect(structureReads()).toBe(1)
+    })
+  })
+
+  describe('outside saving threshold', () => {
+    const SAVING_REFUSAL = 'The line "Fernite Composite" has already received 40, more than the 25 the plan now needs.'
+
+    function thresholdInput(wrapper: VueWrapper) {
+      return wrapper.find('[data-testid="structures-threshold-input"]')
+    }
+
+    function thresholdSave(wrapper: VueWrapper) {
+      return wrapper.find('[data-testid="structures-threshold-save"]')
+    }
+
+    function patchesSent(): string[] {
+      return vi.mocked(apiRequest).mock.calls
+        .filter(([endpoint, options]) => endpoint === `/industry/projects/${PROJECT_ID}` && options?.method === 'PATCH')
+        .map(([, options]) => String(options?.body))
+    }
+
+    async function typeThreshold(wrapper: VueWrapper, value: string): Promise<void> {
+      const input = thresholdInput(wrapper)
+      expect(input.exists()).toBe(true)
+      if (input.exists()) await input.setValue(value)
+    }
+
+    async function saveThreshold(wrapper: VueWrapper): Promise<void> {
+      const save = thresholdSave(wrapper)
+      expect(save.exists()).toBe(true)
+      if (save.exists()) await save.trigger('click')
+      await flushPromises()
+    }
+
+    it('shows the threshold with its current value to a user who can switch when the project accepts the outside', async () => {
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: true, minimumOutsideSaving: 150_000 }, true)
+
+      expect(thresholdInput(wrapper).exists()).toBe(true)
+      expect((thresholdInput(wrapper).element as HTMLInputElement).value).toBe('150000')
+      expect(wrapper.get('[data-testid="structures-threshold"]').text()).toContain(text('groupIndustry.structures.threshold.label'))
+    })
+
+    it('offers no threshold without the right to switch, and none when the project stays in the favorite system', async () => {
+      const withoutRight = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: true }, false)
+      const favoriteOnly = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: false }, true)
+
+      expect(withoutRight.find('[data-testid="structures-threshold"]').exists()).toBe(false)
+      expect(favoriteOnly.find('[data-testid="structures-threshold"]').exists()).toBe(false)
+    })
+
+    it('says that saving recalculates the material list', async () => {
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: true }, true)
+
+      expect(wrapper.get('[data-testid="structures-threshold"]').text()).toMatch(/recalculat/i)
+    })
+
+    it('sends the new threshold alone, reads the structures again and emits switched', async () => {
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: true, minimumOutsideSaving: 100_000 }, true)
+      const readsBeforeTheSave = structureReads()
+
+      await typeThreshold(wrapper, '250000')
+      await saveThreshold(wrapper)
+
+      expect(patchesSent()).toEqual([JSON.stringify({ minimumOutsideSaving: 250_000 })])
+      expect([readsBeforeTheSave, structureReads()]).toEqual([1, 2])
+      expect(wrapper.emitted('switched')).toHaveLength(1)
+    })
+
+    it('accepts a threshold of zero', async () => {
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: true, minimumOutsideSaving: 100_000 }, true)
+
+      await typeThreshold(wrapper, '0')
+      await saveThreshold(wrapper)
+
+      expect(patchesSent()).toEqual([JSON.stringify({ minimumOutsideSaving: 0 })])
+    })
+
+    it.each([
+      ['unchanged', '100000'],
+      ['negative', '-5'],
+      ['empty', ''],
+    ])('does not allow saving a threshold that is %s', async (_case, value) => {
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: true, minimumOutsideSaving: 100_000 }, true)
+
+      await typeThreshold(wrapper, value)
+
+      expect(thresholdSave(wrapper).exists()).toBe(true)
+      expect(thresholdSave(wrapper).attributes('disabled')).toBeDefined()
+    })
+
+    it('disables the save button while the project is being updated', async () => {
+      const pending = deferred<unknown>()
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: true, minimumOutsideSaving: 100_000 }, true, () => pending.promise)
+
+      await typeThreshold(wrapper, '250000')
+      await saveThreshold(wrapper)
+      const whileUpdating = thresholdSave(wrapper).attributes('disabled')
+      pending.resolve({})
+      await flushPromises()
+
+      expect(whileUpdating).toBeDefined()
+    })
+
+    it('shows the translated refusal in an alert and does not emit switched when the threshold is refused', async () => {
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: true, minimumOutsideSaving: 100_000 }, true, () => Promise.reject(new Error(SAVING_REFUSAL)))
+
+      await typeThreshold(wrapper, '250000')
+      await saveThreshold(wrapper)
+
+      const alert = wrapper.get('[data-testid="structures-switch-error"]')
+      expect(alert.attributes('role')).toBe('alert')
+      expect(alert.text()).toContain('The line "Fernite Composite" has already received 40, more than the 25 the new material list needs.')
+      expect(alert.text()).not.toContain(SAVING_REFUSAL)
+      expect(wrapper.emitted('switched')).toBeUndefined()
     })
   })
 })
