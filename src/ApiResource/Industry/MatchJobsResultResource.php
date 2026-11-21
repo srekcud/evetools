@@ -15,7 +15,7 @@ use App\State\Processor\Industry\MatchJobsProcessor;
 
 #[ApiResource(
     shortName: 'MatchJobsResult',
-    description: 'Result of the matching of the owner ESI jobs to the job lines of the project BOM',
+    description: 'Result of the sync of the ESI jobs of the caller and of the matching of the jobs to the job lines of the project BOM',
     operations: [
         new Post(
             uriTemplate: '/industry/projects/{projectId}/match-jobs',
@@ -25,7 +25,7 @@ use App\State\Processor\Industry\MatchJobsProcessor;
             processor: MatchJobsProcessor::class,
             input: EmptyInput::class,
             deserialize: false,
-            openapi: new Model\Operation(summary: 'Match ESI jobs', description: 'Matches the job lines of the BOM with ESI industry jobs of the owner', tags: ['Industry - Projects']),
+            openapi: new Model\Operation(summary: 'Match ESI jobs', description: 'Syncs the industry jobs of the characters of the caller, an accepted participant of the project, then matches the job lines of the BOM with the ESI industry jobs', tags: ['Industry - Projects']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

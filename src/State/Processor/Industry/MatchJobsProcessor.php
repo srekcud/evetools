@@ -61,7 +61,7 @@ class MatchJobsProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $syncedCount = 0;
         $failures = [];

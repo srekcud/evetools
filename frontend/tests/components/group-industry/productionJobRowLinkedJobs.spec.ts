@@ -142,12 +142,12 @@ describe('Production job row linked jobs', () => {
     expect(linkedJobs[1]).toContain('2')
   })
 
-  it('offers the match jobs button to the owner only', async () => {
+  it('offers the match jobs button to every accepted participant', async () => {
     expect({
       owner: matchJobsButton(await mountRows('owner', [ISHTAR_JOB])).exists(),
       admin: matchJobsButton(await mountRows('admin', [ISHTAR_JOB])).exists(),
       member: matchJobsButton(await mountRows('member', [ISHTAR_JOB])).exists(),
-    }).toEqual({ owner: true, admin: false, member: false })
+    }).toEqual({ owner: true, admin: true, member: true })
   })
 
   it('posts the matching, reloads the BOM and the chain and names the character whose jobs could not be synced', async () => {

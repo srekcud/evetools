@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { BomItem, ChainStatus } from '@/stores/group-industry/types'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { useGroupT2BlueprintsToProvideStore } from '@/stores/group-industry/t2BlueprintsToProvide'
+import { useGroupJobsSyncStore } from '@/stores/group-industry/jobsSync'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { useSyncStore } from '@/stores/sync'
 import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
@@ -25,6 +26,7 @@ const props = defineProps<{
   canMark?: boolean
   markableNodeIds?: readonly string[]
   canMatchJobs?: boolean
+  canLinkJobs?: boolean
   excludesInvention?: boolean
   focusRequest?: ChainFocusRequest | null
 }>()
@@ -36,12 +38,13 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { formatNumber, formatTimeSince } = useFormatters()
+const { formatNumber, formatTime, formatTimeSince } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const syncStore = useSyncStore()
 const chainStore = useGroupChainStore()
 const toProvideStore = useGroupT2BlueprintsToProvideStore()
 const slotsStore = useSlotsStore()
+const jobsSyncStore = useGroupJobsSyncStore()
 
 const jobActions = useProjectJobActions()
 const {
@@ -57,18 +60,32 @@ const {
   characterFailureReason,
 } = jobActions
 
-const jobsSyncLabel = computed(() => {
-  const jobsSyncedAt = slotsStore.data?.jobsSyncedAt ?? null
-  return jobsSyncedAt === null
-    ? t('groupIndustry.chain.jobsSync.unknown')
-    : t('groupIndustry.chain.jobsSync.syncedAgo', { since: formatTimeSince(jobsSyncedAt) })
+const MILLISECONDS_PER_SECOND = 1_000
+
+const mayRunJobsSync = computed(() => props.canMatchJobs === true || props.canLinkJobs === true)
+
+const installerSyncs = computed(() => {
+  const jobsSync = jobsSyncStore.jobsSync
+  if (jobsSync === null) return []
+  return jobsSync.installers.map((installer) => {
+    if (installer.lastSyncedAt === null) {
+      return { name: installer.name, isViewer: installer.isViewer, syncedAgo: null, nextAt: null }
+    }
+    const next = new Date(new Date(installer.lastSyncedAt).getTime() + jobsSync.intervalSeconds * MILLISECONDS_PER_SECOND)
+    return {
+      name: installer.name,
+      isViewer: installer.isViewer,
+      syncedAgo: formatTimeSince(installer.lastSyncedAt),
+      nextAt: next.getTime() > Date.now() ? next.toISOString() : null,
+    }
+  })
 })
 
 async function matchJobs(): Promise<void> {
   const matched = await jobActions.matchJobs(props.projectId)
   if (!matched) return
   try {
-    await Promise.all([chainStore.fetchChain(props.projectId), slotsStore.fetchSlots()])
+    await Promise.all([chainStore.fetchChain(props.projectId), slotsStore.fetchSlots(), jobsSyncStore.fetchJobsSync(props.projectId)])
     emit('marked')
   } catch (e) {
     matchJobsError.value = e instanceof Error ? e.message : t('groupIndustry.jobs.matchError')
@@ -100,6 +117,7 @@ watch(() => props.focusRequest, request => {
 watch(() => props.projectId, projectId => {
   chainStore.fetchChain(projectId)
   slotsStore.fetchSlots()
+  jobsSyncStore.fetchJobsSync(projectId)
   toProvideStore.fetchToProvide(projectId)
 }, { immediate: true })
 
@@ -121,6 +139,7 @@ watch(
     if (progress?.data?.projectId !== props.projectId) return
     chainStore.fetchChain(props.projectId)
     slotsStore.fetchSlots()
+    jobsSyncStore.fetchJobsSync(props.projectId)
     toProvideStore.fetchToProvide(props.projectId)
   },
 )
@@ -133,9 +152,24 @@ watch(
         {{ t('groupIndustry.chain.title') }}
       </h2>
       <div class="flex flex-wrap items-center gap-3">
-        <span data-testid="chain-jobs-synced-at" class="text-xs text-slate-500">{{ jobsSyncLabel }}</span>
+        <ul v-if="installerSyncs.length > 0" data-testid="chain-jobs-synced-at" class="text-xs text-slate-500 space-y-0.5">
+          <li
+            v-for="installer in installerSyncs"
+            :key="installer.name"
+            data-testid="chain-jobs-sync-installer"
+          >
+            <span :class="installer.isViewer ? 'text-slate-300' : 'text-slate-400'">{{ installer.name }}</span>
+            &middot;
+            <template v-if="installer.syncedAgo !== null">{{ t('groupIndustry.chain.jobsSync.syncedAgo', { since: installer.syncedAgo }) }}</template>
+            <template v-else>{{ t('groupIndustry.chain.jobsSync.unknown') }}</template>
+            <template v-if="installer.nextAt !== null">
+              &middot; <span class="text-slate-400">{{ t('groupIndustry.chain.jobsSync.next', { time: formatTime(installer.nextAt) }) }}</span>
+            </template>
+          </li>
+        </ul>
+        <span v-else data-testid="chain-jobs-synced-at" class="text-xs text-slate-500">{{ t('groupIndustry.chain.jobsSync.unknown') }}</span>
         <button
-          v-if="canMatchJobs === true"
+          v-if="mayRunJobsSync"
           type="button"
           data-testid="chain-match-jobs"
           class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-xs font-medium transition-colors disabled:opacity-50"
@@ -186,7 +220,7 @@ watch(
       class="mx-4 mt-3 text-sm text-red-400"
     >{{ jobLinkError }}</p>
     <JobLinkModal
-      v-if="canMatchJobs === true"
+      v-if="canLinkJobs === true"
       :show="linkScreenLine !== null"
       :line-name="linkScreenLine?.typeName ?? ''"
       :jobs="availableJobs"
@@ -230,7 +264,8 @@ watch(
         :project-id="projectId"
         :can-mark="canMark === true"
         :markable-node-ids="markableNodeIds"
-        :can-link-jobs="canMatchJobs === true"
+        :can-link-jobs="canLinkJobs === true"
+        :can-unlink-jobs="canMatchJobs === true"
         @marked="$emit('marked')"
         @contribute="$emit('contribute', $event)"
         @link-job="jobActions.openLinkScreen(projectId, $event)"

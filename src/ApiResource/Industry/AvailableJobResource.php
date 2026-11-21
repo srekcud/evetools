@@ -21,7 +21,7 @@ use App\State\Provider\Industry\AvailableJobsProvider;
                 'projectId' => new Link(fromClass: IndustryProjectResource::class),
             ],
             provider: AvailableJobsProvider::class,
-            openapi: new Model\Operation(summary: 'Available ESI jobs', description: 'Lists ESI jobs of the owner on the blueprints of the job lines, with link status', tags: ['Industry - Projects']),
+            openapi: new Model\Operation(summary: 'Available ESI jobs', description: 'Lists ESI jobs on the blueprints of the job lines, with link status: the jobs of every accepted participant for the owner, the own jobs of the user for any other accepted participant', tags: ['Industry - Projects']),
         ),
     ],
     security: "is_granted('ROLE_USER')",

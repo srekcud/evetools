@@ -3002,6 +3002,7 @@
       "title": "Production chain",
       "jobsSync": {
         "syncedAgo": "Jobs synced {since}",
+        "next": "next around {time}",
         "unknown": "Jobs sync unknown"
       },
       "jobNotSeenHint": "A job launched in game shows up after the next jobs sync.",
@@ -3594,7 +3595,7 @@
       "unlink": "Unlink",
       "link": "Link",
       "linkModalTitle": "Link a job to {name}",
-      "linkModalDescription": "Pick an industry job of the project members to count it on this line.",
+      "linkModalDescription": "Pick an industry job to count it on this line: yours, or any participant's job if you own the project.",
       "availableJobsLoading": "Loading jobs...",
       "availableJobsEmpty": "No job available to link",
       "alreadyLinkedTo": "Already linked to {name}",

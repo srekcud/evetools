@@ -12,9 +12,12 @@ use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -43,6 +46,8 @@ final class LinkJobProcessorTest extends TestCase
     private const int ADMIN_ISHTAR_JOB_ID = 7_362_103;
     private const int ISHTAR_JOB_LINKED_ELSEWHERE_ID = 7_362_104;
     private const int OWNER_ISHTAR_INVENTION_JOB_ID = 7_362_105;
+    private const int STRANGER_ISHTAR_JOB_ID = 7_362_106;
+    private const int PENDING_ISHTAR_JOB_ID = 7_362_107;
 
     private array $jobs = [];
 
@@ -84,17 +89,46 @@ final class LinkJobProcessorTest extends TestCase
         self::assertSame([], $this->refreshedLines);
     }
 
-    public function testJobOfAnotherUserIsAnsweredLikeAnUnknownJob(): void
+    public function testJobOfAUserOutsideTheProjectOrOfAPendingRequestIsAnsweredLikeAnUnknownJob(): void
     {
+        $stranger = new User();
+        $this->givenJob(self::STRANGER_ISHTAR_JOB_ID, $this->characterOf($stranger, 'Dax Orlan'), self::ISHTAR_BLUEPRINT_TYPE_ID, 2);
+        $pending = new User();
+        $this->givenJob(self::PENDING_ISHTAR_JOB_ID, $this->characterOf($pending, 'Cyra Lune'), self::ISHTAR_BLUEPRINT_TYPE_ID, 2);
+        $request = (new IndustryProjectParticipant())->setUser($pending)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Pending);
+        $this->ishtarProject->addMember($request);
+        $this->participants[] = $request;
+
         self::assertSame(
-            ['400 ESI job 7362103 not found', '400 ESI job 7362999 not found'],
+            ['400 ESI job 7362106 not found', '400 ESI job 7362107 not found', '400 ESI job 7362999 not found'],
             [
-                $this->outcomeOf(fn () => $this->link($this->owner, $this->ishtarProject, $this->ishtarLine, self::ADMIN_ISHTAR_JOB_ID)),
+                $this->outcomeOf(fn () => $this->link($this->owner, $this->ishtarProject, $this->ishtarLine, self::STRANGER_ISHTAR_JOB_ID)),
+                $this->outcomeOf(fn () => $this->link($this->owner, $this->ishtarProject, $this->ishtarLine, self::PENDING_ISHTAR_JOB_ID)),
                 $this->outcomeOf(fn () => $this->link($this->owner, $this->ishtarProject, $this->ishtarLine, 7_362_999)),
             ],
         );
         self::assertCount(0, $this->ishtarLine->getJobMatches());
         self::assertSame([], $this->refreshedLines);
+    }
+
+    public function testOwnerLinksTheJobOfAnAcceptedParticipant(): void
+    {
+        $resource = $this->link($this->owner, $this->ishtarProject, $this->ishtarLine, self::ADMIN_ISHTAR_JOB_ID);
+
+        self::assertSame([self::ADMIN_ISHTAR_JOB_ID, 2], [$resource->esiJobId, $resource->runs]);
+        $match = $this->ishtarLine->getJobMatches()->first();
+        self::assertSame(['Brann Holt', true], [$match->getCharacterName(), $match->isManual()]);
+        self::assertSame([[$this->ishtarLine->getId()->toRfc4122(), 0, 2]], $this->refreshedLines);
+    }
+
+    public function testAcceptedAdminLinksHisOwnJobAsAManualLink(): void
+    {
+        $resource = $this->link($this->admin, $this->ishtarProject, $this->ishtarLine, self::ADMIN_ISHTAR_JOB_ID);
+
+        self::assertSame([self::ADMIN_ISHTAR_JOB_ID, 2], [$resource->esiJobId, $resource->runs]);
+        $match = $this->ishtarLine->getJobMatches()->first();
+        self::assertSame(['Brann Holt', true, $this->ishtarLine], [$match->getCharacterName(), $match->isManual(), $match->getBomLine()]);
+        self::assertSame([[$this->ishtarLine->getId()->toRfc4122(), 0, 2]], $this->refreshedLines);
     }
 
     public function testJobAlreadyLinkedIsRefusedWithoutLink(): void
@@ -115,11 +149,24 @@ final class LinkJobProcessorTest extends TestCase
         );
     }
 
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDenied(): void
+    public function testParticipantCannotLinkTheJobOfAnotherParticipant(): void
     {
         self::assertSame(
-            self::OWNER_ONLY,
-            $this->outcomeOf(fn () => $this->link($this->admin, $this->ishtarProject, $this->ishtarLine, self::ADMIN_ISHTAR_JOB_ID)),
+            '400 ESI job 7362101 not found',
+            $this->outcomeOf(fn () => $this->link($this->admin, $this->ishtarProject, $this->ishtarLine, self::OWNER_ISHTAR_JOB_ID)),
+        );
+        self::assertCount(0, $this->ishtarLine->getJobMatches());
+        self::assertSame([], $this->refreshedLines);
+    }
+
+    public function testUserOutsideTheProjectIsDenied(): void
+    {
+        $stranger = new User();
+        $this->givenJob(self::STRANGER_ISHTAR_JOB_ID, $this->characterOf($stranger, 'Dax Orlan'), self::ISHTAR_BLUEPRINT_TYPE_ID, 2);
+
+        self::assertSame(
+            '403 You do not have access to this project',
+            $this->outcomeOf(fn () => $this->link($stranger, $this->ishtarProject, $this->ishtarLine, self::STRANGER_ISHTAR_JOB_ID)),
         );
         self::assertCount(0, $this->ishtarLine->getJobMatches());
         self::assertSame([], $this->refreshedLines);

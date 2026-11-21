@@ -3002,6 +3002,7 @@
       "title": "Chaîne de production",
       "jobsSync": {
         "syncedAgo": "Jobs synchronisés {since}",
+        "next": "prochaine vers {time}",
         "unknown": "Synchro des jobs inconnue"
       },
       "jobNotSeenHint": "Un job lancé en jeu apparaît après la prochaine synchro des jobs.",
@@ -3594,7 +3595,7 @@
       "unlink": "Délier",
       "link": "Lier",
       "linkModalTitle": "Lier un job à {name}",
-      "linkModalDescription": "Choisissez un job industriel des membres du projet pour le compter sur cette ligne.",
+      "linkModalDescription": "Choisissez un job industriel à compter sur cette ligne : le vôtre, ou celui de n'importe quel participant si vous êtes propriétaire du projet.",
       "availableJobsLoading": "Chargement des jobs...",
       "availableJobsEmpty": "Aucun job à lier",
       "alreadyLinkedTo": "Déjà lié à {name}",

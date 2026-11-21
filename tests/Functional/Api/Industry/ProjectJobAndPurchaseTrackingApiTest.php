@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry;
 
+use App\Entity\CachedIndustryJob;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\CharacterWalletReading;
@@ -197,25 +198,116 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
         );
     }
 
-    #[DataProvider('ownerOnlyTrackingOperations')]
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedTheTrackingOfJobs(string $uriAfterTheProject, array $body): void
+    #[Group('issue-1200')]
+    public function testAUserOutsideTheProjectIsDeniedTheTrackingOfJobs(): void
     {
-        $this->client->loginUser($this->member, 'api');
-        $this->request('POST', $this->ishtarUri().str_replace(
-            ['{ishtarLineId}', '{ramLineId}'],
-            [$this->idOf($this->ishtarJobLine), $this->idOf($this->ramJobLine)],
-            $uriAfterTheProject,
-        ), $body);
+        $this->client->loginUser($this->outsider, 'api');
+        $this->request('POST', $this->ishtarUri().'/match-jobs', []);
 
         self::assertResponseStatusCodeSame(403);
-        self::assertSame([403, 'Only the project owner can perform this action'], $this->errorDetail());
+        self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
         self::assertSame([self::ISHTAR_JOB_ID], $this->storedJobIdsOf($this->ishtarJobLine));
     }
 
-    public static function ownerOnlyTrackingOperations(): iterable
+    #[Group('issue-1200')]
+    public function testAPendingParticipantIsDeniedTheTrackingOfJobs(): void
     {
-        yield 'match the jobs' => ['/match-jobs', []];
-        yield 'link a job' => ['/bom/{ishtarLineId}/link-job', ['esiJobId' => 7_362_799]];
+        $this->client->loginUser($this->pendingMember, 'api');
+        $this->request('POST', $this->ishtarUri().'/match-jobs', []);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
+    }
+
+    #[Group('issue-1200')]
+    public function testAcceptedMemberReadsTheLastJobsSyncOfEveryAcceptedParticipantOwnerFirst(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->ishtarUri().'/jobs-sync');
+
+        self::assertResponseStatusCodeSame(200);
+        $response = $this->responseJson();
+        self::assertSame(
+            [['Aria Solberg', false, null], ['Brann Holt', true, null]],
+            array_map(static fn (array $installer): array => [$installer['name'], $installer['isViewer'], $installer['lastSyncedAt']], $response['installers']),
+        );
+        self::assertGreaterThan(0, $response['intervalSeconds']);
+    }
+
+    #[Group('issue-1200')]
+    public function testTheLastJobsSyncOfAnInstallerIsTheNewestCacheDateOfItsJobs(): void
+    {
+        $ownerCharacter = $this->owner->getMainCharacter();
+        self::assertNotNull($ownerCharacter);
+        $newest = new \DateTimeImmutable('-10 minutes');
+        foreach ([[7_200_001, new \DateTimeImmutable('-50 minutes')], [7_200_002, $newest]] as [$jobId, $cachedAt]) {
+            $this->em->persist(
+                (new CachedIndustryJob())
+                    ->setCharacter($ownerCharacter)
+                    ->setJobId($jobId)
+                    ->setActivityId(1)
+                    ->setBlueprintTypeId(self::ISHTAR_TYPE_ID)
+                    ->setProductTypeId(self::ISHTAR_TYPE_ID)
+                    ->setRuns(1)
+                    ->setStatus('active')
+                    ->setStartDate(new \DateTimeImmutable('-1 hour'))
+                    ->setEndDate(new \DateTimeImmutable('+1 day'))
+                    ->setCachedAt($cachedAt),
+            );
+        }
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->ishtarUri().'/jobs-sync');
+
+        self::assertResponseStatusCodeSame(200);
+        $installers = $this->responseJson()['installers'];
+        self::assertSame(
+            [['Aria Solberg', $newest->getTimestamp()], ['Brann Holt', null]],
+            array_map(
+                static fn (array $installer): array => [$installer['name'], null === $installer['lastSyncedAt'] ? null : (new \DateTimeImmutable($installer['lastSyncedAt']))->getTimestamp()],
+                $installers,
+            ),
+        );
+    }
+
+    #[Group('issue-1200')]
+    public function testAUserOutsideTheProjectCannotReadItsJobsSync(): void
+    {
+        $this->client->loginUser($this->outsider, 'api');
+        $this->request('GET', $this->ishtarUri().'/jobs-sync');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    #[Group('issue-1194')]
+    public function testAcceptedMemberReachesTheLinkJobEndpointButCannotLinkAJobThatIsNotHis(): void
+    {
+        $this->actAs($this->member);
+        $this->request('POST', $this->ishtarUri().'/bom/'.$this->idOf($this->ishtarJobLine).'/link-job', ['esiJobId' => 7_362_799]);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame([400, 'ESI job 7362799 not found'], $this->errorDetail());
+        self::assertSame([self::ISHTAR_JOB_ID], $this->storedJobIdsOf($this->ishtarJobLine));
+    }
+
+    #[Group('issue-1194')]
+    #[DataProvider('jobLinkEndpoints')]
+    public function testPendingMemberAndOutsiderAreDeniedTheJobLinkEndpoints(string $method, string $uriAfterTheProject, ?array $body): void
+    {
+        foreach ([$this->pendingMember, $this->outsider] as $user) {
+            $this->actAs($user);
+            $this->request($method, $this->ishtarUri().str_replace('{ishtarLineId}', $this->idOf($this->ishtarJobLine), $uriAfterTheProject), $body);
+
+            self::assertResponseStatusCodeSame(403);
+            self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
+        }
+    }
+
+    public static function jobLinkEndpoints(): iterable
+    {
+        yield 'list the available jobs' => ['GET', '/available-jobs', null];
+        yield 'link a job' => ['POST', '/bom/{ishtarLineId}/link-job', ['esiJobId' => 7_362_799]];
     }
 
     #[Group('issue-981')]

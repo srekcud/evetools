@@ -68,6 +68,34 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<Character> $characters
+     *
+     * @return array<int, \DateTimeImmutable> newest cache date of the jobs of each character that has any, by EVE character id
+     */
+    public function newestCachedAtByEveCharacterId(array $characters): array
+    {
+        if ([] === $characters) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('j')
+            ->select('c.eveCharacterId AS eveCharacterId', 'MAX(j.cachedAt) AS newestCachedAt')
+            ->join('j.character', 'c')
+            ->where('j.character IN (:characters)')
+            ->setParameter('characters', $characters)
+            ->groupBy('c.eveCharacterId')
+            ->getQuery()
+            ->getArrayResult();
+
+        $newest = [];
+        foreach ($rows as $row) {
+            $newest[(int) $row['eveCharacterId']] = new \DateTimeImmutable($row['newestCachedAt']);
+        }
+
+        return $newest;
+    }
+
+    /**
      * @param list<int> $blueprintItemIds
      *
      * @return list<int>

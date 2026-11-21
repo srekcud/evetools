@@ -915,6 +915,7 @@ function applyShareLinkShortcut(): void {
             :markable-node-ids="markableNodeIds"
             :can-match-jobs="isOwner"
             :focus-request="chainFocusRequest"
+            :can-link-jobs="isAcceptedMember"
             @marked="refreshGroupProject.cockpit(projectId)"
             @contribute="openContributeModal"
             @open-sourcing="activeTab = 'bom'"

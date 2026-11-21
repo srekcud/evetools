@@ -10,9 +10,12 @@ use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
@@ -34,6 +37,7 @@ final class AvailableJobsProviderTest extends TestCase
     private const int ISHTAR_JOB_ID = 7_362_601;
     private const int RAM_JOB_ID = 7_362_602;
     private const int CANCELLED_RAM_JOB_ID = 7_362_603;
+    private const string NO_ACCESS = '403 You do not have access to this project';
 
     private array $cachedJobs = [];
 
@@ -75,7 +79,7 @@ final class AvailableJobsProviderTest extends TestCase
         $blueprintTypeIds = $this->jobLookups[0][0];
         sort($blueprintTypeIds);
         self::assertSame(
-            [[self::RAM_BLUEPRINT_TYPE_ID, self::ISHTAR_BLUEPRINT_TYPE_ID], [$this->ownerMainCharacter->getId(), $this->ownerAltCharacter->getId()], '2026-11-01T10:00:00+00:00'],
+            [[self::RAM_BLUEPRINT_TYPE_ID, self::ISHTAR_BLUEPRINT_TYPE_ID], [$this->ownerMainCharacter->getId(), $this->ownerAltCharacter->getId(), $this->adminCharacter->getId()], '2026-11-01T10:00:00+00:00'],
             [$blueprintTypeIds, $this->jobLookups[0][1], $this->jobLookups[0][2]?->format('c')],
         );
     }
@@ -90,12 +94,55 @@ final class AvailableJobsProviderTest extends TestCase
         self::assertSame([self::RAM_JOB_ID], array_map(static fn (AvailableJobResource $job): int => $job->esiJobId, $jobs));
     }
 
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDenied(): void
+    public function testOwnerListsTheJobsOfEveryAcceptedParticipantAndNotOfAPendingOne(): void
     {
-        self::assertSame(
-            [self::OWNER_ONLY, []],
-            [$this->outcomeOf(fn () => $this->availableJobsFor($this->admin, $this->ishtarProject)), $this->jobLookups],
+        $pending = $this->userWithPendingRequest('Cyra Lune');
+
+        $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertCount(1, $this->jobLookups);
+        self::assertEqualsCanonicalizing(
+            [$this->ownerMainCharacter->getId(), $this->ownerAltCharacter->getId(), $this->adminCharacter->getId()],
+            $this->jobLookups[0][1],
         );
+        self::assertNotContains($pending->getCharacters()->first()->getId(), $this->jobLookups[0][1]);
+    }
+
+    public function testAcceptedAdminWhoIsNotTheOwnerListsOnlyTheJobsOfHisOwnCharacters(): void
+    {
+        $this->job($this->adminCharacter, self::ISHTAR_JOB_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 2, 500_000.0, '2026-11-02T08:00:00+00:00');
+
+        $jobs = $this->availableJobsFor($this->admin, $this->ishtarProject);
+
+        self::assertSame([self::ISHTAR_JOB_ID], array_map(static fn (AvailableJobResource $job): int => $job->esiJobId, $jobs));
+        self::assertSame([[$this->adminCharacter->getId()]], array_column($this->jobLookups, 1));
+    }
+
+    public function testUserOutsideTheProjectOrWithAPendingRequestIsDenied(): void
+    {
+        $stranger = new User();
+        $this->characterOf($stranger, 'Dax Orlan');
+        $pending = $this->userWithPendingRequest('Cyra Lune');
+
+        self::assertSame(
+            [self::NO_ACCESS, self::NO_ACCESS, []],
+            [
+                $this->outcomeOf(fn () => $this->availableJobsFor($stranger, $this->ishtarProject)),
+                $this->outcomeOf(fn () => $this->availableJobsFor($pending, $this->ishtarProject)),
+                $this->jobLookups,
+            ],
+        );
+    }
+
+    private function userWithPendingRequest(string $characterName): User
+    {
+        $pending = new User();
+        $this->characterOf($pending, $characterName);
+        $request = (new IndustryProjectParticipant())->setUser($pending)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Pending);
+        $this->ishtarProject->addMember($request);
+        $this->participants[] = $request;
+
+        return $pending;
     }
 
     private function availableJobsFor(User $user, IndustryProject $project): array

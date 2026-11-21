@@ -81,7 +81,7 @@ export async function mountProductionJobRows(options: ProductionRowsOptions): Pr
   projectStore.containerVerification = options.containerVerification ?? []
 
   const wrapper = mount(ProductionChain, {
-    props: { projectId, canMatchJobs: role === 'owner', canMark: false },
+    props: { projectId, canMatchJobs: role === 'owner', canLinkJobs: true, canMark: false },
     global: {
       plugins: [createI18n({ legacy: false, locale: options.locale ?? 'en', messages: { en, fr } })],
       stubs: { teleport: true },
