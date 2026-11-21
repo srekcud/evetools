@@ -8,6 +8,7 @@ import { useBlacklistStore } from '@/stores/industry/blacklist'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupProjectReferencesStore } from '@/stores/group-industry/projectReferences'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
+import { useBlueprintsStore } from '@/stores/industry/blueprints'
 import { useFormatters } from '@/composables/useFormatters'
 import type { ProjectPrefill, ProjectPrefillItem, SearchResult } from '@/stores/industry/types'
 import type { CreateGroupProjectInput, GroupProject, ProjectReferenceRow, ProjectTemplate } from '@/stores/group-industry/types'
@@ -17,6 +18,7 @@ import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesP
 import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import { containerNamesFromText } from '@/utils/containerNames'
+import { pickOwnedBlueprint } from '@/utils/scanProjectPrefill'
 import {
   MAXIMUM_MATERIAL_EFFICIENCY,
   MAXIMUM_BLUEPRINT_COPIES,
@@ -33,6 +35,9 @@ import {
 const DEFAULT_PREFILL_LEVEL = 0
 const DEFAULT_PREFILL_RUNS = 1
 const INVENTED_BLUEPRINT_TIME_EFFICIENCY = 4
+const ASSUMED_MATERIAL_EFFICIENCY = 2
+const ASSUMED_TIME_EFFICIENCY = 4
+const DEFAULT_ITEM_RUNS = 100
 
 const { t } = useI18n()
 const projectNameFieldId = useId()
@@ -45,6 +50,7 @@ const blacklistStore = useBlacklistStore()
 const groupProjectStore = useGroupProjectStore()
 const referencesStore = useGroupProjectReferencesStore()
 const distributionStore = useGroupDistributionStore()
+const blueprintsStore = useBlueprintsStore()
 const { formatIskFull, formatNumber, formatDate } = useFormatters()
 
 const props = defineProps<{
@@ -68,15 +74,18 @@ const searchQuery = ref('')
 const selectedItem = ref<SearchResult | null>(null)
 const showDropdown = ref(false)
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
-const itemMe = ref(2)
-const itemTe = ref(4)
-const itemRuns = ref(100)
+const itemMe = ref(ASSUMED_MATERIAL_EFFICIENCY)
+const itemTe = ref(ASSUMED_TIME_EFFICIENCY)
+const itemRuns = ref(DEFAULT_ITEM_RUNS)
+const selectedItemBlueprintSource = ref<'owned' | 'assumed' | null>(null)
+const selectedItemLevelsEdited = ref(false)
 
 // --- Search logic ---
 
 function onSearchInput() {
   // Clear previous selection when user types
   selectedItem.value = null
+  selectedItemBlueprintSource.value = null
   if (searchTimeout) clearTimeout(searchTimeout)
   if (searchQuery.value.length < 2) {
     projectsStore.searchResults = []
@@ -91,9 +100,33 @@ function onSearchInput() {
 
 function selectSearchResult(result: SearchResult) {
   selectedItem.value = result
+  selectedItemBlueprintSource.value = null
+  selectedItemLevelsEdited.value = false
   searchQuery.value = result.typeName
   showDropdown.value = false
   projectsStore.searchResults = []
+  void prefillLevelsFromOwnedBlueprint(result)
+}
+
+async function prefillLevelsFromOwnedBlueprint(result: SearchResult) {
+  if (blueprintsStore.library === null) await blueprintsStore.fetchLibrary()
+  const library = blueprintsStore.library
+  if (library === null || selectedItem.value?.typeId !== result.typeId || selectedItemLevelsEdited.value) return
+  const owned = pickOwnedBlueprint(result.typeId, library.blueprints)
+  if (owned === null) {
+    itemMe.value = ASSUMED_MATERIAL_EFFICIENCY
+    itemTe.value = ASSUMED_TIME_EFFICIENCY
+    selectedItemBlueprintSource.value = 'assumed'
+    return
+  }
+  itemMe.value = owned.me
+  itemTe.value = owned.te
+  selectedItemBlueprintSource.value = 'owned'
+}
+
+function onItemLevelInput() {
+  selectedItemLevelsEdited.value = true
+  selectedItemBlueprintSource.value = null
 }
 
 function onSearchBlur() {
@@ -117,10 +150,12 @@ function addSelectedItem() {
     meLevel: itemMe.value,
     teLevel: itemTe.value,
     runs: itemRuns.value,
+    blueprintSource: selectedItemBlueprintSource.value ?? undefined,
   })
   // Reset search state for next item
   searchQuery.value = ''
   selectedItem.value = null
+  selectedItemBlueprintSource.value = null
   projectsStore.searchResults = []
 }
 
@@ -326,9 +361,11 @@ function resetForm() {
   showDropdown.value = false
   projectsStore.searchResults = []
   if (searchTimeout) clearTimeout(searchTimeout)
-  itemMe.value = 2
-  itemTe.value = 4
-  itemRuns.value = 100
+  itemMe.value = ASSUMED_MATERIAL_EFFICIENCY
+  itemTe.value = ASSUMED_TIME_EFFICIENCY
+  itemRuns.value = DEFAULT_ITEM_RUNS
+  selectedItemBlueprintSource.value = null
+  selectedItemLevelsEdited.value = false
   bulkText.value = ''
   bulkResults.value = []
   isParsingBulk.value = false
@@ -464,7 +501,10 @@ function bulkRejectionMessage(rejection: BulkLineRejection): string {
   }
 }
 
+const canCreate = computed(() => items.value.length > 0 || selectedItem.value !== null)
+
 async function handleCreate() {
+  if (selectedItem.value !== null) addSelectedItem()
   if (items.value.length === 0) return
   if (typeof minimumOutsideSaving.value !== 'number' || !hasValidMinimumOutsideSaving.value) return
   isCreating.value = true
@@ -616,6 +656,7 @@ function handleClose() {
             </div>
             <input
               v-model.number="itemMe"
+              @input="onItemLevelInput"
               type="number"
               min="0"
               max="10"
@@ -625,6 +666,7 @@ function handleClose() {
             />
             <input
               v-model.number="itemTe"
+              @input="onItemLevelInput"
               type="number"
               min="0"
               max="20"
@@ -1114,7 +1156,7 @@ function handleClose() {
         </button>
         <button
           class="btn-action px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="items.length === 0 || isCreating || !hasValidMinimumOutsideSaving"
+          :disabled="!canCreate || isCreating || !hasValidMinimumOutsideSaving"
           @click="handleCreate"
         >
           <LoadingSpinner v-if="isCreating" size="sm" />

@@ -39,7 +39,9 @@ async function addSabreFromTheSearch(wrapper: VueWrapper) {
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockResolvedValue({ id: 'group-project-created' })
+  vi.mocked(apiRequest).mockImplementation((endpoint: string) => Promise.resolve(
+    endpoint === '/industry/blueprints' ? { corporationState: 'ready', blueprints: [] } : { id: 'group-project-created' },
+  ))
 })
 
 describe('NewProjectModal lines of the same product', () => {
