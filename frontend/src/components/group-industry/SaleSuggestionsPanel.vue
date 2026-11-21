@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DataTable from '@/components/common/DataTable.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -17,24 +17,69 @@ const props = defineProps<{
 const { t } = useI18n()
 const store = useGroupDistributionStore()
 const syncStore = useSyncStore()
-const { formatNumber, formatDate } = useFormatters()
+const { formatNumber, formatDate, formatIsk } = useFormatters()
+
+const MIN_TRANSACTIONS_FOR_RECORD_ALL = 2
+
+type RecordAllFailure = { transactionId: string; date: string; sellerCharacterName: string; message: string }
 
 const enteredQuantities = ref<Record<string, number | ''>>({})
 const recordingTransactionId = ref<string | null>(null)
 const linkingError = ref<string | null>(null)
 const isReadingWallet = ref(false)
+const isConfirmingRecordAll = ref(false)
+const isRecordingAll = ref(false)
+const recordAllFailures = ref<RecordAllFailure[]>([])
+
+function validEnteredQuantity(suggestion: GroupSaleSuggestion): number | null {
+  const enteredQuantity = enteredQuantities.value[suggestion.transactionId]
+  if (typeof enteredQuantity !== 'number') return null
+  return Number.isInteger(enteredQuantity) && enteredQuantity >= 1 && enteredQuantity <= suggestion.quantity ? enteredQuantity : null
+}
+
+function hasInvalidEnteredQuantity(suggestion: GroupSaleSuggestion): boolean {
+  const enteredQuantity = enteredQuantities.value[suggestion.transactionId]
+  return typeof enteredQuantity === 'number' && validEnteredQuantity(suggestion) === null
+}
+
+const recordAllPlan = computed(() => {
+  const recordable = store.saleSuggestions.filter(
+    suggestion => suggestion.possibleDuplicateSaleIds.length === 0 && !hasInvalidEnteredQuantity(suggestion),
+  )
+  const selected = [...recordable].sort(
+    (first, second) => Date.parse(first.date) - Date.parse(second.date) || first.transactionId.localeCompare(second.transactionId),
+  )
+  const quantityOf = (suggestion: GroupSaleSuggestion): number => validEnteredQuantity(suggestion) ?? suggestion.quantity
+  return {
+    selected,
+    quantity: selected.reduce((sum, suggestion) => sum + quantityOf(suggestion), 0),
+    totalPrice: selected.reduce((sum, suggestion) => sum + quantityOf(suggestion) * suggestion.unitPrice, 0),
+    leftOut: store.saleSuggestions.length - selected.length,
+  }
+})
+const canRecordAll = computed(() => recordAllPlan.value.selected.length >= MIN_TRANSACTIONS_FOR_RECORD_ALL)
+
+watch(canRecordAll, canRecord => {
+  if (!canRecord) isConfirmingRecordAll.value = false
+})
 
 function duplicatedSalesOf(suggestion: GroupSaleSuggestion): GroupSale[] {
   return store.sales.filter(sale => suggestion.possibleDuplicateSaleIds.includes(sale.id))
 }
 
-async function recordAsSale(suggestion: GroupSaleSuggestion): Promise<void> {
+function recordingInputOf(suggestion: GroupSaleSuggestion): RecordSaleFromWalletTransactionInput {
   const input: RecordSaleFromWalletTransactionInput = { transactionId: suggestion.transactionId }
   const enteredQuantity = enteredQuantities.value[suggestion.transactionId]
   if (typeof enteredQuantity === 'number') input.quantity = enteredQuantity
+  return input
+}
+
+async function recordAsSale(suggestion: GroupSaleSuggestion): Promise<void> {
+  const input = recordingInputOf(suggestion)
 
   recordingTransactionId.value = suggestion.transactionId
   linkingError.value = null
+  recordAllFailures.value = []
   try {
     await store.recordSaleFromWalletTransaction(props.projectId, input)
   } catch (e) {
@@ -43,6 +88,30 @@ async function recordAsSale(suggestion: GroupSaleSuggestion): Promise<void> {
   } finally {
     recordingTransactionId.value = null
   }
+  await store.fetchSaleSuggestions(props.projectId)
+}
+
+async function recordAllPlanned(): Promise<void> {
+  const toRecord = [...recordAllPlan.value.selected]
+  isConfirmingRecordAll.value = false
+  isRecordingAll.value = true
+  linkingError.value = null
+  recordAllFailures.value = []
+  const failures: RecordAllFailure[] = []
+  for (const suggestion of toRecord) {
+    try {
+      await store.recordSaleFromWalletTransaction(props.projectId, recordingInputOf(suggestion))
+    } catch (e) {
+      failures.push({
+        transactionId: suggestion.transactionId,
+        date: suggestion.date,
+        sellerCharacterName: suggestion.sellerCharacterName,
+        message: e instanceof Error ? e.message : t('groupIndustry.saleSuggestions.recordFailed'),
+      })
+    }
+  }
+  recordAllFailures.value = failures
+  isRecordingAll.value = false
   await store.fetchSaleSuggestions(props.projectId)
 }
 
@@ -90,7 +159,45 @@ onMounted(() => {
       <p class="text-sm text-slate-500">{{ t('groupIndustry.saleSuggestions.empty') }}</p>
     </div>
 
-    <div v-else class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
+    <template v-else>
+    <div v-if="canRecordAll" class="mb-3 space-y-2">
+      <button
+        data-testid="sales-record-all"
+        class="px-3 py-1 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 disabled:opacity-50"
+        :disabled="recordingDisabled || recordingTransactionId !== null || isRecordingAll"
+        @click="isConfirmingRecordAll = true"
+      >{{ t('groupIndustry.saleSuggestions.recordAll') }} ({{ recordAllPlan.selected.length }})</button>
+      <div
+        v-if="isConfirmingRecordAll"
+        data-testid="sales-record-all-confirmation"
+        class="px-3 py-3 bg-cyan-500/5 border border-cyan-500/30 rounded-lg space-y-2"
+      >
+        <p class="text-sm text-slate-200">
+          <span data-testid="sales-record-all-count">{{ t('groupIndustry.saleSuggestions.recordAllCount', { count: recordAllPlan.selected.length }) }}</span>
+          &middot; <span data-testid="sales-record-all-quantity">{{ t('groupIndustry.saleSuggestions.recordAllQuantity', { quantity: formatNumber(recordAllPlan.quantity, 0) }) }}</span>
+          &middot; <span data-testid="sales-record-all-total" class="font-mono">{{ t('groupIndustry.saleSuggestions.recordAllTotal', { amount: formatIsk(recordAllPlan.totalPrice, 1) }) }}</span>
+        </p>
+        <p
+          v-if="recordAllPlan.leftOut > 0"
+          data-testid="sales-record-all-left-out"
+          class="text-xs text-amber-400"
+        >{{ t('groupIndustry.saleSuggestions.recordAllLeftOut', { count: recordAllPlan.leftOut }, recordAllPlan.leftOut) }}</p>
+        <div class="flex gap-2">
+          <button
+            data-testid="sales-record-all-confirm"
+            class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-xs font-medium transition-colors disabled:opacity-50"
+            :disabled="recordingDisabled || recordingTransactionId !== null || isRecordingAll"
+            @click="recordAllPlanned"
+          >{{ t('groupIndustry.saleSuggestions.recordAllConfirm') }}</button>
+          <button
+            data-testid="sales-record-all-cancel"
+            class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-xs transition-colors"
+            @click="isConfirmingRecordAll = false"
+          >{{ t('common.actions.cancel') }}</button>
+        </div>
+      </div>
+    </div>
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
       <DataTable>
         <table class="w-full text-sm">
           <thead>
@@ -143,7 +250,7 @@ onMounted(() => {
                     class="w-24 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none"
                   />
                   <button
-                    :disabled="recordingDisabled || recordingTransactionId !== null"
+                    :disabled="recordingDisabled || recordingTransactionId !== null || isRecordingAll"
                     class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg text-white text-xs font-medium transition-colors"
                     @click="recordAsSale(suggestion)"
                   >{{ t('groupIndustry.saleSuggestions.record') }}</button>
@@ -153,6 +260,21 @@ onMounted(() => {
           </tbody>
         </table>
       </DataTable>
+    </div>
+    </template>
+
+    <div
+      v-if="recordAllFailures.length > 0"
+      data-testid="sales-record-all-failures"
+      class="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4 space-y-1"
+    >
+      <p class="text-sm text-red-400 font-medium">{{ t('groupIndustry.saleSuggestions.recordAllFailures', { count: recordAllFailures.length }, recordAllFailures.length) }}</p>
+      <p
+        v-for="failure in recordAllFailures"
+        :key="failure.transactionId"
+        data-testid="sales-record-all-failure"
+        class="text-sm text-red-400"
+      >{{ t('groupIndustry.saleSuggestions.recordAllFailure', { date: formatDate(failure.date), character: failure.sellerCharacterName, message: failure.message }) }}</p>
     </div>
 
     <div v-if="linkingError" class="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
