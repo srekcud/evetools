@@ -135,12 +135,16 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     await changeReservation(lineId, { method: 'DELETE' }, 'Failed to release the line')
   }
 
-  async function handleEvent(action: string): Promise<void> {
+  async function handleEvents(actions: string[]): Promise<void> {
     const id = projectId.value
     if (id === null) return
     const loads = [loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id)]
-    if (action.startsWith(MEMBER_EVENT_PREFIX) && isAdmin.value) loads.push(loadMembers(id))
+    if (actions.some(action => action.startsWith(MEMBER_EVENT_PREFIX)) && isAdmin.value) loads.push(loadMembers(id))
     await Promise.all(loads)
+  }
+
+  function handleEvent(action: string): Promise<void> {
+    return handleEvents([action])
   }
 
   const syncStore = useSyncStore()
@@ -151,5 +155,5 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
 
   useRefetchOnReconnect(() => handleEvent(RECONNECTION_REFRESH))
 
-  return { projectId, bomItems, chainNodes, project, members, priceAlert, undercutOrders, error, open, close, claim, release, handleEvent }
+  return { projectId, bomItems, chainNodes, project, members, priceAlert, undercutOrders, error, open, close, claim, release, handleEvent, handleEvents }
 })

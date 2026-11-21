@@ -1,3 +1,5 @@
+import type { ProjectDetailTab } from './projectDetailTabs'
+
 export type GroupProjectRefresh = 'bom' | 'contributions' | 'members' | 'projectDetail' | 'sales' | 'saleSuggestions' | 'distribution' | 'cockpit' | 'settlement' | 'activity'
 
 const REFRESHES_BY_ACTION: Record<string, GroupProjectRefresh[]> = {
@@ -44,4 +46,25 @@ export function groupProjectRefreshes(action: string): GroupProjectRefresh[] {
 
 export function refreshesActivityOn(action: string): boolean {
   return ACTIONS_RECORDED_IN_THE_ACTIVITY_FEED.has(action)
+}
+
+const TAB_SHOWING_REFRESH: Partial<Record<GroupProjectRefresh, ProjectDetailTab>> = {
+  contributions: 'contributions',
+  sales: 'sales',
+  saleSuggestions: 'sales',
+  distribution: 'distribution',
+  settlement: 'distribution',
+  activity: 'journal',
+}
+
+export function refreshesVisibleOn(actions: string[], activeTab: ProjectDetailTab): GroupProjectRefresh[] {
+  const wanted = new Set<GroupProjectRefresh>()
+  for (const action of actions) {
+    for (const refresh of groupProjectRefreshes(action)) wanted.add(refresh)
+    if (refreshesActivityOn(action)) wanted.add('activity')
+  }
+  return [...wanted].filter((refresh) => {
+    const tabShowingIt = TAB_SHOWING_REFRESH[refresh]
+    return tabShowingIt === undefined || tabShowingIt === activeTab
+  })
 }

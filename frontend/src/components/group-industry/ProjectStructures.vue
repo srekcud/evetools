@@ -7,6 +7,7 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupStructuresStore } from '@/stores/group-industry/structures'
 import type { StructureComparisonGroup, StructureComparisonRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
@@ -103,10 +104,9 @@ async function switchPolicy(acceptsOutsideFavoriteSystem: boolean): Promise<void
 
 watch(() => props.projectId, projectId => structuresStore.fetchStructures(projectId), { immediate: true })
 
-watch(
-  () => syncStore.getGroupProjectEvent(props.projectId),
-  (event) => {
-    if (!event) return
+useCoalescedGroupProjectEvents(
+  () => props.projectId,
+  () => {
     structuresStore.fetchStructures(props.projectId)
   },
 )

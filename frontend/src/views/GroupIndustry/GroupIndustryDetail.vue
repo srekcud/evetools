@@ -67,8 +67,9 @@ import { groupJoinUrl } from './groupJoinUrl'
 import { DETAIL_TABS, detailTabOfNextAction, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
 import { isSourcingCollapsed, isSourcingComplete, readSourcingOverride, writeSourcingOverride, type SourcingOverride } from './sourcingCollapse'
-import { groupProjectRefreshes, refreshesActivityOn, type GroupProjectRefresh } from './groupProjectRefreshes'
+import { refreshesVisibleOn, type GroupProjectRefresh } from './groupProjectRefreshes'
 import { useFlash } from '@/composables/useUpdateFlash'
+import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 
 const { t } = useI18n()
@@ -203,15 +204,11 @@ const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<v
 
 const { isFlashing: projectUpdated, flash: flashProject } = useFlash()
 
-watch(
-  () => syncStore.getGroupProjectEvent(projectId.value),
-  (event) => {
-    if (!event) return
-    const refreshKinds = refreshesActivityOn(event.action)
-      ? [...groupProjectRefreshes(event.action), 'activity' as const]
-      : groupProjectRefreshes(event.action)
-    const refreshes = refreshKinds.map(refresh => refreshGroupProject[refresh](projectId.value))
-    Promise.all(refreshes).then(flashProject)
+useCoalescedGroupProjectEvents(
+  () => projectId.value,
+  (actions) => {
+    const refreshes = refreshesVisibleOn(actions, activeTab.value).map(refresh => refreshGroupProject[refresh](projectId.value))
+    return Promise.all(refreshes).then(flashProject)
   },
 )
 
