@@ -8,6 +8,7 @@ use App\Entity\Sde\IndustryActivityProduct;
 use App\Enum\IndustryActivityType;
 use App\Exception\ProducerMissingFromSdeException;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 
@@ -235,6 +236,35 @@ class IndustryActivityProductRepository extends ServiceEntityRepository
         }
 
         return $results[0];
+    }
+
+    /**
+     * @param list<int> $productTypeIds
+     * @return array<int, array{blueprintTypeId: int, activityId: int}>
+     */
+    public function findProducersOf(array $productTypeIds): array
+    {
+        if ([] === $productTypeIds) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT product_type_id, type_id, activity_id FROM sde_industry_activity_products'
+            . ' WHERE product_type_id IN (?) AND activity_id IN (?)'
+            . ' ORDER BY product_type_id, activity_id, quantity DESC, type_id',
+            [$productTypeIds, [IndustryActivityType::Manufacturing->value, IndustryActivityType::Reaction->value]],
+            [ArrayParameterType::INTEGER, ArrayParameterType::INTEGER],
+        );
+
+        $producers = [];
+        foreach ($rows as $row) {
+            $producers[(int) $row['product_type_id']] ??= [
+                'blueprintTypeId' => (int) $row['type_id'],
+                'activityId' => (int) $row['activity_id'],
+            ];
+        }
+
+        return $producers;
     }
 
     public function producerOf(int $productTypeId): IndustryActivityProduct
