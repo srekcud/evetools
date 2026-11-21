@@ -93,6 +93,10 @@ function saleFromWalletTransactionPath(projectId: string): string {
   return `/industry/projects/${projectId}/sales/from-wallet-transaction`
 }
 
+function salesFromWalletTransactionsPath(projectId: string): string {
+  return `/industry/projects/${projectId}/sales/from-wallet-transactions`
+}
+
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
@@ -208,5 +212,38 @@ describe('group distribution store sale recorded from a wallet transaction', () 
     await expect(store.recordSaleFromWalletTransaction(SABRE_PROJECT_ID, { transactionId: T1_ID })).rejects.toThrow(ALREADY_LINKED)
 
     expect({ sales: store.sales, error: store.error }).toEqual({ sales: [MANUAL_SALE_V], error: null })
+  })
+
+  it('posts every line in one request and puts the recorded sales first, newest first', async () => {
+    const store = useGroupDistributionStore()
+    store.sales = [MANUAL_SALE_V]
+    const other = { ...SALE_OF_T7, id: 'sale-of-t1' }
+    vi.mocked(apiRequest).mockResolvedValueOnce({ id: 'batch', recorded: [SALE_OF_T7, other], failures: [] })
+
+    const outcome = await store.recordSalesFromWalletTransactions(SABRE_PROJECT_ID, [{ transactionId: T7_ID, quantity: 10 }, { transactionId: T1_ID }])
+
+    expect(apiRequest).toHaveBeenCalledTimes(1)
+    expect(apiRequest).toHaveBeenCalledWith(salesFromWalletTransactionsPath(SABRE_PROJECT_ID), {
+      method: 'POST',
+      body: JSON.stringify({ transactions: [{ transactionId: T7_ID, quantity: 10 }, { transactionId: T1_ID }] }),
+    })
+    expect({ outcome, sales: store.sales }).toEqual({
+      outcome: { recorded: [SALE_OF_T7, other], failures: [] },
+      sales: [other, SALE_OF_T7, MANUAL_SALE_V],
+    })
+  })
+
+  it('hands the failed lines to the caller and keeps the sales untouched when nothing was recorded', async () => {
+    const store = useGroupDistributionStore()
+    store.sales = [MANUAL_SALE_V]
+    vi.mocked(apiRequest).mockResolvedValueOnce({ id: 'batch', recorded: [], failures: [{ transactionId: T1_ID, message: ALREADY_LINKED }] })
+
+    const outcome = await store.recordSalesFromWalletTransactions(SABRE_PROJECT_ID, [{ transactionId: T1_ID }])
+
+    expect({ outcome, sales: store.sales, error: store.error }).toEqual({
+      outcome: { recorded: [], failures: [{ transactionId: T1_ID, message: ALREADY_LINKED }] },
+      sales: [MANUAL_SALE_V],
+      error: null,
+    })
   })
 })
