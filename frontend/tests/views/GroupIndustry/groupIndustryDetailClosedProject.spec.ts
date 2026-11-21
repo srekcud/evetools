@@ -88,7 +88,7 @@ describe('closed project', () => {
 
     await completing.get(NEXT_ACTION_BUTTON).trigger('click')
     await flushPromises()
-    const confirmButton = completing.findAll('button').find(button => button.text() === en.groupIndustry.detail.completeConfirm.confirm)
+    const confirmButton = completing.findAll('button').filter(button => button.text() === en.groupIndustry.detail.completeConfirm.confirm).pop()
     if (confirmButton !== undefined) await confirmButton.trigger('click')
     await flushPromises()
 

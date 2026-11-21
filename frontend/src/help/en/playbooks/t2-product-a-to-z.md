@@ -40,7 +40,7 @@ A project you run alone is a solo project: the **Contributions** and **Team** ta
 
 The phase rail (**Prepare**, **Supply**, **Produce**, **Sell**, **Close**) and the **Next action** card tell you where the project stands. The useful tabs: **Sourcing**, **Production**, **Invention**, **Sales**, **Finances**.
 
-In the header, click **Start** (or **Publish** to open the project to others). The project moves to **In Progress**. There is no other condition: you can start before everything is bought.
+Click **Start the project** in the **Next action** card (or **Publish** in the header to open the project to others). The project moves to **In Progress**. A confirmation lists the blacklist and the invention exclusion, which starting locks. There is no other condition: you can start before everything is bought.
 
 ## Step 4: bring the materials at the real price
 
@@ -71,7 +71,7 @@ When everything is produced, the **Next action** card offers **Move to selling**
 
 ## Step 6: sell and record the sales
 
-Move the project to selling: **Move to Selling** button in the header (or **Move to selling** on the card). Sell in game, then tab **Sales**:
+Move the project to selling: **Move to selling** button, in the header or on the card. Sell in game, then tab **Sales**:
 
 - **My sell orders**: your orders on the project's products, with your price, the best price and your position (EVE Tools never edits an order: the button only copies a price);
 - **Transactions to link**: the sales of your wallet, made since the project was created, on the project's products and never linked; **Record as sale** creates the sale. A **Possible duplicate** badge flags a sale already typed by hand with the same quantity and the same price;
@@ -95,6 +95,6 @@ The real **Margin** is `(net revenue − total project cost) ÷ total project co
 
 ## Step 8: complete the project
 
-When everything is sold, click **Move to Completed** (or **Close the project** on the card). The **Complete Project** window lists **Before completing**: unsold products ("Everything is sold" when none is left) and the final margin ("Final margin: …%", or "Final margin unknown: a cost or a fee is missing"). Confirm with **Complete**.
+When everything is sold, click **Close the project**, in the header or on the card. The **Close the project** window lists **Before closing**: unsold products ("Everything is sold" when none is left) and the final margin ("Final margin: …%", or "Final margin unknown: a cost or a fee is missing"). Confirm with **Close the project**.
 
 Completing freezes the accounts: no more contribution, sale or fee change, and the project can no longer be deleted. This cannot be undone. If it holds only this product, it will serve as the **Reference** when you create a project for the same product, for one month.

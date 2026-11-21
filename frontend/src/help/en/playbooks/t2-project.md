@@ -52,12 +52,12 @@ The project opens with the "Draft" status. Three points to remember:
 
 From top to bottom:
 
-- the header, with the status, the "Publish" and "Start" buttons (in draft) and the "Edit" and "Delete" icons;
+- the header, with the status, the "Publish" button (in draft, on a project that is not private) and the "Edit" and "Delete" icons;
 - the phase rail: "Prepare", "Supply", "Produce", "Sell", "Close", each with a counter;
 - "Next action": the one thing to do now, with its button;
 - the tabs. Alone, you see "Sourcing" (open by default), "Finances", "Sales", "Production", "Planning", "Journal" and "Invention". "Contributions" and "Team" are hidden as long as you are the only participant.
 
-When the plan suits you, click "Start" (the project goes "In Progress"). Ignore "Publish", meant for projects other people have to join.
+When the plan suits you, click "Start the project" in the "Next action" card (the project goes "In Progress"; a confirmation lists the blacklist and the invention exclusion, which starting locks). Ignore "Publish", meant for projects other people have to join.
 
 ## 4. Buy the materials
 
@@ -82,13 +82,13 @@ When all the materials are covered, the sourcing section (including "Where to bu
 
 - **Manufacturing and reactions.** The ESI jobs of your characters are linked at every jobs sync (every 30 minutes), or when you click "Match jobs" (owner only). A job is kept if it uses the line's blueprint, started after the project was created, has an output (neither cancelled nor reverted) and its runs fit in the rest of the line. A job too big for the line, or one that also fits a line of another of your open projects, is linked to none: it stays in the "Link a job" list, where you pick it by hand. The install cost read from ESI becomes a "Job Install" contribution; if ESI gives no cost, it is unknown, never 0.
 - **Invention and T1 copy.** No ESI job links to them. The plan's "Attempts" is the number of runs to invent divided by (runs of the invented BPC × base probability), rounded up, with no skills and no decryptor: the analysis, which takes them into account, can give another figure. For these lines to count and for their cost to enter the project, click "I supplied it" on the line: the "BPC" type is preselected, the quantity is prefilled, and you enter an "Estimated Value" above 0, meaning what the datacores and the invention cost you. If you already own T2 BPCs, open "Owned T2 BPCs" instead ("Declare my T2 blueprint copies"): the declared runs leave the plan. That panel only shows up if the plan finds T2 BPCs in your synced blueprints.
-- **"Mark".** In the "Production" tab, "Job tree" view, the owner can mark a line "Launched" or "Done" for a number of runs. The mark changes the line's status and its remaining runs, but creates no cost. Pitfall: it does not move the "Produce" counter of the phases. A line only counts there as delivered if its linked jobs are delivered or if its contributions cover its quantity. After a "Done" mark on an invention, "Next action" can therefore stay on "Launch a job". The "Move to Selling" button in the header stays available.
+- **"Mark".** In the "Production" tab, "Job tree" view, the owner can mark a line "Launched" or "Done" for a number of runs. The mark changes the line's status and its remaining runs, but creates no cost. Pitfall: it does not move the "Produce" counter of the phases. A line only counts there as delivered if its linked jobs are delivered or if its contributions cover its quantity. After a "Done" mark on an invention, "Next action" can therefore stay on "Launch a job". The "Move to selling" button in the header stays available.
 
 In the "Sourcing" tab, "Buy or build" compares each built intermediate with buying it at Jita plus import, and "Switch to buy" takes it out of production.
 
 ## 6. Sell
 
-When the jobs are done, click "Move to Selling" ("Next action" offers "Move to selling", which does the same). Sales can be recorded as soon as they happen, as long as the project is not completed.
+When the jobs are done, click "Move to selling" ("Next action" offers the same button). Sales can be recorded as soon as they happen, as long as the project is not completed.
 
 "Sales" tab. "My sell orders" shows your open orders on the project's products (read every 5 minutes) and your position ("1st" or "undercut for …"). It is read-only: EVE Tools changes no order. To record a sale:
 
@@ -107,7 +107,7 @@ The channel matters. A "Contract" sale pays neither the broker fee nor the sales
 - **Unknown fees: no margin.** If the project's "Broker Fee %" or "Sales Tax %" is empty and a sale goes through the market, the net revenue, the profit and the margin are unknown. A contract sale does not need them.
 - "Break-even price per unit" (in "From revenue to profit") is unknown until all the final jobs are delivered, or while a contribution or the fees are unknown.
 
-To close, click "Move to Completed". The "Complete Project" window lists "Before completing": contributions awaiting review, unsold products and "Final margin: …%" (or "Final margin unknown: a cost or a fee is missing"). Completing freezes the accounts: no more sales, contributions or fee changes, and the project can no longer be deleted. This action cannot be undone.
+To close, click "Close the project". The "Close the project" window lists "Before closing": contributions awaiting review, unsold products and "Final margin: …%" (or "Final margin unknown: a cost or a fee is missing"). Closing freezes the accounts: no more sales, contributions or fee changes, and the project can no longer be deleted. This action cannot be undone.
 
 ## What you read, and where it comes from
 

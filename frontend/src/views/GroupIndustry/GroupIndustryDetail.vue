@@ -16,6 +16,7 @@ import { useGroupCompanionStore } from '@/stores/group-industry/companion'
 import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
+import { useFormatters } from '@/composables/useFormatters'
 import { useTabQuery } from '@/composables/useTabQuery'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
@@ -61,6 +62,7 @@ import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
 import IntermediateStockProposal from '@/components/group-industry/IntermediateStockProposal.vue'
 import T2BlueprintCopyProposal from '@/components/group-industry/T2BlueprintCopyProposal.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
+import ProjectPrepareBlock from '@/components/group-industry/ProjectPrepareBlock.vue'
 import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
@@ -68,7 +70,8 @@ import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTem
 import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit, ProjectPhaseKey } from '@/stores/group-industry/types'
-import { nextProjectStatuses } from './nextProjectStatus'
+import { headerStatuses } from './nextProjectStatus'
+import { unfinishedLinesOf } from './sellingConfirmation'
 import { groupJoinUrl } from './groupJoinUrl'
 import { DETAIL_TABS, detailTabOfNextAction, detailTabOfPhase, openingTabOf, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
@@ -79,6 +82,7 @@ import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupP
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 
 const { t } = useI18n()
+const { formatNumber } = useFormatters()
 const editNameFieldId = useId()
 const editContainerNameFieldId = useId()
 const editContainerNamesField = ref<HTMLTextAreaElement | null>(null)
@@ -151,6 +155,23 @@ const showDeleteConfirm = ref(false)
 const isDeleting = ref(false)
 
 const showCompleteConfirm = ref(false)
+const showSellingConfirm = ref(false)
+const showStartConfirm = ref(false)
+const unfinishedLines = computed(() => unfinishedLinesOf(projectStore.bomItems))
+const startLocks = computed(() => {
+  const lockedProject = project.value
+  if (!lockedProject) return null
+  const blacklistedGroups = lockedProject.blacklistGroupIds.length
+  const blacklistedItems = lockedProject.blacklistTypeIds.length
+  return {
+    blacklist: blacklistedGroups + blacklistedItems > 0
+      ? t('groupIndustry.detail.startConfirm.blacklist', { groups: blacklistedGroups, items: blacklistedItems })
+      : t('groupIndustry.detail.startConfirm.blacklistNone'),
+    invention: lockedProject.excludesInvention
+      ? t('groupIndustry.detail.startConfirm.inventionExcluded')
+      : t('groupIndustry.detail.startConfirm.inventionIncluded'),
+  }
+})
 const isAdvancingStatus = ref(false)
 const statusError = ref<string | null>(null)
 
@@ -193,7 +214,9 @@ const activeTab = computed<ProjectDetailTab>({
   },
   set: (tab) => { requestedTab.value = tab },
 })
-const nextStatuses = computed(() => (project.value ? nextProjectStatuses(project.value.status) : []))
+const nextStatuses = computed(() => (project.value
+  ? headerStatuses(project.value.status, project.value.private, cockpit.value?.nextAction.targetStatus ?? null)
+  : []))
 const pendingStatus = ref<GroupProjectStatus | null>(null)
 
 const statusConfig: Record<GroupProjectStatus, { bg: string; text: string; border: string }> = {
@@ -437,10 +460,7 @@ function actOnNextAction(): void {
 }
 
 function nextStatusLabel(target: GroupProjectStatus): string {
-  if (project.value?.status === 'draft') {
-    return t(`groupIndustry.detail.draftActions.${target}`)
-  }
-  return t('groupIndustry.detail.nextStatus', { status: statusLabel(target) })
+  return t(`groupIndustry.detail.statusActions.${target}`)
 }
 
 function requestNextStatus(target: GroupProjectStatus): void {
@@ -449,6 +469,14 @@ function requestNextStatus(target: GroupProjectStatus): void {
   if (target === 'completed') {
     settlementStore.fetchForProject(projectId.value)
     showCompleteConfirm.value = true
+    return
+  }
+  if (target === 'selling') {
+    showSellingConfirm.value = true
+    return
+  }
+  if (target === 'in_progress' && project.value?.status === 'draft') {
+    showStartConfirm.value = true
     return
   }
   advanceStatus()
@@ -461,6 +489,8 @@ async function advanceStatus(): Promise<void> {
   try {
     await projectStore.updateProject(projectId.value, { status: pendingStatus.value })
     showCompleteConfirm.value = false
+    showSellingConfirm.value = false
+    showStartConfirm.value = false
     if (pendingStatus.value === 'completed') activeTab.value = 'distribution'
     await loadCockpit(projectId.value)
   } catch (e) {
@@ -714,12 +744,17 @@ function applyShareLinkShortcut(): void {
             {{ t(shareLinkBlockedReason === 'private' ? 'groupIndustry.detail.shareLinkShortcut.makePublic' : 'groupIndustry.detail.shareLinkShortcut.publish') }}
           </button>
         </div>
-        <p v-if="statusError && !showCompleteConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
+        <p
+          v-if="isOwnerOrAdmin && nextStatuses.includes('published')"
+          data-testid="publish-help"
+          class="mt-3 text-xs text-slate-500"
+        >{{ t('groupIndustry.detail.publishHelp') }}</p>
+        <p v-if="statusError && !showCompleteConfirm && !showSellingConfirm && !showStartConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>
 
       <template v-if="cockpit">
         <ProjectPhaseRail :phases="cockpit.phases" @select="openPhaseTab" />
-        <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" @act="actOnNextAction" />
+        <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" :locks-on-start="project.status === 'draft'" @act="actOnNextAction" />
         <ProjectPriceAlertBanner v-if="cockpit.priceAlert !== null" :price-alert="cockpit.priceAlert" @view-sales="activeTab = 'sales'" />
       </template>
       <p v-else-if="projectStore.cockpitError" class="mb-6 text-xs text-slate-500">
@@ -748,29 +783,39 @@ function applyShareLinkShortcut(): void {
           &middot; <span class="text-slate-400">{{ t('groupIndustry.bom.jobsOnProduction') }}</span>
         </p>
 
-        <ProjectBlacklistEditor
-          :project-id="projectId"
-          :status="project.status"
-          :can-edit="isOwnerOrAdmin"
-          :blacklist-group-ids="project.blacklistGroupIds"
-          :blacklist-type-ids="project.blacklistTypeIds"
-          @saved="onBlacklistSaved"
-        />
+        <ProjectPrepareBlock :status="project.status">
+          <ProjectBlacklistEditor
+            :project-id="projectId"
+            :status="project.status"
+            :can-edit="isOwnerOrAdmin"
+            :blacklist-group-ids="project.blacklistGroupIds"
+            :blacklist-type-ids="project.blacklistTypeIds"
+            @saved="onBlacklistSaved"
+          />
 
-        <ProjectInventionExclusionToggle
-          :project-id="projectId"
-          :status="project.status"
-          :can-edit="isOwnerOrAdmin"
-          :excludes-invention="project.excludesInvention"
-          @saved="onInventionExclusionSaved"
-        />
+          <ProjectInventionExclusionToggle
+            :project-id="projectId"
+            :status="project.status"
+            :can-edit="isOwnerOrAdmin"
+            :excludes-invention="project.excludesInvention"
+            @saved="onInventionExclusionSaved"
+          />
 
-        <ProjectBuyOrBuild
-          :project-id="projectId"
-          :can-switch="isOwnerOrAdmin && !isCompleted"
-          :blacklist-type-ids="project.blacklistTypeIds"
-          @switched="onBuyOrBuildSwitched"
-        />
+          <ProjectBuyOrBuild
+            :project-id="projectId"
+            :can-switch="isOwnerOrAdmin && !isCompleted"
+            :blacklist-type-ids="project.blacklistTypeIds"
+            @switched="onBuyOrBuildSwitched"
+          />
+
+          <ProjectStructures
+            v-if="project.status === 'draft'"
+            :project-id="projectId"
+            :can-switch="isOwnerOrAdmin && !isCompleted"
+            class="mt-4"
+            @switched="onBuyOrBuildSwitched"
+          />
+        </ProjectPrepareBlock>
 
         <CollapsibleSourcing
           :complete="sourcingComplete"
@@ -878,6 +923,7 @@ function applyShareLinkShortcut(): void {
         </div>
         <ProjectResearch :project-id="projectId" />
         <ProjectStructures
+          v-if="project.status !== 'draft'"
           :project-id="projectId"
           :can-switch="isOwnerOrAdmin && !isCompleted"
           @switched="onBuyOrBuildSwitched"
@@ -1159,6 +1205,107 @@ function applyShareLinkShortcut(): void {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           {{ t('groupIndustry.detail.completeConfirm.confirm') }}
+        </button>
+      </div>
+    </BaseModal>
+    <BaseModal
+      :show="showSellingConfirm"
+      :title="t('groupIndustry.detail.sellingConfirm.title')"
+      panel-class="border-slate-700 max-w-lg"
+      @close="showSellingConfirm = false"
+    >
+      <template #title="{ titleId }">
+        <div class="px-6 py-5 border-b border-slate-800">
+          <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.sellingConfirm.title') }}</h2>
+        </div>
+      </template>
+
+      <div class="px-6 py-5" data-testid="selling-confirm">
+        <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.sellingConfirm.message') }}</p>
+        <section v-if="unfinishedLines.uncoveredMaterials.length > 0" class="mt-4" data-testid="selling-confirm-uncovered">
+          <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{{ t('groupIndustry.detail.sellingConfirm.uncoveredTitle') }}</h3>
+          <ul class="max-h-40 space-y-1 overflow-y-auto rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-200">
+            <li v-for="line in unfinishedLines.uncoveredMaterials" :key="line.id" class="flex justify-between gap-3 font-mono text-xs">
+              <span class="min-w-0 truncate">{{ line.typeName }}</span>
+              <span>× {{ formatNumber(line.remainingQuantity, 0) }}</span>
+            </li>
+          </ul>
+        </section>
+        <section v-if="unfinishedLines.undeliveredJobs.length > 0" class="mt-4" data-testid="selling-confirm-undelivered">
+          <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{{ t('groupIndustry.detail.sellingConfirm.undeliveredTitle') }}</h3>
+          <ul class="max-h-40 space-y-1 overflow-y-auto rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-200">
+            <li v-for="line in unfinishedLines.undeliveredJobs" :key="line.id" class="flex justify-between gap-3 font-mono text-xs">
+              <span class="min-w-0 truncate">{{ line.typeName }}</span>
+              <span>× {{ formatNumber(line.remainingQuantity, 0) }}</span>
+            </li>
+          </ul>
+        </section>
+        <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
+      </div>
+
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+        <button
+          class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+          data-testid="selling-confirm-cancel"
+          @click="showSellingConfirm = false"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+          data-testid="selling-confirm-button"
+          :disabled="isAdvancingStatus"
+          @click="advanceStatus"
+        >
+          <svg v-if="isAdvancingStatus" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {{ t('groupIndustry.detail.sellingConfirm.confirm') }}
+        </button>
+      </div>
+    </BaseModal>
+    <BaseModal
+      :show="showStartConfirm"
+      :title="nextStatusLabel('in_progress')"
+      panel-class="border-slate-700 max-w-lg"
+      @close="showStartConfirm = false"
+    >
+      <template #title="{ titleId }">
+        <div class="px-6 py-5 border-b border-slate-800">
+          <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ nextStatusLabel('in_progress') }}</h2>
+        </div>
+      </template>
+
+      <div class="px-6 py-5" data-testid="start-confirm">
+        <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.startConfirm.message') }}</p>
+        <section v-if="startLocks" class="mt-4" data-testid="start-confirm-locks">
+          <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{{ t('groupIndustry.detail.startConfirm.locksTitle') }}</h3>
+          <ul class="space-y-1 rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-200">
+            <li class="text-xs">{{ startLocks.blacklist }}</li>
+            <li class="text-xs">{{ startLocks.invention }}</li>
+          </ul>
+        </section>
+        <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
+      </div>
+
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+        <button
+          class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+          data-testid="start-confirm-cancel"
+          @click="showStartConfirm = false"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          class="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+          data-testid="start-confirm-button"
+          :disabled="isAdvancingStatus"
+          @click="advanceStatus"
+        >
+          <svg v-if="isAdvancingStatus" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {{ nextStatusLabel('in_progress') }}
         </button>
       </div>
     </BaseModal>

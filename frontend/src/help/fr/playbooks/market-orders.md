@@ -2,9 +2,9 @@
 
 Ce playbook suit vos ordres de vente ouverts face au meilleur prix du marché : où lire votre position, depuis quand un ordre est sous-coté, quel prix copier pour repasser devant. EVE Tools lit et compare, il ne modifie jamais un ordre : vous changez le prix en jeu.
 
-Portée, à connaître avant de commencer : seuls sont suivis les ordres de vente de vos personnages sur les **produits finaux** d'un projet industriel dont vous êtes membre accepté, qui n'est ni « Usage personnel (pas de vente) » ni « Termine ». Un ordre sur un autre objet n'apparaît nulle part. Les ordres d'achat sont ignorés.
+Portée, à connaître avant de commencer : seuls sont suivis les ordres de vente de vos personnages sur les **produits finaux** d'un projet industriel dont vous êtes membre accepté, qui n'est ni « Usage personnel (pas de vente) » ni « Terminé ». Un ordre sur un autre objet n'apparaît nulle part. Les ordres d'achat sont ignorés.
 
-Les libellés entre guillemets « » sont ceux de l'écran. Certains sont écrits sans accent dans l'application (« Parametres », « Structure de marche », « Termine ») et sont repris tels quels.
+Les libellés entre guillemets « » sont ceux de l'écran. Certains sont écrits sans accent dans l'application (« Parametres », « Structure de marche ») et sont repris tels quels.
 
 ## 1. Autoriser la lecture des ordres
 

@@ -52,12 +52,12 @@ Le projet s'ouvre au statut « Brouillon ». Trois points à retenir :
 
 De haut en bas :
 
-- l'en-tête, avec le statut, les boutons « Publier » et « Démarrer » (en brouillon) et les icônes « Modifier » et « Supprimer » ;
+- l'en-tête, avec le statut, le bouton « Publier » (en brouillon, sur un projet qui n'est pas privé) et les icônes « Modifier » et « Supprimer » ;
 - le rail des phases : « Préparer », « Approvisionner », « Produire », « Vendre », « Clôturer », chacune avec un compteur ;
 - « Prochaine action » : l'unique chose à faire maintenant, avec son bouton ;
 - les onglets. Seul, vous voyez « Approvisionnement » (ouvert par défaut), « Finances », « Ventes », « Production », « Planning », « Journal » et « Invention ». « Contributions » et « Équipe » sont masqués tant que vous êtes le seul participant.
 
-Quand le plan vous convient, cliquez sur « Démarrer » (le projet passe « En cours »). Ignorez « Publier », réservé aux projets que d'autres doivent rejoindre.
+Quand le plan vous convient, cliquez sur « Démarrer le projet » dans la carte « Prochaine action » (le projet passe « En cours » ; une confirmation liste la blacklist et l'exclusion de l'invention, que le démarrage verrouille). Ignorez « Publier », réservé aux projets que d'autres doivent rejoindre.
 
 ## 4. Acheter les matériaux
 
@@ -82,13 +82,13 @@ Onglet « Production », vue « Arbre des jobs » : les jobs (copie T1 et invent
 
 - **Fabrications et réactions.** Les jobs ESI de vos personnages sont rattachés à chaque synchro des jobs (toutes les 30 minutes), ou quand vous cliquez sur « Associer les jobs » (propriétaire seul). Un job est retenu s'il utilise le blueprint de la ligne, a démarré après la création du projet, a une production (ni annulé ni revenu) et que ses runs tiennent dans le reste de la ligne. Un job trop gros pour la ligne, ou qui tient dans une ligne d'un autre de vos projets ouverts, n'est lié à aucun : il reste dans la liste de « Lier un job », où vous le choisissez à la main. Le coût d'installation lu dans l'ESI devient un apport « Job Install » ; si l'ESI ne donne pas de coût, il est inconnu, jamais 0.
 - **Invention et copie T1.** Aucun job ESI ne s'y rattache. Le nombre de « Tentatives » du plan est le nombre de runs à inventer divisé par (runs du BPC inventé × probabilité de base), arrondi au supérieur, sans compétences ni décrypteur : l'analyse, qui en tient compte, peut donner un autre chiffre. Pour que ces lignes comptent et que leur coût entre dans le projet, cliquez sur « J'ai fourni » sur la ligne : le type « BPC » est présélectionné, la quantité est préremplie, et vous saisissez une « Valeur estimee » supérieure à 0, c'est-à-dire ce que les datacores et l'invention vous ont coûté. Si vous avez déjà des BPC T2, ouvrez plutôt « BPC T2 possédés » (« Déclarer mes BPC T2 ») : les runs déclarés sortent du plan. Ce panneau n'apparaît que si le plan trouve des BPC T2 dans vos blueprints synchronisés.
-- **« Marquer ».** Dans l'onglet « Production », vue « Arbre des jobs », le propriétaire peut marquer une ligne « Lancé » ou « Fait » pour un nombre de runs. La marque change le statut de la ligne et le nombre de runs restants, mais ne crée aucun coût. Piège : elle ne fait pas avancer le compteur « Produire » des phases. Une ligne n'y compte comme livrée que si ses jobs liés sont livrés ou si ses apports couvrent sa quantité. Après une marque « Fait » sur une invention, « Prochaine action » peut donc rester sur « Lancer un job ». Le bouton « Passer à En vente » de l'en-tête reste disponible.
+- **« Marquer ».** Dans l'onglet « Production », vue « Arbre des jobs », le propriétaire peut marquer une ligne « Lancé » ou « Fait » pour un nombre de runs. La marque change le statut de la ligne et le nombre de runs restants, mais ne crée aucun coût. Piège : elle ne fait pas avancer le compteur « Produire » des phases. Une ligne n'y compte comme livrée que si ses jobs liés sont livrés ou si ses apports couvrent sa quantité. Après une marque « Fait » sur une invention, « Prochaine action » peut donc rester sur « Lancer un job ». Le bouton « Passer à la vente » de l'en-tête reste disponible.
 
 Dans l'onglet « Approvisionnement », « Acheter ou fabriquer » compare chaque intermédiaire fabriqué à son achat Jita plus import, et « Passer en achat » le retire de la fabrication.
 
 ## 6. Vendre
 
-Quand les jobs sont faits, cliquez sur « Passer à En vente » (« Prochaine action » propose « Passer à la vente », qui fait de même). Les ventes s'enregistrent dès qu'elles ont lieu, tant que le projet n'est pas terminé.
+Quand les jobs sont faits, cliquez sur « Passer à la vente » (« Prochaine action » propose le même bouton). Les ventes s'enregistrent dès qu'elles ont lieu, tant que le projet n'est pas terminé.
 
 Onglet « Ventes ». « Mes ordres de vente » montre vos ordres ouverts sur les produits du projet (lus toutes les 5 minutes) et votre position (« 1er » ou « sous-coté depuis … »). Il est en lecture seule : EVE Tools ne modifie aucun ordre. Pour enregistrer une vente :
 
@@ -107,7 +107,7 @@ Onglet « Finances ». « Résumé financier » donne le « Revenu total », les
 - **Frais inconnus : pas de marge.** Si « Frais courtier % » ou « Taxe de vente % » du projet est vide et qu'une vente passe par le marché, le revenu net, le profit et la marge sont inconnus. Une vente par contrat n'en a pas besoin.
 - « Seuil de rentabilité par unité » (dans « Du revenu au profit ») est inconnu tant que les jobs finaux ne sont pas tous livrés, ou qu'un apport ou les frais sont inconnus.
 
-Pour clore, cliquez sur « Passer à Termine ». La fenêtre « Terminer le projet » liste « Avant de terminer » : contributions en attente, produits invendus et « Marge finale : … % » (ou « Marge finale inconnue : un coût ou un frais manque »). Terminer fige les comptes : plus de vente, d'apport ni de changement de frais, et le projet ne peut plus être supprimé. Cette action est irréversible.
+Pour clore, cliquez sur « Clôturer le projet ». La fenêtre « Clôturer le projet » liste « Avant de clôturer » : contributions en attente, produits invendus et « Marge finale : … % » (ou « Marge finale inconnue : un coût ou un frais manque »). Clôturer fige les comptes : plus de vente, d'apport ni de changement de frais, et le projet ne peut plus être supprimé. Cette action est irréversible.
 
 ## Ce que vous avez lu, et d'où ça vient
 

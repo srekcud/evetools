@@ -40,7 +40,7 @@ Un projet que vous menez seul est un projet solo : les onglets **Contributions**
 
 Le bandeau des phases (**Préparer**, **Approvisionner**, **Produire**, **Vendre**, **Clôturer**) et la carte **Prochaine action** disent où en est le projet. Les onglets utiles : **Approvisionnement**, **Production**, **Invention**, **Ventes**, **Finances**.
 
-Dans l'en-tête, cliquez sur **Démarrer** (ou **Publier** pour ouvrir le projet à d'autres). Le projet passe à **En cours**. Il n'y a pas d'autre condition : vous pouvez démarrer avant d'avoir tout acheté.
+Cliquez sur **Démarrer le projet** dans la carte **Prochaine action** (ou sur **Publier** dans l'en-tête pour ouvrir le projet à d'autres). Le projet passe à **En cours**. Une confirmation liste la blacklist et l'exclusion de l'invention, que le démarrage verrouille. Il n'y a pas d'autre condition : vous pouvez démarrer avant d'avoir tout acheté.
 
 ## Étape 4 : apporter les matériaux au prix réel
 
@@ -71,7 +71,7 @@ Quand tout est produit, la carte **Prochaine action** propose **Passer à la ven
 
 ## Étape 6 : vendre et enregistrer les ventes
 
-Passez le projet à la vente : bouton **Passer à En vente** dans l'en-tête (ou **Passer à la vente** sur la carte). Vendez en jeu, puis onglet **Ventes** :
+Passez le projet à la vente : bouton **Passer à la vente**, dans l'en-tête ou sur la carte. Vendez en jeu, puis onglet **Ventes** :
 
 - **Mes ordres de vente** : vos ordres sur les produits du projet, avec votre prix, le meilleur prix et votre position (EVE Tools ne modifie jamais un ordre : le bouton copie seulement un prix) ;
 - **Transactions à rattacher** : les ventes de votre wallet, faites depuis la création du projet, sur les produits du projet et jamais rattachées ; **Enregistrer comme vente** crée la vente. Un badge **Doublon possible** signale une vente déjà saisie à la main avec la même quantité et le même prix ;
@@ -95,6 +95,6 @@ La **Marge** réelle est `(revenu net − coût total du projet) ÷ coût total 
 
 ## Étape 8 : terminer le projet
 
-Quand tout est vendu, cliquez sur **Passer à Termine** (ou **Clôturer le projet** sur la carte). La fenêtre **Terminer le projet** liste **Avant de terminer** : produits invendus (« Tout est vendu » quand il n'en reste pas) et marge finale (« Marge finale : … % », ou « Marge finale inconnue : un coût ou un frais manque »). Confirmez avec **Terminer**.
+Quand tout est vendu, cliquez sur **Clôturer le projet**, dans l'en-tête ou sur la carte. La fenêtre **Clôturer le projet** liste **Avant de clôturer** : produits invendus (« Tout est vendu » quand il n'en reste pas) et marge finale (« Marge finale : … % », ou « Marge finale inconnue : un coût ou un frais manque »). Confirmez avec **Clôturer le projet**.
 
-Terminer fige les comptes : plus de contribution, de vente ni de changement de frais, et le projet ne peut plus être supprimé. Cette action est irréversible. S'il ne contient que ce produit, il servira de **Référence** à la création d'un projet du même produit pendant un mois.
+Clôturer fige les comptes : plus de contribution, de vente ni de changement de frais, et le projet ne peut plus être supprimé. Cette action est irréversible. S'il ne contient que ce produit, il servira de **Référence** à la création d'un projet du même produit pendant un mois.
