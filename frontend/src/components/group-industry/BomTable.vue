@@ -40,8 +40,14 @@ const verificationMap = computed(() => {
 })
 
 const multibuyLines = computed(() =>
-  materials.value.map(item => ({ typeName: item.typeName, quantity: item.requiredQuantity })),
+  materials.value
+    .filter(item => item.remainingQuantity > 0)
+    .map(item => ({ typeName: item.typeName, quantity: item.remainingQuantity })),
 )
+
+function remainingCost(item: BomItem): number | null {
+  return item.estimatedPrice === null ? null : item.estimatedPrice * item.remainingQuantity
+}
 
 const totalItems = computed(() => materials.value.length)
 const totalBomValue = computed(() => projectStore.currentProject?.totalBomValue ?? null)
@@ -130,7 +136,7 @@ function ringStrokeColor(percent: number): string {
               <th class="text-left py-2.5 px-3">{{ isSoloProject ? '' : t('groupIndustry.reservation.reservedBy') }}</th>
               <th class="text-right py-2.5 px-6">
                 <div class="flex items-center justify-end gap-1">
-                  {{ t('groupIndustry.bom.estCost') }}
+                  {{ t('groupIndustry.bom.remainingEstCost') }}
                   <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
                 <div class="text-xs text-slate-500 font-normal normal-case tracking-normal mt-0.5">(Jita 5% avg)</div>
@@ -223,8 +229,8 @@ function ringStrokeColor(percent: number): string {
 
               <!-- Est. Cost -->
               <td class="py-2.5 px-6 text-right font-mono text-slate-400 max-w-[10rem]" style="font-variant-numeric: tabular-nums;">
-                {{ item.estimatedTotal != null ? formatIsk(item.estimatedTotal, 1) : '---' }}
-                <div v-if="item.estimatedTotal != null"><PriceSourceBadge :source="item.estimatedPriceSource" /></div>
+                {{ formatIsk(remainingCost(item), 1) }}
+                <div v-if="remainingCost(item) !== null"><PriceSourceBadge :source="item.estimatedPriceSource" /></div>
               </td>
             </tr>
           </tbody>

@@ -3494,6 +3494,7 @@
       "remaining": "Remaining",
       "progress": "Progress",
       "estCost": "Est. Cost",
+      "remainingEstCost": "Remaining Est. Cost",
       "totalItems": "Total Items",
       "totalEstCost": "Total Est. Cost",
       "overallFulfillment": "Overall Fulfillment",
