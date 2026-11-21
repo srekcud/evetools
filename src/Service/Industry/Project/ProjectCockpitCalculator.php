@@ -65,7 +65,7 @@ final readonly class ProjectCockpitCalculator
         $unitsSold = min($unitsToSell, $this->soldUnitsOf($finalLines, $input->soldQuantityByTypeId));
 
         $counters = [
-            self::PHASE_PREPARE => [$input->status === ProjectStatus::Draft ? self::NONE : $input->productCount, $input->productCount],
+            self::PHASE_PREPARE => [$input->status === ProjectStatus::Draft ? self::NONE : self::SINGLE_STEP, self::SINGLE_STEP],
             self::PHASE_SUPPLY => [\count($materialLines) - \count($uncoveredMaterials), \count($materialLines)],
             self::PHASE_PRODUCE => [\count($jobLines) - \count($undeliveredJobs), \count($jobLines)],
             self::PHASE_SELL => [$unitsSold, $unitsToSell],

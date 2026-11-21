@@ -12,7 +12,15 @@ const props = defineProps<{
 }>()
 
 const activeCount = computed(() =>
-  props.projects.filter(p => p.status !== 'completed').length
+  props.projects.filter(p => p.status === 'in_progress').length
+)
+
+const sellingCount = computed(() =>
+  props.projects.filter(p => p.status === 'selling').length
+)
+
+const pipelineProjects = computed(() =>
+  props.projects.filter(p => p.status !== 'completed')
 )
 
 const totalContributions = computed(() =>
@@ -28,16 +36,16 @@ const pendingApprovals = computed(() =>
 )
 
 const pipelineValue = computed(() =>
-  props.projects.reduce((sum, p) => (p.totalBomValue === null ? sum : sum + p.totalBomValue), 0)
+  pipelineProjects.value.reduce((sum, p) => (p.totalBomValue === null ? sum : sum + p.totalBomValue), 0)
 )
 
 const unknownBomValueCount = computed(() =>
-  props.projects.filter(p => p.totalBomValue === null).length
+  pipelineProjects.value.filter(p => p.totalBomValue === null).length
 )
 </script>
 
 <template>
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
     <!-- Active Projects -->
     <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 60ms;">
       <div class="flex items-center justify-between mb-3">
@@ -48,6 +56,20 @@ const unknownBomValueCount = computed(() =>
         {{ activeCount }}
       </p>
       <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.kpis.activeDesc') }}</p>
+    </div>
+
+    <!-- Selling Projects -->
+    <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-4 card-enter" style="animation-delay: 90ms;">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('groupIndustry.kpis.sellingProjects') }}</p>
+        <svg class="w-4 h-4 text-emerald-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.6.6-.2 1.7.7 1.7H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      </div>
+      <p class="text-3xl font-bold text-emerald-400 font-mono value-reveal" style="animation-delay: 330ms; font-variant-numeric: tabular-nums;">
+        {{ sellingCount }}
+      </p>
+      <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.kpis.sellingDesc') }}</p>
     </div>
 
     <!-- Total Contributions -->

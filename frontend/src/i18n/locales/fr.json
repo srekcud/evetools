@@ -3468,7 +3468,9 @@
     },
     "kpis": {
       "activeProjects": "Projets actifs",
-      "activeDesc": "en cours de production",
+      "activeDesc": "en production",
+      "sellingProjects": "En vente",
+      "sellingDesc": "en attente de ventes ou de clôture",
       "totalContributions": "Contributions totales",
       "contributionsDesc": "sur tous les projets",
       "pendingApprovals": "Approbations en attente",

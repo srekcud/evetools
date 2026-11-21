@@ -121,7 +121,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, false);
 
         self::assertSame([
-            ['prepare', 'done', 2, 2, null, null],
+            ['prepare', 'done', 1, 1, null, null],
             ['supply', 'done', 2, 2, null, null],
             ['produce', 'current', 1, 6, null, null],
             ['sell', 'upcoming', 0, 403, null, null],
@@ -292,7 +292,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], $this->phaseRows($cockpit));
     }
 
-    public function testDraftProjectIsStartedByTheManagerWhilePrepareIsCurrentAtZeroOfTwoAndAMemberHasNothingToDo(): void
+    public function testDraftProjectIsStartedByTheManagerWhilePrepareIsCurrentAtZeroOfOneAndAMemberHasNothingToDo(): void
     {
         $lines = [
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 14_000, 0),
@@ -304,7 +304,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         $memberCockpit = $this->cockpitOf(ProjectStatus::Draft, 2, $lines, [], 0, false);
 
         self::assertSame([
-            ['prepare', 'current', 0, 2, null, null],
+            ['prepare', 'current', 0, 1, null, null],
             ['supply', 'upcoming', 0, 1, null, null],
             ['produce', 'upcoming', 0, 2, null, null],
             ['sell', 'upcoming', 0, 51, null, null],

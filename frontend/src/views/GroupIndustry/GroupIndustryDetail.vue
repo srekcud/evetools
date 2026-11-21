@@ -514,7 +514,7 @@ const totalRuns = computed(() =>
 
 const bomItemCount = computed(() => projectStore.materials.length)
 const materialsCount = computed(() => `${bomItemCount.value} ${bomItemCount.value === 1 ? 'item' : 'items'}`)
-const contributionCount = computed(() => project.value?.contributionsCount ?? 0)
+const pendingContributionCount = computed(() => project.value?.pendingContributionCount ?? null)
 const shareLinkLabel = computed(() => t(isWorkedOnAlone.value ? 'groupIndustry.detail.invite' : 'groupIndustry.detail.shareLink'))
 const memberCount = computed(() => project.value?.membersCount ?? 0)
 const shareLinkBlockedReason = computed<'private' | 'draft' | null>(() => {
@@ -706,7 +706,7 @@ function applyShareLinkShortcut(): void {
       <ProjectTabBar
         v-model="activeTab"
         :materials-count="materialsCount"
-        :contribution-count="contributionCount"
+        :pending-contribution-count="pendingContributionCount"
         :member-count="memberCount"
         :hidden-tabs="hiddenTabs"
       />
