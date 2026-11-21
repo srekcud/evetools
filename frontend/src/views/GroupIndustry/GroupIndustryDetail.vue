@@ -16,6 +16,7 @@ import { useGroupCompanionStore } from '@/stores/group-industry/companion'
 import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
+import { useFormatters } from '@/composables/useFormatters'
 import { useTabQuery } from '@/composables/useTabQuery'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
@@ -69,6 +70,7 @@ import ProducerCharactersSelect from '@/components/group-industry/ProducerCharac
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit, ProjectPhaseKey } from '@/stores/group-industry/types'
 import { headerStatuses } from './nextProjectStatus'
+import { unfinishedLinesOf } from './sellingConfirmation'
 import { groupJoinUrl } from './groupJoinUrl'
 import { DETAIL_TABS, detailTabOfNextAction, detailTabOfPhase, openingTabOf, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
@@ -79,6 +81,7 @@ import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupP
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 
 const { t } = useI18n()
+const { formatNumber } = useFormatters()
 const editNameFieldId = useId()
 const editContainerNameFieldId = useId()
 const editContainerNamesField = ref<HTMLTextAreaElement | null>(null)
@@ -151,6 +154,8 @@ const showDeleteConfirm = ref(false)
 const isDeleting = ref(false)
 
 const showCompleteConfirm = ref(false)
+const showSellingConfirm = ref(false)
+const unfinishedLines = computed(() => unfinishedLinesOf(projectStore.bomItems))
 const isAdvancingStatus = ref(false)
 const statusError = ref<string | null>(null)
 
@@ -450,6 +455,10 @@ function requestNextStatus(target: GroupProjectStatus): void {
     showCompleteConfirm.value = true
     return
   }
+  if (target === 'selling') {
+    showSellingConfirm.value = true
+    return
+  }
   advanceStatus()
 }
 
@@ -460,6 +469,7 @@ async function advanceStatus(): Promise<void> {
   try {
     await projectStore.updateProject(projectId.value, { status: pendingStatus.value })
     showCompleteConfirm.value = false
+    showSellingConfirm.value = false
     if (pendingStatus.value === 'completed') activeTab.value = 'distribution'
     await loadCockpit(projectId.value)
   } catch (e) {
@@ -690,7 +700,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           data-testid="publish-help"
           class="mt-3 text-xs text-slate-500"
         >{{ t('groupIndustry.detail.publishHelp') }}</p>
-        <p v-if="statusError && !showCompleteConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
+        <p v-if="statusError && !showCompleteConfirm && !showSellingConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>
 
       <template v-if="cockpit">
@@ -1135,6 +1145,62 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           {{ t('groupIndustry.detail.completeConfirm.confirm') }}
+        </button>
+      </div>
+    </BaseModal>
+    <BaseModal
+      :show="showSellingConfirm"
+      :title="t('groupIndustry.detail.sellingConfirm.title')"
+      panel-class="border-slate-700 max-w-lg"
+      @close="showSellingConfirm = false"
+    >
+      <template #title="{ titleId }">
+        <div class="px-6 py-5 border-b border-slate-800">
+          <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ t('groupIndustry.detail.sellingConfirm.title') }}</h2>
+        </div>
+      </template>
+
+      <div class="px-6 py-5" data-testid="selling-confirm">
+        <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.sellingConfirm.message') }}</p>
+        <section v-if="unfinishedLines.uncoveredMaterials.length > 0" class="mt-4" data-testid="selling-confirm-uncovered">
+          <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{{ t('groupIndustry.detail.sellingConfirm.uncoveredTitle') }}</h3>
+          <ul class="max-h-40 space-y-1 overflow-y-auto rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-200">
+            <li v-for="line in unfinishedLines.uncoveredMaterials" :key="line.id" class="flex justify-between gap-3 font-mono text-xs">
+              <span class="min-w-0 truncate">{{ line.typeName }}</span>
+              <span>× {{ formatNumber(line.remainingQuantity, 0) }}</span>
+            </li>
+          </ul>
+        </section>
+        <section v-if="unfinishedLines.undeliveredJobs.length > 0" class="mt-4" data-testid="selling-confirm-undelivered">
+          <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{{ t('groupIndustry.detail.sellingConfirm.undeliveredTitle') }}</h3>
+          <ul class="max-h-40 space-y-1 overflow-y-auto rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-200">
+            <li v-for="line in unfinishedLines.undeliveredJobs" :key="line.id" class="flex justify-between gap-3 font-mono text-xs">
+              <span class="min-w-0 truncate">{{ line.typeName }}</span>
+              <span>× {{ formatNumber(line.remainingQuantity, 0) }}</span>
+            </li>
+          </ul>
+        </section>
+        <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
+      </div>
+
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
+        <button
+          class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-colors"
+          data-testid="selling-confirm-cancel"
+          @click="showSellingConfirm = false"
+        >
+          {{ t('common.actions.cancel') }}
+        </button>
+        <button
+          class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+          data-testid="selling-confirm-button"
+          :disabled="isAdvancingStatus"
+          @click="advanceStatus"
+        >
+          <svg v-if="isAdvancingStatus" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {{ t('groupIndustry.detail.sellingConfirm.confirm') }}
         </button>
       </div>
     </BaseModal>

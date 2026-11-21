@@ -4253,6 +4253,13 @@
         "message": "Clôturer le projet fige ses comptes : plus de contribution, de revue, de vente ni de changement de frais, et il ne pourra plus être supprimé. Cette action est irréversible.",
         "checksTitle": "Avant de clôturer",
         "confirm": "Clôturer le projet"
+      },
+      "sellingConfirm": {
+        "title": "Passer à la vente",
+        "message": "Passer à la vente est irréversible : les contributions ne peuvent plus être rouvertes et le projet ne revient ni à l'approvisionnement ni à la production.",
+        "uncoveredTitle": "Matériaux non couverts",
+        "undeliveredTitle": "Jobs non livrés",
+        "confirm": "Passer à la vente"
       }
     },
     "contractSales": {
