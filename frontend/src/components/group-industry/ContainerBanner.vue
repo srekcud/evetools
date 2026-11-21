@@ -85,8 +85,6 @@ async function refreshAssets(): Promise<void> {
     } else if (refresh.status === 'completed' || refresh.status === 'up_to_date') {
       isRefreshing.value = false
       await verifyAll()
-    } else if (refresh.status === 'in_progress') {
-      isRefreshing.value = false
     }
   } catch {
     refreshError.value = t('groupIndustry.container.refreshFailed')

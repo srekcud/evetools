@@ -5,6 +5,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import { apiRequest } from '@/services/api'
+import { useSyncStore } from '@/stores/sync'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -23,13 +24,29 @@ function answerRefreshWith(refreshAnswer: Record<string, unknown>): void {
   })
 }
 
-async function clickRefresh(refreshAnswer: Record<string, unknown>) {
+function mountBanner() {
   setActivePinia(createPinia())
-  answerRefreshWith(refreshAnswer)
-  const wrapper = mount(ContainerBanner, {
+  answerRefreshWith({ status: 'pending' })
+  return mount(ContainerBanner, {
     props: { containerNames: ['Build'], projectId: PROJECT_ID, canVerify: true },
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })] },
   })
+}
+
+function setCorporationAssetsSync(status: 'started' | 'completed' | 'error'): void {
+  useSyncStore().syncStatus['corporation-assets'] = {
+    syncType: 'corporation-assets',
+    status,
+    progress: null,
+    message: null,
+    data: null,
+    timestamp: '2026-11-21T21:00:00+00:00',
+  }
+}
+
+async function clickRefresh(refreshAnswer: Record<string, unknown>) {
+  const wrapper = mountBanner()
+  answerRefreshWith(refreshAnswer)
   await wrapper.get('[data-testid="container-refresh-assets"]').trigger('click')
   await flushPromises()
   return wrapper
@@ -54,14 +71,52 @@ describe('ContainerBanner refresh of the corporation assets', () => {
     ]).toEqual([undefined, false, 1])
   })
 
-  it('stops waiting without an error when a sync is already running', async () => {
+  it('keeps waiting without an error while a sync is already running', async () => {
     const wrapper = await clickRefresh({ status: 'in_progress' })
 
     expect([
       wrapper.get('[data-testid="container-refresh-assets"]').attributes('disabled'),
       wrapper.find('[data-testid="container-refresh-error"]').exists(),
       verificationRequests(),
-    ]).toEqual([undefined, false, 0])
+    ]).toEqual(['', false, 0])
+  })
+
+  it('verifies the container once when the sync already running completes', async () => {
+    const wrapper = await clickRefresh({ status: 'in_progress' })
+
+    setCorporationAssetsSync('completed')
+    await flushPromises()
+
+    expect([
+      wrapper.get('[data-testid="container-refresh-assets"]').attributes('disabled'),
+      wrapper.find('[data-testid="container-refresh-error"]').exists(),
+      verificationRequests(),
+    ]).toEqual([undefined, false, 1])
+  })
+
+  it('shows the refresh error when the sync already running fails', async () => {
+    const wrapper = await clickRefresh({ status: 'in_progress' })
+
+    setCorporationAssetsSync('error')
+    await flushPromises()
+
+    expect([
+      wrapper.get('[data-testid="container-refresh-assets"]').attributes('disabled'),
+      wrapper.find('[data-testid="container-refresh-error"]').exists(),
+      verificationRequests(),
+    ]).toEqual([undefined, true, 0])
+  })
+
+  it('ignores a sync that ends when no refresh was requested', async () => {
+    const wrapper = mountBanner()
+
+    setCorporationAssetsSync('completed')
+    await flushPromises()
+
+    expect([
+      wrapper.get('[data-testid="container-refresh-assets"]').attributes('disabled'),
+      verificationRequests(),
+    ]).toEqual([undefined, 0])
   })
 
   it('keeps waiting for the sync events while the sync is pending', async () => {
