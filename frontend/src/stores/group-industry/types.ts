@@ -662,6 +662,7 @@ export type ProjectNextActionCode =
   | 'review_contributions'
   | 'start_project'
   | 'source_material'
+  | 'deliver_purchases'
   | 'launch_job'
   | 'await_jobs'
   | 'start_selling'
@@ -732,6 +733,7 @@ export type ProjectCockpit = {
   status: GroupProjectStatus
   phases: ProjectPhase[]
   nextAction: ProjectNextAction
+  purchasesToDeliverCount: number
   priceAlert: ProjectPriceAlert | null
   undercutOrders: ProjectSellOrder[]
 }

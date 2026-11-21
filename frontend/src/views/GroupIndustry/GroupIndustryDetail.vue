@@ -503,7 +503,7 @@ const projectDisplayName = computed(() => {
 })
 
 const sourcingOverride = ref<SourcingOverride | null>(null)
-const sourcingComplete = computed(() => isSourcingComplete(projectStore.materials))
+const sourcingComplete = computed(() => isSourcingComplete(projectStore.materials, cockpit.value?.purchasesToDeliverCount ?? null))
 const sourcingCollapsed = computed(() => isSourcingCollapsed(sourcingComplete.value, sourcingOverride.value))
 
 watch(projectId, id => {

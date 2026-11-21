@@ -143,8 +143,8 @@ export function nextAction(overrides: Partial<ProjectNextAction> & Pick<ProjectN
   }
 }
 
-export function cockpitOf(status: GroupProjectStatus, action: ProjectNextAction, phases: ProjectPhase[] = supplyRail(), priceAlert: ProjectPriceAlert | null = null, undercutOrders: ProjectSellOrder[] = []): ProjectCockpit {
-  return { projectId: PROJECT_ID, status, phases, nextAction: action, priceAlert, undercutOrders }
+export function cockpitOf(status: GroupProjectStatus, action: ProjectNextAction, phases: ProjectPhase[] = supplyRail(), priceAlert: ProjectPriceAlert | null = null, undercutOrders: ProjectSellOrder[] = [], purchasesToDeliverCount = 0): ProjectCockpit {
+  return { projectId: PROJECT_ID, status, phases, nextAction: action, purchasesToDeliverCount, priceAlert, undercutOrders }
 }
 
 export type CockpitAnswers = {

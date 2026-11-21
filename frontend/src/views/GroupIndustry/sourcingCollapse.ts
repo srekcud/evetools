@@ -3,8 +3,8 @@ export type SourcingOverride = 'open' | 'closed'
 const STORAGE_KEY_PREFIX = 'group-industry-sourcing-'
 const OVERRIDES: readonly string[] = ['open', 'closed']
 
-export function isSourcingComplete(materials: readonly { isFulfilled: boolean }[]): boolean {
-  return materials.length > 0 && materials.every(material => material.isFulfilled)
+export function isSourcingComplete(materials: readonly { isFulfilled: boolean }[], purchasesToDeliverCount: number | null): boolean {
+  return materials.length > 0 && materials.every(material => material.isFulfilled) && purchasesToDeliverCount === 0
 }
 
 export function isSourcingCollapsed(complete: boolean, override: SourcingOverride | null): boolean {

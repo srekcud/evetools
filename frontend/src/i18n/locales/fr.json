@@ -4164,6 +4164,11 @@
           "description": "Les matériaux sont prêts à être apportés : passez le projet en cours.",
           "button": "Démarrer le projet"
         },
+        "deliver_purchases": {
+          "title": "Amener les achats au container",
+          "description": "Lignes achetées encore à amener dans le container du projet : {quantity}. Expédiez-les et déposez-les avant de lancer les jobs.",
+          "button": "Voir les achats"
+        },
         "source_material": {
           "title": "Approvisionner un matériau",
           "description": "Il manque {quantity} {typeName} pour couvrir la BOM.",

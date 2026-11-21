@@ -32,7 +32,16 @@ final readonly class ProjectCockpitInputFactory
             $this->soldQuantityByTypeId($project),
             $project->pendingContributionCountReviewableBy($user),
             $this->isManager($user, $project),
+            $this->purchasesToDeliverCount($project, $fulfillments),
         );
+    }
+
+    private function purchasesToDeliverCount(IndustryProject $project, ProjectLineFulfillments $fulfillments): int
+    {
+        return \count(array_filter(
+            $project->getBomItems()->toArray(),
+            static fn (IndustryProjectBomLine $line): bool => ($fulfillments->missingPurchasedQuantityOf($line) ?? 0) > 0,
+        ));
     }
 
     private function toCockpitBomLine(IndustryProjectBomLine $line, ProjectLineFulfillments $fulfillments): CockpitBomLine

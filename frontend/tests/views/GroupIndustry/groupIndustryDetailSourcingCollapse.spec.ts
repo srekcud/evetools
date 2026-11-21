@@ -30,11 +30,11 @@ const OPEN_MATERIALS: BomItem[] = [
   bomLine({ id: 'mexallon', typeId: 36, typeName: 'Mexallon' }),
 ]
 
-async function mountWith(bom: BomItem[]) {
+async function mountWith(bom: BomItem[], purchasesToDeliverCount = 0) {
   return mountCockpitDetail({
     project: nyxProject('in_progress'),
     bom,
-    cockpit: cockpitOf('in_progress', nextAction({ code: 'launch_job', tab: 'materials' })),
+    cockpit: cockpitOf('in_progress', nextAction({ code: 'launch_job', tab: 'materials' }), undefined, null, [], purchasesToDeliverCount),
   })
 }
 
@@ -55,6 +55,15 @@ describe('project materials tab sourcing blocks', () => {
       sourcing: wrapper.find(SOURCING_SECTION).exists(),
       summary: wrapper.get(SOURCING_SUMMARY).text(),
     }).toEqual({ sourcing: false, summary: expect.stringContaining('2 materials covered') })
+  })
+
+  it('keeps the sourcing blocks open while a purchased line is still to be delivered to the container', async () => {
+    const wrapper = await mountWith(COVERED_MATERIALS, 2)
+
+    expect({
+      sourcing: wrapper.find(SOURCING_SECTION).exists(),
+      summary: wrapper.find(SOURCING_SUMMARY).exists(),
+    }).toEqual({ sourcing: true, summary: false })
   })
 
   it('keeps the sourcing blocks open while a material is still missing', async () => {

@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Provider\Industry\Project;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectBomLineMark;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectPurchase;
 use App\Enum\BomLineMarkState;
 use App\Enum\ContributionStatus;
 use App\Enum\ParticipantRole;
@@ -254,6 +255,41 @@ final class ProjectCockpitInputFactoryTest extends TestCase
             ['owner' => true, 'acceptedAdmin' => true, 'acceptedMember' => false, 'pendingAdmin' => false, 'removedAdmin' => false],
             $viewerIsManager,
         );
+    }
+
+    #[Group('issue-1175')]
+    public function testCountsTheBoughtLinesWhoseContainerStockDoesNotHoldThePurchases(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $tritanium = $this->materialOf($project, self::TRITANIUM_TYPE_ID, 'Tritanium', 1_000, 1_000);
+        $isogen = $this->materialOf($project, self::ISOGEN_TYPE_ID, 'Isogen', 500, 500);
+        $this->materialOf($project, 35, 'Pyerite', 300, 0);
+        $this->purchaseOn($tritanium, 600);
+        $this->purchaseOn($tritanium, 400);
+        $this->purchaseOn($isogen, 500);
+        $fulfillments = new ProjectLineFulfillments(ContainerStockState::Known, [self::TRITANIUM_TYPE_ID => 700, self::ISOGEN_TYPE_ID => 500]);
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner, $fulfillments);
+
+        self::assertSame(1, $input->purchasesToDeliverCount);
+    }
+
+    #[Group('issue-1175')]
+    public function testBoughtLinesAreNotCountedWhenTheContainerStockIsUnknown(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->purchaseOn($this->materialOf($project, self::TRITANIUM_TYPE_ID, 'Tritanium', 1_000, 1_000), 1_000);
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+
+        self::assertSame(0, $input->purchasesToDeliverCount);
+    }
+
+    private function purchaseOn(IndustryProjectBomLine $line, int $quantity): void
+    {
+        $line->addPurchase((new IndustryProjectPurchase())->setTypeId($line->getTypeId())->setQuantity($quantity)->setUnitPrice(1.0)->setTotalPrice((float) $quantity)->setSource('manual'));
     }
 
     private function jobMatchEndingOn(IndustryProjectBomLine $line, int $runs, string $status, string $endDate): void

@@ -4164,6 +4164,11 @@
           "description": "Materials are ready to be contributed: move the project to in progress.",
           "button": "Start the project"
         },
+        "deliver_purchases": {
+          "title": "Bring the purchases to the container",
+          "description": "Purchased lines still to bring to the project container: {quantity}. Ship and deposit them before launching the jobs.",
+          "button": "See the purchases"
+        },
         "source_material": {
           "title": "Source a material",
           "description": "{quantity} {typeName} are still missing to cover the BOM.",

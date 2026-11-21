@@ -15,6 +15,7 @@ final readonly class ProjectCockpit
         public ProjectStatus $status,
         public array $phases,
         public CockpitNextAction $nextAction,
+        public int $purchasesToDeliverCount,
     ) {
     }
 }
