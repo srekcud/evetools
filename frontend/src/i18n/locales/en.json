@@ -3876,6 +3876,7 @@
     "saleSuggestions": {
       "title": "Transactions to link",
       "date": "Date",
+      "item": "Item",
       "character": "Character",
       "quantity": "Quantity",
       "unitPrice": "Unit Price",
@@ -3891,6 +3892,7 @@
       "recordAllCount": "{count} wallet transactions will be recorded as sales",
       "recordAllQuantity": "{quantity} units in total",
       "recordAllTotal": "{amount} in total",
+      "recordAllProduct": "{name}: {quantity} units, {amount}",
       "recordAllLeftOut": "{count} transaction is left out (possible duplicate or invalid quantity) | {count} transactions are left out (possible duplicate or invalid quantity)",
       "recordAllConfirm": "Confirm",
       "recordAllFailures": "{count} transaction could not be recorded | {count} transactions could not be recorded",
