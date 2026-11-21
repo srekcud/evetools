@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useFormatters } from '@/composables/useFormatters'
 import type { ProjectNextAction } from '@/stores/group-industry/types'
 
 const props = defineProps<{
@@ -13,13 +14,14 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { formatDateTime } = useFormatters()
 
 const messageKey = computed(() => `groupIndustry.cockpit.nextAction.${props.nextAction.code}`)
-const descriptionKey = computed(() =>
-  props.nextAction.code === 'launch_job' && props.nextAction.quantity === null
-    ? `${messageKey.value}.descriptionUnknownRuns`
-    : `${messageKey.value}.description`
-)
+const descriptionKey = computed(() => {
+  if (props.nextAction.code === 'launch_job' && props.nextAction.quantity === null) return `${messageKey.value}.descriptionUnknownRuns`
+  if (props.nextAction.code === 'await_jobs' && props.nextAction.endsAt === null) return `${messageKey.value}.descriptionUnknownEnd`
+  return `${messageKey.value}.description`
+})
 const hasButton = computed(() => props.nextAction.targetStatus !== null || props.nextAction.tab !== null)
 </script>
 
@@ -38,7 +40,7 @@ const hasButton = computed(() => props.nextAction.targetStatus !== null || props
         {{ t(`${messageKey}.title`) }}{{ ' ' }}
       </h2>
       <p class="break-words text-sm text-slate-400">
-        {{ t(descriptionKey, { typeName: nextAction.typeName, quantity: nextAction.quantity }) }}
+        {{ t(descriptionKey, { typeName: nextAction.typeName, quantity: nextAction.quantity, endsAt: nextAction.endsAt === null ? '' : formatDateTime(nextAction.endsAt) }) }}
       </p>
     </div>
     <button

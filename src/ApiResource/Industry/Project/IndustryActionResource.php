@@ -51,6 +51,8 @@ class IndustryActionResource
 
     public ?int $quantity = null;
 
+    public ?string $endsAt = null;
+
     public string $severity;
 
     public ?float $impactIsk = null;

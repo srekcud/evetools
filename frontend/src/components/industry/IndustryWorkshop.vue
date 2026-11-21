@@ -66,7 +66,7 @@ const groupProjectStore = useGroupProjectStore()
 const syncStore = useSyncStore()
 const workshopProjectsStore = useIndustryWorkshopProjectsStore()
 const { getTypeIconUrl, getCharacterPortraitUrl, onImageError } = useEveImages()
-const { formatIsk, formatTimeSince } = useFormatters()
+const { formatIsk, formatDateTime, formatTimeSince } = useFormatters()
 
 useIndustryJobsSync(() => slotsStore.fetchSlots())
 
@@ -99,7 +99,10 @@ function priceAlertGap(action: IndustryAction): number | null {
 function actionPhrase(action: IndustryAction): string {
   const base = `industry.workshop.actions.${action.code}`
   const quantityIsUnknown = QUANTITY_CODES.includes(action.code) && action.quantity === null
-  return t(quantityIsUnknown ? `${base}.textUnknownQuantity` : `${base}.text`, {
+  const endIsUnknown = action.code === 'await_jobs' && action.endsAt === null
+  const textKey = quantityIsUnknown ? `${base}.textUnknownQuantity` : endIsUnknown ? `${base}.textUnknownEnd` : `${base}.text`
+  return t(textKey, {
+    endsAt: action.endsAt === null ? '' : formatDateTime(action.endsAt),
     typeName: action.typeName,
     quantity: action.quantity === null ? '' : n(action.quantity),
     jitaPrice: formatIsk(action.jitaUnitPrice),

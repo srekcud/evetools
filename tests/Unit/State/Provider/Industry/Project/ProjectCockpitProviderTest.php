@@ -120,6 +120,7 @@ final class ProjectCockpitProviderTest extends TestCase
                 'typeId' => self::SABRE_TYPE_ID,
                 'typeName' => 'Sabre',
                 'quantity' => 3,
+                'endsAt' => null,
             ],
             'priceAlert' => null,
             'undercutOrders' => [],
@@ -188,6 +189,26 @@ final class ProjectCockpitProviderTest extends TestCase
         );
 
         self::assertSame([['review_contributions', 2], ['review_contributions', 2], ['launch_job', 3]], $nextActions);
+    }
+
+    #[Group('issue-1195')]
+    public function testFullyLaunchedJobsExposeTheAwaitingActionWithTheLatestEndDateInIsoFormat(): void
+    {
+        $this->createSabreBatch();
+        $this->stockSabreBatch();
+        $this->sabreJobLine->getJobMatches()->first()->setEndDate(new \DateTimeImmutable('2026-11-22 08:00:00'));
+        $this->sabreJobLine->addJobMatch(
+            (new IndustryProjectJobMatch())->setEsiJobId(612_336_002)->setRuns(3)->setStatus('active')->setEndDate(new \DateTimeImmutable('2026-11-23 10:30:00')),
+        );
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+
+        $cockpit = $this->provider()->provide(new Get(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+        $nextAction = get_object_vars($cockpit)['nextAction'] ?? null;
+
+        self::assertSame(
+            ['await_jobs', null, null, '2026-11-23T10:30:00+00:00'],
+            [$nextAction['code'] ?? null, $nextAction['bomLineId'] ?? null, $nextAction['quantity'] ?? null, $nextAction['endsAt'] ?? null],
+        );
     }
 
     private function nextActionCodeAndQuantity(): array

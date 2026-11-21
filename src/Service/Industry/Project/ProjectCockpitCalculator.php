@@ -34,6 +34,7 @@ final readonly class ProjectCockpitCalculator
     private const string ACTION_START_PROJECT = 'start_project';
     private const string ACTION_SOURCE_MATERIAL = 'source_material';
     private const string ACTION_LAUNCH_JOB = 'launch_job';
+    private const string ACTION_AWAIT_JOBS = 'await_jobs';
     private const string ACTION_START_SELLING = 'start_selling';
     private const string ACTION_RECORD_SALE = 'record_sale';
     private const string ACTION_COMPLETE_PROJECT = 'complete_project';
@@ -224,7 +225,9 @@ final readonly class ProjectCockpitCalculator
         }
 
         if ($undeliveredJobs !== []) {
-            return $this->launchJob($undeliveredJobs);
+            $jobsToLaunch = $this->jobsToLaunch($undeliveredJobs);
+
+            return $jobsToLaunch !== [] ? $this->launchJob($jobsToLaunch) : $this->awaitJobs($undeliveredJobs);
         }
 
         return $this->managerStatusAction($input, self::ACTION_START_SELLING, ProjectStatus::Selling);
@@ -254,6 +257,34 @@ final readonly class ProjectCockpitCalculator
             $line->typeName,
             $line->requiredQuantity - $line->fulfilledQuantity,
         );
+    }
+
+    /**
+     * @param list<CockpitBomLine> $undeliveredJobs
+     *
+     * @return list<CockpitBomLine>
+     */
+    private function jobsToLaunch(array $undeliveredJobs): array
+    {
+        return array_values(array_filter(
+            $undeliveredJobs,
+            static fn (CockpitBomLine $line): bool => $line->runs === null || $line->runs > $line->matchedRuns,
+        ));
+    }
+
+    /**
+     * @param non-empty-list<CockpitBomLine> $runningJobs
+     */
+    private function awaitJobs(array $runningJobs): CockpitNextAction
+    {
+        $endsAt = null;
+        foreach ($runningJobs as $line) {
+            if ($line->latestJobEndDate !== null && ($endsAt === null || $line->latestJobEndDate > $endsAt)) {
+                $endsAt = $line->latestJobEndDate;
+            }
+        }
+
+        return new CockpitNextAction(self::ACTION_AWAIT_JOBS, false, self::TAB_MATERIALS, null, null, null, null, null, $endsAt);
     }
 
     /**

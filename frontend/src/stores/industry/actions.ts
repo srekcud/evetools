@@ -24,6 +24,7 @@ export type IndustryAction = {
   typeId: number | null
   typeName: string | null
   quantity: number | null
+  endsAt: string | null
   severity: IndustryActionSeverity
   impactIsk: number | null
   jitaUnitPrice: number | null

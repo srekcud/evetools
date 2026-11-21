@@ -663,6 +663,7 @@ export type ProjectNextActionCode =
   | 'start_project'
   | 'source_material'
   | 'launch_job'
+  | 'await_jobs'
   | 'start_selling'
   | 'record_sale'
   | 'complete_project'
@@ -686,6 +687,7 @@ export type ProjectNextAction = {
   typeId: number | null
   typeName: string | null
   quantity: number | null
+  endsAt: string | null
 }
 
 export type ProjectPriceAlert = {

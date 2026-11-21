@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Provider\Industry\Project;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\Industry\Project\IndustryActionResource;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
@@ -159,6 +160,7 @@ final class IndustryActionsProviderTest extends TestCase
                 'typeId' => self::TRITANIUM_TYPE_ID,
                 'typeName' => 'Tritanium',
                 'quantity' => 27_500,
+                'endsAt' => null,
                 'severity' => 'warning',
                 'impactIsk' => 137_500.0,
                 'jitaUnitPrice' => null,
@@ -186,6 +188,7 @@ final class IndustryActionsProviderTest extends TestCase
                 'typeId' => null,
                 'typeName' => null,
                 'quantity' => null,
+                'endsAt' => null,
                 'severity' => 'info',
                 'impactIsk' => null,
                 'jitaUnitPrice' => null,
@@ -305,6 +308,20 @@ final class IndustryActionsProviderTest extends TestCase
         self::assertSame(
             [['launch_job', self::ISHTAR_TYPE_ID, null]],
             array_map(static fn (IndustryActionResource $entry): array => [$entry->code, $entry->typeId, $entry->quantity], $this->provide()),
+        );
+    }
+
+    #[Group('issue-1195')]
+    public function testFullyLaunchedJobsAreQueuedAsAwaitedJobsWithTheirEndDate(): void
+    {
+        $ishtarBatch = $this->ownedProject('Ishtar batch', ProjectStatus::InProgress);
+        $ishtarJob = $this->jobOf($ishtarBatch, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 2, 2, 0);
+        $ishtarJob->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(612_338_001)->setRuns(2)->setStatus('active')->setEndDate(new \DateTimeImmutable('2026-11-22 08:00:00')));
+        $this->memberOfProjects($ishtarBatch);
+
+        self::assertSame(
+            [['await_jobs', null, null, 'info', '2026-11-22T08:00:00+00:00']],
+            array_map(static fn (IndustryActionResource $entry): array => [$entry->code, $entry->typeId, $entry->quantity, $entry->severity, $entry->endsAt], $this->provide()),
         );
     }
 

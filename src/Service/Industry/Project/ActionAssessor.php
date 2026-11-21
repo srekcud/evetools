@@ -10,6 +10,7 @@ use App\Industry\Application\MarketPrices;
 final readonly class ActionAssessor
 {
     private const string CODE_SOURCE_MATERIAL = 'source_material';
+    private const string CODE_AWAIT_JOBS = 'await_jobs';
     private const array CODES_WITH_QUANTITY = ['review_contributions', 'source_material', 'launch_job', 'record_sale'];
     private const int ISK_DECIMALS = 2;
 
@@ -37,6 +38,10 @@ final readonly class ActionAssessor
     {
         if (\in_array($action->code, self::CODES_WITH_QUANTITY, true) && null === $action->quantity) {
             return true;
+        }
+
+        if (self::CODE_AWAIT_JOBS === $action->code) {
+            return null === $action->endsAt;
         }
 
         return self::CODE_SOURCE_MATERIAL === $action->code && null === $impactIsk;

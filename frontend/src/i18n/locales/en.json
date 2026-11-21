@@ -1099,6 +1099,11 @@
           "text": "Everything is sold: close the project to freeze the accounts.",
           "button": "Close the project"
         },
+        "await_jobs": {
+          "text": "The jobs are launched and finish on {endsAt}.",
+          "textUnknownEnd": "The jobs are launched, their end date is unknown.",
+          "button": "See the jobs"
+        },
         "launch_job": {
           "text": "{quantity} runs of {typeName} are left to launch.",
           "textUnknownQuantity": "{typeName} has jobs left to launch, the remaining runs are unknown.",
@@ -4157,6 +4162,12 @@
           "title": "Source a material",
           "description": "{quantity} {typeName} are still missing to cover the BOM.",
           "button": "Contribute"
+        },
+        "await_jobs": {
+          "title": "Jobs running",
+          "description": "Every run is launched: the last job ends on {endsAt}.",
+          "descriptionUnknownEnd": "Every run is launched, the end date of the last job is unknown.",
+          "button": "See the jobs"
         },
         "launch_job": {
           "title": "Launch a job",

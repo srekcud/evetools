@@ -55,6 +55,18 @@ final class ActionQueueSorterTest extends TestCase
         );
     }
 
+    #[Group('issue-1195')]
+    public function testAwaitJobsComesAfterEveryOtherCode(): void
+    {
+        $queue = (new ActionQueueSorter())->sort([
+            $this->entry('await-jobs', 'Alpha', 'await_jobs'),
+            $this->entry('start-project', 'Alpha', 'start_project'),
+            $this->entry('launch-job', 'Alpha', 'launch_job'),
+        ]);
+
+        self::assertSame(['launch-job', 'start-project', 'await-jobs'], $this->projectIdsOf($queue));
+    }
+
     public function testBlockedProjectStaysAheadOfAMoreUrgentCodeOfARunningProject(): void
     {
         $queue = (new ActionQueueSorter())->sort([

@@ -1099,6 +1099,11 @@
           "text": "Tout est vendu : clôturez le projet pour figer les comptes.",
           "button": "Clôturer le projet"
         },
+        "await_jobs": {
+          "text": "Les jobs sont lancés, ils se terminent le {endsAt}.",
+          "textUnknownEnd": "Les jobs sont lancés, leur date de fin est inconnue.",
+          "button": "Voir les jobs"
+        },
         "launch_job": {
           "text": "{quantity} runs de {typeName} restent à lancer.",
           "textUnknownQuantity": "{typeName} a des jobs à lancer, les runs restants sont inconnus.",
@@ -4157,6 +4162,12 @@
           "title": "Approvisionner un matériau",
           "description": "Il manque {quantity} {typeName} pour couvrir la BOM.",
           "button": "Contribuer"
+        },
+        "await_jobs": {
+          "title": "Jobs en cours",
+          "description": "Tous les runs sont lancés : fin du dernier job le {endsAt}.",
+          "descriptionUnknownEnd": "Tous les runs sont lancés, la date de fin du dernier job est inconnue.",
+          "button": "Voir les jobs"
         },
         "launch_job": {
           "title": "Lancer un job",

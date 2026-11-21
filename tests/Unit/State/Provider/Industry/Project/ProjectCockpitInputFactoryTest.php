@@ -50,6 +50,38 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         self::assertSame(15, $input->bomLines[0]->matchedRuns);
     }
 
+    #[Group('issue-1195')]
+    public function testJobLineCarriesTheLatestEndDateOfItsRunningEsiJobsOnly(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 5);
+        $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 5, 5, 0);
+        $this->jobMatchEndingOn($sabreJob, 1, 'active', '2026-11-22 08:00:00');
+        $this->jobMatchEndingOn($sabreJob, 2, 'ready', '2026-11-22 20:00:00');
+        $this->jobMatchEndingOn($sabreJob, 3, 'delivered', '2026-11-25 09:00:00');
+        $this->jobMatchEndingOn($sabreJob, 4, 'cancelled', '2026-11-26 09:00:00');
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+
+        self::assertSame('2026-11-22 20:00:00', $input->bomLines[0]->latestJobEndDate?->format('Y-m-d H:i:s'));
+    }
+
+    #[Group('issue-1195')]
+    public function testJobLineWithoutRunningEsiJobHasNoLatestEndDate(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 5);
+        $sabreJob = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'final', 5, 5, 0);
+        $this->jobMatchEndingOn($sabreJob, 1, 'delivered', '2026-11-25 09:00:00');
+        $this->jobMatchOn($sabreJob, 2, 'active');
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+
+        self::assertNull($input->bomLines[0]->latestJobEndDate);
+    }
+
     #[Group('issue-807')]
     public function testJobLineCarriesTheCountedRunsOfItsStepMarkAndTheDeliveredRunsRaisedByItsDoneMark(): void
     {
@@ -222,6 +254,11 @@ final class ProjectCockpitInputFactoryTest extends TestCase
             ['owner' => true, 'acceptedAdmin' => true, 'acceptedMember' => false, 'pendingAdmin' => false, 'removedAdmin' => false],
             $viewerIsManager,
         );
+    }
+
+    private function jobMatchEndingOn(IndustryProjectBomLine $line, int $runs, string $status, string $endDate): void
+    {
+        $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(612_337_000 + $runs)->setRuns($runs)->setStatus($status)->setEndDate(new \DateTimeImmutable($endDate)));
     }
 
     private function jobMatchOn(IndustryProjectBomLine $line, int $runs, string $status): void
