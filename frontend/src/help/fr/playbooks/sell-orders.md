@@ -13,7 +13,7 @@ Le tableau ne montre pas tous vos ordres, seulement ceux qui répondent à toute
 - ce sont des **ordres de vente** (les ordres d'achat sont ignorés) ;
 - ils appartiennent à l'un de **vos personnages** (pas seulement le principal) ;
 - ils portent sur un **produit final** du projet, c'est-à-dire un item dont la BOM a un job du groupe « final » ;
-- le projet n'est ni **Termine** ni en usage personnel : dans ces deux cas le tableau reste vide.
+- le projet n'est ni **Terminé** ni en usage personnel : dans ces deux cas le tableau reste vide.
 
 Les ordres sont lus avec la permission ESI de lecture de vos ordres de marché (`esi-markets.read_character_orders.v1`). Un personnage qui ne l'a pas, ou dont la connexion n'est plus valide, n'est pas lu (voir l'étape 6).
 
@@ -88,7 +88,7 @@ Avec un seul concurrent à 5 200 000 ISK (même prix que vous), vous restez **1e
 
 ## 5. Être prévenu sans ouvrir l'onglet Ventes
 
-Chaque ordre sous-coté d'un projet où vous êtes accepté (hors projet **Termine** ou en usage personnel) remonte à trois endroits :
+Chaque ordre sous-coté d'un projet où vous êtes accepté (hors projet **Terminé** ou en usage personnel) remonte à trois endroits :
 
 - **Atelier** (**Industrie**, onglet **Atelier**), dans la **File d'actions** : une ligne « Ordre sous-coté : {item} ×{quantité}, meilleur prix {meilleur prix} contre {votre prix}. », niveau **Avertissement**, avec le bouton **Voir mes ordres**, qui ouvre l'onglet **Ventes** du projet. Les alertes de prix sous le seuil de rentabilité et celles d'ordres sous-cotés passent avant les autres actions de la file ;
 - la **pastille** à droite de **Industrie** dans le menu : elle compte les actions de la file, ordres sous-cotés compris ;
@@ -100,7 +100,7 @@ La **File d'actions** et la pastille se relisent à l'ouverture de l'application
 
 | Ce que vous voyez | Cause | Que faire |
 |---|---|---|
-| « Aucun ordre de vente pour les produits de ce projet. » | Aucun ordre de vente de vos personnages ne porte sur un produit final du projet, ou le projet est **Termine** ou en usage personnel, ou les ordres n'ont pas encore été lus. | Vérifiez le produit et le statut du projet ; attendez la prochaine synchronisation. |
+| « Aucun ordre de vente pour les produits de ce projet. » | Aucun ordre de vente de vos personnages ne porte sur un produit final du projet, ou le projet est **Terminé** ou en usage personnel, ou les ordres n'ont pas encore été lus. | Vérifiez le produit et le statut du projet ; attendez la prochaine synchronisation. |
 | « Reconnectez-vous avec {personnages} pour lire leurs ordres de vente (nouvelle permission ESI). » | Un personnage n'a pas la permission de lire les ordres, ou sa connexion n'est plus valide. Ses ordres ne sont pas lus. | Reconnectez ce personnage avec EVE SSO, en acceptant la permission demandée. |
 | **Marché non suivi** | Lieu hors Jita 4-4 et hors structures suivies. | Aucune position n'est calculée. Choisissez cette structure comme **Structure de marche** dans les paramètres. |
 | **Pas de données de marché** | Carnet vide pour cet item à ce lieu. | Aucune position n'est calculée ; attendez la prochaine lecture du marché. |

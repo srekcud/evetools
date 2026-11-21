@@ -68,7 +68,7 @@ import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTem
 import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit, ProjectPhaseKey } from '@/stores/group-industry/types'
-import { nextProjectStatuses } from './nextProjectStatus'
+import { headerStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
 import { DETAIL_TABS, detailTabOfNextAction, detailTabOfPhase, openingTabOf, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
@@ -193,7 +193,9 @@ const activeTab = computed<ProjectDetailTab>({
   },
   set: (tab) => { requestedTab.value = tab },
 })
-const nextStatuses = computed(() => (project.value ? nextProjectStatuses(project.value.status) : []))
+const nextStatuses = computed(() => (project.value
+  ? headerStatuses(project.value.status, project.value.private, cockpit.value?.nextAction.targetStatus ?? null)
+  : []))
 const pendingStatus = ref<GroupProjectStatus | null>(null)
 
 const statusConfig: Record<GroupProjectStatus, { bg: string; text: string; border: string }> = {
@@ -437,10 +439,7 @@ function actOnNextAction(): void {
 }
 
 function nextStatusLabel(target: GroupProjectStatus): string {
-  if (project.value?.status === 'draft') {
-    return t(`groupIndustry.detail.draftActions.${target}`)
-  }
-  return t('groupIndustry.detail.nextStatus', { status: statusLabel(target) })
+  return t(`groupIndustry.detail.statusActions.${target}`)
 }
 
 function requestNextStatus(target: GroupProjectStatus): void {
@@ -686,6 +685,11 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             </button>
           </div>
         </div>
+        <p
+          v-if="isOwnerOrAdmin && nextStatuses.includes('published')"
+          data-testid="publish-help"
+          class="mt-3 text-xs text-slate-500"
+        >{{ t('groupIndustry.detail.publishHelp') }}</p>
         <p v-if="statusError && !showCompleteConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>
 

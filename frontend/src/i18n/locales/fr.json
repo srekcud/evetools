@@ -1116,7 +1116,7 @@
         },
         "start_selling": {
           "text": "La production est terminée : ouvrez la vente des produits.",
-          "button": "Passer en vente"
+          "button": "Passer à la vente"
         },
         "review_contributions": {
           "text": "{quantity} contributions attendent votre décision.",
@@ -3481,10 +3481,10 @@
     "private": "Privé",
     "status": {
       "draft": "Brouillon",
-      "published": "Publie",
+      "published": "Publié",
       "in_progress": "En cours",
       "selling": "En vente",
-      "completed": "Termine"
+      "completed": "Terminé"
     },
     "bom": {
       "jobsOnProduction": "Composants et BPC dans l'onglet Production",
@@ -4171,8 +4171,7 @@
         },
         "start_project": {
           "title": "Démarrer le projet",
-          "description": "Les matériaux sont prêts à être apportés : passez le projet en cours.",
-          "button": "Démarrer le projet"
+          "description": "Les matériaux sont prêts à être apportés : passez le projet en cours."
         },
         "source_material": {
           "title": "Approvisionner un matériau",
@@ -4193,8 +4192,7 @@
         },
         "start_selling": {
           "title": "Passer à la vente",
-          "description": "La production est terminée : ouvrez la vente des produits.",
-          "button": "Passer à la vente"
+          "description": "La production est terminée : ouvrez la vente des produits."
         },
         "record_sale": {
           "title": "Enregistrer les ventes",
@@ -4203,8 +4201,7 @@
         },
         "complete_project": {
           "title": "Clôturer le projet",
-          "description": "Tout est vendu : terminez le projet pour figer les comptes.",
-          "button": "Clôturer le projet"
+          "description": "Tout est vendu : clôturez le projet pour figer les comptes."
         },
         "nothing_to_do": {
           "title": "Rien à faire pour vous",
@@ -4244,16 +4241,18 @@
         "title": "Supprimer le projet",
         "message": "Etes-vous sur de vouloir supprimer ce projet ? Cette action est irreversible. Toutes les contributions, ventes et donnees de distribution seront definitivement perdues."
       },
-      "nextStatus": "Passer à {status}",
-      "draftActions": {
+      "statusActions": {
         "published": "Publier",
-        "in_progress": "Démarrer"
+        "in_progress": "Démarrer le projet",
+        "selling": "Passer à la vente",
+        "completed": "Clôturer le projet"
       },
+      "publishHelp": "Publier ouvre le lien d'invitation : tant que le brouillon n'est pas publié, personne ne peut le rejoindre.",
       "completeConfirm": {
-        "title": "Terminer le projet",
-        "message": "Terminer le projet fige ses comptes : plus de contribution, de revue, de vente ni de changement de frais, et il ne pourra plus être supprimé. Cette action est irréversible.",
-        "checksTitle": "Avant de terminer",
-        "confirm": "Terminer"
+        "title": "Clôturer le projet",
+        "message": "Clôturer le projet fige ses comptes : plus de contribution, de revue, de vente ni de changement de frais, et il ne pourra plus être supprimé. Cette action est irréversible.",
+        "checksTitle": "Avant de clôturer",
+        "confirm": "Clôturer le projet"
       }
     },
     "contractSales": {

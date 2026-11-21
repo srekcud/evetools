@@ -1,4 +1,4 @@
-import { nextProjectStatuses } from '@/views/GroupIndustry/nextProjectStatus'
+import { headerStatuses, nextProjectStatuses } from '@/views/GroupIndustry/nextProjectStatus'
 
 describe('nextProjectStatuses', () => {
   it('offers publishing or starting a draft project', () => {
@@ -19,5 +19,45 @@ describe('nextProjectStatuses', () => {
 
   it('has no next status for a completed project', () => {
     expect(nextProjectStatuses('completed')).toEqual([])
+  })
+})
+
+describe('headerStatuses', () => {
+  it('offers publishing a draft project only when it is not private', () => {
+    expect({
+      shared: headerStatuses('draft', false, null),
+      private: headerStatuses('draft', true, null),
+    }).toEqual({
+      shared: ['published', 'in_progress'],
+      private: ['in_progress'],
+    })
+  })
+
+  it('leaves the transition carried by the next action card out of the header', () => {
+    expect({
+      sharedDraft: headerStatuses('draft', false, 'in_progress'),
+      privateDraft: headerStatuses('draft', true, 'in_progress'),
+      inProgress: headerStatuses('in_progress', false, 'selling'),
+      selling: headerStatuses('selling', true, 'completed'),
+    }).toEqual({
+      sharedDraft: ['published'],
+      privateDraft: [],
+      inProgress: [],
+      selling: [],
+    })
+  })
+
+  it('keeps the transition in the header when the card carries none or another one', () => {
+    expect({
+      published: headerStatuses('published', false, null),
+      inProgress: headerStatuses('in_progress', false, null),
+      selling: headerStatuses('selling', false, null),
+      completed: headerStatuses('completed', false, null),
+    }).toEqual({
+      published: ['in_progress'],
+      inProgress: ['selling'],
+      selling: ['completed'],
+      completed: [],
+    })
   })
 })
