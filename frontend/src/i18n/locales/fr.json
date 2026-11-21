@@ -3494,6 +3494,7 @@
       "remaining": "Restant",
       "progress": "Progression",
       "estCost": "Cout est.",
+      "remainingEstCost": "Cout restant est.",
       "totalItems": "Total items",
       "totalEstCost": "Cout total est.",
       "overallFulfillment": "Progression globale",

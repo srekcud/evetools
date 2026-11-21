@@ -11,7 +11,7 @@ import type { BomItem, GroupProject } from '@/stores/group-industry/types'
 const EmptyView = { render: () => null }
 const COPY = '[data-testid="multibuy-copy"]'
 const EVALUATE = '[data-testid="multibuy-evaluate"]'
-const TRITANIUM_AND_COVERED_MORPHITE_MULTIBUY = 'Tritanium\t1250000\nMorphite\t37'
+const TRITANIUM_REMAINING_MULTIBUY = 'Tritanium\t750000'
 
 function material(overrides: Partial<BomItem>): BomItem {
   return {
@@ -126,7 +126,7 @@ describe('BomTable multibuy bridges', () => {
     }).toEqual({ copyButtons: 0, evaluateButtons: 1 })
   })
 
-  it('sends the multibuy to the Appraisal page, and disables the evaluate button when there is no material line', async () => {
+  it('sends the remaining quantity of each line to the Appraisal page and leaves out the lines already covered, and disables the evaluate button when there is no material line', async () => {
     const { wrapper, router } = mountBomTable([TRITANIUM_HALF_DELIVERED, MORPHITE_FULLY_COVERED])
     const push = vi.spyOn(router, 'push')
 
@@ -137,11 +137,17 @@ describe('BomTable multibuy bridges', () => {
       pendingText: useAppraisalHandoffStore().pendingText,
       pushed: push.mock.calls.map(([target]) => target),
     }).toEqual({
-      pendingText: TRITANIUM_AND_COVERED_MORPHITE_MULTIBUY,
+      pendingText: TRITANIUM_REMAINING_MULTIBUY,
       pushed: [{ name: 'appraisal' }],
     })
 
     const empty = mountBomTable([RAM_JOB_LINE])
     expect(control(empty.wrapper, EVALUATE).attributes('disabled')).toBe('')
+  })
+
+  it('disables the evaluate button when every material line is already covered', () => {
+    const { wrapper } = mountBomTable([MORPHITE_FULLY_COVERED])
+
+    expect(control(wrapper, EVALUATE).attributes('disabled')).toBe('')
   })
 })
