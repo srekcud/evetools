@@ -12,10 +12,14 @@ use App\Enum\ContributionStatus;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
+use App\Service\Industry\Project\ClosingChecks;
 use App\Service\Industry\Project\CockpitBomLine;
 use App\Service\Industry\Project\ContainerStockState;
 use App\Service\Industry\Project\ProjectCockpitInput;
 use App\Service\Industry\Project\ProjectLineFulfillments;
+use App\Service\Industry\Project\ProjectSettlement;
+use App\Service\Industry\Project\SettlementTransfer;
+use App\Service\Industry\Project\TransfersUnavailableReason;
 use App\State\Provider\Industry\Project\ProjectCockpitInputFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -254,6 +258,78 @@ final class ProjectCockpitInputFactoryTest extends TestCase
             ['owner' => true, 'acceptedAdmin' => true, 'acceptedMember' => false, 'pendingAdmin' => false, 'removedAdmin' => false],
             $viewerIsManager,
         );
+    }
+
+    #[Group('issue-1218')]
+    public function testUnreceivedTransferCountIsTheTransfersOfTheSettlementWithoutAReceipt(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::Completed, $owner);
+        $received = new \DateTimeImmutable('2026-11-20T10:00:00+00:00');
+        $settlement = $this->settlementOf([
+            $this->transferOf($received),
+            $this->transferOf(null),
+            $this->transferOf(null),
+        ]);
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner, null, $settlement);
+
+        self::assertSame(2, $input->unreceivedTransferCount);
+    }
+
+    #[Group('issue-1218')]
+    public function testUnreceivedTransferCountIsZeroWhenTheSettlementHasNoTransferToMake(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::Completed, $owner);
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner, null, $this->settlementOf([]));
+
+        self::assertSame(0, $input->unreceivedTransferCount);
+    }
+
+    #[Group('issue-1218')]
+    public function testUnreceivedTransferCountIsUnknownWithoutASettlementOrWhenItsTransfersAreUnavailable(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::Completed, $owner);
+        $factory = new ProjectCockpitInputFactory();
+
+        self::assertNull($factory->create($project, $owner)->unreceivedTransferCount);
+        self::assertNull($factory->create($project, $owner, null, $this->settlementOf(null))->unreceivedTransferCount);
+    }
+
+    /**
+     * @param list<SettlementTransfer>|null $transfers
+     */
+    private function settlementOf(?array $transfers): ProjectSettlement
+    {
+        return new ProjectSettlement(
+            'IP-1218',
+            $transfers,
+            $transfers === null ? TransfersUnavailableReason::UnknownCost : null,
+            0,
+            new ClosingChecks(0, [], null, null, null),
+        );
+    }
+
+    private function transferOf(?\DateTimeImmutable $receivedAt): SettlementTransfer
+    {
+        return new SettlementTransfer('from-participant', 'Payer', 'to-participant', 'Recipient', 'to-user', 250_000_00, $receivedAt, false);
+    }
+
+    #[Group('issue-1219')]
+    public function testInputCountsOnlyThePendingMembersAsJoinRequests(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::Published, $owner);
+        $this->membershipOf($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->membershipOf($project, $this->pilot(), ParticipantRole::Member, ParticipantStatus::Pending);
+        $this->membershipOf($project, $this->pilot(), ParticipantRole::Member, ParticipantStatus::Pending);
+        $this->membershipOf($project, $this->pilot(), ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->membershipOf($project, $this->pilot(), ParticipantRole::Member, ParticipantStatus::Removed);
+
+        self::assertSame(2, (new ProjectCockpitInputFactory())->create($project, $owner)->pendingJoinRequestCount);
     }
 
     private function jobMatchEndingOn(IndustryProjectBomLine $line, int $runs, string $status, string $endDate): void

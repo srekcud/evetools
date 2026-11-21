@@ -7,6 +7,7 @@ import { DEFAULT_MINIMUM_OUTSIDE_SAVING, useProjectsStore } from '@/stores/indus
 import { useBlacklistStore } from '@/stores/industry/blacklist'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupProjectReferencesStore } from '@/stores/group-industry/projectReferences'
+import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import type { ProjectPrefill, ProjectPrefillItem, SearchResult } from '@/stores/industry/types'
 import type { CreateGroupProjectInput, GroupProject, ProjectReferenceRow, ProjectTemplate } from '@/stores/group-industry/types'
@@ -43,6 +44,7 @@ const projectsStore = useProjectsStore()
 const blacklistStore = useBlacklistStore()
 const groupProjectStore = useGroupProjectStore()
 const referencesStore = useGroupProjectReferencesStore()
+const distributionStore = useGroupDistributionStore()
 const { formatIskFull, formatNumber, formatDate } = useFormatters()
 
 const props = defineProps<{
@@ -217,7 +219,9 @@ function isLockedBySettings(categoryId: string): boolean {
 
 // Line rental override
 const showLineRentalOverride = ref(false)
-const lineRentalOverrideEnabled = ref(false)
+const lineRentalEdited = ref(false)
+const lineRentalLoading = ref(false)
+const lineRentalUnavailable = ref(false)
 
 type LineRentalRate = {
   key: string
@@ -225,21 +229,35 @@ type LineRentalRate = {
   value: number
   unit: string
 }
-const lineRentalRates = ref<LineRentalRate[]>([
-  { key: 'component_t1', label: 'Component T1', value: 250, unit: 'ISK/run' },
-  { key: 'module_t1', label: 'Module T1', value: 10_000, unit: 'ISK/run' },
-  { key: 'ship_t1', label: 'Ship T1', value: 100_000, unit: 'ISK/run' },
-  { key: 'module_t2', label: 'Module T2', value: 100_000, unit: 'ISK/run' },
-  { key: 'ship_t2', label: 'Ship T2', value: 2_500_000, unit: 'ISK/run' },
-  { key: 'capital_t1', label: 'Capital T1', value: 25_000, unit: 'ISK/run' },
-  { key: 'capital_t2', label: 'Capital T2', value: 125_000, unit: 'ISK/run' },
-  { key: 'location_factor', label: 'Location Factor', value: 1_000_000, unit: 'ISK/day' },
-])
+const LINE_RENTAL_CATEGORIES = [
+  { key: 'component_t1', label: 'Component T1', unit: 'ISK/run' },
+  { key: 'module_t1', label: 'Module T1', unit: 'ISK/run' },
+  { key: 'ship_t1', label: 'Ship T1', unit: 'ISK/run' },
+  { key: 'module_t2', label: 'Module T2', unit: 'ISK/run' },
+  { key: 'ship_t2', label: 'Ship T2', unit: 'ISK/run' },
+  { key: 'capital_t1', label: 'Capital T1', unit: 'ISK/run' },
+  { key: 'capital_t2', label: 'Capital T2', unit: 'ISK/run' },
+  { key: 'location_factor', label: 'Location Factor', unit: 'ISK/day' },
+]
+const lineRentalRates = ref<LineRentalRate[]>([])
+
+async function loadLineRentalRates() {
+  lineRentalLoading.value = true
+  lineRentalUnavailable.value = false
+  await distributionStore.fetchLineRentalRates()
+  const playerRates = distributionStore.lineRentalRates?.rates
+  const complete = playerRates !== undefined && LINE_RENTAL_CATEGORIES.every(category => typeof playerRates[category.key] === 'number')
+  lineRentalRates.value = complete
+    ? LINE_RENTAL_CATEGORIES.map(category => ({ ...category, value: playerRates[category.key] }))
+    : []
+  lineRentalUnavailable.value = !complete
+  lineRentalLoading.value = false
+}
 
 function toggleLineRentalOverride() {
   showLineRentalOverride.value = !showLineRentalOverride.value
-  if (showLineRentalOverride.value && !lineRentalOverrideEnabled.value) {
-    lineRentalOverrideEnabled.value = true
+  if (showLineRentalOverride.value && !lineRentalEdited.value) {
+    void loadLineRentalRates()
   }
 }
 
@@ -331,17 +349,10 @@ function resetForm() {
   excludesInventionChosen.value = false
   minimumOutsideSaving.value = DEFAULT_MINIMUM_OUTSIDE_SAVING
   showLineRentalOverride.value = false
-  lineRentalOverrideEnabled.value = false
-  lineRentalRates.value.forEach(r => {
-    if (r.key === 'component_t1') r.value = 250
-    else if (r.key === 'module_t1') r.value = 10_000
-    else if (r.key === 'ship_t1') r.value = 100_000
-    else if (r.key === 'module_t2') r.value = 100_000
-    else if (r.key === 'ship_t2') r.value = 2_500_000
-    else if (r.key === 'capital_t1') r.value = 25_000
-    else if (r.key === 'capital_t2') r.value = 125_000
-    else if (r.key === 'location_factor') r.value = 1_000_000
-  })
+  lineRentalEdited.value = false
+  lineRentalLoading.value = false
+  lineRentalUnavailable.value = false
+  lineRentalRates.value = []
   isCreating.value = false
   errorMsg.value = null
   blacklistCategories.value.forEach(cat => {
@@ -476,7 +487,7 @@ async function handleCreate() {
       .map(cat => cat.id),
     blacklistGroupIds: blacklistGroupIds.value.length > 0 ? blacklistGroupIds.value : undefined,
     blacklistTypeIds: blacklistTypeIds.value.length > 0 ? blacklistTypeIds.value : undefined,
-    lineRentalRatesOverride: lineRentalOverrideEnabled.value
+    lineRentalRatesOverride: lineRentalEdited.value
       ? Object.fromEntries(lineRentalRates.value.map(r => [r.key, r.value]))
       : undefined,
     acceptsOutsideFavoriteSystem: acceptsOutsideFavoriteSystem.value,
@@ -1019,7 +1030,7 @@ function handleClose() {
             </svg>
             <span class="text-sm text-slate-400">
               {{ t('groupIndustry.modals.newProject.lineRentalInfo') }}
-              <span v-if="!lineRentalOverrideEnabled" class="text-cyan-400">{{ t('groupIndustry.modals.newProject.lineRentalDefault') }}</span>
+              <span v-if="!lineRentalEdited" class="text-cyan-400">{{ t('groupIndustry.modals.newProject.lineRentalDefault') }}</span>
               <span v-else class="text-amber-400">{{ t('groupIndustry.modals.newProject.lineRentalCustom') }}</span>
             </span>
           </div>
@@ -1044,7 +1055,13 @@ function handleClose() {
           v-if="showLineRentalOverride"
           class="mt-3 bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden"
         >
-          <DataTable>
+          <div v-if="lineRentalLoading" class="flex justify-center py-6">
+            <LoadingSpinner />
+          </div>
+          <p v-else-if="lineRentalUnavailable" class="px-4 py-3 text-xs text-amber-400">
+            {{ t('groupIndustry.modals.newProject.lineRentalUnavailable') }}
+          </p>
+          <DataTable v-else>
             <table class="w-full text-sm">
               <thead>
                 <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-700">
@@ -1068,6 +1085,7 @@ function handleClose() {
                       type="text"
                       class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-200 font-mono text-right focus:border-cyan-500 focus:outline-none"
                       style="font-variant-numeric: tabular-nums;"
+                      @input="lineRentalEdited = true"
                     />
                   </td>
                   <td class="py-2 px-4 text-xs text-slate-500">{{ rate.unit }}</td>

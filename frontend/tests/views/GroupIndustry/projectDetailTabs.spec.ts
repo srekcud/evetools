@@ -1,4 +1,4 @@
-import { COMING_SOON_TABS, DETAIL_TABS, detailTabOfNextAction } from '@/views/GroupIndustry/projectDetailTabs'
+import { COMING_SOON_TABS, DETAIL_TABS, detailTabOfNextAction, detailTabOfPhase, openingTabOf } from '@/views/GroupIndustry/projectDetailTabs'
 
 describe('project detail tabs', () => {
   it('orders the tabs by the cockpit flow from the team to the journal', () => {
@@ -33,5 +33,29 @@ describe('project detail tabs', () => {
       inventionIsAWorkingTab: true,
       comingSoonTabs: [],
     })
+  })
+
+  it('maps the supply, produce, sell and close phases to their tab and the prepare phase to none', () => {
+    expect({
+      prepare: detailTabOfPhase('prepare'),
+      supply: detailTabOfPhase('supply'),
+      produce: detailTabOfPhase('produce'),
+      sell: detailTabOfPhase('sell'),
+      close: detailTabOfPhase('close'),
+    }).toEqual({ prepare: null, supply: 'bom', produce: 'chain', sell: 'sales', close: 'distribution' })
+  })
+
+  it('opens on the tab of the current phase, the sourcing tab without a current phase and the finances tab once everything is done', () => {
+    const rail = (states: string[]) => ['prepare', 'supply', 'produce', 'sell', 'close'].map((key, index) => ({
+      key,
+      state: states[index],
+      counter: { done: 0, total: 1 },
+      blockedReason: null,
+    })) as never
+    expect({
+      sell: openingTabOf(rail(['done', 'done', 'done', 'current', 'upcoming'])),
+      none: openingTabOf(rail(['upcoming', 'upcoming', 'upcoming', 'upcoming', 'upcoming'])),
+      allDone: openingTabOf(rail(['done', 'done', 'done', 'done', 'done'])),
+    }).toEqual({ sell: 'sales', none: 'bom', allDone: 'distribution' })
   })
 })

@@ -15,13 +15,15 @@ use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\CockpitBomLine;
 use App\Service\Industry\Project\ProjectCockpitInput;
 use App\Service\Industry\Project\ProjectLineFulfillments;
+use App\Service\Industry\Project\ProjectSettlement;
+use App\Service\Industry\Project\SettlementTransfer;
 
 final readonly class ProjectCockpitInputFactory
 {
     private const array MANAGER_ROLES = [ParticipantRole::Owner, ParticipantRole::Admin];
     private const array RUNNING_JOB_STATUSES = [CachedIndustryJob::STATUS_ACTIVE, CachedIndustryJob::STATUS_PAUSED, CachedIndustryJob::STATUS_READY];
 
-    public function create(IndustryProject $project, User $user, ?ProjectLineFulfillments $fulfillments = null): ProjectCockpitInput
+    public function create(IndustryProject $project, User $user, ?ProjectLineFulfillments $fulfillments = null, ?ProjectSettlement $settlement = null): ProjectCockpitInput
     {
         $fulfillments ??= ProjectLineFulfillments::none();
 
@@ -32,7 +34,18 @@ final readonly class ProjectCockpitInputFactory
             $this->soldQuantityByTypeId($project),
             $project->pendingContributionCountReviewableBy($user),
             $this->isManager($user, $project),
+            $this->unreceivedTransferCount($settlement),
+            $project->pendingJoinRequestCount(),
         );
+    }
+
+    private function unreceivedTransferCount(?ProjectSettlement $settlement): ?int
+    {
+        if ($settlement === null || $settlement->transfers === null) {
+            return null;
+        }
+
+        return \count(array_filter($settlement->transfers, static fn (SettlementTransfer $transfer): bool => !$transfer->isReceived()));
     }
 
     private function toCockpitBomLine(IndustryProjectBomLine $line, ProjectLineFulfillments $fulfillments): CockpitBomLine
@@ -49,6 +62,7 @@ final readonly class ProjectCockpitInputFactory
             $line->getCountedRuns(),
             $line->getDeliveredRuns(),
             $this->latestRunningJobEndDate($line),
+            $line->getEstimatedPrice(),
         );
     }
 

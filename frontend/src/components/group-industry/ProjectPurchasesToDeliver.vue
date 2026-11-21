@@ -35,6 +35,11 @@ const COURIER_CHIP_CLASSES: Record<CourierTransportState, string> = {
 
 const props = defineProps<{
   projectId: string
+  canEdit?: boolean
+}>()
+
+const emit = defineEmits<{
+  editContainers: []
 }>()
 
 const { t } = useI18n()
@@ -137,12 +142,21 @@ watch(
     >{{ t('groupIndustry.purchasesToDeliver.loading') }}</p>
 
     <template v-else-if="deliveries !== null">
-      <p
+      <div
         v-if="stockNotice !== null"
         data-testid="deliveries-stock-notice"
         :data-stock-state="deliveries.stockState"
-        class="m-4 p-2 rounded border border-dashed border-violet-400 text-xs text-violet-300 break-words"
-      >{{ stockNotice }}</p>
+        class="m-4 p-2 flex flex-wrap items-center justify-between gap-2 rounded border border-dashed border-violet-400 text-xs text-violet-300 break-words"
+      >
+        <p class="min-w-0">{{ stockNotice }}</p>
+        <button
+          v-if="canEdit && deliveries.stockState === 'none'"
+          type="button"
+          data-testid="deliveries-name-container"
+          class="flex-shrink-0 px-3 py-1.5 rounded-lg border border-violet-500/25 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 text-xs font-medium transition-colors"
+          @click="emit('editContainers')"
+        >{{ t('groupIndustry.purchasesToDeliver.nameContainer') }}</button>
+      </div>
 
       <p
         v-if="allDelivered"

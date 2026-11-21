@@ -1118,6 +1118,11 @@
           "text": "La production est terminée : ouvrez la vente des produits.",
           "button": "Passer en vente"
         },
+        "review_join_requests": {
+          "text": "{quantity} demandes d'adhésion attendent votre décision.",
+          "textUnknownQuantity": "Des demandes d'adhésion attendent votre décision, leur nombre est inconnu.",
+          "button": "Traiter les demandes"
+        },
         "review_contributions": {
           "text": "{quantity} contributions attendent votre décision.",
           "textUnknownQuantity": "Des contributions attendent votre décision, leur nombre est inconnu.",
@@ -3216,6 +3221,7 @@
       "loading": "Lecture du stock du container...",
       "error": "Les achats à livrer n'ont pas pu être lus",
       "allDelivered": "Tous les achats sont déjà dans le container du projet.",
+      "nameContainer": "Nommer un container",
       "stock": {
         "unknown": "Le stock du container est illisible, la livraison de ces achats est donc inconnue.",
         "none": "Le projet n'a pas de nom de container, la livraison de ces achats ne peut donc pas être vérifiée."
@@ -3617,6 +3623,10 @@
       "emptyHintUnbounded": "Aucun wallet n'a encore été lu. Utilise la saisie manuelle pour l'enregistrer maintenant."
     },
     "purchases": {
+      "declareStock": {
+        "title": "Votre propre stock",
+        "button": "Déclarer depuis mon stock (prix Jita)"
+      },
       "open": "Achats",
       "modalTitle": "Achats de {name}",
       "suggestionsTitle": "Transactions du wallet",
@@ -3645,6 +3655,13 @@
       "deleteError": "Échec de la suppression de l'achat"
     },
     "contribute": {
+      "walletFirst": {
+        "title": "Liez d'abord vos transactions wallet",
+        "link": "Lier",
+        "stockHint": "Déclarer du stock maintenant ferait doublon avec ces achats dès que la synchro du wallet les liera. Liez-les d'abord.",
+        "loadError": "Impossible de charger les transactions wallet.",
+        "linkError": "Échec de la liaison de la transaction"
+      },
       "title": "Ajouter une contribution",
       "type": "Type de contribution",
       "item": "Item",
@@ -4042,6 +4059,7 @@
         "overrideForProject": "Surcharger pour ce projet",
         "collapse": "Replier",
         "lineRentalOverrideHint": "Ces tarifs remplacent vos parametres par defaut pour ce projet uniquement.",
+        "lineRentalUnavailable": "Vos tarifs n'ont pas pu etre charges. Fermez le tableau : le projet utilisera vos tarifs par defaut.",
         "bomNote": "La BOM sera agreg depuis tous les items",
         "createButton": "Creer le projet",
         "privateLabel": "Projet privé",
@@ -4151,6 +4169,21 @@
         "project_completed": {
           "title": "Projet terminé",
           "description": "Les comptes sont figés : il n'y a plus rien à faire sur ce projet."
+        },
+        "settle_transfers": {
+          "title": "Régler les virements",
+          "description": "{quantity} virements attendent encore d'être reçus : les destinataires les cochent dans l'onglet Finances.",
+          "button": "Ouvrir les virements"
+        },
+        "copy_recap": {
+          "title": "Copier le récapitulatif",
+          "description": "Les comptes sont figés : copiez le récapitulatif Discord depuis l'onglet Finances pour partager le résultat.",
+          "button": "Ouvrir le récapitulatif"
+        },
+        "review_join_requests": {
+          "title": "Demandes d'adhésion à traiter",
+          "description": "{quantity} pilotes attendent que vous acceptiez ou refusiez leur demande de rejoindre le projet.",
+          "button": "Traiter les demandes"
         },
         "review_contributions": {
           "title": "Contributions à relire",

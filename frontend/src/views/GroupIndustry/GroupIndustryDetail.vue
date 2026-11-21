@@ -8,6 +8,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
+import { useGroupInventionStore } from '@/stores/group-industry/invention'
 import { useGroupContractSalesStore } from '@/stores/group-industry/contractSales'
 import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
 import { useGroupActivityStore } from '@/stores/group-industry/activity'
@@ -21,6 +22,7 @@ import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
 import CollapsibleSourcing from '@/components/group-industry/CollapsibleSourcing.vue'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import ContributeModal from '@/components/group-industry/ContributeModal.vue'
+import { projectDisplayNameOf } from '@/components/group-industry/projectDisplayName'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
 import JobContainersTable from '@/components/group-industry/JobContainersTable.vue'
 import ProjectSellOrdersSection from '@/components/group-industry/ProjectSellOrdersSection.vue'
@@ -47,6 +49,7 @@ import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { reservedLineIdsOfMine } from '@/components/group-industry/reservedLineIds'
 import { useGroupT2BlueprintCopyProposalStore } from '@/stores/group-industry/t2BlueprintCopyProposal'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
+import type { ChainFocusRequest } from '@/components/group-industry/chainView'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
@@ -64,10 +67,10 @@ import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
 import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
-import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
+import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit, ProjectPhaseKey } from '@/stores/group-industry/types'
 import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
-import { DETAIL_TABS, detailTabOfNextAction, type ProjectDetailTab } from './projectDetailTabs'
+import { DETAIL_TABS, detailTabOfNextAction, detailTabOfPhase, openingTabOf, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
 import { isSourcingCollapsed, isSourcingComplete, readSourcingOverride, writeSourcingOverride, type SourcingOverride } from './sourcingCollapse'
 import { refreshesVisibleOn, type GroupProjectRefresh } from './groupProjectRefreshes'
@@ -78,6 +81,7 @@ import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 const { t } = useI18n()
 const editNameFieldId = useId()
 const editContainerNameFieldId = useId()
+const editContainerNamesField = ref<HTMLTextAreaElement | null>(null)
 const editBrokerFeeFieldId = useId()
 const editSalesTaxFieldId = useId()
 const route = useRoute()
@@ -87,6 +91,7 @@ const chainStore = useGroupChainStore()
 const t2ProposalStore = useGroupT2BlueprintCopyProposalStore()
 const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
+const inventionStore = useGroupInventionStore()
 const contractSalesStore = useGroupContractSalesStore()
 const settlementStore = useGroupSettlementStore()
 
@@ -112,6 +117,7 @@ const projectId = computed(() => route.params.id as string)
 
 const MINIMUM_TEAM_SIZE = 2
 const TEAM_ONLY_TABS: readonly ProjectDetailTab[] = ['contributions', 'members']
+const INVENTION_TABS: readonly ProjectDetailTab[] = ['invention']
 
 const requestedTab = useTabQuery<ProjectDetailTab>(DETAIL_TABS, 'bom')
 const membersLoaded = ref(false)
@@ -164,8 +170,27 @@ const isWorkedOnAlone = computed(() => {
   const hasContributionToReview = typeof pendingContributions === 'number' && pendingContributions > 0
   return current.membersCount < MINIMUM_TEAM_SIZE && !hasPendingMember && !hasContributionToReview
 })
+const isTeamUnknownOnSoloProject = computed(() =>
+  !membersLoaded.value && distributionStore.membersError === null && project.value?.solo === true
+)
+const hasNoInventedProduct = computed(() => {
+  if (project.value?.excludesInvention === true) return true
+  return Array.isArray(inventionStore.products) && inventionStore.products.length === 0
+})
+const isInventedProductUnknown = computed(() =>
+  project.value?.excludesInvention !== true && inventionStore.products === null && inventionStore.error === null
+)
+const hiddenTabs = computed<ProjectDetailTab[]>(() => [
+  ...(isWorkedOnAlone.value || isTeamUnknownOnSoloProject.value ? TEAM_ONLY_TABS : []),
+  ...(hasNoInventedProduct.value || isInventedProductUnknown.value ? INVENTION_TABS : []),
+])
 const activeTab = computed<ProjectDetailTab>({
-  get: () => isWorkedOnAlone.value && TEAM_ONLY_TABS.includes(requestedTab.value) ? 'bom' : requestedTab.value,
+  get: () => {
+    const requested = requestedTab.value
+    const isTeamTabOfSoloProject = isWorkedOnAlone.value && TEAM_ONLY_TABS.includes(requested)
+    const isInventionTabWithoutProduct = hasNoInventedProduct.value && INVENTION_TABS.includes(requested)
+    return isTeamTabOfSoloProject || isInventionTabWithoutProduct ? 'bom' : requested
+  },
   set: (tab) => { requestedTab.value = tab },
 })
 const nextStatuses = computed(() => (project.value ? nextProjectStatuses(project.value.status) : []))
@@ -209,7 +234,11 @@ onMounted(async () => {
     projectStore.fetchBom(projectId.value),
     loadCockpit(projectId.value),
     loadMembers(projectId.value),
+    inventionStore.fetchInvention(projectId.value, null),
   ])
+  if (cockpit.value !== null && route.query.tab === undefined) {
+    activeTab.value = openingTabOf(cockpit.value.phases)
+  }
   if (projectStore.currentProject && projectStore.currentProject.containerNames.length > 0) {
     await projectStore.fetchContainerVerification(projectId.value)
   }
@@ -272,6 +301,11 @@ watch(activeTab, (tab) => {
     activityStore.fetchActivity(projectId.value)
   }
 })
+
+function openPhaseTab(key: ProjectPhaseKey): void {
+  const tab = detailTabOfPhase(key)
+  if (tab !== null) activeTab.value = tab
+}
 
 function goBack(): void {
   router.push(PROJECTS_HOME)
@@ -345,6 +379,12 @@ function openEditModal(): void {
   showEditModal.value = true
 }
 
+async function openEditModalOnContainers(): Promise<void> {
+  openEditModal()
+  await nextTick()
+  editContainerNamesField.value?.focus()
+}
+
 async function handleEditSave(): Promise<void> {
   isEditSaving.value = true
   editError.value = null
@@ -366,6 +406,7 @@ async function handleEditSave(): Promise<void> {
 }
 
 const jobsSection = ref<HTMLElement | null>(null)
+const chainFocusRequest = ref<ChainFocusRequest | null>(null)
 
 function actOnNextAction(): void {
   const action = cockpit.value?.nextAction
@@ -382,8 +423,12 @@ function actOnNextAction(): void {
     return
   }
   if (action.code === 'launch_job' || action.code === 'await_jobs') {
+    chainFocusRequest.value = { nodeId: action.bomLineId }
     activeTab.value = 'chain'
-    void nextTick(() => jobsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    void nextTick(() => {
+      chainFocusRequest.value = null
+      jobsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
     return
   }
   if (action.tab !== null) {
@@ -416,6 +461,7 @@ async function advanceStatus(): Promise<void> {
   try {
     await projectStore.updateProject(projectId.value, { status: pendingStatus.value })
     showCompleteConfirm.value = false
+    if (pendingStatus.value === 'completed') activeTab.value = 'distribution'
     await loadCockpit(projectId.value)
   } catch (e) {
     statusError.value = e instanceof Error ? e.message : t('groupIndustry.detail.editError')
@@ -463,9 +509,7 @@ function onContributionSubmitted(): void {
 }
 
 const projectDisplayName = computed(() => {
-  if (!project.value) return ''
-  if (project.value.name) return project.value.name
-  return project.value.items.map(i => `${i.runs}x ${i.typeName}`).join(', ')
+  return project.value ? projectDisplayNameOf(project.value) : ''
 })
 
 const sourcingOverride = ref<SourcingOverride | null>(null)
@@ -646,7 +690,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <template v-if="cockpit">
-        <ProjectPhaseRail :phases="cockpit.phases" />
+        <ProjectPhaseRail :phases="cockpit.phases" @select="openPhaseTab" />
         <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" @act="actOnNextAction" />
         <ProjectPriceAlertBanner v-if="cockpit.priceAlert !== null" :price-alert="cockpit.priceAlert" @view-sales="activeTab = 'sales'" />
       </template>
@@ -659,7 +703,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         :materials-count="materialsCount"
         :contribution-count="contributionCount"
         :member-count="memberCount"
-        :hidden-tabs="isWorkedOnAlone ? TEAM_ONLY_TABS : []"
+        :hidden-tabs="hiddenTabs"
       />
 
       <!-- Tab Content: Materials & Jobs -->
@@ -717,7 +761,11 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
           <ProjectCourier :project-id="projectId" />
 
-          <ProjectPurchasesToDeliver :project-id="projectId" />
+          <ProjectPurchasesToDeliver
+            :project-id="projectId"
+            :can-edit="isOwnerOrAdmin"
+            @edit-containers="openEditModalOnContainers"
+          />
         </CollapsibleSourcing>
 
         <IntermediateStockProposal
@@ -795,6 +843,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             :markable-node-ids="markableNodeIds"
             :can-match-jobs="isOwner"
             :can-link-jobs="isAcceptedMember"
+            :focus-request="chainFocusRequest"
             @marked="refreshGroupProject.cockpit(projectId)"
             @contribute="openContributeModal"
             @open-sourcing="activeTab = 'bom'"
@@ -926,6 +975,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           <label :for="editContainerNameFieldId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('groupIndustry.detail.editFields.containerName') }}</label>
           <textarea
             :id="editContainerNameFieldId"
+            ref="editContainerNamesField"
             v-model="editForm.containerNames"
             rows="3"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"

@@ -28,7 +28,7 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class IndustryActionsProvider implements ProviderInterface
 {
-    private const array NO_ACTION_CODES = ['project_completed', 'nothing_to_do'];
+    private const array NO_ACTION_CODES = ['project_completed', 'settle_transfers', 'copy_recap', 'nothing_to_do'];
     private const string PRICE_ALERT_CODE = 'price_below_break_even';
     private const string PRICE_ALERT_TAB = 'sales';
     private const string UNDERCUT_ORDER_CODE = 'undercut_sell_order';

@@ -29,7 +29,9 @@ final readonly class ProjectCockpitCalculator
     private const string BLOCKED_MATERIALS_MISSING = 'materials_missing';
     private const string BLOCKED_JOBS_UNFINISHED = 'jobs_unfinished';
 
-    private const string ACTION_PROJECT_COMPLETED = 'project_completed';
+    private const string ACTION_SETTLE_TRANSFERS = 'settle_transfers';
+    private const string ACTION_COPY_RECAP = 'copy_recap';
+    private const string ACTION_REVIEW_JOIN_REQUESTS = 'review_join_requests';
     private const string ACTION_REVIEW_CONTRIBUTIONS = 'review_contributions';
     private const string ACTION_START_PROJECT = 'start_project';
     private const string ACTION_SOURCE_MATERIAL = 'source_material';
@@ -42,7 +44,9 @@ final readonly class ProjectCockpitCalculator
 
     private const string TAB_MATERIALS = 'materials';
     private const string TAB_CONTRIBUTIONS = 'contributions';
+    private const string TAB_MEMBERS = 'members';
     private const string TAB_SALES = 'sales';
+    private const string TAB_FINANCES = 'finances';
 
     private const string JOB_GROUP_FINAL = 'final';
     private const array JOB_GROUP_RANK = [
@@ -73,7 +77,8 @@ final readonly class ProjectCockpitCalculator
         ];
         $isSourcingPhase = $input->status === ProjectStatus::InProgress && $uncoveredMaterials !== [] && !$this->productionStarted($jobLines);
         $blockedReasons = $this->blockedReasons($input->status, \count($uncoveredMaterials), \count($undeliveredJobs), $isSourcingPhase);
-        $currentIndex = $isSourcingPhase ? array_search(self::PHASE_SUPPLY, self::PHASE_KEYS, true) : $this->currentPhaseIndex($input->status);
+        $unitsLeftToSell = $unitsToSell - $unitsSold;
+        $currentIndex = $isSourcingPhase ? array_search(self::PHASE_SUPPLY, self::PHASE_KEYS, true) : $this->currentPhaseIndex($input->status, $unitsLeftToSell);
 
         $phases = [];
         foreach (self::PHASE_KEYS as $index => $key) {
@@ -85,7 +90,7 @@ final readonly class ProjectCockpitCalculator
         return new ProjectCockpit(
             $input->status,
             $phases,
-            $this->nextAction($input, $uncoveredMaterials, $undeliveredJobs, $unitsToSell - $unitsSold, $isSourcingPhase),
+            $this->nextAction($input, $uncoveredMaterials, $undeliveredJobs, $unitsLeftToSell, $isSourcingPhase),
         );
     }
 
@@ -168,13 +173,13 @@ final readonly class ProjectCockpitCalculator
         return $reasons;
     }
 
-    private function currentPhaseIndex(ProjectStatus $status): int
+    private function currentPhaseIndex(ProjectStatus $status, int $unitsLeftToSell): int
     {
         return match ($status) {
             ProjectStatus::Draft => 0,
             ProjectStatus::Published => 1,
             ProjectStatus::InProgress => 2,
-            ProjectStatus::Selling => 3,
+            ProjectStatus::Selling => $unitsLeftToSell > self::NONE ? 3 : 4,
             ProjectStatus::Completed => \count(self::PHASE_KEYS),
         };
     }
@@ -195,7 +200,11 @@ final readonly class ProjectCockpitCalculator
     private function nextAction(ProjectCockpitInput $input, array $uncoveredMaterials, array $undeliveredJobs, int $unitsLeftToSell, bool $isSourcingPhase): CockpitNextAction
     {
         if ($input->status === ProjectStatus::Completed) {
-            return new CockpitNextAction(self::ACTION_PROJECT_COMPLETED, false, null, null, null, null, null, null);
+            return $this->closedProjectAction($input);
+        }
+
+        if ($input->viewerIsManager && $input->pendingJoinRequestCount > self::NONE) {
+            return new CockpitNextAction(self::ACTION_REVIEW_JOIN_REQUESTS, false, self::TAB_MEMBERS, null, null, null, null, $input->pendingJoinRequestCount);
         }
 
         if ($input->viewerIsManager && $input->pendingContributionCount > self::NONE) {
@@ -212,6 +221,15 @@ final readonly class ProjectCockpitCalculator
                 ? $this->managerAction($input, new CockpitNextAction(self::ACTION_RECORD_SALE, false, self::TAB_SALES, null, null, null, null, $unitsLeftToSell))
                 : $this->managerStatusAction($input, self::ACTION_COMPLETE_PROJECT, ProjectStatus::Completed),
         };
+    }
+
+    private function closedProjectAction(ProjectCockpitInput $input): CockpitNextAction
+    {
+        if ($input->unreceivedTransferCount !== null && $input->unreceivedTransferCount > self::NONE) {
+            return new CockpitNextAction(self::ACTION_SETTLE_TRANSFERS, false, self::TAB_FINANCES, null, null, null, null, $input->unreceivedTransferCount);
+        }
+
+        return new CockpitNextAction(self::ACTION_COPY_RECAP, false, self::TAB_FINANCES, null, null, null, null, null);
     }
 
     /**
@@ -238,13 +256,7 @@ final readonly class ProjectCockpitCalculator
      */
     private function sourceMaterial(ProjectCockpitInput $input, array $uncoveredMaterials, bool $blocked = false): CockpitNextAction
     {
-        usort($uncoveredMaterials, static fn (CockpitBomLine $first, CockpitBomLine $second): int => [
-            $second->requiredQuantity - $second->fulfilledQuantity,
-            $first->typeName,
-        ] <=> [
-            $first->requiredQuantity - $first->fulfilledQuantity,
-            $second->typeName,
-        ]);
+        usort($uncoveredMaterials, fn (CockpitBomLine $first, CockpitBomLine $second): int => $this->compareMaterialsToSource($first, $second));
         $line = $uncoveredMaterials[0];
 
         return new CockpitNextAction(
@@ -257,6 +269,35 @@ final readonly class ProjectCockpitCalculator
             $line->typeName,
             $line->requiredQuantity - $line->fulfilledQuantity,
         );
+    }
+
+    private function compareMaterialsToSource(CockpitBomLine $first, CockpitBomLine $second): int
+    {
+        $firstValue = $this->remainingValueOf($first);
+        $secondValue = $this->remainingValueOf($second);
+
+        if ($firstValue !== null && $secondValue !== null) {
+            return [$secondValue, $first->typeName] <=> [$firstValue, $second->typeName];
+        }
+
+        if ($firstValue !== null || $secondValue !== null) {
+            return $firstValue !== null ? -1 : 1;
+        }
+
+        return [
+            $second->requiredQuantity - $second->fulfilledQuantity,
+            $first->typeName,
+        ] <=> [
+            $first->requiredQuantity - $first->fulfilledQuantity,
+            $second->typeName,
+        ];
+    }
+
+    private function remainingValueOf(CockpitBomLine $line): ?float
+    {
+        return $line->estimatedPrice === null
+            ? null
+            : ($line->requiredQuantity - $line->fulfilledQuantity) * $line->estimatedPrice;
     }
 
     /**

@@ -102,8 +102,9 @@ function submitButton(wrapper: VueWrapper): DOMWrapper<HTMLButtonElement> {
 }
 
 function submittedBody(): Record<string, unknown> {
-  expect(apiRequest).toHaveBeenCalledTimes(1)
-  const [endpoint, options] = present(vi.mocked(apiRequest).mock.calls[0])
+  const submissions = vi.mocked(apiRequest).mock.calls.filter(([, requestOptions]) => requestOptions?.method === 'POST')
+  expect(submissions).toHaveLength(1)
+  const [endpoint, options] = present(submissions[0])
   expect(endpoint).toBe(`/industry/projects/${PROJECT_ID}/contributions`)
   expect(options?.method).toBe('POST')
   return JSON.parse(String(options?.body))

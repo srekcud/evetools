@@ -13,6 +13,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\JoinRequestNotifier;
 use App\Service\Industry\Project\PilotName;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
@@ -39,6 +40,7 @@ class UpdateParticipantProcessor implements ProcessorInterface
         private readonly ProjectAccessChecker $accessChecker,
         private readonly ProjectResourceMapper $mapper,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly JoinRequestNotifier $joinRequestNotifier,
     ) {
     }
 
@@ -118,6 +120,7 @@ class UpdateParticipantProcessor implements ProcessorInterface
                     'characterName' => PilotName::of($member->getUser()),
                 ],
             );
+            $this->joinRequestNotifier->notifyRequester($member);
         }
 
         return $this->mapper->memberToResource($member);

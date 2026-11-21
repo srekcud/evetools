@@ -16,7 +16,16 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Repository\CachedWalletJournalEntryRepository;
+use App\Repository\IndustryProjectSaleRepository;
+use App\Repository\IndustryProjectTransferReceiptRepository;
+use App\Service\Industry\Project\ContractSaleFees;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
+use App\Service\Industry\Project\ProjectDistributionService;
+use App\Service\Industry\Project\ProjectSettlementCalculator;
+use App\Service\Industry\Project\TransferJournalVerifier;
+use App\Service\Industry\Project\TransferPlanner;
+use App\Service\Industry\Project\UnsoldProductsOfProject;
 use App\Service\Industry\Project\ProjectContainerService;
 use App\Service\Industry\Project\ProjectContainerStock;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
@@ -292,6 +301,24 @@ final class ProjectCockpitProviderTest extends TestCase
             $this->priceAlertReader,
             $this->sellOrdersReader,
             new ProjectContainerFulfillment($this->containerWithoutName(), $this->createStub(StartedJobConsumptionReader::class)),
+            $this->settlementCalculatorThatMustNotRun(),
+        );
+    }
+
+    private function settlementCalculatorThatMustNotRun(): ProjectSettlementCalculator
+    {
+        $distribution = $this->createStub(ProjectDistributionService::class);
+        $distribution->method('calculateDistribution')->willThrowException(new \LogicException('The settlement is only computed for a completed project'));
+        $journal = $this->createStub(CachedWalletJournalEntryRepository::class);
+
+        return new ProjectSettlementCalculator(
+            $distribution,
+            $this->createStub(IndustryProjectSaleRepository::class),
+            $this->createStub(IndustryProjectTransferReceiptRepository::class),
+            new TransferPlanner(),
+            new UnsoldProductsOfProject(),
+            new ContractSaleFees($journal),
+            new TransferJournalVerifier($journal),
         );
     }
 }

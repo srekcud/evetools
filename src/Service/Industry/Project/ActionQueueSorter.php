@@ -12,9 +12,10 @@ final readonly class ActionQueueSorter
         'launch_job' => 2,
         'source_material' => 3,
         'start_selling' => 4,
-        'review_contributions' => 5,
-        'start_project' => 6,
-        'await_jobs' => 7,
+        'review_join_requests' => 5,
+        'review_contributions' => 6,
+        'start_project' => 7,
+        'await_jobs' => 8,
     ];
 
     private const int BLOCKED_FIRST = 0;

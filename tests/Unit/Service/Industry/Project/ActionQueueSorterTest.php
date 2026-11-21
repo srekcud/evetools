@@ -55,6 +55,22 @@ final class ActionQueueSorterTest extends TestCase
         );
     }
 
+    #[Group('issue-1219')]
+    public function testJoinRequestsAreHandledBeforeTheContributionsToReview(): void
+    {
+        $queue = (new ActionQueueSorter())->sort([
+            $this->entry('start-project', 'Alpha', 'start_project'),
+            $this->entry('review-contributions', 'Alpha', 'review_contributions'),
+            $this->entry('review-join-requests', 'Alpha', 'review_join_requests'),
+            $this->entry('start-selling', 'Alpha', 'start_selling'),
+        ]);
+
+        self::assertSame(
+            ['start-selling', 'review-join-requests', 'review-contributions', 'start-project'],
+            $this->projectIdsOf($queue),
+        );
+    }
+
     #[Group('issue-1195')]
     public function testAwaitJobsComesAfterEveryOtherCode(): void
     {

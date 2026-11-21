@@ -1118,6 +1118,11 @@
           "text": "Production is finished: open the sale of the products.",
           "button": "Move to selling"
         },
+        "review_join_requests": {
+          "text": "{quantity} join requests are waiting for your decision.",
+          "textUnknownQuantity": "Join requests are waiting for your decision, their number is unknown.",
+          "button": "Handle the requests"
+        },
         "review_contributions": {
           "text": "{quantity} contributions are waiting for your decision.",
           "textUnknownQuantity": "Contributions are waiting for your decision, their number is unknown.",
@@ -3216,6 +3221,7 @@
       "loading": "Reading the container stock...",
       "error": "The purchases to deliver could not be read",
       "allDelivered": "Every purchase is already in the project container.",
+      "nameContainer": "Name a container",
       "stock": {
         "unknown": "The container stock cannot be read, so the delivery of these purchases is unknown.",
         "none": "The project has no container name, so the delivery of these purchases cannot be checked."
@@ -3617,6 +3623,10 @@
       "emptyHintUnbounded": "No wallet has been read yet. Use the manual entry to record it now."
     },
     "purchases": {
+      "declareStock": {
+        "title": "Your own stock",
+        "button": "Declare from my stock (Jita price)"
+      },
       "open": "Purchases",
       "modalTitle": "Purchases of {name}",
       "suggestionsTitle": "Wallet transactions",
@@ -3645,6 +3655,13 @@
       "deleteError": "Failed to delete the purchase"
     },
     "contribute": {
+      "walletFirst": {
+        "title": "Link your wallet transactions first",
+        "link": "Link",
+        "stockHint": "Declaring stock now would duplicate these purchases once the wallet sync links them. Link them first.",
+        "loadError": "Wallet transactions could not be loaded.",
+        "linkError": "Failed to link the transaction"
+      },
       "title": "Add Contribution",
       "type": "Contribution Type",
       "item": "Item",
@@ -4042,6 +4059,7 @@
         "overrideForProject": "Override for this project",
         "collapse": "Collapse",
         "lineRentalOverrideHint": "These rates override your default settings for this project only.",
+        "lineRentalUnavailable": "Your rates could not be loaded. Close the table: the project will use your default rates.",
         "bomNote": "BOM will be aggregated from all items",
         "createButton": "Create Project",
         "privateLabel": "Private project",
@@ -4151,6 +4169,21 @@
         "project_completed": {
           "title": "Project completed",
           "description": "The accounts are frozen: there is nothing left to do on this project."
+        },
+        "settle_transfers": {
+          "title": "Settle the transfers",
+          "description": "{quantity} transfers are still waiting to be received: the recipients tick them in the Finances tab.",
+          "button": "Open the transfers"
+        },
+        "copy_recap": {
+          "title": "Copy the recap",
+          "description": "The accounts are frozen: copy the Discord recap from the Finances tab to share the result.",
+          "button": "Open the recap"
+        },
+        "review_join_requests": {
+          "title": "Join requests to handle",
+          "description": "{quantity} pilots are waiting for you to accept or decline their request to join the project.",
+          "button": "Handle the requests"
         },
         "review_contributions": {
           "title": "Contributions to review",

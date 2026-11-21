@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import type { ProjectPhase, ProjectPhaseState } from '@/stores/group-industry/types'
+import type { ProjectPhase, ProjectPhaseKey, ProjectPhaseState } from '@/stores/group-industry/types'
+import { detailTabOfPhase } from '@/views/GroupIndustry/projectDetailTabs'
 
 defineProps<{
   phases: ProjectPhase[]
+}>()
+
+const emit = defineEmits<{
+  select: [key: ProjectPhaseKey]
 }>()
 
 const { t } = useI18n()
@@ -31,6 +36,14 @@ const CELL_CLASSES: Record<ProjectPhaseState, string> = {
       class="min-w-36 flex-1 basis-0 border-t-2 px-4 py-2.5 [clip-path:polygon(0_0,calc(100%_-_10px)_0,100%_10px,100%_100%,10px_100%,0_calc(100%_-_10px))]"
       :class="CELL_CLASSES[phase.state]"
     >
+      <component
+        :is="detailTabOfPhase(phase.key) === null ? 'div' : 'button'"
+        :type="detailTabOfPhase(phase.key) === null ? undefined : 'button'"
+        :data-testid="detailTabOfPhase(phase.key) === null ? undefined : `cockpit-rail-open-${phase.key}`"
+        class="block w-full text-left"
+        :class="detailTabOfPhase(phase.key) === null ? '' : 'cursor-pointer hover:brightness-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400'"
+        @click="detailTabOfPhase(phase.key) !== null && emit('select', phase.key)"
+      >
       <div class="flex items-center justify-between gap-2">
         <span class="truncate text-xs font-semibold uppercase tracking-wider" :title="t(`groupIndustry.cockpit.phases.${phase.key}`)">
           {{ t(`groupIndustry.cockpit.phases.${phase.key}`) }}
@@ -47,6 +60,7 @@ const CELL_CLASSES: Record<ProjectPhaseState, string> = {
       >
         {{ t(`groupIndustry.cockpit.blockedReasons.${phase.blockedReason.code}`, { count: phase.blockedReason.count }) }}
       </p>
+      </component>
       <span class="sr-only">{{ t(`groupIndustry.cockpit.states.${phase.state}`) }}</span>
     </li>
   </ol>

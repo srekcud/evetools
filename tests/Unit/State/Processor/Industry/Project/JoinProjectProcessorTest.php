@@ -15,7 +15,9 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\JoinRequestNotifier;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use App\State\Processor\Industry\Project\JoinProjectProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -52,6 +54,9 @@ class JoinProjectProcessorTest extends TestCase
 
     private JoinProjectProcessor $processor;
 
+    /** @var list<User> */
+    private array $notifiedUsers = [];
+
     protected function setUp(): void
     {
         $owner = $this->createStub(User::class);
@@ -84,6 +89,11 @@ class JoinProjectProcessorTest extends TestCase
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
 
+        $dispatcher = $this->createStub(NotificationDispatcher::class);
+        $dispatcher->method('dispatch')->willReturnCallback(function (User $user): void {
+            $this->notifiedUsers[] = $user;
+        });
+
         $this->processor = new JoinProjectProcessor(
             $this->security,
             $projectRepository,
@@ -91,6 +101,7 @@ class JoinProjectProcessorTest extends TestCase
             new ProjectResourceMapper(),
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
+            new JoinRequestNotifier($dispatcher),
         );
     }
 
@@ -297,6 +308,44 @@ class JoinProjectProcessorTest extends TestCase
         self::assertTrue(property_exists($resource, 'myStatus'), 'IndustryProjectResource::$myStatus is missing');
         self::assertSame('pending', $resource->myStatus);
         self::assertSame('member', $resource->myRole);
+    }
+
+    #[Group('issue-1219')]
+    public function testPendingRequestFromAnotherCorporationNotifiesTheOwnerAndTheAcceptedAdmins(): void
+    {
+        $admin = $this->createStub(User::class);
+        $this->project->enrolOwner();
+        $this->addMembership($admin, ParticipantRole::Admin, ParticipantStatus::Accepted);
+        $this->actAs('Stranger', self::OTHER_CORPORATION_ID);
+        $this->assignIdsOnFlush();
+
+        $this->join();
+
+        self::assertSame([$this->project->getOwner(), $admin], $this->notifiedUsers);
+    }
+
+    #[Group('issue-1219')]
+    public function testRemovedMemberRejoiningNotifiesTheOwner(): void
+    {
+        $user = $this->actAs('Bob', self::OTHER_CORPORATION_ID);
+        $this->project->enrolOwner();
+        $this->addMembership($user, ParticipantRole::Member, ParticipantStatus::Removed);
+
+        $this->join();
+
+        self::assertSame([$this->project->getOwner()], $this->notifiedUsers);
+    }
+
+    #[Group('issue-1219')]
+    public function testAutoAcceptedJoinFromTheOwnerCorporationNotifiesNobody(): void
+    {
+        $this->project->enrolOwner();
+        $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
+        $this->assignIdsOnFlush();
+
+        $this->join();
+
+        self::assertSame([], $this->notifiedUsers);
     }
 
     private function join(): IndustryProjectResource

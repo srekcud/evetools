@@ -250,6 +250,13 @@ class IndustryProject
         )->count();
     }
 
+    public function pendingJoinRequestCount(): int
+    {
+        return $this->members->filter(
+            static fn (IndustryProjectParticipant $member): bool => $member->getStatus() === ParticipantStatus::Pending,
+        )->count();
+    }
+
     public function transferOwnershipTo(IndustryProjectParticipant $member): void
     {
         $newOwner = $member->getUser();

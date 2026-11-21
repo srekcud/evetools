@@ -8,11 +8,14 @@ import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { pendingQuantityOf } from './pendingContributions'
+import { projectDisplayNameOf } from './projectDisplayName'
+import WalletTransactionsFirst from './WalletTransactionsFirst.vue'
 import type {
   BomItem,
   ContributionType,
   ContributionValueSource,
   MaterialValuePreview,
+  PurchaseSuggestion,
   LineRentalCategory,
   LineRentalSuggestion,
   SubmitContributionInput,
@@ -72,6 +75,11 @@ const note = ref('')
 const isSubmitting = ref(false)
 const valueSource = ref<ContributionValueSource>('jita_price')
 const valuePreview = ref<MaterialValuePreview | null>(null)
+const walletSuggestions = ref<PurchaseSuggestion[]>([])
+const isWalletLoadFailed = ref(false)
+const isLinkingWalletTransaction = ref(false)
+const walletLinkError = ref<string | null>(null)
+let walletLoadNumber = 0
 const isValuePreviewFailed = ref(false)
 let previewTimer: ReturnType<typeof setTimeout> | null = null
 let previewRequestNumber = 0
@@ -97,6 +105,7 @@ watch(() => props.show, (visible) => {
     isSuggestionLoadFailed.value = false
     note.value = ''
     isSubmitting.value = false
+    contributionStore.error = null
     valueSource.value = 'jita_price'
     if (props.prefilledBomItem) {
       selectedType.value = contributionTypeOf(props.prefilledBomItem)
@@ -114,6 +123,10 @@ watch(() => props.show, (visible) => {
 
 // BOM items for dropdown, filtered by type
 const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
+const projectDisplayName = computed(() => {
+  const project = projectStore.currentProject
+  return project === null ? '' : projectDisplayNameOf(project)
+})
 
 function isClaimableIntermediateLine(line: BomItem): boolean {
   return isIntermediateLine(line) && (line.unclaimedQuantity ?? 0) > 0 && line.launchPrice != null
@@ -143,9 +156,54 @@ const isGroupIntermediateClaim = computed(() => {
   return selectedType.value === 'material' && line !== null && !isSoloProject.value && line.isJob
 })
 
+const unlinkedWalletTransactions = computed(() => {
+  const line = selectedBomItem.value
+  return line === null ? [] : walletSuggestions.value.filter(suggestion => suggestion.typeId === line.typeId && !suggestion.alreadyLinked)
+})
+
+async function loadWalletTransactions(): Promise<void> {
+  const loadNumber = ++walletLoadNumber
+  walletSuggestions.value = []
+  isWalletLoadFailed.value = false
+  walletLinkError.value = null
+  if (!props.show || !isMaterialValuedFromTheWallet.value) return
+  try {
+    const loaded = await projectStore.fetchPurchaseSuggestions(props.projectId)
+    if (loadNumber !== walletLoadNumber) return
+    walletSuggestions.value = loaded.suggestions
+  } catch {
+    if (loadNumber !== walletLoadNumber) return
+    isWalletLoadFailed.value = true
+  }
+}
+
+watch([() => props.show, selectedBomItemId, isMaterialValuedFromTheWallet], loadWalletTransactions)
+
+async function linkWalletTransaction(suggestion: PurchaseSuggestion): Promise<void> {
+  const line = selectedBomItem.value
+  if (line === null) return
+  isLinkingWalletTransaction.value = true
+  walletLinkError.value = null
+  try {
+    await projectStore.createPurchase(props.projectId, line.id, { transactionId: suggestion.transactionUuid })
+    walletSuggestions.value = walletSuggestions.value.map(candidate =>
+      candidate.transactionId === suggestion.transactionId ? { ...candidate, alreadyLinked: true } : candidate,
+    )
+    if (selectedBomItem.value !== null) {
+      quantity.value = prefilledQuantityOf(selectedBomItem.value)
+    }
+  } catch (e) {
+    walletLinkError.value = e instanceof Error ? e.message : t('groupIndustry.contribute.walletFirst.linkError')
+  } finally {
+    isLinkingWalletTransaction.value = false
+  }
+}
+
 watch([selectedType, selectedBomItemId], () => {
   if (isGroupIntermediateClaim.value) {
     quantity.value = selectedBomItem.value?.unclaimedQuantity ?? 0
+  } else if (selectedBomItem.value !== null) {
+    quantity.value = prefilledQuantityOf(selectedBomItem.value)
   }
 })
 
@@ -368,7 +426,7 @@ async function submit(): Promise<void> {
         <div>
           <h2 :id="titleId" class="text-lg font-bold text-slate-100">{{ t('groupIndustry.contribute.title') }}</h2>
           <p class="text-sm text-slate-500 mt-0.5">
-            Project: {{ projectStore.currentProject?.name || '---' }}
+            Project: {{ projectDisplayName }}
           </p>
         </div>
         <button
@@ -440,10 +498,9 @@ async function submit(): Promise<void> {
               />
             </div>
             <span>{{ selectedBomItem.typeName }}</span>
-            <span class="text-xs text-slate-500 ml-auto">Type ID: {{ selectedBomItem.typeId }}</span>
             <button
               @click="selectedBomItemId = ''"
-              class="text-slate-500 hover:text-slate-300 ml-2"
+              class="text-slate-500 hover:text-slate-300 ml-auto"
               :aria-label="t('common.actions.clear')"
             >
               <svg aria-hidden="true" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -464,6 +521,19 @@ async function submit(): Promise<void> {
           </select>
         </div>
 
+        <p
+          v-if="isWalletLoadFailed"
+          data-testid="wallet-first-load-error"
+          class="text-xs text-amber-400"
+        >{{ t('groupIndustry.contribute.walletFirst.loadError') }}</p>
+        <WalletTransactionsFirst
+          v-else-if="unlinkedWalletTransactions.length > 0"
+          :transactions="unlinkedWalletTransactions"
+          :is-linking="isLinkingWalletTransaction"
+          :link-error="walletLinkError"
+          @link="linkWalletTransaction"
+        />
+
         <!-- Quantity -->
         <div>
           <label :for="quantityFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">{{ t('groupIndustry.contribute.quantity') }}</label>
@@ -476,6 +546,12 @@ async function submit(): Promise<void> {
             style="font-variant-numeric: tabular-nums;"
           />
         </div>
+
+        <p
+          v-if="isMaterialValuedFromTheWallet && unlinkedWalletTransactions.length > 0"
+          data-testid="stock-duplicate-hint"
+          class="text-xs text-amber-400"
+        >{{ t('groupIndustry.contribute.walletFirst.stockHint') }}</p>
 
         <fieldset v-if="isMaterialValuedFromTheWallet" class="space-y-2">
           <legend class="text-sm font-medium text-slate-300 mb-1.5">{{ t('groupIndustry.contribute.valueSource.title') }}</legend>
