@@ -32,7 +32,7 @@ class OpenProjectsJobMatcher
             $this->process($draft, fn () => $this->jobMatcher->releaseAutomaticMatches($draft));
         }
 
-        $released = array_filter($launched, $this->releaseAutomaticMatchesOf(...));
+        $released = array_filter($launched, $this->releaseMatchesWithoutOutputOf(...));
         $containerOwners = $this->jobMatcher->containerOwnersByLocationId(array_values($released));
         $contestedJobIds = $this->jobMatcher->contestedJobIds(array_values($released), $containerOwners);
 
@@ -44,10 +44,10 @@ class OpenProjectsJobMatcher
         }
     }
 
-    private function releaseAutomaticMatchesOf(IndustryProject $project): bool
+    private function releaseMatchesWithoutOutputOf(IndustryProject $project): bool
     {
         try {
-            $this->jobMatcher->releaseAutomaticMatches($project);
+            $this->jobMatcher->releaseMatchesWithoutOutput($project);
 
             return true;
         } catch (\Throwable $exception) {

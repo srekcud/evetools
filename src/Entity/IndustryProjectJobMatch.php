@@ -212,6 +212,11 @@ class IndustryProjectJobMatch
         return $this;
     }
 
+    public function hasNoOutput(): bool
+    {
+        return \in_array($this->status, CachedIndustryJob::STATUSES_WITHOUT_OUTPUT, true);
+    }
+
     public function copyJobState(CachedIndustryJob $job): static
     {
         $this->status = $job->getStatus();

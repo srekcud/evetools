@@ -53,8 +53,7 @@ class IndustryJobMatcher
             return [];
         }
 
-        $this->clearAutomaticMatches($this->recomputableJobLinesOf($project));
-        $this->entityManager->flush();
+        $this->releaseMatchesWithoutOutput($project);
 
         $candidates = $this->candidatesOf($project, $characterIds, $containerOwnersByLocationId);
         foreach ($candidates['failures'] as $failure) {
@@ -181,6 +180,11 @@ class IndustryJobMatcher
                 continue;
             }
 
+            $remainingRuns = $runs - $line->getMatchedRuns();
+            if ($remainingRuns <= 0) {
+                continue;
+            }
+
             try {
                 $producer = $this->productRepository->producerOf($line->getTypeId());
             } catch (ProducerMissingFromSdeException) {
@@ -190,7 +194,7 @@ class IndustryJobMatcher
 
             $lines[] = [
                 $line,
-                $runs,
+                $remainingRuns,
                 array_values(array_filter(
                     $this->jobRepository->findManufacturingJobsByBlueprint(
                         $producer->getTypeId(),
@@ -258,7 +262,7 @@ class IndustryJobMatcher
 
         return array_fill_keys([
             ...$this->jobMatchRepository->findEsiJobIdsMatchedToOtherProjects($project),
-            ...$this->jobIdsKeptByManualLines($jobLines->toArray()),
+            ...$this->jobIdsMatchedTo($jobLines->toArray()),
         ], true);
     }
 
@@ -275,6 +279,20 @@ class IndustryJobMatcher
         }
 
         return $characterIds;
+    }
+
+    public function releaseMatchesWithoutOutput(IndustryProject $project): void
+    {
+        foreach ($this->recomputableJobLinesOf($project) as $line) {
+            foreach ($line->getJobMatches()->toArray() as $match) {
+                if ($match->hasNoOutput()) {
+                    $line->getJobMatches()->removeElement($match);
+                    $this->entityManager->remove($match);
+                }
+            }
+        }
+
+        $this->entityManager->flush();
     }
 
     public function releaseAutomaticMatches(IndustryProject $project): void
@@ -311,13 +329,10 @@ class IndustryJobMatcher
      *
      * @return int[]
      */
-    private function jobIdsKeptByManualLines(array $lines): array
+    private function jobIdsMatchedTo(array $lines): array
     {
         $jobIds = [];
         foreach ($lines as $line) {
-            if (!$line->hasManualJobMatch()) {
-                continue;
-            }
             foreach ($line->getJobMatches() as $match) {
                 $jobIds[] = $match->getEsiJobId();
             }

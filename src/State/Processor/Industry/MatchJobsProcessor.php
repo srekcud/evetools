@@ -102,6 +102,9 @@ class MatchJobsProcessor implements ProcessorInterface
         if (!\in_array($project, $openProjects, true)) {
             $openProjects[] = $project;
         }
+        foreach ($openProjects as $openProject) {
+            $this->jobMatcher->releaseMatchesWithoutOutput($openProject);
+        }
         $containerOwners = $this->jobMatcher->containerOwnersByLocationId($openProjects);
         $lineFailures = $this->jobMatcher->matchEsiJobs($project, $this->jobMatcher->contestedJobIds($openProjects, $containerOwners), $containerOwners);
         $this->jobActivityRecorder->recordJobsOf($project);

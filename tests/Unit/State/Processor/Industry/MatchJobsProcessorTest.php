@@ -96,6 +96,7 @@ final class MatchJobsProcessorTest extends TestCase
     private array $contestedPassedToMatching = [];
     private array $containerOwnerQueries = [];
     private array $containerOwnersPassed = [];
+    private array $releaseEvents = [];
 
     protected function setUp(): void
     {
@@ -583,6 +584,17 @@ final class MatchJobsProcessorTest extends TestCase
         $this->assertSame([[$this->project, $otherProject]], $this->contestedQueries);
     }
 
+    #[Group('issue-1245')]
+    public function testTheMatchesWithoutOutputOfEveryOpenProjectAreReleasedBeforeTheContestedJobsAreComputed(): void
+    {
+        $otherProject = (new IndustryProject())->setOwner($this->user);
+        $this->openProjectsOfUser = [$otherProject];
+
+        $this->matchJobs();
+
+        $this->assertSame([['release', $otherProject], ['release', $this->project], ['contested']], $this->releaseEvents);
+    }
+
     private function matchJobs(): MatchJobsResultResource
     {
         $security = $this->createStub(Security::class);
@@ -610,7 +622,11 @@ final class MatchJobsProcessorTest extends TestCase
 
             return [1_040_000_000_001 => ['owner-project-id']];
         });
+        $jobMatcher->method('releaseMatchesWithoutOutput')->willReturnCallback(function (IndustryProject $project): void {
+            $this->releaseEvents[] = ['release', $project];
+        });
         $jobMatcher->method('contestedJobIds')->willReturnCallback(function (array $projects, array $containerOwners = []): array {
+            $this->releaseEvents[] = ['contested'];
             $this->containerOwnersPassed[] = $containerOwners;
             $this->contestedQueries[] = $projects;
 
