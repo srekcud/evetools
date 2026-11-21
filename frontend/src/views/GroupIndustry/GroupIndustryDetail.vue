@@ -44,6 +44,9 @@ import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { useGroupT2BlueprintCopyProposalStore } from '@/stores/group-industry/t2BlueprintCopyProposal'
+import { useGroupMaterialSourcingStore } from '@/stores/group-industry/materialSourcing'
+import { useGroupCourierStore } from '@/stores/group-industry/courier'
+import { useGroupPurchasesToDeliverStore } from '@/stores/group-industry/purchasesToDeliver'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
@@ -83,6 +86,9 @@ const router = useRouter()
 const projectStore = useGroupProjectStore()
 const chainStore = useGroupChainStore()
 const t2ProposalStore = useGroupT2BlueprintCopyProposalStore()
+const materialSourcingStore = useGroupMaterialSourcingStore()
+const courierStore = useGroupCourierStore()
+const purchasesToDeliverStore = useGroupPurchasesToDeliverStore()
 const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
 const settlementStore = useGroupSettlementStore()
@@ -342,6 +348,7 @@ async function handleEditSave(): Promise<void> {
       ...(producerCharactersChanged.value ? { producerCharacterIds: editForm.value.producerCharacterIds } : {}),
     } as Partial<GroupProject>)
     showEditModal.value = false
+    void reloadAfterProjectEdit()
   } catch (e) {
     editError.value = e instanceof Error ? e.message : t('groupIndustry.detail.editError')
     isEditSaving.value = false
@@ -420,9 +427,26 @@ function handleLeaveProject(): void {
   router.push(PROJECTS_HOME)
 }
 
+function reloadSourcingBlocks(): Promise<void> {
+  return Promise.all([
+    materialSourcingStore.fetchMaterialSourcing(projectId.value),
+    courierStore.fetchCourier(projectId.value),
+    purchasesToDeliverStore.fetchDeliveries(projectId.value),
+  ]).then(() => undefined)
+}
+
+function reloadAfterProjectEdit(): Promise<void> {
+  return Promise.all([
+    projectStore.fetchBom(projectId.value),
+    projectStore.fetchContainerVerification(projectId.value),
+    reloadSourcingBlocks(),
+  ]).then(() => undefined)
+}
+
 function onBlacklistSaved(): void {
   projectStore.fetchBom(projectId.value)
   loadCockpit(projectId.value)
+  void reloadSourcingBlocks()
 }
 
 function onInventionExclusionSaved(): void {
