@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectJobMatchResource;
 use App\ApiResource\Input\Industry\LinkJobInput;
-use App\Entity\CachedIndustryJob;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectBomLineRepository;
@@ -55,7 +54,7 @@ class LinkJobProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertOwner($user, $project);
+        $jobOwners = $this->accessChecker->usersWhoseJobsCanBeLinkedBy($user, $project);
 
         $line = $this->bomLineRepository->find(UuidOrNotFound::of($uriVariables['lineId'], 'BOM line not found'));
         if ($line === null || $line->getProject() !== $project) {
@@ -66,7 +65,7 @@ class LinkJobProcessor implements ProcessorInterface
         $esiJobId = $data->esiJobId;
 
         $job = $this->jobRepository->findByJobId($esiJobId);
-        if ($job === null || !$this->isOwnedBy($job, $user)) {
+        if ($job === null || !\in_array($job->getCharacter()->getUser(), $jobOwners, true)) {
             throw new BadRequestHttpException("ESI job {$esiJobId} not found");
         }
 
@@ -90,10 +89,5 @@ class LinkJobProcessor implements ProcessorInterface
         $this->derivedContributionService->refreshLine($line);
 
         return ProjectJobMatchResource::fromEntity($match);
-    }
-
-    private function isOwnedBy(CachedIndustryJob $job, User $user): bool
-    {
-        return $job->getCharacter()->getUser() === $user;
     }
 }

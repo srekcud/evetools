@@ -37,6 +37,33 @@ class ProjectAccessChecker
         throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
     }
 
+    /**
+     * Users whose industry jobs the given user may list and link on the project: every accepted
+     * participant for the owner, the user alone for any other accepted participant.
+     *
+     * @return list<User>
+     *
+     * @throws AccessDeniedHttpException if the user is not an accepted member
+     */
+    public function usersWhoseJobsCanBeLinkedBy(User $user, IndustryProject $project): array
+    {
+        $this->assertAcceptedMember($user, $project);
+
+        if ($project->getOwner() !== $user) {
+            return [$user];
+        }
+
+        $users = [$user];
+        foreach ($project->getMembers() as $member) {
+            $participant = $member->getUser();
+            if (ParticipantStatus::Accepted === $member->getStatus() && null !== $participant && !\in_array($participant, $users, true)) {
+                $users[] = $participant;
+            }
+        }
+
+        return $users;
+    }
+
     public function assertContributionOf(User $user, IndustryProjectContribution $contribution): void
     {
         $member = $contribution->getMember();

@@ -58,6 +58,7 @@ const props = defineProps<{
   canMark?: boolean
   markableNodeIds?: readonly string[]
   canLinkJobs?: boolean
+  canUnlinkJobs?: boolean
   statusFilter?: readonly ChainStatus[]
 }>()
 
@@ -260,7 +261,7 @@ function plansStructure(node: ChainNode): boolean {
                     <JobLocationBadge :locations="jobMatch.locations" data-testid="job-match-check" class="ml-1" />
                   </span>
                   <button
-                    v-if="canLinkJobs === true"
+                    v-if="canUnlinkJobs === true"
                     type="button"
                     data-testid="job-match-unlink"
                     class="ml-2 px-1.5 py-0.5 rounded-sm text-xs text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition-colors"

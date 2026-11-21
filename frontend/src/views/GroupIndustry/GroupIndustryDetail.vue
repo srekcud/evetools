@@ -794,6 +794,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             :can-mark="isOwnerOrAdmin && !isCompleted"
             :markable-node-ids="markableNodeIds"
             :can-match-jobs="isOwner"
+            :can-link-jobs="isAcceptedMember"
             @marked="refreshGroupProject.cockpit(projectId)"
             @contribute="openContributeModal"
             @open-sourcing="activeTab = 'bom'"

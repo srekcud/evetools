@@ -215,7 +215,36 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
     public static function ownerOnlyTrackingOperations(): iterable
     {
         yield 'match the jobs' => ['/match-jobs', []];
-        yield 'link a job' => ['/bom/{ishtarLineId}/link-job', ['esiJobId' => 7_362_799]];
+    }
+
+    #[Group('issue-1194')]
+    public function testAcceptedMemberReachesTheLinkJobEndpointButCannotLinkAJobThatIsNotHis(): void
+    {
+        $this->actAs($this->member);
+        $this->request('POST', $this->ishtarUri().'/bom/'.$this->idOf($this->ishtarJobLine).'/link-job', ['esiJobId' => 7_362_799]);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame([400, 'ESI job 7362799 not found'], $this->errorDetail());
+        self::assertSame([self::ISHTAR_JOB_ID], $this->storedJobIdsOf($this->ishtarJobLine));
+    }
+
+    #[Group('issue-1194')]
+    #[DataProvider('jobLinkEndpoints')]
+    public function testPendingMemberAndOutsiderAreDeniedTheJobLinkEndpoints(string $method, string $uriAfterTheProject, ?array $body): void
+    {
+        foreach ([$this->pendingMember, $this->outsider] as $user) {
+            $this->actAs($user);
+            $this->request($method, $this->ishtarUri().str_replace('{ishtarLineId}', $this->idOf($this->ishtarJobLine), $uriAfterTheProject), $body);
+
+            self::assertResponseStatusCodeSame(403);
+            self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
+        }
+    }
+
+    public static function jobLinkEndpoints(): iterable
+    {
+        yield 'list the available jobs' => ['GET', '/available-jobs', null];
+        yield 'link a job' => ['POST', '/bom/{ishtarLineId}/link-job', ['esiJobId' => 7_362_799]];
     }
 
     #[Group('issue-981')]

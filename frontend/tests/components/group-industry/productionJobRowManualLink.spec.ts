@@ -168,7 +168,7 @@ describe('Production job row manual job link', () => {
     expect(callsTo(BOM_URL)).toBe(1)
   })
 
-  it('offers the link and unlink actions to the owner only and keeps the linked jobs visible to everyone', async () => {
+  it('offers the link action to every participant, the unlink action to the owner only, and keeps the linked jobs visible to everyone', async () => {
     const actionsOf = async (myRole: GroupMemberRole) => {
       const wrapper = await mountRows(myRole)
       return { link: wrapper.findAll(OPEN_LINK_SCREEN).length, unlink: wrapper.findAll(JOB_MATCH_UNLINK).length, linkedJobs: wrapper.findAll(JOB_MATCH).length }
@@ -176,8 +176,8 @@ describe('Production job row manual job link', () => {
 
     expect({ owner: await actionsOf('owner'), admin: await actionsOf('admin'), member: await actionsOf('member') }).toEqual({
       owner: { link: 1, unlink: 2, linkedJobs: 2 },
-      admin: { link: 0, unlink: 0, linkedJobs: 2 },
-      member: { link: 0, unlink: 0, linkedJobs: 2 },
+      admin: { link: 1, unlink: 0, linkedJobs: 2 },
+      member: { link: 1, unlink: 0, linkedJobs: 2 },
     })
   })
 })

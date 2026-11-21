@@ -28,6 +28,7 @@ const props = defineProps<{
   canMark?: boolean
   markableNodeIds?: readonly string[]
   canMatchJobs?: boolean
+  canLinkJobs?: boolean
   excludesInvention?: boolean
 }>()
 
@@ -182,7 +183,7 @@ watch(
       class="mx-4 mt-3 text-sm text-red-400"
     >{{ jobLinkError }}</p>
     <JobLinkModal
-      v-if="canMatchJobs === true"
+      v-if="canLinkJobs === true"
       :show="linkScreenLine !== null"
       :line-name="linkScreenLine?.typeName ?? ''"
       :jobs="availableJobs"
@@ -226,7 +227,8 @@ watch(
         :project-id="projectId"
         :can-mark="canMark === true"
         :markable-node-ids="markableNodeIds"
-        :can-link-jobs="canMatchJobs === true"
+        :can-link-jobs="canLinkJobs === true"
+        :can-unlink-jobs="canMatchJobs === true"
         @marked="$emit('marked')"
         @contribute="$emit('contribute', $event)"
         @link-job="jobActions.openLinkScreen(projectId, $event)"

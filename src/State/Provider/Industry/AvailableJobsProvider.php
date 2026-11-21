@@ -52,7 +52,7 @@ class AvailableJobsProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertOwner($user, $project);
+        $jobOwners = $this->accessChecker->usersWhoseJobsCanBeLinkedBy($user, $project);
 
         $jobLines = $project->getBomItems()->filter(
             static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob(),
@@ -64,8 +64,10 @@ class AvailableJobsProvider implements ProviderInterface
         }
 
         $characterIds = [];
-        foreach ($user->getCharacters() as $character) {
-            $characterIds[] = $character->getId();
+        foreach ($jobOwners as $jobOwner) {
+            foreach ($jobOwner->getCharacters() as $character) {
+                $characterIds[] = $character->getId();
+            }
         }
 
         if ($blueprintTypeIds === [] || $characterIds === []) {
