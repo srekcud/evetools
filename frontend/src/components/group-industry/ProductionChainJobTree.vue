@@ -2,12 +2,13 @@
 import ChainStepMark from './ChainStepMark.vue'
 import { computed, nextTick, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useEsiJobStatusLabel } from '@/composables/useEsiJobStatusLabel'
 import IskAmount from '@/components/common/IskAmount.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import { useJobDisplayLabel } from '@/composables/useJobDisplayLabel'
+import { useNow } from '@/composables/useNow'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
-import type { BomItem, ChainJob, ChainNode, ChainStage, ChainStatus } from '@/stores/group-industry/types'
+import type { BomItem, ChainJob, ChainNode, ChainStage, ChainStatus, JobMatch } from '@/stores/group-industry/types'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import { chainStatusChipClass, chainStatusDotClass } from './chainStatus'
@@ -15,6 +16,8 @@ import { filterChainNodes } from './chainStatusFilter'
 import ChainJobLocations from './ChainJobLocations.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
 import { containerLineOf, isPartlyCoveredByTheContainer } from './jobContainerCoverage'
+import { formatCountdown } from './jobCountdown'
+import { jobDisplayOf } from './jobDisplayState'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import UnclaimedStockBadge from './UnclaimedStockBadge.vue'
@@ -70,7 +73,17 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { esiJobStatusLabel } = useEsiJobStatusLabel()
+const { jobDisplayLabel } = useJobDisplayLabel()
+const now = useNow()
+
+function displayOf(jobMatch: JobMatch) {
+  return jobDisplayOf(jobMatch, now.value)
+}
+
+function countdownOf(jobMatch: JobMatch): string | null {
+  if (jobMatch.endDate === null || displayOf(jobMatch).state !== 'running') return null
+  return formatCountdown(jobMatch.endDate, now.value)
+}
 const projectStore = useGroupProjectStore()
 const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
 const bomItemById = computed(() => new Map(projectStore.bomItems.map(item => [item.id, item])))
@@ -255,7 +268,10 @@ function plansStructure(node: ChainNode): boolean {
                 >
                   <span v-if="jobMatch.characterName !== null" class="text-slate-400">{{ jobMatch.characterName }}</span>
                   &middot; {{ formatNumber(jobMatch.runs, 0) }} {{ t('groupIndustry.jobs.runs') }}
-                  &middot; {{ esiJobStatusLabel(jobMatch.status) }}
+                  &middot; <span data-testid="job-match-state" :data-state="displayOf(jobMatch).state">{{ jobDisplayLabel(displayOf(jobMatch).state) }}</span>
+                  <template v-if="countdownOf(jobMatch) !== null">
+                    &middot; <span data-testid="job-match-countdown" class="font-mono tabular-nums">{{ countdownOf(jobMatch) }}</span>
+                  </template>
                   <button
                     v-if="canUnlinkJobs === true"
                     type="button"

@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import { useJobDisplayLabel } from '@/composables/useJobDisplayLabel'
 import type { BomItem, JobLocation } from '@/stores/group-industry/types'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
@@ -47,6 +48,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { jobDisplayLabel } = useJobDisplayLabel()
 const { formatNumber, formatIsk } = useFormatters()
 const { getTypeIconUrl, getTypeRenderUrl, onImageError } = useEveImages()
 
@@ -682,7 +684,7 @@ function unknownReasonText(output: JobLocation): string | null {
                       style="font-variant-numeric: tabular-nums;"
                     >{{ countdownText(job.timing.remainingMs) }}</p>
                     <p v-else data-testid="companion-job-eta" data-unknown="true" class="text-xs italic text-slate-500">{{ t('common.unknownValue') }}</p>
-                    <p data-testid="companion-job-status" class="text-xs uppercase tracking-wider text-slate-400">{{ t(`groupIndustry.companion.jobStatus.${job.match.status}`) }}</p>
+                    <p data-testid="companion-job-status" class="text-xs uppercase tracking-wider text-slate-400">{{ jobDisplayLabel(job.timing.state) }}</p>
                   </div>
                 </div>
                 <div v-if="job.timing.state === 'ready'" data-testid="companion-job-bar" class="ml-[42px] h-[3px] bg-white/10">

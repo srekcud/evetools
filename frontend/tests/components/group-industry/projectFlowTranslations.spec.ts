@@ -41,6 +41,10 @@ const ESI_STATUS_LABELS: Record<TestLocale, Record<string, string>> = {
     unknown: 'Statut inconnu',
   },
 }
+const LINKED_JOB_LABELS: Record<TestLocale, Record<string, string>> = {
+  en: { ...ESI_STATUS_LABELS.en, active: 'Ready to deliver', ready: 'Ready to deliver' },
+  fr: { ...ESI_STATUS_LABELS.fr, active: 'À livrer', ready: 'À livrer' },
+}
 const ESI_STATUSES = ['active', 'paused', 'ready', 'delivered', 'cancelled', 'reverted']
 const UNRECOGNISED_ESI_STATUS = 'in_limbo'
 const LOCALES: TestLocale[] = ['en', 'fr']
@@ -134,7 +138,7 @@ describe('an ESI job status is shown through its translated label, never raw', (
     }
 
     for (const status of ESI_STATUSES) {
-      expect(labels[status], status).toContain(ESI_STATUS_LABELS[locale][status])
+      expect(labels[status], status).toContain(LINKED_JOB_LABELS[locale][status])
     }
     expect(labels.cancelled).not.toContain('cancelled')
     expect(labels.delivered).not.toContain('delivered')

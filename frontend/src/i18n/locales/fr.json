@@ -3378,7 +3378,6 @@
       "loadError": "L'activité du projet n'a pas pu être lue",
       "unknown": "inconnu",
       "unknownCost": "inconnu",
-      "finished": "terminé",
       "startedAt": "Démarré",
       "cost": "Coût",
       "ends": "Fin",
@@ -3574,6 +3573,15 @@
       "correctionFailed": "La correction n'a pas pu être enregistrée"
     },
     "jobs": {
+      "displayState": {
+        "running": "En cours",
+        "paused": "En pause",
+        "ready": "À livrer",
+        "delivered": "Livré",
+        "cancelled": "Annulé",
+        "reverted": "Rétabli",
+        "unknown": "Statut inconnu"
+      },
       "esiStatus": {
         "active": "En cours",
         "paused": "En pause",
@@ -4569,11 +4577,6 @@
       "todo": {
         "contributions": "{count} contributions à revoir",
         "joinRequests": "{count} demandes d'adhésion"
-      },
-      "jobStatus": {
-        "active": "En cours",
-        "paused": "En pause",
-        "ready": "Terminé"
       },
       "output": "Sortie : {place}",
       "outputUnknown": "Sortie : inconnue",

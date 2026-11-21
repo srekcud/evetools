@@ -1,3 +1,4 @@
+import { jobDisplayOf, type JobDisplay } from './jobDisplayState'
 import { pendingQuantityOf } from './pendingContributions'
 import type { BomItem, ChainNode, GroupMember, GroupProject, JobMatch, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
 
@@ -15,7 +16,7 @@ export type CompanionProduct = { typeId: number; typeName: string; runs: number;
 
 export type FreeValue = { total: number | null; unknownLines: number }
 
-export type JobTiming = { state: 'ready' | 'paused' | 'running'; remainingMs: number | null }
+export type JobTiming = JobDisplay
 
 export type CompanionTasks = {
   now: number
@@ -52,8 +53,7 @@ export type CompanionTasksInput = {
 }
 
 const MY_JOB_STATUSES = ['active', 'paused', 'ready']
-const READY_STATUS = 'ready'
-const RUNNING_STATUS = 'active'
+const RUNNING_STATE = 'running'
 const FINAL_JOB_GROUP = 'final'
 const PENDING_MEMBER_STATUS = 'pending'
 const PRODUCT_ACTIVITIES = ['manufacturing', 'reaction']
@@ -63,7 +63,6 @@ const MOVE_PRODUCTS_ALERT_KEY = 'move_products'
 const PRICE_ALERT_KEY = 'price_below_break_even'
 const UNDERCUT_ORDER_ALERT_KEY = 'undercut_sell_order'
 const BLOCKED_CHAIN_STATUS = 'blocked'
-const PAUSED_STATUS = 'paused'
 const PERCENT_BASE = 100
 const MS_PER_MINUTE = 60_000
 const MINUTES_PER_HOUR = 60
@@ -79,8 +78,7 @@ function isFree(item: BomItem): boolean {
 }
 
 function isReadyToDeliver(match: JobMatch, now: number): boolean {
-  if (match.status === READY_STATUS) return true
-  return match.status === RUNNING_STATUS && match.endDate !== null && Date.parse(match.endDate) <= now
+  return jobDisplayOf(match, now).state === 'ready'
 }
 
 function productQuantityOf(match: JobMatch, item: BomItem): number | null {
@@ -132,10 +130,7 @@ export function groupByActivity<Entry>(entries: Entry[], itemOf: (entry: Entry) 
 }
 
 export function jobTimingOf(match: JobMatch, now: number): JobTiming {
-  const endTime = match.endDate === null ? null : Date.parse(match.endDate)
-  if (isReadyToDeliver(match, now)) return { state: 'ready', remainingMs: 0 }
-  const remainingMs = endTime === null ? null : Math.max(0, endTime - now)
-  return { state: match.status === PAUSED_STATUS ? 'paused' : 'running', remainingMs }
+  return jobDisplayOf(match, now)
 }
 
 export function countdownPartsOf(remainingMs: number): { days: number; hours: number; minutes: number } {
@@ -204,7 +199,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
 
   const finalJobsRunning = bomItems
     .filter(item => item.jobGroup === FINAL_JOB_GROUP)
-    .reduce((count, item) => count + item.jobMatches.filter(match => match.status === RUNNING_STATUS).length, 0)
+    .reduce((count, item) => count + item.jobMatches.filter(match => jobDisplayOf(match, now).state === RUNNING_STATE).length, 0)
 
   const materials = bomItems.filter(item => !item.isJob)
 

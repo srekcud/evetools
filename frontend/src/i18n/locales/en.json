@@ -3378,7 +3378,6 @@
       "loadError": "The project activity could not be read",
       "unknown": "unknown",
       "unknownCost": "unknown",
-      "finished": "finished",
       "startedAt": "Started",
       "cost": "Cost",
       "ends": "Ends",
@@ -3574,6 +3573,15 @@
       "correctionFailed": "The correction could not be saved"
     },
     "jobs": {
+      "displayState": {
+        "running": "Running",
+        "paused": "Paused",
+        "ready": "Ready to deliver",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled",
+        "reverted": "Reverted",
+        "unknown": "Unknown status"
+      },
       "esiStatus": {
         "active": "Running",
         "paused": "Paused",
@@ -4569,11 +4577,6 @@
       "todo": {
         "contributions": "{count} contributions to review",
         "joinRequests": "{count} join requests"
-      },
-      "jobStatus": {
-        "active": "Running",
-        "paused": "Paused",
-        "ready": "Ready"
       },
       "output": "Output: {place}",
       "outputUnknown": "Output: unknown",

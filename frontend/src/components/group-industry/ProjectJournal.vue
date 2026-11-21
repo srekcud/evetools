@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
+import { useJobDisplayLabel } from '@/composables/useJobDisplayLabel'
+import { useNow } from '@/composables/useNow'
 import type { ProjectActivityEvent, ProjectRunningJob } from '@/stores/group-industry/types'
 import { formatCountdown } from './jobCountdown'
+import { jobDisplayOf } from './jobDisplayState'
 
-const COUNTDOWN_TICK_MS = 1000
+const RUNNING_JOB_STATUS = 'active'
 const DETAIL_SEPARATOR = ' · '
 const JOB_TIME_FIELDS: Record<string, string> = {
   jobs_detected: 'startedAt',
@@ -21,20 +24,8 @@ const props = defineProps<{
 const { t, te } = useI18n()
 const { formatIskFull, formatNumber, formatDateTime } = useFormatters()
 
-const now = ref(Date.now())
-let countdownTimer: ReturnType<typeof setInterval> | null = null
-
-onMounted(() => {
-  countdownTimer = setInterval(() => {
-    now.value = Date.now()
-  }, COUNTDOWN_TICK_MS)
-})
-
-onBeforeUnmount(() => {
-  if (countdownTimer !== null) {
-    clearInterval(countdownTimer)
-  }
-})
+const now = useNow()
+const { jobDisplayLabel } = useJobDisplayLabel()
 
 const isEmpty = computed(() => props.events.length === 0 && props.runningJobs.length === 0)
 
@@ -80,7 +71,9 @@ function dateTimeText(value: string | null): string {
 }
 
 function countdownText(job: ProjectRunningJob): string {
-  return formatCountdown(job.endsAt, now.value) ?? t('groupIndustry.journal.finished')
+  const display = jobDisplayOf({ status: RUNNING_JOB_STATUS, endDate: job.endsAt }, now.value)
+  const countdown = display.state === 'running' ? formatCountdown(job.endsAt, now.value) : null
+  return countdown ?? jobDisplayLabel(display.state)
 }
 
 function kindLabel(event: ProjectActivityEvent): string {
