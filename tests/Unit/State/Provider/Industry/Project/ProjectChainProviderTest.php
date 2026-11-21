@@ -45,6 +45,9 @@ use App\Service\Industry\Project\ProjectChainBuilder;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectContainerService;
 use App\Service\Industry\Project\ProjectContainerStock;
+use App\Service\Industry\Project\ProjectLineFulfillments;
+use App\Service\Industry\Project\StartedJobConsumption;
+use App\Service\Industry\Project\StartedJobConsumptionReader;
 use App\Service\Industry\Project\ProjectChainNode;
 use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
@@ -287,6 +290,45 @@ final class ProjectChainProviderTest extends TestCase
         );
     }
 
+    #[Group('issue-1140')]
+    public function testJobMaterialNeedsAreLoadedOnceAndHandedToTheContainerFulfillment(): void
+    {
+        $this->security->method('getUser')->willReturn($this->member);
+        $job = $this->jobLine(449_001, 'Hammerhead II', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $tritanium = $this->materialLine();
+        $bomLines = [$job, $tritanium];
+        $planJob = new Job(449_001, ActivityKind::Manufacturing, new Runs(10), new MaterialEfficiency(0), new TimeEfficiency(0), [34 => new Quantity(1_000)]);
+        $projectService = $this->createMock(IndustryProjectService::class);
+        $projectService->expects(self::once())->method('planOf')->willReturn(new PlannedProduction(new Plan([$planJob], [], []), []));
+        $this->bomLineRepository->method('findBy')->willReturn($bomLines);
+        $this->contributionRepository->method('findApprovedByProject')->willReturn([]);
+        $this->saleRepository->method('findByProjectForListing')->willReturn([]);
+        $this->structureConfigRepository->method('findByUser')->willReturn([]);
+        $containerFulfillment = $this->createMock(ProjectContainerFulfillment::class);
+        $containerFulfillment->expects(self::never())->method('of');
+        $containerFulfillment->expects(self::once())->method('ofWithJobMaterialNeeds')
+            ->with($this->project, self::identicalTo($bomLines), [$job->getId()->toRfc4122() => [34 => 1_000]])
+            ->willReturn(ProjectLineFulfillments::none());
+        $provider = new ProjectChainProvider(
+            $this->security,
+            $this->projectRepository,
+            $this->bomLineRepository,
+            $this->contributionRepository,
+            $this->saleRepository,
+            $this->structureConfigRepository,
+            new ProjectAccessChecker($this->participantRepository),
+            $this->chainBuilder(),
+            new ProjectJobMaterialNeedsLoader($projectService),
+            $this->blueprintNames(),
+            $containerFulfillment,
+            $this->createStub(ProjectJobLocationResolver::class),
+        );
+
+        $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame('missing_materials', $this->node($chain, $job->getId()->toRfc4122())->status);
+    }
+
     #[Group('issue-339')]
     public function testJobsShowTheMainCharacterOfTheOwnerToAMemberAndTheAltToTheOwner(): void
     {
@@ -526,7 +568,10 @@ final class ProjectChainProviderTest extends TestCase
         $containerService = $this->createStub(ProjectContainerService::class);
         $containerService->method('containerStockOf')->willReturn($stock);
 
-        return new ProjectContainerFulfillment($containerService);
+        $consumptionReader = $this->createStub(StartedJobConsumptionReader::class);
+        $consumptionReader->method('of')->willReturn(StartedJobConsumption::none());
+
+        return new ProjectContainerFulfillment($containerService, $consumptionReader);
     }
 
     private function chainBuilder(): ProjectChainBuilder

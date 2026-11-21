@@ -75,14 +75,16 @@ final readonly class ProjectChainProvider implements ProviderInterface
             $structureNamesById[$structureConfig->getId()->toRfc4122()] = $structureConfig->getName();
         }
 
+        $jobMaterialNeeds = $this->jobMaterialNeedsLoader->load($project, $bomLines);
+
         $chain = $this->chainBuilder->build(
             $project,
             $bomLines,
             $this->contributionRepository->findApprovedByProject($project),
             $this->saleRepository->findByProjectForListing($project),
             $structureNamesById,
-            $this->jobMaterialNeedsLoader->load($project, $bomLines),
-            $this->containerFulfillment->of($project),
+            $jobMaterialNeeds,
+            $this->containerFulfillment->ofWithJobMaterialNeeds($project, $bomLines, $jobMaterialNeeds),
         );
 
         $blueprintNameByNodeId = $this->blueprintNames->of($chain->nodes);

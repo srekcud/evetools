@@ -62,6 +62,26 @@ final class StartedJobConsumptionTest extends TestCase
         ]);
     }
 
+    public function testQuantitiesByTypeIdListsEveryConsumedTypeAndNothingElse(): void
+    {
+        $reactionLine = $this->startedLine(33, [[CachedIndustryJob::STATUS_ACTIVE, 33]], self::REACTION_PRODUCT);
+        $parentLine = $this->startedLine(10, [[CachedIndustryJob::STATUS_DELIVERED, 5]], self::PARENT_PRODUCT);
+
+        $consumption = StartedJobConsumption::of([$reactionLine, $parentLine], [
+            self::lineId($reactionLine) => [self::CADMIUM => 3_213, self::SILICON => 1_650],
+            self::lineId($parentLine) => [self::CADMIUM => 300, self::ZYDRINE => 45],
+        ]);
+
+        self::assertSame([self::CADMIUM => 3_363, self::SILICON => 1_650, self::ZYDRINE => 22], $consumption->quantitiesByTypeId());
+    }
+
+    public function testQuantitiesByTypeIdRefusesToListTheQuantitiesOfAnUnknownConsumption(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        StartedJobConsumption::unknown()->quantitiesByTypeId();
+    }
+
     public function testADeliveredJobCoveringEveryRunConsumesTheWholeNeed(): void
     {
         $line = $this->startedLine(10, [[CachedIndustryJob::STATUS_DELIVERED, 10]]);

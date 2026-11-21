@@ -32,6 +32,8 @@ use App\Service\Industry\Project\PlanningBlueprintNames;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectContainerService;
 use App\Service\Industry\Project\ProjectContainerStock;
+use App\Service\Industry\Project\StartedJobConsumption;
+use App\Service\Industry\Project\StartedJobConsumptionReader;
 use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -877,7 +879,10 @@ class ProjectBomProviderTest extends TestCase
         $containerService = $this->createStub(ProjectContainerService::class);
         $containerService->method('containerStockOf')->willReturn($stock);
 
-        return new ProjectContainerFulfillment($containerService);
+        $consumptionReader = $this->createStub(StartedJobConsumptionReader::class);
+        $consumptionReader->method('of')->willReturn(StartedJobConsumption::none());
+
+        return new ProjectContainerFulfillment($containerService, $consumptionReader);
     }
 
     private function readSabreBatchBom(Uuid $projectId): string

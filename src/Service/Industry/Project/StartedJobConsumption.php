@@ -74,6 +74,18 @@ final readonly class StartedJobConsumption
         return $this->unknown;
     }
 
+    /**
+     * @return array<int, int>
+     */
+    public function quantitiesByTypeId(): array
+    {
+        if ($this->unknown) {
+            throw new \LogicException('The consumption of the started jobs is unknown.');
+        }
+
+        return $this->consumedByTypeId;
+    }
+
     public function consumedOf(int $typeId): int
     {
         if ($this->unknown) {

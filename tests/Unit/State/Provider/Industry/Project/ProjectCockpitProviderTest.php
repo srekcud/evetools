@@ -22,6 +22,7 @@ use App\Service\Industry\Project\ProjectContainerStock;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectPriceAlert;
 use App\Service\Industry\Project\ProjectPriceAlertReader;
+use App\Service\Industry\Project\StartedJobConsumptionReader;
 use App\Service\Industry\SellOrders\ProjectSellOrder;
 use App\Service\Industry\SellOrders\ProjectSellOrdersReader;
 use App\Enum\OrderPositionState;
@@ -269,7 +270,7 @@ final class ProjectCockpitProviderTest extends TestCase
             new ProjectCockpitInputFactory(),
             $this->priceAlertReader,
             $this->sellOrdersReader,
-            new ProjectContainerFulfillment($this->containerWithoutName()),
+            new ProjectContainerFulfillment($this->containerWithoutName(), $this->createStub(StartedJobConsumptionReader::class)),
         );
     }
 }
