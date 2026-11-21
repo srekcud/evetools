@@ -32,7 +32,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const COMING_SOON_FRENCH = 'À venir'
-const ACTIVE_TABS = ['bom', 'distribution', 'sales', 'chain', 'planning', 'journal', 'invention']
+const ACTIVE_TABS = ['bom', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
 const COMING_SOON_TABS: string[] = []
 
 async function mountSellingNyxOn(tab: string | undefined, locale: TestLocale = 'fr') {

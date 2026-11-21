@@ -4,7 +4,7 @@ export type ProjectDetailTab = 'bom' | 'contributions' | 'distribution' | 'sales
 
 export type ProjectComingSoonTab = 'invention'
 
-export const DETAIL_TABS: ProjectDetailTab[] = ['bom', 'contributions', 'distribution', 'sales', 'members', 'chain', 'planning', 'journal', 'invention']
+export const DETAIL_TABS: ProjectDetailTab[] = ['members', 'bom', 'contributions', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
 
 export const COMING_SOON_TABS: ProjectComingSoonTab[] = []
 

@@ -26,8 +26,8 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-const SOLO_TABS = ['bom', 'distribution', 'sales', 'chain', 'planning', 'journal', 'invention']
-const TEAM_TABS = ['bom', 'contributions', 'distribution', 'sales', 'members', 'chain', 'planning', 'journal', 'invention']
+const SOLO_TABS = ['bom', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
+const TEAM_TABS = ['members', 'bom', 'contributions', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
 const ENGLISH_SHARE_LABEL = 'Share Link'
 const ENGLISH_INVITE_LABEL = 'Invite'
 const FRENCH_INVITE_LABEL = 'Inviter'
