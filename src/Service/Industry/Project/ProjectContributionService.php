@@ -321,7 +321,10 @@ class ProjectContributionService
         }
 
         $bomItem = $contribution->getBomItem();
-        if (null !== $quantity && null !== $bomItem && $quantity > $bomItem->getRemainingQuantity()) {
+        $isApproved = ContributionStatus::Approved === $contribution->getStatus();
+        $previousQuantity = $contribution->getQuantity();
+        $room = null === $bomItem ? 0 : $bomItem->getRemainingQuantity() + ($isApproved ? $previousQuantity : 0);
+        if (null !== $quantity && null !== $bomItem && $quantity > $room) {
             throw new \DomainException('The contribution exceeds the remaining quantity of the line');
         }
 
@@ -349,6 +352,12 @@ class ProjectContributionService
             $contribution->setNote('' === $note ? null : $note);
         }
 
+        if ($isApproved && null !== $bomItem) {
+            $this->settleRevisedApproval($contribution, $bomItem, $previousQuantity);
+
+            return;
+        }
+
         $this->entityManager->flush();
     }
 
@@ -359,9 +368,50 @@ class ProjectContributionService
     {
         $this->assertEditableByItsContributor($contribution);
 
+        $bomItem = $contribution->getBomItem();
+        if (ContributionStatus::Approved === $contribution->getStatus() && null !== $bomItem) {
+            $this->withdrawApproved($contribution, $bomItem);
+
+            return;
+        }
+
         $contribution->getProject()->getContributions()->removeElement($contribution);
         $this->entityManager->remove($contribution);
         $this->entityManager->flush();
+    }
+
+    private function settleRevisedApproval(IndustryProjectContribution $contribution, IndustryProjectBomLine $bomItem, int $previousQuantity): void
+    {
+        $this->entityManager->wrapInTransaction(function () use ($contribution, $bomItem, $previousQuantity): void {
+            $stillAwaitingUnits = $contribution->getAwaitingQuantity() > 0;
+            $bomItem->setFulfilledQuantity(max(0, $bomItem->getFulfilledQuantity() - $previousQuantity + ($stillAwaitingUnits ? 0 : $contribution->getQuantity())));
+            if ($stillAwaitingUnits) {
+                $contribution->setStatus(ContributionStatus::Pending);
+                $contribution->setReviewedBy(null);
+                $contribution->setReviewedAt(null);
+            }
+
+            $this->entityManager->flush();
+
+            if ($this->isIntermediateContribution($bomItem, $contribution->getType())) {
+                $this->recalculateBomOf($contribution);
+            }
+        });
+    }
+
+    private function withdrawApproved(IndustryProjectContribution $contribution, IndustryProjectBomLine $bomItem): void
+    {
+        $this->entityManager->wrapInTransaction(function () use ($contribution, $bomItem): void {
+            $bomItem->setFulfilledQuantity(max(0, $bomItem->getFulfilledQuantity() - $contribution->getQuantity()));
+            $this->unlinkPaidPurchases($contribution, $bomItem);
+            $contribution->getProject()->getContributions()->removeElement($contribution);
+            $this->entityManager->remove($contribution);
+            $this->entityManager->flush();
+
+            if ($this->isIntermediateContribution($bomItem, $contribution->getType())) {
+                $this->recalculateBomOf($contribution);
+            }
+        });
     }
 
     private function assertEditableByItsContributor(IndustryProjectContribution $contribution): void

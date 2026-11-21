@@ -240,9 +240,23 @@ class IndustryProjectContribution
 
     public function isEditableByItsContributor(): bool
     {
-        return ContributionStatus::Pending === $this->status
-            && !$this->isAutoDetected
-            && !$this->project->isCompleted();
+        if ($this->isAutoDetected || $this->project->isCompleted()) {
+            return false;
+        }
+
+        return ContributionStatus::Pending === $this->status || $this->isRevisableBySoloContributor();
+    }
+
+    public function isRevisableBySoloContributor(): bool
+    {
+        $contributor = $this->member->getUser();
+
+        return ContributionStatus::Approved === $this->status
+            && ContributionType::Material === $this->type
+            && null !== $this->bomItem
+            && null !== $contributor
+            && $this->project->isSoloProjectOf($contributor)
+            && ProjectStatus::Selling !== $this->project->getStatus();
     }
 
     public function isAutoDetected(): bool
