@@ -54,7 +54,7 @@ use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
             input: RecordSaleInput::class,
             openapi: new Model\Operation(
                 summary: 'Record a sale',
-                description: 'Records a new sale for the project (admin/owner only)',
+                description: 'Records a new sale for the project (accepted participants)',
                 tags: ['Group Industry - Sales'],
             ),
         ),
@@ -67,7 +67,7 @@ use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
             input: RecordSaleFromWalletTransactionInput::class,
             openapi: new Model\Operation(
                 summary: 'Record a sale from a wallet transaction',
-                description: 'Records a sale of the project from a sale of one of your wallet transactions (admin/owner only)',
+                description: 'Records a sale of the project from a sale of one of your wallet transactions (accepted participants)',
                 tags: ['Group Industry - Sales'],
             ),
         ),
@@ -81,7 +81,7 @@ use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
             output: RecordedSalesBatchResource::class,
             openapi: new Model\Operation(
                 summary: 'Record several sales from wallet transactions',
-                description: 'Records a sale for each listed sale of your wallet transactions and publishes a single project event; refused lines are returned with their message (admin/owner only)',
+                description: 'Records a sale for each listed sale of your wallet transactions and publishes a single project event; refused lines are returned with their message (accepted participants)',
                 tags: ['Group Industry - Sales'],
             ),
         ),
@@ -94,7 +94,7 @@ use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
             input: RecordSaleFromContractInput::class,
             openapi: new Model\Operation(
                 summary: 'Record a sale from a finished contract',
-                description: 'Records a sale of the project from a finished item exchange contract of one of your characters (admin/owner only)',
+                description: 'Records a sale of the project from a finished item exchange contract of one of your characters (accepted participants)',
                 tags: ['Group Industry - Sales'],
             ),
         ),
@@ -109,7 +109,7 @@ use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
             input: UpdateSaleInput::class,
             openapi: new Model\Operation(
                 summary: 'Correct a sale',
-                description: 'Corrects a recorded sale of the project (admin/owner only)',
+                description: 'Corrects a recorded sale of the project (owner, admin, or the participant whose character sold it)',
                 tags: ['Group Industry - Sales'],
             ),
         ),
@@ -123,7 +123,7 @@ use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
             processor: DeleteSaleProcessor::class,
             openapi: new Model\Operation(
                 summary: 'Delete a sale',
-                description: 'Deletes a recorded sale of the project (admin/owner only)',
+                description: 'Deletes a recorded sale of the project (owner, admin, or the participant whose character sold it)',
                 tags: ['Group Industry - Sales'],
             ),
         ),
@@ -164,6 +164,8 @@ class ProjectSaleResource
 
     public bool $linkedToWalletTransaction = false;
 
+    public bool $heldByViewer = false;
+
     public string $createdAt;
 
     public static function fromSale(IndustryProjectSale $sale, User $viewer, ?float $contractFees = null): self
@@ -194,6 +196,7 @@ class ProjectSaleResource
             $resource->sellerCharacterName = PilotName::of($sellerUser);
         }
         $resource->linkedToWalletTransaction = $sale->getWalletTransaction() !== null;
+        $resource->heldByViewer = $sale->isHeldBy($viewer);
         $resource->createdAt = $sale->getCreatedAt()->format(\DateTimeInterface::ATOM);
 
         return $resource;

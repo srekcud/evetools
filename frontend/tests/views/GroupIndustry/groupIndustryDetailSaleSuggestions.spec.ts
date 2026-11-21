@@ -202,12 +202,13 @@ describe('sale suggestions refreshed by the sale events', () => {
     expect([readsBeforeTheEvent, suggestionReads()]).toEqual([1, 2])
   })
 
-  it('never asks a plain member for the suggestions he cannot read', async () => {
+  it('asks an accepted member for the suggestions of his own characters when a sale is recorded', async () => {
     await mountSalesTabOf(sabreProject('selling', 'member'))
+    const readsBeforeTheEvent = suggestionReads()
 
     await publish('sale_recorded')
 
-    expect(suggestionReads()).toBe(0)
+    expect([readsBeforeTheEvent, suggestionReads()]).toEqual([1, 2])
   })
 })
 
@@ -227,9 +228,12 @@ describe('sale suggestions of a completed project', () => {
     expect(recordAsSaleButtons(wrapper).map(button => button.element.disabled)).toEqual([false])
   })
 
-  it('shows no suggestion to a plain member of a completed project', async () => {
+  it('shows the suggestions to a plain member of a completed project with recording disabled', async () => {
     const wrapper = await mountSalesTabOf(sabreProject('completed', 'member'))
 
-    expect([wrapper.findComponent(SaleSuggestionsPanel).exists(), suggestionReads()]).toEqual([false, 0])
+    expect([
+      wrapper.findComponent(SaleSuggestionsPanel).exists(),
+      recordAsSaleButtons(wrapper).map(button => button.element.disabled).every(Boolean),
+    ]).toEqual([true, true])
   })
 })

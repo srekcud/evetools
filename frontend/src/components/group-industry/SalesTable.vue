@@ -24,9 +24,11 @@ const mySalesToggleId = useId()
 const props = defineProps<{
   projectId: string
   isAdmin: boolean
+  canRecord?: boolean
 }>()
 
 const store = useGroupDistributionStore()
+const mayRecord = computed(() => props.isAdmin || props.canRecord === true)
 const projectStore = useGroupProjectStore()
 const authStore = useAuthStore()
 const { formatNumber, formatDate } = useFormatters()
@@ -176,7 +178,7 @@ onMounted(() => {
         {{ t('groupIndustry.sales.mySales') }}
       </label>
       <button
-        v-if="isAdmin"
+        v-if="mayRecord"
         class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all hover:-translate-y-px"
         @click="toggleSaleForm"
       >
@@ -225,7 +227,7 @@ onMounted(() => {
                 <th class="text-right py-3 px-3">Revenue</th>
                 <th class="text-left py-3 px-3">{{ t('groupIndustry.sales.channelColumn') }}</th>
                 <th class="text-left py-3 px-6">Venue</th>
-                <th v-if="isAdmin" class="py-3 px-6"><span class="sr-only">{{ t('groupIndustry.sales.actionsColumn') }}</span></th>
+                <th v-if="mayRecord" class="py-3 px-6"><span class="sr-only">{{ t('groupIndustry.sales.actionsColumn') }}</span></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800/30">
@@ -260,15 +262,17 @@ onMounted(() => {
                   >{{ sale.venue }}</span>
                   <span v-else class="text-xs text-slate-500">--</span>
                 </td>
-                <td v-if="isAdmin" class="py-3 px-6 text-right whitespace-nowrap">
-                  <button
-                    class="text-xs text-cyan-400 hover:text-cyan-300 mr-3 transition-colors"
-                    @click="startCorrection(sale)"
-                  >{{ t('common.actions.edit') }}</button>
-                  <button
-                    class="text-xs text-red-400 hover:text-red-300 transition-colors"
-                    @click="saleToDelete = sale"
-                  >{{ t('common.actions.delete') }}</button>
+                <td v-if="mayRecord" class="py-3 px-6 text-right whitespace-nowrap">
+                  <template v-if="isAdmin || sale.heldByViewer === true">
+                    <button
+                      class="text-xs text-cyan-400 hover:text-cyan-300 mr-3 transition-colors"
+                      @click="startCorrection(sale)"
+                    >{{ t('common.actions.edit') }}</button>
+                    <button
+                      class="text-xs text-red-400 hover:text-red-300 transition-colors"
+                      @click="saleToDelete = sale"
+                    >{{ t('common.actions.delete') }}</button>
+                  </template>
                 </td>
               </tr>
               <!-- Total row -->
@@ -285,7 +289,7 @@ onMounted(() => {
                 </td>
                 <td class="py-3 px-3"></td>
                 <td class="py-3 px-6"></td>
-                <td v-if="isAdmin" class="py-3 px-6"></td>
+                <td v-if="mayRecord" class="py-3 px-6"></td>
               </tr>
             </tbody>
           </table>
@@ -311,7 +315,7 @@ onMounted(() => {
 
       <!-- Inline Sale Form (admin only) -->
       <div
-        v-if="showSaleForm && isAdmin"
+        v-if="showSaleForm && mayRecord"
         class="mt-4 bg-slate-900/80 rounded-xl border border-cyan-500/20 p-5"
       >
         <h3 class="text-sm font-semibold text-slate-200 mb-4">{{ correctedSale ? t('groupIndustry.sales.correctTitle') : 'Record a Sale' }}</h3>

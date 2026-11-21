@@ -24,6 +24,7 @@ trait GroupProjectAccessProfiles
     private const string GRANTED = 'granted';
     private const string NO_ACCESS = '403 You do not have access to this project';
     private const string ADMIN_OR_OWNER_ONLY = '403 Only project owner or admin can perform this action';
+    private const string OWN_SALES_ONLY = '403 You can only change your own sales';
     private const string PROJECT_NOT_FOUND = '404 Project not found';
     private const string UNAUTHORIZED = '401 Unauthorized';
 

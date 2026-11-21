@@ -51,13 +51,14 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
         assert($data instanceof UpdateSaleInput);
 
         $project = $this->projectOf($this->projectRepository, $uriVariables);
-        $this->accessChecker->assertAdminOrOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         if ($project->isCompleted()) {
             throw new BadRequestHttpException('Cannot correct a sale on a completed project');
         }
 
         $sale = $this->saleOf($this->saleRepository, $project, $uriVariables);
+        $this->accessChecker->assertMayChangeSale($user, $project, $sale);
         $this->assertCorrectionKeepsTheWalletTransaction($sale, $data);
         $this->applyCorrection($sale, $data, $this->sellerOf($user, $data->sellerCharacterId));
 

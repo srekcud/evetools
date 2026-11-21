@@ -5,6 +5,8 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
+import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
+import ContractSaleSuggestions from '@/components/group-industry/ContractSaleSuggestions.vue'
 import GroupIndustryDetail from '@/views/GroupIndustry/GroupIndustryDetail.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
@@ -66,12 +68,12 @@ function salesRequests(): number {
   return vi.mocked(apiRequest).mock.calls.filter(([endpoint]) => endpoint === SALES_PATH).length
 }
 
-async function mountDetailOfTheSabreBatch(): Promise<VueWrapper> {
+async function mountDetailOfTheSabreBatch(project: GroupProject = SABRE_BATCH): Promise<VueWrapper> {
   const projectStore = useGroupProjectStore()
   vi.spyOn(projectStore, 'fetchProjectDetail').mockResolvedValue(undefined as never)
   vi.spyOn(projectStore, 'fetchBom').mockResolvedValue(undefined as never)
   vi.spyOn(projectStore, 'fetchCockpit').mockResolvedValue(undefined as never)
-  projectStore.currentProject = SABRE_BATCH
+  projectStore.currentProject = project
   const wrapper = mount(GroupIndustryDetail, {
     global: {
       plugins: [i18n()],
@@ -139,5 +141,30 @@ describe('sales of a group project fetched by the detail view', () => {
     await flushPromises()
 
     expect(salesRequests()).toBe(1)
+  })
+
+  it('gives an accepted member the recording of sales and the suggestions of his own characters', async () => {
+    route.query = { tab: 'sales' }
+
+    const wrapper = await mountDetailOfTheSabreBatch({ ...SABRE_BATCH, myRole: 'member', myStatus: 'accepted' })
+
+    expect([
+      wrapper.findComponent(SalesTable).props('canRecord'),
+      wrapper.findComponent(SalesTable).props('isAdmin'),
+      wrapper.findComponent(SaleSuggestionsPanel).exists(),
+      wrapper.findComponent(ContractSaleSuggestions).exists(),
+    ]).toEqual([true, false, true, true])
+  })
+
+  it('keeps the recording and the suggestions away from a participant who is not accepted', async () => {
+    route.query = { tab: 'sales' }
+
+    const wrapper = await mountDetailOfTheSabreBatch({ ...SABRE_BATCH, myRole: 'member', myStatus: 'pending' })
+
+    expect([
+      wrapper.findComponent(SalesTable).props('canRecord'),
+      wrapper.findComponent(SaleSuggestionsPanel).exists(),
+      wrapper.findComponent(ContractSaleSuggestions).exists(),
+    ]).toEqual([false, false, false])
   })
 })

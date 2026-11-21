@@ -25,7 +25,7 @@ When the price is unknown, the value of the contribution is unknown, never 0. Se
 
 ## How is the revenue shared, and when are payouts exact?
 
-The owner or an admin records the sales of the project. The calculation goes like this:
+Every accepted participant records the sales made with their own characters (a member corrects or deletes only those; the owner and the admins handle any sale). The calculation goes like this:
 
 1. **Net revenue** = sales revenue − broker fee − sales tax − contract fees. A sale made by contract pays no broker fee and no sales tax; only the real contract fees count.
 2. **Margin** = (net revenue − total cost of the approved contributions) ÷ total cost.

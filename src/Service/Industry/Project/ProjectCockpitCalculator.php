@@ -208,7 +208,7 @@ final readonly class ProjectCockpitCalculator
                 : $this->managerStatusAction($input, self::ACTION_START_PROJECT, ProjectStatus::InProgress),
             ProjectStatus::InProgress => $this->inProgressAction($input, $uncoveredMaterials, $undeliveredJobs, $isSourcingPhase),
             ProjectStatus::Selling => $unitsLeftToSell > self::NONE
-                ? $this->managerAction($input, new CockpitNextAction(self::ACTION_RECORD_SALE, false, self::TAB_SALES, null, null, null, null, $unitsLeftToSell))
+                ? new CockpitNextAction(self::ACTION_RECORD_SALE, false, self::TAB_SALES, null, null, null, null, $unitsLeftToSell)
                 : $this->managerStatusAction($input, self::ACTION_COMPLETE_PROJECT, ProjectStatus::Completed),
         };
     }
