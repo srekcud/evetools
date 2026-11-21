@@ -13,6 +13,7 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Service\Industry\Project\ChainRecipeIngredients;
 use App\Service\Industry\Project\IntermediateStockProposal;
 use App\Service\Industry\Project\IntermediateStockProposalLine;
 use App\Service\Industry\Project\IntermediateStockProposer;
@@ -36,6 +37,10 @@ final class IntermediateStockProposerTest extends TestCase
     private const int CERAMIC_POWDER = 16_660;
     private const int NITROGEN_FUEL_BLOCK = 4_051;
     private const int ROBOTICS = 11_542;
+    private const int CRYSTALLINE_CARBONIDE = 1_153_001;
+    private const int PHOTONIC_METAMATERIALS = 1_153_002;
+    private const int CRYSTALLITE_ALLOY = 1_153_003;
+    private const int CARBON_POLYMERS = 1_153_004;
 
     private User $owner;
     private IndustryProject $project;
@@ -46,6 +51,7 @@ final class IntermediateStockProposerTest extends TestCase
     private ProjectContainerStock $containerStock;
     private array $approvedStockByTypeId = [];
     private array $contributedBomItemIds = [];
+    private array $producedIngredientsByTypeId = [];
 
     protected function setUp(): void
     {
@@ -64,7 +70,12 @@ final class IntermediateStockProposerTest extends TestCase
         $contributionRepository->method('findIntermediateStockByTypeId')->willReturnCallback(fn (): array => $this->approvedStockByTypeId);
         $contributionRepository->method('findBomItemIdsWithMaterialContributionOf')->willReturnCallback(fn (): array => $this->contributedBomItemIds);
 
-        $this->proposer = new IntermediateStockProposer($assetRepository, $containerService, $contributionRepository);
+        $chainRecipeIngredients = $this->createStub(ChainRecipeIngredients::class);
+        $chainRecipeIngredients->method('producedIngredientsOf')->willReturnCallback(
+            fn (array $productTypeIds): array => (new InMemoryChainRecipeIngredients($this->producedIngredientsByTypeId))->producedIngredientsOf($productTypeIds),
+        );
+
+        $this->proposer = new IntermediateStockProposer($assetRepository, $containerService, $contributionRepository, $chainRecipeIngredients);
     }
 
     public function testPersonalStockAloneIsProposedForTheRemainingQuantityWithoutContainer(): void
@@ -224,12 +235,40 @@ final class IntermediateStockProposerTest extends TestCase
         $this->component(self::NITROGEN_FUEL_BLOCK, 'Nitrogen Fuel Block', 30, parentTypeId: self::ROBOTICS);
         $this->component(self::CERAMIC_POWDER, 'Ceramic Powder', 40, parentTypeId: self::ROBOTICS);
         $this->personalQuantities = [self::ROBOTICS => 5, self::NITROGEN_FUEL_BLOCK => 6, self::CERAMIC_POWDER => 7];
+        $this->producedIngredientsByTypeId = [
+            self::FINAL_PRODUCT => [self::ROBOTICS],
+            self::ROBOTICS => [self::NITROGEN_FUEL_BLOCK, self::CERAMIC_POWDER],
+        ];
 
         self::assertSame(
             ['Robotics', 'Ceramic Powder', 'Nitrogen Fuel Block'],
             array_map(static fn (IntermediateStockProposalLine $line): string => $line->typeName, $this->proposalOf()->lines),
         );
         self::assertSame(self::lineId($robotics), $this->proposalOf()->lines[0]->bomItemId);
+    }
+
+    #[Group('issue-1153')]
+    public function testLinesAreSortedByTheLevelOfTheirRecipeNotByTheConsumerListedOnTheLine(): void
+    {
+        $this->component(self::CRYSTALLITE_ALLOY, 'Crystallite Alloy', 40, parentTypeId: self::PHOTONIC_METAMATERIALS);
+        $this->component(self::CARBON_POLYMERS, 'Carbon Polymers', 60, parentTypeId: self::PHOTONIC_METAMATERIALS);
+        $this->component(self::PHOTONIC_METAMATERIALS, 'Photonic Metamaterials', 20);
+        $this->component(self::CRYSTALLINE_CARBONIDE, 'Crystalline Carbonide', 30);
+        $this->personalQuantities = [
+            self::CRYSTALLITE_ALLOY => 5,
+            self::CARBON_POLYMERS => 6,
+            self::PHOTONIC_METAMATERIALS => 7,
+            self::CRYSTALLINE_CARBONIDE => 8,
+        ];
+        $this->producedIngredientsByTypeId = [
+            self::PHOTONIC_METAMATERIALS => [self::CRYSTALLITE_ALLOY, self::CARBON_POLYMERS],
+            self::CRYSTALLINE_CARBONIDE => [self::CRYSTALLITE_ALLOY, self::CARBON_POLYMERS],
+        ];
+
+        self::assertSame(
+            ['Crystalline Carbonide', 'Photonic Metamaterials', 'Carbon Polymers', 'Crystallite Alloy'],
+            array_map(static fn (IntermediateStockProposalLine $line): string => $line->typeName, $this->proposalOf()->lines),
+        );
     }
 
     public function testSeveralLinesOfTheSameTypeGetASingleProposalOnTheLineWithTheLargestRequiredQuantity(): void

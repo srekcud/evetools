@@ -69,6 +69,7 @@ final class ChainMaterialSupplyTest extends TestCase
         $supply = $this->supplyOf(
             [$component, $reaction, $tritanium],
             [self::lineId($reaction) => [self::TRITANIUM => 100], self::lineId($component) => [self::TRITANIUM => 100]],
+            producedIngredientsByTypeId: [self::COMPONENT => [self::REACTION]],
         );
 
         self::assertSame([true, false], [$supply->isSupplied(self::lineId($reaction)), $supply->isSupplied(self::lineId($component))]);
@@ -104,7 +105,7 @@ final class ChainMaterialSupplyTest extends TestCase
         $product = $this->jobLine(self::PRODUCT, 'Product', 'final', null);
         $component = $this->jobLine(self::COMPONENT, 'Component', 'component', self::PRODUCT);
 
-        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5], self::lineId($component) => []]);
+        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5], self::lineId($component) => []], producedIngredientsByTypeId: [self::PRODUCT => [self::COMPONENT]]);
 
         self::assertFalse($supply->isSupplied(self::lineId($product)));
         self::assertTrue($supply->isSupplied(self::lineId($component)));
@@ -117,7 +118,7 @@ final class ChainMaterialSupplyTest extends TestCase
         $component = $this->jobLine(self::COMPONENT, 'Component', 'component', self::PRODUCT);
         $this->linkJob($component, CachedIndustryJob::STATUS_DELIVERED, 10);
 
-        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5], self::lineId($component) => []]);
+        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5], self::lineId($component) => []], producedIngredientsByTypeId: [self::PRODUCT => [self::COMPONENT]]);
 
         self::assertTrue($supply->isSupplied(self::lineId($product)));
     }
@@ -129,7 +130,7 @@ final class ChainMaterialSupplyTest extends TestCase
         $component = $this->jobLine(self::COMPONENT, 'Component', 'component', self::PRODUCT);
         $this->linkJob($component, CachedIndustryJob::STATUS_DELIVERED, 4);
 
-        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5], self::lineId($component) => []]);
+        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5], self::lineId($component) => []], producedIngredientsByTypeId: [self::PRODUCT => [self::COMPONENT]]);
 
         self::assertFalse($supply->isSupplied(self::lineId($product)));
     }
@@ -141,7 +142,7 @@ final class ChainMaterialSupplyTest extends TestCase
         $component = $this->jobLine(self::COMPONENT, 'Component', 'component', self::PRODUCT);
         $this->linkJob($component, CachedIndustryJob::STATUS_ACTIVE, 10);
 
-        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5], self::lineId($component) => []]);
+        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5], self::lineId($component) => []], producedIngredientsByTypeId: [self::PRODUCT => [self::COMPONENT]]);
 
         self::assertFalse($supply->isSupplied(self::lineId($product)));
     }
@@ -154,8 +155,8 @@ final class ChainMaterialSupplyTest extends TestCase
         $coveredByThree = $this->jobLine(self::PRODUCT, 'Product', 'final', null);
         $coveredByFour = $this->jobLine(self::ZULU_PART, 'Zulu part', 'final', null);
 
-        $supplyOfSeven = $this->supplyOf([$coveredByThree, $component], [self::lineId($coveredByThree) => [self::COMPONENT => 7], self::lineId($component) => []]);
-        $supplyOfEight = $this->supplyOf([$coveredByFour, $component], [self::lineId($coveredByFour) => [self::COMPONENT => 8], self::lineId($component) => []]);
+        $supplyOfSeven = $this->supplyOf([$coveredByThree, $component], [self::lineId($coveredByThree) => [self::COMPONENT => 7], self::lineId($component) => []], producedIngredientsByTypeId: [self::PRODUCT => [self::COMPONENT]]);
+        $supplyOfEight = $this->supplyOf([$coveredByFour, $component], [self::lineId($coveredByFour) => [self::COMPONENT => 8], self::lineId($component) => []], producedIngredientsByTypeId: [self::PRODUCT => [self::COMPONENT]]);
 
         self::assertTrue($supplyOfSeven->isSupplied(self::lineId($coveredByThree)));
         self::assertFalse($supplyOfEight->isSupplied(self::lineId($coveredByFour)));
@@ -167,7 +168,7 @@ final class ChainMaterialSupplyTest extends TestCase
         $product = $this->jobLine(self::PRODUCT, 'Product', 'final', null);
         $component = $this->jobLine(self::COMPONENT, 'Component', 'component', self::PRODUCT, runs: 0)->setRequiredQuantity(5)->setFulfilledQuantity(5);
 
-        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5]]);
+        $supply = $this->supplyOf([$product, $component], [self::lineId($product) => [self::COMPONENT => 5]], producedIngredientsByTypeId: [self::PRODUCT => [self::COMPONENT]]);
 
         self::assertTrue($supply->isSupplied(self::lineId($product)));
     }
@@ -205,7 +206,7 @@ final class ChainMaterialSupplyTest extends TestCase
         $unmatched = $this->jobLine(self::REACTION, 'Reaction', 'component', self::COMPONENT, activityType: 'reaction');
         $tritanium = $this->materialLine(self::TRITANIUM, 'Tritanium', 100, 100);
 
-        $supply = $this->supplyOf([$matched, $unmatched, $tritanium], [self::lineId($matched) => [self::TRITANIUM => 100]]);
+        $supply = $this->supplyOf([$matched, $unmatched, $tritanium], [self::lineId($matched) => [self::TRITANIUM => 100]], producedIngredientsByTypeId: [self::COMPONENT => [self::REACTION]]);
 
         self::assertTrue($supply->isSupplied(self::lineId($matched)));
         self::assertNull($supply->isSupplied(self::lineId($unmatched)));
@@ -230,6 +231,7 @@ final class ChainMaterialSupplyTest extends TestCase
         $supply = $this->supplyOf(
             [$product, $component, $tritanium, $pyerite],
             [self::lineId($product) => [self::TRITANIUM => 100, self::PYERITE => 100], self::lineId($component) => [self::TRITANIUM => 100]],
+            producedIngredientsByTypeId: [self::PRODUCT => [self::COMPONENT]],
         );
 
         self::assertSame([1, 2], [$supply->firstConsumerLevel(self::TRITANIUM), $supply->firstConsumerLevel(self::PYERITE)]);
@@ -269,6 +271,7 @@ final class ChainMaterialSupplyTest extends TestCase
             [$component, $reaction, $tritanium],
             [self::lineId($reaction) => [self::TRITANIUM => 100], self::lineId($component) => [self::TRITANIUM => 100]],
             new ProjectLineFulfillments(ContainerStockState::Known, [self::TRITANIUM => 150]),
+            producedIngredientsByTypeId: [self::COMPONENT => [self::REACTION]],
         );
 
         self::assertSame([true, false], [$supply->isSupplied(self::lineId($reaction)), $supply->isSupplied(self::lineId($component))]);
@@ -308,6 +311,7 @@ final class ChainMaterialSupplyTest extends TestCase
             [$component, $reaction, $tritanium],
             [self::lineId($component) => [self::TRITANIUM => 100, self::REACTION => 100]],
             new ProjectLineFulfillments(ContainerStockState::Unknown),
+            producedIngredientsByTypeId: [self::COMPONENT => [self::REACTION]],
         );
 
         self::assertFalse($supply->isSupplied(self::lineId($component)));
@@ -320,7 +324,7 @@ final class ChainMaterialSupplyTest extends TestCase
         $component = $this->jobLine(self::COMPONENT, 'Component', 'component', null);
         $reaction->setRequiredQuantity(100)->setFulfilledQuantity(20);
 
-        $supply = $this->supplyOf([$component, $reaction], [self::lineId($component) => [self::REACTION => 100]], new ProjectLineFulfillments(ContainerStockState::Known, [self::REACTION => 100]));
+        $supply = $this->supplyOf([$component, $reaction], [self::lineId($component) => [self::REACTION => 100]], new ProjectLineFulfillments(ContainerStockState::Known, [self::REACTION => 100]), producedIngredientsByTypeId: [self::COMPONENT => [self::REACTION]]);
 
         self::assertFalse($supply->isSupplied(self::lineId($component)));
     }
@@ -333,9 +337,16 @@ final class ChainMaterialSupplyTest extends TestCase
     /**
      * @param array<IndustryProjectBomLine>           $lines
      * @param array<string, array<int, int>>|null     $needs
+     * @param array<int, list<int>>                   $producedIngredientsByTypeId
      */
-    private function supplyOf(array $lines, ?array $needs, ?ProjectLineFulfillments $fulfillments = null): ChainMaterialSupply
+    private function supplyOf(array $lines, ?array $needs, ?ProjectLineFulfillments $fulfillments = null, array $producedIngredientsByTypeId = []): ChainMaterialSupply
     {
-        return ChainMaterialSupply::allocate($lines, ChainManufacturingLevels::byTypeId($lines), $needs, $fulfillments ?? ProjectLineFulfillments::none());
+        $jobTypeIds = array_values(array_unique(array_map(
+            static fn (IndustryProjectBomLine $line): int => $line->getTypeId(),
+            array_filter($lines, static fn (IndustryProjectBomLine $line): bool => $line->isJob()),
+        )));
+        $recipes = (new InMemoryChainRecipeIngredients($producedIngredientsByTypeId))->producedIngredientsOf($jobTypeIds);
+
+        return ChainMaterialSupply::allocate($lines, ChainManufacturingLevels::byTypeId($lines, $recipes), $needs, $fulfillments ?? ProjectLineFulfillments::none());
     }
 }

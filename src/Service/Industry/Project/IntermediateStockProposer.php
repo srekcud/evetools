@@ -19,6 +19,7 @@ final readonly class IntermediateStockProposer
         private CachedAssetRepository $assetRepository,
         private ProjectContainerService $containerService,
         private IndustryProjectContributionRepository $contributionRepository,
+        private ChainRecipeIngredients $recipeIngredients,
     ) {
     }
 
@@ -47,7 +48,10 @@ final readonly class IntermediateStockProposer
         $contributedBomItemIds = $this->contributionRepository->findBomItemIdsWithMaterialContributionOf($project, $owner);
 
         $bomLines = array_values($project->getBomItems()->toArray());
-        $levels = ChainManufacturingLevels::byTypeId($bomLines);
+        $levels = ChainManufacturingLevels::byTypeId(
+            $bomLines,
+            $this->recipeIngredients->producedIngredientsOf(ChainManufacturingLevels::jobTypeIdsOf($bomLines)),
+        );
 
         $lines = [];
         foreach ($this->rankZeroComponentLines($bomLines) as $bomLine) {
