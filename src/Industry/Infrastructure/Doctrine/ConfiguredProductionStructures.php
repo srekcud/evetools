@@ -20,8 +20,9 @@ use App\Industry\Infrastructure\Sde\SdeRigBonusReader;
 use App\Industry\Infrastructure\Sde\SdeStructureBonusReader;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\InvTypeRepository;
+use Symfony\Contracts\Service\ResetInterface;
 
-final readonly class ConfiguredProductionStructures implements UserProductionStructures
+final class ConfiguredProductionStructures implements UserProductionStructures, ResetInterface
 {
     private const string NPC_STATION = 'station';
 
@@ -42,25 +43,52 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
 
     private const string THUKKER_CATEGORY = 'basic_capital_component';
 
+    /** @var array<string, list<ProductionStructure>> */
+    private array $structuresByUserId = [];
+
     public function __construct(
-        private IndustryStructureConfigRepository $structureConfigRepository,
-        private InvTypeRepository $invTypeRepository,
-        private SdeStructureBonusReader $structureBonusReader,
-        private SdeRigBonusReader $rigBonusReader,
+        private readonly IndustryStructureConfigRepository $structureConfigRepository,
+        private readonly InvTypeRepository $invTypeRepository,
+        private readonly SdeStructureBonusReader $structureBonusReader,
+        private readonly SdeRigBonusReader $rigBonusReader,
     ) {
     }
 
     public function configuredBy(string $userId): array
     {
-        $configurations = array_filter(
-            $this->structureConfigRepository->findBy(['user' => $userId, 'isDeleted' => false]),
-            static fn (IndustryStructureConfig $configuration): bool => self::NPC_STATION !== $configuration->getStructureType(),
-        );
-
-        return array_values(array_map($this->productionStructureOf(...), $configurations));
+        return $this->structuresByUserId[$userId] ??= $this->readStructuresOf($userId);
     }
 
-    private function productionStructureOf(IndustryStructureConfig $configuration): ProductionStructure
+    public function reset(): void
+    {
+        $this->structuresByUserId = [];
+    }
+
+    /**
+     * @return list<ProductionStructure>
+     */
+    private function readStructuresOf(string $userId): array
+    {
+        $configurations = array_values(array_filter(
+            $this->structureConfigRepository->findBy(['user' => $userId, 'isDeleted' => false]),
+            static fn (IndustryStructureConfig $configuration): bool => self::NPC_STATION !== $configuration->getStructureType(),
+        ));
+        $rigNames = [];
+        foreach ($configurations as $configuration) {
+            array_push($rigNames, ...$configuration->getRigs());
+        }
+        $rigTypes = $this->invTypeRepository->findByNames(array_values(array_unique($rigNames)));
+
+        return array_map(
+            fn (IndustryStructureConfig $configuration): ProductionStructure => $this->productionStructureOf($configuration, $rigTypes),
+            $configurations,
+        );
+    }
+
+    /**
+     * @param array<string, InvType> $rigTypes
+     */
+    private function productionStructureOf(IndustryStructureConfig $configuration, array $rigTypes): ProductionStructure
     {
         $structureType = $configuration->getStructureType();
         if (!\array_key_exists($structureType, self::STRUCTURE_TYPE_IDS)) {
@@ -69,7 +97,6 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
         $structureTypeId = self::STRUCTURE_TYPE_IDS[$structureType];
         $type = \in_array($structureType, self::REFINERIES, true) ? StructureType::Refinery : StructureType::EngineeringComplex;
         $rigNames = $configuration->getRigs();
-        $rigTypes = $this->invTypeRepository->findByNames(array_values($rigNames));
         $activity = StructureType::Refinery === $type ? ActivityKind::Reaction : ActivityKind::Manufacturing;
 
         return new ProductionStructure(
