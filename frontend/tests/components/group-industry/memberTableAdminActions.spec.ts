@@ -101,7 +101,7 @@ describe('MemberTable actions offered according to the role of the viewer and of
 
     expect(actionsByPilot(wrapper)).toEqual({
       [OWNER_P.name]: [],
-      [ADMIN_A.name]: [],
+      [ADMIN_A.name]: ['Leave'],
       [ADMIN_B.name]: [],
       [MEMBER_M.name]: ['Kick'],
     })
@@ -114,7 +114,7 @@ describe('MemberTable actions offered according to the role of the viewer and of
       [OWNER_P.name]: [],
       [ADMIN_A.name]: [],
       [ADMIN_B.name]: [],
-      [MEMBER_M.name]: [],
+      [MEMBER_M.name]: ['Leave'],
     })
   })
 })

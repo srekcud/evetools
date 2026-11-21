@@ -3925,6 +3925,7 @@
       "viaShortLink": "Short Link",
       "leaveProject": "Leave",
       "leaveConfirm": "Are you sure you want to leave this project? You can rejoin later via the invite link.",
+      "leaveBlockedByContributions": "You cannot leave: you have contributed to this project.",
       "leaveSuccess": "You have left the project."
     },
     "shareLink": {
