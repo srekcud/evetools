@@ -115,7 +115,7 @@ final class ProjectCockpitProviderTest extends TestCase
             'nextAction' => [
                 'code' => 'launch_job',
                 'blocked' => false,
-                'tab' => 'materials',
+                'tab' => 'production',
                 'targetStatus' => null,
                 'bomLineId' => $this->sabreJobLine->getId()->toRfc4122(),
                 'typeId' => self::SABRE_TYPE_ID,

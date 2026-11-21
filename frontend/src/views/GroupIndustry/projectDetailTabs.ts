@@ -10,6 +10,7 @@ export const COMING_SOON_TABS: ProjectComingSoonTab[] = []
 
 const TAB_OF_NEXT_ACTION: Record<ProjectNextActionTab, ProjectDetailTab> = {
   materials: 'bom',
+  production: 'chain',
   contributions: 'contributions',
   sales: 'sales',
   finances: 'distribution',

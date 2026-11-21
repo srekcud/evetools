@@ -669,7 +669,7 @@ export type ProjectNextActionCode =
   | 'complete_project'
   | 'nothing_to_do'
 
-export type ProjectNextActionTab = 'materials' | 'contributions' | 'sales' | 'finances' | 'members'
+export type ProjectNextActionTab = 'materials' | 'production' | 'contributions' | 'sales' | 'finances' | 'members'
 
 export type ProjectPhase = {
   key: ProjectPhaseKey

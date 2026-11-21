@@ -101,7 +101,7 @@ const QUEUE: IndustryAction[] = [
   industryAction({ projectId: HECATE_PROJECT_ID, projectName: 'Hecate in progress', code: 'source_material', blocked: true, tab: 'materials', bomLineId: 'line-tritanium', typeId: 34, typeName: 'Tritanium', quantity: 147 }),
   industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'record_sale', tab: 'sales', quantity: 3 }),
   industryAction({ projectId: WIDOW_PROJECT_ID, projectName: 'Widow draft', code: 'start_project', targetStatus: 'in_progress' }),
-  industryAction({ projectId: UNNAMED_PROJECT_ID, projectName: null, code: 'launch_job', tab: 'materials', bomLineId: 'line-raven', typeId: 638, typeName: 'Raven', quantity: null }),
+  industryAction({ projectId: UNNAMED_PROJECT_ID, projectName: null, code: 'launch_job', tab: 'production', bomLineId: 'line-raven', typeId: 638, typeName: 'Raven', quantity: null }),
 ]
 
 const JOB_PRODUCTS_BY_END_HOUR = ['Moa', 'Nyx', 'Orca', 'Retriever', 'Cormorant', 'Gila', 'Hecate', 'Ishtar', 'Raven', 'Sabre']
@@ -202,8 +202,8 @@ describe('IndustryWorkshop action queue', () => {
     const endsAt = '2026-11-23T10:30:00+00:00'
     const wrapper = await mountWorkshop({
       actions: [
-        industryAction({ projectId: HECATE_PROJECT_ID, projectName: 'Hecate in progress', code: 'await_jobs', tab: 'materials', endsAt }),
-        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'await_jobs', tab: 'materials', endsAt: null, severity: 'unknown' }),
+        industryAction({ projectId: HECATE_PROJECT_ID, projectName: 'Hecate in progress', code: 'await_jobs', tab: 'production', endsAt }),
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'await_jobs', tab: 'production', endsAt: null, severity: 'unknown' }),
       ],
     })
     const rows = queueRows(wrapper)
@@ -229,7 +229,7 @@ describe('IndustryWorkshop action queue', () => {
         industryAction({ projectId: HECATE_PROJECT_ID, projectName: 'Hecate in progress', code: 'source_material', blocked: true, tab: 'materials', typeId: 34, typeName: 'Tritanium', quantity: 27_500, severity: 'warning', impactIsk: 151_250 }),
         industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'source_material', tab: 'materials', typeId: 35, typeName: 'Pyerite', quantity: 900, severity: 'unknown', impactIsk: null }),
         industryAction({ projectId: WIDOW_PROJECT_ID, projectName: 'Widow draft', code: 'record_sale', tab: 'sales', quantity: 3 }),
-        industryAction({ projectId: UNNAMED_PROJECT_ID, projectName: null, code: 'launch_job', tab: 'materials', typeId: 638, typeName: 'Raven', quantity: null, severity: 'unknown' }),
+        industryAction({ projectId: UNNAMED_PROJECT_ID, projectName: null, code: 'launch_job', tab: 'production', typeId: 638, typeName: 'Raven', quantity: null, severity: 'unknown' }),
       ],
     })
     const rows = queueRows(wrapper)
@@ -253,6 +253,17 @@ describe('IndustryWorkshop action queue', () => {
     expect(routerPush.mock.calls.map(([location]) => ({ name: location.name, id: location.params.id, tab: location.query?.tab }))).toEqual([
       { name: 'industry-project', id: HECATE_PROJECT_ID, tab: 'bom' },
       { name: 'industry-project', id: WIDOW_PROJECT_ID, tab: undefined },
+    ])
+  })
+
+  it('opens the production tab of the cockpit from the launch job action, where the sourcing tab lists no jobs', async () => {
+    const wrapper = await mountWorkshop()
+    const rows = queueRows(wrapper)
+
+    await rows[3].get('[data-testid="workshop-action-button"]').trigger('click')
+
+    expect(routerPush.mock.calls.map(([location]) => ({ id: location.params.id, tab: location.query?.tab }))).toEqual([
+      { id: UNNAMED_PROJECT_ID, tab: 'chain' },
     ])
   })
 
