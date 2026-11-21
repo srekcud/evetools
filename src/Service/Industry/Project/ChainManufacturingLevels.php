@@ -13,37 +13,46 @@ final class ChainManufacturingLevels
 
     /**
      * @param array<IndustryProjectBomLine> $bomLines
-     * @return array<int, int> level by job product typeId, copy and invention lines left out
+     * @return list<int>
      */
-    public static function byTypeId(array $bomLines): array
+    public static function jobTypeIdsOf(array $bomLines): array
     {
         $jobTypeIds = [];
-        $childTypeIdsByTypeId = [];
         foreach ($bomLines as $line) {
-            if (!$line->isJob() || !\in_array($line->getJobGroup(), [self::GROUP_COMPONENT, self::GROUP_FINAL], true)) {
-                continue;
-            }
-            $jobTypeIds[$line->getTypeId()] = true;
-            $consumerTypeId = $line->getParentTypeId();
-            if (self::GROUP_COMPONENT === $line->getJobGroup() && null !== $consumerTypeId) {
-                $childTypeIdsByTypeId[$consumerTypeId][$line->getTypeId()] = true;
+            if (self::isLeveledJob($line)) {
+                $jobTypeIds[$line->getTypeId()] = $line->getTypeId();
             }
         }
 
-        $levels = [];
-        foreach (array_keys($jobTypeIds) as $typeId) {
-            self::levelOf($typeId, $childTypeIdsByTypeId, $levels, []);
-        }
-
-        return $levels;
+        return array_values($jobTypeIds);
     }
 
     /**
-     * @param array<int, array<int, true>> $childTypeIdsByTypeId
-     * @param array<int, int>              $levels
-     * @param array<int, true>             $visiting
+     * @param array<IndustryProjectBomLine> $bomLines
+     * @param array<int, list<int>>         $producedIngredientsByTypeId recipe materials that have a producer, by product typeId
+     * @return array<int, int> level by job product typeId, copy and invention lines left out
      */
-    private static function levelOf(int $typeId, array $childTypeIdsByTypeId, array &$levels, array $visiting): int
+    public static function byTypeId(array $bomLines, array $producedIngredientsByTypeId): array
+    {
+        $levels = [];
+        foreach (self::jobTypeIdsOf($bomLines) as $typeId) {
+            self::levelOf($typeId, $producedIngredientsByTypeId, $levels, []);
+        }
+
+        return array_intersect_key($levels, array_flip(self::jobTypeIdsOf($bomLines)));
+    }
+
+    private static function isLeveledJob(IndustryProjectBomLine $line): bool
+    {
+        return $line->isJob() && \in_array($line->getJobGroup(), [self::GROUP_COMPONENT, self::GROUP_FINAL], true);
+    }
+
+    /**
+     * @param array<int, list<int>> $producedIngredientsByTypeId
+     * @param array<int, int>       $levels
+     * @param array<int, true>      $visiting
+     */
+    private static function levelOf(int $typeId, array $producedIngredientsByTypeId, array &$levels, array $visiting): int
     {
         if (isset($levels[$typeId])) {
             return $levels[$typeId];
@@ -53,11 +62,14 @@ final class ChainManufacturingLevels
         }
         $visiting[$typeId] = true;
 
-        $highestChildLevel = 0;
-        foreach (array_keys($childTypeIdsByTypeId[$typeId] ?? []) as $childTypeId) {
-            $highestChildLevel = max($highestChildLevel, self::levelOf($childTypeId, $childTypeIdsByTypeId, $levels, $visiting));
+        $ingredientTypeIds = $producedIngredientsByTypeId[$typeId]
+            ?? throw new \UnexpectedValueException(\sprintf('The recipe of type %d is unknown.', $typeId));
+
+        $highestIngredientLevel = 0;
+        foreach ($ingredientTypeIds as $ingredientTypeId) {
+            $highestIngredientLevel = max($highestIngredientLevel, self::levelOf($ingredientTypeId, $producedIngredientsByTypeId, $levels, $visiting));
         }
 
-        return $levels[$typeId] = $highestChildLevel + 1;
+        return $levels[$typeId] = $highestIngredientLevel + 1;
     }
 }

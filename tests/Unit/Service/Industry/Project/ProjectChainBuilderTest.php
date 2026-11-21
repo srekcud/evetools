@@ -49,6 +49,10 @@ final class ProjectChainBuilderTest extends TestCase
     private const int TRITANIUM = 34;
     private const int ORPHAN_COMPONENT = 337_009;
     private const int TYPE_WITHOUT_JOB = 337_099;
+    private const int CRYSTALLINE_CARBONIDE = 1_153_001;
+    private const int PHOTONIC_METAMATERIALS = 1_153_002;
+    private const int CRYSTALLITE_ALLOY = 1_153_003;
+    private const int CARBON_POLYMERS = 1_153_004;
 
     private const string PRODUCT_LINE_ID = '01970000-0000-7000-8000-000000000001';
     private const string COMPONENT_LINE_ID = '01970000-0000-7000-8000-000000000002';
@@ -93,6 +97,8 @@ final class ProjectChainBuilderTest extends TestCase
     private array $ownerStructures = [];
 
     private array $skillLevels = [];
+
+    private array $producedIngredientsByTypeId = [self::HAMMERHEAD_II => [self::HAMMERHEAD_I]];
 
     protected function setUp(): void
     {
@@ -747,6 +753,39 @@ final class ProjectChainBuilderTest extends TestCase
         );
     }
 
+    #[Group('issue-1153')]
+    public function testCompositeWhoseIntermediatesAreListedUnderAnotherConsumerStillSitsAboveThem(): void
+    {
+        $carbonide = $this->jobLine('01970000-0000-7000-8000-0000000011a1', self::CRYSTALLINE_CARBONIDE, 'Crystalline Carbonide', 'component', 'manufacturing', 10, 10, 20, self::HAMMERHEAD_II);
+        $photonic = $this->jobLine('01970000-0000-7000-8000-0000000011a2', self::PHOTONIC_METAMATERIALS, 'Photonic Metamaterials', 'component', 'manufacturing', 10, 10, 20, self::HAMMERHEAD_II);
+        $alloy = $this->jobLine('01970000-0000-7000-8000-0000000011a3', self::CRYSTALLITE_ALLOY, 'Crystallite Alloy', 'component', 'manufacturing', 10, 10, 20, self::PHOTONIC_METAMATERIALS);
+        $polymers = $this->jobLine('01970000-0000-7000-8000-0000000011a4', self::CARBON_POLYMERS, 'Carbon Polymers', 'component', 'reaction', 10, 10, 20, self::PHOTONIC_METAMATERIALS);
+        $this->producedIngredientsByTypeId = [
+            self::HAMMERHEAD_II => [self::PHOTONIC_METAMATERIALS, self::CRYSTALLINE_CARBONIDE],
+            self::PHOTONIC_METAMATERIALS => [self::CRYSTALLITE_ALLOY, self::CARBON_POLYMERS],
+            self::CRYSTALLINE_CARBONIDE => [self::CRYSTALLITE_ALLOY, self::CARBON_POLYMERS],
+        ];
+
+        $chain = $this->chainOf([$this->product, $photonic, $carbonide, $alloy, $polymers]);
+
+        self::assertEquals(
+            [
+                '01970000-0000-7000-8000-0000000011a1' => 2,
+                '01970000-0000-7000-8000-0000000011a2' => 2,
+                '01970000-0000-7000-8000-0000000011a3' => 1,
+                '01970000-0000-7000-8000-0000000011a4' => 1,
+                self::PRODUCT_LINE_ID => 3,
+            ],
+            array_intersect_key($this->levelsByNodeId($chain), array_flip([
+                '01970000-0000-7000-8000-0000000011a1',
+                '01970000-0000-7000-8000-0000000011a2',
+                '01970000-0000-7000-8000-0000000011a3',
+                '01970000-0000-7000-8000-0000000011a4',
+                self::PRODUCT_LINE_ID,
+            ])),
+        );
+    }
+
     public function testMaterialsHaveNoLevelWhenThePlanCouldNotBeComputed(): void
     {
         $chain = $this->chainWithNeeds($this->hammerheadLines(), null);
@@ -770,6 +809,11 @@ final class ProjectChainBuilderTest extends TestCase
         $this->link($foxtrot, 'delivered', 10);
         $this->link($hotel, 'delivered', 10);
         $this->link($india, 'unrecognised', 10);
+        $this->producedIngredientsByTypeId = [
+            self::HAMMERHEAD_II => [449_011, 449_012, 449_013, 449_014, 449_016, 449_017, 449_019],
+            449_014 => [449_015],
+            449_017 => [449_018],
+        ];
         $lines = [$product, $alpha, $bravo, $charlie, $delta, $echo, $foxtrot, $golf, $hotel, $india, $this->tritanium];
         $needs = $this->noMaterialNeedsOf($lines);
         $needs[self::lineIdOf($bravo)] = [self::TRITANIUM => 100];
@@ -952,7 +996,7 @@ final class ProjectChainBuilderTest extends TestCase
 
     private function chainWithNeeds(array $bomLines, ?array $jobMaterialNeeds, array $contributions = [], array $sales = [], array $structureNamesById = [], ?ProjectLineFulfillments $fulfillments = null): ProjectChain
     {
-        return (new ProjectChainBuilder($this->plannedCopyDurations()))->build($this->project, $bomLines, $contributions, $sales, $structureNamesById, $jobMaterialNeeds, $fulfillments ?? ProjectLineFulfillments::none());
+        return (new ProjectChainBuilder($this->plannedCopyDurations(), new InMemoryChainRecipeIngredients($this->producedIngredientsByTypeId)))->build($this->project, $bomLines, $contributions, $sales, $structureNamesById, $jobMaterialNeeds, $fulfillments ?? ProjectLineFulfillments::none());
     }
 
     private function plannedCopyDurations(): PlannedCopyDurations

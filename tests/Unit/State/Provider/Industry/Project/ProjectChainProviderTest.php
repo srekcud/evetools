@@ -56,6 +56,7 @@ use App\State\Provider\Industry\Project\ProjectChainProvider;
 use App\Tests\Unit\Industry\Application\Double\InMemoryCharacterSkillLevels;
 use App\Tests\Unit\Industry\Application\Double\InMemoryResearchBaseTimes;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Service\Industry\Project\InMemoryChainRecipeIngredients;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -594,7 +595,7 @@ final class ProjectChainProviderTest extends TestCase
                 ProductionStructures::NO_FACILITY_TAX,
                 timeRoleBonus: new Multiplier(self::AZBEL_TIME_ROLE_BONUS),
             )]]),
-        ));
+        ), new InMemoryChainRecipeIngredients([]));
     }
 
     private function node(ProjectChainResource $chain, string $id): ProjectChainNode

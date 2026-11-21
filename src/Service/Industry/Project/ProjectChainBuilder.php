@@ -86,7 +86,7 @@ final readonly class ProjectChainBuilder
         CachedIndustryJob::STATUS_READY,
     ];
 
-    public function __construct(private PlannedCopyDurations $plannedCopyDurations)
+    public function __construct(private PlannedCopyDurations $plannedCopyDurations, private ChainRecipeIngredients $recipeIngredients)
     {
     }
 
@@ -113,7 +113,10 @@ final readonly class ProjectChainBuilder
             }
         }
 
-        $levelByTypeId = ChainManufacturingLevels::byTypeId($bomLines);
+        $levelByTypeId = ChainManufacturingLevels::byTypeId(
+            $bomLines,
+            $this->recipeIngredients->producedIngredientsOf(ChainManufacturingLevels::jobTypeIdsOf($bomLines)),
+        );
         $supply = ChainMaterialSupply::allocate($bomLines, $levelByTypeId, $jobMaterialNeeds, $fulfillments);
 
         $owner = $project->getOwner();
