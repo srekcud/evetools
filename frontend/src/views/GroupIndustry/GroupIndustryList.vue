@@ -119,7 +119,7 @@ async function handleJoinProject(shortLinkCode: string) {
 
 async function handleProjectCreated(project: GroupProject) {
   closeNewProjectModal()
-  await router.push({ name: 'industry-project', params: { id: project.id } })
+  await router.push({ name: 'industry-project-setup', params: { id: project.id } })
 }
 
 // --- Data fetching ---

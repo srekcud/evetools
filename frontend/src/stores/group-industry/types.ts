@@ -1395,3 +1395,104 @@ export interface UnassignedJob {
   status: string
   candidates: UnassignedJobCandidate[]
 }
+
+export type WorkTypeKey = 'reaction' | 'components' | 'hulls' | 'final_products' | 'blueprints'
+
+export type WorkStationLockReason = 'job_launched' | 'purchase_made'
+
+export type WorkTransportLeg = {
+  kind: 'courier' | 'jump_bridge' | 'to_hub'
+  fromStructureId: string | null
+  toStructureId: string | null
+  cubicMeters: number
+  cost: number | null
+}
+
+export type WorkStationRow = {
+  structureId: string
+  name: string | null
+  kind: string | null
+  solarSystemId: number | null
+  solarSystemName: string | null
+  inFavoriteSystem: boolean
+  materialBonusPercent: number
+  facilityTaxPercent: number | null
+  materialsCost: number | null
+  installationCost: number | null
+  transportCost: number | null
+  transportLegs: WorkTransportLeg[]
+  totalCost: number | null
+  delta: number | null
+  missingData: BuyOrBuildMissingData[]
+}
+
+export type WorkStationType = {
+  workType: WorkTypeKey
+  activity: 'manufacturing' | 'reaction' | 'copy'
+  jobs: number
+  runs: number
+  recommendedStructureId: string | null
+  chosenStructureId: string | null
+  storedRecommendedStructureId: string | null
+  choiceStale: boolean
+  savingIfRecommended: number | null
+  locked: boolean
+  lockReason: WorkStationLockReason | null
+  costsCompared: boolean
+  rows: WorkStationRow[]
+}
+
+export type ProjectWorkStations = {
+  id: string
+  courierHubSolarSystemId: number | null
+  courierIskPerCubicMeter: number | null
+  jumpBridgeIskPerCubicMeter: number | null
+  workTypes: WorkStationType[]
+}
+
+export type SetupSourcingChoice = 'build' | 'jita' | 'structure'
+
+export type SourcingOption = {
+  total: number | null
+  perUnit: number | null
+  price: number | null
+  installation: number | null
+  transport: number | null
+  eligible: boolean
+  availableQuantity: number | null
+  structureId: string | null
+  missingData: BuyOrBuildMissingData[]
+}
+
+export type SourcingRow = {
+  typeId: number
+  typeName: string | null
+  stage: 'base' | 'reaction' | 'component' | 'hull'
+  activity: 'manufacturing' | 'reaction' | null
+  quantity: number
+  runs: number | null
+  surplus: number
+  consumerStructureIds: string[]
+  options: Partial<Record<SetupSourcingChoice, SourcingOption>>
+  recommended: SetupSourcingChoice | null
+  chosen: SetupSourcingChoice | null
+  bought: boolean
+}
+
+export type SourcingDecisions = {
+  id: string
+  rows: SourcingRow[]
+  totals: {
+    purchases: number | null
+    installation: number | null
+    transport: number | null
+    total: number | null
+    missingData: BuyOrBuildMissingData[]
+  }
+  boughtTypeIds: number[]
+}
+
+export type SetupMarketWrite = {
+  typeId: number
+  market: 'jita' | 'structure'
+}
