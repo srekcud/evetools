@@ -37,6 +37,8 @@ final class CreatePurchaseProcessorTest extends TestCase
     private const string RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-362000000101';
     private const string LINKED_TRITANIUM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-362000000102';
     private const string ADMIN_RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-362000000109';
+    private const string SPLIT_RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-130200000101';
+    private const string PARTLY_LINKED_RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-130200000102';
     private const string MEMBER_RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-981000000101';
     private const string OUTSIDER_RAM_BUY_UUID = '0192f0c4-7b1e-7a3c-9d2e-981000000102';
     private const float RAM_UNIT_PRICE = 3_040.5;
@@ -72,6 +74,9 @@ final class CreatePurchaseProcessorTest extends TestCase
         $linkedTritaniumBuy = $this->walletTransaction(self::LINKED_TRITANIUM_BUY_UUID, $this->ownerMainCharacter, 6_362_000_002, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
         $this->walletTransaction(self::ADMIN_RAM_BUY_UUID, $this->adminCharacter, 6_362_000_009, self::RAM_TYPE_ID, 30, 3_100.0);
         $this->storedPurchases[] = (new IndustryProjectPurchase())->setTransaction($linkedTritaniumBuy)->setTypeId(self::TRITANIUM_TYPE_ID)->setQuantity(1_000);
+        $this->walletTransaction(self::SPLIT_RAM_BUY_UUID, $this->ownerMainCharacter, 6_302_000_001, self::RAM_TYPE_ID, 100, 2_875.5);
+        $partlyLinkedBuy = $this->walletTransaction(self::PARTLY_LINKED_RAM_BUY_UUID, $this->ownerMainCharacter, 6_302_000_002, self::RAM_TYPE_ID, 100, 3_012.25);
+        $this->storedPurchases[] = (new IndustryProjectPurchase())->setTransaction($partlyLinkedBuy)->setTypeId(self::RAM_TYPE_ID)->setQuantity(40);
     }
 
     public function testOwnerLinksHisWalletBuyOfRamToTheRamLineWithoutServingTheLine(): void
@@ -235,6 +240,70 @@ final class CreatePurchaseProcessorTest extends TestCase
         self::assertSame([20, 60_810.0], [$purchase->getQuantity(), $purchase->getTotalPrice()]);
     }
 
+    #[Group('issue-1302')]
+    public function testSecondLinkOfAPartlyLinkedWalletBuyWithoutQuantityTakesWhatIsLeftOfIt(): void
+    {
+        $firstShare = $this->transactionInput(self::SPLIT_RAM_BUY_UUID);
+        $firstShare->quantity = 40;
+        $this->create($this->owner, $this->ishtarProject, $this->ramLine, $firstShare);
+
+        $this->create($this->owner, $this->ishtarProject, $this->ramLine, $this->transactionInput(self::SPLIT_RAM_BUY_UUID));
+
+        self::assertSame(
+            [[40, 115_020.0], [60, 172_530.0]],
+            array_map(static fn (IndustryProjectPurchase $purchase): array => [$purchase->getQuantity(), $purchase->getTotalPrice()], $this->persistedEntities),
+        );
+        self::assertSame(100, $this->ramLine->getPurchasedQuantity());
+    }
+
+    #[Group('issue-1302')]
+    public function testQuantityAboveWhatIsLeftOfAPartlyLinkedWalletBuyIsAConflictAndNoPurchaseIsCreated(): void
+    {
+        $input = $this->transactionInput(self::PARTLY_LINKED_RAM_BUY_UUID);
+        $input->quantity = 70;
+
+        self::assertSame(
+            '409 The quantity exceeds what is left of the wallet transaction.',
+            $this->outcomeOf(fn () => $this->create($this->owner, $this->ishtarProject, $this->ramLine, $input)),
+        );
+        self::assertSame([[], []], [$this->persistedEntities, $this->refreshedLines]);
+    }
+
+    #[Group('issue-1302')]
+    public function testQuantityEqualToWhatIsLeftOfAPartlyLinkedWalletBuyIsLinked(): void
+    {
+        $input = $this->transactionInput(self::PARTLY_LINKED_RAM_BUY_UUID);
+        $input->quantity = 60;
+
+        $this->create($this->owner, $this->ishtarProject, $this->ramLine, $input);
+
+        self::assertSame([60, 180_735.0], [$this->persistedEntities[0]->getQuantity(), $this->persistedEntities[0]->getTotalPrice()]);
+    }
+
+    #[Group('issue-1302')]
+    public function testQuantityEqualToTheWholeUnlinkedWalletBuyIsLinked(): void
+    {
+        $input = $this->transactionInput(self::SPLIT_RAM_BUY_UUID);
+        $input->quantity = 100;
+
+        $this->create($this->owner, $this->ishtarProject, $this->ramLine, $input);
+
+        self::assertSame([100], array_map(static fn (IndustryProjectPurchase $purchase): int => $purchase->getQuantity(), $this->persistedEntities));
+    }
+
+    #[Group('issue-1302')]
+    public function testQuantityAboveTheWalletBuyIsStillABadRequestWhenTheBuyIsPartlyLinked(): void
+    {
+        $input = $this->transactionInput(self::PARTLY_LINKED_RAM_BUY_UUID);
+        $input->quantity = 101;
+
+        self::assertSame(
+            '400 The quantity cannot exceed the quantity of the wallet transaction.',
+            $this->outcomeOf(fn () => $this->create($this->owner, $this->ishtarProject, $this->ramLine, $input)),
+        );
+        self::assertSame([], $this->persistedEntities);
+    }
+
     public function testIncompleteManualPurchaseIsABadRequest(): void
     {
         $input = new CreatePurchaseInput();
@@ -256,15 +325,21 @@ final class CreatePurchaseProcessorTest extends TestCase
             fn (Uuid $id): ?CachedWalletTransaction => $this->walletTransactionsByUuid[$id->toRfc4122()] ?? null,
         );
         $purchaseRepository = $this->createStub(IndustryProjectPurchaseRepository::class);
-        $purchaseRepository->method('findOneBy')->willReturnCallback(
-            fn (array $criteria): ?IndustryProjectPurchase => array_find(
-                $this->storedPurchases,
-                static fn (IndustryProjectPurchase $purchase): bool => $purchase->getTransaction() === $criteria['transaction'],
-            ),
+        $purchaseRepository->method('linkedQuantityOf')->willReturnCallback(
+            fn (CachedWalletTransaction $transaction): int => array_sum(array_map(
+                static fn (IndustryProjectPurchase $purchase): int => $purchase->getQuantity(),
+                array_filter(
+                    $this->storedPurchases,
+                    static fn (IndustryProjectPurchase $purchase): bool => $purchase->getTransaction() === $transaction,
+                ),
+            )),
         );
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('persist')->willReturnCallback(function (object $entity): void {
             $this->persistedEntities[] = $entity;
+            if ($entity instanceof IndustryProjectPurchase) {
+                $this->storedPurchases[] = $entity;
+            }
         });
         $entityManager->method('flush')->willReturnCallback(function (): void {
             $this->events[] = 'flush';

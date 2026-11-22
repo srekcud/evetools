@@ -82,6 +82,7 @@ final class PurchaseSuggestionProviderTest extends TestCase
             [['Aria Solberg', [self::TRITANIUM_TYPE_ID, self::RAM_TYPE_ID]], ['Aria Alt', [self::TRITANIUM_TYPE_ID, self::RAM_TYPE_ID]]],
             array_map(static fn (array $lookup): array => [$lookup[0], $lookup[1]], $this->buyLookups),
         );
+        self::assertSame([1_000, 50], $this->remainingQuantitiesOf($result->suggestions));
     }
 
     public function testBuyMadeBeforeTheCreationOfTheProjectIsNotSuggested(): void
@@ -117,6 +118,67 @@ final class PurchaseSuggestionProviderTest extends TestCase
             [1, [[6_362_000_022, self::TRITANIUM_TYPE_ID, 'Tritanium', 2_500, 10_500.0, 'Aria Solberg', false]]],
             [$result->totalCount, $this->fieldsOf($result->suggestions)],
         );
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyPartlyLinkedToAnotherProjectIsStillSuggestedWithWhatIsLeftOfIt(): void
+    {
+        $tritaniumBuy = $this->buy($this->ownerMainCharacter, 6_302_000_101, self::TRITANIUM_TYPE_ID, 100, 4.5);
+        $this->linkInAPurchase($this->hecateTritaniumLine, $tritaniumBuy, 40);
+
+        $result = $this->suggestionsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([[6_302_000_101, self::TRITANIUM_TYPE_ID, 'Tritanium', 100, 450.0, 'Aria Solberg', false]], $this->fieldsOf($result->suggestions));
+        self::assertSame([60], $this->remainingQuantitiesOf($result->suggestions));
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyPartlyLinkedToTheCurrentProjectIsMarkedAlreadyLinkedWithWhatIsLeftOfIt(): void
+    {
+        $ramBuy = $this->buy($this->ownerAltCharacter, 6_302_000_102, self::RAM_TYPE_ID, 80, 2_990.75);
+        $this->linkInAPurchase($this->ramLine, $ramBuy, 30);
+
+        $result = $this->suggestionsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([[6_302_000_102, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 80, 239_260.0, 'Aria Alt', true]], $this->fieldsOf($result->suggestions));
+        self::assertSame([50], $this->remainingQuantitiesOf($result->suggestions));
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyLinkedPartlyToTheCurrentProjectAndPartlyToAnotherIsKeptAlreadyLinked(): void
+    {
+        $tritaniumBuy = $this->buy($this->ownerMainCharacter, 6_302_000_104, self::TRITANIUM_TYPE_ID, 100, 4.5);
+        $this->linkInAPurchase($this->tritaniumLine, $tritaniumBuy, 40);
+        $this->linkInAPurchase($this->hecateTritaniumLine, $tritaniumBuy, 60);
+
+        $result = $this->suggestionsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([[true], [0]], [array_map(static fn (PurchaseSuggestionResource $suggestion): bool => $suggestion->alreadyLinked, $result->suggestions), $this->remainingQuantitiesOf($result->suggestions)]);
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyFullyLinkedToTheCurrentProjectInTwoSharesIsKeptWithNothingLeft(): void
+    {
+        $tritaniumBuy = $this->buy($this->ownerMainCharacter, 6_302_000_103, self::TRITANIUM_TYPE_ID, 100, 4.1);
+        $this->linkInAPurchase($this->tritaniumLine, $tritaniumBuy, 40);
+        $this->linkInAPurchase($this->tritaniumLine, $tritaniumBuy, 60);
+
+        $result = $this->suggestionsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([true], array_map(static fn (PurchaseSuggestionResource $suggestion): bool => $suggestion->alreadyLinked, $result->suggestions));
+        self::assertSame([0], $this->remainingQuantitiesOf($result->suggestions));
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyFullyLinkedAcrossTwoOtherProjectsIsNotSuggested(): void
+    {
+        $tritaniumBuy = $this->buy($this->ownerMainCharacter, 6_302_000_104, self::TRITANIUM_TYPE_ID, 100, 4.1);
+        $this->linkInAPurchase($this->hecateTritaniumLine, $tritaniumBuy, 40);
+        $this->linkInAPurchase($this->openedTritaniumLine('Sabre batch'), $tritaniumBuy, 60);
+
+        $result = $this->suggestionsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([0, []], [$result->totalCount, $result->suggestions]);
     }
 
     #[Group('issue-916')]
@@ -235,6 +297,22 @@ final class PurchaseSuggestionProviderTest extends TestCase
                 static fn (IndustryProjectPurchase $purchase): bool => in_array($purchase->getTransaction(), $criteria['transaction'], true),
             )),
         );
+        $purchaseRepository->method('linkedQuantitiesOf')->willReturnCallback(
+            function (array $transactions): array {
+                $quantities = [];
+                foreach ($transactions as $transaction) {
+                    $quantities[$transaction->getId()->toRfc4122()] = array_sum(array_map(
+                        static fn (IndustryProjectPurchase $purchase): int => $purchase->getQuantity(),
+                        array_filter(
+                            $this->storedPurchases,
+                            static fn (IndustryProjectPurchase $purchase): bool => $purchase->getTransaction() === $transaction,
+                        ),
+                    ));
+                }
+
+                return $quantities;
+            },
+        );
         $readingRepository = $this->createStub(CharacterWalletReadingRepository::class);
         $readingRepository->method('findByCharacters')->willReturnCallback(fn (): array => $this->storedWalletReadings);
         $calculationService = $this->createStub(IndustryCalculationService::class);
@@ -269,17 +347,31 @@ final class PurchaseSuggestionProviderTest extends TestCase
         return $transaction;
     }
 
-    private function linkInAPurchase(IndustryProjectBomLine $line, CachedWalletTransaction $transaction): void
+    private function linkInAPurchase(IndustryProjectBomLine $line, CachedWalletTransaction $transaction, ?int $quantity = null): void
     {
+        $linkedQuantity = $quantity ?? $transaction->getQuantity();
         $purchase = (new IndustryProjectPurchase())
             ->setTransaction($transaction)
             ->setTypeId($transaction->getTypeId())
-            ->setQuantity($transaction->getQuantity())
+            ->setQuantity($linkedQuantity)
             ->setUnitPrice($transaction->getUnitPrice())
-            ->setTotalPrice($transaction->getTotalPrice())
+            ->setTotalPrice($transaction->getUnitPrice() * $linkedQuantity)
             ->setSource('esi_wallet');
         $line->addPurchase($purchase);
         $this->storedPurchases[] = $purchase;
+    }
+
+    private function openedTritaniumLine(string $projectName): IndustryProjectBomLine
+    {
+        $project = $this->projectOfTheOwner($projectName);
+        $this->participate($project, $this->owner, ParticipantRole::Owner);
+
+        return $this->materialLine($project, 20_000);
+    }
+
+    private function remainingQuantitiesOf(array $suggestions): array
+    {
+        return array_map(static fn (PurchaseSuggestionResource $suggestion): int => $suggestion->remainingQuantity, $suggestions);
     }
 
     private function walletReadingFieldsOf(array $walletReadings): array

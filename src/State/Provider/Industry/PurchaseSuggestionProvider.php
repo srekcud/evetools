@@ -71,10 +71,11 @@ class PurchaseSuggestionProvider implements ProviderInterface
         }
 
         $purchases = [];
+        $linkedQuantities = [];
         if ($foundTransactions !== []) {
-            $purchases = $this->purchaseRepository->findBy([
-                'transaction' => array_map(static fn (array $found) => $found[1], $foundTransactions),
-            ]);
+            $transactions = array_map(static fn (array $found) => $found[1], $foundTransactions);
+            $linkedQuantities = $this->purchaseRepository->linkedQuantitiesOf($transactions);
+            $purchases = $this->purchaseRepository->findBy(['transaction' => $transactions]);
         }
 
         foreach ($foundTransactions as [$character, $transaction]) {
@@ -87,7 +88,8 @@ class PurchaseSuggestionProvider implements ProviderInterface
                 static fn (IndustryProjectPurchase $purchase): bool => $purchase->getBomLine()->getProject() === $project,
             );
 
-            if ($linkingPurchases !== [] && !$linkedToCurrentProject) {
+            $remainingQuantity = $transaction->getQuantity() - $linkedQuantities[$transaction->getId()->toRfc4122()];
+            if ($remainingQuantity <= 0 && !$linkedToCurrentProject) {
                 continue;
             }
 
@@ -97,6 +99,7 @@ class PurchaseSuggestionProvider implements ProviderInterface
             $suggestion->typeId = $transaction->getTypeId();
             $suggestion->typeName = $this->calculationService->resolveTypeName($transaction->getTypeId());
             $suggestion->quantity = $transaction->getQuantity();
+            $suggestion->remainingQuantity = max(0, $remainingQuantity);
             $suggestion->unitPrice = $transaction->getUnitPrice();
             $suggestion->totalPrice = $transaction->getTotalPrice();
             $suggestion->date = $transaction->getDate()->format('c');

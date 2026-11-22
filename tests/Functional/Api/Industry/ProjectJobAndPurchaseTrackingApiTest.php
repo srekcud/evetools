@@ -128,8 +128,8 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
         usort($suggestionList, static fn (array $first, array $second): int => $first['transactionId'] <=> $second['transactionId']);
         self::assertSame(
             [2, [
-                [self::RAM_BUY_ID, self::RAM_STARSHIP_TECH_TYPE_ID, 50, 152_025.0, 'Aria Solberg', false],
-                [self::TRITANIUM_BUY_ID, self::TRITANIUM_TYPE_ID, 1_000, 4_400.0, 'Aria Solberg', false],
+                [self::RAM_BUY_ID, self::RAM_STARSHIP_TECH_TYPE_ID, 50, 50, 152_025.0, 'Aria Solberg', false],
+                [self::TRITANIUM_BUY_ID, self::TRITANIUM_TYPE_ID, 1_000, 1_000, 4_400.0, 'Aria Solberg', false],
             ]],
             [
                 $suggestions['totalCount'],
@@ -137,6 +137,7 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
                     $suggestion['transactionId'],
                     $suggestion['typeId'],
                     $suggestion['quantity'],
+                    $suggestion['remainingQuantity'],
                     $suggestion['totalPrice'],
                     $suggestion['characterName'],
                     $suggestion['alreadyLinked'],

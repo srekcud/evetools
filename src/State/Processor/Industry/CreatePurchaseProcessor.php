@@ -39,6 +39,7 @@ class CreatePurchaseProcessor implements ProcessorInterface
     private const string ALREADY_LINKED_MESSAGE = 'This transaction is already linked to a purchase.';
     private const string NOT_A_PURCHASE_MESSAGE = 'The wallet transaction is not a purchase.';
     private const string MANUAL_PURCHASE_OWNER_ONLY_MESSAGE = 'Only the project owner can add a manual purchase';
+    private const string QUANTITY_ABOVE_LEFT_MESSAGE = 'The quantity exceeds what is left of the wallet transaction.';
     private const string QUANTITY_ABOVE_TRANSACTION_MESSAGE = 'The quantity cannot exceed the quantity of the wallet transaction.';
 
     public function __construct(
@@ -79,7 +80,8 @@ class CreatePurchaseProcessor implements ProcessorInterface
         if ($data->transactionId !== null) {
             $transaction = $this->findOwnedTransaction($user, $data->transactionId);
 
-            if ($this->purchaseRepository->findOneBy(['transaction' => $transaction]) !== null) {
+            $quantityLeft = $transaction->getQuantity() - $this->purchaseRepository->linkedQuantityOf($transaction);
+            if ($quantityLeft <= 0) {
                 throw new ConflictHttpException(self::ALREADY_LINKED_MESSAGE);
             }
 
@@ -91,7 +93,11 @@ class CreatePurchaseProcessor implements ProcessorInterface
                 throw new BadRequestHttpException(self::QUANTITY_ABOVE_TRANSACTION_MESSAGE);
             }
 
-            $purchase = ProjectPurchaseFactory::fromTransaction($transaction, $data->quantity);
+            if ($data->quantity !== null && $data->quantity > $quantityLeft) {
+                throw new ConflictHttpException(self::QUANTITY_ABOVE_LEFT_MESSAGE);
+            }
+
+            $purchase = ProjectPurchaseFactory::fromTransaction($transaction, $data->quantity ?? $quantityLeft);
         } else {
             if ($project->getOwner() !== $user) {
                 throw new AccessDeniedHttpException(self::MANUAL_PURCHASE_OWNER_ONLY_MESSAGE);
