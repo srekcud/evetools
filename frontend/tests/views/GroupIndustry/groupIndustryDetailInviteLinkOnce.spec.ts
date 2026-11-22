@@ -78,7 +78,6 @@ async function mountDetailOnTab(tab: string | null): Promise<VueWrapper> {
         BomTable: true,
         ContainerBanner: true,
         ProjectCourier: true,
-        ProjectBuyOrBuild: true,
         ContributeModal: true,
         ContributionTable: true,
         FinancialSummary: true,

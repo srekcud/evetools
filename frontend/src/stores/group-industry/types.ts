@@ -836,8 +836,6 @@ export type ProjectChain = {
   nodes: ChainNode[]
 }
 
-export type BuyOrBuildChoice = 'build' | 'buy' | 'unknown'
-
 export interface BuyOrBuildMissingData {
   reason: string
   typeId: number | null
@@ -847,39 +845,6 @@ export interface BuyOrBuildWarning {
   reason: string
   typeId: number
   coveragePercent: number
-}
-
-export interface BuyOrBuildRow {
-  typeId: number
-  typeName: string | null
-  activity: 'manufacturing' | 'reaction'
-  quantity: number
-  runs: number
-  producedQuantity: number
-  surplus: number
-  volumePerUnit: number | null
-  jumps: number | null
-  buildPerUnit: number | null
-  buildPerUnitIfSurplusReused: number | null
-  jitaPerUnit: number | null
-  importPerUnit: number | null
-  buyPerUnit: number | null
-  choice: BuyOrBuildChoice
-  choiceWithoutImport: BuyOrBuildChoice
-  saving: number | null
-  savingIfSurplusReused: number | null
-  missingData: BuyOrBuildMissingData[]
-  warnings: BuyOrBuildWarning[]
-  blacklisted: boolean
-}
-
-export interface ProjectBuyOrBuild {
-  id: string
-  importIskPerCubicMeterJump: number
-  courierIskPerCubicMeter: number | null
-  jumpBridgeIskPerCubicMeter: number | null
-  courierHubSolarSystemName: string | null
-  rows: BuyOrBuildRow[]
 }
 
 export type ResearchVerdict = 'worth' | 'not_worth' | 'unknown'
@@ -1059,59 +1024,6 @@ export type ProjectPlanning = {
   characters: PlanningCharacter[]
   jobs: PlanningJob[]
   unscheduled: PlanningUnscheduled[]
-}
-
-export type StructureChoiceStatus =
-  | 'assigned'
-  | 'best_in_favorite_system'
-  | 'best_configured'
-  | 'best_outside_favorite_system'
-  | 'best_by_total_cost'
-  | 'not_configured'
-
-export interface StructureComparisonMissingData {
-  reason: string
-  typeId: number | null
-}
-
-export interface StructureComparisonRow {
-  structureId: string
-  name: string | null
-  kind: string | null
-  solarSystemId: number | null
-  solarSystemName: string | null
-  inFavoriteSystem: boolean
-  jumps: number | null
-  materialBonusPercent: number
-  facilityTaxPercent: number | null
-  materialsCost: number | null
-  installationCost: number | null
-  transportCost: number | null
-  transportedCubicMeters: number | null
-  totalCost: number | null
-  delta: number | null
-  missingData: StructureComparisonMissingData[]
-}
-
-export interface StructureComparisonGroup {
-  typeId: number
-  typeName: string | null
-  activity: 'manufacturing' | 'reaction'
-  jobs: number
-  runs: number
-  chosenStructureId: string | null
-  choiceStatus: StructureChoiceStatus
-  cheapestStructureId: string | null
-  savingIfCheapest: number | null
-  rows: StructureComparisonRow[]
-}
-
-export interface ProjectStructures {
-  id: string
-  acceptsOutsideFavoriteSystem: boolean
-  minimumOutsideSaving: number
-  transportIskPerCubicMeterJump: number
-  groups: StructureComparisonGroup[]
 }
 
 export type CourierQuoteStatus = 'ready' | 'no_purchases' | 'volume_unknown' | 'workshop_unknown' | 'route_unknown'

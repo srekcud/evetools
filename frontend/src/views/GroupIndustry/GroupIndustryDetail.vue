@@ -61,7 +61,6 @@ import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { reservedLineIdsOfMine } from '@/components/group-industry/reservedLineIds'
 import { useGroupT2BlueprintCopyProposalStore } from '@/stores/group-industry/t2BlueprintCopyProposal'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
-import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectStartupChoices from '@/components/group-industry/ProjectStartupChoices.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
@@ -72,7 +71,6 @@ import ProjectInventionExclusionToggle from '@/components/group-industry/Project
 import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
 import IntermediateStockProposal from '@/components/group-industry/IntermediateStockProposal.vue'
 import T2BlueprintCopyProposal from '@/components/group-industry/T2BlueprintCopyProposal.vue'
-import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectPrepareBlock from '@/components/group-industry/ProjectPrepareBlock.vue'
 import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import ProjectInventionView from '@/components/group-industry/ProjectInventionView.vue'
@@ -943,21 +941,6 @@ function applyShareLinkShortcut(): void {
                 :excludes-invention="project.excludesInvention"
                 @saved="onInventionExclusionSaved"
               />
-
-              <ProjectBuyOrBuild
-                :project-id="projectId"
-                :can-switch="isOwnerOrAdmin && !isCompleted"
-                :blacklist-type-ids="project.blacklistTypeIds"
-                @switched="onBuyOrBuildSwitched"
-              />
-
-              <ProjectStructures
-                v-if="project.status === 'draft'"
-                :project-id="projectId"
-                :can-switch="isOwnerOrAdmin && !isCompleted"
-                class="mt-4"
-                @switched="onBuyOrBuildSwitched"
-              />
             </ProjectPrepareBlock>
 
             <IntermediateStockProposal
@@ -1096,12 +1079,6 @@ function applyShareLinkShortcut(): void {
               />
             </div>
             <ProjectResearch :project-id="projectId" />
-            <ProjectStructures
-              v-if="project.status !== 'draft'"
-              :project-id="projectId"
-              :can-switch="isOwnerOrAdmin && !isCompleted"
-              @switched="onBuyOrBuildSwitched"
-            />
             <ProjectStructureHealth :project-id="projectId" />
           </div>
         </ProjectSection>

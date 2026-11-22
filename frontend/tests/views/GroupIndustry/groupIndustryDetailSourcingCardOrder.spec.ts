@@ -3,8 +3,8 @@ import { createPinia, setActivePinia } from 'pinia'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
-import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
+import ProjectInventionExclusionToggle from '@/components/group-industry/ProjectInventionExclusionToggle.vue'
 import ProjectPurchasesToDeliver from '@/components/group-industry/ProjectPurchasesToDeliver.vue'
 import { apiRequest } from '@/services/api'
 import { cockpitOf, mountCockpitDetail, nextAction, nyxProject, route } from './projectCockpitFixtures'
@@ -63,9 +63,9 @@ describe('sourcing tab card order', () => {
 
   it('keeps the preparation cards above the materials table', async () => {
     const sourcing = await mountSourcingWithContainers()
-    const buyOrBuild = sourcing.findComponent(ProjectBuyOrBuild)
+    const invention = sourcing.findComponent(ProjectInventionExclusionToggle)
     const table = sourcing.findComponent(BomTable)
 
-    expect(buyOrBuild.exists() && precedes(buyOrBuild.element, table.element)).toBe(true)
+    expect(invention.exists() && precedes(invention.element, table.element)).toBe(true)
   })
 })

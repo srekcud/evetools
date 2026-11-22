@@ -86,8 +86,6 @@ async function mountDetailOf(project: GroupProject, locale: 'en' | 'fr' = 'en'):
         BomTable: true,
         ContainerBanner: true,
         ProjectCourier: true,
-        ProjectBuyOrBuild: true,
-        ProjectStructures: true,
         ContributeModal: true,
         ContributionTable: true,
         FinancialSummary: true,
