@@ -1,5 +1,5 @@
 import { activityGroupOf, type ActivityGroup } from './companionTasks'
-import { jobDisplayOf, type JobDisplayState } from './jobDisplayState'
+import { jobDisplayOf, jobElapsedShareOf, type JobDisplayState } from './jobDisplayState'
 import { buildProductSales } from './productSales'
 import type { BomItem, GroupProject, GroupSale, PlacedAction, StationQuantity, TypeStationQuantities } from '@/stores/group-industry/types'
 
@@ -125,17 +125,19 @@ function progressOf(state: FlowCardState, line: BomItem, now: number): Pick<Flow
   if (!line.isJob) return NO_PROGRESS
   if (state === 'out') return { progress: FULL_PROGRESS, ready: true, remainingMs: null }
   if (state !== 'inProduction') return NO_PROGRESS
-  const jobs = line.jobMatches.map(match => ({ runs: match.runs, display: jobDisplayOf(match, now) }))
+  const jobs = line.jobMatches
+    .map(match => ({ runs: match.runs, display: jobDisplayOf(match, now), share: jobElapsedShareOf(match, now) }))
+    .filter(job => FINISHED_JOB_STATES.includes(job.display.state) || RUNNING_JOB_STATES.includes(job.display.state))
   const finishedRuns = jobs
     .filter(job => FINISHED_JOB_STATES.includes(job.display.state))
     .reduce((total, job) => total + job.runs, 0)
   const remainingTimes = jobs.flatMap(job => (RUNNING_JOB_STATES.includes(job.display.state) && job.display.remainingMs !== null ? [job.display.remainingMs] : []))
-  const progress = line.runs !== null && line.runs > 0 ? Math.min(FULL_PROGRESS, Math.round(finishedRuns / line.runs * FULL_PROGRESS)) : null
-  return {
-    progress,
-    ready: progress === FULL_PROGRESS,
-    remainingMs: remainingTimes.length === 0 ? null : Math.max(...remainingTimes),
-  }
+  const remainingMs = remainingTimes.length === 0 ? null : Math.max(...remainingTimes)
+  const shares = jobs.map(job => (job.share === null ? null : job.runs * job.share))
+  if (line.runs === null || line.runs <= 0 || shares.includes(null)) return { progress: null, ready: false, remainingMs }
+  const elapsedRuns = shares.reduce<number>((total, runs) => total + (runs ?? 0), 0)
+  const progress = finishedRuns >= line.runs ? FULL_PROGRESS : Math.min(FULL_PROGRESS - 1, Math.round(elapsedRuns / line.runs * FULL_PROGRESS))
+  return { progress, ready: progress === FULL_PROGRESS, remainingMs }
 }
 
 function detailsOf(state: FlowCardState, line: BomItem | undefined, now: number): FlowCardDetails {

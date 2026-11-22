@@ -34,8 +34,13 @@ function jobLine(typeId: number, activityType: string, runs: number | null, jobM
   return line({ typeId, isJob: true, activityType, runs, jobMatches })
 }
 
-function linkedJob(status: string, runs: number, endDate: string | null = null): JobMatch {
-  return { status, runs, endDate } as JobMatch
+function linkedJob(status: string, runs: number, endDate: string | null = null, startDate: string | null = null): JobMatch {
+  return { status, runs, startDate, endDate } as JobMatch
+}
+
+function elapsedJob(runs: number, elapsedShare: number, durationMs: number = 4 * 60 * 60 * 1000): JobMatch {
+  const startedAt = NOW - elapsedShare * durationMs
+  return linkedJob('active', runs, new Date(startedAt + durationMs).toISOString(), new Date(startedAt).toISOString())
 }
 
 function cardsOf(
@@ -200,11 +205,75 @@ describe('flow card progress', () => {
   })
 
   it('shows an empty bar, not an absent one, while no run is finished', () => {
-    const matches = [linkedJob('active', 10, new Date(NOW + THREE_HOURS_MS).toISOString())]
+    const matches = [linkedJob('active', 10, new Date(NOW + THREE_HOURS_MS).toISOString(), new Date(NOW).toISOString())]
 
     const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, matches)], 'inProduction')
 
     expect(card).toMatchObject({ progress: 0, ready: false })
+  })
+
+  it('measures a running job by the elapsed share of its duration', () => {
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, [elapsedJob(10, 0.5)])], 'inProduction')
+
+    expect(card).toMatchObject({ progress: 50, ready: false })
+  })
+
+  it('never shows 100 nor ready while a job still runs', () => {
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, [elapsedJob(10, 0.997)])], 'inProduction')
+
+    expect(card).toMatchObject({ progress: 99, ready: false })
+  })
+
+  it('weights the elapsed share of a running job by its runs next to delivered runs', () => {
+    const matches = [linkedJob('delivered', 4), elapsedJob(6, 0.5)]
+
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, matches)], 'inProduction')
+
+    expect(card).toMatchObject({ progress: 70, ready: false })
+  })
+
+  it('weights jobs of different durations by their runs, not by their duration', () => {
+    const matches = [elapsedJob(2, 1 / 2, 60 * 60 * 1000), elapsedJob(8, 1 / 4, 8 * 60 * 60 * 1000)]
+
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, matches)], 'inProduction')
+
+    expect(card).toMatchObject({ progress: 30, ready: false })
+  })
+
+  it('has no bar while the start date of a running job is unknown', () => {
+    const matches = [linkedJob('active', 10, new Date(NOW + THREE_HOURS_MS).toISOString(), null)]
+
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, matches)], 'inProduction')
+
+    expect(card).toMatchObject({ progress: null, ready: false })
+  })
+
+  it('has no bar while the start date of a paused job is unreadable, even next to delivered runs', () => {
+    const matches = [linkedJob('delivered', 4), linkedJob('paused', 6, new Date(NOW + THREE_HOURS_MS).toISOString(), 'not-a-date')]
+
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, matches)], 'inProduction')
+
+    expect(card.progress).toBeNull()
+  })
+
+  it('counts only the delivered runs when nothing else is matched', () => {
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, [linkedJob('delivered', 4)])], 'inProduction')
+
+    expect(card).toMatchObject({ progress: 40, ready: false })
+  })
+
+  it('counts runs without a matched job as no progress next to a running job', () => {
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 20, [elapsedJob(10, 0.5)])], 'inProduction')
+
+    expect(card).toMatchObject({ progress: 25, ready: false })
+  })
+
+  it('ignores a cancelled job without start date next to a running job', () => {
+    const matches = [linkedJob('cancelled', 5), elapsedJob(10, 0.5)]
+
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, matches)], 'inProduction')
+
+    expect(card.progress).toBe(50)
   })
 
   it.each(['cancelled', 'reverted', 'unknown'])('ignores a %s job in the finished runs', (status) => {

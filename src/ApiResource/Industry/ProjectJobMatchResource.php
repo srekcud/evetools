@@ -69,6 +69,8 @@ class ProjectJobMatchResource
 
     public string $status;
 
+    public ?string $startDate = null;
+
     public ?string $endDate = null;
 
     public int $runs;
@@ -99,6 +101,7 @@ class ProjectJobMatchResource
         $resource->esiJobId = $match->getEsiJobId();
         $resource->cost = $match->getCost();
         $resource->status = $match->getStatus();
+        $resource->startDate = $match->getStartDate()?->format('c');
         $resource->endDate = $match->getEndDate()?->format('c');
         $resource->runs = $match->getRuns();
         $resource->successfulRuns = $match->getSuccessfulRuns();

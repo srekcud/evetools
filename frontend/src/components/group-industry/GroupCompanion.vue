@@ -5,7 +5,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useJobDisplayLabel } from '@/composables/useJobDisplayLabel'
 import type { ProjectChoice } from '@/stores/group-industry/companion'
-import type { BomItem, JobLocation } from '@/stores/group-industry/types'
+import type { BomItem, JobLocation, JobMatch } from '@/stores/group-industry/types'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import CompanionGauge from './CompanionGauge.vue'
@@ -20,6 +20,7 @@ import {
   type CompanionPane,
   type CompanionSectionKey,
 } from './companionCollapsedSections'
+import { jobElapsedShareOf } from './jobDisplayState'
 import { activityGroupOf, countdownPartsOf, groupByActivity, jobTimingOf, type ActivityGroup, type CompanionAlert, type CompanionCarry, type CompanionLinePlace as CompanionLinePlaceData, type CompanionTasks } from './companionTasks'
 
 type CopyState = 'idle' | 'copied' | 'failed'
@@ -36,6 +37,7 @@ const COLUMN_GAUGE_DIAMETER = 54
 const BAR_GAUGE_DIAMETER = 46
 const PRODUCT_IMAGE_SIZE = 64
 const TIME_UNIT_DIGITS = 2
+const PERCENT_BASE = 100
 
 const props = defineProps<{
   tasks: CompanionTasks
@@ -291,6 +293,11 @@ function lineStyle(group: ActivityGroup): string {
 
 function padTimeUnit(value: number): string {
   return String(value).padStart(TIME_UNIT_DIGITS, '0')
+}
+
+function jobBarWidth(match: JobMatch): string | null {
+  const share = jobElapsedShareOf(match, props.tasks.now)
+  return share === null ? null : `${Math.round(share * PERCENT_BASE)}%`
 }
 
 function countdownText(remainingMs: number): string {
@@ -888,6 +895,9 @@ function unknownReasonText(output: JobLocation): string | null {
                 </div>
                 <div v-if="job.timing.state === 'ready'" data-testid="companion-job-bar" class="ml-[42px] h-[3px] bg-white/10">
                   <div class="h-full w-full bg-emerald-400 shadow-[0_0_6px_rgb(52_211_153)]" />
+                </div>
+                <div v-else-if="jobBarWidth(job.match) !== null" data-testid="companion-job-bar" class="ml-[42px] h-[3px] bg-white/10">
+                  <div class="h-full bg-cyan-400" :style="{ width: jobBarWidth(job.match) ?? undefined }" />
                 </div>
               </li>
             </ul>

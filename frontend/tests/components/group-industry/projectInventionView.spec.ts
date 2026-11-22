@@ -80,6 +80,7 @@ function runningJob(id: string, esiJobId: number, runs: number): JobMatch {
     status: 'active',
     esiJobId,
     runs,
+    startDate: new Date(NOW - THREE_HOURS_MS).toISOString(),
     endDate: new Date(NOW + THREE_HOURS_MS).toISOString(),
   })
 }
@@ -161,9 +162,44 @@ describe('Project invention view', () => {
     const wrapper = await mountView([inventionLine({ jobMatches: [runningJob('job-a', 1, 20)] }), manufacturingLine()])
 
     const states = dotStates(wrapper)
-    expect(countOf(states, 'busy')).toBe(20)
-    expect(countOf(states, 'empty')).toBe(ATTEMPTS - 20)
+    expect(countOf(states, 'busy')).toBe(10)
+    expect(countOf(states, 'empty')).toBe(ATTEMPTS - 10)
     expect(textOf(wrapper, 'invention-view-dots-caption')).toBe(RUNNING_CAPTION.fr)
+  })
+
+  it('fills only the elapsed half of the squares of a running job and leaves the rest empty', async () => {
+    const wrapper = await mountView([inventionLine({ runs: 20, jobMatches: [runningJob('job-a', 1, 20)] }), manufacturingLine()])
+
+    const states = dotStates(wrapper)
+    expect(states).toHaveLength(20)
+    expect(countOf(states, 'busy')).toBe(10)
+    expect(countOf(states, 'empty')).toBe(10)
+  })
+
+  it('fills only the elapsed share of the squares of a paused job', async () => {
+    const pausedJob = { ...runningJob('job-a', 1, 20), status: 'paused' }
+    const wrapper = await mountView([inventionLine({ runs: 20, jobMatches: [pausedJob] }), manufacturingLine()])
+
+    const states = dotStates(wrapper)
+    expect(countOf(states, 'busy')).toBe(10)
+    expect(countOf(states, 'empty')).toBe(10)
+  })
+
+  it('marks the squares of a running job as unknown while its start date is unknown', async () => {
+    const jobWithoutStart = { ...runningJob('job-a', 1, 20), startDate: null }
+    const wrapper = await mountView([inventionLine({ runs: 20, jobMatches: [jobWithoutStart] }), manufacturingLine()])
+
+    const states = dotStates(wrapper)
+    expect(countOf(states, 'unknown')).toBe(20)
+    expect(countOf(states, 'busy')).toBe(0)
+    expect(countOf(states, 'empty')).toBe(0)
+  })
+
+  it('keeps every square of a job whose end date has passed busy', async () => {
+    const endedJob = { ...runningJob('job-a', 1, 20), endDate: new Date(NOW - 60_000).toISOString() }
+    const wrapper = await mountView([inventionLine({ runs: 20, jobMatches: [endedJob] }), manufacturingLine()])
+
+    expect(countOf(dotStates(wrapper), 'busy')).toBe(20)
   })
 
   it.each(TEST_LOCALES)('colours the squares green or grey from the real result in %s', async locale => {
@@ -210,7 +246,8 @@ describe('Project invention view', () => {
     const states = dotStates(wrapper)
     expect(countOf(states, 'win')).toBe(7)
     expect(countOf(states, 'lose')).toBe(13)
-    expect(countOf(states, 'busy')).toBe(39)
+    expect(countOf(states, 'busy')).toBe(19)
+    expect(countOf(states, 'empty')).toBe(20)
     expect(textOf(wrapper, 'invention-view-dots-caption')).toBe(RUNNING_CAPTION.fr)
   })
 

@@ -121,6 +121,7 @@ export type JobMatch = {
   esiJobId: number
   cost: number | null
   status: string
+  startDate?: string | null
   endDate: string | null
   runs: number
   successfulRuns?: number | null

@@ -101,6 +101,31 @@ final class ProjectJobLocationsApiTest extends WebTestCase
         self::assertNull($this->jobMatchOfTheIshtarLine()['locations']);
     }
 
+    #[Group('issue-1326')]
+    public function testTheBomExposesNullAsStartDateWhenTheMatchHasNone(): void
+    {
+        $this->actAs($this->owner);
+        $this->request('GET', $this->projectUri($this->ishtarBatch).'/bom');
+
+        self::assertResponseIsSuccessful();
+        self::assertArrayHasKey('startDate', $this->jobMatchOfTheIshtarLine());
+        self::assertNull($this->jobMatchOfTheIshtarLine()['startDate']);
+    }
+
+    #[Group('issue-1326')]
+    public function testTheBomExposesTheStartDateOfTheMatchedJob(): void
+    {
+        $match = $this->em->getRepository(IndustryProjectJobMatch::class)->findOneBy(['esiJobId' => self::ESI_JOB_ID]);
+        $match->setStartDate(new \DateTimeImmutable('2026-11-22T10:00:00Z'));
+        $this->em->flush();
+
+        $this->actAs($this->owner);
+        $this->request('GET', $this->projectUri($this->ishtarBatch).'/bom');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('2026-11-22T10:00:00+00:00', $this->jobMatchOfTheIshtarLine()['startDate']);
+    }
+
     private function jobMatchOfTheIshtarLine(): array
     {
         foreach ($this->responseJson() as $line) {

@@ -187,6 +187,28 @@ describe('GroupCompanion HUD lines', () => {
       pausedFr: '2 j 02 h',
     })
   })
+
+  it('fills the bar of a running or paused job at its elapsed share and shows no bar without a start date', () => {
+    const jobs = [
+      jobEntry('carbonide', 'reaction', 'active', NOW + 2 * ONE_HOUR, { startDate: new Date(NOW - 2 * ONE_HOUR).toISOString() }),
+      jobEntry('invention', 'invention', 'paused', NOW + 3 * ONE_HOUR, { startDate: new Date(NOW - ONE_HOUR).toISOString() }),
+      jobEntry('armor', 'manufacturing', 'active', NOW + 2 * ONE_HOUR, { startDate: null }),
+      jobEntry('ishtar', 'manufacturing', 'ready', NOW - ONE_MINUTE),
+    ]
+
+    const wrapper = mountCompanion(companionTasksOf({ jobs, readyJobCount: 1 }))
+    const lines = wrapper.findAll('[data-testid="companion-job"]')
+
+    expect({
+      states: lines.map(line => line.attributes('data-state')),
+      bars: lines.map(line => line.find('[data-testid="companion-job-bar"]').exists()),
+      widths: lines.slice(0, 3).map(line => line.find('[data-testid="companion-job-bar"] > div').exists() ? (line.get('[data-testid="companion-job-bar"] > div').element as HTMLElement).style.width : 'no bar'),
+    }).toEqual({
+      states: ['paused', 'running', 'running', 'ready'],
+      bars: [true, true, false, true],
+      widths: ['25%', '50%', 'no bar'],
+    })
+  })
 })
 
 describe('GroupCompanion HUD alerts', () => {

@@ -1,5 +1,5 @@
 import type { BomItem, JobMatch } from '@/stores/group-industry/types'
-import { jobDisplayOf, type JobDisplayState } from './jobDisplayState'
+import { jobDisplayOf, jobElapsedShareOf, type JobDisplayState } from './jobDisplayState'
 
 export type InventionDotState = 'empty' | 'busy' | 'win' | 'lose' | 'unknown'
 export type InventionStageState = 'wait' | 'run' | 'done'
@@ -30,18 +30,18 @@ export type InventionStep = {
 }
 
 const IGNORED_STATES: JobDisplayState[] = ['cancelled', 'reverted']
-const ACTIVE_STATES: JobDisplayState[] = ['running', 'paused', 'ready']
+const RUNNING_STATES: JobDisplayState[] = ['running', 'paused']
 const PERCENT_BASE = 100
 const TENTHS = 10
 
-type JobView = { runs: number; display: ReturnType<typeof jobDisplayOf>; successfulRuns: number | null }
+type JobView = { runs: number; display: ReturnType<typeof jobDisplayOf>; share: number | null; successfulRuns: number | null }
 
 function isInventionLine(item: BomItem): boolean {
   return item.isJob && item.activityType === 'invention'
 }
 
 function viewOf(match: JobMatch, now: number): JobView {
-  return { runs: match.runs, display: jobDisplayOf(match, now), successfulRuns: match.successfulRuns ?? null }
+  return { runs: match.runs, display: jobDisplayOf(match, now), share: jobElapsedShareOf(match, now), successfulRuns: match.successfulRuns ?? null }
 }
 
 function dotsOfJob(job: JobView): InventionDotState[] {
@@ -50,7 +50,12 @@ function dotsOfJob(job: JobView): InventionDotState[] {
     const wins = Math.min(job.successfulRuns, job.runs)
     return [...Array<InventionDotState>(wins).fill('win'), ...Array<InventionDotState>(job.runs - wins).fill('lose')]
   }
-  if (ACTIVE_STATES.includes(job.display.state)) return Array<InventionDotState>(job.runs).fill('busy')
+  if (job.display.state === 'ready') return Array<InventionDotState>(job.runs).fill('busy')
+  if (RUNNING_STATES.includes(job.display.state)) {
+    if (job.share === null) return Array<InventionDotState>(job.runs).fill('unknown')
+    const elapsed = Math.floor(job.share * job.runs)
+    return [...Array<InventionDotState>(elapsed).fill('busy'), ...Array<InventionDotState>(job.runs - elapsed).fill('empty')]
+  }
   return Array<InventionDotState>(job.runs).fill('unknown')
 }
 
