@@ -21,6 +21,7 @@ final readonly class ProjectPlanningBuilder
 {
     private const string ACTIVITY_MANUFACTURING = 'manufacturing';
     private const string ACTIVITY_REACTION = 'reaction';
+    private const string ACTIVITY_COPY = 'copy';
 
     private const string REAL_DONE = 'done';
     private const string REAL_ACTIVE = 'active';
@@ -82,7 +83,7 @@ final readonly class ProjectPlanningBuilder
             null === $planned->end || null === $expectedEnd ? null : $expectedEnd->getTimestamp() - $planned->end->getTimestamp(),
             $this->delayCauseOf($waitByLineId),
             $this->lanesOf($input, $plannedByLineId, $realByLineId, $waitByLineId),
-            $this->unscheduledOf($lines, $planned, $durationUnknownLineIds),
+            $this->unscheduledOf($lines, $planned, $durationUnknownLineIds, $input->inventionLines),
         );
     }
 
@@ -102,6 +103,7 @@ final readonly class ProjectPlanningBuilder
                 $character->name,
                 $character->manufacturingSlots ?? throw self::slotsMissing($character),
                 $character->reactionSlots ?? throw self::slotsMissing($character),
+                $character->scienceSlots ?? throw self::slotsMissing($character),
             );
         }
 
@@ -118,6 +120,7 @@ final readonly class ProjectPlanningBuilder
         return match ($line->activity) {
             self::ACTIVITY_MANUFACTURING => ActivityKind::Manufacturing,
             self::ACTIVITY_REACTION => ActivityKind::Reaction,
+            self::ACTIVITY_COPY => ActivityKind::Copying,
         };
     }
 
@@ -128,7 +131,7 @@ final readonly class ProjectPlanningBuilder
      */
     private function durationsByWorkerOf(PlanningLine $line, array $characters): ?array
     {
-        if (null === $line->baseTimeSeconds || null === $line->teLevel) {
+        if (null === $line->baseTimeSeconds || (self::ACTIVITY_COPY !== $line->activity && null === $line->teLevel)) {
             return null;
         }
 
@@ -138,28 +141,47 @@ final readonly class ProjectPlanningBuilder
             if (null === $character->skillLevels) {
                 continue;
             }
-            $durations[$character->name] = (self::ACTIVITY_REACTION === $line->activity
-                ? JobDuration::forReactionJob(
-                    $line->baseTimeSeconds,
-                    $runs,
-                    SkillTimeModifier::forReaction(self::levelOf($character->skillLevels, CachedCharacterSkill::SKILL_REACTIONS))->times($line->structureTimeModifier),
-                )
-                : JobDuration::forManufacturingJob(
-                    $line->baseTimeSeconds,
-                    $runs,
-                    new TimeEfficiency($line->teLevel),
-                    SkillTimeModifier::forManufacturing(
-                        self::levelOf($character->skillLevels, CachedCharacterSkill::SKILL_INDUSTRY),
-                        self::levelOf($character->skillLevels, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY),
-                        array_map(
-                            static fn (int $skillId): int => self::levelOf($character->skillLevels, $skillId),
-                            $line->scienceSkillIds,
-                        ),
-                    )->times($line->structureTimeModifier),
-                ))->seconds;
+            $durations[$character->name] = $this->durationOf($line, $runs, $character->skillLevels)->seconds;
         }
 
         return $durations;
+    }
+
+    /**
+     * @param array<int, int> $skillLevels
+     */
+    private function durationOf(PlanningLine $line, Runs $runs, array $skillLevels): JobDuration
+    {
+        $baseTimeSeconds = $line->baseTimeSeconds ?? throw new \LogicException('A line without base time has no duration.');
+
+        return match ($line->activity) {
+            self::ACTIVITY_REACTION => JobDuration::forReactionJob(
+                $baseTimeSeconds,
+                $runs,
+                SkillTimeModifier::forReaction(self::levelOf($skillLevels, CachedCharacterSkill::SKILL_REACTIONS))->times($line->structureTimeModifier),
+            ),
+            self::ACTIVITY_COPY => JobDuration::forCopyJob(
+                $baseTimeSeconds,
+                $runs,
+                SkillTimeModifier::forCopy(
+                    self::levelOf($skillLevels, CachedCharacterSkill::SKILL_SCIENCE),
+                    self::levelOf($skillLevels, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY),
+                )->times($line->structureTimeModifier),
+            ),
+            default => JobDuration::forManufacturingJob(
+                $baseTimeSeconds,
+                $runs,
+                new TimeEfficiency($line->teLevel ?? throw new \LogicException('A manufacturing line without TE level has no duration.')),
+                SkillTimeModifier::forManufacturing(
+                    self::levelOf($skillLevels, CachedCharacterSkill::SKILL_INDUSTRY),
+                    self::levelOf($skillLevels, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY),
+                    array_map(
+                        static fn (int $skillId): int => self::levelOf($skillLevels, $skillId),
+                        $line->scienceSkillIds,
+                    ),
+                )->times($line->structureTimeModifier),
+            ),
+        };
     }
 
     /**
@@ -192,9 +214,14 @@ final readonly class ProjectPlanningBuilder
      */
     private function dependenciesOf(PlanningLine $line, array $lines): array
     {
+        if (self::ACTIVITY_COPY === $line->activity) {
+            return [];
+        }
+
         return array_values(array_filter(
             $lines,
-            static fn (PlanningLine $candidate): bool => $candidate->parentTypeId === $line->typeId,
+            static fn (PlanningLine $candidate): bool => $candidate->parentTypeId === $line->typeId
+                || (self::ACTIVITY_COPY === $candidate->activity && $candidate->typeId === $line->typeId),
         ));
     }
 
@@ -292,7 +319,7 @@ final readonly class ProjectPlanningBuilder
 
             $waits[$line->lineId] = match (true) {
                 [] !== $lateDependencyNames => new PlanningWait(PlanningWait::WAITING_JOB, $lateDependencyNames, $lateSeconds),
-                [] !== $missingMaterialNames => new PlanningWait(PlanningWait::WAITING_MATERIALS, $missingMaterialNames, $lateSeconds),
+                [] !== $missingMaterialNames && self::ACTIVITY_COPY !== $line->activity => new PlanningWait(PlanningWait::WAITING_MATERIALS, $missingMaterialNames, $lateSeconds),
                 default => new PlanningWait(PlanningWait::UNKNOWN, [], $lateSeconds),
             };
         }
@@ -417,7 +444,7 @@ final readonly class ProjectPlanningBuilder
     }
 
     /**
-     * @return array{manufacturing: int, reaction: int}|null
+     * @return array{manufacturing: int, reaction: int, science: int}|null
      */
     private function slotsOf(?PlanningCharacter $character): ?array
     {
@@ -428,6 +455,7 @@ final readonly class ProjectPlanningBuilder
         return [
             'manufacturing' => $character->manufacturingSlots ?? throw self::slotsMissing($character),
             'reaction' => $character->reactionSlots ?? throw self::slotsMissing($character),
+            'science' => $character->scienceSlots ?? throw self::slotsMissing($character),
         ];
     }
 
@@ -449,11 +477,12 @@ final readonly class ProjectPlanningBuilder
 
     /**
      * @param list<PlanningLine>  $lines
-     * @param array<string, true> $durationUnknownLineIds
+     * @param array<string, true>        $durationUnknownLineIds
+     * @param list<PlanningLeftOutLine> $inventionLines
      *
      * @return list<PlanningUnscheduled>
      */
-    private function unscheduledOf(array $lines, Schedule $planned, array $durationUnknownLineIds): array
+    private function unscheduledOf(array $lines, Schedule $planned, array $durationUnknownLineIds, array $inventionLines): array
     {
         $unscheduled = [];
         foreach ($lines as $line) {
@@ -465,6 +494,9 @@ final readonly class ProjectPlanningBuilder
             if (isset($planned->unscheduled[$line->lineId])) {
                 $unscheduled[] = new PlanningUnscheduled($line->lineId, $line->typeName, $planned->unscheduled[$line->lineId]);
             }
+        }
+        foreach ($inventionLines as $inventionLine) {
+            $unscheduled[] = new PlanningUnscheduled($inventionLine->lineId, $inventionLine->typeName, PlanningUnscheduled::INVENTION_NOT_PLANNED);
         }
 
         return $unscheduled;

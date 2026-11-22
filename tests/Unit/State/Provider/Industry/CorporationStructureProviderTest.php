@@ -12,7 +12,9 @@ use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\State\Provider\Industry\CorporationStructureProvider;
+use App\Tests\Unit\Support\StubsSdeStructureBonuses;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -28,6 +30,8 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(CorporationStructureProvider::class)]
 class CorporationStructureProviderTest extends TestCase
 {
+    use StubsSdeStructureBonuses;
+
     private const int CORPORATION_ID = 98000001;
     private const int VISIBLE_LOCATION_ID = 1035466617947;
 
@@ -48,6 +52,7 @@ class CorporationStructureProviderTest extends TestCase
             $this->structureConfigRepository,
             $cachedStructureRepository,
             $this->createStub(MapSolarSystemRepository::class),
+            $this->sdeStructureBonusSummary(),
         );
     }
 
@@ -106,13 +111,75 @@ class CorporationStructureProviderTest extends TestCase
         $this->assertNull($sharedConfig['facilityTaxRate']);
     }
 
+    #[Group('issue-1331')]
+    public function testSharedConfigCarriesTheBonusesOfTheSdeAndTheRigsMissingFromIt(): void
+    {
+        $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Tatara');
+        $sharedStructure->setStructureType('tatara');
+        $sharedStructure->setRigs([self::SDE_COMPOSITE_REACTOR_ME_II, self::SDE_REMOVED_M_SET_LABORATORY_OPTIMIZATION_II, self::SDE_REMOVED_M_SET_LABORATORY_OPTIMIZATION_II]);
+
+        $sharedConfig = $this->sharedConfigOf($sharedStructure);
+
+        $this->assertSame(0.0, $sharedConfig['manufacturingMaterialBonus']);
+        $this->assertSame(2.64, $sharedConfig['reactionMaterialBonus']);
+        $this->assertSame(0.0, $sharedConfig['manufacturingTimeBonus']);
+        $this->assertSame(25.0, $sharedConfig['reactionTimeBonus']);
+        $this->assertSame([self::SDE_REMOVED_M_SET_LABORATORY_OPTIMIZATION_II], $sharedConfig['unrecognisedRigs']);
+    }
+
+    #[Group('issue-1331')]
+    public function testSharedConfigOfAStructureWithoutUnrecognisedRigListsNone(): void
+    {
+        $sharedConfig = $this->sharedConfigOfStructureTaxedAt(null);
+
+        $this->assertArrayHasKey('unrecognisedRigs', $sharedConfig);
+        $this->assertSame([], $sharedConfig['unrecognisedRigs']);
+    }
+
+    #[Group('issue-1343')]
+    public function testSharedConfigOfALegacyTypeIsAHullToSpecifyWithUnknownTimeBonuses(): void
+    {
+        $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Complex');
+        $sharedStructure->setRigs([self::SDE_AMMUNITION_ME_II]);
+
+        $sharedConfig = $this->sharedConfigOf($sharedStructure);
+
+        $this->assertArrayHasKey('hullToSpecify', $sharedConfig);
+        $this->assertTrue($sharedConfig['hullToSpecify']);
+        $this->assertArrayHasKey('manufacturingTimeBonus', $sharedConfig);
+        $this->assertNull($sharedConfig['manufacturingTimeBonus']);
+        $this->assertArrayHasKey('reactionTimeBonus', $sharedConfig);
+        $this->assertNull($sharedConfig['reactionTimeBonus']);
+        $this->assertSame(5.04, $sharedConfig['manufacturingMaterialBonus']);
+    }
+
+    #[Group('issue-1343')]
+    public function testSharedConfigOfAKnownHullIsNotAHullToSpecifyAndKeepsNumericTimeBonuses(): void
+    {
+        $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Tatara');
+        $sharedStructure->setStructureType('tatara');
+        $sharedStructure->setRigs([]);
+
+        $sharedConfig = $this->sharedConfigOf($sharedStructure);
+
+        $this->assertArrayHasKey('hullToSpecify', $sharedConfig);
+        $this->assertFalse($sharedConfig['hullToSpecify']);
+        $this->assertSame(0.0, $sharedConfig['manufacturingTimeBonus']);
+        $this->assertSame(25.0, $sharedConfig['reactionTimeBonus']);
+    }
+
     private function sharedConfigOfStructureTaxedAt(?float $facilityTaxPercent): array
+    {
+        $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Raitaru');
+        $sharedStructure->setFacilityTaxPercent($facilityTaxPercent);
+
+        return $this->sharedConfigOf($sharedStructure);
+    }
+
+    private function sharedConfigOf(IndustryStructureConfig $sharedStructure): array
     {
         $currentUser = $this->createUser();
         $this->security->method('getUser')->willReturn($currentUser);
-
-        $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Raitaru');
-        $sharedStructure->setFacilityTaxPercent($facilityTaxPercent);
 
         $this->structureConfigRepository->method('findCorporationSharedStructures')
             ->willReturn([self::VISIBLE_LOCATION_ID => $sharedStructure]);

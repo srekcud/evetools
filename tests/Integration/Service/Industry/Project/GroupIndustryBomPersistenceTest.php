@@ -26,6 +26,7 @@ use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryDecryptors;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Tests\Integration\IntegrationTestCase;
@@ -46,6 +47,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     private const int NITROGEN_FUEL_BLOCK_BLUEPRINT = 4314;
     private const int NITROGEN_ISOTOPES = 17888;
     private const int ROBOTICS = 9848;
+    private const int OXYGEN = 3683;
 
     private const int SYNTHETIC_CATEGORY_ID = 999_993_001;
     private const int SYNTHETIC_GROUP_ID = 999_993_002;
@@ -94,6 +96,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             self::getContainer()->get(IndustryProjectContributionRepository::class),
             self::getContainer()->get(IndustryUserSettingsRepository::class),
             $this->createStub(OriginalBlueprintFinder::class),
+            InMemoryDecryptors::none(),
         );
     }
 
@@ -273,6 +276,68 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
         self::assertSame([[ContributionType::Material->value, 1, ContributionStatus::Pending->value, $roboticsId]], $this->persistedContributionRows($projectId));
         self::assertSame(11, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM industry_project_bom_lines WHERE project_id = ?', [$projectId]));
+    }
+
+    #[Group('issue-1287')]
+    public function testRebuildingThePersistedBomKeepsTheSourcingMarketOfTheLineUpdatedInPlaceAndOfTheLinesLeftUntouched(): void
+    {
+        $projectId = (string) $this->createNitrogenFuelBlockProject(runs: 1, meLevel: 0, teLevel: 0)->getId();
+        $this->flushAndClear();
+        $this->storeSourcingMarket($projectId, self::NITROGEN_ISOTOPES, 'structure');
+        $this->storeSourcingMarket($projectId, self::OXYGEN, 'jita');
+        $isotopesId = $this->lineIdOf($projectId, self::NITROGEN_ISOTOPES);
+        $this->connection->update('sde_industry_activity_materials', ['quantity' => 900], ['type_id' => self::NITROGEN_FUEL_BLOCK_BLUEPRINT, 'material_type_id' => self::NITROGEN_ISOTOPES]);
+
+        $this->rebuildPersistedBomOf($projectId);
+
+        self::assertSame(
+            [[$isotopesId, 900, 'structure']],
+            $this->connection->fetchAllNumeric(
+                'SELECT id, required_quantity, sourcing_market FROM industry_project_bom_lines WHERE project_id = ? AND type_id = ?',
+                [$projectId, self::NITROGEN_ISOTOPES],
+            ),
+        );
+        self::assertSame(
+            ['jita', null],
+            [$this->storedSourcingMarketOfType($projectId, self::OXYGEN), $this->storedSourcingMarketOfType($projectId, self::ROBOTICS)],
+        );
+    }
+
+    #[Group('issue-1287')]
+    public function testLineDroppedFromThePlanTakesItsSourcingMarketAwayWhileTheOtherChoicesStay(): void
+    {
+        $projectId = (string) $this->createNitrogenFuelBlockProject(runs: 1, meLevel: 0, teLevel: 0)->getId();
+        $this->flushAndClear();
+        $this->storeSourcingMarket($projectId, self::ROBOTICS, 'structure');
+        $this->storeSourcingMarket($projectId, self::OXYGEN, 'structure');
+        $this->connection->delete('sde_industry_activity_materials', ['type_id' => self::NITROGEN_FUEL_BLOCK_BLUEPRINT, 'material_type_id' => self::ROBOTICS]);
+
+        $this->rebuildPersistedBomOf($projectId);
+
+        self::assertSame(
+            [0, 'structure'],
+            [
+                (int) $this->connection->fetchOne('SELECT COUNT(*) FROM industry_project_bom_lines WHERE project_id = ? AND type_id = ?', [$projectId, self::ROBOTICS]),
+                $this->storedSourcingMarketOfType($projectId, self::OXYGEN),
+            ],
+        );
+    }
+
+    private function storeSourcingMarket(string $projectId, int $typeId, string $market): void
+    {
+        $this->connection->update('industry_project_bom_lines', ['sourcing_market' => $market], ['project_id' => $projectId, 'type_id' => $typeId]);
+    }
+
+    private function lineIdOf(string $projectId, int $typeId): string
+    {
+        return (string) $this->connection->fetchOne('SELECT id FROM industry_project_bom_lines WHERE project_id = ? AND type_id = ?', [$projectId, $typeId]);
+    }
+
+    private function storedSourcingMarketOfType(string $projectId, int $typeId): ?string
+    {
+        $stored = $this->connection->fetchOne('SELECT sourcing_market FROM industry_project_bom_lines WHERE project_id = ? AND type_id = ?', [$projectId, $typeId]);
+
+        return false === $stored ? throw new \LogicException('The line is not stored.') : $stored;
     }
 
     public static function projectOfSeveralLineCountsProvider(): iterable

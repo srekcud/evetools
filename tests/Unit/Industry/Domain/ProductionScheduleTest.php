@@ -308,6 +308,130 @@ final class ProductionScheduleTest extends TestCase
         );
     }
 
+    public function testCopyRunsOnALaboratorySlot(): void
+    {
+        $schedule = ProductionSchedule::earliest(
+            [new ScheduleJob('copy-hornet', ActivityKind::Copying, ['W1' => 3060])],
+            [new ScheduleWorker('W1', 0, 0, 1)],
+            $this->at('00:00'),
+        );
+
+        self::assertEquals([
+            'assignments' => ['copy-hornet' => 'W1 00:00-00:51'],
+            'unscheduled' => [],
+            'end' => '00:51',
+        ], $this->outcomeOf($schedule));
+    }
+
+    public function testTwoCopiesShareASingleLaboratorySlotOneAfterAnother(): void
+    {
+        $schedule = ProductionSchedule::earliest(
+            [
+                new ScheduleJob('copy-hornet', ActivityKind::Copying, ['W1' => 3600]),
+                new ScheduleJob('copy-raven', ActivityKind::Copying, ['W1' => 1800]),
+            ],
+            [new ScheduleWorker('W1', 0, 0, 1)],
+            $this->at('00:00'),
+        );
+
+        self::assertEquals([
+            'assignments' => ['copy-hornet' => 'W1 00:00-01:00', 'copy-raven' => 'W1 01:00-01:30'],
+            'unscheduled' => [],
+            'end' => '01:30',
+        ], $this->outcomeOf($schedule));
+    }
+
+    public function testTwoCopiesRunInParallelOnTwoLaboratorySlots(): void
+    {
+        $schedule = ProductionSchedule::earliest(
+            [
+                new ScheduleJob('copy-hornet', ActivityKind::Copying, ['W1' => 3600]),
+                new ScheduleJob('copy-raven', ActivityKind::Copying, ['W1' => 1800]),
+            ],
+            [new ScheduleWorker('W1', 0, 0, 2)],
+            $this->at('00:00'),
+        );
+
+        self::assertEquals([
+            'assignments' => ['copy-hornet' => 'W1 00:00-01:00', 'copy-raven' => 'W1 00:00-00:30'],
+            'unscheduled' => [],
+            'end' => '01:00',
+        ], $this->outcomeOf($schedule));
+    }
+
+    public function testInventionAndResearchShareTheLaboratorySlotsOfTheCopies(): void
+    {
+        $schedule = ProductionSchedule::earliest(
+            [
+                new ScheduleJob('copy-hornet', ActivityKind::Copying, ['W1' => 3600]),
+                new ScheduleJob('invention-hornet-ii', ActivityKind::Invention, ['W1' => 1800]),
+                new ScheduleJob('research-te-raven', ActivityKind::ResearchTime, ['W1' => 900]),
+                new ScheduleJob('research-me-raven', ActivityKind::ResearchMaterial, ['W1' => 600]),
+            ],
+            [new ScheduleWorker('W1', 0, 0, 1)],
+            $this->at('00:00'),
+        );
+
+        self::assertEquals([
+            'copy-hornet' => 'W1 00:00-01:00',
+            'invention-hornet-ii' => 'W1 01:00-01:30',
+            'research-te-raven' => 'W1 01:30-01:45',
+            'research-me-raven' => 'W1 01:45-01:55',
+        ], $this->outcomeOf($schedule)['assignments']);
+    }
+
+    public function testWorkerWithoutLaboratorySlotCannotRunACopy(): void
+    {
+        $schedule = ProductionSchedule::earliest(
+            [new ScheduleJob('copy-hornet', ActivityKind::Copying, ['W1' => 3600])],
+            [new ScheduleWorker('W1', 4, 3)],
+            $this->at('00:00'),
+        );
+
+        self::assertEquals([
+            'assignments' => [],
+            'unscheduled' => ['copy-hornet' => Schedule::NO_ELIGIBLE_WORKER],
+            'end' => null,
+        ], $this->outcomeOf($schedule));
+    }
+
+    public function testLaboratorySlotsDoNotServeManufacturingNorReaction(): void
+    {
+        $schedule = ProductionSchedule::earliest(
+            [
+                $this->manufacturing('M', ['W1' => 3600]),
+                new ScheduleJob('R', ActivityKind::Reaction, ['W1' => 1800]),
+            ],
+            [new ScheduleWorker('W1', 0, 0, 5)],
+            $this->at('00:00'),
+        );
+
+        self::assertEquals([
+            'assignments' => [],
+            'unscheduled' => ['M' => Schedule::NO_ELIGIBLE_WORKER, 'R' => Schedule::NO_ELIGIBLE_WORKER],
+            'end' => null,
+        ], $this->outcomeOf($schedule));
+    }
+
+    public function testCopyAndManufacturingReservesAreIndependent(): void
+    {
+        $schedule = ProductionSchedule::earliest(
+            [
+                new ScheduleJob('copy-hornet', ActivityKind::Copying, ['W1' => 3600]),
+                $this->manufacturing('M', ['W1' => 7200]),
+                $this->manufacturing('M-after-copy', ['W1' => 1800], ['copy-hornet']),
+            ],
+            [new ScheduleWorker('W1', 1, 0, 1)],
+            $this->at('00:00'),
+        );
+
+        self::assertEquals([
+            'copy-hornet' => 'W1 00:00-01:00',
+            'M' => 'W1 00:00-02:00',
+            'M-after-copy' => 'W1 02:00-02:30',
+        ], $this->outcomeOf($schedule)['assignments']);
+    }
+
     /**
      * @param array<string, int> $durationSecondsByWorker
      * @param list<string>       $dependsOn

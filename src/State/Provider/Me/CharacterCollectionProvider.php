@@ -85,6 +85,8 @@ class CharacterCollectionProvider implements ProviderInterface
         $resource->hasValidToken = $hasValidToken && !$hasMissingScopes;
         $resource->hasMissingScopes = $hasMissingScopes;
         $resource->lastSyncAt = $character->getLastSyncAt()?->format('c');
+        $resource->activeProjectId = $character->getActiveProject()?->getId()->toRfc4122();
+        $resource->activeProjectName = $character->getActiveProject()?->getName();
 
         return $resource;
     }

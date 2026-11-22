@@ -11,6 +11,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
+use App\Enum\ParticipantRole;
 use App\Repository\IndustryProjectPurchaseRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\AutomaticPurchaseLinker;
@@ -33,6 +34,7 @@ final class AutomaticPurchaseLinkerTest extends TestCase
     private const int JITA_4_4_STATION_ID = 60_003_760;
     private const int RAM_BUY_QUANTITY = 50;
     private const float RAM_UNIT_PRICE = 3_040.5;
+    private const float TRITANIUM_SPLIT_UNIT_PRICE = 4.25;
 
     private array $openProjects = [];
 
@@ -173,7 +175,7 @@ final class AutomaticPurchaseLinkerTest extends TestCase
     {
         $this->createdAt($this->hecateProject, '2026-10-25T10:00:00+00:00');
         $this->hecateTritaniumLine->setRequiredQuantity(500);
-        $this->tritaniumLine->setRequiredQuantity(800);
+        $this->tritaniumLine->setRequiredQuantity(300);
         $this->openProjects = [$this->ishtarProject, $this->hecateProject];
         $buy = $this->buy($this->ownerMainCharacter, 6_100_000_002, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
 
@@ -344,6 +346,183 @@ final class AutomaticPurchaseLinkerTest extends TestCase
         self::assertSame([], $this->confirmedProjects);
     }
 
+    #[Group('issue-1302')]
+    public function testBuyNoProjectCoversAloneIsSplitBetweenTheOpenProjectsOldestFirst(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 20);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_001, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame(
+            [
+                [$this->tritaniumLine, 30, 127.5, $buy, $this->ishtarProject->getOwnerParticipant(), 'esi_wallet'],
+                [$this->hecateTritaniumLine, 20, 85.0, $buy, $this->hecateProject->getOwnerParticipant(), 'esi_wallet'],
+            ],
+            array_map(
+                static fn (IndustryProjectPurchase $purchase): array => [$purchase->getBomLine(), $purchase->getQuantity(), $purchase->getTotalPrice(), $purchase->getTransaction(), $purchase->getBuyer(), $purchase->getSource()],
+                $this->persistedEntities,
+            ),
+        );
+        self::assertSame([[$this->tritaniumLine->getId()->toRfc4122(), 30], [$this->hecateTritaniumLine->getId()->toRfc4122(), 20]], $this->refreshedLines);
+        self::assertSame(1, $this->flushCount);
+    }
+
+    #[Group('issue-1302')]
+    public function testSplitProjectsAreEachConfirmedAgainstTheContainerOnceAfterTheFlush(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 20);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_002, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame(
+            [[$this->ishtarProject->getId()->toRfc4122(), 1], [$this->hecateProject->getId()->toRfc4122(), 1]],
+            $this->confirmedProjects,
+        );
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyAboveTheRemainingToBuyOfAllTheProjectsTogetherIsNotSplit(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 10);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_003, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[], [], [], 0], [$this->persistedEntities, $this->refreshedLines, $this->confirmedProjects, $this->flushCount]);
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyIsNotSplitWhenAProjectItWouldReachHasTwoLinesOfTheType(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 20);
+        $this->materialLineOf($this->ishtarProject, self::TRITANIUM_TYPE_ID, 10);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_004, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[], 0], [$this->persistedEntities, $this->flushCount]);
+    }
+
+    #[Group('issue-1302')]
+    public function testProjectWithNothingLeftToBuyIsSkippedWhenSplittingBetweenTheNextProjects(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 20);
+        $this->tritaniumLine->addPurchase((new IndustryProjectPurchase())->setTypeId(self::TRITANIUM_TYPE_ID)->setQuantity(30));
+        $thirdProjectLine = $this->openTritaniumProject('Sabre batch', '2026-11-01T12:00:00+00:00', 30);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_005, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame(
+            [[$this->hecateTritaniumLine, 20], [$thirdProjectLine, 30]],
+            array_map(static fn (IndustryProjectPurchase $purchase): array => [$purchase->getBomLine(), $purchase->getQuantity()], $this->persistedEntities),
+        );
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyCoveredByOneProjectIsStillLinkedWholeToTheOldestOneThatCoversIt(): void
+    {
+        $this->openTwoProjectsLeftToBuy(60, 20);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_006, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[$this->tritaniumLine, 50]], array_map(static fn (IndustryProjectPurchase $purchase): array => [$purchase->getBomLine(), $purchase->getQuantity()], $this->persistedEntities));
+    }
+
+    #[Group('issue-1302')]
+    public function testTransactionAlreadySplitIsNeverCompletedNorSplitAgain(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 20);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_007, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+        $this->storedPurchases[] = (new IndustryProjectPurchase())->setTransaction($buy)->setTypeId(self::TRITANIUM_TYPE_ID)->setQuantity(30);
+        $this->storedPurchases[] = (new IndustryProjectPurchase())->setTransaction($buy)->setTypeId(self::TRITANIUM_TYPE_ID)->setQuantity(20);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[], 0], [$this->persistedEntities, $this->flushCount]);
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyMadeBeforeTheCreationOfAProjectIsNotSplitOntoIt(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 20);
+        $this->createdAt($this->hecateProject, '2026-11-02T13:00:00+00:00');
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_008, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[], 0], [$this->persistedEntities, $this->flushCount]);
+    }
+
+    #[Group('issue-1302')]
+    public function testSecondBuyOfABatchAboveWhatTheSplitOfTheFirstOneLeftIsNotLinked(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 25);
+        $firstBuy = $this->buy($this->ownerMainCharacter, 6_302_000_009, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE, '2026-11-02T12:00:00+00:00');
+        $secondBuy = $this->buy($this->ownerMainCharacter, 6_302_000_010, self::TRITANIUM_TYPE_ID, 8, self::TRITANIUM_SPLIT_UNIT_PRICE, '2026-11-02T13:00:00+00:00');
+
+        $this->linkNew($this->ownerMainCharacter, [$secondBuy, $firstBuy]);
+
+        self::assertSame(
+            [[$firstBuy, 30], [$firstBuy, 20]],
+            array_map(static fn (IndustryProjectPurchase $purchase): array => [$purchase->getTransaction(), $purchase->getQuantity()], $this->persistedEntities),
+        );
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyEqualToTheRemainingOfALaterProjectIsLinkedWholeToItNotSplit(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 50);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_011, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[$this->hecateTritaniumLine, 50]], array_map(static fn (IndustryProjectPurchase $purchase): array => [$purchase->getBomLine(), $purchase->getQuantity()], $this->persistedEntities));
+    }
+
+    #[Group('issue-1302')]
+    public function testAmbiguousProjectBetweenTwoProjectsThatTogetherCoverTheBuyBlocksTheSplit(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 20);
+        $this->materialLineOf($this->hecateProject, self::TRITANIUM_TYPE_ID, 5);
+        $this->openTritaniumProject('Sabre batch', '2026-11-01T12:00:00+00:00', 20);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_012, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[], 0], [$this->persistedEntities, $this->flushCount]);
+    }
+
+    #[Group('issue-1302')]
+    public function testBuyPartlyLinkedByHandIsNeverCompletedBySync(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 20);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_013, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+        $this->storedPurchases[] = (new IndustryProjectPurchase())->setTransaction($buy)->setTypeId(self::TRITANIUM_TYPE_ID)->setQuantity(20);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame([[], 0], [$this->persistedEntities, $this->flushCount]);
+    }
+
+    #[Group('issue-1302')]
+    public function testSplitUsesTheQuantityLeftToBuyOfALineAlreadyCoveredByStock(): void
+    {
+        $this->openTwoProjectsLeftToBuy(30, 20);
+        $this->tritaniumLine->setFulfilledQuantity(10);
+        $buy = $this->buy($this->ownerMainCharacter, 6_302_000_014, self::TRITANIUM_TYPE_ID, 50, self::TRITANIUM_SPLIT_UNIT_PRICE);
+
+        $this->linkNew($this->ownerMainCharacter, [$buy]);
+
+        self::assertSame(
+            [[$this->tritaniumLine, 30], [$this->hecateTritaniumLine, 20]],
+            array_map(static fn (IndustryProjectPurchase $purchase): array => [$purchase->getBomLine(), $purchase->getQuantity()], $this->persistedEntities),
+        );
+    }
+
     private function linkNew(Character $character, array $transactions): void
     {
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
@@ -385,6 +564,25 @@ final class AutomaticPurchaseLinkerTest extends TestCase
 
         (new AutomaticPurchaseLinker($projectRepository, $purchaseRepository, $entityManager, $derivedContributionService, $containerDeliveryConfirmer))
             ->linkNewPurchases($character, $transactions);
+    }
+
+    private function openTwoProjectsLeftToBuy(int $ishtarLeftToBuy, int $hecateLeftToBuy): void
+    {
+        $this->tritaniumLine->setRequiredQuantity($ishtarLeftToBuy);
+        $this->hecateTritaniumLine->setRequiredQuantity($hecateLeftToBuy);
+        $this->createdAt($this->hecateProject, '2026-11-01T11:00:00+00:00');
+        $this->openProjects = [$this->ishtarProject, $this->hecateProject];
+    }
+
+    private function openTritaniumProject(string $name, string $createdAt, int $requiredQuantity): IndustryProjectBomLine
+    {
+        $project = $this->projectOfTheOwner($name);
+        $this->participate($project, $this->owner, ParticipantRole::Owner);
+        $this->createdAt($project, $createdAt);
+        $line = $this->materialLine($project, $requiredQuantity);
+        $this->openProjects[] = $project;
+
+        return $line;
     }
 
     private function buy(Character $character, int $transactionId, int $typeId, int $quantity, float $unitPrice, string $date = '2026-11-02T12:00:00+00:00'): CachedWalletTransaction

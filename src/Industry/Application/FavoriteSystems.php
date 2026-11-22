@@ -11,7 +11,7 @@ use App\Industry\Domain\ActivityKind;
  */
 final readonly class FavoriteSystems
 {
-    public function __construct(public ?int $manufacturingSystemId, public ?int $reactionSystemId)
+    public function __construct(public ?int $manufacturingSystemId, public ?int $reactionSystemId, public ?CourierHub $courierHub = null)
     {
     }
 

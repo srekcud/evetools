@@ -67,16 +67,17 @@ afterEach(() => {
 })
 
 describe('ProjectCourier', () => {
-  it('shows the prefilled contract from Jita to the workshop with its volume, collateral, reward, jumps and durations', async () => {
+  it('shows the prefilled contract from Jita to the courier hub with its volume, collateral, reward, jumps and durations', async () => {
     const wrapper = await mountCourier(readyCourier(PROJECT_ID))
 
     expect(apiRequest).toHaveBeenCalledWith(COURIER_PATH)
     expect(shown(wrapper, 'courier-route')).toContain('Jita')
-    expect(shown(wrapper, 'courier-route')).toContain('Perimeter')
+    expect(shown(wrapper, 'courier-route')).toContain('C-J6MT')
+    expect(shown(wrapper, 'courier-route')).not.toContain('Perimeter')
     expect(shown(wrapper, 'courier-volume')).toContain('953.5')
     expect(digitsOf(wrapper, 'courier-collateral')).toContain('22632500')
-    expect(digitsOf(wrapper, 'courier-reward')).toContain('1287225')
-    expect(digitsOf(wrapper, 'courier-jumps')).toContain('9')
+    expect(digitsOf(wrapper, 'courier-reward')).toContain('1144200')
+    expect(digitsOf(wrapper, 'courier-jumps')).toContain('4')
     expect(digitsOf(wrapper, 'courier-days-to-complete')).toContain('3')
     expect(digitsOf(wrapper, 'courier-expiration')).toContain('7')
   })
@@ -148,7 +149,7 @@ describe('ProjectCourier', () => {
     expect(shown(wrapper, 'courier-unknown-cause')).toContain(String(NOCXIUM_TYPE_ID))
   })
 
-  it('says no purchase is attached and shows no contract figure when the project has no purchase', async () => {
+  it('hides the whole card and shows no contract figure when the project has no purchase', async () => {
     const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
       volumeCubicMeters: null,
       collateral: null,
@@ -159,9 +160,58 @@ describe('ProjectCourier', () => {
       candidates: [],
     }))
 
-    expect(wrapper.find('[data-testid="courier-empty"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="courier-card"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="courier-contract-text"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="courier-copy"]').exists()).toBe(false)
+  })
+
+  it('keeps the card with its empty state while a courier contract is still linked and no purchase remains', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
+      volumeCubicMeters: null,
+      collateral: null,
+      reward: null,
+      jumps: null,
+      quoteStatus: 'no_purchases',
+      lines: [],
+      candidates: [],
+      contract: LINKED_IN_TRANSIT,
+    }))
+
+    expect(wrapper.find('[data-testid="courier-card"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="courier-empty"]').exists()).toBe(true)
+  })
+
+  it('hides the courier contracts of the owner while the project has no purchase, even with a linked contract', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
+      volumeCubicMeters: null,
+      collateral: null,
+      reward: null,
+      jumps: null,
+      quoteStatus: 'no_purchases',
+      lines: [],
+      candidates: [],
+      contract: LINKED_IN_TRANSIT,
+    }))
+
+    expect(wrapper.text()).not.toContain('Your courier contracts')
+    expect(wrapper.find('[data-testid="courier-no-candidate"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="courier-card"]').exists()).toBe(true)
+  })
+
+  it('shows the courier contracts of the owner when the purchases are all of unknown origin', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
+      volumeCubicMeters: null,
+      collateral: null,
+      reward: null,
+      jumps: null,
+      quoteStatus: 'no_purchases',
+      lines: [],
+      candidates: [],
+      unknownOriginLines: UNKNOWN_ORIGIN_LINES,
+    }))
+
+    expect(wrapper.text()).toContain('Your courier contracts')
+    expect(wrapper.find('[data-testid="courier-no-candidate"]').exists()).toBe(true)
   })
 
   it('copies exactly the shown contract to the clipboard', async () => {
@@ -172,7 +222,8 @@ describe('ProjectCourier', () => {
     await flushPromises()
 
     expect(shownContract).toContain('Jita')
-    expect(shownContract).toContain('Perimeter')
+    expect(shownContract).toContain('C-J6MT')
+    expect(shownContract).not.toContain('Perimeter')
     expect(clipboard.writeText.mock.calls).toEqual([[shownContract]])
   })
 

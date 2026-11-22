@@ -264,20 +264,29 @@ final class ProjectSaleSuggestionProviderTest extends TestCase
         self::assertSame([['A-Main', 'no_token', null, null]], $this->walletReadingFieldsOf($this->provideList()));
     }
 
+    #[Group('issue-1212')]
+    public function testMemberIsOfferedOnlyTheSaleOfHisOwnCharacter(): void
+    {
+        $memberSale = $this->walletTransaction(6_100_000_010, $this->mMain, false, self::SABRE_TYPE_ID, 2, 61_000_000.0, '2026-10-25T10:00:00+00:00', self::JITA_STATION_ID);
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain));
+
+        self::assertSame([$memberSale->getId()?->toRfc4122()], $this->suggestedTransactionIds());
+    }
+
     public static function suggestionAccessMatrix(): iterable
     {
-        yield 'L10 accepted member' => [self::ACCEPTED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'pending member' => [self::PENDING_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::ADMIN_OR_OWNER_ONLY];
-        yield 'removed member' => [self::REMOVED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'stranger' => [self::STRANGER, self::ADMIN_OR_OWNER_ONLY];
+        yield 'L10 accepted member' => [self::ACCEPTED_MEMBER, self::GRANTED];
+        yield 'pending member' => [self::PENDING_MEMBER, self::NO_ACCESS];
+        yield 'owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::NO_ACCESS];
+        yield 'owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::NO_ACCESS];
+        yield 'removed member' => [self::REMOVED_MEMBER, self::NO_ACCESS];
+        yield 'stranger' => [self::STRANGER, self::NO_ACCESS];
         yield 'accepted admin' => [self::ACCEPTED_ADMIN, self::GRANTED];
         yield 'accepted admin of a completed project' => [self::ACCEPTED_ADMIN_OF_COMPLETED_PROJECT, self::GRANTED];
     }
 
     #[DataProvider('suggestionAccessMatrix')]
-    public function testOnlyTheOwnerAndAcceptedAdminsAreOfferedTheWalletTransactions(string $profile, string $expectedOutcome): void
+    public function testOnlyTheOwnerAndAcceptedParticipantsAreOfferedTheWalletTransactions(string $profile, string $expectedOutcome): void
     {
         $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile($profile), $this->mMain));
 

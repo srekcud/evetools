@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Delete;
+use App\Entity\Character;
+use App\Entity\IndustryProjectSale;
 use App\Enum\ProjectStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\DeleteSaleProcessor;
@@ -12,6 +14,7 @@ use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
 use App\Tests\Unit\State\Provider\Industry\Project\GroupProjectAccessProfiles;
 use App\Tests\Unit\State\Provider\Industry\Project\SabreBatchSales;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -102,16 +105,16 @@ final class DeleteSaleProcessorTest extends TestCase
     {
         yield 'A1 owner' => [self::OWNER, self::GRANTED];
         yield 'A2 accepted admin' => [self::ACCEPTED_ADMIN, self::GRANTED];
-        yield 'D2 A3 accepted member' => [self::ACCEPTED_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A4 pending member' => [self::PENDING_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A9 stranger' => [self::STRANGER, self::ADMIN_OR_OWNER_ONLY];
-        yield 'A10 user without corporation' => [self::USER_WITHOUT_CORPORATION, self::ADMIN_OR_OWNER_ONLY];
+        yield 'D2 A3 accepted member who did not sell it' => [self::ACCEPTED_MEMBER, self::OWN_SALES_ONLY];
+        yield 'A4 pending member' => [self::PENDING_MEMBER, self::NO_ACCESS];
+        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, self::NO_ACCESS];
+        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::NO_ACCESS];
+        yield 'A9 stranger' => [self::STRANGER, self::NO_ACCESS];
+        yield 'A10 user without corporation' => [self::USER_WITHOUT_CORPORATION, self::NO_ACCESS];
     }
 
     #[DataProvider('deletionAccessMatrix')]
-    public function testOnlyTheOwnerAndAcceptedAdminsDeleteASale(string $profile, string $expectedOutcome): void
+    public function testOnlyTheManagersAndTheSellerDeleteASale(string $profile, string $expectedOutcome): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
 
@@ -122,6 +125,45 @@ final class DeleteSaleProcessorTest extends TestCase
             [$expectedOutcome, $granted, $granted ? 1 : 0, $granted ? 1 : 0],
             [$outcome, $this->sabreSaleIsDeletedOnFlush(), $this->flushes, \count($this->publishedUpdates)],
         );
+    }
+
+    #[Group('issue-1212')]
+    public function testMemberDeletesASaleHeKeptAsRecorder(): void
+    {
+        $member = $this->userWithProfile(self::ACCEPTED_MEMBER);
+        (new \ReflectionProperty(IndustryProjectSale::class, 'recordedBy'))->setValue($this->sabreSale, $member);
+        $this->security->method('getUser')->willReturn($member);
+
+        $this->deleteSabreSale();
+
+        self::assertSame([true, 1, 1], [$this->sabreSaleIsDeletedOnFlush(), $this->flushes, \count($this->publishedUpdates)]);
+    }
+
+    #[Group('issue-1212')]
+    public function testMemberDeletesASaleSoldByOneOfHisCharacters(): void
+    {
+        $soldByTheMember = (new Character())->setEveCharacterId(2120000021)->setName('M-Main');
+        $member = $this->userWithProfile(self::ACCEPTED_MEMBER);
+        \assert($member instanceof Stub);
+        $member->method('getCharacters')->willReturn(new ArrayCollection([$soldByTheMember]));
+        $this->sabreSale->setSeller($soldByTheMember);
+        $this->security->method('getUser')->willReturn($member);
+
+        $this->deleteSabreSale();
+
+        self::assertSame([true, 1], [$this->sabreSaleIsDeletedOnFlush(), $this->flushes]);
+    }
+
+    #[Group('issue-1212')]
+    public function testMemberCannotDeleteASaleRecordedByAnotherParticipantWhoseSellerIsNotTheMember(): void
+    {
+        $ownersCharacter = (new Character())->setEveCharacterId(2120000001)->setName('O-Main');
+        $this->sabreSale->setSeller($ownersCharacter);
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+
+        $outcome = $this->outcomeOf(fn () => $this->deleteSabreSale());
+
+        self::assertSame([self::OWN_SALES_ONLY, false, 0, []], [$outcome, $this->sabreSaleIsDeletedOnFlush(), $this->flushes, $this->publishedUpdates]);
     }
 
     public function testDeletionOnACompletedProjectIsRefusedAndKeepsTheSale(): void
@@ -149,19 +191,19 @@ final class DeleteSaleProcessorTest extends TestCase
     }
 
     #[DataProvider('profilesRefusedTheDeletion')]
-    public function testProcessorRefusesTheDeletionOfANonAdminWithoutRelyingOnTheProvider(string $profile): void
+    public function testProcessorRefusesTheDeletionOfAParticipantWhoDidNotSellItWithoutRelyingOnTheProvider(string $profile, string $expectedRefusal): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
 
         $outcome = $this->outcomeOf(fn () => $this->processor->process(null, new Delete(), $this->sabreSaleUri()));
 
-        self::assertSame([self::ADMIN_OR_OWNER_ONLY, false, 0, []], [$outcome, $this->sabreSaleIsDeletedOnFlush(), $this->flushes, $this->publishedUpdates]);
+        self::assertSame([$expectedRefusal, false, 0, []], [$outcome, $this->sabreSaleIsDeletedOnFlush(), $this->flushes, $this->publishedUpdates]);
     }
 
     public static function profilesRefusedTheDeletion(): iterable
     {
-        yield 'accepted member' => [self::ACCEPTED_MEMBER];
-        yield 'stranger' => [self::STRANGER];
+        yield 'accepted member' => [self::ACCEPTED_MEMBER, self::OWN_SALES_ONLY];
+        yield 'stranger' => [self::STRANGER, self::NO_ACCESS];
     }
 
     public function testProcessorRefusesADeletionWithoutUser(): void

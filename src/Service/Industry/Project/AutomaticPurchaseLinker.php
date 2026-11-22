@@ -48,18 +48,15 @@ class AutomaticPurchaseLinker
                 continue;
             }
 
-            $line = $this->lineToLink($openProjects, $transaction);
-            if ($line === null) {
-                continue;
+            foreach ($this->sharesToLink($openProjects, $transaction) as [$line, $quantity]) {
+                $purchase = ProjectPurchaseFactory::fromTransaction($transaction, $quantity);
+                $purchase->setBuyer($line->getProject()->getOwnerParticipant());
+                $line->addPurchase($purchase);
+                $this->entityManager->persist($purchase);
+                $this->derivedContributionService->refreshLine($line);
+                $touchedProjects[$line->getProject()->getId()->toRfc4122()] = $line->getProject();
+                ++$linkedCount;
             }
-
-            $purchase = ProjectPurchaseFactory::fromTransaction($transaction, null);
-            $purchase->setBuyer($line->getProject()->getOwnerParticipant());
-            $line->addPurchase($purchase);
-            $this->entityManager->persist($purchase);
-            $this->derivedContributionService->refreshLine($line);
-            $touchedProjects[$line->getProject()->getId()->toRfc4122()] = $line->getProject();
-            ++$linkedCount;
         }
 
         if ($linkedCount > 0) {
@@ -78,8 +75,10 @@ class AutomaticPurchaseLinker
 
     /**
      * @param list<IndustryProject> $projectsOldestFirst
+     *
+     * @return list<array{IndustryProjectBomLine, int}>
      */
-    private function lineToLink(array $projectsOldestFirst, CachedWalletTransaction $transaction): ?IndustryProjectBomLine
+    private function sharesToLink(array $projectsOldestFirst, CachedWalletTransaction $transaction): array
     {
         foreach ($projectsOldestFirst as $project) {
             $candidateLines = $this->candidateLinesOf($project, $transaction);
@@ -87,10 +86,42 @@ class AutomaticPurchaseLinker
                 continue;
             }
 
-            return \count($candidateLines) === 1 ? $candidateLines[0] : null;
+            return \count($candidateLines) === 1 ? [[$candidateLines[0], $transaction->getQuantity()]] : [];
         }
 
-        return null;
+        return $this->splitBetweenProjects($projectsOldestFirst, $transaction);
+    }
+
+    /**
+     * @param list<IndustryProject> $projectsOldestFirst
+     *
+     * @return list<array{IndustryProjectBomLine, int}>
+     */
+    private function splitBetweenProjects(array $projectsOldestFirst, CachedWalletTransaction $transaction): array
+    {
+        $quantityToPlace = $transaction->getQuantity();
+        $shares = [];
+        foreach ($projectsOldestFirst as $project) {
+            $linesWithQuantityToBuy = array_values(array_filter(
+                $this->candidateLinesOf($project, $transaction),
+                fn (IndustryProjectBomLine $line): bool => $this->quantityLeftToBuy($line) > 0,
+            ));
+            if ($linesWithQuantityToBuy === []) {
+                continue;
+            }
+            if (\count($linesWithQuantityToBuy) > 1) {
+                return [];
+            }
+
+            $share = min($quantityToPlace, $this->quantityLeftToBuy($linesWithQuantityToBuy[0]));
+            $shares[] = [$linesWithQuantityToBuy[0], $share];
+            $quantityToPlace -= $share;
+            if ($quantityToPlace === 0) {
+                return $shares;
+            }
+        }
+
+        return [];
     }
 
     /**

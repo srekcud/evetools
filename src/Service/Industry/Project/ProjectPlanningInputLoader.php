@@ -12,6 +12,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Enum\IndustryActivityType;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Application\PlannedJobTimeModifier;
+use App\Industry\Application\ResearchBaseTimes;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\BlueprintCatalog;
 use App\Industry\Domain\Multiplier;
@@ -27,6 +28,8 @@ final readonly class ProjectPlanningInputLoader
 {
     private const string ACTIVITY_MANUFACTURING = 'manufacturing';
     private const string ACTIVITY_REACTION = 'reaction';
+    private const string ACTIVITY_COPY = 'copy';
+    private const string ACTIVITY_INVENTION = 'invention';
 
     private const array TIME_SKILL_IDS_COVERED_BY_THE_JOB_DURATION = [
         CachedCharacterSkill::SKILL_INDUSTRY,
@@ -43,6 +46,7 @@ final readonly class ProjectPlanningInputLoader
         private IndustryActivitySkillRepository $activitySkillRepository,
         private UserProductionStructures $userStructures,
         private PlannedJobTimeModifier $plannedJobTimeModifier,
+        private ResearchBaseTimes $researchBaseTimes,
     ) {
     }
 
@@ -51,7 +55,7 @@ final readonly class ProjectPlanningInputLoader
         $bomLines = $this->bomLineRepository->findBy(['project' => $project]);
         $this->bomLineRepository->loadJobMatchesOfProject($project);
 
-        $jobLines = array_values(array_filter($bomLines, static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob() && !$line->isCoveredByStock()));
+        $jobLines = array_values(array_filter($bomLines, static fn (IndustryProjectBomLine $line): bool => $line->isJob() && \in_array($line->getActivityType(), [self::ACTIVITY_MANUFACTURING, self::ACTIVITY_REACTION, self::ACTIVITY_COPY], true) && !$line->isCoveredByStock()));
         $cachedJobsById = $this->cachedJobRepository->findByJobIds($this->linkedJobIdsOf($jobLines));
         $scienceSkillIdsByLineId = $this->scienceSkillIdsByLineId($jobLines);
         $ownerId = $project->getOwner()->getId() ?? throw new \LogicException('A project owner without id has no configured structure.');
@@ -61,12 +65,14 @@ final readonly class ProjectPlanningInputLoader
         foreach ($jobLines as $line) {
             $lineId = $line->getId()->toRfc4122();
             $activity = $this->activityOf($line);
-            $structureTimeModifier = $this->plannedJobTimeModifier->of(
-                $line->getPlannedStructureId(),
-                $ownerStructures,
-                $line->getTypeId(),
-                self::ACTIVITY_REACTION === $activity ? ActivityKind::Reaction : ActivityKind::Manufacturing,
-            );
+            $structureTimeModifier = self::ACTIVITY_COPY === $activity
+                ? $this->plannedJobTimeModifier->ofCopy($line->getPlannedStructureId(), $ownerStructures)
+                : $this->plannedJobTimeModifier->of(
+                    $line->getPlannedStructureId(),
+                    $ownerStructures,
+                    $line->getTypeId(),
+                    self::ACTIVITY_REACTION === $activity ? ActivityKind::Reaction : ActivityKind::Manufacturing,
+                );
             $lines[] = new PlanningLine(
                 $lineId,
                 $line->getTypeId(),
@@ -90,7 +96,14 @@ final readonly class ProjectPlanningInputLoader
             }
         }
 
-        return new ProjectPlanningInput($project->getCreatedAt(), $lines, $materials, $this->charactersOf($project));
+        $inventionLines = [];
+        foreach ($bomLines as $line) {
+            if ($line->isJob() && self::ACTIVITY_INVENTION === $line->getActivityType() && !$line->isCoveredByStock()) {
+                $inventionLines[] = new PlanningLeftOutLine($line->getId()->toRfc4122(), $line->getTypeName());
+            }
+        }
+
+        return new ProjectPlanningInput($project->getCreatedAt(), $lines, $materials, $this->charactersOf($project), $inventionLines);
     }
 
     /**
@@ -111,19 +124,24 @@ final readonly class ProjectPlanningInputLoader
     }
 
     /**
-     * @return 'manufacturing'|'reaction'
+     * @return 'manufacturing'|'reaction'|'copy'
      */
     private function activityOf(IndustryProjectBomLine $line): string
     {
         return match ($line->getActivityType()) {
             self::ACTIVITY_MANUFACTURING => self::ACTIVITY_MANUFACTURING,
             self::ACTIVITY_REACTION => self::ACTIVITY_REACTION,
+            self::ACTIVITY_COPY => self::ACTIVITY_COPY,
             default => throw new \UnexpectedValueException(\sprintf('Job line %s has the unexpected activity "%s".', $line->getId()->toRfc4122(), (string) $line->getActivityType())),
         };
     }
 
     private function baseTimeSecondsOf(IndustryProjectBomLine $line): ?int
     {
+        if (self::ACTIVITY_COPY === $line->getActivityType()) {
+            return null === $line->getPlannedStructureId() ? null : $this->researchBaseTimes->of($line->getTypeId(), ActivityKind::Copying);
+        }
+
         try {
             $recipe = $this->blueprintCatalog->recipeFor($line->getTypeId());
         } catch (\UnexpectedValueException) {
@@ -222,7 +240,7 @@ final readonly class ProjectPlanningInputLoader
         return array_map(function (Character $character): PlanningCharacter {
             $skills = $this->skillRepository->findAllSkillsForCharacter($character);
             if ([] === $skills) {
-                return new PlanningCharacter($character->getName(), null, null, null);
+                return new PlanningCharacter($character->getName(), null, null, null, null);
             }
 
             $slots = SlotTrackerService::calculateMaxSlots($skills);
@@ -232,6 +250,7 @@ final readonly class ProjectPlanningInputLoader
                 array_map(static fn (CachedCharacterSkill $skill): int => $skill->getLevel(), $skills),
                 $slots['manufacturing'],
                 $slots['reaction'],
+                $slots['science'],
             );
         }, $this->producerCharactersOf($project));
     }

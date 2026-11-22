@@ -23,7 +23,7 @@ Ouvrez le projet depuis « Mes projets ». Sous l'en-tête, la barre de phases (
 
 - « Approvisionner un matériau », bouton « Contribuer » : il ouvre le formulaire d'apport sur la ligne où il manque la plus grande quantité.
 - « Lancer un job », bouton « Voir les jobs ».
-- « Rien à faire pour vous » (« Le projet avance sans vous pour le moment ») : les actions qui restent sont celles du propriétaire et des admins (relire, changer le statut, enregistrer les ventes).
+- « Rien à faire pour vous » (« Le projet avance sans vous pour le moment ») : les actions qui restent sont celles du propriétaire et des admins (relire, changer le statut). Pendant la vente, vous recevez « Enregistrer les ventes » tant qu'il reste des unités à vendre.
 
 Les onglets utiles pour vous : « Approvisionnement », « Production », « Contributions », « Finances », « Équipe » et « Journal ». Le bouton « Compagnon » de l'en-tête (absent quand le projet est « Terminé ») ouvre une fenêtre détachée avec les lignes « À attribuer » et « Je m'en charge ».
 
@@ -82,7 +82,7 @@ Onglet « Finances ». Le tableau « Profit Distribution » liste tous les parti
 
 ## 7. Recevoir vos virements
 
-L'enregistrement des ventes est réservé au propriétaire et aux admins : vous ne pouvez pas en saisir. Ce sont eux qui détiennent le revenu net, et le plan de « Virements entre membres » (onglet « Finances ») donne à chacun son payout. Il n'est calculé que lorsque tous les produits sont vendus, que les frais sont connus et que chaque coût l'est ; sinon il dit pourquoi.
+Vous enregistrez vous-même vos ventes (« Record Sale », une transaction wallet ou un contrat de l'un de vos personnages, dans l'onglet « Ventes ») : le vendeur est toujours l'un de vos personnages, et vous ne corrigez ni ne supprimez que ces ventes. Vous détenez le revenu net de vos ventes, et le plan de « Virements entre membres » (onglet « Finances ») donne à chacun son payout. Il n'est calculé que lorsque tous les produits sont vendus, que les frais sont connus et que chaque coût l'est ; sinon il dit pourquoi.
 
 1. Le payeur fait le virement en jeu avec la « Référence de paiement » dans le motif. EVE Tools ne déplace aucun ISK.
 2. Vous cochez « Reçu » sur le virement dont vous êtes destinataire. Vous ne pouvez pas cocher celui d'un autre (« Seul le destinataire peut cocher ce virement »). La case se coche seule, avec « Vérifié dans le journal wallet », quand votre journal wallet montre le virement avec la référence et le montant complet.

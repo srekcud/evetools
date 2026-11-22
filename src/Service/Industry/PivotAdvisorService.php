@@ -8,10 +8,11 @@ use App\Entity\User;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Domain\ActivityKind;
 use App\Enum\IndustryActivityType;
-use App\Repository\CachedAssetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\Stock\PersonalStock;
+use App\Service\Industry\Stock\PersonalStockReader;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,7 +28,7 @@ class PivotAdvisorService
     public function __construct(
         private readonly IndustryActivityMaterialRepository $materialRepository,
         private readonly IndustryActivityProductRepository $productRepository,
-        private readonly CachedAssetRepository $assetRepository,
+        private readonly PersonalStockReader $personalStock,
         private readonly JitaMarketService $jitaMarketService,
         private readonly EsiCostIndexService $esiCostIndexService,
         private readonly TypeNameResolver $typeNameResolver,
@@ -42,7 +43,7 @@ class PivotAdvisorService
      *
      * @return array{
      *     typeId: int,
-     *     sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}},
+     *     sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int, stockByStation: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}},
      *     matrix: list<array<string, mixed>>,
      *     candidates: list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>, priceSources: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float}|null, assumptions: array{runs: int, materialEfficiency: int}}}>,
      *     matrixProductIds: list<int>,
@@ -102,7 +103,8 @@ class PivotAdvisorService
         $buildableMaterialTypeIds = array_map(fn (array $m) => $m['materialTypeId'], $buildableMaterials);
 
         // 4. Get user stock
-        $userStock = $this->assetRepository->getAggregatedQuantitiesByUser($user);
+        $stock = $this->personalStock->of($user);
+        $userStock = $stock->quantitiesByTypeId;
 
         // 5. Reverse lookup: find products using these buildable materials
         $candidateProducts = $this->materialRepository->findProductsUsingMaterials($buildableMaterialTypeIds, $activityIds);
@@ -310,7 +312,7 @@ class PivotAdvisorService
             $typeNames,
             $groupNames,
             $buildableMaterials,
-            $userStock,
+            $stock,
             $facilityTaxByActivity,
             $structureByActivity,
         );
@@ -376,6 +378,7 @@ class PivotAdvisorService
                 'typeId' => $matTypeId,
                 'typeName' => $typeNames[$matTypeId] ?? null,
                 'inStock' => $inStock,
+                'stockByStation' => $stock->stationsOf($matTypeId),
                 'candidates' => $candidates,
             ];
         }
@@ -434,11 +437,10 @@ class PivotAdvisorService
      * @param array<int, float> $dailyVolumes
      * @param array<int, string> $typeNames
      * @param array<int, string> $groupNames
-     * @param array<int, int> $userStock
      * @param array<string, int> $solarSystemIdByActivity
      * @param array<string, ?float> $facilityTaxByActivity
      * @param array<string, ?ProductionStructure> $structureByActivity
-     * @return array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}
+     * @return array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int, stockByStation: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}
      */
     private function buildSourceProductSummary(
         int $sourceTypeId,
@@ -454,7 +456,7 @@ class PivotAdvisorService
         array $typeNames,
         array $groupNames,
         array $buildableMaterials,
-        array $userStock,
+        PersonalStock $stock,
         array $facilityTaxByActivity,
         array $structureByActivity,
     ): array {
@@ -491,7 +493,8 @@ class PivotAdvisorService
             $keyComponents[] = [
                 'typeId' => $matTypeId,
                 'typeName' => $typeNames[$matTypeId] ?? null,
-                'inStock' => $userStock[$matTypeId] ?? 0,
+                'inStock' => $stock->quantitiesByTypeId[$matTypeId] ?? 0,
+                'stockByStation' => $stock->stationsOf($matTypeId),
             ];
         }
 
@@ -662,7 +665,7 @@ class PivotAdvisorService
     }
 
     /**
-     * @return array{typeId: int, sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
+     * @return array{typeId: int, sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int, stockByStation: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
      */
     private function emptyResult(int $sourceTypeId): array
     {
@@ -692,7 +695,7 @@ class PivotAdvisorService
      * @param array<string, int> $solarSystemIdByActivity
      * @param array<string, ?float> $facilityTaxByActivity
      * @param array<string, ?ProductionStructure> $structureByActivity
-     * @return array{typeId: int, sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
+     * @return array{typeId: int, sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int, stockByStation: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
      */
     private function buildResultWithSourceOnly(
         int $sourceTypeId,
@@ -721,7 +724,7 @@ class PivotAdvisorService
         $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes([$sourceTypeId]);
         $typeNames = $this->typeNameResolver->findNames($allTypeIds);
         $groupNames = $this->loadGroupNames([$sourceTypeId]);
-        $userStock = $this->assetRepository->getAggregatedQuantitiesByUser($user);
+        $stock = $this->personalStock->of($user);
 
         $sourceProduct = $this->buildSourceProductSummary(
             $sourceTypeId,
@@ -737,7 +740,7 @@ class PivotAdvisorService
             $typeNames,
             $groupNames,
             [], // no buildable materials
-            $userStock,
+            $stock,
             $facilityTaxByActivity,
             $structureByActivity,
         );

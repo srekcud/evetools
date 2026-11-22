@@ -16,6 +16,7 @@ final readonly class ProductionPlanRequest
      * @param list<int>                 $blacklist     typeIds bought even when a recipe exists
      * @param array<int, Quantity>      $startingStock by typeId, consumed before the runs are computed (R9)
      * @param array<int, OwnedBlueprintUse> $ownedBlueprints by product typeId
+     * @param array<string, ProductionStructure> $workStructures by WorkType value
      */
     public function __construct(
         public array $targets,
@@ -25,6 +26,7 @@ final readonly class ProductionPlanRequest
         public array $startingStock = [],
         public StructureSelectionPolicy $selectionPolicy = new StructureSelectionPolicy(false, new Isk(0.0)),
         public array $ownedBlueprints = [],
+        public array $workStructures = [],
     ) {
     }
 }

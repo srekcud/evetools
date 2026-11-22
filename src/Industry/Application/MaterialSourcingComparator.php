@@ -23,7 +23,7 @@ final readonly class MaterialSourcingComparator
      *
      * @return list<MaterialSourcing>
      */
-    public function compare(array $materials, ?int $structureId, FavoriteSystems $favoriteSystems): array
+    public function compare(array $materials, ?int $structureId, FavoriteSystems $favoriteSystems, ?int $structureSolarSystemId = null): array
     {
         if ([] === $materials) {
             return [];
@@ -34,9 +34,10 @@ final readonly class MaterialSourcingComparator
             $quantitiesByTypeId[$material->typeId] = (float) $material->quantity->value;
         }
         $jitaPrices = $this->marketPrices->unitPricesFor($quantitiesByTypeId);
-        $structurePrices = null === $structureId
-            ? null
-            : $this->structureMarketPrices->unitPricesFor($structureId, array_map(static fn (MaterialToSource $material): int => $material->typeId, $materials));
+        $typeIds = array_map(static fn (MaterialToSource $material): int => $material->typeId, $materials);
+        $structurePrices = null === $structureId ? null : $this->structureMarketPrices->unitPricesFor($structureId, $typeIds);
+        $structureSellVolumes = null === $structureId ? [] : $this->structureMarketPrices->sellVolumesFor($structureId, $typeIds);
+        $structureSystemId = null === $structureId ? null : $structureSolarSystemId;
 
         return array_map(
             fn (MaterialToSource $material): MaterialSourcing => $this->sourcingOf(
@@ -44,6 +45,8 @@ final readonly class MaterialSourcingComparator
                 $jitaPrices[$material->typeId] ?? null,
                 $favoriteSystems,
                 $structurePrices,
+                $structureSellVolumes,
+                $structureSystemId,
             ),
             $materials,
         );
@@ -51,8 +54,9 @@ final readonly class MaterialSourcingComparator
 
     /**
      * @param array<int, Isk>|null $structurePrices
+     * @param array<int, int>      $structureSellVolumes
      */
-    private function sourcingOf(MaterialToSource $material, ?WeightedPrice $jitaPrice, FavoriteSystems $favoriteSystems, ?array $structurePrices): MaterialSourcing
+    private function sourcingOf(MaterialToSource $material, ?WeightedPrice $jitaPrice, FavoriteSystems $favoriteSystems, ?array $structurePrices, array $structureSellVolumes, ?int $structureSystemId): MaterialSourcing
     {
         $typeId = $material->typeId;
         $quantity = $material->quantity->value;
@@ -61,10 +65,13 @@ final readonly class MaterialSourcingComparator
         $jumps = null === $workshopSystemId ? null : $this->jumpDistances->jumpsBetween(JitaPurchase::JITA_SOLAR_SYSTEM_ID, $workshopSystemId);
 
         $jitaCost = JitaPurchase::priceCostOf($typeId, $quantity, $jitaPrice);
-        $importCost = JitaPurchase::importCostOf($typeId, $quantity, $volumePerUnit, $jumps);
+        $importCost = JitaPurchase::importCostOf($typeId, $quantity, $volumePerUnit, $workshopSystemId, $favoriteSystems->courierHub);
         $jitaWithImportCost = $jitaCost->plus($importCost);
         $structureCost = self::structureCostOf($typeId, $quantity, $structurePrices);
-        $side = self::sideOf($jitaWithImportCost, $structureCost);
+        $structureBridgeCost = Delivery::bridgeCostOf($typeId, $quantity, $volumePerUnit, $structureSystemId, $workshopSystemId, $favoriteSystems->courierHub);
+        $structureDeliveredCost = $structureCost->plus($structureBridgeCost);
+        $structureAvailableQuantity = $structureSellVolumes[$typeId] ?? null;
+        $side = self::sideOf($jitaWithImportCost, $structureDeliveredCost, null !== $structureAvailableQuantity && $structureAvailableQuantity >= $quantity);
 
         return new MaterialSourcing(
             $typeId,
@@ -76,7 +83,11 @@ final readonly class MaterialSourcingComparator
             $jumps,
             $side,
             null !== $structurePrices && !$structureCost->isKnown() && SourcingSide::Jita === $side,
-            self::savingOf($jitaWithImportCost, $structureCost),
+            self::savingOf($jitaWithImportCost, $structureDeliveredCost),
+            $structureBridgeCost,
+            $structureAvailableQuantity,
+            $material->chosenMarket,
+            $material->lineId,
         );
     }
 
@@ -92,24 +103,25 @@ final readonly class MaterialSourcingComparator
             : Cost::known(new Isk($quantity * $unitPrice->amount));
     }
 
-    private static function sideOf(Cost $jitaWithImportCost, Cost $structureCost): SourcingSide
+    private static function sideOf(Cost $jitaWithImportCost, Cost $structureDeliveredCost, bool $structureHasEnoughStock): SourcingSide
     {
-        if ($jitaWithImportCost->isKnown() && $structureCost->isKnown()) {
-            return $jitaWithImportCost->amount()->isAtMost($structureCost->amount()) ? SourcingSide::Jita : SourcingSide::Structure;
+        $structureIsEligible = $structureDeliveredCost->isKnown() && $structureHasEnoughStock;
+        if ($jitaWithImportCost->isKnown() && $structureIsEligible) {
+            return $jitaWithImportCost->amount()->isAtMost($structureDeliveredCost->amount()) ? SourcingSide::Jita : SourcingSide::Structure;
         }
         if ($jitaWithImportCost->isKnown()) {
             return SourcingSide::Jita;
         }
 
-        return $structureCost->isKnown() ? SourcingSide::Structure : SourcingSide::Unknown;
+        return $structureIsEligible ? SourcingSide::Structure : SourcingSide::Unknown;
     }
 
-    private static function savingOf(Cost $jitaWithImportCost, Cost $structureCost): ?Isk
+    private static function savingOf(Cost $jitaWithImportCost, Cost $structureDeliveredCost): ?Isk
     {
-        if (!$jitaWithImportCost->isKnown() || !$structureCost->isKnown()) {
+        if (!$jitaWithImportCost->isKnown() || !$structureDeliveredCost->isKnown()) {
             return null;
         }
 
-        return new Isk(abs($jitaWithImportCost->amount()->amount - $structureCost->amount()->amount));
+        return new Isk(abs($jitaWithImportCost->amount()->amount - $structureDeliveredCost->amount()->amount));
     }
 }

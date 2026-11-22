@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\ShoppingList;
 
+use App\Constant\EveConstants;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class ParseListInput
@@ -13,5 +14,5 @@ class ParseListInput
 
     public ?int $structureId = null;
 
-    public float $transportCost = 1200.0;
+    public float $transportCost = EveConstants::DEFAULT_EXPORT_COST_PER_M3;
 }

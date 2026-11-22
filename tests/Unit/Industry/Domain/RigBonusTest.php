@@ -10,6 +10,7 @@ use App\Industry\Domain\RigSecurityModifiers;
 use App\Industry\Domain\SecurityClass;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -95,6 +96,36 @@ final class RigBonusTest extends TestCase
         $this->expectException(\DomainException::class);
 
         $reactionRig->multiplierIn(SecurityClass::HighSec);
+    }
+
+    #[Group('issue-1331')]
+    public function testEffectivePercentIsTheBonusScaledByTheSecurityModifierOfTheSystem(): void
+    {
+        $manufacturingRig = new RigBonus(2.4, self::manufacturingRigModifiers());
+        $thukkerRig = new RigBonus(3.7, self::thukkerRigModifiers());
+        $reactionRig = new RigBonus(2.4, self::reactionRigModifiers());
+
+        $this->assertEqualsWithDelta(5.04, $manufacturingRig->effectivePercentIn(SecurityClass::NullSec), 1e-12);
+        $this->assertEqualsWithDelta(2.4, $manufacturingRig->effectivePercentIn(SecurityClass::HighSec), 1e-12);
+        $this->assertEqualsWithDelta(7.03, $thukkerRig->effectivePercentIn(SecurityClass::LowSec), 1e-12);
+        $this->assertEqualsWithDelta(2.64, $reactionRig->effectivePercentIn(SecurityClass::NullSec), 1e-12);
+    }
+
+    #[Group('issue-1331')]
+    public function testEffectivePercentIsNullWhereTheSdeGivesNoSecurityModifierWhileTheMultiplierStillRefuses(): void
+    {
+        $reactionRig = new RigBonus(2.4, self::reactionRigModifiers());
+
+        $this->assertNull($reactionRig->effectivePercentIn(SecurityClass::HighSec));
+        $this->expectException(\DomainException::class);
+
+        $reactionRig->multiplierIn(SecurityClass::HighSec);
+    }
+
+    #[Group('issue-1331')]
+    public function testEffectivePercentOfARigWithoutBonusIsZero(): void
+    {
+        $this->assertSame(0.0, (new RigBonus(0.0, self::manufacturingRigModifiers()))->effectivePercentIn(SecurityClass::NullSec));
     }
 
     #[DataProvider('invalidReductionPercentProvider')]

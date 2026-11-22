@@ -8,12 +8,15 @@ use App\Entity\CachedCharacterSkill;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\User;
-use App\Repository\CachedAssetRepository;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryStockpileTargetRepository;
+use App\Service\Industry\Project\OpenProjectStepsToLaunch;
+use App\Service\Industry\Project\StepToLaunch;
+use App\Service\Industry\Stock\PersonalStock;
+use App\Service\Industry\Stock\PersonalStockReader;
 use App\Service\TypeNameResolver;
 
 class SlotTrackerService
@@ -58,8 +61,9 @@ class SlotTrackerService
         private readonly IndustryCalculationService $calculationService,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly IndustryStockpileTargetRepository $stockpileTargetRepository,
-        private readonly CachedAssetRepository $assetRepository,
+        private readonly PersonalStockReader $personalStock,
         private readonly IndustryProjectJobMatchRepository $projectJobMatchRepository,
+        private readonly OpenProjectStepsToLaunch $openProjectSteps,
     ) {
     }
 
@@ -90,9 +94,9 @@ class SlotTrackerService
 
         // Stockpile targets for suggestions
         $stockpileTargets = $this->stockpileTargetRepository->findByUser($user);
-        $assetQuantities = !empty($stockpileTargets)
-            ? $this->assetRepository->getAggregatedQuantitiesByUser($user)
-            : [];
+        $personalStock = !empty($stockpileTargets)
+            ? $this->personalStock->of($user)
+            : new PersonalStock([], [], []);
 
         // Build per-character data
         $globalUsed = ['manufacturing' => 0, 'reaction' => 0, 'science' => 0];
@@ -101,6 +105,7 @@ class SlotTrackerService
         $charactersOutput = [];
         $unknownSkillsCharacterCount = 0;
         $newestCachingOfEachCharacter = [];
+        $stepsToLaunch = null;
 
         foreach ($characterData as $data) {
             /** @var Character $character */
@@ -187,9 +192,13 @@ class SlotTrackerService
             usort($jobEntries, static fn (array $a, array $b) => $a['timeLeftSeconds'] <=> $b['timeLeftSeconds']);
 
             // Free slots with suggestions
+            if ($maxSlots !== null && $stepsToLaunch === null && self::hasFreeSlot($usedSlots, $maxSlots)) {
+                $stepsToLaunch = $this->openProjectSteps->forUser($user);
+            }
+
             $freeSlots = $maxSlots === null
                 ? []
-                : $this->buildFreeSlots($usedSlots, $maxSlots, $stockpileTargets, $assetQuantities, $typeNames);
+                : $this->buildFreeSlots($usedSlots, $maxSlots, $stepsToLaunch ?? [], $stockpileTargets, $personalStock, $typeNames);
 
             if ($maxSlots === null) {
                 ++$unknownSkillsCharacterCount;
@@ -350,16 +359,31 @@ class SlotTrackerService
     }
 
     /**
+     * @param array{manufacturing: int, reaction: int, science: int} $usedSlots
+     * @param array{manufacturing: int, reaction: int, science: int} $maxSlots
+     */
+    private static function hasFreeSlot(array $usedSlots, array $maxSlots): bool
+    {
+        foreach (['manufacturing', 'reaction', 'science'] as $category) {
+            if ($maxSlots[$category] - $usedSlots[$category] > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Build free slot entries with suggestions from stockpile targets.
      *
      * @param array{manufacturing: int, reaction: int, science: int} $usedSlots
      * @param array{manufacturing: int, reaction: int, science: int} $maxSlots
+     * @param list<StepToLaunch> $stepsToLaunch
      * @param \App\Entity\IndustryStockpileTarget[] $stockpileTargets
-     * @param array<int, int> $assetQuantities
      * @param array<int, string> $typeNames
-     * @return list<array{activityType: string, count: int, suggestion: array{typeId: int, typeName: string, reason: string}|null}>
+     * @return list<array{activityType: string, count: int, suggestion: array{typeId: int, typeName: string, reason: string|null, project: array{id: string, name: string|null}|null, runs: int|null, stockByStation?: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>}|null}>
      */
-    private function buildFreeSlots(array $usedSlots, array $maxSlots, array $stockpileTargets, array $assetQuantities, array $typeNames): array
+    private function buildFreeSlots(array $usedSlots, array $maxSlots, array $stepsToLaunch, array $stockpileTargets, PersonalStock $personalStock, array $typeNames): array
     {
         $freeSlots = [];
 
@@ -369,7 +393,7 @@ class SlotTrackerService
                 continue;
             }
 
-            $suggestion = $this->findSuggestion($category, $stockpileTargets, $assetQuantities, $typeNames);
+            $suggestion = self::suggestionOfFirstStep($category, $stepsToLaunch) ?? $this->findSuggestion($category, $stockpileTargets, $personalStock, $typeNames);
 
             $freeSlots[] = [
                 'activityType' => $category,
@@ -382,14 +406,34 @@ class SlotTrackerService
     }
 
     /**
+     * @param list<StepToLaunch> $stepsToLaunch
+     * @return array{typeId: int, typeName: string, reason: null, project: array{id: string, name: string|null}, runs: int}|null
+     */
+    private static function suggestionOfFirstStep(string $category, array $stepsToLaunch): ?array
+    {
+        foreach ($stepsToLaunch as $step) {
+            if ($step->slotCategory === $category) {
+                return [
+                    'typeId' => $step->typeId,
+                    'typeName' => $step->typeName,
+                    'reason' => null,
+                    'project' => ['id' => $step->projectId, 'name' => $step->projectName],
+                    'runs' => $step->runs,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Find the best stockpile suggestion for a given slot category.
      *
      * @param \App\Entity\IndustryStockpileTarget[] $stockpileTargets
-     * @param array<int, int> $assetQuantities
      * @param array<int, string> $typeNames
-     * @return array{typeId: int, typeName: string, reason: string}|null
+     * @return array{typeId: int, typeName: string, reason: string, project: null, runs: null, stockByStation: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>}|null
      */
-    private function findSuggestion(string $category, array $stockpileTargets, array $assetQuantities, array $typeNames): ?array
+    private function findSuggestion(string $category, array $stockpileTargets, PersonalStock $personalStock, array $typeNames): ?array
     {
         $eligibleStages = self::SUGGESTION_STAGES[$category] ?? [];
         if (empty($eligibleStages)) {
@@ -404,7 +448,7 @@ class SlotTrackerService
                 continue;
             }
 
-            $stock = $assetQuantities[$target->getTypeId()] ?? 0;
+            $stock = $personalStock->quantitiesByTypeId[$target->getTypeId()] ?? 0;
             $targetQty = $target->getTargetQuantity();
             $coverage = $targetQty > 0 ? ($stock / $targetQty) * 100 : 100.0;
 
@@ -427,6 +471,9 @@ class SlotTrackerService
             'typeId' => $worstTarget->getTypeId(),
             'typeName' => $typeNames[$worstTarget->getTypeId()] ?? $worstTarget->getTypeName(),
             'reason' => sprintf('stockpile at %d%%', (int) round($worstCoverage)),
+            'project' => null,
+            'runs' => null,
+            'stockByStation' => $personalStock->stationsOf($worstTarget->getTypeId()),
         ];
     }
 }

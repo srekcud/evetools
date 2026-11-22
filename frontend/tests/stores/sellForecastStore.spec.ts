@@ -160,3 +160,38 @@ describe('group sell forecast store', () => {
     expect(store.forecast).toEqual(NYX_FORECAST)
   })
 })
+
+describe('group sell forecast store shared reads', () => {
+  it('shares one request between two reads of the same project made while it is pending', async () => {
+    const pending = deferred<SellForecast>()
+    vi.mocked(apiRequest).mockReturnValue(pending.promise)
+    const store = useGroupSellForecastStore()
+
+    const reads = Promise.all([store.fetchForProject(NYX_PROJECT_ID), store.fetchForProject(NYX_PROJECT_ID)])
+    pending.resolve(NYX_FORECAST)
+    await reads
+
+    expect(apiRequest).toHaveBeenCalledTimes(1)
+    expect(store.forecast).toEqual(NYX_FORECAST)
+  })
+
+  it('reads again when the previous read of the same project is finished', async () => {
+    vi.mocked(apiRequest).mockResolvedValue(NYX_FORECAST)
+    const store = useGroupSellForecastStore()
+
+    await store.fetchForProject(NYX_PROJECT_ID)
+    await store.fetchForProject(NYX_PROJECT_ID)
+
+    expect(apiRequest).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses an answer that is not a forecast and keeps no forecast', async () => {
+    vi.mocked(apiRequest).mockResolvedValue([])
+    const store = useGroupSellForecastStore()
+
+    await store.fetchForProject(NYX_PROJECT_ID)
+
+    expect(store.forecast).toBeNull()
+    expect(store.error).not.toBeNull()
+  })
+})

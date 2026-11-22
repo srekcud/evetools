@@ -22,12 +22,12 @@ class ProjectContainerService
     private const string STATUS_VERIFIED = 'verified';
     private const string STATUS_PARTIAL = 'partial';
     private const string STATUS_MISSING = 'missing';
-    private const string STATUS_CONTAINER_NOT_FOUND = 'container_not_found';
-    private const string STATUS_CONTAINER_IN_HIDDEN_DIVISION = 'container_in_hidden_division';
-    private const string STATUS_CORPORATION_ASSETS_STALE = 'corporation_assets_stale';
+    public const string STATUS_CONTAINER_NOT_FOUND = 'container_not_found';
+    public const string STATUS_CONTAINER_IN_HIDDEN_DIVISION = 'container_in_hidden_division';
+    public const string STATUS_CORPORATION_ASSETS_STALE = 'corporation_assets_stale';
     private const string STATUS_UNKNOWN = 'unknown';
 
-    private const string REASON_OWNER_WITHOUT_CORPORATION = 'owner_without_corporation';
+    public const string REASON_OWNER_WITHOUT_CORPORATION = 'owner_without_corporation';
     private const string REASON_CORPORATION_ASSETS_NOT_SYNCED = 'corporation_assets_not_synced';
     private const string REASON_NO_VISIBLE_DIVISION = 'no_visible_division';
     private const string REASON_NO_DIRECTOR = 'no_director';
@@ -187,6 +187,86 @@ class ProjectContainerService
         return new ProjectContainerStock(null, $quantities, $contentItemIds, $named['missingContainerNames']);
     }
 
+    public function unavailabilityReasonOf(IndustryProject $project): ?string
+    {
+        $owner = $project->getOwner();
+        $corporationId = $owner->getCorporationId();
+        if ($corporationId === null) {
+            return self::REASON_OWNER_WITHOUT_CORPORATION;
+        }
+
+        return $this->unavailabilityReason($corporationId, $owner);
+    }
+
+    public function unavailabilityReasonOfUser(User $user): ?string
+    {
+        $corporationId = $user->getCorporationId();
+        if ($corporationId === null) {
+            return self::REASON_OWNER_WITHOUT_CORPORATION;
+        }
+
+        return $this->unavailabilityReason($corporationId, $user);
+    }
+
+    public function areCorporationAssetsStale(?\DateTimeImmutable $assetsSyncedAt): bool
+    {
+        $staleBefore = (new \DateTimeImmutable())->sub(new \DateInterval(self::CORPORATION_ASSETS_STALE_AFTER));
+
+        return $assetsSyncedAt !== null && $assetsSyncedAt < $staleBefore;
+    }
+
+    public function notFoundReasonOf(IndustryProject $project, string $containerName): string
+    {
+        $owner = $project->getOwner();
+        $corporationId = $owner->getCorporationId();
+        if ($corporationId === null) {
+            return self::REASON_OWNER_WITHOUT_CORPORATION;
+        }
+
+        return $this->notFoundStatusOf(
+            $corporationId,
+            [$containerName],
+            $owner,
+            $this->cachedAssetRepository->lastCachedAtOfCorporationAssets($corporationId),
+        );
+    }
+
+    /**
+     * Everything stored inside the given containers, sub-containers included, each asset once.
+     *
+     * @param CachedAsset[] $visibleAssets
+     * @param list<int> $rootItemIds
+     *
+     * @return list<CachedAsset>
+     */
+    public function contentsOfContainers(array $visibleAssets, array $rootItemIds): array
+    {
+        $assetsByLocationId = [];
+        foreach ($visibleAssets as $asset) {
+            $assetsByLocationId[$asset->getLocationId()][] = $asset;
+        }
+
+        $pendingContainerItemIds = $rootItemIds;
+        $contents = [];
+        $countedItemIds = [];
+
+        while ($pendingContainerItemIds !== []) {
+            $containerItemId = array_pop($pendingContainerItemIds);
+
+            foreach ($assetsByLocationId[$containerItemId] ?? [] as $content) {
+                if (isset($countedItemIds[$content->getItemId()])) {
+                    continue;
+                }
+
+                $countedItemIds[$content->getItemId()] = true;
+                $contents[] = $content;
+                $pendingContainerItemIds[] = $content->getItemId();
+            }
+        }
+
+        return $contents;
+    }
+
     /**
      * @param list<string> $containerNames
      */
@@ -196,8 +276,7 @@ class ProjectContainerService
             return self::STATUS_CONTAINER_IN_HIDDEN_DIVISION;
         }
 
-        $staleBefore = (new \DateTimeImmutable())->sub(new \DateInterval(self::CORPORATION_ASSETS_STALE_AFTER));
-        if ($assetsSyncedAt !== null && $assetsSyncedAt < $staleBefore) {
+        if ($this->areCorporationAssetsStale($assetsSyncedAt)) {
             return self::STATUS_CORPORATION_ASSETS_STALE;
         }
 
@@ -286,10 +365,8 @@ class ProjectContainerService
             $wantedKeys[IndustryProjectContainer::keyOf($containerName)] = false;
         }
 
-        $assetsByLocationId = [];
         $rootItemIds = [];
         foreach ($visibleAssets as $asset) {
-            $assetsByLocationId[$asset->getLocationId()][] = $asset;
             $itemName = $asset->getItemName();
             if ($itemName === null) {
                 continue;
@@ -306,23 +383,7 @@ class ProjectContainerService
             return null;
         }
 
-        $pendingContainerItemIds = $rootItemIds;
-        $contents = [];
-        $countedItemIds = [];
-
-        while ($pendingContainerItemIds !== []) {
-            $containerItemId = array_pop($pendingContainerItemIds);
-
-            foreach ($assetsByLocationId[$containerItemId] ?? [] as $content) {
-                if (isset($countedItemIds[$content->getItemId()])) {
-                    continue;
-                }
-
-                $countedItemIds[$content->getItemId()] = true;
-                $contents[] = $content;
-                $pendingContainerItemIds[] = $content->getItemId();
-            }
-        }
+        $contents = $this->contentsOfContainers($visibleAssets, $rootItemIds);
 
         $missingContainerNames = array_values(array_filter(
             $containerNames,

@@ -15,6 +15,7 @@ use App\Enum\IndustryActivityType;
 use App\Exception\InventionProbabilityMissingException;
 use App\Exception\InventionT1ProductMissingException;
 use App\Exception\TypeMissingFromSdeException;
+use App\Industry\Application\Decryptors;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\OwnedBlueprintUse;
 use App\Industry\Application\PlannedProduction;
@@ -27,7 +28,9 @@ use App\Industry\Application\StructureSelectionPolicy;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\Decryptor;
 use App\Industry\Domain\Intermediate;
+use App\Industry\Domain\InventionAttempts;
 use App\Industry\Domain\Isk;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
@@ -42,6 +45,7 @@ use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
+use App\Service\Industry\CourierHubSettings;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PriceSource;
 use App\Service\JitaMarketService;
@@ -65,6 +69,7 @@ class IndustryProjectService
         private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly IndustryUserSettingsRepository $settingsRepository,
         private readonly OriginalBlueprintFinder $originalBlueprintFinder,
+        private readonly Decryptors $decryptors,
     ) {
     }
 
@@ -139,7 +144,7 @@ class IndustryProjectService
         }
         $jobAggregation = $this->jobLinesOf($plannedProduction, $producers, $typeNames, $owner);
 
-        $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'), $project->declaredRunsByProductTypeId(), $project->isExcludesInvention());
+        $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'), $project->declaredRunsByProductTypeId(), $project->isExcludesInvention(), $project->inventionDecryptorsByProductTypeId());
 
         $consumedStockByTypeId = $this->consumedStockByTypeId($project, $plan, $stockByTypeId);
         $coveredLines = $this->coveredLinesOf($project, $plan, $coveredIntermediateTypeIds, $stockByTypeId, $consumedStockByTypeId, $ownedBlueprints, $typeNames);
@@ -362,27 +367,79 @@ class IndustryProjectService
      */
     private function plannedProductionOf(IndustryProject $project, User $owner, array $stockByTypeId, array $ownedBlueprints, ?int $unblacklistedTypeId = null): PlannedProduction
     {
-        $blacklistedTypeIds = $this->resolveBlacklistedTypeIds(
-            $project->getBlacklistGroupIds(),
+        return $this->plannedProductionWithBlacklistOf(
+            $project,
+            $owner,
+            $stockByTypeId,
+            $ownedBlueprints,
             array_values(array_filter(
                 $project->getBlacklistTypeIds(),
                 static fn (int $typeId): bool => $typeId !== $unblacklistedTypeId,
             )),
         );
+    }
+
+    /**
+     * @param list<int> $boughtTypeIds types bought on top of the imposed purchases of the project groups, replacing the blacklisted types of the project
+     */
+    public function planWithPurchasesOf(IndustryProject $project, User $owner, array $boughtTypeIds): PlannedProduction
+    {
+        return $this->plannedProductionWithBlacklistOf(
+            $project,
+            $owner,
+            $this->contributionRepository->findIntermediateStockByTypeId($project),
+            $this->ownedBlueprintsOf($owner),
+            $boughtTypeIds,
+        );
+    }
+
+    /**
+     * @param array<int, int>               $stockByTypeId
+     * @param array<int, OwnedBlueprintUse> $ownedBlueprints by product typeId
+     * @param list<int>                     $blacklistTypeIds
+     */
+    private function plannedProductionWithBlacklistOf(IndustryProject $project, User $owner, array $stockByTypeId, array $ownedBlueprints, array $blacklistTypeIds): PlannedProduction
+    {
+        $blacklistedTypeIds = $this->resolveBlacklistedTypeIds($project->getBlacklistGroupIds(), $blacklistTypeIds);
+
+        $structures = $this->structuresOf($owner);
 
         try {
             return $this->productionPlanning->planWithStructuresOf(new ProductionPlanRequest(
                 $this->targetsOf($project, $stockByTypeId),
-                $this->structuresOf($owner),
+                $structures,
                 $this->favoriteSystemsOf($owner),
                 $blacklistedTypeIds,
                 array_map(static fn (int $stock): Quantity => new Quantity($stock), $stockByTypeId),
                 new StructureSelectionPolicy($project->isAcceptsOutsideFavoriteSystem(), new Isk($project->getMinimumOutsideSaving())),
                 $ownedBlueprints,
+                $this->workStructuresOf($project, $structures),
             ));
         } catch (\DomainException $e) {
             throw new \RuntimeException($e->getMessage(), 0, $e);
         }
+    }
+
+    /**
+     * @param list<ProductionStructure> $structures
+     *
+     * @return array<string, ProductionStructure> by WorkType value, without the structures the owner no longer has
+     */
+    private function workStructuresOf(IndustryProject $project, array $structures): array
+    {
+        $structuresById = [];
+        foreach ($structures as $structure) {
+            $structuresById[$structure->id] = $structure;
+        }
+
+        $workStructures = [];
+        foreach ($project->getWorkStations() as $workType => $choice) {
+            if (isset($structuresById[$choice['structureId']])) {
+                $workStructures[$workType] = $structuresById[$choice['structureId']];
+            }
+        }
+
+        return $workStructures;
     }
 
     /**
@@ -424,9 +481,11 @@ class IndustryProjectService
     {
         $settings = $this->settingsRepository->findOneBy(['user' => $owner]);
 
-        return null === $settings
-            ? FavoriteSystems::none()
-            : new FavoriteSystems($settings->getFavoriteManufacturingSystemId(), $settings->getFavoriteReactionSystemId());
+        return new FavoriteSystems(
+            $settings?->getFavoriteManufacturingSystemId(),
+            $settings?->getFavoriteReactionSystemId(),
+            CourierHubSettings::resolve($settings),
+        );
     }
 
     /**
@@ -726,8 +785,9 @@ class IndustryProjectService
      * @param array<int, array{typeName: string, quantity: int}> $materialAggregation
      * @param array<int|string, JobLine> $jobAggregation
      * @param array<int, int> $declaredRunsByProductTypeId
+     * @param array<int, int> $decryptorTypeIdByProductTypeId
      */
-    private function replaceT2BlueprintCopiesByInventions(array &$materialAggregation, array &$jobAggregation, StructureChoice $copyStructureChoice, array $declaredRunsByProductTypeId, bool $excludesInvention): void
+    private function replaceT2BlueprintCopiesByInventions(array &$materialAggregation, array &$jobAggregation, StructureChoice $copyStructureChoice, array $declaredRunsByProductTypeId, bool $excludesInvention, array $decryptorTypeIdByProductTypeId): void
     {
         $manufacturingRunsByProduct = [];
         $firstManufacturingJobByProduct = [];
@@ -764,8 +824,12 @@ class IndustryProjectService
                 throw new InventionProbabilityMissingException($productTypeId, $invention['t1BlueprintTypeId']);
             }
             $t1ProductTypeId = $this->t1ProductTypeIdOf($invention['t1BlueprintTypeId']);
-            $inventionsByProduct[$productTypeId] = ['recipe' => $invention, 'baseProbability' => $invention['probability'], 't1ProductTypeId' => $t1ProductTypeId, 'runsToInvent' => $runsToInvent];
+            $decryptor = $this->decryptorChosenFor($productTypeId, $decryptorTypeIdByProductTypeId);
+            $inventionsByProduct[$productTypeId] = ['recipe' => $invention, 'baseProbability' => $invention['probability'], 't1ProductTypeId' => $t1ProductTypeId, 'runsToInvent' => $runsToInvent, 'decryptor' => $decryptor];
             $inventionTypeIds[] = $t1ProductTypeId;
+            if (null !== $decryptor) {
+                $inventionTypeIds[] = $decryptor->typeId;
+            }
             foreach ($invention['materials'] as $datacore) {
                 $inventionTypeIds[] = $datacore['typeId'];
             }
@@ -777,9 +841,9 @@ class IndustryProjectService
 
         $typeNames = $this->sdeTypeNames($inventionTypeIds);
 
-        foreach ($inventionsByProduct as $productTypeId => ['recipe' => $invention, 'baseProbability' => $baseProbability, 't1ProductTypeId' => $t1ProductTypeId, 'runsToInvent' => $runsToInvent]) {
+        foreach ($inventionsByProduct as $productTypeId => ['recipe' => $invention, 'baseProbability' => $baseProbability, 't1ProductTypeId' => $t1ProductTypeId, 'runsToInvent' => $runsToInvent, 'decryptor' => $decryptor]) {
             $firstManufacturingJob = $firstManufacturingJobByProduct[$productTypeId];
-            $attempts = (int) ceil($runsToInvent / ($invention['baseRuns'] * $baseProbability));
+            $attempts = InventionAttempts::needed(new Runs($runsToInvent), $invention['baseRuns'], $baseProbability, $decryptor);
 
             unset($jobAggregation[$productTypeId . ':copy']);
             $jobAggregation[$productTypeId . ':invention'] = [
@@ -816,18 +880,38 @@ class IndustryProjectService
                 ];
             }
 
+            $consumed = [];
             foreach ($invention['materials'] as $datacore) {
-                $quantity = $datacore['quantity'] * $attempts;
-                if (isset($materialAggregation[$datacore['typeId']])) {
-                    $materialAggregation[$datacore['typeId']]['quantity'] += $quantity;
+                $consumed[] = ['typeId' => $datacore['typeId'], 'quantity' => $datacore['quantity'] * $attempts];
+            }
+            if (null !== $decryptor) {
+                $consumed[] = ['typeId' => $decryptor->typeId, 'quantity' => $attempts];
+            }
+            foreach ($consumed as ['typeId' => $consumedTypeId, 'quantity' => $quantity]) {
+                if (isset($materialAggregation[$consumedTypeId])) {
+                    $materialAggregation[$consumedTypeId]['quantity'] += $quantity;
                 } else {
-                    $materialAggregation[$datacore['typeId']] = [
-                        'typeName' => $typeNames[$datacore['typeId']],
+                    $materialAggregation[$consumedTypeId] = [
+                        'typeName' => $typeNames[$consumedTypeId],
                         'quantity' => $quantity,
                     ];
                 }
             }
         }
+    }
+
+    /**
+     * @param array<int, int> $decryptorTypeIdByProductTypeId
+     */
+    private function decryptorChosenFor(int $productTypeId, array $decryptorTypeIdByProductTypeId): ?Decryptor
+    {
+        $decryptorTypeId = $decryptorTypeIdByProductTypeId[$productTypeId] ?? null;
+        if (null === $decryptorTypeId) {
+            return null;
+        }
+
+        return $this->decryptors->ofType($decryptorTypeId)
+            ?? throw new \RuntimeException(\sprintf('The decryptor %d chosen for the invention of type %d is not in the SDE.', $decryptorTypeId, $productTypeId));
     }
 
     /**

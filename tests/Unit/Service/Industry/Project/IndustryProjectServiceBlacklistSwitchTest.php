@@ -30,6 +30,7 @@ use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryDecryptors;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
@@ -317,6 +318,7 @@ final class IndustryProjectServiceBlacklistSwitchTest extends TestCase
             $contributionRepository,
             $this->createStub(IndustryUserSettingsRepository::class),
             $this->createStub(OriginalBlueprintFinder::class),
+            InMemoryDecryptors::none(),
         );
     }
 }

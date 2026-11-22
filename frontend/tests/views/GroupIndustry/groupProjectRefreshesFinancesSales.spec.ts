@@ -18,4 +18,11 @@ describe('refreshes of the Finances tab when a sale changes', () => {
   it('does not refresh the sale suggestions on the distribution tab on sale_recorded', () => {
     expect(refreshesVisibleOn(['sale_recorded'], 'distribution')).not.toContain('saleSuggestions')
   })
+
+  it('refreshes neither the sales, the sale suggestions, the distribution, the settlement nor the contributions when no section is open', () => {
+    const refreshes = refreshesVisibleOn(['sale_recorded', 'contribution_valued', 'transfer_received'], null)
+
+    expect(refreshes).toEqual(expect.arrayContaining(['bom', 'cockpit', 'projectDetail']))
+    expect(refreshes.filter(refresh => ['sales', 'saleSuggestions', 'distribution', 'settlement', 'contributions', 'activity'].includes(refresh))).toEqual([])
+  })
 })

@@ -141,6 +141,23 @@ final class UnsoldProductsOfProjectTest extends TestCase
         self::assertEquals([new UnsoldProduct(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 20, 40_000.0)], $unsoldProducts);
     }
 
+    #[Group('issue-1210')]
+    public function testPersonalUseProjectHasNoUnsoldProduct(): void
+    {
+        $project = $this->projectOf($this->finalJobLine(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 10));
+        $project->setPersonalUse(true);
+
+        self::assertSame([], (new UnsoldProductsOfProject())->of($project, []));
+    }
+
+    #[Group('issue-1210')]
+    public function testSameProductsWithoutPersonalUseAreUnsold(): void
+    {
+        $project = $this->projectOf($this->finalJobLine(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 10));
+
+        self::assertEquals([new UnsoldProduct(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 10, null)], (new UnsoldProductsOfProject())->of($project, []));
+    }
+
     private function projectOf(IndustryProjectBomLine ...$lines): IndustryProject
     {
         $project = new IndustryProject();

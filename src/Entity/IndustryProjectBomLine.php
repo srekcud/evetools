@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\BomLineMarkState;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
+use App\Enum\SourcingMarket;
 use App\Repository\IndustryProjectBomLineRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -20,7 +23,15 @@ class IndustryProjectBomLine
 {
     public const string ACTIVITY_MANUFACTURING = 'manufacturing';
     public const string ACTIVITY_REACTION = 'reaction';
+    public const string ACTIVITY_COPY = 'copy';
+    public const string ACTIVITY_INVENTION = 'invention';
     private const string JOB_GROUP_COMPONENT = 'component';
+    private const array ESI_JOB_ACTIVITY_IDS_BY_ACTIVITY_TYPE = [
+        self::ACTIVITY_MANUFACTURING => [1],
+        self::ACTIVITY_REACTION => [9, 11],
+        self::ACTIVITY_COPY => [5],
+        self::ACTIVITY_INVENTION => [8],
+    ];
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -73,6 +84,9 @@ class IndustryProjectBomLine
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $surplusQuantity = null;
 
+    #[ORM\Column(type: 'string', length: 20, nullable: true)]
+    private ?string $sourcingMarket = null;
+
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $meLevel = null;
 
@@ -94,12 +108,17 @@ class IndustryProjectBomLine
     #[ORM\OneToMany(targetEntity: IndustryProjectBomLineMark::class, mappedBy: 'line', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $marks;
 
+    /** @var Collection<int, IndustryProjectLineBlueprint> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectLineBlueprint::class, mappedBy: 'bomLine', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $blueprints;
+
     public function __construct()
     {
         $this->id = Uuid::v7();
         $this->jobMatches = new ArrayCollection();
         $this->marks = new ArrayCollection();
         $this->purchases = new ArrayCollection();
+        $this->blueprints = new ArrayCollection();
     }
 
     public function getId(): Uuid
@@ -250,6 +269,18 @@ class IndustryProjectBomLine
         return $this;
     }
 
+    public function getSourcingMarket(): ?SourcingMarket
+    {
+        return null === $this->sourcingMarket ? null : SourcingMarket::from($this->sourcingMarket);
+    }
+
+    public function setSourcingMarket(?SourcingMarket $sourcingMarket): static
+    {
+        $this->sourcingMarket = $sourcingMarket?->value;
+
+        return $this;
+    }
+
     public function getSurplusQuantity(): ?int
     {
         return $this->surplusQuantity;
@@ -328,6 +359,24 @@ class IndustryProjectBomLine
         return $this->isJob && \in_array($this->activityType, [self::ACTIVITY_MANUFACTURING, self::ACTIVITY_REACTION], true);
     }
 
+    public function isMatchableJob(): bool
+    {
+        return $this->isJob && null !== $this->activityType && \array_key_exists($this->activityType, self::ESI_JOB_ACTIVITY_IDS_BY_ACTIVITY_TYPE);
+    }
+
+    /** @return list<int> */
+    public function esiJobActivityIds(): array
+    {
+        return self::ESI_JOB_ACTIVITY_IDS_BY_ACTIVITY_TYPE[$this->activityType ?? '']
+            ?? throw new \LogicException(\sprintf('BOM line activity "%s" has no ESI job activity', $this->activityType ?? 'none'));
+    }
+
+    /** @return Collection<int, IndustryProjectLineBlueprint> */
+    public function getBlueprints(): Collection
+    {
+        return $this->blueprints;
+    }
+
     /** @return Collection<int, IndustryProjectJobMatch> */
     public function getJobMatches(): Collection
     {
@@ -342,6 +391,49 @@ class IndustryProjectBomLine
         }
 
         return $this;
+    }
+
+    public function getQuantityOfRuns(int $runs): int
+    {
+        if (!$this->isManufacturingOrReactionJob()) {
+            return $runs;
+        }
+
+        if (null === $this->runs || $this->runs < 1) {
+            throw new \LogicException('A job line without runs has no quantity per run.');
+        }
+
+        return intdiv($this->requiredQuantity * $runs, $this->runs);
+    }
+
+    public function getApprovedDeclaredRunsOf(IndustryProjectParticipant $installer, ?IndustryProjectContribution $except = null): int
+    {
+        return $this->sumRunsOfInstallerContributions(
+            $installer,
+            static fn (IndustryProjectContribution $contribution): bool => !$contribution->isAutoDetected()
+                && ContributionStatus::Approved === $contribution->getStatus()
+                && $contribution !== $except,
+        );
+    }
+
+    public function getDerivedRunsOf(IndustryProjectParticipant $installer): int
+    {
+        return $this->sumRunsOfInstallerContributions(
+            $installer,
+            static fn (IndustryProjectContribution $contribution): bool => $contribution->isAutoDetected(),
+        );
+    }
+
+    private function sumRunsOfInstallerContributions(IndustryProjectParticipant $installer, \Closure $selection): int
+    {
+        $runs = 0;
+        foreach ($this->project->getContributions() as $contribution) {
+            if ($contribution->getBomItem() === $this && $contribution->getMember() === $installer && ContributionType::JobInstall === $contribution->getType() && $selection($contribution)) {
+                $runs += $contribution->getQuantity();
+            }
+        }
+
+        return $runs;
     }
 
     public function getMatchedRuns(): int

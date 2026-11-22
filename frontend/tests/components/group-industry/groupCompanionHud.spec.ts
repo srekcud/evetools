@@ -187,10 +187,46 @@ describe('GroupCompanion HUD lines', () => {
       pausedFr: '2 j 02 h',
     })
   })
+
+  it('fills the bar of a running or paused job at its elapsed share and shows no bar without a start date', () => {
+    const jobs = [
+      jobEntry('carbonide', 'reaction', 'active', NOW + 2 * ONE_HOUR, { startDate: new Date(NOW - 2 * ONE_HOUR).toISOString() }),
+      jobEntry('invention', 'invention', 'paused', NOW + 3 * ONE_HOUR, { startDate: new Date(NOW - ONE_HOUR).toISOString() }),
+      jobEntry('armor', 'manufacturing', 'active', NOW + 2 * ONE_HOUR, { startDate: null }),
+      jobEntry('ishtar', 'manufacturing', 'ready', NOW - ONE_MINUTE),
+    ]
+
+    const wrapper = mountCompanion(companionTasksOf({ jobs, readyJobCount: 1 }))
+    const lines = wrapper.findAll('[data-testid="companion-job"]')
+
+    expect({
+      states: lines.map(line => line.attributes('data-state')),
+      bars: lines.map(line => line.find('[data-testid="companion-job-bar"]').exists()),
+      widths: lines.slice(0, 3).map(line => line.find('[data-testid="companion-job-bar"] > div').exists() ? (line.get('[data-testid="companion-job-bar"] > div').element as HTMLElement).style.width : 'no bar'),
+    }).toEqual({
+      states: ['paused', 'running', 'running', 'ready'],
+      bars: [true, true, false, true],
+      widths: ['25%', '50%', 'no bar'],
+    })
+  })
+})
+
+describe('GroupCompanion HUD job bar rounding', () => {
+  it('draws an empty bar for a job that starts now and rounds the share to the nearest percent', () => {
+    const jobs = [
+      jobEntry('carbonide', 'reaction', 'active', NOW + ONE_HOUR, { startDate: new Date(NOW).toISOString() }),
+      jobEntry('invention', 'invention', 'active', NOW + ONE_HOUR, { startDate: new Date(NOW - 2 * ONE_HOUR).toISOString() }),
+    ]
+
+    const wrapper = mountCompanion(companionTasksOf({ jobs }))
+    const lines = wrapper.findAll('[data-testid="companion-job"]')
+
+    expect(lines.map(line => (line.get('[data-testid="companion-job-bar"] > div').element as HTMLElement).style.width)).toEqual(['67%', '0%'])
+  })
 })
 
 describe('GroupCompanion HUD alerts', () => {
-  it('delivers the line of a ready job from its alert and gives no action button to the alerts without action', async () => {
+  it('delivers the line of a ready job from its alert and gives an action button to the join request and none to the alerts without action', async () => {
     const ready = jobEntry('ishtar', 'manufacturing', 'ready', NOW - ONE_MINUTE)
     const wrapper = mountCompanion(companionTasksOf({
       jobs: [ready],
@@ -206,7 +242,7 @@ describe('GroupCompanion HUD alerts', () => {
       topAlert: wrapper.get('[data-testid="companion-alert"]').attributes('data-kind'),
     }).toEqual({
       deliver: [[ready.item.id]],
-      actionButtons: [['job_ready', true], ['join_request', false], ['bom_complete', false]],
+      actionButtons: [['job_ready', true], ['join_request', true], ['bom_complete', false]],
       topAlert: 'job_ready',
     })
   })

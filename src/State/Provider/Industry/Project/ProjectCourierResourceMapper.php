@@ -39,6 +39,8 @@ final readonly class ProjectCourierResourceMapper
         $resource->expirationDays = CourierQuoteCalculator::EXPIRATION_DAYS;
         $resource->originSolarSystemId = $overview->originSolarSystemId;
         $resource->originSolarSystemName = $overview->originSolarSystemName;
+        $resource->courierHubSolarSystemId = $overview->courierHubSolarSystemId;
+        $resource->courierHubSolarSystemName = $overview->courierHubSolarSystemName;
         $resource->workshopSolarSystemId = $overview->workshopSolarSystemId;
         $resource->workshopSolarSystemName = $overview->workshopSolarSystemName;
         $resource->canLink = $overview->canLink;

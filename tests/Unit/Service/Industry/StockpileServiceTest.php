@@ -21,6 +21,7 @@ use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -35,6 +36,7 @@ use Symfony\Component\Uid\Uuid;
 class StockpileServiceTest extends TestCase
 {
     use BuildsStockpileOnWidgetSde;
+    use StubsPersonalStockReader;
 
     private const int WIDGETS_PER_RUN = 2;
     private const int HULLS_PER_WIDGET_RUN = 2;
@@ -82,7 +84,7 @@ class StockpileServiceTest extends TestCase
     {
         return new StockpileService(
             $this->targetRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->jitaMarketService,
             $this->productionPlanningOnWidgetSde(),
             $this->userStructuresOfThePilot(),
@@ -236,7 +238,7 @@ class StockpileServiceTest extends TestCase
         };
         $service = new StockpileService(
             $this->targetRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->jitaMarketService,
             $productionPlanning,
             $unreadableStructures,

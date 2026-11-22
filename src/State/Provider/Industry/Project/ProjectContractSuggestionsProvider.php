@@ -45,7 +45,7 @@ final readonly class ProjectContractSuggestionsProvider implements ProviderInter
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertAdminOrOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $read = $this->contractSaleReader->read($user, $project);
         $feesByContractId = $this->journalRepository->contractFeesByContractId(array_map(

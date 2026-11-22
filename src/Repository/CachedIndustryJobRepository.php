@@ -68,6 +68,49 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<Character> $characters
+     *
+     * @return array<int, \DateTimeImmutable> newest cache date of the jobs of each character that has any, by EVE character id
+     */
+    public function newestCachedAtByEveCharacterId(array $characters): array
+    {
+        if ([] === $characters) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('j')
+            ->select('c.eveCharacterId AS eveCharacterId', 'MAX(j.cachedAt) AS newestCachedAt')
+            ->join('j.character', 'c')
+            ->where('j.character IN (:characters)')
+            ->setParameter('characters', $characters)
+            ->groupBy('c.eveCharacterId')
+            ->getQuery()
+            ->getArrayResult();
+
+        $newest = [];
+        foreach ($rows as $row) {
+            $newest[(int) $row['eveCharacterId']] = new \DateTimeImmutable($row['newestCachedAt']);
+        }
+
+        return $newest;
+    }
+
+    public function latestEndDateAtStructure(Character $character, int $structureId): ?\DateTimeImmutable
+    {
+        $job = $this->createQueryBuilder('j')
+            ->where('j.character = :character')
+            ->andWhere('j.stationId = :structureId')
+            ->setParameter('character', $character)
+            ->setParameter('structureId', $structureId)
+            ->orderBy('j.endDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $job?->getEndDate();
+    }
+
+    /**
      * @param list<int> $blueprintItemIds
      *
      * @return list<int>
@@ -125,28 +168,30 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find manufacturing/reaction jobs matching a blueprint type ID with EXACT run count.
-     * Activity IDs: 1 = Manufacturing, 9 = Reactions, 11 = Reverse Engineering
+     * Find jobs of the given ESI activities matching a blueprint type ID.
      *
      * @param int                     $blueprintTypeId Blueprint to match
+     * @param list<int>               $activityIds     ESI activity ids
      * @param list<\Symfony\Component\Uid\Uuid|int|null> $characterIds Characters to search
      * @param int|null                $targetRuns      If provided, only return jobs with exact run match
      * @param \DateTimeImmutable|null $startedAfter    Only match jobs started after this date
      *
      * @return CachedIndustryJob[]
      */
-    public function findManufacturingJobsByBlueprint(
+    public function findJobsByBlueprintAndActivities(
         int $blueprintTypeId,
+        array $activityIds,
         array $characterIds,
         ?int $targetRuns = null,
         ?\DateTimeImmutable $startedAfter = null,
     ): array {
         $qb = $this->createQueryBuilder('j')
             ->where('j.blueprintTypeId = :bpId')
-            ->andWhere('j.activityId IN (1, 9, 11)')
+            ->andWhere('j.activityId IN (:activityIds)')
             ->andWhere('j.character IN (:chars)')
             ->andWhere('j.status NOT IN (:statusesWithoutOutput)')
             ->setParameter('bpId', $blueprintTypeId)
+            ->setParameter('activityIds', $activityIds)
             ->setParameter('chars', $characterIds)
             ->setParameter('statusesWithoutOutput', CachedIndustryJob::STATUSES_WITHOUT_OUTPUT);
 
@@ -170,6 +215,7 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
      * Find all jobs matching any of the given blueprint type IDs for the given characters.
      *
      * @param int[]                    $blueprintTypeIds
+     * @param list<int>                $activityIds
      * @param list<\Symfony\Component\Uid\Uuid|int|null> $characterIds
      * @param \DateTimeImmutable|null  $startedAfter
      *
@@ -177,14 +223,16 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
      */
     public function findByBlueprintsAndCharacters(
         array $blueprintTypeIds,
+        array $activityIds,
         array $characterIds,
         ?\DateTimeImmutable $startedAfter = null,
     ): array {
         $qb = $this->createQueryBuilder('j')
             ->where('j.blueprintTypeId IN (:bpIds)')
-            ->andWhere('j.activityId IN (1, 9, 11)')
+            ->andWhere('j.activityId IN (:activityIds)')
             ->andWhere('j.character IN (:chars)')
             ->setParameter('bpIds', $blueprintTypeIds)
+            ->setParameter('activityIds', $activityIds)
             ->setParameter('chars', $characterIds);
 
         if ($startedAfter !== null) {

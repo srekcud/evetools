@@ -59,6 +59,34 @@ class CachedAssetRepository extends ServiceEntityRepository
     /**
      * @param list<int> $itemIds
      *
+     * @return array<int, CachedAsset> corporation assets indexed by item id
+     */
+    public function findCorporationByItemIds(int $corporationId, array $itemIds): array
+    {
+        if ($itemIds === []) {
+            return [];
+        }
+
+        $assets = $this->createQueryBuilder('a')
+            ->where('a.corporationId = :corporationId')
+            ->andWhere('a.isCorporationAsset = true')
+            ->andWhere('a.itemId IN (:itemIds)')
+            ->setParameter('corporationId', $corporationId)
+            ->setParameter('itemIds', $itemIds)
+            ->getQuery()
+            ->getResult();
+
+        $indexed = [];
+        foreach ($assets as $asset) {
+            $indexed[$asset->getItemId()] = $asset;
+        }
+
+        return $indexed;
+    }
+
+    /**
+     * @param list<int> $itemIds
+     *
      * @return array<int, CachedAsset> personal assets indexed by item id
      */
     public function findPersonalByItemIds(array $itemIds): array

@@ -1,6 +1,5 @@
 import { enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import BomTable from '@/components/group-industry/BomTable.vue'
 import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import { apiRequest } from '@/services/api'
 import type { GroupMember, ProjectInventionProduct } from '@/stores/group-industry/types'
@@ -26,9 +25,9 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-const SOLO_TABS = ['bom', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
-const SOLO_TABS_WITHOUT_INVENTION = ['bom', 'chain', 'planning', 'sales', 'distribution', 'journal']
-const TEAM_TABS = ['members', 'bom', 'contributions', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
+const SOLO_TABS = ['bom', 'invention', 'chain', 'sales', 'distribution', 'journal']
+const SOLO_TABS_WITHOUT_INVENTION = ['bom', 'chain', 'sales', 'distribution', 'journal']
+const TEAM_TABS = ['members', 'bom', 'contributions', 'invention', 'chain', 'sales', 'distribution', 'journal']
 
 const OWNER: GroupMember = {
   id: 'owner-1',
@@ -56,8 +55,15 @@ async function mountOn(answers: Partial<CockpitAnswers>, tab?: string): Promise<
   })
 }
 
-function tabIds(wrapper: VueWrapper): string[] {
-  return wrapper.findAll('[data-testid^="project-tab-"]').map(tab => (tab.attributes('data-testid') ?? '').replace('project-tab-', ''))
+function sectionIds(wrapper: VueWrapper): string[] {
+  return wrapper.findAll('[data-testid^="project-section-"]')
+    .map(section => (section.attributes('data-testid') ?? '').replace('project-section-', ''))
+    .filter(id => !id.startsWith('toggle-'))
+    .sort()
+}
+
+function sorted(ids: string[]): string[] {
+  return [...ids].sort()
 }
 
 enableAutoUnmount(afterEach)
@@ -68,87 +74,87 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
 })
 
-describe('project detail tabs of a solo project while the member list loads', () => {
-  it('never shows the contributions and team tabs, before or after the members arrive', async () => {
+describe('project detail sections of a solo project while the member list loads', () => {
+  it('never shows the contributions and team sections, before or after the members arrive', async () => {
     const members = deferred<GroupMember[]>()
     const wrapper = await mountOn({ members: members.promise })
-    const whileLoading = tabIds(wrapper)
+    const whileLoading = sectionIds(wrapper)
 
     members.resolve([OWNER])
     await flushPromises()
 
-    expect({ whileLoading, afterLoading: tabIds(wrapper) }).toEqual({ whileLoading: SOLO_TABS, afterLoading: SOLO_TABS })
+    expect({ whileLoading, afterLoading: sectionIds(wrapper) }).toEqual({ whileLoading: sorted(SOLO_TABS), afterLoading: sorted(SOLO_TABS) })
   })
 
-  it('shows the team tabs once the loaded members include a pending request', async () => {
+  it('shows the team sections once the loaded members include a pending request', async () => {
     const members = deferred<GroupMember[]>()
     const wrapper = await mountOn({ members: members.promise })
 
     members.resolve([OWNER, WAITING_PILOT])
     await flushPromises()
 
-    expect(tabIds(wrapper)).toEqual(TEAM_TABS)
+    expect(sectionIds(wrapper)).toEqual(sorted(TEAM_TABS))
   })
 
-  it('shows the team tabs when the member list fails to load', async () => {
+  it('shows the team sections when the member list fails to load', async () => {
     const wrapper = await mountOn({ members: new Error('Members unavailable') })
 
-    expect(tabIds(wrapper)).toEqual(TEAM_TABS)
+    expect(sectionIds(wrapper)).toEqual(sorted(TEAM_TABS))
   })
 
-  it('keeps the team tabs of a project that is not solo while the members load', async () => {
+  it('keeps the team sections of a project that is not solo while the members load', async () => {
     const wrapper = await mountOn({
       project: nyxProject('in_progress', 'owner', { membersCount: 2, pendingContributionCount: 0, solo: false }),
       members: deferred<GroupMember[]>().promise,
     })
 
-    expect(tabIds(wrapper)).toEqual(TEAM_TABS)
+    expect(sectionIds(wrapper)).toEqual(sorted(TEAM_TABS))
   })
 })
 
-describe('project detail invention tab', () => {
+describe('project detail invention section', () => {
   it('is hidden when the project excludes invention', async () => {
     const wrapper = await mountOn({ project: nyxProject('in_progress', 'owner', { membersCount: 1, pendingContributionCount: 0, solo: true, excludesInvention: true }) })
 
-    expect(tabIds(wrapper)).toEqual(SOLO_TABS_WITHOUT_INVENTION)
+    expect(sectionIds(wrapper)).toEqual(sorted(SOLO_TABS_WITHOUT_INVENTION))
   })
 
   it('is hidden when no product of the project is invented', async () => {
     const wrapper = await mountOn({ invention: [] })
 
-    expect(tabIds(wrapper)).toEqual(SOLO_TABS_WITHOUT_INVENTION)
+    expect(sectionIds(wrapper)).toEqual(sorted(SOLO_TABS_WITHOUT_INVENTION))
   })
 
   it('is shown when a product of the project is invented', async () => {
     const wrapper = await mountOn({ invention: NYX_INVENTION_PRODUCTS })
 
-    expect(tabIds(wrapper)).toEqual(SOLO_TABS)
+    expect(sectionIds(wrapper)).toEqual(sorted(SOLO_TABS))
   })
 
   it('is not shown while the invented products are unknown, then appears with them', async () => {
     const products = deferred<ProjectInventionProduct[]>()
     const wrapper = await mountOn({ invention: products.promise })
-    const whileLoading = tabIds(wrapper)
+    const whileLoading = sectionIds(wrapper)
 
     products.resolve(NYX_INVENTION_PRODUCTS)
     await flushPromises()
 
-    expect({ whileLoading, afterLoading: tabIds(wrapper) }).toEqual({ whileLoading: SOLO_TABS_WITHOUT_INVENTION, afterLoading: SOLO_TABS })
+    expect({ whileLoading, afterLoading: sectionIds(wrapper) }).toEqual({ whileLoading: sorted(SOLO_TABS_WITHOUT_INVENTION), afterLoading: sorted(SOLO_TABS) })
   })
 
   it('stays reachable when the invention comparison fails to load, so the error can be read', async () => {
     const wrapper = await mountOn({ invention: new Error('Invention unavailable') })
 
-    expect(tabIds(wrapper)).toEqual(SOLO_TABS)
+    expect(sectionIds(wrapper)).toEqual(sorted(SOLO_TABS))
   })
 
-  it('falls back to the materials when the query asks for the invention of a project without one', async () => {
+  it('shows neither the section nor the panel when the query asks for the invention of a project without one', async () => {
     const wrapper = await mountOn({ invention: [] }, 'invention')
 
     expect({
-      materials: wrapper.findComponent(BomTable).exists(),
+      section: wrapper.find('[data-testid="project-section-invention"]').exists(),
       invention: wrapper.findComponent(ProjectInvention).exists(),
-    }).toEqual({ materials: true, invention: false })
+    }).toEqual({ section: false, invention: false })
   })
 
   it('opens the invention panel named in the query when a product is invented', async () => {

@@ -18,6 +18,7 @@ use App\Service\Industry\Project\PlanningUnscheduled;
 use App\Service\Industry\Project\ProjectPlanning;
 use App\Service\Industry\Project\ProjectPlanningBuilder;
 use App\Service\Industry\Project\ProjectPlanningInputLoader;
+use App\Tests\Unit\Industry\Application\Double\InMemoryResearchBaseTimes;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
@@ -76,6 +77,7 @@ final class ProjectPlanningInputLoaderStockCoveredLineTest extends TestCase
             $this->createStub(IndustryActivitySkillRepository::class),
             new InMemoryUserProductionStructures([self::OWNER_ID => []]),
             new PlannedJobTimeModifier(new InMemoryRigCategories()),
+            new InMemoryResearchBaseTimes([]),
         );
 
         $failure = null;

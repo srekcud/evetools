@@ -58,7 +58,7 @@ class RecordSaleProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertAdminOrOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         if ($project->isCompleted()) {
             throw new BadRequestHttpException('Cannot record a sale on a completed project');

@@ -45,7 +45,7 @@ function mountList(): VueWrapper {
         NewProjectModal: true,
         LineRentalModal: true,
         AvailableProjectCard: true,
-        ProjectCard: { props: ['project'], template: '<div class="project-card">{{ project.id }}</div>' },
+        ProjectsOverviewTable: { props: ['projects'], template: '<div><div v-for="project in projects" :key="project.id" class="project-card">{{ project.id }}</div></div>' },
       },
     },
   })

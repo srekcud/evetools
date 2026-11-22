@@ -22,6 +22,7 @@ final readonly class StructureMaterialModifiers implements JobMaterialModifiers
         private RigCategories $rigCategories,
         private array $assignedStructures = [],
         private ?Runs $referenceRuns = null,
+        private ?WorkStructureAssignments $workStructureAssignments = null,
     ) {
     }
 
@@ -34,7 +35,7 @@ final readonly class StructureMaterialModifiers implements JobMaterialModifiers
     {
         $assignedStructure = \array_key_exists($recipe->productTypeId, $this->assignedStructures)
             ? $this->assignedStructures[$recipe->productTypeId]
-            : null;
+            : $this->workStructureAssignments?->structureFor($recipe);
 
         return $this->selector->select(
             $recipe->activity,

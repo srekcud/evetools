@@ -66,4 +66,13 @@ final class MissingDataPresenterTest extends TestCase
             MissingDataPresenter::of($cost),
         );
     }
+
+    #[Group('issue-1331')]
+    public function testUnrecognisedRigIsGivenAsItIsWithANullTypeId(): void
+    {
+        $this->assertSame(
+            [['reason' => 'unrecognised_rig', 'typeId' => null]],
+            MissingDataPresenter::ofList([MissingData::unrecognisedRig()]),
+        );
+    }
 }

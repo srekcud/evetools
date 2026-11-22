@@ -34,7 +34,7 @@ class ProjectIntermediateStockProposalResource
     public ?string $unknownReason = null;
 
     /**
-     * @var list<array{bomItemId: string, typeId: int, typeName: string, demandQuantity: int, remainingQuantity: int, personalQuantity: int, containerQuantity: int|null, stockQuantity: int, proposedQuantity: int}>
+     * @var list<array{bomItemId: string, typeId: int, typeName: string, demandQuantity: int, remainingQuantity: int, personalQuantity: int, containerQuantity: int|null, stockQuantity: int, proposedQuantity: int, stockByStation: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int, onSite: bool|null}>, plannedStationName: string|null}>
      */
     public array $lines = [];
 }

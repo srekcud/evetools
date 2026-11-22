@@ -67,7 +67,7 @@ async function mountList(locale: TestLocale = 'en'): Promise<VueWrapper> {
         IndustryModuleTabs: true,
         LoadingSpinner: true,
         ProjectKpiCards: true,
-        ProjectCard: true,
+        ProjectsOverviewTable: true,
         NewProjectModal: true,
         LineRentalModal: true,
         AvailableProjectCard: {

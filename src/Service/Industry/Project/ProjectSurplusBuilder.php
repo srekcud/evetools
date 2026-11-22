@@ -9,12 +9,13 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Enum\ProjectStatus;
 
 final readonly class ProjectSurplusBuilder
 {
     public function build(IndustryProject $project): ProjectSurplus
     {
-        if (!$project->isCompleted()) {
+        if (!in_array($project->getStatus(), [ProjectStatus::Selling, ProjectStatus::Completed], true)) {
             return new ProjectSurplus([], 0.0);
         }
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project\Courier;
 
-use App\Industry\Application\StructureTotalCostComparator;
+use App\Industry\Application\CourierHub;
 
 final readonly class CourierQuoteCalculator
 {
@@ -23,7 +23,7 @@ final readonly class CourierQuoteCalculator
      * @param list<array{typeId: int, quantity: int, totalPrice: float}> $purchases
      * @param array<int, float|null>                                      $volumeByTypeId
      */
-    public function quote(array $purchases, array $volumeByTypeId, bool $hasWorkshopSystem, ?int $jumps): CourierQuote
+    public function quote(array $purchases, array $volumeByTypeId, bool $hasWorkshopSystem, CourierHub $hub, ?int $jumps): CourierQuote
     {
         $shipped = array_values(array_filter($purchases, static fn (array $purchase): bool => $purchase['quantity'] > 0));
         if ([] === $shipped) {
@@ -44,7 +44,7 @@ final readonly class CourierQuoteCalculator
             return new CourierQuote($volume, $collateral, null, null, self::STATUS_ROUTE_UNKNOWN, []);
         }
 
-        $reward = (int) round($volume * $jumps * StructureTotalCostComparator::TRANSPORT_ISK_PER_CUBIC_METER_JUMP);
+        $reward = (int) round($volume * $hub->iskPerCubicMeterFromJita);
 
         return new CourierQuote($volume, $collateral, $reward, $jumps, self::STATUS_READY, []);
     }

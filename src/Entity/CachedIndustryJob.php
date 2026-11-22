@@ -56,6 +56,9 @@ class CachedIndustryJob
     #[ORM\Column(type: 'integer')]
     private int $runs;
 
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $successfulRuns = null;
+
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $cost = null;
 
@@ -167,6 +170,17 @@ class CachedIndustryJob
     public function setRuns(int $runs): static
     {
         $this->runs = $runs;
+        return $this;
+    }
+
+    public function getSuccessfulRuns(): ?int
+    {
+        return $this->successfulRuns;
+    }
+
+    public function setSuccessfulRuns(?int $successfulRuns): static
+    {
+        $this->successfulRuns = $successfulRuns;
         return $this;
     }
 

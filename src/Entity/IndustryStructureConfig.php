@@ -15,38 +15,15 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['corporation_id', 'location_id'])]
 class IndustryStructureConfig
 {
-    /** Thukker rig material bonus (SDE attributeEngRigMatBonus) */
-    public const float THUKKER_RIG_MATERIAL_BONUS = 2.0;
-
-    /** Thukker rig material bonus on basic capital components (SDE attributeThukkerEngRigMatBonus) */
-    public const float THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS = 3.7;
-
-    /** Thukker L-Set and XL-Set rig time bonus (SDE attributeEngRigTimeBonus); the M-Set ones have none */
-    public const float THUKKER_RIG_TIME_BONUS = 20.0;
-
-    /** Standard T1 / T2 rig material bonus (SDE attributeEngRigMatBonus) */
-    private const float STANDARD_RIG_MATERIAL_BONUS_T1 = 2.0;
-    private const float STANDARD_RIG_MATERIAL_BONUS_T2 = 2.4;
-
-    /**
-     * Standard T1 rig time bonus (SDE attributeEngRigTimeBonus), ten times its material bonus: L-Set/XL-Set
-     * "Efficiency" rigs, M-Set "Time Efficiency" rigs and L-Set Reactor Efficiency rigs
-     */
-    public const float STANDARD_RIG_TIME_BONUS_T1 = 20.0;
-
-    /** Standard T2 rig time bonus (SDE attributeEngRigTimeBonus), ten times its material bonus */
-    public const float STANDARD_RIG_TIME_BONUS_T2 = 24.0;
-
-    /** Thukker rigs have their own security modifiers, unlike the standard x1.0 / x1.9 / x2.1 */
-    public const array THUKKER_RIG_SECURITY_MULTIPLIERS = [
-        'highsec' => 0.1,
-        'lowsec' => 1.9,
-        'nullsec' => 0.1,
-    ];
-
     public const string NPC_STATION_STRUCTURE_TYPE = 'station';
 
     public const float NPC_STATION_FACILITY_TAX_PERCENT = 0.25;
+
+    /** @var array<string, list<string>> */
+    public const array HULLS_OF_LEGACY_TYPE = [
+        'engineering_complex' => ['raitaru', 'azbel', 'sotiyo'],
+        'refinery' => ['athanor', 'tatara'],
+    ];
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]
@@ -251,6 +228,11 @@ class IndustryStructureConfig
         return isset($this->structureType) && $this->structureType === self::NPC_STATION_STRUCTURE_TYPE;
     }
 
+    public function isHullToSpecify(): bool
+    {
+        return isset($this->structureType) && \array_key_exists($this->structureType, self::HULLS_OF_LEGACY_TYPE);
+    }
+
     public function setFacilityTaxPercent(?float $facilityTaxPercent): self
     {
         $this->facilityTaxPercent = $facilityTaxPercent;
@@ -294,214 +276,5 @@ class IndustryStructureConfig
             fn (string $id) => $id !== $userId,
         ));
         return $this;
-    }
-
-    /**
-     * Calculate the material efficiency bonus for manufacturing based on rigs and security.
-     * Returns a percentage (e.g., 4.2 for 4.2% reduction).
-     */
-    public function getManufacturingMaterialBonus(): float
-    {
-        $bonus = 0.0;
-
-        foreach ($this->rigs as $rig) {
-            $bonus += $this->getRigBonus($rig, 'manufacturing_material') * $this->getManufacturingRigSecurityMultiplier($rig);
-        }
-
-        return round($bonus, 2);
-    }
-
-    /**
-     * Calculate the material efficiency bonus for reactions based on rigs and security.
-     * Returns a percentage (e.g., 2.4 for 2.4% reduction).
-     */
-    public function getReactionMaterialBonus(): float
-    {
-        $bonus = 0.0;
-
-        foreach ($this->rigs as $rig) {
-            $bonus += $this->getRigBonus($rig, 'reaction_material');
-        }
-
-        $bonus *= $this->getReactionSecurityMultiplier();
-
-        return round($bonus, 2);
-    }
-
-    /**
-     * Calculate the time efficiency bonus for manufacturing.
-     * Includes base structure bonus + rig bonuses (multiplicative stacking).
-     * Returns a percentage (e.g., 25.0 for 25% time reduction).
-     */
-    public function getManufacturingTimeBonus(): float
-    {
-        // Base structure time bonus (only for engineering complexes)
-        $baseBonus = match ($this->structureType) {
-            'raitaru' => 15.0,
-            'azbel' => 20.0,
-            'sotiyo' => 30.0,
-            'engineering_complex' => 20.0, // Legacy
-            default => 0.0,
-        };
-
-        // Rig time bonus (L-Set/XL-Set "Efficiency" rigs and M-Set "Time Efficiency" rigs)
-        $rigBonus = 0.0;
-        foreach ($this->rigs as $rig) {
-            $rigBonus += $this->getRigBonus($rig, 'manufacturing_time') * $this->getManufacturingRigSecurityMultiplier($rig);
-        }
-
-        // Time bonuses stack multiplicatively: 1 - (1 - base) × (1 - rig)
-        if ($baseBonus > 0 || $rigBonus > 0) {
-            $totalBonus = 1 - (1 - $baseBonus / 100) * (1 - $rigBonus / 100);
-            return round($totalBonus * 100, 2);
-        }
-
-        return 0.0;
-    }
-
-    /**
-     * Calculate the time efficiency bonus for reactions.
-     * Includes base structure bonus + rig bonuses (multiplicative stacking).
-     * Returns a percentage (e.g., 25.0 for 25% time reduction).
-     */
-    public function getReactionTimeBonus(): float
-    {
-        // Base structure time bonus: only the Tatara has one (SDE strReactionTimeMultiplier 0.75), not the Athanor
-        $baseBonus = match ($this->structureType) {
-            'tatara' => 25.0,
-            'refinery' => 25.0, // Legacy
-            default => 0.0,
-        };
-
-        // Rig time bonus (L-Set Reactor Efficiency rigs)
-        $rigBonus = 0.0;
-        foreach ($this->rigs as $rig) {
-            $rigBonus += $this->getRigBonus($rig, 'reaction_time');
-        }
-
-        // Apply security multiplier to rig bonus only (reactions use lower multipliers)
-        $rigBonus *= $this->getReactionSecurityMultiplier();
-
-        // Time bonuses stack multiplicatively: 1 - (1 - base) × (1 - rig)
-        if ($baseBonus > 0 || $rigBonus > 0) {
-            $totalBonus = 1 - (1 - $baseBonus / 100) * (1 - $rigBonus / 100);
-            return round($totalBonus * 100, 2);
-        }
-
-        return 0.0;
-    }
-
-    /**
-     * Thukker rigs use their own security modifiers; a structure mixing Thukker and standard rigs
-     * applies each rig's own modifier.
-     */
-    private function getManufacturingRigSecurityMultiplier(string $rigName): float
-    {
-        if (str_contains($rigName, 'Thukker')) {
-            return self::THUKKER_RIG_SECURITY_MULTIPLIERS[$this->securityType] ?? self::THUKKER_RIG_SECURITY_MULTIPLIERS['highsec'];
-        }
-
-        return $this->getSecurityMultiplier();
-    }
-
-    private function getSecurityMultiplier(): float
-    {
-        return match ($this->securityType) {
-            'highsec' => 1.0,
-            'lowsec' => 1.9,
-            'nullsec' => 2.1,
-            default => 1.0,
-        };
-    }
-
-    /**
-     * Get security multiplier for reaction rigs (lower than manufacturing).
-     */
-    private function getReactionSecurityMultiplier(): float
-    {
-        return match ($this->securityType) {
-            'highsec' => 1.0,
-            'lowsec' => 1.0,
-            'nullsec' => 1.1,
-            default => 1.0,
-        };
-    }
-
-    /**
-     * Get the base bonus for a specific rig type.
-     * Uses pattern matching to support all rig sizes (M, L, XL).
-     */
-    private function getRigBonus(string $rigName, string $bonusType): float
-    {
-        $isManufacturing = str_contains($rigName, 'Manufacturing');
-        $isReaction = str_contains($rigName, 'Reactor');
-        $isTimeEfficiencyRig = str_contains($rigName, 'Time Efficiency');
-        $isMaterialEfficiencyRig = str_contains($rigName, 'Material Efficiency');
-        // L-Set/XL-Set "Efficiency" rigs reduce both material and time; M-Set rigs reduce one of them only
-        $isEfficiencyRig = str_contains($rigName, 'Efficiency') && !$isMaterialEfficiencyRig && !$isTimeEfficiencyRig;
-
-        $appliesToBonus = match ($bonusType) {
-            'manufacturing_material' => $isManufacturing && !$isTimeEfficiencyRig,
-            'reaction_material' => $isReaction,
-            'manufacturing_time' => $isManufacturing && ($isTimeEfficiencyRig || $isEfficiencyRig),
-            'reaction_time' => $isReaction && $isEfficiencyRig,
-            default => false,
-        };
-        if (!$appliesToBonus) {
-            return 0.0;
-        }
-
-        if (str_contains($rigName, 'Thukker')) {
-            return $this->getThukkerRigBonus($rigName, $bonusType);
-        }
-
-        if ($bonusType === 'manufacturing_time' || $bonusType === 'reaction_time') {
-            return $this->getStandardRigTimeBonus($rigName);
-        }
-
-        return $this->getStandardRigMaterialBonus($rigName);
-    }
-
-    private function getStandardRigMaterialBonus(string $rigName): float
-    {
-        if (str_ends_with($rigName, ' II')) {
-            return self::STANDARD_RIG_MATERIAL_BONUS_T2;
-        }
-
-        if (str_ends_with($rigName, ' I')) {
-            return self::STANDARD_RIG_MATERIAL_BONUS_T1;
-        }
-
-        return 0.0;
-    }
-
-    private function getStandardRigTimeBonus(string $rigName): float
-    {
-        if (str_ends_with($rigName, ' II')) {
-            return self::STANDARD_RIG_TIME_BONUS_T2;
-        }
-
-        if (str_ends_with($rigName, ' I')) {
-            return self::STANDARD_RIG_TIME_BONUS_T1;
-        }
-
-        return 0.0;
-    }
-
-    /**
-     * Without a product category, an XL-Set Thukker rig is counted at its generic value, not the
-     * capital component one.
-     */
-    private function getThukkerRigBonus(string $rigName, string $bonusType): float
-    {
-        if ($bonusType === 'manufacturing_time') {
-            return self::THUKKER_RIG_TIME_BONUS;
-        }
-
-        if (str_contains($rigName, 'Basic Capital Component')) {
-            return self::THUKKER_RIG_CAPITAL_COMPONENT_MATERIAL_BONUS;
-        }
-
-        return self::THUKKER_RIG_MATERIAL_BONUS;
     }
 }

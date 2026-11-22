@@ -8,7 +8,8 @@ const { t } = useI18n()
 const uid = useId()
 const store = useIndustryStore()
 
-const exportCostPerM3 = ref(1200)
+const exportCostPerM3 = ref(800)
+const jumpBridgeCostPerM3 = ref(50)
 const loaded = ref(false)
 const saving = ref(false)
 const saved = ref(false)
@@ -19,6 +20,7 @@ onMounted(async () => {
   await store.fetchUserSettings()
   if (store.userSettings) {
     exportCostPerM3.value = store.userSettings.exportCostPerM3
+    jumpBridgeCostPerM3.value = store.userSettings.jumpBridgeCostPerM3
   }
   loaded.value = true
 })
@@ -28,7 +30,10 @@ async function save(): Promise<void> {
   saved.value = false
   saveErrorKey.value = null
   try {
-    await store.updateUserSettings({ exportCostPerM3: exportCostPerM3.value })
+    await store.updateUserSettings({
+      exportCostPerM3: exportCostPerM3.value,
+      jumpBridgeCostPerM3: jumpBridgeCostPerM3.value,
+    })
     saved.value = true
     setTimeout(() => { saved.value = false }, 2000)
   } catch (e) {
@@ -55,6 +60,21 @@ async function save(): Promise<void> {
             min="0"
             max="50000"
             step="100"
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 font-mono"
+          />
+          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">ISK/m³</span>
+        </div>
+      </div>
+      <div class="w-48">
+        <label :for="`${uid}-jump-bridge-cost`" class="block text-xs text-slate-500 mb-1">{{ t('industry.config.jumpBridgeCost') }}</label>
+        <div class="relative">
+          <input
+            v-model.number="jumpBridgeCostPerM3"
+            :id="`${uid}-jump-bridge-cost`"
+            type="number"
+            min="0"
+            max="50000"
+            step="10"
             class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 font-mono"
           />
           <span class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">ISK/m³</span>

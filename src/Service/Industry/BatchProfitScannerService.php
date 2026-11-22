@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Entity\User;
+use App\Industry\Application\CourierHub;
 use App\Industry\Domain\ActivityKind;
 use App\Enum\IndustryActivityType;
 use App\Repository\CachedCharacterSkillRepository;
@@ -166,7 +167,7 @@ class BatchProfitScannerService
         ?int $structureId,
         int $solarSystemId,
         ?SalesFees $salesFees,
-        float $exportCostPerM3,
+        CourierHub $courierHub,
         ?User $user,
         int $reactionSolarSystemId,
         SellQuoteReading $sellQuoteReading = SellQuoteReading::WithEsiFallback,
@@ -351,7 +352,8 @@ class BatchProfitScannerService
             }
 
             // Import cost: transport materials from Jita to production site
-            $importCost = $this->transportCost($materialVolume, $exportCostPerM3);
+            $productionSolarSystemId = $isReaction ? $reactionSolarSystemId : $solarSystemId;
+            $importCost = $this->transportCost($materialVolume, $courierHub, $productionSolarSystemId);
 
             $costIndex = $isReaction ? $reactionCostIndex : $manufacturingCostIndex;
             $facilityTax = $isReaction ? $reactionFacilityTax : $manufacturingFacilityTax;
@@ -362,7 +364,7 @@ class BatchProfitScannerService
             $exportCost = 0.0;
             if ($sellVenue !== 'structure' && $sellVenue !== self::VENUE_CONTRACTS) {
                 $exportVolume = $this->getExportVolume($typeId, $typeMetadata);
-                $exportCost = $this->transportCost($exportVolume, $exportCostPerM3);
+                $exportCost = $this->transportCost($exportVolume, $courierHub, $productionSolarSystemId);
             }
 
             $totalCost = $materialCost;
@@ -728,13 +730,16 @@ class BatchProfitScannerService
         return $meta['volume'];
     }
 
-    private function transportCost(?float $volume, float $costPerM3): ?float
+    private function transportCost(?float $volume, CourierHub $courierHub, int $siteSolarSystemId): ?float
     {
-        if ($costPerM3 === 0.0) {
+        if ($courierHub->iskPerCubicMeterFromJita === 0.0 && $courierHub->jumpBridgeIskPerCubicMeter === 0.0) {
             return 0.0;
         }
+        if (null === $volume) {
+            return null;
+        }
 
-        return $volume !== null ? $volume * $costPerM3 : null;
+        return $courierHub->transportCostOf($volume, $siteSolarSystemId)->amount()->amount;
     }
 
     /**

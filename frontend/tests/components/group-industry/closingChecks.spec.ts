@@ -39,4 +39,25 @@ describe('buildClosingChecks', () => {
   it('passes the transfers check of a project that needs no transfer', () => {
     expect(buildClosingChecks(closingChecks({ transfersTotal: 0, transfersReceived: 0 }))[3]).toEqual({ key: 'transfers', ok: true, received: 0, total: 0 })
   })
+
+  it('keeps only the contributions check of a personal use project', () => {
+    expect(buildClosingChecks(closingChecks({
+      pendingContributionCount: 2,
+      unsoldProducts: [{ typeId: 2185, typeName: 'Hammerhead II', quantity: 20 }],
+      marginPercent: null,
+      transfersTotal: 3,
+      transfersReceived: 1,
+    }), true)).toEqual([
+      { key: 'pendingContributions', ok: false, count: 2 },
+    ])
+  })
+
+  it('keeps the four checks of a project without personal use', () => {
+    expect(buildClosingChecks(closingChecks(), false).map(check => check.key)).toEqual([
+      'pendingContributions',
+      'unsoldProducts',
+      'finalMargin',
+      'transfers',
+    ])
+  })
 })

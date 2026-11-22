@@ -30,17 +30,18 @@ const displayName = computed(() => {
 
 const firstItem = computed(() => props.project.items[0] ?? null)
 
-const statusConfig: Record<string, { classes: string; label: string }> = {
-  draft: { classes: 'bg-slate-500/15 text-slate-400 border-slate-500/20', label: 'Draft' },
-  published: { classes: 'bg-sky-500/15 text-sky-400 border-sky-500/20', label: 'Published' },
-  in_progress: { classes: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20', label: 'In Progress' },
-  selling: { classes: 'bg-violet-500/15 text-violet-400 border-violet-500/20', label: 'Selling' },
-  completed: { classes: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20', label: 'Completed' },
+const statusClasses: Record<string, string> = {
+  draft: 'bg-slate-500/15 text-slate-400 border-slate-500/20',
+  published: 'bg-sky-500/15 text-sky-400 border-sky-500/20',
+  in_progress: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20',
+  selling: 'bg-violet-500/15 text-violet-400 border-violet-500/20',
+  completed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
 }
 
-const statusStyle = computed(() =>
-  statusConfig[props.project.status] ?? statusConfig.draft
-)
+const statusStyle = computed(() => {
+  const status = props.project.status in statusClasses ? props.project.status : 'draft'
+  return { classes: statusClasses[status], label: t(`groupIndustry.status.${status}`) }
+})
 
 function bomColor(): string {
   const pct = props.project.fulfillmentPercent

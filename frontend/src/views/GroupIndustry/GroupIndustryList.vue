@@ -6,11 +6,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useUnassignedJobsStore } from '@/stores/group-industry/unassignedJobs'
 import { useIndustryStore } from '@/stores/industry'
 import MainLayout from '@/layouts/MainLayout.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import ProjectKpiCards from '@/components/group-industry/ProjectKpiCards.vue'
-import ProjectCard from '@/components/group-industry/ProjectCard.vue'
+import UnassignedJobsPanel from '@/components/group-industry/UnassignedJobsPanel.vue'
+import ProjectsOverviewTable from '@/components/group-industry/ProjectsOverviewTable.vue'
 import AvailableProjectCard from '@/components/group-industry/AvailableProjectCard.vue'
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
 import LineRentalModal from '@/components/group-industry/LineRentalModal.vue'
@@ -25,6 +27,7 @@ const authStore = useAuthStore()
 const { getCorporationLogoUrl, onImageError } = useEveImages()
 const groupProjectStore = useGroupProjectStore()
 const industryStore = useIndustryStore()
+const unassignedJobsStore = useUnassignedJobsStore()
 
 // --- Data ---
 
@@ -116,7 +119,7 @@ async function handleJoinProject(shortLinkCode: string) {
 
 async function handleProjectCreated(project: GroupProject) {
   closeNewProjectModal()
-  await router.push({ name: 'industry-project', params: { id: project.id } })
+  await router.push({ name: 'industry-project-setup', params: { id: project.id } })
 }
 
 // --- Data fetching ---
@@ -129,11 +132,12 @@ async function fetchProjects() {
     const myProjectsError = groupProjectStore.error
     await groupProjectStore.fetchAvailableProjects()
     const availableProjectsError = groupProjectStore.error
+    await groupProjectStore.fetchProjectOverviews()
     myProjects.value = groupProjectStore.myProjects
     availableProjects.value = groupProjectStore.availableProjects
     error.value = myProjectsError ?? availableProjectsError
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load projects'
+    error.value = e instanceof Error ? e.message : t('groupIndustry.available.loadError')
   } finally {
     isLoading.value = false
   }
@@ -164,6 +168,7 @@ function consumeNavigationIntent() {
 onMounted(() => {
   consumeNavigationIntent()
   fetchProjects()
+  void unassignedJobsStore.load()
 })
 </script>
 
@@ -182,7 +187,7 @@ onMounted(() => {
                 <img
                   v-if="corporationId > 0"
                   :src="getCorporationLogoUrl(corporationId, 32)"
-                  alt="Corp"
+                  :alt="t('groupIndustry.members.corporationLogoAlt')"
                   class="w-5 h-5 rounded"
                   @error="onImageError"
                 />
@@ -286,6 +291,8 @@ onMounted(() => {
 
       <!-- My Projects Tab -->
       <div v-else-if="activeTab === 'my-projects'" class="screen-enter">
+        <UnassignedJobsPanel />
+
         <!-- KPI Cards -->
         <ProjectKpiCards :projects="myProjects" />
 
@@ -304,14 +311,13 @@ onMounted(() => {
         </div>
 
         <!-- Project Cards Grid -->
-        <div v-if="filteredProjects.length > 0" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <ProjectCard
-            v-for="project in filteredProjects"
-            :key="project.id"
-            :project="project"
-            @click="navigateToProject"
-          />
-        </div>
+        <ProjectsOverviewTable
+          v-if="filteredProjects.length > 0"
+          :projects="filteredProjects"
+          :overviews="groupProjectStore.projectOverviews"
+          :overview-error="groupProjectStore.projectOverviewsError"
+          @open="navigateToProject"
+        />
 
         <!-- Empty state -->
         <div v-else class="bg-slate-900/80 rounded-xl border border-dashed border-slate-700 p-12 text-center">

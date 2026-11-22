@@ -142,12 +142,12 @@ describe('Production job row linked jobs', () => {
     expect(linkedJobs[1]).toContain('2')
   })
 
-  it('offers the match jobs button to the owner only', async () => {
+  it('offers the match jobs button to every accepted participant', async () => {
     expect({
       owner: matchJobsButton(await mountRows('owner', [ISHTAR_JOB])).exists(),
       admin: matchJobsButton(await mountRows('admin', [ISHTAR_JOB])).exists(),
       member: matchJobsButton(await mountRows('member', [ISHTAR_JOB])).exists(),
-    }).toEqual({ owner: true, admin: false, member: false })
+    }).toEqual({ owner: true, admin: true, member: true })
   })
 
   it('posts the matching, reloads the BOM and the chain and names the character whose jobs could not be synced', async () => {
@@ -188,6 +188,27 @@ describe('Production job row linked jobs', () => {
     expect(wrapper.text()).toContain('Some lines could not be matched:')
     expect(wrapper.text()).toContain('Cyra Lune')
     expect(wrapper.text()).toContain('sync failed')
+  })
+
+  it.each([
+    ['en', 'Invention data missing from the SDE'],
+    ['fr', "Données d'invention absentes du SDE"],
+  ] as const)('names an invention line without invention data in %s', async (locale, reasonText) => {
+    const wrapper = await mountProductionJobRows({
+      lines: [ISHTAR_JOB],
+      projectId: PROJECT_ID,
+      role: 'owner',
+      locale,
+      answers: matchJobsAnswer([], [{ typeId: 12005, typeName: 'Ishtar', reason: 'invention_data_missing' }]),
+    })
+
+    await matchJobsButton(wrapper).trigger('click')
+    await flushPromises()
+
+    const failedLines = wrapper.findAll('[data-testid="match-failed-line"]').map(line => line.text())
+    expect(failedLines).toHaveLength(1)
+    expect(failedLines[0]).toContain('Ishtar')
+    expect(failedLines[0]).toContain(reasonText)
   })
 
   it('shows no failed lines panel when every line was matched', async () => {

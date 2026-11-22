@@ -21,6 +21,7 @@ use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Entity\IndustryProjectLineReservation;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\InventionLineExpectedCopies;
 use App\Service\Industry\Project\JobInstallerName;
 use App\Service\Industry\Project\PlanningBlueprintNames;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
@@ -48,6 +49,7 @@ class ProjectBomProvider implements ProviderInterface
         private readonly ProjectJobLocationResolver $jobLocationResolver,
         private readonly ProjectContainerFulfillment $containerFulfillment,
         private readonly PlanningBlueprintNames $blueprintNames,
+        private readonly InventionLineExpectedCopies $expectedCopies,
     ) {
     }
 
@@ -197,6 +199,7 @@ class ProjectBomProvider implements ProviderInterface
         $resource->meLevel = $item->getMeLevel();
         $resource->teLevel = $item->getTeLevel();
         $resource->runs = $item->getRuns();
+        $resource->expectedBlueprintCopies = $this->expectedCopies->of($project, $item);
         $resource->isFulfilled = $fulfillments->isFulfilled($item);
         $resource->jobMatches = array_values($item->getJobMatches()->map(
             static function (IndustryProjectJobMatch $match) use ($project, $viewer, $locationsByJobId): array {
@@ -227,6 +230,7 @@ class ProjectBomProvider implements ProviderInterface
                 'participantId' => $reservation->getParticipant()->getId()->toRfc4122(),
                 'characterName' => PilotName::of($reservation->getParticipant()->getUser()),
                 'quantity' => $reservation->getQuantity(),
+                'expiresAt' => $reservation->getExpiresAt()->format(\DateTimeInterface::ATOM),
                 'isMine' => $reservation->getParticipant()->getUser()?->getId()?->toRfc4122() === $viewer->getId()?->toRfc4122(),
             ],
             $visibleReservations,

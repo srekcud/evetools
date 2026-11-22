@@ -23,7 +23,7 @@ final class ProjectCockpitApiTest extends WebTestCase
         $this->em->flush();
     }
 
-    public function testAcceptedMemberReadsTheFivePhasesAndIsAskedToSourceTheMaterialWithTheLargestRemainder(): void
+    public function testAcceptedMemberReadsTheFivePhasesAndIsAskedToSourceTheMaterialWithTheLargestRemainingValue(): void
     {
         $this->client->loginUser($this->member, 'api');
         $this->request('GET', $this->projectUri($this->ishtarBatch).'/cockpit');
@@ -46,10 +46,10 @@ final class ProjectCockpitApiTest extends WebTestCase
                     'blocked' => true,
                     'tab' => 'materials',
                     'targetStatus' => null,
-                    'bomLineId' => $this->idOf($this->tritaniumLine),
-                    'typeId' => self::TRITANIUM_TYPE_ID,
-                    'typeName' => 'Tritanium',
-                    'quantity' => 12_000,
+                    'bomLineId' => $this->idOf($this->morphiteLine),
+                    'typeId' => self::MORPHITE_TYPE_ID,
+                    'typeName' => 'Morphite',
+                    'quantity' => 147,
                     'endsAt' => null,
                 ],
             ],

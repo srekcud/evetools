@@ -44,6 +44,7 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
 
         $this->rejectFavoriteSystemAbsentFromSde('favoriteManufacturingSystemId', $data->favoriteManufacturingSystemId);
         $this->rejectFavoriteSystemAbsentFromSde('favoriteReactionSystemId', $data->favoriteReactionSystemId);
+        $this->rejectFavoriteSystemAbsentFromSde('courierHubSolarSystemId', $data->courierHubSolarSystemId);
 
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
 
@@ -69,6 +70,14 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
             $settings->setExportCostPerM3($data->exportCostPerM3);
         }
 
+        if ($data->courierHubSolarSystemId !== null) {
+            $settings->setCourierHubSolarSystemId($data->courierHubSolarSystemId);
+        }
+
+        if ($data->jumpBridgeCostPerM3 !== null) {
+            $settings->setJumpBridgeCostPerM3($data->jumpBridgeCostPerM3);
+        }
+
         $this->entityManager->flush();
 
         // Build response
@@ -76,6 +85,9 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
         $resource->favoriteManufacturingSystemId = $settings->getFavoriteManufacturingSystemId();
         $resource->favoriteReactionSystemId = $settings->getFavoriteReactionSystemId();
         $resource->exportCostPerM3 = $settings->getExportCostPerM3();
+        $resource->courierHubSolarSystemId = $settings->getCourierHubSolarSystemId();
+        $resource->courierHubSolarSystemName = $this->solarSystemRepository->find($resource->courierHubSolarSystemId)?->getSolarSystemName();
+        $resource->jumpBridgeCostPerM3 = $settings->getJumpBridgeCostPerM3();
 
         if ($resource->favoriteManufacturingSystemId !== null) {
             $system = $this->solarSystemRepository->find($resource->favoriteManufacturingSystemId);

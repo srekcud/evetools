@@ -21,6 +21,7 @@ use App\Service\ESI\TokenManager;
 use App\Service\Sync\CharacterSyncFailure;
 use App\State\Processor\Industry\SyncCharacterSkillsProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
+use App\Tests\Unit\Support\StubsSdeStructureBonuses;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -35,6 +36,8 @@ use Symfony\Component\ErrorHandler\BufferingLogger;
 #[Group('issue-197')]
 final class SyncCharacterSkillsProcessorTest extends TestCase
 {
+    use StubsSdeStructureBonuses;
+
     private const string SKILLS_SCOPE = 'esi-skills.read_skills.v1';
     private const string JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
     private const string STANDINGS_SCOPE = 'esi-characters.read_standings.v1';
@@ -1017,7 +1020,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             $this->flushedCharacterNames[] = array_keys($this->persistedSkillsByCharacterName);
         });
 
-        $mapper = new IndustryResourceMapper();
+        $mapper = new IndustryResourceMapper($this->sdeStructureBonusSummary());
 
         $standingsSynchronizer = $this->createStub(CharacterStandingsSynchronizer::class);
         $standingsSynchronizer->method('sync')->willReturnCallback(function (Character $character): void {

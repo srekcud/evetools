@@ -6,9 +6,13 @@ namespace App\Service\Industry\Project;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryStructureConfig;
+use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryStructureConfigRepository;
+use App\Service\Industry\Stock\PersonalStockReader;
 
 final readonly class IntermediateStockProposer
 {
@@ -20,22 +24,28 @@ final readonly class IntermediateStockProposer
         private ProjectContainerService $containerService,
         private IndustryProjectContributionRepository $contributionRepository,
         private ChainRecipeIngredients $recipeIngredients,
+        private PersonalStockReader $personalStock,
+        private IndustryStructureConfigRepository $structureConfigRepository,
     ) {
     }
 
-    public function proposalOf(IndustryProject $project): IntermediateStockProposal
+    public function proposalOf(IndustryProject $project, User $reader): IntermediateStockProposal
     {
-        $owner = $project->getOwner();
-        if (!$project->isSoloProjectOf($owner) || ProjectStatus::Completed === $project->getStatus()) {
+        if (ProjectStatus::Completed === $project->getStatus()) {
             return new IntermediateStockProposal(IntermediateStockProposal::STATE_NOT_SOLO, null, []);
         }
 
-        if (!$this->assetRepository->hasPersonalAssetsOf($owner)) {
+        if (!$this->assetRepository->hasPersonalAssetsOf($reader)) {
             return $this->unknown(self::REASON_PERSONAL_ASSETS_NOT_SYNCED);
         }
 
+        $personalStock = $this->personalStock->of($reader);
+        if (null !== $personalStock->unknownReason()) {
+            return $this->unknown($personalStock->unknownReason());
+        }
+
         $containerQuantities = null;
-        if ([] !== $project->getContainerNames()) {
+        if ($project->isSoloProjectOf($reader) && [] !== $project->getContainerNames()) {
             $containerStock = $this->containerService->containerStockOf($project);
             if (null !== $containerStock->unknownReason) {
                 return $this->unknown($containerStock->unknownReason);
@@ -43,9 +53,9 @@ final readonly class IntermediateStockProposer
             $containerQuantities = $containerStock->quantitiesByTypeId;
         }
 
-        $personalQuantities = $this->assetRepository->getAggregatedQuantitiesByUser($owner);
-        $approvedStock = $this->contributionRepository->findIntermediateStockByTypeId($project);
-        $contributedBomItemIds = $this->contributionRepository->findBomItemIdsWithMaterialContributionOf($project, $owner);
+        $personalQuantities = $personalStock->quantitiesByTypeId;
+        $approvedStock = $this->contributionRepository->findIntermediateStockByTypeId($project, $reader);
+        $contributedBomItemIds = $this->contributionRepository->findBomItemIdsWithMaterialContributionOf($project, $reader);
 
         $bomLines = array_values($project->getBomItems()->toArray());
         $levels = ChainManufacturingLevels::byTypeId(
@@ -53,9 +63,14 @@ final readonly class IntermediateStockProposer
             $this->recipeIngredients->producedIngredientsOf(ChainManufacturingLevels::jobTypeIdsOf($bomLines)),
         );
 
+        $ownerStructuresById = [];
+        foreach ($this->structureConfigRepository->findByUser($project->getOwner()) as $structure) {
+            $ownerStructuresById[$structure->getId()->toRfc4122()] = $structure;
+        }
+
         $lines = [];
         foreach ($this->rankZeroComponentLines($bomLines) as $bomLine) {
-            $line = $this->lineOf($bomLine, $personalQuantities, $containerQuantities, $approvedStock, $contributedBomItemIds);
+            $line = $this->lineOf($bomLine, $personalQuantities, $personalStock->locationsByTypeId, $ownerStructuresById, $containerQuantities, $approvedStock, $contributedBomItemIds);
             if (null !== $line) {
                 $lines[] = $line;
             }
@@ -68,6 +83,8 @@ final readonly class IntermediateStockProposer
 
     /**
      * @param array<int, int>      $personalQuantities
+     * @param array<int, array{total: int, locations: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>}> $personalLocations
+     * @param array<string, IndustryStructureConfig> $ownerStructuresById
      * @param array<int, int>|null $containerQuantities
      * @param array<int, int>      $approvedStock
      * @param list<string>         $contributedBomItemIds
@@ -75,6 +92,8 @@ final readonly class IntermediateStockProposer
     private function lineOf(
         IndustryProjectBomLine $bomLine,
         array $personalQuantities,
+        array $personalLocations,
+        array $ownerStructuresById,
         ?array $containerQuantities,
         array $approvedStock,
         array $contributedBomItemIds,
@@ -94,6 +113,8 @@ final readonly class IntermediateStockProposer
             return null;
         }
 
+        $plannedStructure = self::plannedStationOf($bomLine, $ownerStructuresById);
+
         return new IntermediateStockProposalLine(
             $bomItemId,
             $typeId,
@@ -104,7 +125,49 @@ final readonly class IntermediateStockProposer
             $containerQuantity,
             $stockQuantity,
             $proposedQuantity,
+            self::stockByStationOf(\array_key_exists($typeId, $personalLocations) ? $personalLocations[$typeId]['locations'] : [], $plannedStructure?->getLocationId()),
+            $plannedStructure?->getName(),
         );
+    }
+
+    /**
+     * @param array<string, IndustryStructureConfig> $ownerStructuresById
+     */
+    private static function plannedStationOf(IndustryProjectBomLine $bomLine, array $ownerStructuresById): ?IndustryStructureConfig
+    {
+        $plannedStructureId = $bomLine->getPlannedStructureId();
+        if (null === $plannedStructureId || !isset($ownerStructuresById[$plannedStructureId])) {
+            return null;
+        }
+
+        $plannedStructure = $ownerStructuresById[$plannedStructureId];
+
+        return null === $plannedStructure->getLocationId() ? null : $plannedStructure;
+    }
+
+    /**
+     * @param list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}> $locations
+     *
+     * @return list<IntermediateStockStationQuantity>
+     */
+    private static function stockByStationOf(array $locations, ?int $plannedLocationId): array
+    {
+        $stations = array_map(
+            static fn (array $location): IntermediateStockStationQuantity => new IntermediateStockStationQuantity(
+                $location['locationId'],
+                $location['locationName'],
+                $location['systemName'],
+                $location['quantity'],
+                null === $plannedLocationId ? null : $location['locationId'] === $plannedLocationId,
+            ),
+            $locations,
+        );
+
+        if (null !== $plannedLocationId) {
+            usort($stations, static fn (IntermediateStockStationQuantity $left, IntermediateStockStationQuantity $right): int => (int) $right->onSite <=> (int) $left->onSite);
+        }
+
+        return $stations;
     }
 
     /**

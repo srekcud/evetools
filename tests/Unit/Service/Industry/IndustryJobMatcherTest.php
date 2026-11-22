@@ -9,8 +9,11 @@ use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectLineReservation;
 use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\IndustryActivityProduct;
+use App\Entity\UnassignedJob;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ParticipantRole;
@@ -18,9 +21,13 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
+use App\Repository\IndustryProjectLineReservationRepository;
+use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\UnassignedJobRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
+use App\Service\Industry\LineMatchFailure;
 use App\Service\Industry\Project\ProjectContainerScope;
 use App\Service\Industry\Project\ProjectContainerService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,7 +36,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
+use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(IndustryJobMatcher::class)]
@@ -40,6 +47,14 @@ final class IndustryJobMatcherTest extends TestCase
     private const int ISHTAR_TYPE_ID = 12005;
     private const int ISHTAR_BLUEPRINT_TYPE_ID = 12006;
     private const int ISHTAR_FINAL_LINE_RUNS = 5;
+    private const int VEXOR_TYPE_ID = 12003;
+    private const int VEXOR_BLUEPRINT_TYPE_ID = 12004;
+    private const int HARBINGER_TYPE_ID = 12010;
+    private const int HARBINGER_BLUEPRINT_TYPE_ID = 12011;
+    private const int ISHTAR_COPY_LINE_RUNS = 10;
+    private const int ISHTAR_INVENTION_LINE_RUNS = 3;
+    private const int ESI_COPYING_ACTIVITY_ID = 5;
+    private const int ESI_INVENTION_ACTIVITY_ID = 8;
     private const int RAM_TYPE_ID = 11478;
     private const int RAM_BLUEPRINT_TYPE_ID = 11479;
     private const int RAM_COMPONENT_LINE_RUNS = 4;
@@ -53,11 +68,17 @@ final class IndustryJobMatcherTest extends TestCase
     private const int OTHER_CONTAINER_ID = 1_040_000_000_002;
     private const int HANGAR_LOCATION_ID = 60_003_760;
     private const string PROJECT_CREATED_AT = '2026-11-01 10:00:00';
+    private const string OLDER_PROJECT_CREATED_AT = '2026-11-01 08:00:00';
+    private const string NEWER_PROJECT_CREATED_AT = '2026-11-01 12:00:00';
+    private const int ARIA_EVE_CHARACTER_ID = 2_112_000_101;
+    private const int ARIA_ALT_EVE_CHARACTER_ID = 2_112_000_102;
 
     private CachedIndustryJobRepository $jobRepository;
     private IndustryProjectJobMatchRepository $jobMatchRepository;
     private IndustryActivityProductRepository $productRepository;
     private IndustryJobMatcher $matcher;
+    private BufferingLogger $logger;
+    private ?IndustryProjectJobMatch $unremovableMatch = null;
 
     private array $jobsByBlueprint = [];
 
@@ -67,7 +88,19 @@ final class IndustryJobMatcherTest extends TestCase
 
     private array $jobQueries = [];
 
+    private array $activityQueries = [];
+
     private array $scopesByProjectId = [];
+
+    private array $reservationsByProjectId = [];
+
+    private array $structureConfigsById = [];
+
+    private array $persisted = [];
+
+    private array $removed = [];
+
+    private array $storedUnassignedJobs = [];
 
     private User $owner;
     private Character $mainCharacter;
@@ -76,13 +109,16 @@ final class IndustryJobMatcherTest extends TestCase
     protected function setUp(): void
     {
         $this->jobRepository = $this->createMock(CachedIndustryJobRepository::class);
-        $this->jobRepository->method('findManufacturingJobsByBlueprint')->willReturnCallback(
-            function (int $blueprintTypeId, array $characterIds, ?int $runs, \DateTimeImmutable $startedSince): array {
+        $this->jobRepository->method('findJobsByBlueprintAndActivities')->willReturnCallback(
+            function (int $blueprintTypeId, array $activityIds, array $characterIds, ?int $runs, \DateTimeImmutable $startedSince): array {
                 $this->jobQueries[] = [$blueprintTypeId, $characterIds, $runs, $startedSince];
+                $this->activityQueries[] = [$blueprintTypeId, $activityIds];
 
                 return array_values(array_filter(
                     $this->jobsByBlueprint[$blueprintTypeId] ?? [],
-                    static fn (CachedIndustryJob $job): bool => $job->getStartDate() >= $startedSince,
+                    static fn (CachedIndustryJob $job): bool => $job->getStartDate() >= $startedSince
+                        && \in_array($job->getActivityId(), $activityIds, true)
+                        && \in_array($job->getCharacter()->getId(), $characterIds, true),
                 ));
             },
         );
@@ -104,6 +140,14 @@ final class IndustryJobMatcherTest extends TestCase
                 self::ISHTAR_TYPE_ID => self::producer(self::ISHTAR_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing, self::ISHTAR_TYPE_ID),
                 self::RAM_TYPE_ID => self::producer(self::RAM_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing, self::RAM_TYPE_ID),
                 self::FERROGEL_TYPE_ID => self::producer(self::FERROGEL_FORMULA_TYPE_ID, IndustryActivityType::Reaction, self::FERROGEL_TYPE_ID),
+                self::VEXOR_TYPE_ID => self::producer(self::VEXOR_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing, self::VEXOR_TYPE_ID),
+            },
+        );
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $productTypeId, int $activityId): ?IndustryActivityProduct => match ([$productTypeId, $activityId]) {
+                [self::ISHTAR_TYPE_ID, IndustryActivityType::Manufacturing->value] => self::producer(self::ISHTAR_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing, self::ISHTAR_TYPE_ID),
+                [self::ISHTAR_BLUEPRINT_TYPE_ID, IndustryActivityType::Invention->value] => self::producer(self::VEXOR_BLUEPRINT_TYPE_ID, IndustryActivityType::Invention, self::ISHTAR_BLUEPRINT_TYPE_ID),
+                default => null,
             },
         );
 
@@ -117,14 +161,58 @@ final class IndustryJobMatcherTest extends TestCase
             fn (IndustryProject $project): ProjectContainerScope => $this->scopesByProjectId[$project->getId()->toRfc4122()] ?? new ProjectContainerScope('no_container_name'),
         );
 
+        $this->logger = new BufferingLogger();
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('remove')->willReturnCallback(function (object $entity): void {
+            if ($entity === $this->unremovableMatch) {
+                throw new \RuntimeException('remove failed');
+            }
+            $this->removed[] = $entity;
+        });
+        $entityManager->method('persist')->willReturnCallback(function (object $entity): void {
+            $this->persisted[] = $entity;
+        });
+
+        $unassignedJobRepository = $this->createStub(UnassignedJobRepository::class);
+        $unassignedJobRepository->method('findByEsiJobIds')->willReturnCallback(
+            fn (array $esiJobIds): array => array_intersect_key($this->storedUnassignedJobs, array_flip($esiJobIds)),
+        );
+
+        $unassignedJobRepository->method('findDismissedEsiJobIds')->willReturnCallback(
+            fn (): array => array_keys(array_filter($this->storedUnassignedJobs, static fn (UnassignedJob $row): bool => $row->getDismissedAt() !== null)),
+        );
+
+        $unassignedJobRepository->method('findWithoutOutput')->willReturnCallback(
+            fn (): array => array_values(array_filter($this->storedUnassignedJobs, static fn (UnassignedJob $row): bool => $row->getJob()->hasNoOutput())),
+        );
+
+        $reservationRepository = $this->createStub(IndustryProjectLineReservationRepository::class);
+        $reservationRepository->method('findByProject')->willReturnCallback(
+            fn (IndustryProject $project): array => $this->reservationsByProjectId[$project->getId()->toRfc4122()] ?? [],
+        );
+
+        $structureConfigRepository = $this->createStub(IndustryStructureConfigRepository::class);
+        $structureConfigRepository->method('find')->willReturnCallback(
+            function (mixed $id): ?IndustryStructureConfig {
+                if (!Uuid::isValid((string) $id)) {
+                    throw new \InvalidArgumentException('Invalid uuid passed to the structure configuration lookup');
+                }
+
+                return $this->structureConfigsById[(string) $id] ?? null;
+            },
+        );
+
         $this->matcher = new IndustryJobMatcher(
             $calculationService,
             $this->jobRepository,
             $this->productRepository,
             $this->jobMatchRepository,
-            $this->createStub(EntityManagerInterface::class),
-            new NullLogger(),
+            $entityManager,
+            $this->logger,
             $containerService,
+            $reservationRepository,
+            $structureConfigRepository,
+            $unassignedJobRepository,
         );
 
         $this->owner = new User();
@@ -132,6 +220,11 @@ final class IndustryJobMatcherTest extends TestCase
         $this->altCharacter = $this->character('Aria Alt');
         $this->owner->addCharacter($this->mainCharacter);
         $this->owner->addCharacter($this->altCharacter);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->logger->cleanLogs();
     }
 
     public function testFinalLineIsMatchedToTheJobsStartedSinceTheProjectCreationThatFitItsRuns(): void
@@ -145,9 +238,9 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_362_002, 2, '2026-11-03 08:00:00', $this->altCharacter),
         );
 
-        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchOpenProjects([$project]);
 
-        self::assertSame([7_362_003, 7_362_002], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame([7_362_002, 7_362_003], $this->matchedJobIdsOf($ishtarLine));
         self::assertSame(5, $ishtarLine->getMatchedRuns());
         self::assertSame(0, $ishtarLine->getFulfilledQuantity());
         self::assertCount(1, $this->jobQueries);
@@ -168,7 +261,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_362_018, 8, '2026-11-02 10:00:00'),
         );
 
-        $this->matcher->matchEsiJobs($this->project($ishtarLine));
+        $this->matcher->matchOpenProjects([$this->project($ishtarLine)]);
 
         self::assertSame([7_362_013], $this->matchedJobIdsOf($ishtarLine));
         self::assertSame(3, $ishtarLine->getMatchedRuns());
@@ -186,7 +279,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_362_022, 2, '2026-11-02 09:00:00'),
         );
 
-        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchOpenProjects([$project]);
 
         self::assertSame([7_362_022], $this->matchedJobIdsOf($ishtarLine));
         self::assertSame(2, $ishtarLine->getMatchedRuns());
@@ -204,7 +297,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_362_032, 2, '2026-11-02 09:00:00'),
         );
 
-        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchOpenProjects([$project]);
 
         self::assertSame([7_362_031], $this->matchedJobIdsOf($ishtarLine));
         self::assertTrue($ishtarLine->getJobMatches()->first()->isManual());
@@ -219,7 +312,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_362_041, 4, '2026-11-02 08:00:00', $this->altCharacter, 'delivered', 86_250.75, self::SOTIYO_STATION_ID),
         );
 
-        $this->matcher->matchEsiJobs($this->project($ramLine));
+        $this->matcher->matchOpenProjects([$this->project($ramLine)]);
 
         $match = $ramLine->getJobMatches()->first();
         self::assertInstanceOf(IndustryProjectJobMatch::class, $match);
@@ -238,7 +331,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_362_052, 1, '2026-11-02 09:00:00'),
         );
 
-        $this->matcher->matchEsiJobs($this->project($ramLine));
+        $this->matcher->matchOpenProjects([$this->project($ramLine)]);
 
         self::assertSame([7_362_052], $this->matchedJobIdsOf($ramLine));
     }
@@ -251,21 +344,167 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_362_061, 6, '2026-11-02 08:00:00', activityId: self::ESI_REACTION_ACTIVITY_ID),
         );
 
-        $this->matcher->matchEsiJobs($this->project($ferrogelLine));
+        $this->matcher->matchOpenProjects([$this->project($ferrogelLine)]);
 
         self::assertSame([7_362_061], $this->matchedJobIdsOf($ferrogelLine));
         self::assertSame(6, $ferrogelLine->getMatchedRuns());
     }
 
-    public function testMaterialAndInventionLinesAreNotMatched(): void
+    #[Group('issue-1193')]
+    public function testMaterialLineIsNotMatchedWhileTheInventionLineIsMatchedToTheInventionJobOfTheT1BlueprintOfItsProduct(): void
     {
         $tritaniumLine = (new IndustryProjectBomLine())->setTypeId(self::TRITANIUM_TYPE_ID)->setTypeName('Tritanium')->setRequiredQuantity(12_000)->setIsJob(false);
-        $inventionLine = $this->jobLine(self::ISHTAR_BLUEPRINT_TYPE_ID, 'Ishtar Blueprint', 'blueprint', 3, 'invention');
+        $inventionLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_INVENTION_LINE_RUNS, 'invention');
+        $this->givenJobs(
+            self::VEXOR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_041, 3, '2026-11-02 08:00:00', activityId: self::ESI_INVENTION_ACTIVITY_ID),
+        );
 
-        $this->matcher->matchEsiJobs($this->project($tritaniumLine, $inventionLine));
+        $this->matcher->matchOpenProjects([$this->project($tritaniumLine, $inventionLine)]);
 
-        self::assertSame([], $this->jobQueries);
-        self::assertSame([[], []], [$this->matchedJobIdsOf($tritaniumLine), $this->matchedJobIdsOf($inventionLine)]);
+        self::assertSame([[], [7_193_041]], [$this->matchedJobIdsOf($tritaniumLine), $this->matchedJobIdsOf($inventionLine)]);
+        self::assertSame(3, $inventionLine->getMatchedRuns());
+        self::assertSame([[self::VEXOR_BLUEPRINT_TYPE_ID, [self::ESI_INVENTION_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testCopyLineIsMatchedToTheCopyingJobOfItsProducerBlueprintAndItsNodeCountsAllItsRuns(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_001, 10, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([7_193_001], $this->matchedJobIdsOf($copyLine));
+        self::assertSame(10, $copyLine->getMatchedRuns());
+        self::assertSame([[self::ISHTAR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testCopyLineKeepsTheRemainderOfItsRunsForASecondCopyingJob(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_011, 6, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+        self::assertSame([7_193_011], $this->matchedJobIdsOf($copyLine));
+        self::assertSame(6, $copyLine->getMatchedRuns());
+        self::assertSame(4, $copyLine->getRuns() - $copyLine->getMatchedRuns());
+
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_011, 6, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+            $this->job(7_193_012, 4, '2026-11-02 09:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+        $this->matcher->matchOpenProjects([$copyLine->getProject()]);
+
+        self::assertSame([7_193_011, 7_193_012], $this->matchedJobIdsOf($copyLine));
+        self::assertSame(10, $copyLine->getMatchedRuns());
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyingJobLargerThanTheRunsOfTheCopyLineIsNeverMatched(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_021, 12, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($copyLine));
+        self::assertSame(0, $copyLine->getMatchedRuns());
+        self::assertSame([[self::ISHTAR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyLineCoveredByStockHasNoCandidate(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', 0, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_022, 1, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($copyLine));
+        self::assertSame([], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testAManufacturingJobOnTheBlueprintOfACopyLineIsNotMatchedToIt(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_031, 10, '2026-11-02 08:00:00', activityId: IndustryActivityType::Manufacturing->value),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($copyLine));
+        self::assertSame([[self::ISHTAR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testAnInventionJobOnAnotherBlueprintThanTheT1BlueprintOfTheInventionIsNotMatched(): void
+    {
+        $inventionLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_INVENTION_LINE_RUNS, 'invention');
+        $this->givenJobs(
+            self::HARBINGER_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_051, 3, '2026-11-02 08:00:00', activityId: self::ESI_INVENTION_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($inventionLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($inventionLine));
+        self::assertSame([[self::VEXOR_BLUEPRINT_TYPE_ID, [self::ESI_INVENTION_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyLineAndAnInventionLineOnTheSameT1BlueprintEachTakeTheJobOfTheirOwnActivity(): void
+    {
+        $t1CopyLine = $this->jobLine(self::VEXOR_TYPE_ID, 'Vexor', 'blueprint', 3, 'copy');
+        $inventionLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_INVENTION_LINE_RUNS, 'invention');
+        $this->givenJobs(
+            self::VEXOR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_061, 3, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+            $this->job(7_193_062, 3, '2026-11-02 09:00:00', activityId: self::ESI_INVENTION_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($t1CopyLine, $inventionLine)]);
+
+        self::assertSame([7_193_061], $this->matchedJobIdsOf($t1CopyLine));
+        self::assertSame([7_193_062], $this->matchedJobIdsOf($inventionLine));
+        self::assertSame(
+            [[self::VEXOR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]], [self::VEXOR_BLUEPRINT_TYPE_ID, [self::ESI_INVENTION_ACTIVITY_ID]]],
+            $this->activityQueries,
+        );
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyingJobAlreadyMatchedToAnotherProjectIsNotMatchedToTheCopyLine(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $otherProjectCopyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_071, 10, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+        $this->jobsMatchedToProjects[] = [$this->project($otherProjectCopyLine), 7_193_071];
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($copyLine));
+        self::assertSame([], $this->persistedUnassignedJobs());
+        self::assertSame([[self::ISHTAR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]]], $this->activityQueries);
     }
 
     public function testMatchingTwiceKeepsASingleMatchPerJob(): void
@@ -278,8 +517,8 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_362_072, 2, '2026-11-02 09:00:00'),
         );
 
-        $this->matcher->matchEsiJobs($project);
-        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchOpenProjects([$project]);
+        $this->matcher->matchOpenProjects([$project]);
 
         self::assertSame([7_362_071, 7_362_072], $this->matchedJobIdsOf($ishtarLine));
         self::assertSame(5, $ishtarLine->getMatchedRuns());
@@ -298,7 +537,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_318_002, 3, '2026-11-03 08:00:00', $participantCharacter),
         );
 
-        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchOpenProjects([$project]);
 
         self::assertSame([7_318_001, 7_318_002], $this->matchedJobIdsOf($ishtarLine));
         self::assertSame(['Aria Solberg', 'Sana Vel'], array_map(
@@ -326,7 +565,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_318_004, 3, '2026-11-03 08:00:00', $removedCharacter),
         );
 
-        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchOpenProjects([$project]);
 
         self::assertSame([$this->mainCharacter->getId(), $this->altCharacter->getId()], $this->jobQueries[0][1]);
     }
@@ -339,7 +578,7 @@ final class IndustryJobMatcherTest extends TestCase
         $project->enrolOwner();
         $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_318_005, 5, '2026-11-02 08:00:00'));
 
-        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchOpenProjects([$project]);
 
         self::assertSame([$this->mainCharacter->getId(), $this->altCharacter->getId()], $this->jobQueries[0][1]);
     }
@@ -354,7 +593,7 @@ final class IndustryJobMatcherTest extends TestCase
             $this->job(7_123_001, 3, '2026-11-02 08:00:00'),
             $this->job(7_123_002, 2, '2026-11-02 09:00:00'),
         );
-        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchOpenProjects([$project]);
         self::assertSame([7_123_001, 7_123_002], $this->matchedJobIdsOf($ishtarLine));
 
         $this->matcher->releaseAutomaticMatches($project);
@@ -372,7 +611,7 @@ final class IndustryJobMatcherTest extends TestCase
         $manualJob = $this->job(7_123_011, 3, '2026-11-02 08:00:00');
         $this->matcher->linkJobToBomLine($manualJob, $ishtarLine);
         $this->givenJobs(self::RAM_BLUEPRINT_TYPE_ID, $this->job(7_123_012, self::RAM_COMPONENT_LINE_RUNS, '2026-11-02 09:00:00'));
-        $this->matcher->matchEsiJobs($project);
+        $this->matcher->matchOpenProjects([$project]);
         self::assertSame([7_123_012], $this->matchedJobIdsOf($ramLine));
 
         $this->matcher->releaseAutomaticMatches($project);
@@ -382,20 +621,24 @@ final class IndustryJobMatcherTest extends TestCase
         self::assertSame([], $this->matchedJobIdsOf($ramLine));
     }
 
-    #[Group('issue-1124')]
-    public function testAJobFittingTheLinesOfTwoCandidateProjectsIsContested(): void
+    #[Group('issue-1246')]
+    public function testAJobFittingTheLinesOfTwoProjectsThatNothingDistinguishesIsNotLinkedAndIsStoredAsUnassigned(): void
     {
-        $lineOfFirst = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
-        $lineOfSecond = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
-        $first = $this->project($lineOfFirst);
-        $second = $this->project($lineOfSecond);
-        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_124_001, 5, '2026-11-02 08:00:00'));
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $job = $this->job(7_124_001, 5, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $job);
 
-        self::assertSame([7_124_001 => true], $this->matcher->contestedJobIds([$first, $second]));
+        $this->matcher->matchOpenProjects([$newer, $older]);
 
-        $this->matcher->matchEsiJobs($first, [7_124_001 => true]);
-        $this->matcher->matchEsiJobs($second, [7_124_001 => true]);
-        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfFirst), $this->matchedJobIdsOf($lineOfSecond)]);
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(
+            [7_124_001 => [$this->candidate($older, $lineOfOlder, 0), $this->candidate($newer, $lineOfNewer, 0)]],
+            $this->persistedCandidatesByJobId(),
+        );
+        self::assertSame($job, $this->persistedUnassignedJobs()[7_124_001]->getJob());
     }
 
     #[Group('issue-1124')]
@@ -409,12 +652,8 @@ final class IndustryJobMatcherTest extends TestCase
         $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_124_011, 5, '2026-11-02 08:00:00'));
         $ordered = $smallLineProjectFirst ? [$small, $fitting] : [$fitting, $small];
 
-        $contested = $this->matcher->contestedJobIds($ordered);
-        foreach ($ordered as $project) {
-            $this->matcher->matchEsiJobs($project, $contested);
-        }
+        $this->matcher->matchOpenProjects($ordered);
 
-        self::assertSame([], $contested);
         self::assertSame([[], [7_124_011]], [$this->matchedJobIdsOf($smallLine), $this->matchedJobIdsOf($fittingLine)]);
     }
 
@@ -428,50 +667,47 @@ final class IndustryJobMatcherTest extends TestCase
     }
 
     #[Group('issue-1124')]
-    public function testEachJobFittingOneProjectOnlyIsLinkedToThatProject(): void
+    public function testAJobFittingOneProjectOnlyIsLinkedThenTheNextJobIsLinkedToTheOnlyProjectLeft(): void
     {
         $lineOfSix = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 6, 'manufacturing');
         $lineOfFour = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 4, 'manufacturing');
-        $sixRuns = $this->project($lineOfSix);
-        $fourRuns = $this->project($lineOfFour);
+        $sixRuns = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfSix);
+        $fourRuns = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfFour);
         $this->givenJobs(
             self::ISHTAR_BLUEPRINT_TYPE_ID,
             $this->job(7_124_021, 6, '2026-11-02 08:00:00'),
             $this->job(7_124_022, 4, '2026-11-02 09:00:00'),
         );
 
-        $contested = $this->matcher->contestedJobIds([$sixRuns, $fourRuns]);
-        $this->matcher->matchEsiJobs($fourRuns, $contested);
-        $this->matcher->matchEsiJobs($sixRuns, $contested);
+        $this->matcher->matchOpenProjects([$fourRuns, $sixRuns]);
 
-        self::assertSame([], $contested);
         self::assertSame([[7_124_021], [7_124_022]], [$this->matchedJobIdsOf($lineOfSix), $this->matchedJobIdsOf($lineOfFour)]);
+        self::assertSame([], $this->persistedUnassignedJobs());
     }
 
-    #[Group('issue-1124')]
-    public function testContestationIsRepeatedOnceAContestedJobIsSetAside(): void
+    #[Group('issue-1246')]
+    public function testTheJobsOfSixAndFourRunsFittingTwoProjectsAreBothStoredAsUnassignedWhenNothingDecides(): void
     {
         $lineOfTen = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
         $lineOfSix = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 6, 'manufacturing');
+        $ofTen = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfTen);
+        $ofSix = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfSix);
         $this->givenJobs(
             self::ISHTAR_BLUEPRINT_TYPE_ID,
             $this->job(7_124_031, 6, '2026-11-02 08:00:00'),
             $this->job(7_124_032, 4, '2026-11-02 09:00:00'),
         );
 
-        $contested = $this->matcher->contestedJobIds([$this->project($lineOfTen), $this->project($lineOfSix)]);
+        $this->matcher->matchOpenProjects([$ofTen, $ofSix]);
 
-        self::assertEqualsCanonicalizing([7_124_031, 7_124_032], array_keys($contested));
-    }
-
-    #[Group('issue-1124')]
-    public function testADraftProjectIsNotACandidateAndDoesNotContestTheJob(): void
-    {
-        $launched = $this->project($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing'));
-        $draft = $this->draftProject($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing'));
-        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_124_041, 5, '2026-11-02 08:00:00'));
-
-        self::assertSame([], $this->matcher->contestedJobIds([$launched, $draft]));
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfTen), $this->matchedJobIdsOf($lineOfSix)]);
+        self::assertSame(
+            [
+                7_124_031 => [$this->candidate($ofSix, $lineOfSix, 1, ['exact_fit']), $this->candidate($ofTen, $lineOfTen, 0)],
+                7_124_032 => [$this->candidate($ofTen, $lineOfTen, 0), $this->candidate($ofSix, $lineOfSix, 0)],
+            ],
+            $this->persistedCandidatesByJobId(),
+        );
     }
 
     #[Group('issue-1124')]
@@ -479,42 +715,38 @@ final class IndustryJobMatcherTest extends TestCase
     {
         $manualLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
         $openLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
-        $withManualLink = $this->project($manualLine);
-        $open = $this->project($openLine);
+        $withManualLink = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $manualLine);
+        $open = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $openLine);
         $this->matcher->linkJobToBomLine($this->job(7_124_051, 1, '2026-11-02 08:00:00'), $manualLine);
         $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_124_052, 5, '2026-11-02 09:00:00'));
 
-        $contested = $this->matcher->contestedJobIds([$withManualLink, $open]);
-        $this->matcher->matchEsiJobs($open, $contested);
+        $this->matcher->matchOpenProjects([$withManualLink, $open]);
 
-        self::assertSame([], $contested);
-        self::assertSame([7_124_052], $this->matchedJobIdsOf($openLine));
+        self::assertSame([[7_124_051], [7_124_052]], [$this->matchedJobIdsOf($manualLine), $this->matchedJobIdsOf($openLine)]);
     }
 
     #[Group('issue-1124')]
-    public function testAContestedJobIsSkippedAndTheOtherJobsOfTheLineAreStillMatched(): void
-    {
-        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
-        $this->givenJobs(
-            self::ISHTAR_BLUEPRINT_TYPE_ID,
-            $this->job(7_124_061, 5, '2026-11-02 08:00:00'),
-            $this->job(7_124_062, 3, '2026-11-02 09:00:00'),
-        );
-
-        $this->matcher->matchEsiJobs($this->project($ishtarLine), [7_124_061 => true]);
-
-        self::assertSame([7_124_062], $this->matchedJobIdsOf($ishtarLine));
-        self::assertSame(3, $ishtarLine->getMatchedRuns());
-    }
-
-    #[Group('issue-1124')]
-    public function testALineWithoutRunsDoesNotContestAJob(): void
+    public function testALineWithoutRunsIsReportedAndTakesNoJobFromTheLineOfAnotherProject(): void
     {
         $withoutRuns = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing')->setRuns(null);
         $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $withoutRunsProject = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $withoutRuns);
+        $ishtarProject = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $ishtarLine);
         $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_124_071, 5, '2026-11-02 08:00:00'));
 
-        self::assertSame([], $this->matcher->contestedJobIds([$this->project($withoutRuns), $this->project($ishtarLine)]));
+        $failures = $this->matcher->matchOpenProjects([$withoutRunsProject, $ishtarProject]);
+
+        self::assertSame([[], [7_124_071]], [$this->matchedJobIdsOf($withoutRuns), $this->matchedJobIdsOf($ishtarLine)]);
+        self::assertSame(
+            [
+                $withoutRunsProject->getId()->toRfc4122() => [['typeId' => self::ISHTAR_TYPE_ID, 'typeName' => 'Ishtar', 'reason' => 'no_runs']],
+                $ishtarProject->getId()->toRfc4122() => [],
+            ],
+            array_map(
+                static fn (array $projectFailures): array => array_map(static fn (LineMatchFailure $failure): array => $failure->toArray(), $projectFailures),
+                $failures,
+            ),
+        );
     }
 
     #[Group('issue-1125')]
@@ -532,28 +764,29 @@ final class IndustryJobMatcherTest extends TestCase
             ->setOutputLocationId(self::OTHER_CONTAINER_ID));
         $ordered = $containerOwnerFirst ? [$owner, $other] : [$other, $owner];
 
-        $this->matchAll($ordered);
+        $this->matcher->matchOpenProjects($ordered);
 
         self::assertSame([[7_125_001], []], [$this->matchedJobIdsOf($lineOfOwner), $this->matchedJobIdsOf($lineOfOther)]);
+        self::assertSame(['place', 'exact_fit'], $lineOfOwner->getJobMatches()->first()->getMatchSignals());
     }
 
-    #[Group('issue-1125')]
-    public function testTheOutputLocationAloneNeverDecidesWhichProjectGetsTheJob(): void
+    #[Group('issue-1246')]
+    public function testTheContainerHoldingTheOutputOfTheJobGivesItsProjectTheJobOverTheOldestProject(): void
     {
-        $lineOfFirst = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
-        $lineOfSecond = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
-        $first = $this->project($lineOfFirst);
-        $second = $this->project($lineOfSecond);
+        $lineOfFirst = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfSecond = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $first = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfFirst);
+        $second = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfSecond);
         $this->givenContainer($first, self::OWNER_CONTAINER_ID);
         $this->givenContainer($second, self::OTHER_CONTAINER_ID);
         $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_011, 5, '2026-11-02 08:00:00')
             ->setBlueprintLocationId(self::HANGAR_LOCATION_ID)
             ->setOutputLocationId(self::OTHER_CONTAINER_ID));
 
-        $contested = $this->matchAll([$first, $second]);
+        $this->matcher->matchOpenProjects([$first, $second]);
 
-        self::assertSame([7_125_011 => true], $contested);
-        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfFirst), $this->matchedJobIdsOf($lineOfSecond)]);
+        self::assertSame([[], [7_125_011]], [$this->matchedJobIdsOf($lineOfFirst), $this->matchedJobIdsOf($lineOfSecond)]);
+        self::assertSame(['place'], $lineOfSecond->getJobMatches()->first()->getMatchSignals());
     }
 
     #[Group('issue-1125')]
@@ -569,7 +802,7 @@ final class IndustryJobMatcherTest extends TestCase
         $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_021, 5, '2026-11-02 08:00:00')
             ->setBlueprintLocationId($inputLocationId));
 
-        $this->matchAll([$small, $fitting]);
+        $this->matcher->matchOpenProjects([$small, $fitting]);
 
         self::assertSame([[], [7_125_021]], [$this->matchedJobIdsOf($smallLine), $this->matchedJobIdsOf($fittingLine)]);
     }
@@ -583,57 +816,41 @@ final class IndustryJobMatcherTest extends TestCase
         yield 'unresolved input' => [null];
     }
 
-    #[Group('issue-1125')]
-    public function testAJobTakingItsInputFromASharedContainerIsContestedBetweenTheProjectsUsingIt(): void
+    #[Group('issue-1246')]
+    public function testAJobTakingItsInputFromASharedContainerIsStoredAsUnassignedBecauseThePlacePointIsTied(): void
     {
-        $lineOfFirst = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
-        $lineOfSecond = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
-        $first = $this->project($lineOfFirst);
-        $second = $this->project($lineOfSecond);
-        $this->givenContainer($first, self::OWNER_CONTAINER_ID);
-        $this->givenContainer($second, self::OWNER_CONTAINER_ID);
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->givenContainer($older, self::OWNER_CONTAINER_ID);
+        $this->givenContainer($newer, self::OWNER_CONTAINER_ID);
         $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_031, 5, '2026-11-02 08:00:00')
             ->setBlueprintLocationId(self::OWNER_CONTAINER_ID));
 
-        $contested = $this->matchAll([$first, $second]);
+        $this->matcher->matchOpenProjects([$newer, $older]);
 
-        self::assertSame([7_125_031 => true], $contested);
-        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfFirst), $this->matchedJobIdsOf($lineOfSecond)]);
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(
+            [7_125_031 => [$this->candidate($older, $lineOfOlder, 4, ['place']), $this->candidate($newer, $lineOfNewer, 4, ['place'])]],
+            $this->persistedCandidatesByJobId(),
+        );
     }
 
     #[Group('issue-1125')]
-    public function testTheContainerOfADraftProjectOrOfAProjectWithAnUnknownScopeClaimsNoJob(): void
+    public function testTheContainerOfAProjectWithAnUnknownScopeExcludesNoJobFromTheOtherProjects(): void
     {
         $lineOfActive = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
         $active = $this->project($lineOfActive);
-        $draft = $this->draftProject($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing'));
         $unknown = $this->project($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 2, 'manufacturing'));
-        $this->givenContainer($draft, self::OTHER_CONTAINER_ID);
         $this->scopesByProjectId[$unknown->getId()->toRfc4122()] = new ProjectContainerScope('corporation_assets_not_synced', [self::OTHER_CONTAINER_ID]);
         $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_041, 5, '2026-11-02 08:00:00')
             ->setBlueprintLocationId(self::OTHER_CONTAINER_ID));
 
-        self::assertSame([], $this->matcher->containerOwnersByLocationId([$active, $draft, $unknown]));
-        $this->matchAll([$active, $draft, $unknown]);
+        $this->matcher->matchOpenProjects([$active, $unknown]);
 
         self::assertSame([7_125_041], $this->matchedJobIdsOf($lineOfActive));
-    }
-
-    #[Group('issue-1125')]
-    public function testContainerOwnersListTheProjectsOwningEachLocation(): void
-    {
-        $first = $this->project($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing'));
-        $second = $this->project($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing'));
-        $this->givenContainer($first, self::OWNER_CONTAINER_ID, self::OTHER_CONTAINER_ID);
-        $this->givenContainer($second, self::OTHER_CONTAINER_ID);
-
-        self::assertSame(
-            [
-                self::OWNER_CONTAINER_ID => [$first->getId()->toRfc4122()],
-                self::OTHER_CONTAINER_ID => [$first->getId()->toRfc4122(), $second->getId()->toRfc4122()],
-            ],
-            $this->matcher->containerOwnersByLocationId([$first, $second]),
-        );
+        self::assertSame(['exact_fit'], $lineOfActive->getJobMatches()->first()->getMatchSignals());
     }
 
     #[Group('issue-1125')]
@@ -645,28 +862,836 @@ final class IndustryJobMatcherTest extends TestCase
         $other = $this->project($lineOfOther);
         $this->givenContainer($owner, self::OWNER_CONTAINER_ID);
         $this->givenContainer($other, self::OTHER_CONTAINER_ID);
-        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_125_051, 5, '2026-11-02 08:00:00')
-            ->setBlueprintLocationId(self::OWNER_CONTAINER_ID));
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_125_051, 5, '2026-11-02 08:00:00')->setBlueprintLocationId(self::OWNER_CONTAINER_ID),
+            $this->job(7_125_052, 3, '2026-11-02 09:00:00'),
+        );
 
-        $this->matchAll([$owner, $other]);
+        $this->matcher->matchOpenProjects([$owner, $other]);
 
-        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOwner), $this->matchedJobIdsOf($lineOfOther)]);
+        self::assertSame([[], [7_125_052]], [$this->matchedJobIdsOf($lineOfOwner), $this->matchedJobIdsOf($lineOfOther)]);
     }
 
-    /**
-     * @param list<IndustryProject> $projects
-     *
-     * @return array<int, true>
-     */
-    private function matchAll(array $projects): array
+    #[Group('issue-1245')]
+    public function testAJobLinkedToAnOpenProjectStaysOnItsLineWhenTwoOpenProjectsShareTheBlueprintAndTheSyncRunsAgain(): void
     {
-        $containerOwners = $this->matcher->containerOwnersByLocationId($projects);
-        $contested = $this->matcher->contestedJobIds($projects, $containerOwners);
-        foreach ($projects as $project) {
-            $this->matcher->matchEsiJobs($project, $contested, $containerOwners);
-        }
+        $lineOfFirst = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfSecond = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $first = $this->project($lineOfFirst);
+        $second = $this->project($lineOfSecond);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_245_001, 5, '2026-11-02 08:00:00'));
+        $this->matcher->matchOpenProjects([$first]);
 
-        return $contested;
+        $failures = $this->matcher->matchOpenProjects([$second, $first]);
+
+        self::assertSame([$second->getId()->toRfc4122() => [], $first->getId()->toRfc4122() => []], $failures);
+        self::assertSame([7_245_001], $this->matchedJobIdsOf($lineOfFirst));
+        self::assertSame([], $this->matchedJobIdsOf($lineOfSecond));
+    }
+
+    #[Group('issue-1245')]
+    public function testRemainingRunsOfALineCountTheKeptMatchesSoAJobTooLargeForTheRemainderIsNotAddedButASmallerOneIs(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $keptJob = $this->job(7_245_011, 4, '2026-11-03 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $keptJob);
+        $this->matcher->matchOpenProjects([$project]);
+        $largeJob = $this->job(7_245_012, 7, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $largeJob, $keptJob);
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_245_011], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame(4, $ishtarLine->getMatchedRuns());
+
+        $smallJob = $this->job(7_245_013, 6, '2026-11-04 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $largeJob, $keptJob, $smallJob);
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_245_011, 7_245_013], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame(10, $ishtarLine->getMatchedRuns());
+    }
+
+    #[Group('issue-1245')]
+    public function testMatchingRemovesTheCancelledAndRevertedMatchesAndKeepsTheOthers(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 20, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $cancelledJob = $this->job(7_245_021, 3, '2026-11-02 08:00:00');
+        $revertedJob = $this->job(7_245_022, 4, '2026-11-02 09:00:00');
+        $deliveredJob = $this->job(7_245_024, 2, '2026-11-02 11:00:00');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $cancelledJob,
+            $revertedJob,
+            $this->job(7_245_023, 5, '2026-11-02 10:00:00'),
+            $deliveredJob,
+        );
+        $this->matcher->matchOpenProjects([$project]);
+        $this->givenMatchStatus($ishtarLine, 7_245_021, 'cancelled');
+        $this->givenMatchStatus($ishtarLine, 7_245_022, 'reverted');
+        $this->givenMatchStatus($ishtarLine, 7_245_024, 'delivered');
+        $cancelledJob->setStatus('cancelled');
+        $revertedJob->setStatus('reverted');
+        $deliveredJob->setStatus('delivered');
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_245_023, 7_245_024], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame(7, $ishtarLine->getMatchedRuns());
+    }
+
+    #[Group('issue-1245')]
+    public function testMatchingJobsReleasesTheMatchesWithoutOutputItselfBeforeCountingTheRemainingRuns(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $keptJob = $this->job(7_245_031, 3, '2026-11-02 08:00:00');
+        $endedJob = $this->job(7_245_032, 2, '2026-11-03 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $keptJob, $endedJob);
+        $this->matcher->matchOpenProjects([$project]);
+        self::assertSame([7_245_031, 7_245_032], $this->matchedJobIdsOf($ishtarLine));
+        $endedJob->setStatus('cancelled');
+        $this->givenMatchStatus($ishtarLine, 7_245_032, 'cancelled');
+        $newJob = $this->job(7_245_033, 2, '2026-11-01 12:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $newJob, $keptJob, $endedJob);
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_245_031, 7_245_033], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame(5, $ishtarLine->getMatchedRuns());
+    }
+
+    #[Group('issue-1245')]
+    public function testAKeptMatchStaysWhenTheRunsOfItsLineAreLoweredBelowTheJobAndNoNewJobIsAddedNorAFailureReported(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $keptJob = $this->job(7_245_041, 5, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $keptJob);
+        $this->matcher->matchOpenProjects([$project]);
+        $ishtarLine->setRuns(3);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $keptJob, $this->job(7_245_042, 2, '2026-11-03 08:00:00'));
+
+        $failures = $this->matcher->matchOpenProjects([$project])[$project->getId()->toRfc4122()];
+
+        self::assertSame([], $failures);
+        self::assertSame([7_245_041], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame(5, $ishtarLine->getMatchedRuns());
+    }
+
+    #[Group('issue-1245')]
+    public function testAKeptJobIsNeverMatchedAgainToAnotherLineOfTheSameProject(): void
+    {
+        $lowered = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $other = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $project = $this->project($lowered, $other);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_245_051, 5, '2026-11-02 08:00:00'));
+        $this->matcher->matchOpenProjects([$project]);
+        $lowered->setRuns(3);
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_245_051], $this->matchedJobIdsOf($lowered));
+        self::assertSame([], $this->matchedJobIdsOf($other));
+    }
+
+    #[Group('issue-1245')]
+    public function testMatchingLeavesALineHoldingAManualMatchIntactWhileItReleasesTheOtherLinesWithoutOutput(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $ramLine = $this->jobLine(self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', self::RAM_COMPONENT_LINE_RUNS, 'manufacturing');
+        $project = $this->project($ishtarLine, $ramLine);
+        $this->matcher->linkJobToBomLine($this->job(7_245_061, 3, '2026-11-02 08:00:00', status: 'cancelled'), $ishtarLine);
+        $ramJob = $this->job(7_245_062, self::RAM_COMPONENT_LINE_RUNS, '2026-11-02 09:00:00');
+        $this->givenJobs(self::RAM_BLUEPRINT_TYPE_ID, $ramJob);
+        $this->matcher->matchOpenProjects([$project]);
+        self::assertSame([7_245_062], $this->matchedJobIdsOf($ramLine));
+        $this->givenMatchStatus($ramLine, 7_245_062, 'cancelled');
+        $ramJob->setStatus('cancelled');
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_245_061], $this->matchedJobIdsOf($ishtarLine));
+        self::assertTrue($ishtarLine->getJobMatches()->first()->isManual());
+        self::assertSame([], $this->matchedJobIdsOf($ramLine));
+    }
+
+    #[Group('issue-1246')]
+    public function testAProjectWhoseMatchesWithoutOutputCannotBeReleasedIsLeftOutOfThePassAndLogged(): void
+    {
+        $lineOfBroken = $this->jobLine(self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', self::RAM_COMPONENT_LINE_RUNS, 'manufacturing');
+        $lineOfHealthy = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $broken = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfBroken);
+        $healthy = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfHealthy);
+        $staleJob = $this->job(7_246_091, 2, '2026-11-02 08:00:00');
+        $this->givenJobs(self::RAM_BLUEPRINT_TYPE_ID, $staleJob);
+        $this->matcher->matchOpenProjects([$broken]);
+        self::assertSame([7_246_091], $this->matchedJobIdsOf($lineOfBroken));
+        $staleJob->setStatus('cancelled');
+        $this->givenMatchStatus($lineOfBroken, 7_246_091, 'cancelled');
+        $this->unremovableMatch = $lineOfBroken->getJobMatches()->first();
+        $this->givenJobs(self::RAM_BLUEPRINT_TYPE_ID, $staleJob, $this->job(7_246_092, 2, '2026-11-02 09:00:00'));
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_093, self::ISHTAR_FINAL_LINE_RUNS, '2026-11-02 10:00:00'));
+
+        $failures = $this->matcher->matchOpenProjects([$broken, $healthy]);
+
+        self::assertSame([7_246_093], $this->matchedJobIdsOf($lineOfHealthy));
+        self::assertNotContains(7_246_092, $this->matchedJobIdsOf($lineOfBroken));
+        self::assertSame([$broken->getId()->toRfc4122(), $healthy->getId()->toRfc4122()], array_keys($failures));
+        $warnings = array_values(array_filter($this->logger->cleanLogs(), static fn (array $record): bool => 'warning' === $record[0]));
+        self::assertCount(1, $warnings);
+        self::assertSame($broken->getId()->toRfc4122(), $warnings[0][2]['projectId']);
+    }
+
+    #[Group('issue-1245')]
+    public function testAJobTooLargeForTheRemainingRunsOfAProjectHoldingAKeptMatchIsNotContestedWithAnotherProject(): void
+    {
+        $lineOfFirst = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfSecond = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $first = $this->project($lineOfFirst);
+        $second = $this->project($lineOfSecond);
+        $keptJob = $this->job(7_245_071, 4, '2026-11-03 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $keptJob);
+        $this->matcher->matchOpenProjects([$first]);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_245_072, 7, '2026-11-02 08:00:00'), $keptJob);
+
+        $failures = $this->matcher->matchOpenProjects([$first, $second]);
+
+        self::assertSame([$first->getId()->toRfc4122() => [], $second->getId()->toRfc4122() => []], $failures);
+        self::assertSame([7_245_071], $this->matchedJobIdsOf($lineOfFirst));
+        self::assertSame([7_245_072], $this->matchedJobIdsOf($lineOfSecond));
+    }
+
+    #[Group('issue-1246')]
+    public function testTwoProjectsOnTheSameBlueprintAreSeparatedOnlyByThePlannedStructureOfALine(): void
+    {
+        $structureConfig = $this->structureConfigAt(self::SOTIYO_STATION_ID);
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing')
+            ->setPlannedStructureId($structureConfig->getId()->toRfc4122());
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_001, 5, '2026-11-02 08:00:00', stationId: self::SOTIYO_STATION_ID));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], [7_246_001]], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(['structure'], $lineOfNewer->getJobMatches()->first()->getMatchSignals());
+    }
+
+    #[Group('issue-1246')]
+    public function testAPlannedStructureWithoutKnownLocationGivesNoStructurePointSoTheJobIsStoredAsUnassigned(): void
+    {
+        $structureConfig = $this->structureConfigAt(null);
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing')
+            ->setPlannedStructureId($structureConfig->getId()->toRfc4122());
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_011, 5, '2026-11-02 08:00:00', stationId: self::SOTIYO_STATION_ID));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(
+            [7_246_011 => [$this->candidate($older, $lineOfOlder, 0), $this->candidate($newer, $lineOfNewer, 0)]],
+            $this->persistedCandidatesByJobId(),
+        );
+    }
+
+    #[Group('issue-1246')]
+    public function testAPlannedStructureThatNoConfigurationMatchesGivesNoStructurePointSoTheJobIsStoredAsUnassigned(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing')
+            ->setPlannedStructureId('01970000-0000-7000-8000-0000000000a1');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_012, 5, '2026-11-02 08:00:00', stationId: self::SOTIYO_STATION_ID));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(
+            [7_246_012 => [$this->candidate($older, $lineOfOlder, 0), $this->candidate($newer, $lineOfNewer, 0)]],
+            $this->persistedCandidatesByJobId(),
+        );
+    }
+
+    #[Group('issue-1246')]
+    public function testAPlannedStructureThatIsNotAUuidGivesNoStructurePointAndIsNeverLookedUp(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing')
+            ->setPlannedStructureId('Sotiyo Alpha');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_013, 5, '2026-11-02 08:00:00', stationId: self::SOTIYO_STATION_ID));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(
+            [7_246_013 => [$this->candidate($older, $lineOfOlder, 0), $this->candidate($newer, $lineOfNewer, 0)]],
+            $this->persistedCandidatesByJobId(),
+        );
+    }
+
+    #[Group('issue-1246')]
+    public function testAJobOfAParticipantOfOneProjectIsNotOfferedToAnotherProjectWithoutThatParticipant(): void
+    {
+        $participantCharacter = $this->character('Sana Vel');
+        $lineOfOwnerOnly = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineWithParticipant = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $ownerOnly = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOwnerOnly);
+        $withParticipant = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineWithParticipant);
+        $this->givenParticipant($withParticipant, ParticipantStatus::Accepted, $participantCharacter);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_071, 5, '2026-11-02 08:00:00', $participantCharacter));
+
+        $this->matcher->matchOpenProjects([$ownerOnly, $withParticipant]);
+
+        self::assertSame([[], [7_246_071]], [$this->matchedJobIdsOf($lineOfOwnerOnly), $this->matchedJobIdsOf($lineWithParticipant)]);
+    }
+
+    #[Group('issue-1246')]
+    public function testAJobStartedBetweenTheCreationsOfTwoProjectsIsLinkedOnlyToTheOlderOne(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_072, 5, '2026-11-01 10:00:00'));
+
+        $this->matcher->matchOpenProjects([$newer, $older]);
+
+        self::assertSame([[7_246_072], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+    }
+
+    #[Group('issue-1246')]
+    public function testAReservationOfAParticipantWithoutUserGivesNoIntentPoint(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $anonymousParticipant = $this->givenParticipantUser($newer, new User());
+        $anonymousParticipant->anonymize();
+        $this->reservationsByProjectId[$newer->getId()->toRfc4122()] = [new IndustryProjectLineReservation($lineOfNewer, $anonymousParticipant, 3)];
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_073, 5, '2026-11-02 08:00:00'));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(
+            [7_246_073 => [$this->candidate($older, $lineOfOlder, 0), $this->candidate($newer, $lineOfNewer, 0)]],
+            $this->persistedCandidatesByJobId(),
+        );
+    }
+
+    #[Group('issue-1246')]
+    public function testTwoProjectsOnTheSameBlueprintAreSeparatedOnlyByTheProducerCharactersOfAProject(): void
+    {
+        $this->mainCharacter->setEveCharacterId(self::ARIA_EVE_CHARACTER_ID);
+        $this->altCharacter->setEveCharacterId(self::ARIA_ALT_EVE_CHARACTER_ID);
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer)
+            ->setProducerCharacterIds([self::ARIA_ALT_EVE_CHARACTER_ID]);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_021, 5, '2026-11-02 08:00:00', $this->altCharacter));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], [7_246_021]], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(['intent'], $lineOfNewer->getJobMatches()->first()->getMatchSignals());
+    }
+
+    #[Group('issue-1246')]
+    public function testAProducerListThatDoesNotHoldTheInstallerGivesNoIntentPointAndKeepsTheProjectEligible(): void
+    {
+        $this->mainCharacter->setEveCharacterId(self::ARIA_EVE_CHARACTER_ID);
+        $this->altCharacter->setEveCharacterId(self::ARIA_ALT_EVE_CHARACTER_ID);
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $project = $this->project($ishtarLine)->setProducerCharacterIds([self::ARIA_ALT_EVE_CHARACTER_ID]);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_031, 5, '2026-11-02 08:00:00'));
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_246_031], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame([], $ishtarLine->getJobMatches()->first()->getMatchSignals());
+    }
+
+    #[Group('issue-1246')]
+    public function testTwoProjectsOnTheSameBlueprintAreSeparatedOnlyByALineReservedByTheUserOfTheInstaller(): void
+    {
+        $participantCharacter = $this->character('Sana Vel');
+        $participantUser = (new User())->addCharacter($participantCharacter);
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $participantOfOlder = $this->givenParticipantUser($older, $participantUser);
+        $participantOfNewer = $this->givenParticipantUser($newer, $participantUser);
+        $this->reservationsByProjectId[$newer->getId()->toRfc4122()] = [new IndustryProjectLineReservation($lineOfNewer, $participantOfNewer, 3)];
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_041, 5, '2026-11-02 08:00:00', $participantCharacter));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], [7_246_041]], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(['intent'], $lineOfNewer->getJobMatches()->first()->getMatchSignals());
+        self::assertNotSame($participantOfOlder, $participantOfNewer);
+    }
+
+    #[Group('issue-1249')]
+    public function testTwoProjectsOnTheSameBlueprintAreSeparatedOnlyByTheActiveProjectOfTheCharacterThatInstalledTheJob(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->altCharacter->setActiveProject($newer);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_249_011, 5, '2026-11-02 08:00:00', $this->altCharacter));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], [7_249_011]], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(['intent'], $lineOfNewer->getJobMatches()->first()->getMatchSignals());
+    }
+
+    #[Group('issue-1249')]
+    public function testTheActiveProjectOfACharacterOfAnAcceptedParticipantGivesTheIntentPointToThatProject(): void
+    {
+        $participantCharacter = $this->character('Sana Vel');
+        $participantUser = (new User())->addCharacter($participantCharacter);
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->givenParticipantUser($older, $participantUser);
+        $this->givenParticipantUser($newer, $participantUser);
+        $participantCharacter->setActiveProject($newer);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_249_021, 5, '2026-11-02 08:00:00', $participantCharacter));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], [7_249_021]], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(['intent'], $lineOfNewer->getJobMatches()->first()->getMatchSignals());
+    }
+
+    #[Group('issue-1249')]
+    public function testAnActiveProjectOutsideThePassGivesNoIntentPointAndTheJobStaysUnassigned(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $completed = (new IndustryProject())->setOwner($this->owner)->setStatus(ProjectStatus::Completed);
+        $this->altCharacter->setActiveProject($completed);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_249_031, 5, '2026-11-02 08:00:00', $this->altCharacter));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(
+            [7_249_031 => [$this->candidate($older, $lineOfOlder, 0), $this->candidate($newer, $lineOfNewer, 0)]],
+            $this->persistedCandidatesByJobId(),
+        );
+    }
+
+    #[Group('issue-1246')]
+    public function testALineReservedByAnotherUserThanTheInstallerGivesNoIntentPoint(): void
+    {
+        $otherCharacter = $this->character('Kel Dorn');
+        $otherUser = (new User())->addCharacter($otherCharacter);
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $participantOfNewer = $this->givenParticipantUser($newer, $otherUser);
+        $this->reservationsByProjectId[$newer->getId()->toRfc4122()] = [new IndustryProjectLineReservation($lineOfNewer, $participantOfNewer, 3)];
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_246_051, 5, '2026-11-02 08:00:00'));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(
+            [7_246_051 => [$this->candidate($older, $lineOfOlder, 0), $this->candidate($newer, $lineOfNewer, 0)]],
+            $this->persistedCandidatesByJobId(),
+        );
+    }
+
+    #[Group('issue-1246')]
+    public function testAManualMatchHasNoSignalsWhileAnAutomaticMatchWithoutSignalHasAnEmptyList(): void
+    {
+        $manualLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing');
+        $automaticLine = $this->jobLine(self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', 9, 'manufacturing');
+        $project = $this->project($manualLine, $automaticLine);
+        $manualMatch = $this->matcher->linkJobToBomLine($this->job(7_246_061, 3, '2026-11-02 08:00:00'), $manualLine);
+        $this->givenJobs(self::RAM_BLUEPRINT_TYPE_ID, $this->job(7_246_062, 4, '2026-11-02 09:00:00'));
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_246_062], $this->matchedJobIdsOf($automaticLine));
+        self::assertNull($manualMatch->getMatchSignals());
+        self::assertTrue($manualMatch->isManual());
+        self::assertSame([], $automaticLine->getJobMatches()->first()->getMatchSignals());
+    }
+
+    #[Group('issue-1246')]
+    public function testTheOrderOfTheProjectsPassedToTheMatcherDoesNotChangeTheLinksNorTheUnassignedJobs(): void
+    {
+        $inGivenOrder = $this->outcomeOfTwoProjectsContestingTwoJobs(false);
+        $inReverseOrder = $this->outcomeOfTwoProjectsContestingTwoJobs(true);
+
+        self::assertSame([
+            'links' => [[], []],
+            'candidates' => [
+                7_246_071 => [['six', 1, ['exact_fit']], ['ten', 0, []]],
+                7_246_072 => [['ten', 0, []], ['six', 0, []]],
+            ],
+        ], $inGivenOrder);
+        self::assertSame($inGivenOrder, $inReverseOrder);
+    }
+
+    #[Group('issue-1247')]
+    public function testAJobTooLargeForTheRemainingRunsIsStoredAsAnOversizedCandidateAndNeverMatched(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_247_001, 3, '2026-11-02 08:00:00'),
+            $this->job(7_247_002, 8, '2026-11-02 09:00:00'),
+        );
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_247_001], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame(
+            [7_247_002 => [$this->candidate($project, $ishtarLine, 0, [], true)]],
+            $this->persistedCandidatesByJobId(),
+        );
+    }
+
+    #[Group('issue-1247')]
+    public function testALinkedJobIsNotStoredAsUnassigned(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_247_011, 5, '2026-11-02 08:00:00'));
+
+        $this->matcher->matchOpenProjects([$this->project($ishtarLine)]);
+
+        self::assertSame([7_247_011], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame([], $this->persistedUnassignedJobs());
+    }
+
+    #[Group('issue-1247')]
+    public function testAnUnassignedJobAlreadyStoredKeepsItsDetectionDateAndReceivesTheNewCandidates(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $job = $this->job(7_247_021, 5, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $job);
+        $stored = $this->givenStoredUnassignedJob($job, '2026-11-10 08:00:00', [$this->candidate($older, $lineOfOlder, 0)]);
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame('2026-11-10T08:00:00+00:00', $stored->getDetectedAt()->format('c'));
+        self::assertSame(
+            [$this->candidate($older, $lineOfOlder, 0), $this->candidate($newer, $lineOfNewer, 0)],
+            $stored->getCandidates(),
+        );
+        self::assertSame([], array_filter($this->persistedUnassignedJobs(), static fn (UnassignedJob $persisted): bool => $persisted !== $stored));
+        self::assertSame([], $this->removedUnassignedJobs());
+    }
+
+    #[Group('issue-1247')]
+    public function testTheStoredRowOfAJobNowLinkedIsRemoved(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $job = $this->job(7_247_031, 5, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $job);
+        $stored = $this->givenStoredUnassignedJob($job);
+
+        $this->matcher->matchOpenProjects([$this->project($ishtarLine)]);
+
+        self::assertSame([7_247_031], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame([$stored], $this->removedUnassignedJobs());
+    }
+
+    #[Group('issue-1247')]
+    public function testTheStoredRowOfAJobWithoutOutputIsRemoved(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $cancelledJob = $this->job(7_247_041, 5, '2026-11-02 08:00:00', status: 'cancelled');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $cancelledJob);
+        $stored = $this->givenStoredUnassignedJob($cancelledJob);
+
+        $this->matcher->matchOpenProjects([$this->project($ishtarLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame([$stored], $this->removedUnassignedJobs());
+        self::assertSame([], $this->persistedUnassignedJobs());
+    }
+
+    #[Group('issue-1247')]
+    public function testTheStoredRowOfACancelledJobIsRemovedEvenWhenNoLineIsLeftToMatch(): void
+    {
+        $fullLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $keptJob = $this->job(7_247_071, self::ISHTAR_FINAL_LINE_RUNS, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $keptJob);
+        $project = $this->project($fullLine);
+        $this->matcher->matchOpenProjects([$project]);
+        $cancelledJob = $this->job(7_247_072, 5, '2026-11-02 08:00:00', status: 'cancelled');
+        $stored = $this->givenStoredUnassignedJob($cancelledJob);
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([$stored], $this->removedUnassignedJobs());
+    }
+
+    #[Group('issue-1247')]
+    public function testTheStoredRowOfAJobLinkedToAnotherProjectIsRemoved(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $job = $this->job(7_247_051, 5, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $job);
+        $this->jobsMatchedToProjects[] = [new IndustryProject(), 7_247_051];
+        $stored = $this->givenStoredUnassignedJob($job);
+
+        $this->matcher->matchOpenProjects([$this->project($ishtarLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame([$stored], $this->removedUnassignedJobs());
+        self::assertSame([], $this->persistedUnassignedJobs());
+    }
+
+    #[Group('issue-1247')]
+    public function testTheStoredRowOfAJobKeptOnALineOfTheProjectIsRemovedOnTheNextPass(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $job = $this->job(7_247_061, 5, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $job);
+        $this->matcher->matchOpenProjects([$project]);
+        $stored = $this->givenStoredUnassignedJob($job);
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([7_247_061], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame([$stored], $this->removedUnassignedJobs());
+    }
+
+    #[Group('issue-1247')]
+    public function testLinkingAJobByHandRemovesItsStoredRow(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $job = $this->job(7_247_071, 3, '2026-11-02 08:00:00');
+        $stored = $this->givenStoredUnassignedJob($job);
+
+        $match = $this->matcher->linkJobToBomLine($job, $ishtarLine);
+
+        self::assertTrue($match->isManual());
+        self::assertSame([$stored], $this->removedUnassignedJobs());
+    }
+
+    #[Group('issue-1247')]
+    public function testLinkingAJobByHandWithoutStoredRowRemovesNothing(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+
+        $this->matcher->linkJobToBomLine($this->job(7_247_072, 3, '2026-11-02 08:00:00'), $ishtarLine);
+
+        self::assertSame([], $this->removedUnassignedJobs());
+    }
+
+    #[Group('issue-1248')]
+    public function testADismissedJobIsNotLinkedAndTheOtherJobsOfThePassAre(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $dismissedJob = $this->job(7_248_011, 5, '2026-11-02 08:00:00');
+        $freeJob = $this->job(7_248_012, 5, '2026-11-02 09:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $dismissedJob, $freeJob);
+        $stored = $this->givenDismissedUnassignedJob($dismissedJob);
+
+        $this->matcher->matchOpenProjects([$this->project($ishtarLine)]);
+
+        self::assertSame([7_248_012], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame(5, $ishtarLine->getRuns() - $ishtarLine->getMatchedRuns());
+        self::assertSame([], array_keys($this->persistedUnassignedJobs()));
+        self::assertSame([], $this->removedUnassignedJobs());
+        self::assertSame([[], '2026-11-11T09:00:00+00:00'], [$stored->getCandidates(), $stored->getDismissedAt()?->format('c')]);
+    }
+
+    #[Group('issue-1248')]
+    public function testADismissedJobThatTwoProjectsContestKeepsItsRowUntouchedAndIsNotProposedAgain(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $job = $this->job(7_248_021, 5, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $job);
+        $stored = $this->givenDismissedUnassignedJob($job, [$this->candidate($older, $lineOfOlder, 0)]);
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame([], array_keys($this->persistedUnassignedJobs()));
+        self::assertSame([], $this->removedUnassignedJobs());
+        self::assertSame([$this->candidate($older, $lineOfOlder, 0)], $stored->getCandidates());
+        self::assertSame('2026-11-11T09:00:00+00:00', $stored->getDismissedAt()?->format('c'));
+    }
+
+    #[Group('issue-1248')]
+    public function testTheRowOfADismissedJobThatEndedWithoutOutputIsStillRemoved(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $cancelledJob = $this->job(7_248_031, 5, '2026-11-02 08:00:00', status: 'cancelled');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $cancelledJob);
+        $stored = $this->givenDismissedUnassignedJob($cancelledJob);
+
+        $this->matcher->matchOpenProjects([$this->project($ishtarLine)]);
+
+        self::assertSame([$stored], $this->removedUnassignedJobs());
+        self::assertSame([], $this->matchedJobIdsOf($ishtarLine));
+    }
+
+    #[Group('issue-1248')]
+    public function testLinkingADismissedJobByHandLinksItAndRemovesItsRow(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $job = $this->job(7_248_041, 3, '2026-11-02 08:00:00');
+        $stored = $this->givenDismissedUnassignedJob($job);
+
+        $match = $this->matcher->linkJobToBomLine($job, $ishtarLine);
+
+        self::assertTrue($match->isManual());
+        self::assertSame([7_248_041], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame([$stored], $this->removedUnassignedJobs());
+    }
+
+    #[Group('issue-1246')]
+    public function testMatchOpenProjectsReturnsAnEntryPerProjectEvenWithoutAnyJobLine(): void
+    {
+        $tritaniumLine = (new IndustryProjectBomLine())->setTypeId(self::TRITANIUM_TYPE_ID)->setTypeName('Tritanium')->setRequiredQuantity(12_000)->setIsJob(false);
+        $materialsOnly = $this->project($tritaniumLine);
+        $withoutRuns = $this->project($this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 5, 'manufacturing')->setRuns(null));
+
+        $failures = $this->matcher->matchOpenProjects([$materialsOnly, $withoutRuns]);
+
+        self::assertSame([$materialsOnly->getId()->toRfc4122(), $withoutRuns->getId()->toRfc4122()], array_keys($failures));
+        self::assertSame([], $failures[$materialsOnly->getId()->toRfc4122()]);
+        self::assertCount(1, $failures[$withoutRuns->getId()->toRfc4122()]);
+        self::assertSame([], $this->matcher->matchOpenProjects([]));
+    }
+
+    private function givenParticipantUser(IndustryProject $project, User $user): IndustryProjectParticipant
+    {
+        $participant = (new IndustryProjectParticipant())
+            ->setUser($user)
+            ->setRole(ParticipantRole::Member)
+            ->setStatus(ParticipantStatus::Accepted);
+        $project->addMember($participant);
+
+        return $participant;
+    }
+
+    private function outcomeOfTwoProjectsContestingTwoJobs(bool $reversed): array
+    {
+        $this->projectsInPlay = [];
+        $this->persisted = [];
+        $lineOfTen = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfSix = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 6, 'manufacturing');
+        $ofTen = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfTen);
+        $ofSix = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfSix);
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_246_071, 6, '2026-11-02 08:00:00'),
+            $this->job(7_246_072, 4, '2026-11-02 09:00:00'),
+        );
+
+        $this->matcher->matchOpenProjects($reversed ? [$ofSix, $ofTen] : [$ofTen, $ofSix]);
+
+        $labels = [$lineOfTen->getId()->toRfc4122() => 'ten', $lineOfSix->getId()->toRfc4122() => 'six'];
+
+        return [
+            'links' => [$this->matchedJobIdsOf($lineOfTen), $this->matchedJobIdsOf($lineOfSix)],
+            'candidates' => array_map(
+                static fn (array $candidates): array => array_map(
+                    static fn (array $candidate): array => [$labels[$candidate['lineId']], $candidate['score'], $candidate['signals']],
+                    $candidates,
+                ),
+                $this->persistedCandidatesByJobId(),
+            ),
+        ];
+    }
+
+    private function candidate(IndustryProject $project, IndustryProjectBomLine $line, int $score, array $signals = [], bool $oversized = false): array
+    {
+        return [
+            'projectId' => $project->getId()->toRfc4122(),
+            'lineId' => $line->getId()->toRfc4122(),
+            'score' => $score,
+            'signals' => $signals,
+            'oversized' => $oversized,
+        ];
+    }
+
+    private function persistedUnassignedJobs(): array
+    {
+        $byEsiJobId = [];
+        foreach ($this->persisted as $entity) {
+            if ($entity instanceof UnassignedJob) {
+                $byEsiJobId[$entity->getJob()->getJobId()] = $entity;
+            }
+        }
+        ksort($byEsiJobId);
+
+        return $byEsiJobId;
+    }
+
+    private function persistedCandidatesByJobId(): array
+    {
+        return array_map(
+            static fn (UnassignedJob $unassignedJob): array => $unassignedJob->getCandidates(),
+            $this->persistedUnassignedJobs(),
+        );
+    }
+
+    private function givenStoredUnassignedJob(CachedIndustryJob $job, string $detectedAt = '2026-11-10 08:00:00', array $candidates = []): UnassignedJob
+    {
+        $stored = (new UnassignedJob())->setJob($job)->setCandidates($candidates);
+        (new \ReflectionProperty(UnassignedJob::class, 'detectedAt'))->setValue($stored, new \DateTimeImmutable($detectedAt.' +00:00'));
+        $this->storedUnassignedJobs[$job->getJobId()] = $stored;
+
+        return $stored;
+    }
+
+    private function givenDismissedUnassignedJob(CachedIndustryJob $job, array $candidates = []): UnassignedJob
+    {
+        return $this->givenStoredUnassignedJob($job, '2026-11-10 08:00:00', $candidates)
+            ->setDismissedAt(new \DateTimeImmutable('2026-11-11 09:00:00 +00:00'));
+    }
+
+    private function removedUnassignedJobs(): array
+    {
+        return array_values(array_filter($this->removed, static fn (object $entity): bool => $entity instanceof UnassignedJob));
+    }
+
+    private function givenMatchStatus(IndustryProjectBomLine $line, int $esiJobId, string $status): void
+    {
+        foreach ($line->getJobMatches() as $match) {
+            if ($match->getEsiJobId() === $esiJobId) {
+                $match->setStatus($status);
+            }
+        }
     }
 
     private function givenContainer(IndustryProject $project, int ...$itemIds): void
@@ -674,14 +1699,15 @@ final class IndustryJobMatcherTest extends TestCase
         $this->scopesByProjectId[$project->getId()->toRfc4122()] = new ProjectContainerScope(null, array_values($itemIds));
     }
 
-    private function givenParticipant(IndustryProject $project, ParticipantStatus $status, Character $character): void
+    private function givenParticipant(IndustryProject $project, ParticipantStatus $status, Character $character): IndustryProjectParticipant
     {
-        $project->addMember(
-            (new IndustryProjectParticipant())
-                ->setUser((new User())->addCharacter($character))
-                ->setRole(ParticipantRole::Member)
-                ->setStatus($status),
-        );
+        $participant = (new IndustryProjectParticipant())
+            ->setUser((new User())->addCharacter($character))
+            ->setRole(ParticipantRole::Member)
+            ->setStatus($status);
+        $project->addMember($participant);
+
+        return $participant;
     }
 
     private static function producer(int $blueprintTypeId, IndustryActivityType $activity, int $productTypeId): IndustryActivityProduct
@@ -701,6 +1727,14 @@ final class IndustryJobMatcherTest extends TestCase
         return $character;
     }
 
+    private function structureConfigAt(?int $locationId): IndustryStructureConfig
+    {
+        $structureConfig = (new IndustryStructureConfig())->setLocationId($locationId);
+        $this->structureConfigsById[$structureConfig->getId()->toRfc4122()] = $structureConfig;
+
+        return $structureConfig;
+    }
+
     private function jobLine(int $typeId, string $typeName, string $jobGroup, int $runs, string $activityType): IndustryProjectBomLine
     {
         return (new IndustryProjectBomLine())
@@ -713,16 +1747,16 @@ final class IndustryJobMatcherTest extends TestCase
             ->setRuns($runs);
     }
 
-    private function draftProject(IndustryProjectBomLine ...$lines): IndustryProject
+    private function project(IndustryProjectBomLine ...$lines): IndustryProject
     {
-        return $this->project(...$lines)->setStatus(ProjectStatus::Draft);
+        return $this->projectCreatedAt(self::PROJECT_CREATED_AT, ...$lines);
     }
 
-    private function project(IndustryProjectBomLine ...$lines): IndustryProject
+    private function projectCreatedAt(string $createdAt, IndustryProjectBomLine ...$lines): IndustryProject
     {
         $project = (new IndustryProject())->setOwner($this->owner)->setStatus(ProjectStatus::InProgress);
         $this->projectsInPlay[] = $project;
-        (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($project, new \DateTimeImmutable(self::PROJECT_CREATED_AT.' +00:00'));
+        (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($project, new \DateTimeImmutable($createdAt.' +00:00'));
         foreach ($lines as $line) {
             $project->addBomItem($line);
         }

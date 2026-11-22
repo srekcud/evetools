@@ -98,6 +98,7 @@ describe('ProjectDiscordRecap', () => {
     ['a project still in progress', completedProject({ status: 'selling' }), profitableDistribution()],
     ['no loaded project', null, profitableDistribution()],
     ['no loaded distribution', completedProject(), null],
+    ['a personal use project', completedProject({ personalUse: true }), profitableDistribution()],
   ])('shows nothing for %s', (_label, project, distribution) => {
     const wrapper = mountRecap(project, distribution)
 

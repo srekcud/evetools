@@ -10,6 +10,7 @@ final readonly class ScheduleWorker
         public string $id,
         public int $manufacturingSlots,
         public int $reactionSlots,
+        public int $laboratorySlots = 0,
     ) {
     }
 }

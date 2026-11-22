@@ -31,6 +31,11 @@ final readonly class LineMatchFailure
         return new self($line->getTypeId(), $line->getTypeName(), LineMatchFailureReason::ContributionNotRefreshed);
     }
 
+    public static function inventionDataMissing(IndustryProjectBomLine $line): self
+    {
+        return new self($line->getTypeId(), $line->getTypeName(), LineMatchFailureReason::InventionDataMissing);
+    }
+
     /**
      * @return array{typeId: int, typeName: string, reason: string}
      */

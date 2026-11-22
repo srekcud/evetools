@@ -62,6 +62,7 @@ final class ConfiguredProductionStructuresTest extends TestCase
     private const string XL_SET_LABORATORY_OPTIMIZATION_II = 'Standup XL-Set Laboratory Optimization II';
     private const string M_SET_BLUEPRINT_COPY_ACCELERATOR_II = 'Standup M-Set Blueprint Copy Accelerator II';
     private const string REMOVED_M_SET_LABORATORY_OPTIMIZATION_II = 'Standup M-Set Laboratory Optimization II';
+    private const string REMOVED_M_SET_LABORATORY_OPTIMIZATION_I = 'Standup M-Set Laboratory Optimization I';
 
     /** typeId by rig name (sde_inv_types). */
     private const array RIG_TYPE_IDS = [
@@ -202,14 +203,17 @@ final class ConfiguredProductionStructuresTest extends TestCase
         $this->assertSame($raitaru->getId()->toRfc4122(), $structures[0]->id);
     }
 
+    #[Group('issue-1343')]
     #[DataProvider('legacyStructureTypeProvider')]
-    public function testLegacyStructureTypeIsRefusedRatherThanGivenAGuessedBonus(string $legacyStructureType): void
+    public function testHullToSpecifyStructureIsLeftOutOfTheConfiguredStructuresWithoutError(string $legacyStructureType): void
     {
         $this->configure($legacyStructureType, 'nullsec');
+        $azbel = $this->configure('azbel', 'nullsec');
 
-        $this->expectException(\UnexpectedValueException::class);
+        $structures = $this->structures()->configuredBy(self::USER_ID);
 
-        $this->structures()->configuredBy(self::USER_ID);
+        $this->assertCount(1, $structures);
+        $this->assertSame($azbel->getId()->toRfc4122(), $structures[0]->id);
     }
 
     /**
@@ -219,6 +223,16 @@ final class ConfiguredProductionStructuresTest extends TestCase
     {
         yield 'engineering_complex' => ['engineering_complex'];
         yield 'refinery' => ['refinery'];
+    }
+
+    #[Group('issue-1343')]
+    public function testUnknownStructureTypeOtherThanTheLegacyOnesIsStillRefused(): void
+    {
+        $this->configure('keepstar', 'nullsec');
+
+        $this->expectException(\UnexpectedValueException::class);
+
+        $this->structures()->configuredBy(self::USER_ID);
     }
 
     public function testUnknownSecurityTypeIsRefused(): void
@@ -386,6 +400,39 @@ final class ConfiguredProductionStructuresTest extends TestCase
         $this->assertSame([], $structure->rigs);
         $this->assertCount(4, $structure->scienceRigs);
         $this->assertEqualsWithDelta(0.95 * 0.748, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
+        $this->assertSame([self::REMOVED_M_SET_LABORATORY_OPTIMIZATION_II], $structure->unrecognisedRigs);
+    }
+
+    #[Group('issue-1331')]
+    public function testUnrecognisedRigsAreListedOnceInTheOrderOfTheConfiguredRigs(): void
+    {
+        $this->configure('sotiyo', 'nullsec', rigs: [
+            self::REMOVED_M_SET_LABORATORY_OPTIMIZATION_II,
+            self::XL_SET_LABORATORY_OPTIMIZATION_II,
+            self::REMOVED_M_SET_LABORATORY_OPTIMIZATION_I,
+            self::REMOVED_M_SET_LABORATORY_OPTIMIZATION_II,
+        ]);
+
+        $structure = $this->onlyStructureOf(self::USER_ID);
+
+        $this->assertSame(
+            [self::REMOVED_M_SET_LABORATORY_OPTIMIZATION_II, self::REMOVED_M_SET_LABORATORY_OPTIMIZATION_I],
+            $structure->unrecognisedRigs,
+        );
+        $this->assertCount(4, $structure->scienceRigs);
+    }
+
+    #[Group('issue-1331')]
+    public function testStructureWithoutUnrecognisedRigListsNone(): void
+    {
+        $this->configure('raitaru', 'nullsec', rigs: [self::AMMUNITION_ME_II]);
+        $this->configure('tatara', 'nullsec');
+
+        $structures = $this->structures()->configuredBy(self::USER_ID);
+
+        $this->assertCount(2, $structures);
+        $this->assertSame([], $structures[0]->unrecognisedRigs);
+        $this->assertSame([], $structures[1]->unrecognisedRigs);
     }
 
     public function testRefineryRigReducesTheMaterialsOfItsReactions(): void

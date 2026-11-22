@@ -202,6 +202,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Cost indices | 2h |
 | Adjusted prices | 24h |
 | Ansiblex sync | 12h |
+| Réservations de ligne échues (48 h, `IndustryProjectLineReservation`, #1301) : suppression et publication `line_reserved` | 30 min |
 | Purge notifications + historique marché + listes d'achats partagées expirées + runs de sync de plus de 30 jours | 1 jour |
 
 Les assets ne sont pas planifiés : sync à la demande (refresh, ou admin via `TriggerAssetsSync`).

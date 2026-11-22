@@ -15,7 +15,7 @@ function job(id: string, activityType: string | null, overrides: Partial<BomItem
 }
 
 function tasksOf(bomItems: BomItem[], project: GroupProject = companionProject(), myCharacterNames: string[] = ['Alpha']): CompanionTasks {
-  return buildCompanionTasks({ bomItems, chainNodes: null, project, members: [], myCharacterNames, priceAlert: null, undercutOrders: [], now: NOW })
+  return buildCompanionTasks({ bomItems, chainNodes: null, project, members: [], myCharacterNames, priceAlert: null, undercutOrders: [], unassignedJobCount: null, now: NOW })
 }
 
 describe('activity groups of the companion', () => {

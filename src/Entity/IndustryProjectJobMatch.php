@@ -43,6 +43,9 @@ class IndustryProjectJobMatch
     #[ORM\Column(type: 'integer')]
     private int $runs;
 
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $successfulRuns = null;
+
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $characterName = null;
 
@@ -57,6 +60,10 @@ class IndustryProjectJobMatch
 
     #[ORM\Column(type: 'boolean')]
     private bool $manual = false;
+
+    /** @var list<string>|null */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $matchSignals = null;
 
     public function __construct()
     {
@@ -152,6 +159,18 @@ class IndustryProjectJobMatch
         return $this;
     }
 
+    public function getSuccessfulRuns(): ?int
+    {
+        return $this->successfulRuns;
+    }
+
+    public function setSuccessfulRuns(?int $successfulRuns): static
+    {
+        $this->successfulRuns = $successfulRuns;
+
+        return $this;
+    }
+
     public function getCharacterName(): ?string
     {
         return $this->characterName;
@@ -212,13 +231,45 @@ class IndustryProjectJobMatch
         return $this;
     }
 
+    /**
+     * @return list<string>|null
+     */
+    public function getMatchSignals(): ?array
+    {
+        return $this->matchSignals;
+    }
+
+    /**
+     * @param list<string>|null $matchSignals
+     */
+    public function setMatchSignals(?array $matchSignals): static
+    {
+        $this->matchSignals = $matchSignals;
+
+        return $this;
+    }
+
+    public function hasNoOutput(): bool
+    {
+        return \in_array($this->status, CachedIndustryJob::STATUSES_WITHOUT_OUTPUT, true);
+    }
+
     public function copyJobState(CachedIndustryJob $job): static
     {
         $this->status = $job->getStatus();
         $this->startDate = $job->getStartDate();
         $this->endDate = $job->getEndDate();
-        $this->cost = $job->getCost();
-        $this->runs = $job->getRuns();
+        $jobRuns = $job->getRuns();
+        if (!isset($this->runs)) {
+            $this->runs = $jobRuns;
+        }
+        $this->successfulRuns = $this->runs === $jobRuns ? $job->getSuccessfulRuns() : null;
+        $jobCost = $job->getCost();
+        $this->cost = match (true) {
+            $jobCost === null => null,
+            $this->runs === $jobRuns => $jobCost,
+            default => $jobCost * $this->runs / $jobRuns,
+        };
 
         return $this;
     }

@@ -61,6 +61,13 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     }
   }
 
+  function holdSales(list: GroupSale[]): void {
+    if (!Array.isArray(list)) {
+      throw new Error('Unexpected sales response')
+    }
+    sales.value = list
+  }
+
   function holdSaleSuggestionList(list: GroupSaleSuggestionList): void {
     if (!Array.isArray(list.suggestions) || !Array.isArray(list.walletReadings)) {
       throw new Error('Unexpected sale suggestions response')
@@ -103,7 +110,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   }
 
   function fetchSales(projectId: string): Promise<void> {
-    return fetchForProject(projectId, 'sales', assignTo(sales), [], loadingSales, salesError, 'Failed to fetch sales')
+    return fetchForProject(projectId, 'sales', holdSales, [], loadingSales, salesError, 'Failed to fetch sales')
   }
 
   async function postSale(projectId: string, resource: string, input: RecordSaleInput | RecordSaleFromWalletTransactionInput): Promise<GroupSale> {

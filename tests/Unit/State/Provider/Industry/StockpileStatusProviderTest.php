@@ -23,6 +23,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -37,6 +38,8 @@ use App\Tests\Unit\Service\Industry\ProducerOfStub;
 #[AllowMockObjectsWithoutExpectations]
 final class StockpileStatusProviderTest extends TestCase
 {
+    use StubsPersonalStockReader;
+
     private const int TRITANIUM_TARGET = 1000;
     private const int PYERITE_TARGET = 600;
 
@@ -76,7 +79,7 @@ final class StockpileStatusProviderTest extends TestCase
         $this->security = $this->createStub(Security::class);
         $this->provider = new StockpileStatusProvider($this->security, new StockpileService(
             $targetRepository,
-            $assetRepository,
+            $this->personalStockReaderOn($assetRepository),
             $jitaMarketService,
             $productionPlanning,
             $userStructures,

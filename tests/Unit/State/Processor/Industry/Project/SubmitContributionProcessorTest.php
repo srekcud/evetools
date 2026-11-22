@@ -24,6 +24,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
+use App\Tests\Unit\Support\BuildsOwnStockSupplyGuard;
 use App\Service\Industry\Project\UnclaimedStockGuard;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
@@ -50,6 +51,8 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 class SubmitContributionProcessorTest extends TestCase
 {
+    use BuildsOwnStockSupplyGuard;
+
     private const int MORPHITE_TYPE_ID = 11399;
     private const int TRITANIUM_TYPE_ID = 34;
     private const int ISOGEN_TYPE_ID = 37;
@@ -163,6 +166,7 @@ class SubmitContributionProcessorTest extends TestCase
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->walletRefresher,
             $this->unclaimedStockGuard,
+            $this->ownStockSupplyGuardOver(static fn (): array => []),
         );
     }
 

@@ -7,6 +7,7 @@ namespace App\State\Provider\Industry\Project;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
@@ -16,6 +17,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 class ProjectAccessChecker
 {
     private const string NO_ACCESS_MESSAGE = 'You do not have access to this project';
+    private const string OWN_SALES_ONLY_MESSAGE = 'You can only change your own sales';
     private const string OWNER_ONLY_MESSAGE = 'Only the project owner can perform this action';
 
     public function __construct(
@@ -37,12 +39,50 @@ class ProjectAccessChecker
         throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
     }
 
+    /**
+     * Users whose industry jobs the given user may list and link on the project: every accepted
+     * participant for the owner, the user alone for any other accepted participant.
+     *
+     * @return list<User>
+     *
+     * @throws AccessDeniedHttpException if the user is not an accepted member
+     */
+    public function usersWhoseJobsCanBeLinkedBy(User $user, IndustryProject $project): array
+    {
+        $this->assertAcceptedMember($user, $project);
+
+        if ($project->getOwner() !== $user) {
+            return [$user];
+        }
+
+        return $this->acceptedParticipantsOf($project);
+    }
+
+    /**
+     * @return list<User> the owner first, then the accepted participants in the order they joined
+     */
+    public function acceptedParticipantsOf(IndustryProject $project): array
+    {
+        return $project->acceptedUsers();
+    }
+
     public function assertContributionOf(User $user, IndustryProjectContribution $contribution): void
     {
         $member = $contribution->getMember();
         if ($member->getUser() !== $user || ParticipantStatus::Accepted !== $member->getStatus()) {
             throw new AccessDeniedHttpException('You can only change your own contribution');
         }
+    }
+
+    public function assertMayChangeSale(User $user, IndustryProject $project, IndustryProjectSale $sale): void
+    {
+        $this->assertAcceptedMember($user, $project);
+
+        if ($this->isAdminOrOwner($user, $project) || $sale->isHeldBy($user)) {
+            return;
+        }
+
+        throw new AccessDeniedHttpException(self::OWN_SALES_ONLY_MESSAGE);
     }
 
     public function assertOwner(User $user, IndustryProject $project): void

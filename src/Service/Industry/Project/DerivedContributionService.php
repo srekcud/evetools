@@ -30,6 +30,7 @@ class DerivedContributionService
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
         NotificationDispatcher $notificationDispatcher,
+        private readonly LineReservationService $lineReservations,
     ) {
         $this->duplicateNotifier = new DuplicateContributionNotifier($notificationDispatcher);
     }
@@ -37,7 +38,7 @@ class DerivedContributionService
     public function refreshLine(IndustryProjectBomLine $line): void
     {
         $project = $line->getProject();
-        if ($project->isCompleted()) {
+        if ($project->isCompleted() || self::isBlueprintJobLine($line)) {
             return;
         }
 
@@ -82,6 +83,11 @@ class DerivedContributionService
         }
     }
 
+    private static function isBlueprintJobLine(IndustryProjectBomLine $line): bool
+    {
+        return $line->isMatchableJob() && !$line->isManufacturingOrReactionJob();
+    }
+
     public function syncCourier(IndustryProject $project, ?CourierLinkedContract $contract): void
     {
         if ($project->isCompleted() || CourierContractState::Unknown === $contract?->state) {
@@ -118,7 +124,10 @@ class DerivedContributionService
         }
 
         if ($existing === null) {
-            return $this->create($line, $contributingParticipant, $type, $quantity, $value);
+            $createdId = $this->create($line, $contributingParticipant, $type, $quantity, $value);
+            $this->settleReservationOfInstalledRuns($line, $contributingParticipant, $type, 0, $quantity);
+
+            return $createdId;
         }
 
         if ($existing->getQuantity() === $quantity && $existing->getEstimatedValue() === $value) {
@@ -126,10 +135,26 @@ class DerivedContributionService
         }
 
         $this->shiftFulfillment($line, $existing, $quantity - $existing->getQuantity());
+        $this->settleReservationOfInstalledRuns($line, $contributingParticipant, $type, $existing->getQuantity(), $quantity);
         $existing->setQuantity($quantity);
         $existing->setEstimatedValue($value);
 
         return $existing->getId()->toRfc4122();
+    }
+
+    private function settleReservationOfInstalledRuns(
+        IndustryProjectBomLine $line,
+        IndustryProjectParticipant $installer,
+        ContributionType $type,
+        int $previousRuns,
+        int $installedRuns,
+    ): void {
+        if (ContributionType::JobInstall !== $type) {
+            return;
+        }
+
+        $declaredRuns = $line->getApprovedDeclaredRunsOf($installer);
+        $this->lineReservations->settleInstalledRuns($line, $installer, max($declaredRuns, $previousRuns), max($declaredRuns, $installedRuns));
     }
 
     private function create(

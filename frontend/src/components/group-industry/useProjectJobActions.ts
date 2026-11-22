@@ -1,7 +1,9 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { ApiError } from '@/services/api'
 import type { AvailableJob, BomItem, CharacterMatchFailure, LineMatchFailure } from '@/stores/group-industry/types'
+import { linkRefusalOf } from './jobLinking'
 
 export function useProjectJobActions() {
   const { t, te } = useI18n()
@@ -25,6 +27,14 @@ export function useProjectJobActions() {
 
   function failureMessage(error: unknown, fallbackKey: string): string {
     return error instanceof Error ? error.message : t(fallbackKey)
+  }
+
+  function linkFailureMessage(error: unknown): string {
+    if (!(error instanceof ApiError)) return failureMessage(error, 'groupIndustry.jobs.linkError')
+    const refusal = linkRefusalOf(error.message)
+    return refusal === null
+      ? t('groupIndustry.jobs.linkError')
+      : t(`groupIndustry.jobs.linkRefusals.${refusal.key}`, { runs: refusal.runs ?? 0 })
   }
 
   async function matchJobs(projectId: string): Promise<boolean> {
@@ -63,16 +73,16 @@ export function useProjectJobActions() {
     linkScreenLine.value = null
   }
 
-  async function linkJob(projectId: string, esiJobId: number): Promise<void> {
+  async function linkJob(projectId: string, esiJobId: number, runs?: number): Promise<void> {
     const line = linkScreenLine.value
     if (line === null) return
     linkingEsiJobId.value = esiJobId
     jobLinkError.value = null
     try {
-      await projectStore.linkJob(projectId, line.id, esiJobId)
+      await projectStore.linkJob(projectId, line.id, esiJobId, runs)
       closeLinkScreen()
     } catch (e) {
-      jobLinkError.value = failureMessage(e, 'groupIndustry.jobs.linkError')
+      jobLinkError.value = linkFailureMessage(e)
     } finally {
       linkingEsiJobId.value = null
     }

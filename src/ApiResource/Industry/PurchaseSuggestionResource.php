@@ -16,6 +16,8 @@ class PurchaseSuggestionResource
 
     public int $quantity;
 
+    public int $remainingQuantity = 0;
+
     public float $unitPrice;
 
     public float $totalPrice;

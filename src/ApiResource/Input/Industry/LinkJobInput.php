@@ -11,4 +11,7 @@ class LinkJobInput
     #[Assert\NotBlank]
     #[Assert\Positive]
     public int $esiJobId;
+
+    #[Assert\Positive]
+    public ?int $runs = null;
 }

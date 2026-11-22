@@ -18,4 +18,11 @@ interface StructureMarketPrices
      * @return array<int, Isk>
      */
     public function unitPricesFor(int $structureId, array $typeIds): array;
+
+    /**
+     * @param list<int> $typeIds
+     *
+     * @return array<int, int> quantity on sale by typeId; a typeId without a recent snapshot is absent, never 0
+     */
+    public function sellVolumesFor(int $structureId, array $typeIds): array;
 }

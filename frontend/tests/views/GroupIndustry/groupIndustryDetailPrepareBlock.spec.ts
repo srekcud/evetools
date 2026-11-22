@@ -2,10 +2,8 @@ import { enableAutoUnmount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import ProjectBlacklistEditor from '@/components/group-industry/ProjectBlacklistEditor.vue'
-import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectInventionExclusionToggle from '@/components/group-industry/ProjectInventionExclusionToggle.vue'
 import ProjectStructureHealth from '@/components/group-industry/ProjectStructureHealth.vue'
-import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import { apiRequest } from '@/services/api'
 import type { GroupMemberRole, GroupProjectStatus } from '@/stores/group-industry/types'
 import { expectOnlyLocaleTexts, TEST_LOCALES } from '../../localeTexts'
@@ -23,6 +21,8 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const PREPARE_BLOCK = '[data-testid="prepare-block"]'
+const OLD_BUY_OR_BUILD = { name: 'ProjectBuyOrBuild' }
+const OLD_STRUCTURES = { name: 'ProjectStructures' }
 
 async function mountOn(tab: string, status: GroupProjectStatus, role: GroupMemberRole = 'owner', locale: 'en' | 'fr' = 'en') {
   route.query = { tab }
@@ -47,7 +47,7 @@ beforeEach(() => {
 })
 
 describe('group project detail prepare block', () => {
-  it('groups the blacklist, the invention exclusion, buy or build and the structures in one block of the sourcing tab in draft', async () => {
+  it('groups the blacklist and the invention exclusion in one block of the sourcing tab in draft', async () => {
     const wrapper = await mountOn('bom', 'draft')
     const block = wrapper.find(PREPARE_BLOCK)
     const inside = (component: Parameters<typeof wrapper.findComponent>[0]) => {
@@ -59,14 +59,14 @@ describe('group project detail prepare block', () => {
       block: block.exists(),
       blacklist: inside(ProjectBlacklistEditor),
       invention: inside(ProjectInventionExclusionToggle),
-      buyOrBuild: inside(ProjectBuyOrBuild),
-      structures: inside(ProjectStructures),
-    }).toEqual({ block: true, blacklist: true, invention: true, buyOrBuild: true, structures: true })
+      buyOrBuild: wrapper.findComponent(OLD_BUY_OR_BUILD).exists(),
+      structures: wrapper.findComponent(OLD_STRUCTURES).exists(),
+    }).toEqual({ block: true, blacklist: true, invention: true, buyOrBuild: false, structures: false })
   })
 
-  it('orders the block content blacklist, invention, buy or build, structures, then the materials table', async () => {
+  it('orders the block content blacklist, invention, then the materials table', async () => {
     const wrapper = await mountOn('bom', 'draft')
-    const elements = [ProjectBlacklistEditor, ProjectInventionExclusionToggle, ProjectBuyOrBuild, ProjectStructures, BomTable]
+    const elements = [ProjectBlacklistEditor, ProjectInventionExclusionToggle, BomTable]
       .map(component => wrapper.findComponent(component).element)
 
     expect(elements.slice(1).every((element, index) => precedes(elements[index], element))).toBe(true)
@@ -82,24 +82,37 @@ describe('group project detail prepare block', () => {
     }
   })
 
-  it('removes the structures from the production tab in draft and keeps the other production cards', async () => {
+  it('names only the blacklist and the invention exclusion in the help of the block, in both languages', async () => {
+    const mentionsRemovedCards = { en: /buy or build|structures/i, fr: /acheter ou fabriquer|structures/i }
+
+    for (const locale of TEST_LOCALES) {
+      const wrapper = await mountOn('bom', 'draft', 'owner', locale)
+
+      const help = textOf(wrapper, `${PREPARE_BLOCK} > p`)
+
+      expect({ shown: help !== '', mentionsRemovedCards: mentionsRemovedCards[locale].test(help) }).toEqual({ shown: true, mentionsRemovedCards: false })
+      wrapper.unmount()
+      setActivePinia(createPinia())
+    }
+  })
+
+  it('keeps the structure health on the production tab in draft, without the block', async () => {
     const wrapper = await mountOn('chain', 'draft')
 
     expect({
-      structures: wrapper.findComponent(ProjectStructures).exists(),
       structureHealth: wrapper.findComponent(ProjectStructureHealth).exists(),
       block: wrapper.find(PREPARE_BLOCK).exists(),
-    }).toEqual({ structures: false, structureHealth: true, block: false })
+    }).toEqual({ structureHealth: true, block: false })
   })
 
-  it('shows the block to a member who cannot edit, with the children switched off', async () => {
+  it('shows the block to a member who cannot edit, with the blacklist and the invention exclusion switched off', async () => {
     const wrapper = await mountOn('bom', 'draft', 'member')
 
     expect({
       block: wrapper.find(PREPARE_BLOCK).exists(),
-      buyOrBuildCanSwitch: wrapper.findComponent(ProjectBuyOrBuild).props('canSwitch'),
-      structuresCanSwitch: wrapper.findComponent(ProjectStructures).props('canSwitch'),
-    }).toEqual({ block: true, buyOrBuildCanSwitch: false, structuresCanSwitch: false })
+      blacklistCanEdit: wrapper.findComponent(ProjectBlacklistEditor).props('canEdit'),
+      inventionCanEdit: wrapper.findComponent(ProjectInventionExclusionToggle).props('canEdit'),
+    }).toEqual({ block: true, blacklistCanEdit: false, inventionCanEdit: false })
   })
 
   it.each(['published', 'in_progress', 'selling', 'completed'] as const)('does not render the block once the project is %s', async (status) => {
@@ -107,21 +120,14 @@ describe('group project detail prepare block', () => {
 
     expect({
       block: wrapper.find(PREPARE_BLOCK).exists(),
-      buyOrBuild: wrapper.findComponent(ProjectBuyOrBuild).exists(),
-      structuresInSourcing: wrapper.findComponent(ProjectStructures).exists(),
-    }).toEqual({ block: false, buyOrBuild: true, structuresInSourcing: false })
+      buyOrBuild: wrapper.findComponent(OLD_BUY_OR_BUILD).exists(),
+      structuresInSourcing: wrapper.findComponent(OLD_STRUCTURES).exists(),
+    }).toEqual({ block: false, buyOrBuild: false, structuresInSourcing: false })
   })
 
-  it('keeps the structures in the production tab and buy or build before the materials table once started', async () => {
+  it('renders no structures card on the production tab once started', async () => {
     const production = await mountOn('chain', 'in_progress')
-    const structuresInProduction = production.findComponent(ProjectStructures).exists()
-    production.unmount()
-    setActivePinia(createPinia())
-    const sourcing = await mountOn('bom', 'in_progress')
 
-    expect({
-      structuresInProduction,
-      buyOrBuildBeforeTable: precedes(sourcing.findComponent(ProjectBuyOrBuild).element, sourcing.findComponent(BomTable).element),
-    }).toEqual({ structuresInProduction: true, buyOrBuildBeforeTable: true })
+    expect(production.findComponent(OLD_STRUCTURES).exists()).toBe(false)
   })
 })

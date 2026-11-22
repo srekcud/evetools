@@ -49,7 +49,7 @@ class OriginalBlueprintFinder
     }
 
     /** @return list<OwnedBlueprint> */
-    private function visibleBlueprintsOf(User $user): array
+    public function visibleBlueprintsOf(User $user): array
     {
         $blueprints = $this->ownedBlueprintRepository->findByCharacters($user->getCharacters()->getValues());
 

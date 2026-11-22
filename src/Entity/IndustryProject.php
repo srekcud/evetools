@@ -72,6 +72,10 @@ class IndustryProject
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $producerCharacterIds = null;
 
+    /** @var array<string, array{structureId: string, recommendedStructureId: string|null}>|null */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $workStations = null;
+
     #[ORM\Column(type: 'float', options: ['default' => self::DEFAULT_MINIMUM_OUTSIDE_SAVING])]
     private float $minimumOutsideSaving = self::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
@@ -98,6 +102,13 @@ class IndustryProject
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $completedAt = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $surplusStoredAt = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $surplusStoredBy = null;
 
     /** @var Collection<int, IndustryProjectProduct> */
     #[ORM\OneToMany(targetEntity: IndustryProjectProduct::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
@@ -250,6 +261,47 @@ class IndustryProject
         )->count();
     }
 
+    public function isAcceptedMember(User $user): bool
+    {
+        if ($this->owner === $user) {
+            return true;
+        }
+
+        return $this->members->exists(
+            static fn (int $key, IndustryProjectParticipant $member): bool => $member->getUser() === $user
+                && $member->getStatus() === ParticipantStatus::Accepted,
+        );
+    }
+
+    /**
+     * @return list<User> the owner first, then the accepted participants in the order they joined
+     */
+    public function acceptedUsers(): array
+    {
+        $users = [$this->owner];
+        foreach ($this->members as $member) {
+            $participant = $member->getUser();
+            if (ParticipantStatus::Accepted === $member->getStatus() && null !== $participant && !\in_array($participant, $users, true)) {
+                $users[] = $participant;
+            }
+        }
+
+        return $users;
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        if ($this->owner === $user) {
+            return true;
+        }
+
+        return $this->members->exists(
+            static fn (int $key, IndustryProjectParticipant $member): bool => $member->getUser() === $user
+                && $member->getStatus() === ParticipantStatus::Accepted
+                && \in_array($member->getRole(), [ParticipantRole::Owner, ParticipantRole::Admin], true),
+        );
+    }
+
     public function pendingJoinRequestCount(): int
     {
         return $this->members->filter(
@@ -333,6 +385,23 @@ class IndustryProject
         return $this;
     }
 
+    /**
+     * @return array<string, array{structureId: string, recommendedStructureId: string|null}>
+     */
+    public function getWorkStations(): array
+    {
+        return $this->workStations ?? [];
+    }
+
+    /**
+     * @param array<string, array{structureId: string, recommendedStructureId: string|null}> $workStations
+     */
+    public function setWorkStations(array $workStations): static
+    {
+        $this->workStations = [] === $workStations ? null : $workStations;
+        return $this;
+    }
+
     public function isExcludesInvention(): bool
     {
         return $this->excludesInvention;
@@ -393,6 +462,14 @@ class IndustryProject
     public function getContainerNames(): array
     {
         return array_values($this->containers->map(static fn (IndustryProjectContainer $container): string => $container->getName())->toArray());
+    }
+
+    public function addContainerAt(string $name, int $locationId): IndustryProjectContainer
+    {
+        $container = (new IndustryProjectContainer($this, $name))->locateAt($locationId);
+        $this->containers->add($container);
+
+        return $container;
     }
 
     /** @param list<string> $containerNames */
@@ -525,6 +602,24 @@ class IndustryProject
         return $this;
     }
 
+    public function getSurplusStoredAt(): ?\DateTimeImmutable
+    {
+        return $this->surplusStoredAt;
+    }
+
+    public function getSurplusStoredBy(): ?User
+    {
+        return $this->surplusStoredBy;
+    }
+
+    public function markSurplusStored(User $user, \DateTimeImmutable $storedAt): static
+    {
+        $this->surplusStoredBy = $user;
+        $this->surplusStoredAt = $storedAt;
+
+        return $this;
+    }
+
     /** @return Collection<int, IndustryProjectProduct> */
     public function getItems(): Collection
     {
@@ -650,6 +745,20 @@ class IndustryProject
         }
 
         return $runsByProductTypeId;
+    }
+
+    /** @return array<int, int> */
+    public function inventionDecryptorsByProductTypeId(): array
+    {
+        $decryptorByProductTypeId = [];
+        foreach ($this->items as $item) {
+            $decryptorTypeId = $item->getInventionDecryptorTypeId();
+            if (null !== $decryptorTypeId) {
+                $decryptorByProductTypeId[$item->getTypeId()] = $decryptorTypeId;
+            }
+        }
+
+        return $decryptorByProductTypeId;
     }
 
     /** @return Collection<int, IndustryProjectContribution> */

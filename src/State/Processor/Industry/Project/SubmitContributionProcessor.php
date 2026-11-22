@@ -15,8 +15,9 @@ use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
-use App\Service\Industry\Project\ProjectContributionService;
+use App\Service\Industry\Project\OwnStockSupplyGuard;
 use App\Service\Industry\Project\PilotName;
+use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\Industry\Project\UnclaimedStockGuard;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\ContributorWalletRefresher;
@@ -44,6 +45,7 @@ class SubmitContributionProcessor implements ProcessorInterface
         private readonly MercurePublisherService $mercurePublisher,
         private readonly ContributorWalletRefresher $walletRefresher,
         private readonly UnclaimedStockGuard $unclaimedStockGuard,
+        private readonly OwnStockSupplyGuard $ownStockSupplyGuard,
     ) {
     }
 
@@ -99,9 +101,15 @@ class SubmitContributionProcessor implements ProcessorInterface
 
         $valueSource = null === $data->valueSource ? null : ContributionValueSource::from($data->valueSource);
 
+        $suppliesOwnStock = ContributionType::Material === $type && $bomItem->isJob() && null === $valueSource && !$project->isSoloProjectOf($user);
+
         try {
             if (true === $valueSource?->drawsOnUnclaimedStock()) {
                 $this->unclaimedStockGuard->assertWithin($bomItem, $data->quantity);
+            }
+
+            if ($suppliesOwnStock) {
+                $this->ownStockSupplyGuard->assertWithin($bomItem, $user, $data->quantity);
             }
 
             $contribution = $this->contributionService->submit(
@@ -112,6 +120,7 @@ class SubmitContributionProcessor implements ProcessorInterface
                 $data->estimatedValue,
                 $data->note,
                 $valueSource,
+                $suppliesOwnStock,
             );
         } catch (\DomainException $e) {
             throw new BadRequestHttpException($e->getMessage());

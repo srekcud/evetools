@@ -27,6 +27,7 @@ const RAITARU: StructureHealthRow = {
   state: 'low-fuel',
   fuelDays: 2.5,
   offlineServices: [],
+  facilityTaxPercent: 1.0,
 }
 const ATHANOR: StructureHealthRow = {
   structureId: 'structure-athanor',
@@ -35,6 +36,7 @@ const ATHANOR: StructureHealthRow = {
   state: 'ok',
   fuelDays: 41,
   offlineServices: [],
+  facilityTaxPercent: 0.5,
 }
 const TATARA: StructureHealthRow = {
   structureId: 'structure-tatara',
@@ -43,6 +45,7 @@ const TATARA: StructureHealthRow = {
   state: 'offline-service',
   fuelDays: 41,
   offlineServices: ['Invention'],
+  facilityTaxPercent: 1.5,
 }
 const FOREIGN_STRUCTURE: StructureHealthRow = {
   structureId: 'structure-foreign',
@@ -51,6 +54,7 @@ const FOREIGN_STRUCTURE: StructureHealthRow = {
   state: 'unknown',
   fuelDays: null,
   offlineServices: [],
+  facilityTaxPercent: null,
 }
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })

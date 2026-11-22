@@ -6,6 +6,7 @@ namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Validator\Exception\ValidationException;
+use App\Service\Industry\Project\CharacterActiveProject;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\ProjectLaunchPriceFreezer;
 use App\ApiResource\Industry\Project\IndustryProjectResource;
@@ -49,6 +50,7 @@ class UpdateProjectProcessorTest extends TestCase
     private HubInterface&MockObject $hub;
     private IndustryProjectService&MockObject $projectService;
     private ProjectLaunchPriceFreezer&MockObject $launchPrices;
+    private CharacterActiveProject&MockObject $characterActiveProject;
     private IndustryProject $project;
     private User&Stub $owner;
 
@@ -68,6 +70,7 @@ class UpdateProjectProcessorTest extends TestCase
         $this->hub = $this->createMock(HubInterface::class);
         $this->projectService = $this->createMock(IndustryProjectService::class);
         $this->launchPrices = $this->createMock(ProjectLaunchPriceFreezer::class);
+        $this->characterActiveProject = $this->createMock(CharacterActiveProject::class);
 
         $this->processor = $this->processorActingAs($this->owner, null);
     }
@@ -613,6 +616,38 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertSame(ProjectStatus::Draft, $this->project->getStatus());
     }
 
+    #[Group('issue-1249')]
+    public function testCompletingAProjectClearsTheCharactersDedicatedToIt(): void
+    {
+        $this->project->setStatus(ProjectStatus::Selling);
+        $input = new UpdateProjectInput();
+        $input->status = 'completed';
+        $this->characterActiveProject->expects($this->once())->method('clearForProject')->with($this->project);
+
+        $this->update($input);
+    }
+
+    #[Group('issue-1249')]
+    public function testAnotherStatusChangeKeepsTheCharactersDedicatedToTheProject(): void
+    {
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->status = 'selling';
+        $this->characterActiveProject->expects($this->never())->method('clearForProject');
+
+        $this->update($input);
+    }
+
+    #[Group('issue-1249')]
+    public function testAnUpdateWithoutStatusKeepsTheCharactersDedicatedToTheProject(): void
+    {
+        $input = new UpdateProjectInput();
+        $input->name = 'Rorqual batch';
+        $this->characterActiveProject->expects($this->never())->method('clearForProject');
+
+        $this->update($input);
+    }
+
     #[Group('issue-362')]
     public function testSellingProjectCompletesWithTheCompletionDateAndCompletedProjectCannotBeReopened(): void
     {
@@ -636,6 +671,78 @@ class UpdateProjectProcessorTest extends TestCase
 
         self::assertInstanceOf(BadRequestHttpException::class, $refusal);
         self::assertSame('Cannot transition from "completed" to "in_progress"', $refusal->getMessage());
+    }
+
+    #[Group('issue-1210')]
+    public function testPersonalUseProjectInProgressCompletesWithTheCompletionDate(): void
+    {
+        $this->project->setPersonalUse(true);
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->status = 'completed';
+        $payloads = $this->capturePublishedPayloads();
+
+        $resource = $this->update($input);
+
+        self::assertSame('completed', $resource->status);
+        self::assertSame(ProjectStatus::Completed, $this->project->getStatus());
+        self::assertNotNull($this->project->getCompletedAt());
+        self::assertSame(['oldStatus' => 'in_progress', 'newStatus' => 'completed'], $payloads[0]['data']);
+    }
+
+    #[Group('issue-1210')]
+    public function testPersonalUseProjectInProgressCannotMoveToSellingAndNothingIsChangedNorPublished(): void
+    {
+        $this->project->setPersonalUse(true);
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->status = 'selling';
+        $this->entityManager->expects($this->never())->method('flush');
+        $this->hub->expects($this->never())->method('publish');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $exception) {
+            $refusal = $exception;
+        }
+
+        self::assertInstanceOf(BadRequestHttpException::class, $refusal);
+        self::assertSame('Cannot transition from "in_progress" to "selling"', $refusal->getMessage());
+        self::assertSame(ProjectStatus::InProgress, $this->project->getStatus());
+    }
+
+    #[Group('issue-1210')]
+    public function testPersonalUseProjectAlreadySellingStillCompletes(): void
+    {
+        $this->project->setPersonalUse(true);
+        $this->project->setStatus(ProjectStatus::Selling);
+        $input = new UpdateProjectInput();
+        $input->status = 'completed';
+
+        $this->update($input);
+
+        self::assertSame(ProjectStatus::Completed, $this->project->getStatus());
+        self::assertNotNull($this->project->getCompletedAt());
+    }
+
+    #[Group('issue-1210')]
+    public function testProjectWithoutPersonalUseCannotCompleteDirectlyFromInProgress(): void
+    {
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->status = 'completed';
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $exception) {
+            $refusal = $exception;
+        }
+
+        self::assertInstanceOf(BadRequestHttpException::class, $refusal);
+        self::assertSame('Cannot transition from "in_progress" to "completed"', $refusal->getMessage());
+        self::assertSame(ProjectStatus::InProgress, $this->project->getStatus());
     }
 
     public static function everyProjectStatus(): iterable
@@ -1177,6 +1284,7 @@ class UpdateProjectProcessorTest extends TestCase
             new ProjectSellStructures(),
             $this->createStub(LineReservationService::class),
             $this->launchPrices,
+            $this->characterActiveProject,
         );
     }
 

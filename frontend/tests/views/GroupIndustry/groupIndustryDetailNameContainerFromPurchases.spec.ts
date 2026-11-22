@@ -62,10 +62,7 @@ async function mountProjectWithoutContainer(myRole: GroupMemberRole): Promise<Vu
         SaleSuggestionsPanel: true,
         ContractSaleSuggestions: true,
         ProjectSurplus: true,
-        ProjectPlanning: true,
-        ProjectBuyOrBuild: true,
         ProjectResearch: true,
-        ProjectStructures: true,
         ProjectStructureHealth: true,
         SellForecastCard: true,
         FinancialSummary: true,
@@ -93,7 +90,7 @@ enableAutoUnmount(afterEach)
 
 beforeEach(() => {
   setActivePinia(createPinia())
-  route.query = {}
+  route.query = { tab: 'bom' }
   vi.mocked(apiRequest).mockReset()
 })
 

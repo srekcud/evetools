@@ -91,6 +91,10 @@ class ProjectCourierResource
 
     public ?string $originSolarSystemName = null;
 
+    public ?int $courierHubSolarSystemId = null;
+
+    public ?string $courierHubSolarSystemName = null;
+
     public ?int $workshopSolarSystemId = null;
 
     public ?string $workshopSolarSystemName = null;

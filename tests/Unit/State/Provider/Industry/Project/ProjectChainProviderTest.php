@@ -42,6 +42,7 @@ use App\Service\Industry\Project\ChainBlueprintNames;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\PlanningBlueprintNames;
 use App\Service\Industry\Project\ProjectChainBuilder;
+use App\Service\Industry\Project\ProjectChainLoader;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectContainerService;
 use App\Service\Industry\Project\ProjectContainerStock;
@@ -239,14 +240,9 @@ final class ProjectChainProviderTest extends TestCase
             $this->security,
             $this->projectRepository,
             $this->bomLineRepository,
-            $this->contributionRepository,
-            $this->saleRepository,
-            $this->structureConfigRepository,
             new ProjectAccessChecker($this->participantRepository),
-            $this->chainBuilder(),
-            new ProjectJobMaterialNeedsLoader($projectService),
+            $this->chainLoaderOf(new ProjectJobMaterialNeedsLoader($projectService), $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME))),
             $this->blueprintNames(),
-            $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
             $this->createStub(ProjectJobLocationResolver::class),
         );
 
@@ -272,14 +268,9 @@ final class ProjectChainProviderTest extends TestCase
             $this->security,
             $this->projectRepository,
             $this->bomLineRepository,
-            $this->contributionRepository,
-            $this->saleRepository,
-            $this->structureConfigRepository,
             new ProjectAccessChecker($this->participantRepository),
-            $this->chainBuilder(),
-            new ProjectJobMaterialNeedsLoader($projectService),
+            $this->chainLoaderOf(new ProjectJobMaterialNeedsLoader($projectService), $this->containerFulfillmentOf(new ProjectContainerStock(null, [34 => 1_000]))),
             $this->blueprintNames(),
-            $this->containerFulfillmentOf(new ProjectContainerStock(null, [34 => 1_000])),
             $this->createStub(ProjectJobLocationResolver::class),
         );
 
@@ -314,14 +305,9 @@ final class ProjectChainProviderTest extends TestCase
             $this->security,
             $this->projectRepository,
             $this->bomLineRepository,
-            $this->contributionRepository,
-            $this->saleRepository,
-            $this->structureConfigRepository,
             new ProjectAccessChecker($this->participantRepository),
-            $this->chainBuilder(),
-            new ProjectJobMaterialNeedsLoader($projectService),
+            $this->chainLoaderOf(new ProjectJobMaterialNeedsLoader($projectService), $containerFulfillment),
             $this->blueprintNames(),
-            $containerFulfillment,
             $this->createStub(ProjectJobLocationResolver::class),
         );
 
@@ -350,14 +336,9 @@ final class ProjectChainProviderTest extends TestCase
                 $security,
                 $this->projectRepository,
                 $this->bomLineRepository,
-                $this->contributionRepository,
-                $this->saleRepository,
-                $this->structureConfigRepository,
                 new ProjectAccessChecker($this->participantRepository),
-                $this->chainBuilder(),
-                new ProjectJobMaterialNeedsLoader($this->projectService),
+                $this->chainLoaderOf(new ProjectJobMaterialNeedsLoader($this->projectService), $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME))),
                 $this->blueprintNames(),
-                $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
                 $this->createStub(ProjectJobLocationResolver::class),
             );
             $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
@@ -386,14 +367,9 @@ final class ProjectChainProviderTest extends TestCase
                 $security,
                 $this->projectRepository,
                 $this->bomLineRepository,
-                $this->contributionRepository,
-                $this->saleRepository,
-                $this->structureConfigRepository,
                 new ProjectAccessChecker($this->participantRepository),
-                $this->chainBuilder(),
-                new ProjectJobMaterialNeedsLoader($this->projectService),
+                $this->chainLoaderOf(new ProjectJobMaterialNeedsLoader($this->projectService), $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME))),
                 $this->blueprintNames(),
-                $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
                 $this->createStub(ProjectJobLocationResolver::class),
             );
             $copyNode = $this->node($provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]), $copy->getId()->toRfc4122());
@@ -598,6 +574,18 @@ final class ProjectChainProviderTest extends TestCase
         ), new InMemoryChainRecipeIngredients([]));
     }
 
+    private function chainLoaderOf(ProjectJobMaterialNeedsLoader $jobMaterialNeedsLoader, ProjectContainerFulfillment $containerFulfillment): ProjectChainLoader
+    {
+        return new ProjectChainLoader(
+            $this->structureConfigRepository,
+            $this->contributionRepository,
+            $this->saleRepository,
+            $this->chainBuilder(),
+            $jobMaterialNeedsLoader,
+            $containerFulfillment,
+        );
+    }
+
     private function node(ProjectChainResource $chain, string $id): ProjectChainNode
     {
         foreach ($chain->nodes as $node) {
@@ -615,14 +603,9 @@ final class ProjectChainProviderTest extends TestCase
             $this->security,
             $this->projectRepository,
             $this->bomLineRepository,
-            $this->contributionRepository,
-            $this->saleRepository,
-            $this->structureConfigRepository,
             new ProjectAccessChecker($this->participantRepository),
-            $this->chainBuilder(),
-            new ProjectJobMaterialNeedsLoader($this->projectService),
+            $this->chainLoaderOf(new ProjectJobMaterialNeedsLoader($this->projectService), $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME))),
             $this->blueprintNames(),
-            $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
             $this->createStub(ProjectJobLocationResolver::class),
         );
     }
@@ -641,14 +624,9 @@ final class ProjectChainProviderTest extends TestCase
             $security,
             $this->projectRepository,
             $this->bomLineRepository,
-            $this->contributionRepository,
-            $this->saleRepository,
-            $this->structureConfigRepository,
             new ProjectAccessChecker($participants),
-            $this->chainBuilder(),
-            new ProjectJobMaterialNeedsLoader($this->projectService),
+            $this->chainLoaderOf(new ProjectJobMaterialNeedsLoader($this->projectService), $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME))),
             $this->blueprintNames(),
-            $this->containerFulfillmentOf(new ProjectContainerStock(ProjectContainerService::REASON_NO_CONTAINER_NAME)),
             $resolver,
         );
     }

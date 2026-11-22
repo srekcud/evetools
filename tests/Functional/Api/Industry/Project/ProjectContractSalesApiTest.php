@@ -125,15 +125,17 @@ final class ProjectContractSalesApiTest extends WebTestCase
         self::assertSame([], $this->responseJson()['candidates']);
     }
 
-    public function testPlainMemberIsRefusedTheSuggestionsAndTheLinking(): void
+    #[Group('issue-1212')]
+    public function testPlainMemberReadsNoCandidateOfTheOwnerAndCannotLinkHisContract(): void
     {
         $this->actAs($this->member);
         $this->request('GET', $this->suggestionsUri());
-        self::assertResponseStatusCodeSame(403);
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->responseJson()['candidates']);
 
         $this->actAs($this->member);
         $this->request('POST', $this->linkUri(), ['contractId' => self::FINISHED_ISHTAR_CONTRACT_ID, 'characterId' => self::OWNER_EVE_CHARACTER_ID]);
-        self::assertResponseStatusCodeSame(403);
+        self::assertResponseStatusCodeSame(404);
         self::assertSame(0, $this->contractSalesCount());
     }
 

@@ -7,7 +7,7 @@ namespace App\Service\Industry\Project;
 final readonly class PlanningCharacterLane
 {
     /**
-     * @param array{manufacturing: int, reaction: int}|null                         $slots
+     * @param array{manufacturing: int, reaction: int, science: int}|null            $slots
      * @param array{industry: int, advancedIndustry: int, reactions: int}|null      $skills
      * @param list<PlanningJob>                                                     $jobs
      */

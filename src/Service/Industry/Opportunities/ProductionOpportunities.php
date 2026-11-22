@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Opportunities;
 
-use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Repository\CachedCharacterSkillRepository;
@@ -13,6 +12,7 @@ use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\BatchProfitScannerService;
+use App\Service\Industry\CourierHubSettings;
 use App\Service\Industry\Project\ProjectSellStructures;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\SellQuoteReading;
@@ -46,7 +46,7 @@ final readonly class ProductionOpportunities
         $salesFees = $this->salesFeesResolver->forUser($user);
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
         $solarSystems = AnalysisSolarSystems::resolve(null, $settings);
-        $exportCostPerM3 = $settings?->getExportCostPerM3() ?? EveConstants::DEFAULT_EXPORT_COST_PER_M3;
+        $courierHub = CourierHubSettings::resolve($settings);
 
         $scanRowsByMarket = [];
         foreach ([OpportunityMarket::Jita, OpportunityMarket::Capital] as $scannedMarket) {
@@ -64,7 +64,7 @@ final readonly class ProductionOpportunities
                 OpportunityMarket::Capital === $scannedMarket ? $capitalStructure->id : null,
                 $solarSystems->manufacturingSolarSystemId,
                 $salesFees,
-                $exportCostPerM3,
+                $courierHub,
                 $user,
                 $solarSystems->reactionSolarSystemId,
                 SellQuoteReading::CachedOnly,

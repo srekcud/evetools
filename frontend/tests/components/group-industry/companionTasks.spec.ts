@@ -10,7 +10,7 @@ const ONE_HOUR = 3_600_000
 
 function tasksOf(
   bomItems: BomItem[],
-  options: { project?: GroupProject; members?: GroupMember[]; priceAlert?: ProjectPriceAlert | null; undercutOrders?: ProjectSellOrder[]; chainNodes?: ChainNode[] | null } = {},
+  options: { project?: GroupProject; members?: GroupMember[]; priceAlert?: ProjectPriceAlert | null; undercutOrders?: ProjectSellOrder[]; chainNodes?: ChainNode[] | null; unassignedJobCount?: number | null } = {},
 ): CompanionTasks {
   return buildCompanionTasks({
     bomItems,
@@ -19,6 +19,7 @@ function tasksOf(
     priceAlert: options.priceAlert ?? null,
     undercutOrders: options.undercutOrders ?? [],
     chainNodes: options.chainNodes ?? null,
+    unassignedJobCount: options.unassignedJobCount ?? null,
     myCharacterNames: ['Alpha'],
     now: NOW,
   })
@@ -37,8 +38,8 @@ describe('buildCompanionTasks', () => {
       requiredQuantity: 150,
       remainingQuantity: 150,
       reservations: [
-        { participantId: 'participant-alpha', characterName: 'Alpha', quantity: 50, isMine: true },
-        { participantId: 'participant-zeta', characterName: 'Zeta', quantity: 20, isMine: false },
+        { participantId: 'participant-alpha', characterName: 'Alpha', quantity: 50, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' },
+        { participantId: 'participant-zeta', characterName: 'Zeta', quantity: 20, isMine: false, expiresAt: '2026-11-21T14:00:00+00:00' },
       ],
       reservedQuantity: 70,
       freeQuantity: 80,
@@ -51,7 +52,7 @@ describe('buildCompanionTasks', () => {
       fulfilledQuantity: 5000,
       remainingQuantity: 0,
       isFulfilled: true,
-      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 10, isMine: true }],
+      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 10, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
       reservedQuantity: 10,
       freeQuantity: 400,
     })
@@ -61,7 +62,7 @@ describe('buildCompanionTasks', () => {
       typeName: 'Morphite',
       requiredQuantity: 300,
       remainingQuantity: 300,
-      reservations: [{ participantId: 'participant-zeta', characterName: 'Zeta', quantity: 300, isMine: false }],
+      reservations: [{ participantId: 'participant-zeta', characterName: 'Zeta', quantity: 300, isMine: false, expiresAt: '2026-11-21T14:00:00+00:00' }],
       reservedQuantity: 300,
       freeQuantity: 0,
     })
@@ -81,6 +82,25 @@ describe('buildCompanionTasks', () => {
       free: ['bom-nocxium', 'bom-vexor'],
       mine: [{ id: 'bom-nocxium', quantity: 50 }],
     })
+  })
+
+  it('keeps a job line free when its only linked jobs were cancelled or reverted and hides it once a linked job is running, paused, ready or delivered', () => {
+    const lineLinkedTo = (id: string, statuses: string[]): BomItem => manufacturingJobLine(id, 2_185, {
+      freeQuantity: 4,
+      jobMatches: statuses.map((status, index) => jobMatch({ id: `${id}-match-${index}`, esiJobId: 960_000 + index, status, characterName: 'Zeta' })),
+    })
+
+    const tasks = tasksOf([
+      lineLinkedTo('bom-cancelled', ['cancelled']),
+      lineLinkedTo('bom-reverted', ['reverted']),
+      lineLinkedTo('bom-cancelled-then-active', ['cancelled', 'active']),
+      lineLinkedTo('bom-paused', ['paused']),
+      lineLinkedTo('bom-ready', ['ready']),
+      lineLinkedTo('bom-delivered', ['delivered']),
+      lineLinkedTo('bom-cancelled-then-delivered', ['cancelled', 'delivered']),
+    ])
+
+    expect(tasks.free.map(item => item.id)).toEqual(['bom-cancelled', 'bom-reverted'])
   })
 
   it('keeps only the ready or running jobs of my characters and raises one job ready alert per ready job of mine', () => {
@@ -162,6 +182,28 @@ describe('buildCompanionTasks', () => {
     }).toEqual({
       admin: { toReview: 3, joinRequests: 2, alerts: [{ key: 'join_request', kind: 'join_request' }] },
       plainMember: { toReview: null, joinRequests: null, alerts: [] },
+    })
+  })
+
+  it('raises the jobs to assign alert after the join request one when the count is above zero, and none for zero or an unknown count', () => {
+    const pendingMember = [member({ id: 'member-1', status: 'pending', characterName: 'Brann Holt' })]
+    const admin = companionProject({ myRole: 'admin' })
+
+    const three = tasksOf([], { unassignedJobCount: 3 })
+    const zero = tasksOf([], { unassignedJobCount: 0 })
+    const unknown = tasksOf([], { unassignedJobCount: null })
+    const withJoinRequest = tasksOf([], { project: admin, members: pendingMember, unassignedJobCount: 2 })
+
+    expect({
+      three: { count: three.unassignedJobCount, alerts: three.alerts },
+      zero: { count: zero.unassignedJobCount, alerts: zero.alerts },
+      unknown: { count: unknown.unassignedJobCount, alerts: unknown.alerts },
+      withJoinRequest: withJoinRequest.alerts,
+    }).toEqual({
+      three: { count: 3, alerts: [{ key: 'jobs_to_assign', kind: 'jobs_to_assign' }] },
+      zero: { count: 0, alerts: [] },
+      unknown: { count: null, alerts: [] },
+      withJoinRequest: [{ key: 'join_request', kind: 'join_request' }, { key: 'jobs_to_assign', kind: 'jobs_to_assign' }],
     })
   })
 
@@ -440,7 +482,7 @@ describe('buildCompanionTasks awaiting approval', () => {
       typeName: 'Nocxium',
       requiredQuantity: 150,
       remainingQuantity: 150,
-      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity, isMine }],
+      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity, isMine, expiresAt: '2026-11-21T14:00:00+00:00' }],
       pendingContributions: pendingQuantity > 0
         ? [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: pendingQuantity, isMine }]
         : [],
@@ -574,7 +616,7 @@ describe('buildCompanionTasks awaiting approval', () => {
     it('orders my build lines to deliver like the chain', () => {
       const reserved = BOM_ORDER.map(item => ({
         ...item,
-        reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 1, isMine: true }],
+        reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 1, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
       }))
 
       expect(tasksOf(reserved, { chainNodes: CHAIN }).mine.map(entry => entry.item.id)).toEqual([

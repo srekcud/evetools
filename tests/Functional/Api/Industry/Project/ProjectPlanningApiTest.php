@@ -7,6 +7,8 @@ namespace App\Tests\Functional\Api\Industry\Project;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryStructureConfig;
+use App\Constant\EveConstants;
 use App\Entity\Sde\InvCategory;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
@@ -29,8 +31,25 @@ final class ProjectPlanningApiTest extends WebTestCase
     private const int HULL_RUNS = 3;
     private const int HULL_TE_LEVEL = 10;
     private const int HULL_DURATION_SECONDS = 11_016;
+    private const int ACTIVITY_COPYING = 5;
+    private const int COPIED_BLUEPRINT_TYPE_ID = 990_204_001;
+    private const int COPIED_PRODUCT_TYPE_ID = 990_204_002;
+    private const int INVENTED_PRODUCT_TYPE_ID = 990_204_003;
+    private const int COPY_BASE_TIME_PER_RUN_SECONDS = 480;
+    private const int COPY_RUNS = 10;
+    private const int INVENTION_ATTEMPTS = 3;
     private const int BLUEPRINT_CATEGORY_ID = 990_747_001;
     private const int BLUEPRINT_GROUP_ID = 990_747_002;
+    private const int FLOW_FRIGATE_BLUEPRINT_TYPE_ID = 991_312_001;
+    private const int FLOW_FRIGATE_TYPE_ID = 991_312_002;
+    private const int FLOW_FRIGATE_BASE_TIME_SECONDS = 3_600;
+    private const int FLOW_CRUISER_BLUEPRINT_TYPE_ID = 991_312_003;
+    private const int FLOW_CRUISER_TYPE_ID = 991_312_004;
+    private const int FLOW_CRUISER_BASE_TIME_SECONDS = 9_000;
+    private const int FLOW_BATTLESHIP_BLUEPRINT_TYPE_ID = 991_312_005;
+    private const int FLOW_BATTLESHIP_TYPE_ID = 991_312_006;
+    private const int FLOW_BATTLESHIP_BASE_TIME_SECONDS = 14_400;
+    private const array FLOW_JOB_KEYS = ['activity', 'blueprintName', 'lineId', 'planned', 'real', 'runs', 'typeId', 'typeName', 'wait'];
 
     private const array PLANNING_KEYS = [
         'anchor',
@@ -39,6 +58,7 @@ final class ProjectPlanningApiTest extends WebTestCase
         'delaySeconds',
         'expectedEnd',
         'id',
+        'jobs',
         'lanesShown',
         'plannedEnd',
         'structureTimeBonusIncluded',
@@ -84,7 +104,7 @@ final class ProjectPlanningApiTest extends WebTestCase
                 [],
                 [self::CHARACTER_KEYS, self::CHARACTER_KEYS],
                 [
-                    ['Aria Solberg', false, ['manufacturing' => 4, 'reaction' => 2], ['industry' => 4, 'advancedIndustry' => 3, 'reactions' => 2], null, []],
+                    ['Aria Solberg', false, ['manufacturing' => 4, 'reaction' => 2, 'science' => 1], ['industry' => 4, 'advancedIndustry' => 3, 'reactions' => 2], null, []],
                     ['Brin Solberg', true, null, null, null, []],
                 ],
             ],
@@ -270,6 +290,167 @@ final class ProjectPlanningApiTest extends WebTestCase
         return $jobs[0]['blueprintName'];
     }
 
+    #[Group('issue-1204')]
+    public function testCopyIsPlannedInTheLaneOfTheCharacterAndTheInventionIsListedAsNotPlanned(): void
+    {
+        $connection = $this->em->getConnection();
+        $connection->insert('sde_industry_blueprints', ['type_id' => self::COPIED_BLUEPRINT_TYPE_ID, 'max_production_limit' => 300]);
+        $connection->insert('sde_industry_activities', [
+            'type_id' => self::COPIED_BLUEPRINT_TYPE_ID,
+            'activity_id' => self::ACTIVITY_COPYING,
+            'time' => self::COPY_BASE_TIME_PER_RUN_SECONDS,
+        ]);
+        $connection->insert('sde_industry_activity_products', [
+            'type_id' => self::COPIED_BLUEPRINT_TYPE_ID,
+            'activity_id' => self::ACTIVITY_MANUFACTURING,
+            'product_type_id' => self::COPIED_PRODUCT_TYPE_ID,
+            'quantity' => 1,
+        ]);
+        $workshop = (new IndustryStructureConfig())
+            ->setUser($this->owner)
+            ->setName('Copy workshop')
+            ->setStructureType('raitaru')
+            ->setSecurityType('highsec')
+            ->setSolarSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID)
+            ->setLocationId(990_204_100)
+            ->setCorporationId(self::OWNER_CORPORATION_ID)
+            ->setFacilityTaxPercent(1.0)
+            ->setRigs([]);
+        $this->em->persist($workshop);
+        $this->cacheSkills($this->owner->getMainCharacter(), [
+            CachedCharacterSkill::SKILL_SCIENCE => 5,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+            CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 1,
+            CachedCharacterSkill::SKILL_ADVANCED_LABORATORY_OPERATION => 2,
+        ]);
+        $copyBatch = $this->persistProject('Copy batch');
+        $this->addMembership($copyBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addJobLine($copyBatch, self::COPIED_PRODUCT_TYPE_ID, 'Synthetic Frigate', 'blueprint', self::COPY_RUNS, self::COPY_RUNS, 0, 0, null)
+            ->setActivityType('copy')
+            ->setPlannedStructureId($workshop->getId()->toRfc4122());
+        $inventionLine = $this->addJobLine($copyBatch, self::INVENTED_PRODUCT_TYPE_ID, 'Synthetic Frigate II', 'blueprint', self::INVENTION_ATTEMPTS, self::INVENTION_ATTEMPTS, 0, 0, null)
+            ->setActivityType('invention');
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->planningUri($copyBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        $planning = $this->responseJson();
+        self::assertCount(1, $planning['characters']);
+        $lane = $planning['characters'][0];
+        self::assertSame(['manufacturing' => 1, 'reaction' => 1, 'science' => 4], $lane['slots']);
+        self::assertSame(
+            [['copy', self::COPIED_PRODUCT_TYPE_ID, 'Synthetic Frigate', self::COPY_RUNS]],
+            array_map(static fn (array $job): array => [$job['activity'], $job['typeId'], $job['typeName'], $job['runs']], $lane['jobs']),
+        );
+        self::assertNotNull($lane['jobs'][0]['planned']);
+        self::assertNotNull($planning['plannedEnd']);
+        self::assertCount(1, $planning['unscheduled']);
+        $unscheduled = $planning['unscheduled'][0];
+        self::assertArrayHasKey('blueprintName', $unscheduled);
+        self::assertNull($unscheduled['blueprintName']);
+        self::assertSame(
+            [$inventionLine->getId()->toRfc4122(), 'Synthetic Frigate II', 'invention_not_planned'],
+            [$unscheduled['lineId'], $unscheduled['typeName'], $unscheduled['reason']],
+        );
+    }
+
+    #[Group('issue-1312')]
+    public function testJobsOfAGroupProjectCarryTheJobsOfTheOwnerLaneWithoutAnyCharacterName(): void
+    {
+        $this->insertFlowBlueprints();
+        $this->cacheSkills($this->owner->getMainCharacter(), [
+            CachedCharacterSkill::SKILL_INDUSTRY => 5,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+        ]);
+        $groupBatch = $this->persistProject('Flow group batch');
+        $this->addMembership($groupBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addMembership($groupBatch, $this->member, ParticipantRole::Member, ParticipantStatus::Accepted);
+        $frigateLine = $this->addJobLine($groupBatch, self::FLOW_FRIGATE_TYPE_ID, 'Flow Frigate', 'component', 2, 2, 10, 20, self::FLOW_CRUISER_TYPE_ID);
+        $cruiserLine = $this->addJobLine($groupBatch, self::FLOW_CRUISER_TYPE_ID, 'Flow Cruiser', 'final', 3, 3, 10, 20, null);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->planningUri($groupBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        $planning = $this->responseJson();
+        self::assertArrayHasKey('jobs', $planning);
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertSame(
+            [
+                false,
+                [],
+                [
+                    [$frigateLine->getId()->toRfc4122(), self::FLOW_FRIGATE_TYPE_ID, 'Flow Frigate', 'manufacturing', 2],
+                    [$cruiserLine->getId()->toRfc4122(), self::FLOW_CRUISER_TYPE_ID, 'Flow Cruiser', 'manufacturing', 3],
+                ],
+                [self::FLOW_JOB_KEYS, self::FLOW_JOB_KEYS],
+                [false, false, false],
+            ],
+            [
+                $planning['lanesShown'],
+                $planning['characters'],
+                array_map(
+                    static fn (array $job): array => [$job['lineId'], $job['typeId'], $job['typeName'], $job['activity'], $job['runs']],
+                    $planning['jobs'],
+                ),
+                array_map(static function (array $job): array {
+                    $keys = $job;
+                    ksort($keys);
+
+                    return array_keys($keys);
+                }, $planning['jobs']),
+                [
+                    str_contains($content, 'Aria Solberg'),
+                    str_contains($content, 'Brann Holt'),
+                    str_contains($content, 'characterName'),
+                ],
+            ],
+        );
+    }
+
+    #[Group('issue-1312')]
+    public function testJobsOfASoloProjectAreTheJobsOfEveryLaneFlattenedAndSortedByPlannedStart(): void
+    {
+        $this->insertFlowBlueprints();
+        $this->cacheSkills($this->owner->getMainCharacter(), [
+            CachedCharacterSkill::SKILL_INDUSTRY => 5,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+        ]);
+        $secondCharacter = $this->persistCharacterOf($this->owner, 'Brin Solberg');
+        $this->cacheSkills($secondCharacter, [
+            CachedCharacterSkill::SKILL_INDUSTRY => 4,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4,
+        ]);
+        $soloBatch = $this->persistProject('Flow solo batch');
+        $this->addMembership($soloBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addJobLine($soloBatch, self::FLOW_FRIGATE_TYPE_ID, 'Flow Frigate', 'component', 2, 2, 10, 20, self::FLOW_CRUISER_TYPE_ID);
+        $this->addJobLine($soloBatch, self::FLOW_CRUISER_TYPE_ID, 'Flow Cruiser', 'final', 3, 3, 10, 20, null);
+        $this->addJobLine($soloBatch, self::FLOW_BATTLESHIP_TYPE_ID, 'Flow Battleship', 'final', 5, 5, 8, 16, null);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->planningUri($soloBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        $planning = $this->responseJson();
+        self::assertArrayHasKey('jobs', $planning);
+        $laneJobs = array_merge(...array_column($planning['characters'], 'jobs'));
+        usort($laneJobs, static fn (array $left, array $right): int => [
+            (new \DateTimeImmutable($left['planned']['start']))->getTimestamp(),
+            $left['lineId'],
+        ] <=> [
+            (new \DateTimeImmutable($right['planned']['start']))->getTimestamp(),
+            $right['lineId'],
+        ]);
+        self::assertSame(
+            [true, 2, 3, $laneJobs],
+            [$planning['lanesShown'], count($planning['characters']), count($planning['jobs']), $planning['jobs']],
+        );
+    }
+
     public function testPilotOfAnotherCorporationIsRefusedThePlanning(): void
     {
         $this->client->loginUser($this->outsider, 'api');
@@ -336,5 +517,29 @@ final class ProjectPlanningApiTest extends WebTestCase
             'product_type_id' => self::HULL_TYPE_ID,
             'quantity' => 1,
         ]);
+    }
+
+    private function insertFlowBlueprints(): void
+    {
+        $blueprints = [
+            [self::FLOW_FRIGATE_BLUEPRINT_TYPE_ID, self::FLOW_FRIGATE_TYPE_ID, self::FLOW_FRIGATE_BASE_TIME_SECONDS],
+            [self::FLOW_CRUISER_BLUEPRINT_TYPE_ID, self::FLOW_CRUISER_TYPE_ID, self::FLOW_CRUISER_BASE_TIME_SECONDS],
+            [self::FLOW_BATTLESHIP_BLUEPRINT_TYPE_ID, self::FLOW_BATTLESHIP_TYPE_ID, self::FLOW_BATTLESHIP_BASE_TIME_SECONDS],
+        ];
+        $connection = $this->em->getConnection();
+        foreach ($blueprints as [$blueprintTypeId, $productTypeId, $baseTimeSeconds]) {
+            $connection->insert('sde_industry_blueprints', ['type_id' => $blueprintTypeId, 'max_production_limit' => 300]);
+            $connection->insert('sde_industry_activities', [
+                'type_id' => $blueprintTypeId,
+                'activity_id' => self::ACTIVITY_MANUFACTURING,
+                'time' => $baseTimeSeconds,
+            ]);
+            $connection->insert('sde_industry_activity_products', [
+                'type_id' => $blueprintTypeId,
+                'activity_id' => self::ACTIVITY_MANUFACTURING,
+                'product_type_id' => $productTypeId,
+                'quantity' => 1,
+            ]);
+        }
     }
 }

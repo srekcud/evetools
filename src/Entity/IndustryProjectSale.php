@@ -215,6 +215,13 @@ class IndustryProjectSale
         return $this;
     }
 
+    public function isHeldBy(User $user): bool
+    {
+        return $this->seller === null
+            ? $this->recordedBy === $user
+            : $user->getCharacters()->contains($this->seller) === true;
+    }
+
     public function getWalletTransaction(): ?CachedWalletTransaction
     {
         return $this->walletTransaction;

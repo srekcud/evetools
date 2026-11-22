@@ -121,7 +121,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], [], 0, false);
 
         self::assertSame([
-            ['prepare', 'done', 2, 2, null, null],
+            ['prepare', 'done', 1, 1, null, null],
             ['supply', 'done', 2, 2, null, null],
             ['produce', 'current', 1, 6, null, null],
             ['sell', 'upcoming', 0, 403, null, null],
@@ -198,7 +198,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         self::assertSame(self::NOTHING_TO_DO, $this->actionRow($memberCockpit));
     }
 
-    public function testSellingProjectWithSixtyOfAHundredFinalUnitsSoldAsksTheManagerToRecordFortyWhileAMemberHasNothingToDo(): void
+    public function testSellingProjectWithSixtyOfAHundredFinalUnitsSoldAsksTheManagerAndTheMemberToRecordForty(): void
     {
         $lines = [
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 30_000, 30_000),
@@ -217,7 +217,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             ['close', 'upcoming', 0, 1, null, null],
         ], $this->phaseRows($managerCockpit));
         self::assertSame(['record_sale', false, 'sales', null, null, null, null, 40], $this->actionRow($managerCockpit));
-        self::assertSame(self::NOTHING_TO_DO, $this->actionRow($memberCockpit));
+        self::assertSame(['record_sale', false, 'sales', null, null, null, null, 40], $this->actionRow($memberCockpit));
     }
 
     public function testSellingProjectWithEveryFinalUnitSoldIsCompletedByTheManagerWhileAMemberHasNothingToDo(): void
@@ -293,7 +293,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         ], $this->phaseRows($cockpit));
     }
 
-    public function testDraftProjectIsStartedByTheManagerWhilePrepareIsCurrentAtZeroOfTwoAndAMemberHasNothingToDo(): void
+    public function testDraftProjectIsStartedByTheManagerWhilePrepareIsCurrentAtZeroOfOneAndAMemberHasNothingToDo(): void
     {
         $lines = [
             $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 14_000, 0),
@@ -305,7 +305,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         $memberCockpit = $this->cockpitOf(ProjectStatus::Draft, 2, $lines, [], 0, false);
 
         self::assertSame([
-            ['prepare', 'current', 0, 2, null, null],
+            ['prepare', 'current', 0, 1, null, null],
             ['supply', 'upcoming', 0, 1, null, null],
             ['produce', 'upcoming', 0, 2, null, null],
             ['sell', 'upcoming', 0, 51, null, null],
@@ -454,6 +454,21 @@ final class ProjectCockpitCalculatorTest extends TestCase
         self::assertSame(['start_selling', false, null, 'selling', null, null, null, null], $this->actionRow($cockpit));
     }
 
+    #[Group('issue-1193')]
+    public function testLaunchJobSkipsABlueprintLineWhoseCopyRunsAreAllDeliveredAndPicksTheBlueprintLineStillToLaunch(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->job('line-hammerhead-copy', 'blueprint', self::HAMMERHEAD_II_BLUEPRINT_TYPE_ID, 'Hammerhead II Blueprint', 20, 0, 20, 20, 20),
+            $this->job('line-ishtar-invention', 'blueprint', self::ISHTAR_BLUEPRINT_TYPE_ID, 'Ishtar Blueprint', 3, 0, 3, 0),
+        ], [], 0, true);
+
+        self::assertSame(
+            ['launch_job', false, 'materials', null, 'line-ishtar-invention', self::ISHTAR_BLUEPRINT_TYPE_ID, 'Ishtar Blueprint', 3],
+            $this->actionRow($cockpit),
+        );
+    }
+
     public function testJobLineWhoseDeliveredRunsFallShortOfItsRunsStaysToLaunchWithTheRunsNotYetMatched(): void
     {
         $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
@@ -549,6 +564,76 @@ final class ProjectCockpitCalculatorTest extends TestCase
         self::assertSame('source_material', $cockpit->nextAction->code);
     }
 
+    #[Group('issue-1175')]
+    public function testCoveredMaterialsWithPurchasesStillToDeliverKeepSupplyCurrentAndAskToDeliverThePurchases(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
+            $this->material('line-morphite', self::MORPHITE_TYPE_ID, 'Morphite', 120, 120),
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
+        ], [], 0, true, purchasesToDeliverCount: 2);
+
+        self::assertSame(['supply', 'current', 2, 2, null, null], $this->phaseRow($cockpit, 'supply'));
+        self::assertSame(['deliver_purchases', false, 'materials', null, null, null, null, 2], $this->actionRow($cockpit));
+        self::assertSame(2, $cockpit->purchasesToDeliverCount);
+    }
+
+    #[Group('issue-1175')]
+    public function testMemberAlsoSeesTheDeliveryOfThePurchases(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
+        ], [], 0, false, purchasesToDeliverCount: 1);
+
+        self::assertSame('deliver_purchases', $cockpit->nextAction->code);
+    }
+
+    #[Group('issue-1175')]
+    public function testPendingContributionsStillComeBeforeTheDeliveryButTheCountIsKept(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
+        ], [], 2, true, purchasesToDeliverCount: 3);
+
+        self::assertSame(['review_contributions', 3], [$cockpit->nextAction->code, $cockpit->purchasesToDeliverCount]);
+    }
+
+    #[Group('issue-1175')]
+    public function testUncoveredMaterialStillComesBeforeTheDeliveryOfPurchases(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 8_000),
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
+        ], [], 0, true, purchasesToDeliverCount: 2);
+
+        self::assertSame('source_material', $cockpit->nextAction->code);
+    }
+
+    #[Group('issue-1175')]
+    public function testOnceProductionHasStartedThePurchasesNoLongerBlockTheJobsNorKeepTheCount(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
+            $this->job('line-ram', 'component', self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 3, 0, 3, 3),
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
+        ], [], 0, true, purchasesToDeliverCount: 2);
+
+        self::assertSame(['launch_job', 0], [$cockpit->nextAction->code, $cockpit->purchasesToDeliverCount]);
+    }
+
+    #[Group('issue-1175')]
+    public function testWithoutPurchasesToDeliverTheJobIsLaunchedAndTheCountIsZero(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 9_000, 9_000),
+            $this->job('line-ishtar', 'final', self::ISHTAR_TYPE_ID, 'Ishtar', 3, 0, 3, 0),
+        ], [], 0, true, purchasesToDeliverCount: 0);
+
+        self::assertSame(['launch_job', 0], [$cockpit->nextAction->code, $cockpit->purchasesToDeliverCount]);
+    }
+
     private function material(string $id, int $typeId, string $typeName, int $requiredQuantity, int $fulfilledQuantity): CockpitBomLine
     {
         return new CockpitBomLine($id, $typeId, $typeName, $requiredQuantity, $fulfilledQuantity, false, null, null, 0, 0);
@@ -590,6 +675,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
         bool $viewerIsManager,
         ?int $unreceivedTransferCount = null,
         int $pendingJoinRequestCount = 0,
+        int $purchasesToDeliverCount = 0,
     ): ProjectCockpit {
         return $this->calculator->calculate(new ProjectCockpitInput(
             $status,
@@ -600,6 +686,7 @@ final class ProjectCockpitCalculatorTest extends TestCase
             $viewerIsManager,
             $unreceivedTransferCount,
             $pendingJoinRequestCount,
+            $purchasesToDeliverCount,
         ));
     }
 

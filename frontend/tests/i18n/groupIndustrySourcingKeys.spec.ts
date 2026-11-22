@@ -32,7 +32,7 @@ describe('Sourcing and production message keys', () => {
       frenchSummaryPlaceholders: typeof frenchSummary === 'string' && frenchSummary.includes('{supplied}') && frenchSummary.includes('{total}'),
       frenchUnknownPlaceholder: typeof frenchUnknown === 'string' && frenchUnknown.includes('{count}'),
     }).toEqual({
-      english: ['{supplied} / {total} material lines supplied', '{count} unknown'],
+      english: ['{supplied} / {total} material lines delivered', '{count} unknown'],
       frenchSummaryPlaceholders: true,
       frenchUnknownPlaceholder: true,
     })

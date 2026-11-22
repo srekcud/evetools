@@ -14,6 +14,7 @@ use App\Enum\ContributionValueSource;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Service\Industry\PriceSource;
 use App\Service\JitaMarketService;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 
 class ProjectContributionService
@@ -50,6 +51,7 @@ class ProjectContributionService
         ?float $estimatedValue = null,
         ?string $note = null,
         ?ContributionValueSource $valueSource = null,
+        bool $verifiedOwnStock = false,
     ): IndustryProjectContribution {
         if (null !== $valueSource && (ContributionType::Material !== $type || !$this->acceptsAValueSource($bomItem, $valueSource))) {
             throw new \DomainException('A value source only applies to a material contribution of a material line');
@@ -60,12 +62,12 @@ class ProjectContributionService
         }
 
         if ($this->isIntermediateContribution($bomItem, $type)) {
-            if (ContributionValueSource::LaunchPrice !== $valueSource) {
+            if (ContributionValueSource::LaunchPrice !== $valueSource && !$verifiedOwnStock) {
                 $this->assertSoloProject($member);
             }
 
             return $this->entityManager->wrapInTransaction(
-                fn (): IndustryProjectContribution => $this->submitContribution($member, $bomItem, $type, $quantity, $estimatedValue, $note, $valueSource),
+                fn (): IndustryProjectContribution => $this->submitContribution($member, $bomItem, $type, $quantity, $estimatedValue, $note, $valueSource, $verifiedOwnStock),
             );
         }
 
@@ -80,8 +82,14 @@ class ProjectContributionService
         ?float $estimatedValue,
         ?string $note,
         ?ContributionValueSource $valueSource,
+        bool $verifiedOwnStock = false,
     ): IndustryProjectContribution {
         if (ContributionType::Material !== $type) {
+            $this->validateAntiDuplicate($member, $bomItem, $type);
+        }
+
+        if ($verifiedOwnStock && $this->isIntermediateContribution($bomItem, $type)) {
+            $this->entityManager->refresh($bomItem, LockMode::PESSIMISTIC_WRITE);
             $this->validateAntiDuplicate($member, $bomItem, $type);
         }
 
@@ -115,7 +123,8 @@ class ProjectContributionService
         $this->linkPaidPurchases($contribution, $bomItem, $value);
 
         $contributor = $member->getUser();
-        if (0 === $contribution->getAwaitingQuantity() && $contributor !== null && $member->getProject()->isSoloProjectOf($contributor)) {
+        $suppliesOwnStock = $verifiedOwnStock && $this->isIntermediateContribution($bomItem, $type);
+        if (0 === $contribution->getAwaitingQuantity() && $contributor !== null && ($suppliesOwnStock || $member->getProject()->isSoloProjectOf($contributor))) {
             if ($this->isIntermediateContribution($bomItem, $type)) {
                 $this->approveContribution($contribution, $contributor, $bomItem);
                 $this->recalculateBomOf($contribution);
@@ -214,11 +223,30 @@ class ProjectContributionService
         $contribution->setReviewedAt(new \DateTimeImmutable());
 
         if ($bomItem !== null) {
-            $this->incrementFulfillment($bomItem, $contribution->getQuantity());
-            $this->lineReservations->settleApproval($bomItem, $contribution->getMember(), $contribution->getQuantity());
+            $this->incrementFulfillment($bomItem, $contribution);
+            $this->settleReservationOfApproved($contribution, $bomItem);
         }
 
         $this->entityManager->flush();
+    }
+
+    private function settleReservationOfApproved(IndustryProjectContribution $contribution, IndustryProjectBomLine $bomItem): void
+    {
+        $installer = $contribution->getMember();
+        if (ContributionType::JobInstall !== $contribution->getType()) {
+            $this->lineReservations->settleApproval($bomItem, $installer, $contribution->getQuantity());
+
+            return;
+        }
+
+        $declaredRunsBefore = $bomItem->getApprovedDeclaredRunsOf($installer, $contribution);
+        $derivedRuns = $bomItem->getDerivedRunsOf($installer);
+        $this->lineReservations->settleInstalledRuns(
+            $bomItem,
+            $installer,
+            max($declaredRunsBefore, $derivedRuns),
+            max($declaredRunsBefore + $contribution->getQuantity(), $derivedRuns),
+        );
     }
 
     /**
@@ -594,13 +622,17 @@ class ProjectContributionService
 
         $bomItem = $contribution->getBomItem();
         if ($bomItem !== null) {
-            $this->incrementFulfillment($bomItem, $contribution->getQuantity());
-            $this->lineReservations->settleApproval($bomItem, $contribution->getMember(), $contribution->getQuantity());
+            $this->incrementFulfillment($bomItem, $contribution);
+            $this->settleReservationOfApproved($contribution, $bomItem);
         }
     }
 
-    private function incrementFulfillment(IndustryProjectBomLine $bomItem, int $quantity): void
+    private function incrementFulfillment(IndustryProjectBomLine $bomItem, IndustryProjectContribution $contribution): void
     {
-        $bomItem->setFulfilledQuantity($bomItem->getFulfilledQuantity() + $quantity);
+        $addedQuantity = ContributionType::JobInstall === $contribution->getType()
+            ? $bomItem->getQuantityOfRuns($contribution->getQuantity())
+            : $contribution->getQuantity();
+
+        $bomItem->setFulfilledQuantity($bomItem->getFulfilledQuantity() + $addedQuantity);
     }
 }

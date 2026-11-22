@@ -145,7 +145,7 @@ describe('project journal running jobs', () => {
     expect({ atStart, afterOneSecond, atTheEnd: countdown() }).toEqual({
       atStart: '01:02:05',
       afterOneSecond: '01:02:04',
-      atTheEnd: text('groupIndustry.journal.finished'),
+      atTheEnd: 'Ready to deliver',
     })
   })
 })

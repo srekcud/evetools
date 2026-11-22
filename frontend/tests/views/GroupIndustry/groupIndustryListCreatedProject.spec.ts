@@ -40,7 +40,7 @@ async function createSabreProject(): Promise<VueWrapper> {
         ProjectKpiCards: true,
         LineRentalModal: true,
         AvailableProjectCard: true,
-        ProjectCard: true,
+        ProjectsOverviewTable: true,
       },
     },
   })
@@ -67,9 +67,9 @@ beforeEach(() => {
 })
 
 describe('GroupIndustryList once a project is created from the modal', () => {
-  it('opens the created project', async () => {
+  it('opens the setup assistant of the created project', async () => {
     await createSabreProject()
 
-    expect(push.mock.calls).toEqual([[{ name: 'industry-project', params: { id: CREATED_PROJECT_ID } }]])
+    expect(push.mock.calls).toEqual([[{ name: 'industry-project-setup', params: { id: CREATED_PROJECT_ID } }]])
   })
 })

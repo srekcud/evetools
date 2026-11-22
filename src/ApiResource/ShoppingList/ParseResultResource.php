@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\ShoppingList\ParseListInput;
+use App\Constant\EveConstants;
 use App\State\Processor\ShoppingList\ParseProcessor;
 
 #[ApiResource(
@@ -38,7 +39,7 @@ class ParseResultResource
     /** @var array<string, float|null> */
     public array $totals = [];
 
-    public float $transportCostPerM3 = 1200.0;
+    public float $transportCostPerM3 = EveConstants::DEFAULT_EXPORT_COST_PER_M3;
 
     public ?int $structureId = null;
 

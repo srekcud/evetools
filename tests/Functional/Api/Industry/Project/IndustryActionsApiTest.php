@@ -119,7 +119,7 @@ final class IndustryActionsApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame(
-            [[$this->ishtarBatch->getId()->toRfc4122(), 'source_material', true, self::TRITANIUM_TYPE_ID, 12_000]],
+            [[$this->ishtarBatch->getId()->toRfc4122(), 'source_material', true, self::MORPHITE_TYPE_ID, 147]],
             array_map(
                 static fn (array $entry): array => [$entry['projectId'] ?? null, $entry['code'] ?? null, $entry['blocked'] ?? null, $entry['typeId'] ?? null, $entry['quantity'] ?? null],
                 $this->responseJson(),

@@ -57,27 +57,27 @@ describe('ProductionChain materials summary card', () => {
   it('counts the material lines whose fulfilled quantity reaches the required quantity', async () => {
     const wrapper = await mountChain([HAMMERHEAD_II_INVENTION, TRITANIUM_LINE, PYERITE_LINE, MEXALLON_LINE])
 
-    expect(cardText(wrapper)).toBe('2 / 3 material lines supplied')
+    expect(cardText(wrapper)).toBe('2 / 3 material lines delivered')
     expect(cardText(wrapper)).not.toContain('unknown')
   })
 
   it('counts a line fulfilled above its required quantity as supplied', async () => {
     const wrapper = await mountChain([{ ...TRITANIUM_LINE, requiredQuantity: 100, fulfilledQuantity: 130 }, ISOGEN_LINE])
 
-    expect(cardText(wrapper)).toBe('1 / 2 material lines supplied')
+    expect(cardText(wrapper)).toBe('1 / 2 material lines delivered')
   })
 
   it('counts a line with an unknown fulfilled quantity apart, never as supplied', async () => {
     const wrapper = await mountChain([TRITANIUM_LINE, unknownFulfilled(ISOGEN_LINE)])
 
-    expect(cardText(wrapper)).toContain('1 / 2 material lines supplied')
+    expect(cardText(wrapper)).toContain('1 / 2 material lines delivered')
     expect(cardText(wrapper)).toContain('1 unknown')
   })
 
   it('counts a line with an unknown required quantity apart, never as supplied', async () => {
     const wrapper = await mountChain([unknownRequired(PYERITE_LINE), unknownFulfilled(ISOGEN_LINE), MEXALLON_LINE])
 
-    expect(cardText(wrapper)).toContain('1 / 3 material lines supplied')
+    expect(cardText(wrapper)).toContain('1 / 3 material lines delivered')
     expect(cardText(wrapper)).toContain('2 unknown')
   })
 
@@ -124,7 +124,7 @@ describe('ProductionChain materials summary card', () => {
     await wrapper.get('[data-testid="chain-view-tree"]').trigger('click')
 
     expect({ overview, treeEmptyFilter: wrapper.find('[data-testid="chain-filter-empty"]').exists() }).toEqual({
-      overview: { card: '2 / 3 material lines supplied', jobNodes: 0 },
+      overview: { card: '2 / 3 material lines delivered', jobNodes: 0 },
       treeEmptyFilter: true,
     })
   })
@@ -143,7 +143,7 @@ describe('ProductionChain materials summary card', () => {
     const text = cardText(wrapper)
     expect({
       rawKey: text.includes('groupIndustry.'),
-      english: text.includes('material lines supplied') || text.includes('unknown'),
+      english: text.includes('material lines delivered') || text.includes('unknown'),
       counts: text.includes('1') && text.includes('2'),
     }).toEqual({ rawKey: false, english: false, counts: true })
   })

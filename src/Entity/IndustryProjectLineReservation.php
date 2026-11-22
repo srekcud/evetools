@@ -15,6 +15,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['participant_id'])]
 class IndustryProjectLineReservation
 {
+    public const int LIFETIME_IN_HOURS = 48;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
@@ -33,13 +35,16 @@ class IndustryProjectLineReservation
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $reservedAt;
 
-    public function __construct(IndustryProjectBomLine $bomLine, IndustryProjectParticipant $participant, int $quantity)
+    #[ORM\Column(type: 'datetime_immutable')]
+    private \DateTimeImmutable $expiresAt;
+
+    public function __construct(IndustryProjectBomLine $bomLine, IndustryProjectParticipant $participant, int $quantity, ?\DateTimeImmutable $reservedAt = null)
     {
         $this->id = Uuid::v7();
         $this->bomLine = $bomLine;
         $this->participant = $participant;
         $this->quantity = $quantity;
-        $this->reservedAt = new \DateTimeImmutable();
+        $this->startLifetimeAt($reservedAt ?? new \DateTimeImmutable());
     }
 
     public function getId(): Uuid
@@ -72,5 +77,26 @@ class IndustryProjectLineReservation
     public function getReservedAt(): \DateTimeImmutable
     {
         return $this->reservedAt;
+    }
+
+    public function getExpiresAt(): \DateTimeImmutable
+    {
+        return $this->expiresAt;
+    }
+
+    public function isExpiredAt(\DateTimeImmutable $moment): bool
+    {
+        return $this->expiresAt <= $moment;
+    }
+
+    public function renew(): void
+    {
+        $this->startLifetimeAt(new \DateTimeImmutable());
+    }
+
+    private function startLifetimeAt(\DateTimeImmutable $reservedAt): void
+    {
+        $this->reservedAt = $reservedAt;
+        $this->expiresAt = $reservedAt->modify(sprintf('+%d hours', self::LIFETIME_IN_HOURS));
     }
 }

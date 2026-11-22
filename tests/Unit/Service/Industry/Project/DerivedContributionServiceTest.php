@@ -18,11 +18,13 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Service\Industry\Project\DerivedContributionService;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -114,7 +116,37 @@ final class DerivedContributionServiceTest extends TestCase
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->createMock(NotificationDispatcher::class),
+            $this->createStub(LineReservationService::class),
         );
+    }
+
+    #[DataProvider('blueprintJobActivities')]
+    public function testLinkedCopyOrInventionJobDerivesNoJobInstallContribution(string $activityType): void
+    {
+        $blueprintLine = (new IndustryProjectBomLine())
+            ->setTypeId(self::ISHTAR_TYPE_ID)
+            ->setTypeName('Ishtar')
+            ->setRequiredQuantity(5)
+            ->setIsJob(true)
+            ->setJobGroup('blueprint')
+            ->setActivityType($activityType)
+            ->setRuns(5);
+        $this->project->addBomItem($blueprintLine);
+        $this->linkJob($blueprintLine, 9_001, 5, 120_000.0);
+
+        $this->service->refreshLine($blueprintLine);
+
+        self::assertSame([], $this->derivedContributionsOf($blueprintLine));
+        self::assertSame([], $this->persistedContributions);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function blueprintJobActivities(): iterable
+    {
+        yield 'copy' => ['copy'];
+        yield 'invention' => ['invention'];
     }
 
     public function testFirstLinkedPurchaseCreatesTheOwnersApprovedDerivedMaterialContributionAndServesTheLine(): void
@@ -269,6 +301,33 @@ final class DerivedContributionServiceTest extends TestCase
         $this->assertSame($this->ownerParticipant, $contribution->getMember());
         $this->assertSame($this->owner, $contribution->getReviewedBy());
         $this->assertSame(0, $this->ishtarLine->getFulfilledQuantity());
+    }
+
+    #[Group('issue-1250')]
+    public function testTwoLinesCarryingEachHalfOfASharedJobGetHalfOfItsInstallCostEach(): void
+    {
+        $secondIshtarLine = (new IndustryProjectBomLine())
+            ->setTypeId(self::ISHTAR_TYPE_ID)
+            ->setTypeName('Ishtar')
+            ->setRequiredQuantity(10)
+            ->setIsJob(true)
+            ->setJobGroup('final')
+            ->setActivityType('manufacturing')
+            ->setRuns(10);
+        $this->project->addBomItem($secondIshtarLine);
+        $this->linkJob($this->ishtarLine, 7_250_300_001, 10, 500_000.0);
+        $this->linkJob($secondIshtarLine, 7_250_300_001, 10, 500_000.0);
+
+        $this->service->refreshLine($this->ishtarLine);
+        $this->service->refreshLine($secondIshtarLine);
+
+        $this->assertSame(
+            [[ContributionType::JobInstall, 10, 500_000.0], [ContributionType::JobInstall, 10, 500_000.0]],
+            array_map(
+                static fn (IndustryProjectContribution $contribution): array => [$contribution->getType(), $contribution->getQuantity(), $contribution->getEstimatedValue()],
+                [$this->singleDerivedContributionOf($this->ishtarLine), $this->singleDerivedContributionOf($secondIshtarLine)],
+            ),
+        );
     }
 
     public function testLinkedJobWithoutACostMakesTheDerivedValueUnknownNotZero(): void

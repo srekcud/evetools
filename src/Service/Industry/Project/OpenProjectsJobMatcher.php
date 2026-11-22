@@ -32,28 +32,27 @@ class OpenProjectsJobMatcher
             $this->process($draft, fn () => $this->jobMatcher->releaseAutomaticMatches($draft));
         }
 
-        $released = array_filter($launched, $this->releaseAutomaticMatchesOf(...));
-        $containerOwners = $this->jobMatcher->containerOwnersByLocationId(array_values($released));
-        $contestedJobIds = $this->jobMatcher->contestedJobIds(array_values($released), $containerOwners);
+        if ($launched !== []) {
+            $this->matchInOnePass(array_values($launched));
+        }
 
-        foreach ($released as $project) {
-            $this->process($project, function () use ($project, $contestedJobIds, $containerOwners): void {
-                $this->jobMatcher->matchEsiJobs($project, $contestedJobIds, $containerOwners);
-                $this->jobActivityRecorder->recordJobsOf($project);
-            });
+        foreach ($launched as $project) {
+            $this->process($project, fn () => $this->jobActivityRecorder->recordJobsOf($project));
         }
     }
 
-    private function releaseAutomaticMatchesOf(IndustryProject $project): bool
+    /**
+     * @param list<IndustryProject> $launched
+     */
+    private function matchInOnePass(array $launched): void
     {
         try {
-            $this->jobMatcher->releaseAutomaticMatches($project);
-
-            return true;
+            $this->jobMatcher->matchOpenProjects($launched);
         } catch (\Throwable $exception) {
-            $this->logFailure($project, $exception);
-
-            return false;
+            $this->logger->warning('Failed to match jobs of projects', [
+                'projectIds' => array_map(static fn (IndustryProject $project): string => $project->getId()->toRfc4122(), $launched),
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 

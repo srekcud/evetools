@@ -224,6 +224,7 @@ class IndustryJobSyncService
                 $existing->setEndDate(new \DateTimeImmutable($jobData['end_date']));
                 $existing->setProductTypeId($jobData['product_type_id'] ?? null);
                 $existing->setRuns($jobData['runs']);
+                $existing->setSuccessfulRuns($jobData['successful_runs'] ?? null);
                 $existing->setCost(self::esiCost($jobData));
                 $existing->setCachedAt(new \DateTimeImmutable());
                 $syncedJobsByJobId[$jobData['job_id']] = $existing;
@@ -238,6 +239,7 @@ class IndustryJobSyncService
             $job->setBlueprintId($jobData['blueprint_id'] ?? null);
             $job->setProductTypeId($jobData['product_type_id'] ?? null);
             $job->setRuns($jobData['runs']);
+            $job->setSuccessfulRuns($jobData['successful_runs'] ?? null);
             $job->setCost(self::esiCost($jobData));
             $job->setStatus($jobData['status']);
             $job->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);

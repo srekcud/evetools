@@ -164,6 +164,42 @@ final class IntermediateContributionFlowTest extends TestCase
         self::assertSame([], $this->contributions);
     }
 
+    #[Group('issue-1318')]
+    public function testVerifiedOwnStockSupplyOfAMemberIsApprovedByTheMemberAndReducesTheRunsOfItsLine(): void
+    {
+        $project = $this->projectOfTenRunsOfFerniteCarbide();
+        $member = $this->acceptedMemberOf($project);
+        $hydrogenFuelBlock = $this->lineOf($project, self::HYDROGEN_FUEL_BLOCK, 'manufacturing', 'component');
+
+        $contribution = null;
+        $failure = $this->failureOf(function () use (&$contribution, $member, $hydrogenFuelBlock): void {
+            $contribution = $this->contributionService->submit($member, $hydrogenFuelBlock, ContributionType::Material, 30, verifiedOwnStock: true);
+        });
+
+        self::assertNull($failure);
+        self::assertSame([ContributionStatus::Approved, $member->getUser()], [$contribution->getStatus(), $contribution->getReviewedBy()]);
+        self::assertSame(
+            [2, 110, 30, 80],
+            [$hydrogenFuelBlock->getRuns(), $hydrogenFuelBlock->getRequiredQuantity(), $hydrogenFuelBlock->getFulfilledQuantity(), $hydrogenFuelBlock->getRemainingQuantity()],
+        );
+    }
+
+    #[Group('issue-1318')]
+    public function testSecondVerifiedOwnStockSupplyOfTheSameMemberOnTheSameLineIsRefused(): void
+    {
+        $project = $this->projectOfTenRunsOfFerniteCarbide();
+        $member = $this->acceptedMemberOf($project);
+        $hydrogenFuelBlock = $this->lineOf($project, self::HYDROGEN_FUEL_BLOCK, 'manufacturing', 'component');
+        $this->contributionService->submit($member, $hydrogenFuelBlock, ContributionType::Material, 30, verifiedOwnStock: true);
+
+        $failure = $this->failureOf(function () use ($member, $hydrogenFuelBlock): void {
+            $this->contributionService->submit($member, $hydrogenFuelBlock, ContributionType::Material, 10, verifiedOwnStock: true);
+        });
+
+        self::assertInstanceOf(\DomainException::class, $failure);
+        self::assertSame(30, $hydrogenFuelBlock->getFulfilledQuantity());
+    }
+
     public function testSoloProjectBecomingAGroupKeepsItsApprovedIntermediateStockAndRefusesANewIntermediateContribution(): void
     {
         $project = $this->projectOfTenRunsOfFerniteCarbide();

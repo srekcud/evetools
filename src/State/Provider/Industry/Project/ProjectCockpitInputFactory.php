@@ -7,11 +7,8 @@ namespace App\State\Provider\Industry\Project;
 use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
-use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
-use App\Enum\ParticipantRole;
-use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\CockpitBomLine;
 use App\Service\Industry\Project\ProjectCockpitInput;
 use App\Service\Industry\Project\ProjectLineFulfillments;
@@ -20,7 +17,6 @@ use App\Service\Industry\Project\SettlementTransfer;
 
 final readonly class ProjectCockpitInputFactory
 {
-    private const array MANAGER_ROLES = [ParticipantRole::Owner, ParticipantRole::Admin];
     private const array RUNNING_JOB_STATUSES = [CachedIndustryJob::STATUS_ACTIVE, CachedIndustryJob::STATUS_PAUSED, CachedIndustryJob::STATUS_READY];
 
     public function create(IndustryProject $project, User $user, ?ProjectLineFulfillments $fulfillments = null, ?ProjectSettlement $settlement = null): ProjectCockpitInput
@@ -33,9 +29,11 @@ final readonly class ProjectCockpitInputFactory
             array_values($project->getBomItems()->map(fn (IndustryProjectBomLine $line): CockpitBomLine => $this->toCockpitBomLine($line, $fulfillments))->toArray()),
             $this->soldQuantityByTypeId($project),
             $project->pendingContributionCountReviewableBy($user),
-            $this->isManager($user, $project),
+            $project->isManagedBy($user),
             $this->unreceivedTransferCount($settlement),
             $project->pendingJoinRequestCount(),
+            $this->purchasesToDeliverCount($project, $fulfillments),
+            $project->isPersonalUse(),
         );
     }
 
@@ -46,6 +44,14 @@ final readonly class ProjectCockpitInputFactory
         }
 
         return \count(array_filter($settlement->transfers, static fn (SettlementTransfer $transfer): bool => !$transfer->isReceived()));
+    }
+
+    private function purchasesToDeliverCount(IndustryProject $project, ProjectLineFulfillments $fulfillments): int
+    {
+        return \count(array_filter(
+            $project->getBomItems()->toArray(),
+            static fn (IndustryProjectBomLine $line): bool => ($fulfillments->missingPurchasedQuantityOf($line) ?? 0) > 0,
+        ));
     }
 
     private function toCockpitBomLine(IndustryProjectBomLine $line, ProjectLineFulfillments $fulfillments): CockpitBomLine
@@ -98,18 +104,5 @@ final readonly class ProjectCockpitInputFactory
         }
 
         return $soldQuantityByTypeId;
-    }
-
-    private function isManager(User $user, IndustryProject $project): bool
-    {
-        if ($project->getOwner() === $user) {
-            return true;
-        }
-
-        return $project->getMembers()->exists(
-            static fn (int $key, IndustryProjectParticipant $member): bool => $member->getUser() === $user
-                && $member->getStatus() === ParticipantStatus::Accepted
-                && \in_array($member->getRole(), self::MANAGER_ROLES, true),
-        );
     }
 }

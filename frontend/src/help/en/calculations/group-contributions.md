@@ -90,7 +90,7 @@ Each transfer carries the project's **payment reference** in its reason: `IP-` f
 | Cost of a linked job | Character industry jobs (ESI) | Jobs sync every 30 minutes, until the project is completed |
 | "Estimated Value" | Your entry | At submission |
 | Courier reward | Character contracts (ESI) | When the project's courier is displayed |
-| Sales | Entered by the owner or an admin ("Record Sale", attached transaction or contract) | When entered |
+| Sales | Entered by each participant for their own characters ("Record Sale", attached transaction or contract) | When entered |
 | "Broker Fee %", "Sales Tax %" | Project setting, copied from the owner's fees at creation | Until the project is completed |
 | Contract fees | Seller's wallet journal | With the wallet sync |
 
@@ -140,7 +140,7 @@ Missing data makes the result **unknown**, never 0. An unknown amount shows as "
 
 ## Traps
 
-- **A sale made by another participant is counted for whoever records it.** Only the owner and admins record sales, and only for their own characters. If a member sold, the recorder is counted as holding that money, and the plan asks them to send ISK they do not have.
+- **A sale recorded without a seller is counted for whoever records it.** Each participant records sales for their own characters only. A sale without a seller is counted as held by the person who recorded it.
 - **Alone on a project: "I supplied it" then a linked purchase count twice.** On the same line, the declared contribution (at the Jita price) and the purchase's (at the paid price) are both approved and both in the cost. In a group, a reviewer rejects the declared one ("Duplicate of an ESI contribution", "Reject"). Alone on the project, the "Contributions" tab is hidden and that button cannot be reached: the only way to remove the duplicate is to delete the purchase in "Purchases".
 - **The project's broker fee and sales tax apply to all market revenue**, at the rates copied from the owner, whoever the seller is, whatever their skills or the kind of sale (a sale to a buy order pays no broker fee in game).
 - **"Undistributable distribution" also shows when the fees are unknown.** The message says "no approved contribution has a cost", but the cause can be an empty "Broker Fee %" or "Sales Tax %".

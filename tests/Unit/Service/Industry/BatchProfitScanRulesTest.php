@@ -17,6 +17,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\JitaMarketService;
+use App\Industry\Application\CourierHub;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\ContractSales\ContractSalesConfidence;
 use App\Service\Industry\ContractSales\ContractSalesIndicators;
@@ -49,6 +50,9 @@ class BatchProfitScanRulesTest extends TestCase
     private const int REACTION = 11;
     private const int SOLAR_SYSTEM_ID = 30002510;
     private const int REACTION_SOLAR_SYSTEM_ID = 30000144;
+    private const int HUB_SOLAR_SYSTEM_ID = 30000772;
+    private const int COURIER_HUB_EXAMPLE_PRODUCT_ID = 9286;
+    private const int COURIER_HUB_EXAMPLE_BLUEPRINT_ID = 9287;
     private const string USER_ID = '0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f90';
 
     private const int TRITANIUM_TYPE_ID = 34;
@@ -859,6 +863,57 @@ class BatchProfitScanRulesTest extends TestCase
         );
     }
 
+    #[Group('issue-1286')]
+    public function testManufacturingOutsideTheHubPaysTheRateFromJitaPlusTheBridgeOnImportAndExport(): void
+    {
+        $this->givenBatchOfTheCourierHubExample(self::MANUFACTURING, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10], '0.4', '0.5');
+
+        $row = $this->scan(courierHub: new CourierHub(self::HUB_SOLAR_SYSTEM_ID, 1_200.0, 50.0))[0];
+
+        $this->assertSame([50_625.0, 12_500.0], [$row['importCost'], $row['exportCost']]);
+    }
+
+    #[Group('issue-1286')]
+    public function testManufacturingInTheHubSystemPaysOnlyTheRateFromJitaOnImportAndExport(): void
+    {
+        $this->givenBatchOfTheCourierHubExample(self::MANUFACTURING, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10], '0.4', '0.5');
+
+        $row = $this->scan(courierHub: new CourierHub(self::SOLAR_SYSTEM_ID, 1_200.0, 50.0))[0];
+
+        $this->assertSame([48_600.0, 12_000.0], [$row['importCost'], $row['exportCost']]);
+    }
+
+    #[Group('issue-1286')]
+    public function testReactionOutsideTheHubPaysTheBridgeEvenWhenTheManufacturingSystemIsTheHub(): void
+    {
+        $this->givenBatchOfTheCourierHubExample(self::REACTION, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 50], '0.25', '0.3');
+
+        $row = $this->scan(reactionSolarSystemId: self::REACTION_SOLAR_SYSTEM_ID, courierHub: new CourierHub(self::SOLAR_SYSTEM_ID, 1_200.0, 50.0))[0];
+
+        $this->assertSame([50_000.0, 12_500.0], [$row['importCost'], $row['exportCost']]);
+    }
+
+    #[Group('issue-1286')]
+    public function testReactionInTheHubSystemPaysOnlyTheRateFromJita(): void
+    {
+        $this->givenBatchOfTheCourierHubExample(self::REACTION, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 50], '0.25', '0.3');
+
+        $row = $this->scan(reactionSolarSystemId: self::REACTION_SOLAR_SYSTEM_ID, courierHub: new CourierHub(self::REACTION_SOLAR_SYSTEM_ID, 1_200.0, 50.0))[0];
+
+        $this->assertSame([48_000.0, 12_000.0], [$row['importCost'], $row['exportCost']]);
+    }
+
+    #[Group('issue-1286')]
+    public function testSellingAtAStructureStillPaysTheImportThroughTheBridgeButNoExport(): void
+    {
+        $this->givenBatchOfTheCourierHubExample(self::MANUFACTURING, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10], '0.4', '0.5');
+        $this->structurePrices = [self::AMARR_STRUCTURE_ID => [self::COURIER_HUB_EXAMPLE_PRODUCT_ID => 100_000.0]];
+
+        $row = $this->scan(sellVenue: 'structure', structureId: self::AMARR_STRUCTURE_ID, courierHub: new CourierHub(self::HUB_SOLAR_SYSTEM_ID, 1_200.0, 50.0))[0];
+
+        $this->assertSame([50_625.0, 0.0], [$row['importCost'], $row['exportCost']]);
+    }
+
     #[Group('issue-255')]
     public function testZeroRatePerCubicMetreChargesNoTransportEvenWithoutSdeVolume(): void
     {
@@ -1355,6 +1410,15 @@ class BatchProfitScanRulesTest extends TestCase
         $this->jitaPrices[$typeId] = $sellPrice;
     }
 
+    private function givenBatchOfTheCourierHubExample(int $activityId, array $baseQuantities, string $tritaniumVolume, string $pyeriteVolume): void
+    {
+        $this->givenProduct(self::COURIER_HUB_EXAMPLE_BLUEPRINT_ID, self::COURIER_HUB_EXAMPLE_PRODUCT_ID, $activityId, 1, $baseQuantities);
+        $this->givenType(self::COURIER_HUB_EXAMPLE_PRODUCT_ID, '429', 'Composite', '4', '10.0');
+        $this->materialVolumeRows = [self::TRITANIUM_TYPE_ID => $tritaniumVolume, self::PYERITE_TYPE_ID => $pyeriteVolume];
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 5.0, self::PYERITE_TYPE_ID => 11.0, self::COURIER_HUB_EXAMPLE_PRODUCT_ID => 100_000.0];
+        $this->jitaDailyVolumes = [self::COURIER_HUB_EXAMPLE_PRODUCT_ID => 10.0];
+    }
+
     private function givenShieldExtenderOfTheTransportExample(int $typeId, ?string $productVolume): void
     {
         $this->givenProduct($typeId + 10000, $typeId, self::MANUFACTURING, 1, [self::TRITANIUM_TYPE_ID => 10, self::PYERITE_TYPE_ID => 4]);
@@ -1440,6 +1504,7 @@ class BatchProfitScanRulesTest extends TestCase
         float $exportCostPerM3 = 0.0,
         ?User $user = null,
         int $reactionSolarSystemId = self::SOLAR_SYSTEM_ID,
+        ?CourierHub $courierHub = null,
     ): array {
         return $this->scanner()->scan(
             $category,
@@ -1449,7 +1514,7 @@ class BatchProfitScanRulesTest extends TestCase
             $structureId,
             self::SOLAR_SYSTEM_ID,
             $salesFees,
-            $exportCostPerM3,
+            $courierHub ?? new CourierHub(self::HUB_SOLAR_SYSTEM_ID, $exportCostPerM3, 0.0),
             $user,
             $reactionSolarSystemId,
         );

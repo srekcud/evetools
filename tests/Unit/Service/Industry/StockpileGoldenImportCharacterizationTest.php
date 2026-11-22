@@ -33,6 +33,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -47,6 +48,8 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 final class StockpileGoldenImportCharacterizationTest extends TestCase
 {
+    use StubsPersonalStockReader;
+
     private const string GOLDEN_DIR = __DIR__.'/../../../Fixtures/Golden/';
     private const int BLUEPRINT_TYPE_ID_OFFSET = 1_000_000;
     private const string PILOT_ID = '0190f3c2-7e44-7b19-a6d3-58c0e2f91b4d';
@@ -131,7 +134,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         $userStructures = new InMemoryUserProductionStructures([self::PILOT_ID => []]);
         $this->service = new StockpileService(
             $this->targetRepository,
-            $assetRepository,
+            $this->personalStockReaderOn($assetRepository),
             $jitaMarketService,
             $productionPlanning,
             $userStructures,

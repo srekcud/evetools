@@ -12,8 +12,10 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Industry\Project\ProjectBomLineResource;
 use App\ApiResource\Industry\Project\IndustryProjectResource;
+use App\ApiResource\Input\Industry\AssignUnassignedJobInput;
 use App\ApiResource\Input\Industry\LinkJobInput;
 use App\Entity\IndustryProjectJobMatch;
+use App\State\Processor\Industry\AssignUnassignedJobProcessor;
 use App\State\Processor\Industry\LinkJobProcessor;
 use App\State\Processor\Industry\UnlinkJobProcessor;
 use App\State\Provider\Industry\JobMatchDeleteProvider;
@@ -31,6 +33,15 @@ use App\State\Provider\Industry\JobMatchDeleteProvider;
             processor: LinkJobProcessor::class,
             input: LinkJobInput::class,
             openapi: new Model\Operation(summary: 'Link ESI job', description: 'Links an ESI job of the owner to a job line of the BOM', tags: ['Industry - Projects']),
+        ),
+        new Post(
+            uriTemplate: '/industry/unassigned-jobs/{esiJobId}/assign',
+            uriVariables: [
+                'esiJobId' => new Link(fromClass: UnassignedJobResource::class),
+            ],
+            processor: AssignUnassignedJobProcessor::class,
+            input: AssignUnassignedJobInput::class,
+            openapi: new Model\Operation(summary: 'Assign an unassigned job', description: 'Links an unassigned job of the user to one of its valid candidate lines', tags: ['Industry - Projects']),
         ),
         new Delete(
             uriTemplate: '/industry/projects/{projectId}/job-matches/{id}',
@@ -58,9 +69,13 @@ class ProjectJobMatchResource
 
     public string $status;
 
+    public ?string $startDate = null;
+
     public ?string $endDate = null;
 
     public int $runs;
+
+    public ?int $successfulRuns = null;
 
     public ?string $characterName = null;
 
@@ -71,6 +86,9 @@ class ProjectJobMatchResource
     public ?string $facilityName = null;
 
     public bool $manual;
+
+    /** @var list<string>|null */
+    public ?array $matchSignals = null;
 
     /** @var array{blueprint: array<string, mixed>, output: array<string, mixed>}|null */
     public ?array $locations = null;
@@ -83,13 +101,16 @@ class ProjectJobMatchResource
         $resource->esiJobId = $match->getEsiJobId();
         $resource->cost = $match->getCost();
         $resource->status = $match->getStatus();
+        $resource->startDate = $match->getStartDate()?->format('c');
         $resource->endDate = $match->getEndDate()?->format('c');
         $resource->runs = $match->getRuns();
+        $resource->successfulRuns = $match->getSuccessfulRuns();
         $resource->characterName = $match->getCharacterName();
         $resource->matchedAt = $match->getMatchedAt()->format('c');
         $resource->facilityId = $match->getFacilityId();
         $resource->facilityName = $match->getFacilityName();
         $resource->manual = $match->isManual();
+        $resource->matchSignals = $match->getMatchSignals();
 
         return $resource;
     }

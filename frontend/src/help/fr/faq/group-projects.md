@@ -25,7 +25,7 @@ Quand le prix est inconnu, la valeur de l'apport est inconnue, jamais 0. Voir au
 
 ## Comment le revenu est-il réparti, et quand les payouts sont-ils exacts ?
 
-Le propriétaire ou un admin enregistre les ventes du projet. Le calcul se fait ainsi :
+Chaque participant accepté enregistre les ventes faites avec ses propres personnages (un membre ne corrige et ne supprime que celles-là ; le propriétaire et les admins gèrent toutes les ventes). Le calcul se fait ainsi :
 
 1. **Revenu net** = revenu des ventes − frais de courtage − taxe de vente − frais des contrats. Une vente par contrat ne paie ni courtage ni taxe de vente ; seuls les frais réels du contrat comptent.
 2. **Marge** = (revenu net − coût total des contributions approuvées) ÷ coût total.

@@ -44,6 +44,8 @@ const hasQuote = computed(() => courier.value !== null && courier.value.quoteSta
 
 const hasUnknownOrigin = computed(() => courier.value !== null && courier.value.unknownOriginLines.length > 0)
 
+const isVisible = computed(() => courier.value === null || courier.value.contract !== null || hasQuote.value || hasUnknownOrigin.value)
+
 const unknownQuoteStatus = computed<CourierQuoteStatus | null>(() => {
   const status = courier.value?.quoteStatus
   return status !== undefined && UNKNOWN_QUOTE_STATUSES.includes(status) ? status : null
@@ -71,7 +73,7 @@ const contractText = computed(() => {
   if (read === null) return ''
   return [
     `${t('groupIndustry.courier.contract.from')}: ${textOrDash(read.originSolarSystemName)}`,
-    `${t('groupIndustry.courier.contract.to')}: ${textOrDash(read.workshopSolarSystemName)}`,
+    `${t('groupIndustry.courier.contract.to')}: ${textOrDash(read.courierHubSolarSystemName)}`,
     `${t('groupIndustry.courier.contract.volume')}: ${volumeText(read.volumeCubicMeters)}`,
     `${t('groupIndustry.courier.contract.collateral')}: ${iskText(read.collateral)}`,
     `${t('groupIndustry.courier.contract.reward')}: ${iskText(read.reward)}`,
@@ -139,7 +141,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section data-testid="courier-card" class="mb-6 bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
+  <section v-if="isVisible" data-testid="courier-card" class="mb-6 bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
     <header class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-800">
       <h2 class="font-display text-sm font-semibold uppercase tracking-widest text-cyan-400">
         {{ t('groupIndustry.courier.title') }}
@@ -182,7 +184,7 @@ onBeforeUnmount(() => {
             <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <dt class="text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.contract.route') }}</dt>
               <dd data-testid="courier-route" class="min-w-0 text-right text-slate-100 break-words">
-                {{ textOrDash(courier.originSolarSystemName) }} → {{ textOrDash(courier.workshopSolarSystemName) }}
+                {{ textOrDash(courier.originSolarSystemName) }} → {{ textOrDash(courier.courierHubSolarSystemName) }}
               </dd>
 
               <dt class="text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.contract.volume') }}</dt>
@@ -328,7 +330,7 @@ onBeforeUnmount(() => {
         </ul>
       </div>
 
-      <div v-if="courier.canLink" class="border-t border-slate-800">
+      <div v-if="courier.canLink && (hasQuote || hasUnknownOrigin)" class="border-t border-slate-800">
         <h3 class="px-4 pt-3 text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.candidates.title') }}</h3>
         <p
           v-if="courier.candidates.length === 0"

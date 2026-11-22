@@ -121,8 +121,10 @@ export type JobMatch = {
   esiJobId: number
   cost: number | null
   status: string
+  startDate?: string | null
   endDate: string | null
   runs: number
+  successfulRuns?: number | null
   characterName: string | null
   matchedAt: string
   facilityId: number | null
@@ -151,7 +153,7 @@ export type CharacterMatchFailure = {
   statusCode: number | null
 }
 
-export type LineMatchFailureReason = 'producer_missing_from_sde' | 'no_runs' | 'contribution_not_refreshed'
+export type LineMatchFailureReason = 'producer_missing_from_sde' | 'no_runs' | 'contribution_not_refreshed' | 'invention_data_missing'
 
 export type LineMatchFailure = {
   typeId: number
@@ -174,6 +176,7 @@ export type LineReservation = {
   characterName: string | null
   quantity: number
   isMine: boolean
+  expiresAt: string
 }
 
 export type PendingContribution = {
@@ -205,6 +208,7 @@ export type BomItem = {
   meLevel: number | null
   teLevel: number | null
   runs: number | null
+  expectedBlueprintCopies?: number | null
   isFulfilled: boolean
   jobMatches: JobMatch[]
   matchedRuns: number
@@ -304,6 +308,7 @@ export type GroupSale = {
   sellerCharacterId: number | null
   sellerCharacterName: string | null
   linkedToWalletTransaction: boolean
+  heldByViewer?: boolean
   contractId?: number | null
   contractFees?: number | null
   createdAt: string
@@ -406,6 +411,8 @@ export type Distribution = {
   marketRevenue?: number
   contractRevenue?: number
   contractFees?: number | null
+  surplusStored?: boolean
+  storedSurplusValue?: number | null
   members: MemberDistribution[]
 }
 
@@ -513,6 +520,7 @@ export type LineRentalSuggestion = {
 
 export type UpdateGroupProjectInput = Partial<GroupProject> & {
   blacklistCategoryKeys?: string[]
+  inventionDecryptors?: Record<number, number | null>
 }
 
 export type CreateGroupProjectInput = {
@@ -549,6 +557,10 @@ export type AvailableJob = {
   linkedToBomLineId: string | null
   linkedToBomLineName: string | null
   matchId: string | null
+  linkedRuns: number
+  remainingRuns: number
+  linkableBomLineIds: string[]
+  linkedToAnotherProject: boolean
 }
 
 export type PurchaseSuggestion = {
@@ -665,6 +677,7 @@ export type ProjectNextActionCode =
   | 'review_contributions'
   | 'start_project'
   | 'source_material'
+  | 'deliver_purchases'
   | 'launch_job'
   | 'await_jobs'
   | 'start_selling'
@@ -735,6 +748,7 @@ export type ProjectCockpit = {
   status: GroupProjectStatus
   phases: ProjectPhase[]
   nextAction: ProjectNextAction
+  purchasesToDeliverCount: number
   priceAlert: ProjectPriceAlert | null
   undercutOrders: ProjectSellOrder[]
 }
@@ -822,8 +836,6 @@ export type ProjectChain = {
   nodes: ChainNode[]
 }
 
-export type BuyOrBuildChoice = 'build' | 'buy' | 'unknown'
-
 export interface BuyOrBuildMissingData {
   reason: string
   typeId: number | null
@@ -833,36 +845,6 @@ export interface BuyOrBuildWarning {
   reason: string
   typeId: number
   coveragePercent: number
-}
-
-export interface BuyOrBuildRow {
-  typeId: number
-  typeName: string | null
-  activity: 'manufacturing' | 'reaction'
-  quantity: number
-  runs: number
-  producedQuantity: number
-  surplus: number
-  volumePerUnit: number | null
-  jumps: number | null
-  buildPerUnit: number | null
-  buildPerUnitIfSurplusReused: number | null
-  jitaPerUnit: number | null
-  importPerUnit: number | null
-  buyPerUnit: number | null
-  choice: BuyOrBuildChoice
-  choiceWithoutImport: BuyOrBuildChoice
-  saving: number | null
-  savingIfSurplusReused: number | null
-  missingData: BuyOrBuildMissingData[]
-  warnings: BuyOrBuildWarning[]
-  blacklisted: boolean
-}
-
-export interface ProjectBuyOrBuild {
-  id: string
-  importIskPerCubicMeterJump: number
-  rows: BuyOrBuildRow[]
 }
 
 export type ResearchVerdict = 'worth' | 'not_worth' | 'unknown'
@@ -907,6 +889,7 @@ export interface ProjectInventionProduct {
   runs: number
   me: number
   te: number
+  selectedDecryptorTypeId: number | null
   invention: {
     baseProbability: number | null
     unknownReason: InventionUnknownReason | null
@@ -951,6 +934,9 @@ export interface MaterialSourcingTotals {
 export interface ProjectMaterialSourcing {
   id: string
   importIskPerCubicMeterJump: number
+  courierIskPerCubicMeter: number | null
+  jumpBridgeIskPerCubicMeter: number | null
+  courierHubSolarSystemName: string | null
   structureId: number | null
   structureName: string | null
   structureSynced: boolean
@@ -986,11 +972,11 @@ export type ProjectReactionSteps = {
   steps: ReactionStep[]
 }
 
-export type PlanningActivity = 'manufacturing' | 'reaction'
+export type PlanningActivity = 'manufacturing' | 'reaction' | 'copy'
 
 export type PlanningWaitKind = 'waiting_job' | 'waiting_materials' | 'unknown'
 
-export type PlanningUnscheduledReason = 'no_eligible_worker' | 'dependency_unscheduled' | 'duration_unknown'
+export type PlanningUnscheduledReason = 'no_eligible_worker' | 'dependency_unscheduled' | 'duration_unknown' | 'invention_not_planned'
 
 export type PlanningWait = {
   kind: PlanningWaitKind
@@ -1013,7 +999,7 @@ export type PlanningJob = {
 export type PlanningCharacter = {
   characterName: string
   skillsUnknown: boolean
-  slots: { manufacturing: number; reaction: number } | null
+  slots: { manufacturing: number; reaction: number; science: number } | null
   skills: { industry: number; advancedIndustry: number; reactions: number } | null
   endsAt: string | null
   jobs: PlanningJob[]
@@ -1036,60 +1022,8 @@ export type ProjectPlanning = {
   delayCause: PlanningWait | null
   lanesShown: boolean
   characters: PlanningCharacter[]
+  jobs: PlanningJob[]
   unscheduled: PlanningUnscheduled[]
-}
-
-export type StructureChoiceStatus =
-  | 'assigned'
-  | 'best_in_favorite_system'
-  | 'best_configured'
-  | 'best_outside_favorite_system'
-  | 'best_by_total_cost'
-  | 'not_configured'
-
-export interface StructureComparisonMissingData {
-  reason: string
-  typeId: number | null
-}
-
-export interface StructureComparisonRow {
-  structureId: string
-  name: string | null
-  kind: string | null
-  solarSystemId: number | null
-  solarSystemName: string | null
-  inFavoriteSystem: boolean
-  jumps: number | null
-  materialBonusPercent: number
-  facilityTaxPercent: number | null
-  materialsCost: number | null
-  installationCost: number | null
-  transportCost: number | null
-  transportedCubicMeters: number | null
-  totalCost: number | null
-  delta: number | null
-  missingData: StructureComparisonMissingData[]
-}
-
-export interface StructureComparisonGroup {
-  typeId: number
-  typeName: string | null
-  activity: 'manufacturing' | 'reaction'
-  jobs: number
-  runs: number
-  chosenStructureId: string | null
-  choiceStatus: StructureChoiceStatus
-  cheapestStructureId: string | null
-  savingIfCheapest: number | null
-  rows: StructureComparisonRow[]
-}
-
-export interface ProjectStructures {
-  id: string
-  acceptsOutsideFavoriteSystem: boolean
-  minimumOutsideSaving: number
-  transportIskPerCubicMeterJump: number
-  groups: StructureComparisonGroup[]
 }
 
 export type CourierQuoteStatus = 'ready' | 'no_purchases' | 'volume_unknown' | 'workshop_unknown' | 'route_unknown'
@@ -1154,6 +1088,8 @@ export interface ProjectCourier {
   expirationDays: number
   originSolarSystemId: number | null
   originSolarSystemName: string | null
+  courierHubSolarSystemId: number | null
+  courierHubSolarSystemName: string | null
   workshopSolarSystemId: number | null
   workshopSolarSystemName: string | null
   canLink: boolean
@@ -1189,6 +1125,27 @@ export interface ProjectPurchasesToDeliver {
   rows: PurchaseToDeliverRow[]
 }
 
+export interface StationQuantity {
+  locationId: number | null
+  stationName: string | null
+  needed: number
+  consumed: number
+  inProduction: number
+  onSite: number | null
+  out: number | null
+  toBring: number | null
+  inTransit: number | null
+  unknownReason: string | null
+}
+
+export interface TypeStationQuantities {
+  typeId: number
+  typeName: string
+  lineIds: string[]
+  unknownReason: string | null
+  stations: StationQuantity[] | null
+}
+
 export type StructureHealthState = 'ok' | 'low-fuel' | 'offline-service' | 'unknown'
 
 export interface StructureHealthRow {
@@ -1198,6 +1155,7 @@ export interface StructureHealthRow {
   state: StructureHealthState
   fuelDays: number | null
   offlineServices: string[]
+  facilityTaxPercent: number | null
 }
 
 export interface ProjectStructureHealth {
@@ -1235,6 +1193,9 @@ export interface ProjectSurplusLine {
 export interface ProjectSurplus {
   id: string
   totalValue: number | null
+  stored: boolean
+  storedAt: string | null
+  storedBy: string | null
   lines: ProjectSurplusLine[]
 }
 
@@ -1271,6 +1232,14 @@ export type IntermediateStockUnknownReason =
   | 'no_visible_division'
   | 'owner_without_corporation'
 
+export interface IntermediateStockStationQuantity {
+  locationId: number
+  locationName: string
+  systemName: string | null
+  quantity: number
+  onSite: boolean | null
+}
+
 export interface IntermediateStockProposalLine {
   bomItemId: string
   typeId: number
@@ -1281,6 +1250,8 @@ export interface IntermediateStockProposalLine {
   containerQuantity: number | null
   stockQuantity: number
   proposedQuantity: number
+  stockByStation: IntermediateStockStationQuantity[]
+  plannedStationName: string | null
 }
 
 export interface IntermediateStockProposal {
@@ -1338,4 +1309,323 @@ export interface T2BlueprintsToProvide {
 export interface T2BlueprintCopySelection {
   productTypeId: number
   runs: number
+}
+
+export interface JobsSyncInstaller {
+  name: string
+  isViewer: boolean
+  lastSyncedAt: string | null
+}
+
+export interface ProjectJobsSync {
+  id: string
+  intervalSeconds: number
+  installers: JobsSyncInstaller[]
+}
+
+export interface UnassignedJobCandidate {
+  projectId: string
+  projectName: string | null
+  lineId: string
+  lineName: string
+  remainingRuns: number
+  score: number
+  signals: string[]
+  oversized: boolean
+}
+
+export interface UnassignedJob {
+  esiJobId: number
+  characterName: string
+  blueprintTypeId: number
+  productTypeId: number
+  productTypeName: string | null
+  runs: number
+  activityId: number
+  stationId: number | null
+  stationName: string | null
+  startDate: string
+  endDate: string
+  status: string
+  candidates: UnassignedJobCandidate[]
+}
+
+export type WorkTypeKey = 'reaction' | 'components' | 'hulls' | 'final_products' | 'blueprints'
+
+export type WorkStationLockReason = 'job_launched' | 'purchase_made'
+
+export type WorkTransportLeg = {
+  kind: 'courier' | 'jump_bridge' | 'to_hub'
+  fromStructureId: string | null
+  toStructureId: string | null
+  cubicMeters: number
+  cost: number | null
+}
+
+export type WorkStationRow = {
+  structureId: string
+  name: string | null
+  kind: string | null
+  solarSystemId: number | null
+  solarSystemName: string | null
+  inFavoriteSystem: boolean
+  jumps: number | null
+  materialBonusPercent: number
+  facilityTaxPercent: number | null
+  materialsCost: number | null
+  installationCost: number | null
+  transportCost: number | null
+  transportLegs: WorkTransportLeg[]
+  totalCost: number | null
+  delta: number | null
+  missingData: BuyOrBuildMissingData[]
+}
+
+export type WorkStationType = {
+  workType: WorkTypeKey
+  activity: 'manufacturing' | 'reaction' | 'copy'
+  jobs: number
+  runs: number
+  recommendedStructureId: string | null
+  chosenStructureId: string | null
+  storedRecommendedStructureId: string | null
+  choiceStale: boolean
+  savingIfRecommended: number | null
+  locked: boolean
+  lockReason: WorkStationLockReason | null
+  costsCompared: boolean
+  rows: WorkStationRow[]
+}
+
+export type ProjectWorkStations = {
+  id: string
+  courierHubSolarSystemId: number | null
+  courierHubSolarSystemName: string | null
+  courierIskPerCubicMeter: number | null
+  jumpBridgeIskPerCubicMeter: number | null
+  workTypes: WorkStationType[]
+  structuresToSpecify: StructureToSpecify[]
+}
+
+export type StructureToSpecify = {
+  id: string
+  name: string
+  structureType: string
+}
+
+export type SetupSourcingChoice = 'build' | 'jita' | 'structure'
+
+export type SourcingOption = {
+  total: number | null
+  perUnit: number | null
+  price: number | null
+  installation: number | null
+  transport: number | null
+  eligible: boolean
+  availableQuantity: number | null
+  structureId: string | null
+  missingData: BuyOrBuildMissingData[]
+  perUnitIfSurplusReused: number | null
+  coveragePercent: number | null
+}
+
+export type SourcingRow = {
+  typeId: number
+  typeName: string | null
+  stage: 'base' | 'reaction' | 'component' | 'hull'
+  activity: 'manufacturing' | 'reaction' | null
+  quantity: number
+  runs: number | null
+  surplus: number
+  consumerStructureIds: string[]
+  options: Partial<Record<SetupSourcingChoice, SourcingOption>>
+  recommended: SetupSourcingChoice | null
+  chosen: SetupSourcingChoice | null
+  bought: boolean
+  volumePerUnit: number | null
+  savingIfSurplusReused: number | null
+  choiceChangesWithoutImport: boolean
+}
+
+export type SourcingDecisions = {
+  id: string
+  rows: SourcingRow[]
+  totals: {
+    purchases: number | null
+    installation: number | null
+    transport: number | null
+    total: number | null
+    missingData: BuyOrBuildMissingData[]
+  }
+  boughtTypeIds: number[]
+}
+
+export type SetupMarketWrite = {
+  typeId: number
+  market: 'jita' | 'structure'
+}
+
+export type PlacedActionCode = 'launch_job' | 'source_material' | 'review_contributions' | 'review_join_requests'
+
+export type ActionPlaceKind = 'station' | 'anywhere' | 'unknown'
+
+export interface ActionPlace {
+  kind: ActionPlaceKind
+  locationId: number | null
+  name: string | null
+  solarSystemId: number | null
+  solarSystemName: string | null
+  unknownReason: string | null
+}
+
+export type PlacedActionAccess = 'granted' | 'unknown'
+
+export interface PlacedActionReservation {
+  characterName: string | null
+  quantity: number
+}
+
+export interface PlacedAction {
+  id: string
+  projectId: string
+  projectName: string | null
+  code: PlacedActionCode
+  bomLineId: string | null
+  typeId: number | null
+  typeName: string | null
+  quantity: number | null
+  place: ActionPlace
+  here: boolean | null
+  access: PlacedActionAccess | null
+  reservedByOthers: PlacedActionReservation[]
+}
+
+export interface CharacterLocationRead {
+  id: string
+  eveCharacterId: number
+  solarSystemId: number | null
+  solarSystemName: string | null
+  stationId: number | null
+  structureId: number | null
+  online: boolean | null
+  lastLoginAt: string | null
+}
+
+export type StationTransferCarrierKind = 'courier' | 'jump_bridge' | 'pilot'
+
+export type StationTransferState = 'awaiting_departure' | 'in_transit' | 'arrived' | 'unknown'
+
+export type StationTransferSource = 'assets' | 'declared' | 'pending'
+
+export interface StationTransferPlace {
+  solarSystemId: number
+  solarSystemName: string | null
+  locationId: number | null
+  stationName: string | null
+}
+
+export interface StationTransferLine {
+  typeId: number
+  typeName: string
+  quantity: number
+  volume: number | null
+  departed: number | null
+  arrived: number | null
+  inTransit: number | null
+  departureSource: Exclude<StationTransferSource, 'pending'>
+  arrivalSource: StationTransferSource
+  unknownReason: string | null
+}
+
+export interface ProjectStationTransfer {
+  id: string
+  routeId: string
+  legIndex: number
+  legCount: number
+  from: StationTransferPlace
+  to: StationTransferPlace
+  carrier: { kind: StationTransferCarrierKind; characterId: number | null; contractId: number | null }
+  declaredBy: string
+  declaredAt: string
+  expectedArrivalAt: string
+  arrivedAt: string | null
+  state: StationTransferState
+  volume: number | null
+  unknownReason: string | null
+  lines: StationTransferLine[]
+}
+
+export interface DeclareStationTransferInput {
+  fromSolarSystemId: number
+  fromLocationId: number | null
+  toSolarSystemId: number
+  toLocationId: number | null
+  lines: { typeId: number; quantity: number }[]
+  carrierCharacterId: number | null
+  contractId: number | null
+}
+
+export type LineBlueprintKind = 'bpc' | 'bpo'
+
+export type LineBlueprintState = 'here' | 'elsewhere' | 'unknown'
+
+export interface LineBlueprintTransferToMake {
+  typeId: number
+  typeName: string
+  itemId: number
+  quantity: number
+  from: { locationId: number; name: string; solarSystemName: string | null }
+  to: { locationId: number; name: string | null; solarSystemId: number | null; solarSystemName: string | null }
+}
+
+export interface LineBlueprintCandidate {
+  bomLineId: string
+  itemId: number
+  typeId: number | null
+  typeName: string | null
+  kind: LineBlueprintKind | null
+  runs: number | null
+  materialEfficiency: number | null
+  timeEfficiency: number | null
+  state: LineBlueprintState
+  unknownReason: string | null
+  transferToMake: LineBlueprintTransferToMake | null
+}
+
+export interface ProjectLineBlueprint extends LineBlueprintCandidate {
+  id: string
+  attachedBy: string | null
+  attachedAt: string
+  stepPlace: ActionPlace
+  blueprintPlace: { locationId: number | null; name: string | null; solarSystemName: string | null }
+}
+
+export interface AttachLineBlueprintInput {
+  bomLineId: string
+  itemId: number
+}
+
+export interface ProjectOverviewFlow {
+  toBring: number
+  onSite: number
+  inProduction: number
+  out: number
+  done: number
+}
+
+export interface ProjectOverviewAwaited {
+  name: string
+  mine: boolean
+  count: number
+}
+
+export interface ProjectOverview {
+  projectId: string
+  myRole: GroupMemberRole
+  ownerName: string
+  team: { name: string; role: GroupMemberRole }[]
+  flow: ProjectOverviewFlow | null
+  flowReason: string | null
+  flowUnknown: number
+  awaited: ProjectOverviewAwaited[]
 }

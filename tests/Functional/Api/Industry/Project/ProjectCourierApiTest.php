@@ -35,6 +35,7 @@ final class ProjectCourierApiTest extends WebTestCase
     private const int PERIMETER_SYSTEM_ID = 30_000_144;
     private const int URLEN_SYSTEM_ID = 30_000_139;
     private const int AMARR_SYSTEM_ID = 30_002_187;
+    private const int HUB_SYSTEM_ID = 30_000_772;
     private const int REGION_ID = 10_000_002;
     private const int CONSTELLATION_ID = 20_000_020;
     private const int JITA_STATION = 60_003_760;
@@ -67,7 +68,7 @@ final class ProjectCourierApiTest extends WebTestCase
         $this->replaceEsi();
         $this->contractsByEveCharacterId[$this->ownerEveCharacterId()] = [
             $this->contract(self::IN_TRANSIT_CONTRACT_ID, 'courier', 'in_progress', '+1 minute', 40.0, 9_000.0, 5_000_000.0),
-            $this->contract(self::OUTSTANDING_CONTRACT_ID, 'courier', 'outstanding', '+2 minutes', 25.0, 7_500.0, 376_550.0),
+            $this->contract(self::OUTSTANDING_CONTRACT_ID, 'courier', 'outstanding', '+2 minutes', 25.0, 20_000.0, 376_550.0),
             $this->contract(self::TOO_OLD_CONTRACT_ID, 'courier', 'finished', '-2 days', 25.0, 7_500.0, 376_550.0),
             $this->contract(self::ITEM_EXCHANGE_CONTRACT_ID, 'item_exchange', 'outstanding', '+3 minutes', 25.0, 7_500.0, 376_550.0),
         ];
@@ -82,13 +83,13 @@ final class ProjectCourierApiTest extends WebTestCase
         $body = $this->responseJson();
         self::assertSame(
             [
-                $this->ishtarBatch->getId()->toRfc4122(), 25.0, 376_550, 7_500, 2, 'ready', [], 3, 7,
-                self::JITA_SYSTEM_ID, 'Jita', self::PERIMETER_SYSTEM_ID, 'Perimeter', true, null,
+                $this->ishtarBatch->getId()->toRfc4122(), 25.0, 376_550, 20_000, 3, 'ready', [], 3, 7,
+                self::JITA_SYSTEM_ID, 'Jita', self::HUB_SYSTEM_ID, 'C-J6MT', self::PERIMETER_SYSTEM_ID, 'Perimeter', true, null,
             ],
             [
                 $body['id'], $body['volumeCubicMeters'], $body['collateral'], $body['reward'], $body['jumps'], $body['quoteStatus'], $body['missingVolumeTypeIds'],
                 $body['daysToComplete'], $body['expirationDays'],
-                $body['originSolarSystemId'], $body['originSolarSystemName'], $body['workshopSolarSystemId'], $body['workshopSolarSystemName'], $body['canLink'], $body['contract'],
+                $body['originSolarSystemId'], $body['originSolarSystemName'], $body['courierHubSolarSystemId'], $body['courierHubSolarSystemName'], $body['workshopSolarSystemId'], $body['workshopSolarSystemName'], $body['canLink'], $body['contract'],
             ],
         );
         self::assertSame(
@@ -97,7 +98,7 @@ final class ProjectCourierApiTest extends WebTestCase
         );
         self::assertSame(
             [
-                [self::OUTSTANDING_CONTRACT_ID, $this->ownerEveCharacterId(), 'waiting', 25.0, 7_500.0, 376_550.0, self::JITA_STATION, self::WORKSHOP_STRUCTURE, true],
+                [self::OUTSTANDING_CONTRACT_ID, $this->ownerEveCharacterId(), 'waiting', 25.0, 20_000.0, 376_550.0, self::JITA_STATION, self::WORKSHOP_STRUCTURE, true],
                 [self::IN_TRANSIT_CONTRACT_ID, $this->ownerEveCharacterId(), 'in_transit', 40.0, 9_000.0, 5_000_000.0, self::JITA_STATION, self::WORKSHOP_STRUCTURE, false],
             ],
             array_map(static fn (array $candidate): array => [
@@ -121,7 +122,7 @@ final class ProjectCourierApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->responseJson();
         self::assertSame(
-            [self::JITA_SYSTEM_ID, 'Jita', 25.0, 376_550, 7_500, 2, 'ready', []],
+            [self::JITA_SYSTEM_ID, 'Jita', 25.0, 376_550, 20_000, 3, 'ready', []],
             [$body['originSolarSystemId'], $body['originSolarSystemName'], $body['volumeCubicMeters'], $body['collateral'], $body['reward'], $body['jumps'], $body['quoteStatus'], $body['missingVolumeTypeIds']],
         );
         self::assertArrayNotHasKey('otherOrigins', $body);
@@ -237,7 +238,7 @@ final class ProjectCourierApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->responseJson();
         self::assertSame(
-            [false, [], self::IN_TRANSIT_CONTRACT_ID, 'in_transit', 7_500],
+            [false, [], self::IN_TRANSIT_CONTRACT_ID, 'in_transit', 20_000],
             [$body['canLink'], $body['candidates'], $body['contract']['contractId'], $body['contract']['state'], $body['reward']],
         );
     }
@@ -397,7 +398,7 @@ final class ProjectCourierApiTest extends WebTestCase
         $this->em->persist((new InvType())->setTypeId(self::NOCXIUM_TYPE_ID)->setTypeName('Nocxium')->setGroup($group)->setVolume(self::NOCXIUM_VOLUME));
         $this->em->persist((new InvType())->setTypeId(self::MORPHITE_TYPE_ID)->setTypeName('Morphite')->setGroup($group)->setVolume(self::MORPHITE_VOLUME));
         $solarSystems = [];
-        foreach ([self::JITA_SYSTEM_ID => 'Jita', self::PERIMETER_SYSTEM_ID => 'Perimeter', self::URLEN_SYSTEM_ID => 'Urlen', self::AMARR_SYSTEM_ID => 'Amarr'] as $solarSystemId => $name) {
+        foreach ([self::JITA_SYSTEM_ID => 'Jita', self::PERIMETER_SYSTEM_ID => 'Perimeter', self::URLEN_SYSTEM_ID => 'Urlen', self::AMARR_SYSTEM_ID => 'Amarr', self::HUB_SYSTEM_ID => 'C-J6MT'] as $solarSystemId => $name) {
             $solarSystems[$solarSystemId] = (new MapSolarSystem())->setSolarSystemId($solarSystemId)->setSolarSystemName($name)->setConstellation($constellation)->setRegionId(self::REGION_ID);
             $this->em->persist($solarSystems[$solarSystemId]);
         }
@@ -409,7 +410,7 @@ final class ProjectCourierApiTest extends WebTestCase
                 ->setConstellationId(self::CONSTELLATION_ID)
                 ->setRegionId(self::REGION_ID));
         }
-        foreach ([[self::JITA_SYSTEM_ID, self::URLEN_SYSTEM_ID], [self::URLEN_SYSTEM_ID, self::PERIMETER_SYSTEM_ID], [self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID]] as [$from, $to]) {
+        foreach ([[self::JITA_SYSTEM_ID, self::URLEN_SYSTEM_ID], [self::URLEN_SYSTEM_ID, self::PERIMETER_SYSTEM_ID], [self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID], [self::PERIMETER_SYSTEM_ID, self::HUB_SYSTEM_ID]] as [$from, $to]) {
             $this->em->persist((new MapSolarSystemJump())
                 ->setFromSolarSystemId($from)
                 ->setToSolarSystemId($to)
@@ -418,6 +419,6 @@ final class ProjectCourierApiTest extends WebTestCase
                 ->setToRegionId(self::REGION_ID)
                 ->setToConstellationId(self::CONSTELLATION_ID));
         }
-        $this->em->persist((new IndustryUserSettings())->setUser($this->owner)->setFavoriteManufacturingSystemId(self::PERIMETER_SYSTEM_ID));
+        $this->em->persist((new IndustryUserSettings())->setUser($this->owner)->setFavoriteManufacturingSystemId(self::PERIMETER_SYSTEM_ID)->setCourierHubSolarSystemId(self::HUB_SYSTEM_ID));
     }
 }

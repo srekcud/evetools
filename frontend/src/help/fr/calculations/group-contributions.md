@@ -90,7 +90,7 @@ Chaque virement porte en motif la **référence de paiement** du projet : `IP-` 
 | Coût d'un job lié | Jobs industriels du personnage (ESI) | Synchro des jobs toutes les 30 minutes, jusqu'à la fin du projet |
 | « Valeur estimee » | Votre saisie | À la soumission |
 | Récompense du courrier | Contrats du personnage (ESI) | À l'affichage du courrier du projet |
-| Ventes | Saisie du propriétaire ou d'un admin (« Record Sale », transaction ou contrat rattaché) | À la saisie |
+| Ventes | Saisie de chaque participant pour ses propres personnages (« Record Sale », transaction ou contrat rattaché) | À la saisie |
 | « Frais courtier % », « Taxe de vente % » | Réglage du projet, copié des frais du propriétaire à la création | Jusqu'à la fin du projet |
 | Frais d'un contrat | Journal wallet du vendeur | Avec la synchro wallet |
 
@@ -140,7 +140,7 @@ Une donnée manquante rend le résultat **inconnu**, jamais 0. Un montant inconn
 
 ## Pièges
 
-- **Une vente faite par un autre participant est comptée chez celui qui l'enregistre.** Seuls le propriétaire et les admins enregistrent, et seulement pour leurs propres personnages. Si un membre a vendu, l'enregistreur est compté comme détenteur de cet argent, et le plan lui demande de verser des ISK qu'il n'a pas.
+- **Une vente enregistrée sans vendeur est comptée chez celui qui l'enregistre.** Chaque participant n'enregistre que pour ses propres personnages. Une vente sans vendeur est comptée comme détenue par la personne qui l'a enregistrée.
 - **Projet seul : « J'ai fourni » puis un achat lié comptent deux fois.** Sur une même ligne, la contribution déclarée (au prix Jita) et celle de l'achat (au prix payé) sont toutes deux approuvées et toutes deux dans le coût. En groupe, un relecteur rejette la déclarée (« Doublon avec un apport ESI », « Reject »). Seul sur le projet, l'onglet « Contributions » est masqué et ce bouton n'est pas accessible : le seul moyen de retirer le doublon est de supprimer l'achat dans « Achats ».
 - **Courtage et taxe du projet s'appliquent à tout le revenu du marché**, aux taux copiés du propriétaire, quel que soit le vendeur, ses compétences ou le type de vente (une vente à un ordre d'achat ne paie pas de courtage en jeu).
 - **« Répartition impossible » s'affiche aussi quand les frais sont inconnus.** Le message dit « aucune contribution approuvée n'a de coût », mais la cause peut être un « Frais courtier % » ou une « Taxe de vente % » vide.

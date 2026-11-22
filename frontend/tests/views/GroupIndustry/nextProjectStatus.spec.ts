@@ -13,6 +13,16 @@ describe('nextProjectStatuses', () => {
     expect(nextProjectStatuses('in_progress')).toEqual(['selling'])
   })
 
+  it('moves a personal use project in progress straight to completed', () => {
+    expect({
+      personalUse: nextProjectStatuses('in_progress', true),
+      soldProject: nextProjectStatuses('in_progress', false),
+    }).toEqual({
+      personalUse: ['completed'],
+      soldProject: ['selling'],
+    })
+  })
+
   it('moves a selling project to completed', () => {
     expect(nextProjectStatuses('selling')).toEqual(['completed'])
   })
@@ -58,6 +68,18 @@ describe('headerStatuses', () => {
       inProgress: ['selling'],
       selling: ['completed'],
       completed: [],
+    })
+  })
+
+  it('offers completing a personal use project in progress and leaves out the transition carried by the next action card', () => {
+    expect({
+      withoutCard: headerStatuses('in_progress', false, null, true),
+      withTheCompleteCard: headerStatuses('in_progress', false, 'completed', true),
+      soldProject: headerStatuses('in_progress', false, null, false),
+    }).toEqual({
+      withoutCard: ['completed'],
+      withTheCompleteCard: [],
+      soldProject: ['selling'],
     })
   })
 })

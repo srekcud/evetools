@@ -9,9 +9,14 @@ use App\ApiResource\Industry\StructureConfigResource;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\IndustryStructureConfig;
+use App\Industry\Infrastructure\Doctrine\StructureBonusSummary;
 
 class IndustryResourceMapper
 {
+    public function __construct(private readonly StructureBonusSummary $structureBonusSummary)
+    {
+    }
+
     public function structureToResource(IndustryStructureConfig $structure): StructureConfigResource
     {
         $resource = new StructureConfigResource();
@@ -25,10 +30,13 @@ class IndustryResourceMapper
         $resource->isDefault = $structure->isDefault();
         $resource->isCorporationStructure = $structure->isCorporationStructure();
         $resource->facilityTaxRate = $structure->getFacilityTaxPercent();
-        $resource->manufacturingMaterialBonus = $structure->getManufacturingMaterialBonus();
-        $resource->reactionMaterialBonus = $structure->getReactionMaterialBonus();
-        $resource->manufacturingTimeBonus = $structure->getManufacturingTimeBonus();
-        $resource->reactionTimeBonus = $structure->getReactionTimeBonus();
+        $bonuses = $this->structureBonusSummary->of($structure->getStructureType(), $structure->getSecurityType(), $structure->getRigs());
+        $resource->manufacturingMaterialBonus = $bonuses->manufacturingMaterialBonus;
+        $resource->reactionMaterialBonus = $bonuses->reactionMaterialBonus;
+        $resource->manufacturingTimeBonus = $bonuses->manufacturingTimeBonus;
+        $resource->reactionTimeBonus = $bonuses->reactionTimeBonus;
+        $resource->unrecognisedRigs = $bonuses->unrecognisedRigs;
+        $resource->hullToSpecify = $bonuses->hullToSpecify;
         $resource->createdAt = $structure->getCreatedAt()->format('c');
 
         return $resource;

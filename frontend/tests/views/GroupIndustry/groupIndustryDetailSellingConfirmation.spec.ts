@@ -7,7 +7,6 @@ import {
   cockpitOf,
   mountCockpitDetail,
   nextAction,
-  NEXT_ACTION_BUTTON,
   nyxProject,
   route,
   sentPatchBodies,
@@ -105,10 +104,11 @@ describe('group project detail move to selling confirmation', () => {
     }
   })
 
-  it('asks the same confirmation from the next action card', async () => {
+  it('asks the same confirmation from the header button when the cockpit points to the move to selling', async () => {
     const wrapper = await mountInProgress(OPEN_LINES, 'en', 'start_selling')
 
-    await wrapper.get(NEXT_ACTION_BUTTON).trigger('click')
+    expect(sellButtonOf(wrapper, 'en')).toBeDefined()
+    await sellButtonOf(wrapper, 'en')?.trigger('click')
     await flushPromises()
 
     expect({
@@ -166,7 +166,9 @@ describe('group project detail move to selling confirmation', () => {
       cockpit: cockpitOf('published', nextAction({ code: 'start_project', targetStatus: 'in_progress' })),
     })
 
-    await wrapper.get(NEXT_ACTION_BUTTON).trigger('click')
+    const startButton = wrapper.get(HEADER).findAll('button').find(button => button.text() === messageOf('en', 'groupIndustry.detail.statusActions.in_progress'))
+    expect(startButton).toBeDefined()
+    await startButton?.trigger('click')
     await flushPromises()
 
     expect({ patches: sentPatchBodies(), asked: wrapper.find(CONFIRMATION).exists() }).toEqual({

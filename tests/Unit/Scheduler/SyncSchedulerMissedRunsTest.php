@@ -9,6 +9,7 @@ use App\Message\CheckCourierContracts;
 use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
 use App\Message\SyncBlueprints;
+use App\Message\PurgeExpiredLineReservations;
 use App\Message\SyncCharacterOrders;
 use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
@@ -69,6 +70,7 @@ class SyncSchedulerMissedRunsTest extends TestCase
                 TriggerCorporationMiningExtractionsSync::class,
                 TriggerMiningOperationRecurrences::class,
                 CheckCourierContracts::class,
+                PurgeExpiredLineReservations::class,
                 TriggerStructureMarketSync::class,
                 TriggerJitaMarketSync::class,
                 TriggerPveSync::class,

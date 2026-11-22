@@ -12,6 +12,8 @@ import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupP
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
+const DASH = '—'
+
 const SIDE_CHIP_CLASSES: Record<MaterialSourcingSide, string> = {
   jita: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
   structure: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
@@ -101,9 +103,14 @@ watch(
           class="px-2 py-1 rounded border border-slate-700"
         >{{ sourcing.structureName }}</span>
         <span
+          v-if="sourcing.courierIskPerCubicMeter !== null && sourcing.jumpBridgeIskPerCubicMeter !== null"
           data-testid="material-sourcing-rate"
           class="px-2 py-1 rounded border border-slate-700"
-        >{{ t('groupIndustry.materialSourcing.importRate', { rate: formatNumber(sourcing.importIskPerCubicMeterJump) }) }}</span>
+        >{{ t('groupIndustry.materialSourcing.importRate', {
+          hub: sourcing.courierHubSolarSystemName ?? DASH,
+          rate: formatNumber(sourcing.courierIskPerCubicMeter),
+          bridgeRate: formatNumber(sourcing.jumpBridgeIskPerCubicMeter),
+        }) }}</span>
       </div>
     </header>
 

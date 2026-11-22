@@ -102,8 +102,10 @@ services:
     App\Industry\Application\Decryptors: '@App\Industry\Infrastructure\Sde\SdeDecryptors'
     App\Industry\Application\JumpDistances: '@App\Industry\Infrastructure\Sde\SdeJumpDistances'
     App\Industry\Application\ItemVolumes: '@App\Industry\Infrastructure\Sde\SdeItemVolumes'
+    App\Industry\Application\ShipProducts: '@App\Industry\Infrastructure\Sde\SdeShipProducts'
     App\Industry\Application\InventionSkillRequirements: '@App\Industry\Infrastructure\Sde\SdeInventionSkillRequirements'
     App\Industry\Application\IntermediateBuildCosts: '@App\Industry\Application\ProductionCostIntermediateBuildCosts'
+    App\Industry\Application\JobInstallationCosts: '@App\Industry\Application\StructureComparatorJobInstallationCosts'
 
 when@test:
     services:
@@ -149,4 +151,7 @@ when@test:
             public: true
         App\Industry\Application\ItemVolumes:
             alias: App\Industry\Infrastructure\Sde\SdeItemVolumes
+            public: true
+        App\Industry\Application\ShipProducts:
+            alias: App\Industry\Infrastructure\Sde\SdeShipProducts
             public: true

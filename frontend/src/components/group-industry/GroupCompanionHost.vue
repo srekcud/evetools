@@ -12,18 +12,21 @@ import {
   rememberCompanionWindowSize,
   type CompanionWindowSizeKey,
 } from '@/components/group-industry/companionWindowSize'
-import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
+import { GROUP_PROJECT_EVENT_COALESCE_MS, useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useDetachedWindow } from '@/composables/useDetachedWindow'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
+import { useUnassignedJobsStore } from '@/stores/group-industry/unassignedJobs'
 
 const CLOCK_TICK_MS = 30_000
+const POSITION_REFRESH_MS = 60_000
 const BACKGROUND_RGB = '2 6 23'
 
 const { t } = useI18n()
 const router = useRouter()
 const companion = useGroupCompanionStore()
+const unassignedJobs = useUnassignedJobsStore()
 const authStore = useAuthStore()
 const { showToast } = useToast()
 const detached = useDetachedWindow('group')
@@ -32,6 +35,7 @@ const size = ref<CompanionWindowSizeKey>(recallCompanionWindowSize())
 const now = ref(Date.now())
 const mountPoint = shallowRef<HTMLElement | null>(null)
 let clockTimer: ReturnType<typeof setInterval> | null = null
+let positionTimer: ReturnType<typeof setInterval> | null = null
 
 const projectName = computed(() => {
   const project = companion.project
@@ -50,7 +54,15 @@ const tasks = computed(() => {
     myCharacterNames: authStore.user === null ? [] : authStore.user.characters.map(character => character.name),
     priceAlert: companion.priceAlert,
     undercutOrders: companion.undercutOrders,
+    unassignedJobCount: unassignedJobs.count,
     now: now.value,
+    flow: {
+      placedActions: companion.placedActions,
+      positions: companion.positions,
+      transfers: companion.transfers,
+      stockProposal: companion.stockProposal,
+      myEveCharacterIds: authStore.user === null ? [] : authStore.user.characters.map(character => character.eveCharacterId),
+    },
   })
 })
 
@@ -66,6 +78,12 @@ const shownMessage = computed(() => companion.error ?? noticeText())
 function stopClock(): void {
   if (clockTimer !== null) clearInterval(clockTimer)
   clockTimer = null
+  if (positionTimer !== null) clearInterval(positionTimer)
+  positionTimer = null
+}
+
+function isWindowHidden(): boolean {
+  return (detached.currentWindow.value?.document ?? document).visibilityState === 'hidden'
 }
 
 function startClock(): void {
@@ -74,6 +92,9 @@ function startClock(): void {
   clockTimer = setInterval(() => {
     now.value = Date.now()
   }, CLOCK_TICK_MS)
+  positionTimer = setInterval(() => {
+    if (!isWindowHidden()) void companion.refreshPlace()
+  }, POSITION_REFRESH_MS)
 }
 
 function openWindowContent(opened: Window): void {
@@ -126,8 +147,17 @@ function deliver(lineId: string): Promise<void> {
   return goToProject({ contribute: lineId })
 }
 
+function openMembers(): Promise<void> {
+  return goToProject({ tab: 'members' })
+}
+
 function openBom(): Promise<void> {
   return goToProject({})
+}
+
+function openUnassignedJobs(): Promise<unknown> {
+  window.focus()
+  return router.push({ name: 'industry-projects', query: { tab: 'my-projects' } })
 }
 
 watch(
@@ -149,7 +179,12 @@ watch(detached.isOpen, (isOpen) => {
   companion.close()
 })
 
-useCoalescedGroupProjectEvents(() => companion.projectId, actions => companion.handleEvents(actions))
+useCoalescedGroupProjectEvents(
+  () => companion.projectId,
+  actions => companion.handleEvents(actions),
+  GROUP_PROJECT_EVENT_COALESCE_MS,
+  () => detached.currentWindow.value?.document ?? document,
+)
 
 useEventListener(window, 'pagehide', () => detached.close())
 
@@ -167,10 +202,17 @@ onBeforeUnmount(() => {
       :project-name="projectName"
       :size="size"
       :error-message="shownMessage"
+      :projects="companion.projectChoices"
+      :current-project-id="companion.projectId"
       @claim="companion.claim"
       @release="companion.release"
       @deliver="deliver"
       @open-bom="openBom"
+      @open-unassigned-jobs="openUnassignedJobs"
+      @open-members="openMembers"
+      @arrive="companion.arriveTransfer"
+      @supply="companion.supply"
+      @switch-project="companion.switchProject"
       @toggle-size="toggleSize"
     />
     <p v-else class="p-3 font-mono text-sm text-slate-300" role="status">{{ shownMessage ?? t('groupIndustry.companion.loading') }}</p>

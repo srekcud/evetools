@@ -9,6 +9,7 @@ use App\Message\CheckCourierContracts;
 use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
 use App\Message\CheckSdeBuild;
+use App\Message\PurgeExpiredLineReservations;
 use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
@@ -79,6 +80,7 @@ class SyncSchedulerIntervalsTest extends TestCase
         PurgeOldNotifications::class => 'notifications-purge',
         PurgeOldMarketHistory::class => 'market-history-purge',
         PurgeExpiredSharedLists::class => 'shared-lists-purge',
+        PurgeExpiredLineReservations::class => 'line-reservations-purge',
     ];
 
     private const DAILY_PURGE_MESSAGES = [
@@ -121,6 +123,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'cost-indices' => 7200,
             'courier-contracts' => 1800,
             'industry' => 1800,
+            'line-reservations-purge' => 1800,
             'market-history-purge' => 86400,
             'market-jita' => 3600,
             'market-structure' => 3600,
@@ -161,6 +164,15 @@ class SyncSchedulerIntervalsTest extends TestCase
         $this->assertSame(
             self::THIRTY_MINUTES_IN_SECONDS,
             $this->scheduledIntervalsByMessageClass()[TriggerMiningOperationRecurrences::class] ?? null,
+        );
+    }
+
+    #[Group('issue-1301')]
+    public function testExpiredLineReservationsArePurgedEveryThirtyMinutes(): void
+    {
+        $this->assertSame(
+            self::THIRTY_MINUTES_IN_SECONDS,
+            $this->scheduledIntervalsByMessageClass()[PurgeExpiredLineReservations::class] ?? null,
         );
     }
 

@@ -13,6 +13,7 @@ const INDUSTRY_PROJECTS_PATH = '/industry/projects'
 const INDUSTRY_ANALYSIS_PATH = '/industry/analysis'
 const INDUSTRY_PRODUCTION_PATH = '/industry/production'
 const INDUSTRY_REVENUE_PATH = '/industry/revenue'
+const INDUSTRY_FACTORY_PATH = '/industry/factory'
 const INDUSTRY_ANALYSIS_TABS: readonly string[] = ['margins', 'batch', 'buy-vs-build', 'pivot']
 const INDUSTRY_PRODUCTION_TABS: readonly string[] = ['slots', 'stockpile', 'blueprints']
 const INDUSTRY_WORKSHOP_TABS: readonly string[] = ['workshop', 'dashboard']
@@ -193,6 +194,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/industry/todo',
+      name: 'industry-todo',
+      component: () => import('@/views/IndustryTodo.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/industry/projects',
       name: 'industry-projects',
       component: () => import('@/views/GroupIndustry/GroupIndustryList.vue'),
@@ -210,6 +217,12 @@ const router = createRouter({
       name: 'industry-production',
       component: () => import('@/views/Industry.vue'),
       props: { page: 'production' },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: INDUSTRY_FACTORY_PATH,
+      name: 'industry-factory',
+      component: () => import('@/views/IndustryFactory.vue'),
       meta: { requiresAuth: true },
     },
     {
@@ -293,6 +306,18 @@ const router = createRouter({
       path: '/industry/projects/:id',
       name: 'industry-project',
       component: () => import('@/views/GroupIndustry/GroupIndustryDetail.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/industry/stations/:locationId(\\d+)',
+      name: 'industry-station',
+      component: () => import('@/views/GroupIndustry/StationView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/industry/projects/:id/setup',
+      name: 'industry-project-setup',
+      component: () => import('@/views/GroupIndustry/ProjectSetup.vue'),
       meta: { requiresAuth: true },
     },
     {

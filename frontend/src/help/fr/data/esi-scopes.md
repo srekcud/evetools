@@ -20,9 +20,9 @@ Ce tableau est généré depuis le code par `app:help:generate-tables` : ne le m
 | `esi-corporations.read_blueprints.v1` | Blueprints de la corporation, pour la bibliothèque de blueprints. |
 | `esi-skills.read_skills.v1` | Compétences d'un personnage : durées d'entraînement, niveau de retraitement. |
 | `esi-skills.read_skillqueue.v1` | Demandé à l'avance : aucune fonction ne lit encore la file d'entraînement. |
-| `esi-location.read_location.v1` | Demandé à l'avance : aucune fonction ne lit encore la position du personnage. |
+| `esi-location.read_location.v1` | Position actuelle d'un personnage (système, station ou structure), lue à la demande avec un cache court et jamais montrée aux autres membres. |
 | `esi-location.read_ship_type.v1` | Vaisseau actuel d'un personnage, pour les opérations de minage. |
-| `esi-location.read_online.v1` | Demandé à l'avance : aucune fonction ne lit encore l'état en ligne du personnage. |
+| `esi-location.read_online.v1` | État en ligne d'un personnage et dernière connexion, lus avec sa position, jamais montrés aux autres membres. |
 | `esi-fleets.read_fleet.v1` | Demandé à l'avance : aucune fonction ne lit encore la flotte. |
 | `esi-universe.read_structures.v1` | Noms et emplacements des structures de joueurs. |
 | `esi-search.search_structures.v1` | Recherche de structures, pour retrouver les jumpgates Ansiblex. |

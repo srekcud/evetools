@@ -29,6 +29,7 @@ use App\State\Provider\Industry\Project\ProjectDistributionProvider;
         ),
     ],
     security: "is_granted('ROLE_USER')",
+    normalizationContext: ['skip_null_values' => false],
 )]
 class ProjectDistributionResource
 {
@@ -69,6 +70,10 @@ class ProjectDistributionResource
     public ?float $costPerUnit = null;
 
     public ?string $costPerUnitUnknownReason = null;
+
+    public bool $surplusStored = false;
+
+    public ?float $storedSurplusValue = null;
 
     /**
      * @var list<array{bomLineId: string, typeId: int, typeName: string, quantity: int}>

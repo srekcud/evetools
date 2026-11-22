@@ -22,6 +22,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -34,6 +35,7 @@ use Symfony\Component\Uid\Uuid;
 class PivotAdvisorServiceTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
+    use StubsPersonalStockReader;
 
     private IndustryActivityMaterialRepository&MockObject $materialRepository;
     private IndustryActivityProductRepository&MockObject $productRepository;
@@ -98,7 +100,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->service = new PivotAdvisorService(
             $this->materialRepository,
             $this->productRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->jitaMarketService,
             $this->esiCostIndexService,
             $this->typeNameResolver,
@@ -697,6 +699,7 @@ class PivotAdvisorServiceTest extends TestCase
                 'typeId' => self::BUILDABLE_MAT_A,
                 'typeName' => 'Component A',
                 'inStock' => 50,
+                'stockByStation' => [],
                 'candidates' => [
                     self::SOURCE_PRODUCT => ['needed' => 9, 'status' => 'covered'],
                     self::CANDIDATE_1 => ['needed' => 27, 'status' => 'covered'],
@@ -707,6 +710,7 @@ class PivotAdvisorServiceTest extends TestCase
                 'typeId' => self::ROBOTICS_TYPE_ID,
                 'typeName' => null,
                 'inStock' => 6,
+                'stockByStation' => [],
                 'candidates' => [
                     self::SOURCE_PRODUCT => ['needed' => 18, 'status' => 'partial'],
                     self::CANDIDATE_1 => ['needed' => 36, 'status' => 'partial'],
@@ -721,8 +725,8 @@ class PivotAdvisorServiceTest extends TestCase
         $this->assertSame(75000.0, $result['candidates'][0]['additionalCost']);
         $this->assertSame(
             [
-                ['typeId' => self::BUILDABLE_MAT_A, 'typeName' => 'Component A', 'inStock' => 50],
-                ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'inStock' => 6],
+                ['typeId' => self::BUILDABLE_MAT_A, 'typeName' => 'Component A', 'inStock' => 50, 'stockByStation' => []],
+                ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'inStock' => 6, 'stockByStation' => []],
             ],
             $result['sourceProduct']['keyComponents'],
         );
@@ -946,7 +950,7 @@ class PivotAdvisorServiceTest extends TestCase
         return new PivotAdvisorService(
             $this->materialRepository,
             $this->productRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->jitaMarketService,
             $this->esiCostIndexService,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),

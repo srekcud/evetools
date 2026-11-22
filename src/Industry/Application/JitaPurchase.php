@@ -27,19 +27,26 @@ final class JitaPurchase
             : $cost;
     }
 
-    public static function importCostOf(int $typeId, int $quantity, ?float $volumePerUnit, ?int $jumps): Cost
+    public static function importCostOf(int $typeId, int $quantity, ?float $volumePerUnit, ?int $destinationSolarSystemId, ?CourierHub $hub): Cost
     {
         $missingData = [];
-        if (null === $jumps) {
+        if (null === $destinationSolarSystemId) {
             $missingData[] = MissingData::jumpRoute();
         }
         if (null === $volumePerUnit) {
             $missingData[] = MissingData::itemVolume($typeId);
         }
+        $needsNoCourier = self::JITA_SOLAR_SYSTEM_ID === $destinationSolarSystemId;
+        if (null === $hub && !$needsNoCourier) {
+            $missingData[] = MissingData::courierHub();
+        }
         if ([] !== $missingData) {
             return Cost::unknown(...$missingData);
         }
+        if (null === $hub) {
+            return Cost::known(new Isk(0.0));
+        }
 
-        return Cost::known(new Isk($volumePerUnit * $quantity * $jumps * self::IMPORT_ISK_PER_CUBIC_METER_JUMP));
+        return $hub->transportCostOf($volumePerUnit * $quantity, $destinationSolarSystemId);
     }
 }

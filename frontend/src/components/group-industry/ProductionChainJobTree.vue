@@ -5,8 +5,10 @@ import { useI18n } from 'vue-i18n'
 import IskAmount from '@/components/common/IskAmount.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import { useJobDisplayLabel } from '@/composables/useJobDisplayLabel'
+import { useNow } from '@/composables/useNow'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
-import type { BomItem, ChainJob, ChainNode, ChainStage, ChainStatus } from '@/stores/group-industry/types'
+import type { BomItem, ChainJob, ChainNode, ChainStage, ChainStatus, JobMatch } from '@/stores/group-industry/types'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import { chainStatusChipClass, chainStatusDotClass } from './chainStatus'
@@ -14,7 +16,9 @@ import { filterChainNodes } from './chainStatusFilter'
 import ChainJobLocations from './ChainJobLocations.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
 import { containerLineOf, isPartlyCoveredByTheContainer } from './jobContainerCoverage'
-import JobLocationBadge from './JobLocationBadge.vue'
+import { formatCountdown } from './jobCountdown'
+import { jobDisplayOf } from './jobDisplayState'
+import { isLinkableActivity } from './jobLinking'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import UnclaimedStockBadge from './UnclaimedStockBadge.vue'
@@ -58,6 +62,7 @@ const props = defineProps<{
   canMark?: boolean
   markableNodeIds?: readonly string[]
   canLinkJobs?: boolean
+  canUnlinkJobs?: boolean
   statusFilter?: readonly ChainStatus[]
 }>()
 
@@ -69,6 +74,18 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { jobDisplayLabel } = useJobDisplayLabel()
+const now = useNow()
+
+function displayOf(jobMatch: JobMatch) {
+  return jobDisplayOf(jobMatch, now.value)
+}
+
+function countdownOf(jobMatch: JobMatch): string | null {
+  const display = displayOf(jobMatch)
+  if (jobMatch.endDate === null || display.state !== 'running' || display.remainingMs === null) return null
+  return formatCountdown(jobMatch.endDate, now.value)
+}
 const projectStore = useGroupProjectStore()
 const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
 const bomItemById = computed(() => new Map(projectStore.bomItems.map(item => [item.id, item])))
@@ -243,6 +260,11 @@ function plansStructure(node: ChainNode): boolean {
                 data-testid="job-container-remaining"
                 class="mt-1 text-xs text-sky-400"
               >{{ t('groupIndustry.jobs.containerRemaining', { covered: formatNumber(bomItemOf(item.node)!.containerQuantity ?? 0, 0), required: formatNumber(bomItemOf(item.node)!.requiredQuantity, 0), remaining: formatNumber(bomItemOf(item.node)!.remainingQuantity, 0) }) }}</p>
+              <p
+                v-if="bomItemOf(item.node)!.expectedBlueprintCopies !== undefined && bomItemOf(item.node)!.expectedBlueprintCopies !== null"
+                data-testid="invention-expected-copies"
+                class="mt-1 text-xs text-sky-400"
+              >{{ t('groupIndustry.jobs.expectedBlueprintCopies', { count: formatNumber(bomItemOf(item.node)!.expectedBlueprintCopies, 1) }) }}</p>
               <UnclaimedStockBadge v-if="bomItemOf(item.node)!.jobGroup === 'component'" :item="bomItemOf(item.node)!" />
               <ul v-if="bomItemOf(item.node)!.jobMatches !== undefined && bomItemOf(item.node)!.jobMatches.length > 0" class="mt-1 space-y-0.5">
                 <li
@@ -253,14 +275,15 @@ function plansStructure(node: ChainNode): boolean {
                 >
                   <span v-if="jobMatch.characterName !== null" class="text-slate-400">{{ jobMatch.characterName }}</span>
                   &middot; {{ formatNumber(jobMatch.runs, 0) }} {{ t('groupIndustry.jobs.runs') }}
-                  &middot; {{ jobMatch.status }}
-                  <span v-if="jobMatch.locations" data-testid="job-match-locations" class="block text-slate-500">
-                    {{ jobMatch.locations.blueprint.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
-                    &rarr; {{ jobMatch.locations.output.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
-                    <JobLocationBadge :locations="jobMatch.locations" data-testid="job-match-check" class="ml-1" />
-                  </span>
+                  &middot; <span data-testid="job-match-state" :data-state="displayOf(jobMatch).state">{{ jobDisplayLabel(displayOf(jobMatch).state) }}</span>
+                  <template v-if="countdownOf(jobMatch) !== null">
+                    &middot; <span data-testid="job-match-countdown" class="font-mono tabular-nums">{{ countdownOf(jobMatch) }}</span>
+                  </template>
+                  <template v-if="jobMatch.successfulRuns !== undefined && jobMatch.successfulRuns !== null">
+                    &middot; <span data-testid="job-match-obtained-copies" class="text-sky-400">{{ t('groupIndustry.jobs.obtainedBlueprintCopies', { count: formatNumber(jobMatch.successfulRuns, 0) }) }}</span>
+                  </template>
                   <button
-                    v-if="canLinkJobs === true"
+                    v-if="canUnlinkJobs === true"
                     type="button"
                     data-testid="job-match-unlink"
                     class="ml-2 px-1.5 py-0.5 rounded-sm text-xs text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition-colors"
@@ -269,7 +292,7 @@ function plansStructure(node: ChainNode): boolean {
                 </li>
               </ul>
               <button
-                v-if="canLinkJobs === true"
+                v-if="canLinkJobs === true && isLinkableActivity(bomItemOf(item.node)!)"
                 type="button"
                 data-testid="link-job-open"
                 class="mt-1 px-2 py-0.5 rounded-sm text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"

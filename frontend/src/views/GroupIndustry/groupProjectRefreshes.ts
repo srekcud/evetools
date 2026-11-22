@@ -1,6 +1,6 @@
 import type { ProjectDetailTab } from './projectDetailTabs'
 
-export type GroupProjectRefresh = 'bom' | 'contributions' | 'members' | 'projectDetail' | 'sales' | 'saleSuggestions' | 'distribution' | 'cockpit' | 'settlement' | 'activity'
+export type GroupProjectRefresh = 'bom' | 'contributions' | 'members' | 'projectDetail' | 'sales' | 'saleSuggestions' | 'distribution' | 'cockpit' | 'settlement' | 'surplus' | 'activity'
 
 const REFRESHES_BY_ACTION: Record<string, GroupProjectRefresh[]> = {
   contribution_submitted: ['bom', 'contributions', 'projectDetail', 'cockpit'],
@@ -20,6 +20,7 @@ const REFRESHES_BY_ACTION: Record<string, GroupProjectRefresh[]> = {
   sale_deleted: ['sales', 'saleSuggestions', 'distribution', 'cockpit'],
   fees_updated: ['projectDetail', 'distribution', 'cockpit'],
   transfer_received: ['settlement'],
+  surplus_stored: ['surplus', 'distribution'],
 }
 
 const DEFAULT_REFRESHES: GroupProjectRefresh[] = ['projectDetail', 'bom', 'cockpit']
@@ -57,7 +58,7 @@ const TABS_SHOWING_REFRESH: Partial<Record<GroupProjectRefresh, ProjectDetailTab
   activity: ['journal'],
 }
 
-export function refreshesVisibleOn(actions: string[], activeTab: ProjectDetailTab): GroupProjectRefresh[] {
+export function refreshesVisibleOn(actions: string[], openSection: ProjectDetailTab | null): GroupProjectRefresh[] {
   const wanted = new Set<GroupProjectRefresh>()
   for (const action of actions) {
     for (const refresh of groupProjectRefreshes(action)) wanted.add(refresh)
@@ -65,6 +66,17 @@ export function refreshesVisibleOn(actions: string[], activeTab: ProjectDetailTa
   }
   return [...wanted].filter((refresh) => {
     const tabsShowingIt = TABS_SHOWING_REFRESH[refresh]
-    return tabsShowingIt === undefined || tabsShowingIt.includes(activeTab)
+    return tabsShowingIt === undefined || (openSection !== null && tabsShowingIt.includes(openSection))
   })
+}
+
+const SETTLEMENT_BLOCK_REFRESHES: GroupProjectRefresh[] = ['distribution', 'settlement']
+
+export function refreshesWithSettlementBlock(actions: string[], openSection: ProjectDetailTab | null, settlementBlockShown: boolean): GroupProjectRefresh[] {
+  const visible = refreshesVisibleOn(actions, openSection)
+  if (!settlementBlockShown) return visible
+  const blockRefreshes = actions
+    .flatMap(action => groupProjectRefreshes(action))
+    .filter(refresh => SETTLEMENT_BLOCK_REFRESHES.includes(refresh))
+  return [...new Set([...visible, ...blockRefreshes])]
 }

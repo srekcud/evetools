@@ -44,13 +44,14 @@ final readonly class DeleteSaleProcessor implements ProcessorInterface
         }
 
         $project = $this->projectOf($this->projectRepository, $uriVariables);
-        $this->accessChecker->assertAdminOrOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         if ($project->isCompleted()) {
             throw new BadRequestHttpException('Cannot delete a sale on a completed project');
         }
 
         $sale = $this->saleOf($this->saleRepository, $project, $uriVariables);
+        $this->accessChecker->assertMayChangeSale($user, $project, $sale);
         $saleId = $sale->getId()->toRfc4122();
 
         $this->entityManager->remove($sale);

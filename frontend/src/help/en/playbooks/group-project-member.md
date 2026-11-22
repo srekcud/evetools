@@ -23,7 +23,7 @@ Open the project from "My Projects". Under the header you find the phase bar ("P
 
 - "Source a material", button "Contribute": it opens the contribution form on the line where the largest quantity is missing.
 - "Launch a job", button "See the jobs".
-- "Nothing to do for you" ("The project is moving along without you for now"): what is left belongs to the owner and the admins (review, change the status, record sales).
+- "Nothing to do for you" ("The project is moving along without you for now"): what is left belongs to the owner and the admins (review, change the status). While the project is selling you get "Record the sales" as long as units are left to sell.
 
 The tabs that matter to you: "Sourcing", "Production", "Contributions", "Finances", "Team" and "Journal". The "Companion" button in the header (absent once the project is "Completed") opens a detached window with the "To assign" lines and "I'll handle it".
 
@@ -82,7 +82,7 @@ Your contribution shows in the "Contributions" tab as "Pending", next to the oth
 
 ## 7. Receive your transfers
 
-Recording sales is reserved for the owner and the admins: you cannot enter any. They are the ones who hold the net revenue, and the "Transfers between members" plan ("Finances" tab) gives everyone their payout. It is only computed once every product is sold, the fees are known and every cost is known; otherwise it says why.
+You record your own sales yourself ("Record Sale", a wallet transaction or a contract of one of your characters, in the "Sales" tab): the seller is always one of your characters, and you can correct or delete only those sales. You hold the net revenue of your sales, and the "Transfers between members" plan ("Finances" tab) gives everyone their payout. It is only computed once every product is sold, the fees are known and every cost is known; otherwise it says why.
 
 1. The payer makes the in-game transfer with the "Payment reference" in the reason. EVE Tools moves no ISK.
 2. You tick "Received" on the transfer you are the recipient of. You cannot tick someone else's ("Only the recipient can tick this transfer"). The box ticks itself, with "Verified in the wallet journal", once your wallet journal shows the transfer with the reference and the full amount.

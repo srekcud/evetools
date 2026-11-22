@@ -14,6 +14,7 @@ use App\Entity\IndustryProjectPurchase;
 use App\Entity\Sde\MapSolarSystem;
 use App\Entity\Sde\StaStation;
 use App\Entity\User;
+use App\Industry\Application\CourierHub;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\ItemVolumes;
 use App\Industry\Application\JumpDistances;
@@ -52,18 +53,19 @@ final class CourierOverviewBuilderTest extends TestCase
     private const int PERIMETER = 30_000_144;
     private const int AMARR = 30_002_187;
     private const int RENS = 30_002_510;
+    private const int HUB = 30_000_772;
     private const int JITA_STATION = 60_003_760;
     private const int PERIMETER_STATION = 60_004_588;
     private const int AMARR_STATION = 60_008_494;
     private const int RENS_STATION = 60_004_111;
     private const int AMARR_STRUCTURE = 1_035_466_617_946;
     private const int UNKNOWN_STRUCTURE = 1_035_466_999_999;
-    private const int JUMPS_JITA_TO_PERIMETER = 1;
-    private const int JUMPS_AMARR_TO_PERIMETER = 9;
-    private const int JUMPS_RENS_TO_PERIMETER = 6;
+    private const int JUMPS_JITA_TO_HUB = 4;
+    private const int JUMPS_JITA_TO_WORKSHOP = 7;
     private const int OWNER_PILOT_ID = 2_112_022_001;
 
     private ?int $manufacturingSystemId = self::PERIMETER;
+    private ?int $jumpsFromJitaToTheHub = self::JUMPS_JITA_TO_HUB;
     private User $owner;
     private IndustryProject $project;
     private array $contractsOfTheOwner = [];
@@ -91,21 +93,19 @@ final class CourierOverviewBuilderTest extends TestCase
         });
 
         $jumpDistances = $this->createStub(JumpDistances::class);
-        $jumpDistances->method('jumpsBetween')->willReturnCallback(static fn (int $from, int $to): ?int => self::PERIMETER === $to
-            ? match ($from) {
-                self::JITA => self::JUMPS_JITA_TO_PERIMETER,
-                self::AMARR => self::JUMPS_AMARR_TO_PERIMETER,
-                self::RENS => self::JUMPS_RENS_TO_PERIMETER,
-                default => null,
-            }
-            : null);
+        $jumpDistances->method('jumpsBetween')->willReturnCallback(fn (int $from, int $to): ?int => self::JITA === $from ? match ($to) {
+            self::HUB => $this->jumpsFromJitaToTheHub,
+            self::PERIMETER => self::JUMPS_JITA_TO_WORKSHOP,
+            default => null,
+        } : null);
 
         $projectService = $this->createStub(IndustryProjectService::class);
-        $projectService->method('favoriteSystemsOf')->willReturnCallback(fn (): FavoriteSystems => new FavoriteSystems($this->manufacturingSystemId, null));
+        $projectService->method('favoriteSystemsOf')->willReturnCallback(fn (): FavoriteSystems => new FavoriteSystems($this->manufacturingSystemId, null, new CourierHub(self::HUB, 1_200.0, 50.0)));
 
         $solarSystemRepository = $this->createStub(MapSolarSystemRepository::class);
         $solarSystemRepository->method('findBySolarSystemId')->willReturnCallback(fn (int $solarSystemId): ?MapSolarSystem => match ($solarSystemId) {
             self::JITA => $this->solarSystem(self::JITA, 'Jita'),
+            self::HUB => $this->solarSystem(self::HUB, 'C-J6MT'),
             self::PERIMETER => $this->solarSystem(self::PERIMETER, 'Perimeter'),
             self::AMARR => $this->solarSystem(self::AMARR, 'Amarr'),
             self::RENS => $this->solarSystem(self::RENS, 'Rens'),
@@ -141,14 +141,15 @@ final class CourierOverviewBuilderTest extends TestCase
         );
     }
 
-    public function testPurchasesMadeInJitaAreQuotedFromJitaToTheWorkshop(): void
+    public function testPurchasesMadeInJitaAreQuotedFromJitaToTheCourierHubAndTheHubIsTheDestination(): void
     {
         $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
 
         $overview = $this->overview();
 
         self::assertSame([self::JITA, 'Jita', self::PERIMETER, 'Perimeter'], $this->routeOf($overview));
-        self::assertSame([10.0, 1_000_000, 1_500, 1, 'ready', []], $this->quoteRow($overview->quote));
+        self::assertSame([self::HUB, 'C-J6MT'], [$overview->courierHubSolarSystemId, $overview->courierHubSolarSystemName]);
+        self::assertSame([10.0, 1_000_000, 12_000, 4, 'ready', []], $this->quoteRow($overview->quote));
         self::assertSame([[], []], [$overview->otherOriginLines, $overview->unknownOriginLines]);
     }
 
@@ -183,7 +184,7 @@ final class CourierOverviewBuilderTest extends TestCase
         $overview = $this->overview();
 
         self::assertSame([self::JITA, 'Jita'], [$overview->originSolarSystemId, $overview->originSolarSystemName]);
-        self::assertSame([10.0, 1_000_000, 1_500, 1, 'ready', []], $this->quoteRow($overview->quote));
+        self::assertSame([10.0, 1_000_000, 12_000, 4, 'ready', []], $this->quoteRow($overview->quote));
         self::assertSame([[self::AMARR, 'Amarr', self::NOCXIUM, 100]], $this->otherOriginRows($overview));
     }
 
@@ -213,7 +214,7 @@ final class CourierOverviewBuilderTest extends TestCase
 
         $overview = $this->overview();
 
-        self::assertSame([10.0, 1_000_000, 1_500, 1, 'ready', []], $this->quoteRow($overview->quote));
+        self::assertSame([10.0, 1_000_000, 12_000, 4, 'ready', []], $this->quoteRow($overview->quote));
         self::assertSame([[$line->getId()->toRfc4122(), self::TRITANIUM, 1_000]], $this->lineRows($overview));
     }
 
@@ -224,7 +225,7 @@ final class CourierOverviewBuilderTest extends TestCase
 
         $overview = $this->overview();
 
-        self::assertSame([self::JITA, [10.0, 1_000_000, 1_500, 1, 'ready', []]], [$overview->originSolarSystemId, $this->quoteRow($overview->quote)]);
+        self::assertSame([self::JITA, [10.0, 1_000_000, 12_000, 4, 'ready', []]], [$overview->originSolarSystemId, $this->quoteRow($overview->quote)]);
         self::assertSame([[self::AMARR, 'Amarr', self::TRITANIUM, 400]], $this->otherOriginRows($overview));
         self::assertSame([[$line->getId()->toRfc4122(), self::TRITANIUM, 1_000]], $this->lineRows($overview));
     }
@@ -248,7 +249,7 @@ final class CourierOverviewBuilderTest extends TestCase
 
         $overview = $this->overview();
 
-        self::assertSame([10.0, 1_000_000, 1_500, 1, 'ready', []], $this->quoteRow($overview->quote));
+        self::assertSame([10.0, 1_000_000, 12_000, 4, 'ready', []], $this->quoteRow($overview->quote));
         self::assertSame([[self::TRITANIUM, 300]], $this->unknownRows($overview));
         self::assertSame([[$line->getId()->toRfc4122(), self::TRITANIUM, 1_000]], $this->lineRows($overview));
     }
@@ -287,7 +288,7 @@ final class CourierOverviewBuilderTest extends TestCase
         self::assertSame([[$line->getId()->toRfc4122(), self::TRITANIUM, 1_000]], $this->lineRows($overview));
     }
 
-    public function testWithoutManufacturingSystemTheJitaQuoteHasNoRoute(): void
+    public function testWithoutManufacturingSystemTheJitaQuoteHasNoRewardAndTheHubStaysTheDestination(): void
     {
         $this->manufacturingSystemId = null;
         $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
@@ -295,7 +296,18 @@ final class CourierOverviewBuilderTest extends TestCase
         $overview = $this->overview();
 
         self::assertSame([self::JITA, 'Jita', null, null], $this->routeOf($overview));
-        self::assertSame([10.0, 1_000_000, null, null, 'workshop_unknown', []], $this->quoteRow($overview->quote));
+        self::assertSame([self::HUB, 'C-J6MT'], [$overview->courierHubSolarSystemId, $overview->courierHubSolarSystemName]);
+        self::assertSame([10.0, 1_000_000, null, 'workshop_unknown'], [$overview->quote->volumeCubicMeters, $overview->quote->collateral, $overview->quote->reward, $overview->quote->quoteStatus]);
+    }
+
+    public function testUnknownJumpsFromJitaToTheHubGiveARouteUnknownQuoteWithoutReward(): void
+    {
+        $this->jumpsFromJitaToTheHub = null;
+        $this->buy(self::TRITANIUM, 1_000, 1_000_000.0, self::JITA_STATION);
+
+        $overview = $this->overview();
+
+        self::assertSame([10.0, 1_000_000, null, null, 'route_unknown', []], $this->quoteRow($overview->quote));
     }
 
     public function testWithoutManufacturingSystemAHubPurchaseStillGetsNoQuote(): void
@@ -318,7 +330,7 @@ final class CourierOverviewBuilderTest extends TestCase
         $overview = $this->overview();
 
         self::assertSame(self::JITA, $overview->originSolarSystemId);
-        self::assertSame([null, 5_000_000, null, 1, 'volume_unknown', [self::TYPE_WITHOUT_VOLUME]], $this->quoteRow($overview->quote));
+        self::assertSame([null, 5_000_000, null, 4, 'volume_unknown', [self::TYPE_WITHOUT_VOLUME]], $this->quoteRow($overview->quote));
         self::assertSame([[self::AMARR, 'Amarr', self::TRITANIUM, 1_000]], $this->otherOriginRows($overview));
     }
 
@@ -329,7 +341,7 @@ final class CourierOverviewBuilderTest extends TestCase
         $this->owner->addCharacter($this->pilotWithToken());
         $this->contractsOfTheOwner = [
             $this->courierContract(1_022_001, '+1 minute', 5.0, 6_750.0),
-            $this->courierContract(1_022_002, '+2 minutes', 10.0, 1_500.0),
+            $this->courierContract(1_022_002, '+2 minutes', 10.0, 12_000.0),
         ];
 
         $overview = $this->builder->build($this->project, $this->owner);

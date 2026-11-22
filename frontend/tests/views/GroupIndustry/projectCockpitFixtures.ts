@@ -12,6 +12,8 @@ import type {
   GroupMemberRole,
   GroupProject,
   GroupProjectStatus,
+  GroupSale,
+  PlacedAction,
   ProjectCockpit,
   ProjectInventionProduct,
   ProjectNextAction,
@@ -19,32 +21,44 @@ import type {
   ProjectPhaseKey,
   ProjectPhaseState,
   ProjectPriceAlert,
+  ProjectPlanning,
   ProjectSellOrder,
+  SellForecast,
+  TypeStationQuantities,
 } from '@/stores/group-industry/types'
 import type { TestLocale } from '../../localeTexts'
 import { projectSettlement } from '../../components/group-industry/projectSettlementFixtures'
+import { projectPlanning } from '../../projectPlanningData'
 
 export const PROJECT_ID = 'project-nyx-batch'
 export const PROJECT_PATH = `/industry/projects/${PROJECT_ID}`
 export const COCKPIT_PATH = `${PROJECT_PATH}/cockpit`
+export const STATION_QUANTITIES_PATH = `${PROJECT_PATH}/station-quantities`
+export const PLACE_ACTIONS_PATH = `${PROJECT_PATH}/place-actions`
+export const SALES_PATH = `${PROJECT_PATH}/sales`
+export const SELL_FORECAST_PATH = `${PROJECT_PATH}/sell-forecast`
+export const DISTRIBUTION_PATH = `${PROJECT_PATH}/distribution`
+export const PLANNING_PATH = `${PROJECT_PATH}/planning`
 export const COCKPIT_RAIL = '[data-testid="cockpit-rail"]'
 export const NEXT_ACTION_CARD = '[data-testid="next-action-card"]'
-export const NEXT_ACTION_TITLE = '[data-testid="next-action-title"]'
-export const NEXT_ACTION_BUTTON = '[data-testid="next-action-button"]'
+export const TAB_BAR_BUTTON = '[data-testid^="project-tab-"]'
 
 export const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({
   params: { id: PROJECT_ID },
   query: {},
 })
 
-export const PHASE_KEYS: ProjectPhaseKey[] = ['prepare', 'supply', 'produce', 'sell', 'close']
-
-export function phaseSelector(key: ProjectPhaseKey): string {
-  return `[data-testid="cockpit-phase-${key}"]`
+export function sectionSelector(key: string): string {
+  return `[data-testid="project-section-${key}"]`
 }
 
-export function tabSelector(key: string): string {
-  return `[data-testid="project-tab-${key}"]`
+export function sectionToggleSelector(key: string): string {
+  return `[data-testid="project-section-toggle-${key}"]`
+}
+
+export function isSectionOpen(wrapper: VueWrapper, key: string): boolean {
+  const section = wrapper.find(sectionSelector(key))
+  return section.exists() && (section.element as HTMLDetailsElement).open
 }
 
 export function nyxProject(status: GroupProjectStatus, myRole: GroupMemberRole = 'owner', overrides: Partial<GroupProject> = {}): GroupProject {
@@ -143,8 +157,8 @@ export function nextAction(overrides: Partial<ProjectNextAction> & Pick<ProjectN
   }
 }
 
-export function cockpitOf(status: GroupProjectStatus, action: ProjectNextAction, phases: ProjectPhase[] = supplyRail(), priceAlert: ProjectPriceAlert | null = null, undercutOrders: ProjectSellOrder[] = []): ProjectCockpit {
-  return { projectId: PROJECT_ID, status, phases, nextAction: action, priceAlert, undercutOrders }
+export function cockpitOf(status: GroupProjectStatus, action: ProjectNextAction, phases: ProjectPhase[] = supplyRail(), priceAlert: ProjectPriceAlert | null = null, undercutOrders: ProjectSellOrder[] = [], purchasesToDeliverCount = 0): ProjectCockpit {
+  return { projectId: PROJECT_ID, status, phases, nextAction: action, purchasesToDeliverCount, priceAlert, undercutOrders }
 }
 
 export type CockpitAnswers = {
@@ -154,7 +168,12 @@ export type CockpitAnswers = {
   cockpitFailure?: string
   members?: GroupMember[] | Error | Promise<GroupMember[]>
   distribution?: unknown
+  sellForecast?: SellForecast | Error
   invention?: ProjectInventionProduct[] | Error | Promise<ProjectInventionProduct[]>
+  stationQuantities?: TypeStationQuantities[]
+  placeActions?: PlacedAction[]
+  sales?: GroupSale[]
+  planning?: ProjectPlanning
 }
 
 export const NYX_INVENTION_PRODUCTS: ProjectInventionProduct[] = [{
@@ -163,6 +182,7 @@ export const NYX_INVENTION_PRODUCTS: ProjectInventionProduct[] = [{
   runs: 2,
   me: 2,
   te: 4,
+  selectedDecryptorTypeId: null,
   invention: {
     baseProbability: 0.34,
     unknownReason: null,
@@ -187,15 +207,23 @@ export const NYX_DISTRIBUTION: Distribution = {
   members: [],
 }
 
-export function answerApi({ project, bom = [], cockpit, cockpitFailure, members = [], distribution = NYX_DISTRIBUTION, invention = NYX_INVENTION_PRODUCTS }: CockpitAnswers): void {
+export function answerApi({ project, bom = [], cockpit, cockpitFailure, members = [], distribution = NYX_DISTRIBUTION, invention = NYX_INVENTION_PRODUCTS, stationQuantities = [], placeActions = [], sales = [], sellForecast, planning = projectPlanning({ id: PROJECT_ID, lanesShown: false }) }: CockpitAnswers): void {
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
     if (options?.method === 'PATCH') return { ...project, ...JSON.parse(String(options.body)) }
     if (endpoint === PROJECT_PATH) return project
     if (endpoint === `${PROJECT_PATH}/bom`) return bom
+    if (endpoint === STATION_QUANTITIES_PATH) return stationQuantities
+    if (endpoint === PLACE_ACTIONS_PATH) return placeActions
+    if (endpoint === SALES_PATH) return sales
+    if (endpoint === SELL_FORECAST_PATH && sellForecast !== undefined) {
+      if (sellForecast instanceof Error) throw sellForecast
+      return sellForecast
+    }
+    if (endpoint === PLANNING_PATH) return planning
     if (endpoint === `${PROJECT_PATH}/settlement`) return projectSettlement()
     if (endpoint === `${PROJECT_PATH}/distribution`) {
       if (distribution instanceof Error) throw distribution
-      return distribution
+      return distribution instanceof Promise ? distribution : structuredClone(distribution)
     }
     if (endpoint === `${PROJECT_PATH}/members`) {
       if (members instanceof Error) throw members
@@ -241,10 +269,7 @@ export async function mountCockpitDetail(answers: CockpitAnswers, locale: TestLo
         SaleSuggestionsPanel: true,
         ContractSaleSuggestions: true,
         ProjectSurplus: true,
-        ProjectPlanning: true,
-        ProjectBuyOrBuild: true,
         ProjectResearch: true,
-        ProjectStructures: true,
         ProjectStructureHealth: true,
         SellForecastCard: true,
         FinancialSummary: true,

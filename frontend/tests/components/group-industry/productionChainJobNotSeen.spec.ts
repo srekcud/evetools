@@ -121,25 +121,6 @@ describe('Production tab, a job launched in game is not seen yet', () => {
   })
 })
 
-describe('Production tab, jobs sync freshness', () => {
-  beforeEach(() => {
-    vi.mocked(apiRequest).mockReset()
-  })
-
-  it('shows when the industry jobs were last synced', async () => {
-    const wrapper = await mountChain([jobLine('line', 'todo')])
-
-    const label = wrapper.find('[data-testid="chain-jobs-synced-at"]')
-    expect({ shown: label.exists(), unknown: label.exists() && label.text() === messageOf('en', 'groupIndustry.chain.jobsSync.unknown') }).toEqual({ shown: true, unknown: false })
-  })
-
-  it('says the sync is unknown when no job was ever synced', async () => {
-    const wrapper = await mountChain([jobLine('line', 'todo')], { jobsSyncedAt: null })
-
-    expect(wrapper.find('[data-testid="chain-jobs-synced-at"]').text()).toBe(messageOf('en', 'groupIndustry.chain.jobsSync.unknown'))
-  })
-})
-
 describe('Production tab, Match jobs', () => {
   beforeEach(() => {
     vi.mocked(apiRequest).mockReset()

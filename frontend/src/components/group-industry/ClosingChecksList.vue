@@ -4,14 +4,24 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { buildClosingChecks } from '@/components/group-industry/closingChecks'
 import type { ClosingChecksData } from '@/stores/group-industry/types'
+import type { ProjectDetailTab } from '@/views/GroupIndustry/projectDetailTabs'
+import type { ClosingCheck } from '@/components/group-industry/closingChecks'
 
 const MARGIN_DECIMALS = 1
 
-const props = defineProps<{ checks: ClosingChecksData }>()
+const TAB_OF_CHECK: Record<ClosingCheck['key'], Extract<ProjectDetailTab, 'contributions' | 'sales' | 'distribution'>> = {
+  pendingContributions: 'contributions',
+  unsoldProducts: 'sales',
+  finalMargin: 'distribution',
+  transfers: 'distribution',
+}
+
+const props = defineProps<{ checks: ClosingChecksData; personalUse?: boolean }>()
+const emit = defineEmits<{ 'open-tab': [tab: ProjectDetailTab] }>()
 
 const { t } = useI18n()
 const { formatNumber } = useFormatters()
-const checks = computed(() => buildClosingChecks(props.checks))
+const checks = computed(() => buildClosingChecks(props.checks, props.personalUse))
 </script>
 
 <template>
@@ -46,6 +56,13 @@ const checks = computed(() => buildClosingChecks(props.checks))
           <template v-if="check.total === null || check.received === null">{{ t('groupIndustry.closingChecks.transfersUnavailable') }}</template>
           <template v-else>{{ t('groupIndustry.closingChecks.transfers', { received: check.received, total: check.total }) }}</template>
         </template>
+        <button
+          v-if="!check.ok"
+          type="button"
+          :data-testid="`closing-check-link-${check.key}`"
+          class="mt-1 block text-xs text-cyan-400 underline hover:text-cyan-300"
+          @click="emit('open-tab', TAB_OF_CHECK[check.key])"
+        >{{ t(`groupIndustry.closingChecks.open.${TAB_OF_CHECK[check.key]}`) }}</button>
       </span>
     </li>
   </ul>

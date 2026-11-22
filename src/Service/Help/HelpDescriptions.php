@@ -9,6 +9,7 @@ use App\Message\CheckCourierContracts;
 use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
 use App\Message\CheckSdeBuild;
+use App\Message\PurgeExpiredLineReservations;
 use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
@@ -52,9 +53,9 @@ final readonly class HelpDescriptions
         'esi-corporations.read_blueprints.v1' => ['fr' => 'Blueprints de la corporation, pour la bibliothèque de blueprints.', 'en' => 'Corporation blueprints, for the blueprint library.'],
         'esi-skills.read_skills.v1' => ['fr' => 'Compétences d\'un personnage : durées d\'entraînement, niveau de retraitement.', 'en' => 'Skills of a character: training times, reprocessing level.'],
         'esi-skills.read_skillqueue.v1' => ['fr' => 'Demandé à l\'avance : aucune fonction ne lit encore la file d\'entraînement.', 'en' => 'Requested in advance: no feature reads the skill queue yet.'],
-        'esi-location.read_location.v1' => ['fr' => 'Demandé à l\'avance : aucune fonction ne lit encore la position du personnage.', 'en' => 'Requested in advance: no feature reads the character location yet.'],
+        'esi-location.read_location.v1' => ['fr' => 'Position actuelle d\'un personnage (système, station ou structure), lue à la demande avec un cache court et jamais montrée aux autres membres.', 'en' => 'Current location of a character (system, station or structure), read on demand with a short cache and never shown to other members.'],
         'esi-location.read_ship_type.v1' => ['fr' => 'Vaisseau actuel d\'un personnage, pour les opérations de minage.', 'en' => 'Current ship of a character, for mining operations.'],
-        'esi-location.read_online.v1' => ['fr' => 'Demandé à l\'avance : aucune fonction ne lit encore l\'état en ligne du personnage.', 'en' => 'Requested in advance: no feature reads the character online status yet.'],
+        'esi-location.read_online.v1' => ['fr' => 'État en ligne d\'un personnage et dernière connexion, lus avec sa position, jamais montrés aux autres membres.', 'en' => 'Online status and last login of a character, read with its location, never shown to other members.'],
         'esi-fleets.read_fleet.v1' => ['fr' => 'Demandé à l\'avance : aucune fonction ne lit encore la flotte.', 'en' => 'Requested in advance: no feature reads the fleet yet.'],
         'esi-universe.read_structures.v1' => ['fr' => 'Noms et emplacements des structures de joueurs.', 'en' => 'Names and locations of player structures.'],
         'esi-search.search_structures.v1' => ['fr' => 'Recherche de structures, pour retrouver les jumpgates Ansiblex.', 'en' => 'Structure search, to discover Ansiblex jump gates.'],
@@ -94,6 +95,7 @@ final readonly class HelpDescriptions
         PurgeOldNotifications::class => ['fr' => 'Purge des notifications anciennes', 'en' => 'Purge of old notifications'],
         PurgeOldMarketHistory::class => ['fr' => 'Purge de l\'historique de marché', 'en' => 'Purge of market history'],
         PurgeExpiredSharedLists::class => ['fr' => 'Purge des listes d\'achats partagées expirées', 'en' => 'Purge of expired shared shopping lists'],
+        PurgeExpiredLineReservations::class => ['fr' => 'Purge des réservations de lignes expirées', 'en' => 'Purge of expired line reservations'],
         CheckSdeBuild::class => ['fr' => 'Version du SDE (alerte aux admins, aucun import automatique)', 'en' => 'SDE build (admin alert, no automatic import)'],
         SyncPackagedVolumes::class => ['fr' => 'Volumes reconditionnés des types présents dans les inventaires', 'en' => 'Packaged volumes of the types found in inventories'],
     ];

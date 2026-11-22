@@ -16,6 +16,7 @@ use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Repository\CharacterRepository;
@@ -69,7 +70,7 @@ final class MatchJobsProcessorTest extends TestCase
 
     private array $syncedCharacterNames = [];
 
-    private int $matchEsiJobsCalls = 0;
+    private int $matchOpenProjectsCalls = 0;
 
     private string $projectIdInUrl = self::PROJECT_ID;
 
@@ -91,11 +92,9 @@ final class MatchJobsProcessorTest extends TestCase
 
     private array $openProjectsOfUser = [];
 
-    private array $contestedQueries = [];
+    private array $projectsPassedToMatching = [];
 
-    private array $contestedPassedToMatching = [];
-    private array $containerOwnerQueries = [];
-    private array $containerOwnersPassed = [];
+    private array $otherProjectLineFailures = [];
 
     protected function setUp(): void
     {
@@ -103,7 +102,7 @@ final class MatchJobsProcessorTest extends TestCase
         $this->addCharacterWithToken(self::PILOT_ONE, self::PILOT_ONE_ID);
         $this->pilotTwo = $this->addCharacterWithToken(self::PILOT_TWO, self::PILOT_TWO_ID);
         $this->pilotThree = $this->addCharacterWithToken(self::PILOT_THREE, self::PILOT_THREE_ID);
-        $this->project = (new IndustryProject())->setOwner($this->user);
+        $this->project = (new IndustryProject())->setOwner($this->user)->setStatus(ProjectStatus::InProgress);
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::fromString(self::PROJECT_ID));
         $this->admin = new User();
         $this->project->addMember((new IndustryProjectParticipant())->setUser($this->admin)->setRole(ParticipantRole::Admin)->setStatus(ParticipantStatus::Accepted));
@@ -162,7 +161,7 @@ final class MatchJobsProcessorTest extends TestCase
 
         $this->assertSame(2, $result->syncedCharacters);
         $this->assertSame([$expectedFailure], $result->failedCharacters);
-        $this->assertSame(1, $this->matchEsiJobsCalls);
+        $this->assertSame(1, $this->matchOpenProjectsCalls);
     }
 
     public function testLogsAnEsiMaintenanceAsAWarningWithTheStatusCode(): void
@@ -221,7 +220,7 @@ final class MatchJobsProcessorTest extends TestCase
             ],
             $result->failedCharacters,
         );
-        $this->assertSame(1, $this->matchEsiJobsCalls);
+        $this->assertSame(1, $this->matchOpenProjectsCalls);
         $this->assertSame(
             [
                 ['warning', ['characterName' => self::PILOT_ONE, 'error' => 'Service unavailable for Pilot One', 'statusCode' => 503]],
@@ -255,7 +254,7 @@ final class MatchJobsProcessorTest extends TestCase
         $this->assertSame(3, $result->syncedCharacters);
         $this->assertSame([], $result->failedCharacters);
         $this->assertSame([self::PILOT_ONE, self::PILOT_TWO, self::PILOT_THREE], $this->syncedCharacterNames);
-        $this->assertSame(1, $this->matchEsiJobsCalls);
+        $this->assertSame(1, $this->matchOpenProjectsCalls);
     }
 
     #[Group('issue-321')]
@@ -267,9 +266,10 @@ final class MatchJobsProcessorTest extends TestCase
     }
 
     #[Group('issue-321')]
-    public function testTheJobsAreNotRecordedWhenTheOwnerCheckRefusesTheMatch(): void
+    #[Group('issue-1200')]
+    public function testTheJobsAreNotRecordedWhenTheAccessCheckRefusesTheMatch(): void
     {
-        $this->authenticatedUser = $this->admin;
+        $this->authenticatedUser = new User();
 
         $this->outcomeOfMatchJobs();
 
@@ -288,13 +288,50 @@ final class MatchJobsProcessorTest extends TestCase
         );
     }
 
-    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedWithoutSyncingNorMatching(): void
+    #[Group('issue-1200')]
+    public function testAnAcceptedAdminWhoIsNotTheOwnerSyncsOnlyHisOwnCharactersThenMatchesTheProject(): void
     {
         $this->authenticatedUser = $this->admin;
+        $this->admin->addCharacter($this->characterWithToken('Admin Pilot', 2_112_000_901));
 
         self::assertSame(
-            ['403 Only the project owner can perform this action', 0, [], []],
-            [$this->outcomeOfMatchJobs(), $this->matchEsiJobsCalls, $this->syncedCharacterNames, $this->refreshedLines],
+            ['matched', 1, ['Admin Pilot']],
+            [$this->outcomeOfMatchJobs(), $this->matchOpenProjectsCalls, $this->syncedCharacterNames],
+        );
+    }
+
+    #[Group('issue-1200')]
+    public function testAnAcceptedMemberSyncsNoneOfTheCharactersOfTheOwner(): void
+    {
+        $this->authenticatedUser = $this->admin;
+        $this->admin->addCharacter($this->characterWithToken('Admin Pilot', 2_112_000_901));
+
+        $this->outcomeOfMatchJobs();
+
+        self::assertNotContains(self::PILOT_ONE, $this->syncedCharacterNames);
+    }
+
+    #[Group('issue-1200')]
+    public function testAUserWithoutAccessIsDeniedWithoutSyncingNorMatching(): void
+    {
+        $this->authenticatedUser = new User();
+
+        self::assertSame(
+            ['403 You do not have access to this project', 0, [], []],
+            [$this->outcomeOfMatchJobs(), $this->matchOpenProjectsCalls, $this->syncedCharacterNames, $this->refreshedLines],
+        );
+    }
+
+    #[Group('issue-1200')]
+    public function testAPendingParticipantIsDeniedWithoutSyncingNorMatching(): void
+    {
+        $pending = new User();
+        $this->project->addMember((new IndustryProjectParticipant())->setUser($pending)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Pending));
+        $this->authenticatedUser = $pending;
+
+        self::assertSame(
+            ['403 You do not have access to this project', 0, []],
+            [$this->outcomeOfMatchJobs(), $this->matchOpenProjectsCalls, $this->syncedCharacterNames],
         );
     }
 
@@ -306,7 +343,7 @@ final class MatchJobsProcessorTest extends TestCase
 
         $this->assertInstanceOf(NotFoundHttpException::class, $rejection);
         $this->assertSame(404, $rejection->getStatusCode());
-        $this->assertSame(0, $this->matchEsiJobsCalls);
+        $this->assertSame(0, $this->matchOpenProjectsCalls);
         $this->assertSame([], $this->syncedCharacterNames);
     }
 
@@ -317,7 +354,7 @@ final class MatchJobsProcessorTest extends TestCase
 
         self::assertSame(
             ['404 Project not found', 0, [], 0],
-            [$this->outcomeOfMatchJobs(), $this->projectLookups, $this->syncedCharacterNames, $this->matchEsiJobsCalls],
+            [$this->outcomeOfMatchJobs(), $this->projectLookups, $this->syncedCharacterNames, $this->matchOpenProjectsCalls],
         );
     }
 
@@ -338,7 +375,7 @@ final class MatchJobsProcessorTest extends TestCase
 
         $this->assertInstanceOf(UnauthorizedHttpException::class, $rejection);
         $this->assertSame(401, $rejection->getStatusCode());
-        $this->assertSame(0, $this->matchEsiJobsCalls);
+        $this->assertSame(0, $this->matchOpenProjectsCalls);
         $this->assertSame([], $this->syncedCharacterNames);
     }
 
@@ -383,7 +420,7 @@ final class MatchJobsProcessorTest extends TestCase
             [1, [self::PILOT_ONE, self::PILOT_TWO, self::PILOT_THREE], 2, [['characterName' => self::PILOT_TWO, 'reason' => 'sync_failed', 'statusCode' => null]]],
             [$this->managerResets, $this->syncedCharacterNames, $result->syncedCharacters, $result->failedCharacters],
         );
-        $this->assertSame(1, $this->matchEsiJobsCalls);
+        $this->assertSame(1, $this->matchOpenProjectsCalls);
     }
 
     #[Group('issue-798')]
@@ -434,6 +471,27 @@ final class MatchJobsProcessorTest extends TestCase
             ],
             $result->failedLines,
         );
+    }
+
+    #[Group('issue-1193')]
+    public function testListsTheJobMatchesOfCopyAndInventionLinesButRefreshesTheContributionsOfTheManufacturingLinesOnly(): void
+    {
+        $ishtarLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);
+        $copyLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(10)->setIsJob(true)->setJobGroup('blueprint')->setActivityType('copy')->setRuns(10);
+        $inventionLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(3)->setIsJob(true)->setJobGroup('blueprint')->setActivityType('invention')->setRuns(3);
+        $this->project->addBomItem($ishtarLine);
+        $this->project->addBomItem($copyLine);
+        $this->project->addBomItem($inventionLine);
+        $copyLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(7_193_501)->setRuns(10)->setStatus('active')->setCost(480_000.0));
+        $inventionLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(7_193_502)->setRuns(3)->setStatus('active')->setCost(120_000.0));
+
+        $result = $this->matchJobs();
+
+        self::assertSame(
+            [[7_193_501, 10, $copyLine->getId()->toRfc4122()], [7_193_502, 3, $inventionLine->getId()->toRfc4122()]],
+            array_map(static fn (ProjectJobMatchResource $match): array => [$match->esiJobId, $match->runs, $match->bomLineId], $result->jobMatches),
+        );
+        self::assertSame([[$ishtarLine->getId()->toRfc4122(), 1]], $this->refreshedLines);
     }
 
     #[Group('issue-798')]
@@ -493,49 +551,100 @@ final class MatchJobsProcessorTest extends TestCase
 
     private function addCharacterWithToken(string $name, int $eveCharacterId): Character
     {
-        $character = (new Character())
-            ->setName($name)
-            ->setEveCharacterId($eveCharacterId);
-        $character->setEveToken(new EveToken());
+        $character = $this->characterWithToken($name, $eveCharacterId);
         $this->user->addCharacter($character);
 
         return $character;
     }
 
-    #[Group('issue-1124')]
-    public function testTheJobsContestedByTheOpenProjectsOfTheUserAndTheProjectAreLeftToTheirProjects(): void
+    private function characterWithToken(string $name, int $eveCharacterId): Character
     {
-        $otherProject = (new IndustryProject())->setOwner($this->user);
+        $character = (new Character())
+            ->setName($name)
+            ->setEveCharacterId($eveCharacterId);
+        $character->setEveToken(new EveToken());
+
+        return $character;
+    }
+
+    #[Group('issue-1246')]
+    public function testTheOpenProjectsOfTheUserAndTheProjectAreMatchedInOnePass(): void
+    {
+        $otherProject = (new IndustryProject())->setOwner($this->user)->setStatus(ProjectStatus::Selling);
         $this->openProjectsOfUser = [$otherProject];
 
         $this->matchJobs();
 
-        $this->assertSame([[$otherProject, $this->project]], $this->contestedQueries);
-        $this->assertSame([[7_124_900 => true]], $this->contestedPassedToMatching);
+        $this->assertSame([[$otherProject, $this->project]], $this->projectsPassedToMatching);
     }
 
-    #[Group('issue-1125')]
-    public function testTheContainerOwnersOfTheOpenProjectsAndTheProjectArePassedToTheContestedJobsAndToTheMatching(): void
-    {
-        $otherProject = (new IndustryProject())->setOwner($this->user);
-        $this->openProjectsOfUser = [$otherProject];
-
-        $this->matchJobs();
-
-        $owners = [1_040_000_000_001 => ['owner-project-id']];
-        $this->assertSame([[$otherProject, $this->project]], $this->containerOwnerQueries);
-        $this->assertSame([$owners, $owners], $this->containerOwnersPassed);
-    }
-
-    #[Group('issue-1124')]
+    #[Group('issue-1246')]
     public function testTheProjectAlreadyAmongTheOpenProjectsOfTheUserIsNotCountedTwice(): void
     {
-        $otherProject = (new IndustryProject())->setOwner($this->user);
+        $otherProject = (new IndustryProject())->setOwner($this->user)->setStatus(ProjectStatus::Published);
         $this->openProjectsOfUser = [$this->project, $otherProject];
 
         $this->matchJobs();
 
-        $this->assertSame([[$this->project, $otherProject]], $this->contestedQueries);
+        $this->assertSame([[$this->project, $otherProject]], $this->projectsPassedToMatching);
+    }
+
+    #[Group('issue-1246')]
+    public function testTheDraftsOtherThanTheProjectAreNotPassedToTheMatching(): void
+    {
+        $draftProject = (new IndustryProject())->setOwner($this->user)->setStatus(ProjectStatus::Draft);
+        $otherProject = (new IndustryProject())->setOwner($this->user)->setStatus(ProjectStatus::InProgress);
+        $this->openProjectsOfUser = [$draftProject, $otherProject];
+
+        $this->matchJobs();
+
+        $this->assertSame([[$otherProject, $this->project]], $this->projectsPassedToMatching);
+    }
+
+    #[Group('issue-1246')]
+    public function testTheProjectIsMatchedEvenWhenItIsADraftAndIsPassedOnce(): void
+    {
+        $this->project->setStatus(ProjectStatus::Draft);
+        $otherProject = (new IndustryProject())->setOwner($this->user)->setStatus(ProjectStatus::InProgress);
+        $this->openProjectsOfUser = [$this->project, $otherProject];
+
+        $this->matchJobs();
+
+        $this->assertSame([[$otherProject, $this->project]], $this->projectsPassedToMatching);
+    }
+
+    #[Group('issue-1246')]
+    public function testTheOtherProjectsOfThePassHaveTheirActivityRecordedAndTheirContributionsRefreshed(): void
+    {
+        $ishtarLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);
+        $otherLine = (new IndustryProjectBomLine())->setTypeId(11478)->setTypeName('R.A.M.- Starship Tech')->setRequiredQuantity(400)->setIsJob(true)->setJobGroup('component')->setActivityType('manufacturing')->setRuns(4);
+        $otherProject = (new IndustryProject())->setOwner($this->user)->setStatus(ProjectStatus::InProgress);
+        $this->project->addBomItem($ishtarLine);
+        $otherProject->addBomItem($otherLine);
+        $this->openProjectsOfUser = [$otherProject];
+
+        $this->matchJobs();
+
+        $this->assertSame([[$otherProject, 1], [$this->project, 1]], $this->recordedProjects);
+        $this->assertSame([[$otherLine->getId()->toRfc4122(), 1], [$ishtarLine->getId()->toRfc4122(), 1]], $this->refreshedLines);
+    }
+
+    #[Group('issue-1246')]
+    public function testTheFailuresOfTheOtherProjectsAreNotReported(): void
+    {
+        $ishtarLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);
+        $otherLine = (new IndustryProjectBomLine())->setTypeId(11478)->setTypeName('R.A.M.- Starship Tech')->setRequiredQuantity(400)->setIsJob(true)->setJobGroup('component')->setActivityType('manufacturing')->setRuns(4);
+        $otherProject = (new IndustryProject())->setOwner($this->user)->setStatus(ProjectStatus::InProgress);
+        $this->project->addBomItem($ishtarLine);
+        $otherProject->addBomItem($otherLine);
+        $this->openProjectsOfUser = [$otherProject];
+        $this->lineMatchFailures = [LineMatchFailure::noRuns($ishtarLine)];
+        $this->otherProjectLineFailures = [LineMatchFailure::producerMissingFromSde($otherLine)];
+
+        $result = $this->matchJobs();
+
+        $this->assertSame([['typeId' => 12005, 'typeName' => 'Ishtar', 'reason' => 'no_runs']], $result->failedLines);
+        $this->assertSame([[$otherProject, $this->project]], $this->projectsPassedToMatching);
     }
 
     private function matchJobs(): MatchJobsResultResource
@@ -560,24 +669,16 @@ final class MatchJobsProcessorTest extends TestCase
         });
 
         $jobMatcher = $this->createStub(IndustryJobMatcher::class);
-        $jobMatcher->method('containerOwnersByLocationId')->willReturnCallback(function (array $projects): array {
-            $this->containerOwnerQueries[] = $projects;
+        $jobMatcher->method('matchOpenProjects')->willReturnCallback(function (array $projects): array {
+            $this->matchOpenProjectsCalls++;
+            $this->projectsPassedToMatching[] = $projects;
 
-            return [1_040_000_000_001 => ['owner-project-id']];
-        });
-        $jobMatcher->method('contestedJobIds')->willReturnCallback(function (array $projects, array $containerOwners = []): array {
-            $this->containerOwnersPassed[] = $containerOwners;
-            $this->contestedQueries[] = $projects;
+            $failures = [];
+            foreach ($projects as $project) {
+                $failures[$project->getId()->toRfc4122()] = $project === $this->project ? $this->lineMatchFailures : $this->otherProjectLineFailures;
+            }
 
-            return [7_124_900 => true];
-        });
-        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project, array $contestedJobIds = [], array $containerOwners = []): array {
-            $this->assertSame($this->project, $project);
-            $this->containerOwnersPassed[] = $containerOwners;
-            $this->matchEsiJobsCalls++;
-            $this->contestedPassedToMatching[] = $contestedJobIds;
-
-            return $this->lineMatchFailures;
+            return $failures;
         });
 
         $derivedContributionService = $this->createStub(DerivedContributionService::class);
@@ -585,12 +686,12 @@ final class MatchJobsProcessorTest extends TestCase
             if (isset($this->refreshFailuresByTypeId[$line->getTypeId()])) {
                 throw $this->refreshFailuresByTypeId[$line->getTypeId()];
             }
-            $this->refreshedLines[] = [$line->getId()->toRfc4122(), $this->matchEsiJobsCalls];
+            $this->refreshedLines[] = [$line->getId()->toRfc4122(), $this->matchOpenProjectsCalls];
         });
 
         $jobActivityRecorder = $this->createStub(ProjectJobActivityRecorder::class);
         $jobActivityRecorder->method('recordJobsOf')->willReturnCallback(function (IndustryProject $project): void {
-            $this->recordedProjects[] = [$project, $this->matchEsiJobsCalls];
+            $this->recordedProjects[] = [$project, $this->matchOpenProjectsCalls];
         });
 
         $participantRepository = $this->createStub(IndustryProjectParticipantRepository::class);
@@ -607,7 +708,7 @@ final class MatchJobsProcessorTest extends TestCase
         $characterRepository->method('findByEveCharacterId')->willReturnCallback(
             fn (int $eveCharacterId): ?Character => \in_array($eveCharacterId, $this->charactersMissingAtReload, true)
                 ? null
-                : array_find($this->user->getCharacters()->toArray(), static fn (Character $character): bool => $character->getEveCharacterId() === $eveCharacterId),
+                : array_find(($this->authenticatedUser ?? $this->user)->getCharacters()->toArray(), static fn (Character $character): bool => $character->getEveCharacterId() === $eveCharacterId),
         );
 
         $syncIsolation = $this->createStub(CharacterSyncIsolation::class);

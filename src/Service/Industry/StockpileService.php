@@ -13,10 +13,10 @@ use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\Job;
-use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\Stock\PersonalStockReader;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -37,7 +37,7 @@ class StockpileService
 
     public function __construct(
         private readonly IndustryStockpileTargetRepository $targetRepository,
-        private readonly CachedAssetRepository $assetRepository,
+        private readonly PersonalStockReader $personalStock,
         private readonly JitaMarketService $jitaMarketService,
         private readonly ProductionPlanning $productionPlanning,
         private readonly UserProductionStructures $userStructures,
@@ -170,7 +170,7 @@ class StockpileService
             ];
         }
 
-        $stockData = $this->assetRepository->getQuantitiesByUserWithLocations($user);
+        $stockData = $this->personalStock->of($user)->locationsByTypeId;
         $assetQuantities = array_map(fn (array $data) => $data['total'], $stockData);
         $startingStockReduction = $this->reduceTargetsByStartingStock($user, $targets, $assetQuantities);
         $remainingTargetQuantities = $startingStockReduction['remainingTargetQuantities'];

@@ -36,16 +36,17 @@ final readonly class CourierOverviewBuilder
         $canLink = $viewer === $owner;
         $link = $this->linkRepository->findOneByProject($project);
 
-        $workshopSolarSystemId = $this->projectService->favoriteSystemsOf($owner)->manufacturingSystemId;
+        $favoriteSystems = $this->projectService->favoriteSystemsOf($owner);
+        $courierHub = $favoriteSystems->courierHub ?? throw new \LogicException('The favorite systems of a project owner always carry a courier hub.');
+        $workshopSolarSystemId = $favoriteSystems->manufacturingSystemId;
         $purchases = $this->purchasesOf($project, $workshopSolarSystemId);
         $hasJitaPurchases = [] !== $purchases['jitaPurchases'];
         $quote = $this->quoteCalculator->quote(
             $purchases['jitaPurchases'],
             $this->volumeByTypeId($purchases['jitaPurchases']),
             null !== $workshopSolarSystemId,
-            $hasJitaPurchases && null !== $workshopSolarSystemId
-                ? $this->jumpDistances->jumpsBetween(EveConstants::JITA_SOLAR_SYSTEM_ID, $workshopSolarSystemId)
-                : null,
+            $courierHub,
+            $hasJitaPurchases ? $this->jumpDistances->jumpsBetween(EveConstants::JITA_SOLAR_SYSTEM_ID, $courierHub->solarSystemId) : null,
         );
 
         $read = null !== $link || $canLink
@@ -58,6 +59,8 @@ final readonly class CourierOverviewBuilder
             $quote,
             $hasJitaPurchases ? EveConstants::JITA_SOLAR_SYSTEM_ID : null,
             $hasJitaPurchases ? $this->solarSystemNameOf(EveConstants::JITA_SOLAR_SYSTEM_ID) : null,
+            $courierHub->solarSystemId,
+            $this->solarSystemNameOf($courierHub->solarSystemId),
             $workshopSolarSystemId,
             null === $workshopSolarSystemId ? null : $this->solarSystemNameOf($workshopSolarSystemId),
             $canLink,

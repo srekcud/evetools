@@ -23,6 +23,7 @@ use App\State\Provider\Me\CharacterCollectionProvider;
         new GetCollection(
             uriTemplate: '/me/characters',
             provider: CharacterCollectionProvider::class,
+            normalizationContext: ['skip_null_values' => false],
             openapi: new Model\Operation(summary: 'List user characters', description: 'Returns all characters linked to the authenticated user', tags: ['Account & Characters']),
         ),
         new Delete(
@@ -66,4 +67,8 @@ class CharacterResource
     public bool $hasMissingScopes = false;
 
     public ?string $lastSyncAt = null;
+
+    public ?string $activeProjectId = null;
+
+    public ?string $activeProjectName = null;
 }

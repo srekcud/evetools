@@ -22,6 +22,9 @@ const USER_SETTINGS_WITH_FAVORITE_SYSTEMS: UserSettings = {
   favoriteReactionSystemId: 30_004_299,
   favoriteReactionSystemName: 'Sakht',
   exportCostPerM3: 1_150,
+  courierHubSolarSystemId: 30_000_772,
+  courierHubSolarSystemName: 'C-J6MT',
+  jumpBridgeCostPerM3: 50,
 }
 
 const outcomes = apiOutcomesByPath()

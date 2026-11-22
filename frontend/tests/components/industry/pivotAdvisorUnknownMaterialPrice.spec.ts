@@ -24,8 +24,8 @@ const PIVOT_RESULT_WITH_UNPRICED_MATERIAL = {
     sellPrice: 4000,
     dailyVolume: 25,
     keyComponents: [
-      { typeId: COMPONENT_TWO_TYPE_ID, typeName: 'Component Two', inStock: 1 },
-      { typeId: COMPONENT_FOUR_TYPE_ID, typeName: 'Component Four', inStock: 2 },
+      { typeId: COMPONENT_TWO_TYPE_ID, typeName: 'Component Two', inStock: 1, stockByStation: [] },
+      { typeId: COMPONENT_FOUR_TYPE_ID, typeName: 'Component Four', inStock: 2, stockByStation: [] },
     ],
     unknownReason: 'missing_material_price',
     missingPriceTypeIds: [COMPONENT_FOUR_TYPE_ID],
@@ -35,6 +35,7 @@ const PIVOT_RESULT_WITH_UNPRICED_MATERIAL = {
       typeId: COMPONENT_TWO_TYPE_ID,
       typeName: 'Component Two',
       inStock: 1,
+      stockByStation: [],
       candidates: {
         [SOURCE_PRODUCT_TYPE_ID]: { needed: 6, status: 'partial' },
         [CANDIDATE_X_TYPE_ID]: { needed: 4, status: 'partial' },

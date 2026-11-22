@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\IntermediateStockProposalLine;
 use App\Service\Industry\Project\IntermediateStockProposer;
+use App\Service\Industry\Project\IntermediateStockStationQuantity;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -46,9 +47,9 @@ final readonly class ProjectIntermediateStockProposalProvider implements Provide
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
-        $proposal = $this->proposer->proposalOf($project);
+        $proposal = $this->proposer->proposalOf($project, $user);
 
         $resource = new ProjectIntermediateStockProposalResource();
         $resource->id = $projectId;
@@ -65,6 +66,17 @@ final readonly class ProjectIntermediateStockProposalProvider implements Provide
                 'containerQuantity' => $line->containerQuantity,
                 'stockQuantity' => $line->stockQuantity,
                 'proposedQuantity' => $line->proposedQuantity,
+                'stockByStation' => array_map(
+                    static fn (IntermediateStockStationQuantity $station): array => [
+                        'locationId' => $station->locationId,
+                        'locationName' => $station->locationName,
+                        'systemName' => $station->systemName,
+                        'quantity' => $station->quantity,
+                        'onSite' => $station->onSite,
+                    ],
+                    $line->stockByStation,
+                ),
+                'plannedStationName' => $line->plannedStationName,
             ],
             $proposal->lines,
         );

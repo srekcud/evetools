@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectPurchase;
 use App\Service\Industry\Project\ContainerStockState;
 use App\Service\Industry\Project\ProjectLineFulfillments;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -190,5 +191,56 @@ final class ProjectLineFulfillmentsTest extends TestCase
                 ProjectLineFulfillments::none()->isKnown(),
             ],
         );
+    }
+
+    /**
+     * @return iterable<string, array{list<int>, int|null, int|null}>
+     */
+    public static function purchasedQuantityCases(): iterable
+    {
+        yield 'nothing delivered' => [[600, 400], 0, 1_000];
+        yield 'partly delivered' => [[600, 400], 700, 300];
+        yield 'fully delivered' => [[600, 400], 1_000, 0];
+        yield 'delivered above the purchases' => [[600, 400], 2_500, 0];
+        yield 'purchase of quantity zero is ignored' => [[0], 0, 0];
+    }
+
+    /**
+     * @param list<int> $purchasedQuantities
+     */
+    #[Group('issue-1175')]
+    #[DataProvider('purchasedQuantityCases')]
+    public function testMissingPurchasedQuantityIsWhatTheContainerDoesNotHoldOfThePurchases(array $purchasedQuantities, int $containerQuantity, int $expectedMissing): void
+    {
+        $fulfillments = new ProjectLineFulfillments(ContainerStockState::Known, [self::TRITANIUM => $containerQuantity]);
+
+        self::assertSame($expectedMissing, $fulfillments->missingPurchasedQuantityOf($this->purchasedLine($purchasedQuantities)));
+    }
+
+    #[Group('issue-1175')]
+    public function testMissingPurchasedQuantityIsUnknownWithoutAReadableContainer(): void
+    {
+        $line = $this->purchasedLine([1_000]);
+
+        self::assertSame(
+            [null, null],
+            [
+                (new ProjectLineFulfillments(ContainerStockState::Unknown))->missingPurchasedQuantityOf($line),
+                ProjectLineFulfillments::none()->missingPurchasedQuantityOf($line),
+            ],
+        );
+    }
+
+    /**
+     * @param list<int> $purchasedQuantities
+     */
+    private function purchasedLine(array $purchasedQuantities): IndustryProjectBomLine
+    {
+        $line = $this->materialLine(self::TRITANIUM, array_sum($purchasedQuantities), 0);
+        foreach ($purchasedQuantities as $quantity) {
+            $line->addPurchase((new IndustryProjectPurchase())->setTypeId(self::TRITANIUM)->setQuantity($quantity)->setUnitPrice(1.0)->setTotalPrice((float) $quantity)->setSource('manual'));
+        }
+
+        return $line;
     }
 }

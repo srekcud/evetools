@@ -194,6 +194,120 @@ final class IndustryProjectBomLineTest extends TestCase
         self::assertSame(6, $line->getDeliveredRuns());
     }
 
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfAManufacturingLineWithAnOutputOfOneIsTheRuns(): void
+    {
+        $line = $this->jobLineOfRuns(10);
+
+        self::assertSame(4, $line->getQuantityOfRuns(4));
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfALineWithOneRunIsItsRequiredQuantity(): void
+    {
+        $line = $this->jobLineOfRuns(1)->setRequiredQuantity(7);
+
+        self::assertSame(7, $line->getQuantityOfRuns(1));
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfAManufacturingLineMultipliesTheRunsByItsOutputPerRun(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setRequiredQuantity(50);
+
+        self::assertSame([20, 50], [$line->getQuantityOfRuns(4), $line->getQuantityOfRuns(10)]);
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfAReactionLineMultipliesTheRunsByItsOutputPerRun(): void
+    {
+        $line = $this->jobLineOfRuns(5)->setActivityType('reaction')->setRequiredQuantity(1_000);
+
+        self::assertSame(600, $line->getQuantityOfRuns(3));
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfACopyLineIsTheRunsWhateverItsRequiredQuantity(): void
+    {
+        $line = $this->jobLineOfRuns(8)->setActivityType('copying')->setRequiredQuantity(40);
+
+        self::assertSame(3, $line->getQuantityOfRuns(3));
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfALineWithoutRunsIsRefused(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setRuns(null);
+
+        $this->expectException(\LogicException::class);
+
+        $line->getQuantityOfRuns(4);
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfALineWithZeroRunsIsRefused(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setRuns(0);
+
+        $this->expectException(\LogicException::class);
+
+        $line->getQuantityOfRuns(4);
+    }
+
+    #[Group('issue-1193')]
+    public function testJobLinesOfTheFourActivitiesAreMatchableAndEachHasItsEsiJobActivityIds(): void
+    {
+        $activityTypes = ['manufacturing', 'reaction', 'copy', 'invention'];
+        $lines = array_map(
+            fn (string $activityType): IndustryProjectBomLine => $this->jobLineOfRuns(5)->setActivityType($activityType),
+            $activityTypes,
+        );
+
+        self::assertSame(
+            [true, true, true, true],
+            array_map(static fn (IndustryProjectBomLine $line): bool => $line->isMatchableJob(), $lines),
+        );
+        self::assertSame(
+            [[1], [9, 11], [5], [8]],
+            array_map(static fn (IndustryProjectBomLine $line): array => $line->esiJobActivityIds(), $lines),
+        );
+    }
+
+    #[Group('issue-1193')]
+    public function testMaterialLineAndJobLineOfAnUnknownActivityAreNotMatchableJobs(): void
+    {
+        $materialLine = (new IndustryProjectBomLine())->setIsJob(false)->setActivityType('copy')->setRuns(5);
+        $unknownActivityLine = $this->jobLineOfRuns(5)->setActivityType('research');
+        $withoutActivityLine = $this->jobLineOfRuns(5)->setActivityType(null);
+
+        self::assertSame(
+            [false, false, false],
+            [$materialLine->isMatchableJob(), $unknownActivityLine->isMatchableJob(), $withoutActivityLine->isMatchableJob()],
+        );
+    }
+
+    #[Group('issue-1193')]
+    public function testEsiJobActivityIdsOfALineOutsideTheFourActivitiesAreRefused(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        $this->jobLineOfRuns(5)->setActivityType('research')->esiJobActivityIds();
+    }
+
+    #[Group('issue-1193')]
+    public function testCopyAndInventionLinesStayOutOfTheManufacturingOrReactionJobs(): void
+    {
+        self::assertSame(
+            [false, false, true, true],
+            [
+                $this->jobLineOfRuns(5)->setActivityType('copy')->isManufacturingOrReactionJob(),
+                $this->jobLineOfRuns(5)->setActivityType('invention')->isManufacturingOrReactionJob(),
+                $this->jobLineOfRuns(5)->setActivityType('manufacturing')->isManufacturingOrReactionJob(),
+                $this->jobLineOfRuns(5)->setActivityType('reaction')->isManufacturingOrReactionJob(),
+            ],
+        );
+    }
+
     private function jobLineOfRuns(int $runs): IndustryProjectBomLine
     {
         return (new IndustryProjectBomLine())

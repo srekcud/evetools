@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import CharacterSyncFailuresAlert from '@/components/industry/CharacterSyncFailuresAlert.vue'
+import PivotStockStations from '@/components/industry/PivotStockStations.vue'
 import SyncErrorAlert from '@/components/industry/SyncErrorAlert.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
@@ -10,7 +11,7 @@ import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { CHART_COLORS } from '@/utils/chartColors'
-import type { SlotActivity, SlotProjectLink, SlotTrackerCharacter, FreeSlotEntry, TimelineJob } from '@/stores/industry/types'
+import type { PivotStockStation, SlotActivity, SlotProjectLink, SlotTrackerCharacter, FreeSlotEntry, TimelineJob } from '@/stores/industry/types'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const emit = defineEmits<{
@@ -18,11 +19,28 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { formatTime } = useFormatters()
+const { formatTime, formatNumber } = useFormatters()
 const { getTypeIconUrl, getCharacterPortraitUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 const slotsStore = useSlotsStore()
 const slotsUpdated = useUpdateFlash(() => slotsStore.data)
+
+const expandedSuggestionKeys = ref<Set<string>>(new Set())
+
+function suggestionKey(char: SlotTrackerCharacter, entry: FreeSlotEntry): string {
+  return `${char.characterId}:${entry.activityType}`
+}
+
+function stockTotalOf(stations: PivotStockStation[]): number {
+  return stations.reduce((total, station) => total + station.quantity, 0)
+}
+
+function toggleSuggestionStations(key: string): void {
+  const next = new Set(expandedSuggestionKeys.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  expandedSuggestionKeys.value = next
+}
 
 function navigateToSettings() {
   emit('open-config', 'skills')
@@ -532,7 +550,7 @@ onMounted(() => {
       <template v-for="entry in char.freeSlots" :key="entry.activityType">
         <div
           v-if="entry.count > 0"
-          class="px-5 py-3 border-t border-slate-800 flex items-center gap-3"
+          class="px-5 py-3 border-t border-slate-800 flex flex-wrap items-center gap-3"
           :class="freeSlotsStyle(entry).bg"
         >
           <div class="flex items-center gap-2">
@@ -550,10 +568,38 @@ onMounted(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
               <span class="text-slate-400">{{ freeSlotSuggestionLabel(entry) }}</span>
-              <span class="text-cyan-400 font-semibold hover:underline cursor-pointer">{{ entry.suggestion.typeName }}</span>
-              <span class="text-slate-500 text-xs">({{ entry.suggestion.reason }})</span>
+              <template v-if="entry.suggestion.project != null">
+                <RouterLink
+                  data-testid="free-slot-suggestion-link"
+                  :to="{ name: 'industry-project', params: { id: entry.suggestion.project.id }, query: { tab: 'chain' } }"
+                  class="text-cyan-400 font-semibold hover:underline"
+                >{{ entry.suggestion.typeName }}</RouterLink>
+                <span
+                  class="text-slate-500 text-xs truncate max-w-xs"
+                  :title="projectLabel(entry.suggestion.project)"
+                >{{ t('industry.slots.stepRuns', { runs: entry.suggestion.runs, project: projectLabel(entry.suggestion.project) }) }}</span>
+              </template>
+              <template v-else>
+                <span class="text-cyan-400 font-semibold">{{ entry.suggestion.typeName }}</span>
+                <span class="text-slate-500 text-xs">({{ entry.suggestion.reason }})</span>
+                <button
+                  v-if="entry.suggestion.stockByStation != null && entry.suggestion.stockByStation.length > 0"
+                  type="button"
+                  data-testid="free-slot-stock-toggle"
+                  :aria-expanded="expandedSuggestionKeys.has(suggestionKey(char, entry))"
+                  :aria-label="t('industry.slots.stockByStation.toggle', { name: entry.suggestion.typeName })"
+                  class="font-mono text-xs text-cyan-400 underline decoration-dotted underline-offset-2 hover:text-cyan-300"
+                  @click="toggleSuggestionStations(suggestionKey(char, entry))"
+                >{{ t('industry.slots.stockByStation.inStock', { quantity: formatNumber(stockTotalOf(entry.suggestion.stockByStation), 0) }) }}</button>
+              </template>
             </div>
           </template>
+          <PivotStockStations
+            v-if="entry.suggestion != null && entry.suggestion.stockByStation != null && expandedSuggestionKeys.has(suggestionKey(char, entry))"
+            data-testid="free-slot-stock-stations"
+            :stations="entry.suggestion.stockByStation"
+            class="basis-full"
+          />
         </div>
       </template>
 

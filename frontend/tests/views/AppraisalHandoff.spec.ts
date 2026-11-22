@@ -63,7 +63,10 @@ enableAutoUnmount(afterEach)
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockResolvedValue([])
+  vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    if (endpoint === '/industry/settings') return { exportCostPerM3: 800 }
+    return []
+  })
   vi.mocked(authFetch).mockReset()
   vi.mocked(authFetch).mockImplementation(async (input: RequestInfo | URL) => {
     if (String(input) === APPRAISE_ENDPOINT) return jsonResponse(APPRAISAL_RESPONSE)
@@ -87,5 +90,16 @@ describe('Appraisal opened with a text handed over', () => {
 
     expect(wrapper.findComponent(AppraisalInputPanel).props('inputText')).toBe('')
     expect(appraiseCallCount()).toBe(0)
+  })
+})
+
+describe('Appraisal transport cost', () => {
+  it('sends the 800 ISK/m3 courier rate with the parse request by default', async () => {
+    useAppraisalHandoffStore().send(SENT_TEXT)
+
+    await mountAppraisal()
+
+    const parseCall = vi.mocked(authFetch).mock.calls.find(([input]) => String(input) === '/api/shopping-list/parse')
+    expect(JSON.parse(String(parseCall?.[1]?.body)).transportCost).toBe(800)
   })
 })

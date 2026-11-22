@@ -14,12 +14,15 @@ use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\CharacterActiveProject;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\ProjectLaunchPriceFreezer;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectProducerCharacters;
 use App\Service\Industry\Project\ProjectSellStructures;
+use App\Service\Industry\Project\ProjectInventionDecryptorChoices;
+use App\Service\Industry\Project\ProjectWorkStationChoices;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -28,6 +31,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -42,6 +46,11 @@ class UpdateProjectProcessor implements ProcessorInterface
         'selling' => ['completed'],
     ];
 
+    private const array PERSONAL_USE_VALID_TRANSITIONS = [
+        ...self::VALID_TRANSITIONS,
+        'in_progress' => ['completed'],
+    ];
+
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
@@ -54,6 +63,9 @@ class UpdateProjectProcessor implements ProcessorInterface
         private readonly ProjectSellStructures $sellStructures,
         private readonly LineReservationService $lineReservations,
         private readonly ProjectLaunchPriceFreezer $launchPrices,
+        private readonly CharacterActiveProject $characterActiveProject,
+        private readonly ?ProjectWorkStationChoices $workStationChoices = null,
+        private readonly ?ProjectInventionDecryptorChoices $inventionDecryptorChoices = null,
     ) {
     }
 
@@ -96,6 +108,8 @@ class UpdateProjectProcessor implements ProcessorInterface
         $this->changeTheBlacklist($project, $data);
         $this->changeTheInventionExclusion($project, $data);
         $this->changeTheSelectionPolicy($project, $data);
+        $this->changeTheWorkStations($project, $data);
+        $this->changeTheInventionDecryptors($project, $data);
         $this->changeTheSellStructure($user, $project, $data);
         $this->changeTheProducerCharacters($project, $data);
 
@@ -126,7 +140,8 @@ class UpdateProjectProcessor implements ProcessorInterface
 
         if ($data->status !== null) {
             $currentStatus = $project->getStatus()->value;
-            $allowedTargets = self::VALID_TRANSITIONS[$currentStatus] ?? [];
+            $transitions = $project->isPersonalUse() ? self::PERSONAL_USE_VALID_TRANSITIONS : self::VALID_TRANSITIONS;
+            $allowedTargets = $transitions[$currentStatus] ?? [];
 
             if (!in_array($data->status, $allowedTargets, true)) {
                 throw new BadRequestHttpException(
@@ -144,6 +159,7 @@ class UpdateProjectProcessor implements ProcessorInterface
             if ($newStatus === ProjectStatus::Completed) {
                 $project->setCompletedAt(new \DateTimeImmutable());
                 $this->lineReservations->releaseAllOfProject($project);
+                $this->characterActiveProject->clearForProject($project);
             }
         }
 
@@ -241,6 +257,40 @@ class UpdateProjectProcessor implements ProcessorInterface
             $project->setExcludesInvention($previousExcludesInvention);
 
             throw new BadRequestHttpException($e->getMessage());
+        }
+    }
+
+    private function changeTheInventionDecryptors(IndustryProject $project, UpdateProjectInput $data): void
+    {
+        if (null === $data->inventionDecryptors) {
+            return;
+        }
+
+        if ($project->isCompleted()) {
+            throw new BadRequestHttpException('The invention decryptor of a completed project cannot be changed');
+        }
+
+        $choices = $this->inventionDecryptorChoices ?? throw new \LogicException('Changing the invention decryptors needs the invention decryptor choices.');
+
+        try {
+            $choices->change($project, $data->inventionDecryptors);
+        } catch (\InvalidArgumentException $e) {
+            throw new UnprocessableEntityHttpException($e->getMessage(), $e);
+        }
+    }
+
+    private function changeTheWorkStations(IndustryProject $project, UpdateProjectInput $data): void
+    {
+        if (null === $data->workStations) {
+            return;
+        }
+
+        $workStationChoices = $this->workStationChoices ?? throw new \LogicException('Changing the work stations needs the work station choices.');
+
+        try {
+            $workStationChoices->change($project, $data->workStations);
+        } catch (\InvalidArgumentException $e) {
+            throw new UnprocessableEntityHttpException($e->getMessage(), $e);
         }
     }
 

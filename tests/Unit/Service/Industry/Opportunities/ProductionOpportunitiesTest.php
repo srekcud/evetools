@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry\Opportunities;
 
 use App\Entity\CachedCharacterSkill;
+use App\Entity\IndustryUserSettings;
 use App\Entity\Character;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\User;
+use App\Industry\Application\CourierHub;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityRepository;
@@ -39,7 +41,7 @@ final class ProductionOpportunitiesTest extends TestCase
     private const int CAPITAL_HUB_ID = 1_035_466_617_946;
     private const int MANUFACTURING_ACTIVITY_ID = 1;
 
-    /** @var list<array{venue: string, structureId: ?int, fees: ?SalesFees, sellQuoteReading: SellQuoteReading}> */
+    /** @var list<array{venue: string, structureId: ?int, fees: ?SalesFees, courierHub: CourierHub, sellQuoteReading: SellQuoteReading}> */
     private array $scans = [];
 
     /** @var array<string, array<string, mixed>> */
@@ -49,6 +51,8 @@ final class ProductionOpportunitiesTest extends TestCase
     private array $skillLevelsByCharacter = [];
 
     private ?SalesFees $salesFees = null;
+
+    private ?IndustryUserSettings $industrySettings = null;
 
     protected function setUp(): void
     {
@@ -107,6 +111,30 @@ final class ProductionOpportunitiesTest extends TestCase
         self::assertNull($this->scans[1]['fees']);
         self::assertTrue($known->salesFeesKnown);
         self::assertFalse($unknown->salesFeesKnown);
+    }
+
+    #[Group('issue-1286')]
+    public function testEveryScanReceivesTheCourierHubBuiltFromTheIndustrySettingsOfTheUser(): void
+    {
+        $this->industrySettings = (new IndustryUserSettings())
+            ->setExportCostPerM3(900.0)
+            ->setCourierHubSolarSystemId(30_002_187)
+            ->setJumpBridgeCostPerM3(35.0);
+
+        $this->opportunities()->for($this->pilot(preferredStructureId: self::CAPITAL_HUB_ID, preferredStructureName: 'Capital Hub'), OpportunityMarket::All, OpportunitySort::WeeklyProfit, null);
+
+        self::assertEquals(
+            [new CourierHub(30_002_187, 900.0, 35.0), new CourierHub(30_002_187, 900.0, 35.0)],
+            array_column($this->scans, 'courierHub'),
+        );
+    }
+
+    #[Group('issue-1286')]
+    public function testWithoutIndustrySettingsTheScanReceivesTheDefaultCourierHub(): void
+    {
+        $this->opportunities()->for($this->pilot(), OpportunityMarket::Jita, OpportunitySort::WeeklyProfit, null);
+
+        self::assertEquals([new CourierHub(30_000_772, 800.0, 0.0)], array_column($this->scans, 'courierHub'));
     }
 
     public function testFreeSlotsAreTheUnusedSlotsOfTheCharactersWithKnownSkillsNeverBelowZeroPerCharacter(): void
@@ -195,8 +223,8 @@ final class ProductionOpportunitiesTest extends TestCase
     private function opportunities(): ProductionOpportunities
     {
         $scanner = $this->createStub(BatchProfitScannerService::class);
-        $scanner->method('scan')->willReturnCallback(function (?string $category, ?float $minMargin, ?float $minVolume, string $venue, ?int $structureId, int $solarSystemId, ?SalesFees $fees, float $exportCostPerM3, ?User $user, int $reactionSolarSystemId, SellQuoteReading $sellQuoteReading = SellQuoteReading::WithEsiFallback): array {
-            $this->scans[] = ['venue' => $venue, 'structureId' => $structureId, 'fees' => $fees, 'sellQuoteReading' => $sellQuoteReading];
+        $scanner->method('scan')->willReturnCallback(function (?string $category, ?float $minMargin, ?float $minVolume, string $venue, ?int $structureId, int $solarSystemId, ?SalesFees $fees, CourierHub $courierHub, ?User $user, int $reactionSolarSystemId, SellQuoteReading $sellQuoteReading = SellQuoteReading::WithEsiFallback): array {
+            $this->scans[] = ['venue' => $venue, 'structureId' => $structureId, 'fees' => $fees, 'courierHub' => $courierHub, 'sellQuoteReading' => $sellQuoteReading];
 
             return [$this->scanRow()];
         });
@@ -246,11 +274,14 @@ final class ProductionOpportunitiesTest extends TestCase
             self::INDUSTRY_SKILL_ID => 'Industry',
         ]);
 
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturnCallback(fn (): ?IndustryUserSettings => $this->industrySettings);
+
         return new ProductionOpportunities(
             $scanner,
             new ProjectSellStructures(),
             $salesFeesResolver,
-            $this->createStub(IndustryUserSettingsRepository::class),
+            $settingsRepository,
             $slotTracker,
             $skillRequirements,
             $activities,

@@ -5,6 +5,7 @@ import type {
   AllocateUnclaimedStockInput,
   GroupMember,
   GroupProject,
+  ProjectOverview,
   BomItem,
   ContainerVerification,
   CorporationAssetsRefresh,
@@ -22,6 +23,8 @@ import type {
 export const useGroupProjectStore = defineStore('group-project', () => {
   const myProjects = ref<GroupProject[]>([])
   const availableProjects = ref<GroupProject[]>([])
+  const projectOverviews = ref<ProjectOverview[]>([])
+  const projectOverviewsError = ref<string | null>(null)
   const currentProject = ref<GroupProject | null>(null)
   const bomItems = ref<BomItem[]>([])
   const containerVerification = ref<ContainerVerification[]>([])
@@ -48,6 +51,16 @@ export const useGroupProjectStore = defineStore('group-project', () => {
       error.value = e instanceof Error ? e.message : 'Failed to fetch projects'
     } finally {
       loading.value = false
+    }
+  }
+
+  async function fetchProjectOverviews(): Promise<void> {
+    projectOverviewsError.value = null
+    try {
+      projectOverviews.value = await apiRequest<ProjectOverview[]>('/industry/projects/overview')
+    } catch (e) {
+      projectOverviews.value = []
+      projectOverviewsError.value = e instanceof Error ? e.message : 'Failed to fetch the projects overview'
     }
   }
 
@@ -194,10 +207,10 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     return apiRequest<AvailableJob[]>(`/industry/projects/${projectId}/available-jobs`)
   }
 
-  async function linkJob(projectId: string, lineId: string, esiJobId: number): Promise<void> {
+  async function linkJob(projectId: string, lineId: string, esiJobId: number, runs?: number): Promise<void> {
     await apiRequest(`/industry/projects/${projectId}/bom/${lineId}/link-job`, {
       method: 'POST',
-      body: JSON.stringify({ esiJobId }),
+      body: JSON.stringify(runs === undefined ? { esiJobId } : { esiJobId, runs }),
     })
     await fetchBom(projectId)
   }
@@ -262,6 +275,9 @@ export const useGroupProjectStore = defineStore('group-project', () => {
 
   return {
     myProjects,
+    projectOverviews,
+    projectOverviewsError,
+    fetchProjectOverviews,
     availableProjects,
     currentProject,
     bomItems,

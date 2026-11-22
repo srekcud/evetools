@@ -10,12 +10,10 @@ use App\ApiResource\Industry\Project\ProjectStructuresResource;
 use App\Entity\User;
 use App\Industry\Application\JobStructureComparison;
 use App\Industry\Application\PlanStructureComparator;
-use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\StructureTotalCostComparator;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\IndustryStructureConfigRepository;
-use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\OwnerStructureLabels;
 use App\Service\Industry\Project\StructureComparisonPresenter;
 use App\Service\TypeNameResolver;
 use App\Service\UuidOrNotFound;
@@ -35,8 +33,7 @@ final readonly class ProjectStructuresProvider implements ProviderInterface
         private ProjectAccessChecker $accessChecker,
         private IndustryProjectService $projectService,
         private PlanStructureComparator $comparator,
-        private IndustryStructureConfigRepository $structureConfigRepository,
-        private MapSolarSystemRepository $solarSystemRepository,
+        private OwnerStructureLabels $structureLabels,
         private TypeNameResolver $typeNameResolver,
     ) {
     }
@@ -73,8 +70,8 @@ final readonly class ProjectStructuresProvider implements ProviderInterface
             static fn (JobStructureComparison $comparison): int => $comparison->productTypeId,
             $comparisons,
         ));
-        $structureLabels = $this->structureLabelsOf($owner);
-        $solarSystemNames = $this->solarSystemNamesOf($structures);
+        $structureLabels = $this->structureLabels->of($owner);
+        $solarSystemNames = $this->structureLabels->solarSystemNamesOf($structures);
 
         $resource = new ProjectStructuresResource();
         $resource->id = $projectId;
@@ -87,39 +84,5 @@ final readonly class ProjectStructuresProvider implements ProviderInterface
         );
 
         return $resource;
-    }
-
-    /**
-     * @return array<string, array{name: string, kind: string}>
-     */
-    private function structureLabelsOf(User $owner): array
-    {
-        $labels = [];
-        foreach ($this->structureConfigRepository->findByUser($owner) as $configuration) {
-            $labels[$configuration->getId()->toRfc4122()] = ['name' => $configuration->getName(), 'kind' => $configuration->getStructureType()];
-        }
-
-        return $labels;
-    }
-
-    /**
-     * @param list<ProductionStructure> $structures
-     *
-     * @return array<int, string>
-     */
-    private function solarSystemNamesOf(array $structures): array
-    {
-        $names = [];
-        foreach ($structures as $structure) {
-            $solarSystemId = $structure->solarSystemId;
-            if (null !== $solarSystemId && !\array_key_exists($solarSystemId, $names)) {
-                $solarSystem = $this->solarSystemRepository->findBySolarSystemId($solarSystemId);
-                if (null !== $solarSystem) {
-                    $names[$solarSystemId] = $solarSystem->getSolarSystemName();
-                }
-            }
-        }
-
-        return $names;
     }
 }

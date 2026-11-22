@@ -52,12 +52,6 @@ const ROLE_BADGE_CLASSES: Record<GroupMemberRole, string> = {
   member: 'bg-slate-700 text-slate-400 border-slate-600',
 }
 
-const ROLE_LABELS: Record<GroupMemberRole, string> = {
-  owner: 'Owner',
-  admin: 'Admin',
-  member: 'Member',
-}
-
 function statusLabel(member: GroupMember): string {
   const active = t('groupIndustry.members.status.active')
   if (member.role === 'owner') {
@@ -94,9 +88,9 @@ function canManage(member: GroupMember): boolean {
 function confirmPromote(member: GroupMember): void {
   confirmModal.value = {
     show: true,
-    title: 'Promote to Admin',
-    subtitle: `Promote ${pilotName(member.characterName)} to admin?`,
-    confirmLabel: 'Promote',
+    title: t('groupIndustry.members.confirm.promoteTitle'),
+    subtitle: t('groupIndustry.members.confirm.promoteSubtitle', { name: pilotName(member.characterName) }),
+    confirmLabel: t('groupIndustry.members.confirm.promote'),
     confirmColor: 'cyan',
     icon: 'check',
     action: () => store.updateMember(props.projectId, member.id, { role: 'admin' }),
@@ -106,9 +100,9 @@ function confirmPromote(member: GroupMember): void {
 function confirmDemote(member: GroupMember): void {
   confirmModal.value = {
     show: true,
-    title: 'Demote to Member',
-    subtitle: `Demote ${pilotName(member.characterName)} to member?`,
-    confirmLabel: 'Demote',
+    title: t('groupIndustry.members.confirm.demoteTitle'),
+    subtitle: t('groupIndustry.members.confirm.demoteSubtitle', { name: pilotName(member.characterName) }),
+    confirmLabel: t('groupIndustry.members.confirm.demote'),
     confirmColor: 'red',
     icon: 'delete',
     action: () => store.updateMember(props.projectId, member.id, { role: 'member' }),
@@ -118,9 +112,9 @@ function confirmDemote(member: GroupMember): void {
 function confirmKick(member: GroupMember): void {
   confirmModal.value = {
     show: true,
-    title: 'Kick Member',
-    subtitle: `Remove ${pilotName(member.characterName)} from the project?`,
-    confirmLabel: 'Kick',
+    title: t('groupIndustry.members.confirm.kickTitle'),
+    subtitle: t('groupIndustry.members.confirm.kickSubtitle', { name: pilotName(member.characterName) }),
+    confirmLabel: t('groupIndustry.members.confirm.kick'),
     confirmColor: 'red',
     icon: 'delete',
     action: () => store.kickMember(props.projectId, member.id),
@@ -166,12 +160,12 @@ onMounted(() => {
       <table class="w-full text-sm">
         <thead>
           <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-            <th class="text-left py-3 px-6">Character</th>
-            <th class="text-left py-3 px-3">Corporation</th>
-            <th class="text-left py-3 px-3">Role</th>
-            <th class="text-center py-3 px-3">Status</th>
-            <th class="text-left py-3 px-3">Joined</th>
-            <th class="text-center py-3 px-6">Actions</th>
+            <th class="text-left py-3 px-6">{{ t('groupIndustry.members.columns.character') }}</th>
+            <th class="text-left py-3 px-3">{{ t('groupIndustry.members.columns.corporation') }}</th>
+            <th class="text-left py-3 px-3">{{ t('groupIndustry.members.columns.role') }}</th>
+            <th class="text-center py-3 px-3">{{ t('groupIndustry.members.columns.status') }}</th>
+            <th class="text-left py-3 px-3">{{ t('groupIndustry.members.columns.joined') }}</th>
+            <th class="text-center py-3 px-6">{{ t('groupIndustry.members.columns.actions') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800/30">
@@ -201,7 +195,7 @@ onMounted(() => {
               <span
                 class="text-xs px-2 py-0.5 rounded border font-medium"
                 :class="ROLE_BADGE_CLASSES[member.role]"
-              >{{ ROLE_LABELS[member.role] }}</span>
+              >{{ t(`groupIndustry.members.roles.${member.role}`) }}</span>
             </td>
             <!-- Status -->
             <td class="py-3 px-3 text-center">
@@ -220,18 +214,18 @@ onMounted(() => {
                   v-if="isOwner && member.role === 'member'"
                   class="px-2 py-1 rounded bg-cyan-600/20 text-cyan-400 text-xs font-medium hover:bg-cyan-600/30 border border-cyan-600/30"
                   @click="confirmPromote(member)"
-                >Promote</button>
+                >{{ t('groupIndustry.members.confirm.promote') }}</button>
                 <!-- Demote (only for admins) -->
                 <button
                   v-if="member.role === 'admin'"
                   class="px-2 py-1 rounded bg-slate-600/20 text-slate-400 text-xs font-medium hover:bg-slate-600/30 border border-slate-600/30"
                   @click="confirmDemote(member)"
-                >Demote</button>
+                >{{ t('groupIndustry.members.confirm.demote') }}</button>
                 <!-- Kick -->
                 <button
                   class="px-2.5 py-1 rounded bg-red-600/10 text-red-400/70 text-xs font-medium hover:bg-red-600/20 hover:text-red-400 transition-colors border border-red-600/20"
                   @click="confirmKick(member)"
-                >Kick</button>
+                >{{ t('groupIndustry.members.confirm.kick') }}</button>
               </div>
               <!-- Leave button for the current user -->
               <div v-else-if="canLeave(member)" class="flex items-center justify-center">

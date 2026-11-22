@@ -26,6 +26,11 @@ const rxnResults = ref<SolarSystemResult[]>([])
 const rxnDropdown = ref(false)
 let rxnTimeout: ReturnType<typeof setTimeout> | null = null
 
+const hubQuery = ref('')
+const hubResults = ref<SolarSystemResult[]>([])
+const hubDropdown = ref(false)
+let hubTimeout: ReturnType<typeof setTimeout> | null = null
+
 onMounted(() => {
   store.fetchUserSettings()
 })
@@ -36,10 +41,11 @@ function securityColor(sec: number): string {
   return 'text-red-400'
 }
 
-async function searchSystems(query: string, target: 'mfg' | 'rxn') {
+async function searchSystems(query: string, target: 'mfg' | 'rxn' | 'hub') {
   if (query.length < 2) {
     if (target === 'mfg') mfgResults.value = []
-    else rxnResults.value = []
+    else if (target === 'rxn') rxnResults.value = []
+    else hubResults.value = []
     return
   }
   try {
@@ -49,9 +55,12 @@ async function searchSystems(query: string, target: 'mfg' | 'rxn') {
     if (target === 'mfg') {
       mfgResults.value = data
       mfgDropdown.value = true
-    } else {
+    } else if (target === 'rxn') {
       rxnResults.value = data
       rxnDropdown.value = true
+    } else {
+      hubResults.value = data
+      hubDropdown.value = true
     }
   } catch {
     // silent
@@ -68,6 +77,12 @@ watch(rxnQuery, (q) => {
   if (rxnTimeout) clearTimeout(rxnTimeout)
   if (q.length < 2) { rxnResults.value = []; return }
   rxnTimeout = setTimeout(() => searchSystems(q, 'rxn'), 300)
+})
+
+watch(hubQuery, (q) => {
+  if (hubTimeout) clearTimeout(hubTimeout)
+  if (q.length < 2) { hubResults.value = []; return }
+  hubTimeout = setTimeout(() => searchSystems(q, 'hub'), 300)
 })
 
 async function selectMfgSystem(system: SolarSystemResult) {
@@ -88,6 +103,15 @@ async function selectRxnSystem(system: SolarSystemResult) {
   })
 }
 
+async function selectHubSystem(system: SolarSystemResult) {
+  hubQuery.value = ''
+  hubResults.value = []
+  hubDropdown.value = false
+  await store.updateUserSettings({
+    courierHubSolarSystemId: system.solarSystemId,
+  })
+}
+
 async function clearMfgSystem() {
   await store.updateUserSettings({
     favoriteManufacturingSystemId: 0,
@@ -100,10 +124,11 @@ async function clearRxnSystem() {
   })
 }
 
-function onBlur(target: 'mfg' | 'rxn') {
+function onBlur(target: 'mfg' | 'rxn' | 'hub') {
   setTimeout(() => {
     if (target === 'mfg') mfgDropdown.value = false
-    else rxnDropdown.value = false
+    else if (target === 'rxn') rxnDropdown.value = false
+    else hubDropdown.value = false
   }, 200)
 }
 </script>
@@ -115,7 +140,7 @@ function onBlur(target: 'mfg' | 'rxn') {
       {{ t('industry.favoriteSystems.description') }}
     </p>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <!-- Manufacturing favorite -->
       <div>
         <label :for="`${uid}-mfg`" class="block text-xs text-slate-400 mb-1">{{ t('industry.favoriteSystems.manufacturing') }}</label>
@@ -194,6 +219,42 @@ function onBlur(target: 'mfg' | 'rxn') {
                 </span>
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Courier hub -->
+      <div>
+        <label :for="`${uid}-hub`" class="block text-xs text-slate-400 mb-1">{{ t('industry.favoriteSystems.courierHub') }}</label>
+        <div class="relative">
+          <div data-testid="courier-hub-current" class="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
+            <span class="text-sm text-slate-200 flex-1">
+              {{ store.userSettings?.courierHubSolarSystemName || (store.userSettings ? `#${store.userSettings.courierHubSolarSystemId}` : '') }}
+            </span>
+          </div>
+          <input
+            v-model="hubQuery"
+            :id="`${uid}-hub`"
+            data-testid="courier-hub-search"
+            type="text"
+            :placeholder="t('industry.favoriteSystems.searchSystem')"
+            class="mt-2 w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500 placeholder-slate-500"
+            @blur="onBlur('hub')"
+          />
+          <div v-if="hubDropdown && hubResults.length > 0" class="absolute z-20 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+            <button
+              v-for="sys in hubResults"
+              :key="sys.solarSystemId"
+              :data-testid="`courier-hub-result-${sys.solarSystemId}`"
+              @mousedown.prevent="selectHubSystem(sys)"
+              class="w-full px-3 py-2 text-left hover:bg-slate-700 text-sm flex items-center justify-between"
+            >
+              <span class="text-slate-200">{{ sys.solarSystemName }}</span>
+              <span class="text-xs flex items-center gap-2">
+                <span :class="securityColor(sys.security)">{{ sys.security.toFixed(1) }}</span>
+                <span class="text-slate-500">{{ sys.regionName }}</span>
+              </span>
+            </button>
           </div>
         </div>
       </div>

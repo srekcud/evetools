@@ -73,6 +73,7 @@ function configuredStructure(id: string, name: string): StructureConfig {
     reactionMaterialBonus: 0,
     manufacturingTimeBonus: 15,
     reactionTimeBonus: 0,
+    hullToSpecify: false,
     facilityTaxRate: null,
     createdAt: '2026-11-01T10:00:00+00:00',
   }

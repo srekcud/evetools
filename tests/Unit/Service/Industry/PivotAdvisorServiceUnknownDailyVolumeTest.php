@@ -19,6 +19,7 @@ use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -30,6 +31,7 @@ use PHPUnit\Framework\TestCase;
 final class PivotAdvisorServiceUnknownDailyVolumeTest extends TestCase
 {
     use CreatesUserWithId;
+    use StubsPersonalStockReader;
     private const int SOLAR_SYSTEM_ID = 30002510;
     private const float BROKER_FEE_RATE = 0.036;
     private const float SALES_TAX_RATE = 0.036;
@@ -237,7 +239,7 @@ final class PivotAdvisorServiceUnknownDailyVolumeTest extends TestCase
         $service = new PivotAdvisorService(
             $materialRepository,
             $productRepository,
-            $assetRepository,
+            $this->personalStockReaderOn($assetRepository),
             $jitaMarketService,
             $esiCostIndexService,
             $typeNameResolver,

@@ -21,6 +21,10 @@ final readonly class MaterialSourcing
         public SourcingSide $side,
         public bool $structureFallback,
         public ?Isk $saving,
+        public Cost $structureBridgeCost,
+        public ?int $structureAvailableQuantity = null,
+        public ?SourcingSide $chosenMarket = null,
+        public ?string $lineId = null,
     ) {
     }
 
@@ -29,12 +33,41 @@ final readonly class MaterialSourcing
         return $this->jitaCost->plus($this->importCost);
     }
 
+    public function structureDeliveredCost(): Cost
+    {
+        return $this->structureCost->plus($this->structureBridgeCost);
+    }
+
+    public function structureStock(): StructureStock
+    {
+        if (null === $this->structureAvailableQuantity) {
+            return StructureStock::Unknown;
+        }
+
+        return $this->structureAvailableQuantity >= $this->quantity->value ? StructureStock::Enough : StructureStock::Insufficient;
+    }
+
+    public function market(): SourcingSide
+    {
+        return $this->chosenMarket ?? $this->side;
+    }
+
     public function bestCost(): Cost
     {
-        return match ($this->side) {
+        return $this->costOf($this->side);
+    }
+
+    public function selectedCost(): Cost
+    {
+        return $this->costOf($this->market());
+    }
+
+    private function costOf(SourcingSide $side): Cost
+    {
+        return match ($side) {
             SourcingSide::Jita => $this->jitaWithImportCost(),
-            SourcingSide::Structure => $this->structureCost,
-            SourcingSide::Unknown => $this->jitaWithImportCost()->plus($this->structureCost),
+            SourcingSide::Structure => $this->structureDeliveredCost(),
+            SourcingSide::Unknown => $this->jitaWithImportCost()->plus($this->structureDeliveredCost()),
         };
     }
 }

@@ -85,6 +85,8 @@ class ProjectDistributionProvider implements ProviderInterface
         $resource->breakEvenUnknownReason = $result->breakEvenUnknownReason;
         $resource->costPerUnit = $result->costPerUnit;
         $resource->costPerUnitUnknownReason = $result->costPerUnitUnknownReason;
+        $resource->surplusStored = $result->surplusStored;
+        $resource->storedSurplusValue = $result->storedSurplusValue;
         $resource->unclaimedStockLines = array_map(
             static fn (UnclaimedStockLine $line): array => [
                 'bomLineId' => $line->bomLineId,

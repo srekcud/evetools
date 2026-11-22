@@ -27,7 +27,7 @@ final class ConfiguredProductionStructures implements UserProductionStructures, 
     private const string NPC_STATION = 'station';
 
     /** @var array<string, int> */
-    private const array STRUCTURE_TYPE_IDS = [
+    public const array STRUCTURE_TYPE_IDS = [
         'raitaru' => 35825,
         'azbel' => 35826,
         'sotiyo' => 35827,
@@ -71,7 +71,7 @@ final class ConfiguredProductionStructures implements UserProductionStructures, 
     {
         $configurations = array_values(array_filter(
             $this->structureConfigRepository->findBy(['user' => $userId, 'isDeleted' => false]),
-            static fn (IndustryStructureConfig $configuration): bool => self::NPC_STATION !== $configuration->getStructureType(),
+            static fn (IndustryStructureConfig $configuration): bool => self::NPC_STATION !== $configuration->getStructureType() && !$configuration->isHullToSpecify(),
         ));
         $rigNames = [];
         foreach ($configurations as $configuration) {
@@ -102,7 +102,7 @@ final class ConfiguredProductionStructures implements UserProductionStructures, 
         return new ProductionStructure(
             $configuration->getId()->toRfc4122(),
             $type,
-            self::securityOf($configuration),
+            self::securityClassOf($configuration->getSecurityType()),
             $configuration->getSolarSystemId(),
             $configuration->getCreatedAt(),
             $this->structureBonusReader->materialMultiplierOf($structureTypeId) ?? Multiplier::one(),
@@ -113,7 +113,22 @@ final class ConfiguredProductionStructures implements UserProductionStructures, 
             $this->scienceRigsOf($rigNames, $rigTypes),
             $this->structureBonusReader->timeMultiplierOf($structureTypeId, ActivityKind::Reaction) ?? Multiplier::one(),
             $this->timeRigsOf($rigNames, $rigTypes, $activity),
+            self::unrecognisedRigsOf($rigNames, $rigTypes),
         );
+    }
+
+    /**
+     * @param array<string> $rigNames
+     * @param array<string, InvType> $rigTypes
+     *
+     * @return list<string>
+     */
+    private static function unrecognisedRigsOf(array $rigNames, array $rigTypes): array
+    {
+        return array_values(array_unique(array_filter(
+            $rigNames,
+            static fn (string $rigName): bool => !\array_key_exists($rigName, $rigTypes),
+        )));
     }
 
     private static function facilityTaxRateOf(IndustryStructureConfig $configuration): ?float
@@ -123,13 +138,13 @@ final class ConfiguredProductionStructures implements UserProductionStructures, 
         return null === $facilityTaxPercent ? null : $facilityTaxPercent / self::PERCENT;
     }
 
-    private static function securityOf(IndustryStructureConfig $configuration): SecurityClass
+    public static function securityClassOf(string $securityType): SecurityClass
     {
-        return match ($configuration->getSecurityType()) {
+        return match ($securityType) {
             'highsec' => SecurityClass::HighSec,
             'lowsec' => SecurityClass::LowSec,
             'nullsec' => SecurityClass::NullSec,
-            default => throw new \UnexpectedValueException(\sprintf('Structure %s has the unsupported security "%s".', $configuration->getId()->toRfc4122(), $configuration->getSecurityType())),
+            default => throw new \UnexpectedValueException(\sprintf('Unsupported security "%s".', $securityType)),
         };
     }
 

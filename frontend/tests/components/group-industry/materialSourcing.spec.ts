@@ -150,12 +150,20 @@ describe('MaterialSourcing', () => {
     expect(wrapper.get('[data-testid="material-sourcing-structure-hint"]').text()).toContain(text('groupIndustry.materialSourcing.structureNotSynced'))
   })
 
-  it('names the compared structure and the import rate when the market is synced', async () => {
+  it('names the compared structure when the market is synced', async () => {
     const wrapper = await mountSourcing(ALL_ROWS)
 
     expect(wrapper.find('[data-testid="material-sourcing-structure-hint"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="material-sourcing-structure"]').text()).toContain('Perimeter - Tranquility Trading Tower')
-    expect(wrapper.get('[data-testid="material-sourcing-rate"]').text()).toContain('150')
+  })
+
+  it('shows the Jita to hub rate and the jump bridge rate instead of the rate per jump', async () => {
+    const wrapper = await mountSourcing(ALL_ROWS, { courierIskPerCubicMeter: 1300, jumpBridgeIskPerCubicMeter: 45 })
+
+    const rate = wrapper.get('[data-testid="material-sourcing-rate"]').text().replace(BLANK, ' ')
+    expect(rate).toContain('1,300')
+    expect(rate).toContain('45')
+    expect(rate).not.toContain('150')
   })
 
   it('shows an empty state when nothing remains to source', async () => {

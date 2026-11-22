@@ -26,6 +26,9 @@ const STORED_SETTINGS: UserSettings = {
   favoriteReactionSystemId: null,
   favoriteReactionSystemName: null,
   exportCostPerM3: 1200,
+  courierHubSolarSystemId: 30_000_772,
+  courierHubSolarSystemName: 'C-J6MT',
+  jumpBridgeCostPerM3: 50,
 }
 
 const UPDATED_SETTINGS: UserSettings = { ...STORED_SETTINGS, exportCostPerM3: 900 }
@@ -81,23 +84,36 @@ function displayedFees(wrapper: Awaited<ReturnType<typeof mountFeesConfig>>): st
 }
 
 describe('FeesConfig fields', () => {
-  it('offers only the export cost field since the broker fee and the sales tax are computed from the seller', async () => {
-    const wrapper = await mountFeesConfig()
+  it('offers the export cost and the jump bridge rate fields, filled from the stored settings', async () => {
+    const wrapper = await mountFeesConfig('en', { ...STORED_SETTINGS, jumpBridgeCostPerM3: 35 })
 
     expect({
       inputs: displayedFees(wrapper),
-      labels: wrapper.findAll('label').map(label => label.text()),
-    }).toEqual({ inputs: ['1200'], labels: [en.industry.config.exportCost] })
+      firstLabel: wrapper.findAll('label')[0]?.text(),
+      labelCount: wrapper.findAll('label').length,
+    }).toEqual({ inputs: ['1200', '35'], firstLabel: en.industry.config.exportCost, labelCount: 2 })
   })
 
-  it('sends only the export cost in the PATCH body', async () => {
+  it('sends the export cost and the jump bridge rate in the PATCH body', async () => {
     const wrapper = await mountFeesConfig('en', { ...STORED_SETTINGS, exportCostPerM3: 750 })
     saveOutcomes = [() => ({ ...UPDATED_SETTINGS })]
 
-    await wrapper.get('input[type="number"]').setValue('1200')
+    const inputs = wrapper.findAll('input[type="number"]')
+    await inputs[0]?.setValue('1200')
+    await inputs[1]?.setValue('65')
     await clickSave(wrapper)
 
-    expect(savedBodies).toEqual([{ exportCostPerM3: 1200 }])
+    expect(savedBodies).toEqual([{ exportCostPerM3: 1200, jumpBridgeCostPerM3: 65 }])
+  })
+
+  it('sends a jump bridge rate of zero as zero and never as the default', async () => {
+    const wrapper = await mountFeesConfig()
+    saveOutcomes = [() => ({ ...UPDATED_SETTINGS, jumpBridgeCostPerM3: 0 })]
+
+    await wrapper.findAll('input[type="number"]')[1]?.setValue('0')
+    await clickSave(wrapper)
+
+    expect(savedBodies).toEqual([{ exportCostPerM3: 1200, jumpBridgeCostPerM3: 0 }])
   })
 })
 

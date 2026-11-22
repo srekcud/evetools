@@ -21,6 +21,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -32,6 +33,7 @@ use PHPUnit\Framework\TestCase;
 final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
 {
     use CreatesUserWithId;
+    use StubsPersonalStockReader;
     private const int SOLAR_SYSTEM_ID = 30002510;
     private const string USER_ID = '0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f90';
     private const float BROKER_FEE_RATE = 0.036;
@@ -315,7 +317,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             'marginPercent' => null,
             'sellPrice' => 4000.0,
             'dailyVolume' => 25.0,
-            'keyComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'inStock' => 1]],
+            'keyComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'inStock' => 1, 'stockByStation' => []]],
             'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX,
             'missingPriceTypeIds' => [],
         ], $this->withoutPriceSources($result['sourceProduct']));
@@ -562,7 +564,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         $service = new PivotAdvisorService(
             $materialRepository,
             $productRepository,
-            $assetRepository,
+            $this->personalStockReaderOn($assetRepository),
             $jitaMarketService,
             $esiCostIndexService,
             $typeNameResolver,

@@ -118,6 +118,7 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
     if (endpoint === DATA_FRESHNESS_ENDPOINT) return dataFreshnessOutcome()
+    if (endpoint === '/industry/settings') return { exportCostPerM3: 800 }
     throw new Error(`Unexpected request ${endpoint}`)
   })
   vi.mocked(authFetch).mockReset()

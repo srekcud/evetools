@@ -194,8 +194,8 @@ final class ProjectPlanningBuilderTest extends TestCase
                 [],
                 [],
                 [
-                    $this->character('Main', [self::INDUSTRY => 5, self::REACTIONS => 2], 9, 4),
-                    $this->character('Unsynced', null, null, null),
+                    $this->character('Main', [self::INDUSTRY => 5, self::REACTIONS => 2], 9, 4, 6),
+                    $this->character('Unsynced', null, null, null, null),
                 ],
             ),
             $this->at('06:00:00'),
@@ -212,7 +212,7 @@ final class ProjectPlanningBuilderTest extends TestCase
                 new PlanningCharacterLane(
                     'Main',
                     false,
-                    ['manufacturing' => 9, 'reaction' => 4],
+                    ['manufacturing' => 9, 'reaction' => 4, 'science' => 6],
                     ['industry' => 5, 'advancedIndustry' => 0, 'reactions' => 2],
                     null,
                     [],
@@ -230,13 +230,13 @@ final class ProjectPlanningBuilderTest extends TestCase
                 $this->line('l-titan', 3030, 'Avatar', runs: 1, teLevel: 0, baseTimeSeconds: 10000),
                 $this->line('l-plates', 3031, 'Capital Armor Plates', runs: 2, teLevel: 10, parentTypeId: 3030, baseTimeSeconds: 5000),
             ],
-            [$this->character('Main', [self::INDUSTRY => 4, self::ADVANCED_INDUSTRY => 2, self::REACTIONS => 1], 1, 3)],
+            [$this->character('Main', [self::INDUSTRY => 4, self::ADVANCED_INDUSTRY => 2, self::REACTIONS => 1], 1, 3, 2)],
         );
 
         self::assertEquals([new PlanningCharacterLane(
             'Main',
             false,
-            ['manufacturing' => 1, 'reaction' => 3],
+            ['manufacturing' => 1, 'reaction' => 3, 'science' => 2],
             ['industry' => 4, 'advancedIndustry' => 2, 'reactions' => 1],
             $this->at('04:10:02'),
             [
@@ -252,7 +252,7 @@ final class ProjectPlanningBuilderTest extends TestCase
             [$this->line('l-drone', 3040, 'Warrior II', baseTimeSeconds: 3600, linkedJobs: [
                 $this->linked('active', 1, '00:30:00', '01:30:00', 'Outsider'),
             ])],
-            [$this->character('Unsynced', null, null, null), $this->character('Main', [], 1, 1)],
+            [$this->character('Unsynced', null, null, null, null), $this->character('Main', [], 1, 1, 3)],
             $this->at('01:00:00'),
         );
 
@@ -261,7 +261,7 @@ final class ProjectPlanningBuilderTest extends TestCase
             new PlanningCharacterLane(
                 'Main',
                 false,
-                ['manufacturing' => 1, 'reaction' => 1],
+                ['manufacturing' => 1, 'reaction' => 1, 'science' => 3],
                 ['industry' => 0, 'advancedIndustry' => 0, 'reactions' => 0],
                 $this->at('01:00:00'),
                 [],
@@ -445,9 +445,9 @@ final class ProjectPlanningBuilderTest extends TestCase
     /**
      * @param array<int, int>|null $skillLevels
      */
-    private function character(string $name, ?array $skillLevels, ?int $manufacturingSlots = 1, ?int $reactionSlots = 1): PlanningCharacter
+    private function character(string $name, ?array $skillLevels, ?int $manufacturingSlots = 1, ?int $reactionSlots = 1, ?int $scienceSlots = 1): PlanningCharacter
     {
-        return new PlanningCharacter($name, $skillLevels, $manufacturingSlots, $reactionSlots);
+        return new PlanningCharacter($name, $skillLevels, $manufacturingSlots, $reactionSlots, $scienceSlots);
     }
 
     private function linked(string $status, int $runs, string $start, string $end, string $characterName): PlanningLinkedJob

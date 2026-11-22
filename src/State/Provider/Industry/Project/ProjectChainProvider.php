@@ -11,17 +11,12 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
 use App\Repository\IndustryProjectBomLineRepository;
-use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\IndustryProjectSaleRepository;
-use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\Project\ChainBlueprintNames;
 use App\Service\Industry\Project\JobInstallerName;
-use App\Service\Industry\Project\ProjectChainBuilder;
+use App\Service\Industry\Project\ProjectChainLoader;
 use App\Service\Industry\Project\ProjectChainNode;
-use App\Service\Industry\Project\ProjectContainerFulfillment;
 use App\Service\Industry\Project\ProjectJobLocationResolver;
-use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -36,14 +31,9 @@ final readonly class ProjectChainProvider implements ProviderInterface
         private Security $security,
         private IndustryProjectRepository $projectRepository,
         private IndustryProjectBomLineRepository $bomLineRepository,
-        private IndustryProjectContributionRepository $contributionRepository,
-        private IndustryProjectSaleRepository $saleRepository,
-        private IndustryStructureConfigRepository $structureConfigRepository,
         private ProjectAccessChecker $accessChecker,
-        private ProjectChainBuilder $chainBuilder,
-        private ProjectJobMaterialNeedsLoader $jobMaterialNeedsLoader,
+        private ProjectChainLoader $chainLoader,
         private ChainBlueprintNames $blueprintNames,
-        private ProjectContainerFulfillment $containerFulfillment,
         private ProjectJobLocationResolver $jobLocationResolver,
     ) {
     }
@@ -70,22 +60,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
         $bomLines = $this->bomLineRepository->findBy(['project' => $project]);
         $this->bomLineRepository->loadJobMatchesOfProject($project);
 
-        $structureNamesById = [];
-        foreach ($this->structureConfigRepository->findByUser($project->getOwner()) as $structureConfig) {
-            $structureNamesById[$structureConfig->getId()->toRfc4122()] = $structureConfig->getName();
-        }
-
-        $jobMaterialNeeds = $this->jobMaterialNeedsLoader->load($project, $bomLines);
-
-        $chain = $this->chainBuilder->build(
-            $project,
-            $bomLines,
-            $this->contributionRepository->findApprovedByProject($project),
-            $this->saleRepository->findByProjectForListing($project),
-            $structureNamesById,
-            $jobMaterialNeeds,
-            $this->containerFulfillment->ofWithJobMaterialNeeds($project, $bomLines, $jobMaterialNeeds),
-        );
+        $chain = $this->chainLoader->load($project, $bomLines);
 
         $blueprintNameByNodeId = $this->blueprintNames->of($chain->nodes);
 

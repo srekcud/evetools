@@ -14,6 +14,9 @@ class UpdateProjectInput
     public const int MAXIMUM_BLACKLIST_ENTRIES = 200;
     public const int MAXIMUM_CONTAINER_NAMES = 20;
     public const int MAXIMUM_CONTAINER_NAME_LENGTH = 255;
+    public const int MAXIMUM_WORK_STATIONS = 5;
+    public const int MAXIMUM_INVENTION_DECRYPTORS = 100;
+    public const int MAXIMUM_TYPE_ID = 2_147_483_647;
 
     #[Assert\Length(max: 255)]
     public ?string $name = null;
@@ -44,6 +47,16 @@ class UpdateProjectInput
 
     public ?bool $excludesInvention = null;
 
+    /** @var array<string, string|null>|null */
+    #[Assert\Count(max: self::MAXIMUM_WORK_STATIONS)]
+    #[Assert\All([new Assert\Type('string'), new Assert\Uuid()])]
+    public ?array $workStations = null;
+
+    /** @var array<int|string, int|null>|null */
+    #[Assert\Count(max: self::MAXIMUM_INVENTION_DECRYPTORS)]
+    #[Assert\All([new Assert\Type(type: ['int', 'null']), new Assert\Positive(), new Assert\LessThanOrEqual(self::MAXIMUM_TYPE_ID)])]
+    public ?array $inventionDecryptors = null;
+
     /** @var list<int>|null */
     #[Assert\Count(min: 1, max: self::MAXIMUM_PRODUCER_CHARACTERS)]
     #[Assert\All([new Assert\Type('int'), new Assert\Positive()])]
@@ -63,6 +76,20 @@ class UpdateProjectInput
     /** @var string[]|null */
     #[Assert\Count(max: self::MAXIMUM_BLACKLIST_ENTRIES)]
     public ?array $blacklistCategoryKeys = null;
+
+    #[Assert\Callback]
+    public function validateTheInventionDecryptorKeys(ExecutionContextInterface $context): void
+    {
+        foreach (array_keys($this->inventionDecryptors ?? []) as $productTypeId) {
+            if (!\is_int($productTypeId) || $productTypeId <= 0) {
+                $context->buildViolation('The key of an invention decryptor must be the type id of a product, as a positive integer.')
+                    ->atPath('inventionDecryptors')
+                    ->addViolation();
+
+                return;
+            }
+        }
+    }
 
     #[Assert\Callback]
     public function validateTheSumOfTheFees(ExecutionContextInterface $context): void

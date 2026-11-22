@@ -13,12 +13,14 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\Project\ChainRecipeIngredients;
 use App\Service\Industry\Project\IntermediateStockProposal;
 use App\Service\Industry\Project\IntermediateStockProposalLine;
 use App\Service\Industry\Project\IntermediateStockProposer;
 use App\Service\Industry\Project\ProjectContainerService;
 use App\Service\Industry\Project\ProjectContainerStock;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +30,7 @@ use PHPUnit\Framework\TestCase;
 final class IntermediateStockProposerTest extends TestCase
 {
     use BuildsChainBomLines;
+    use StubsPersonalStockReader;
 
     private const string CONTAINER_NAME = 'Build 708';
 
@@ -43,11 +46,14 @@ final class IntermediateStockProposerTest extends TestCase
     private const int CARBON_POLYMERS = 1_153_004;
 
     private User $owner;
+    private User $member;
     private IndustryProject $project;
     private IntermediateStockProposer $proposer;
 
     private bool $personalAssetsSynced = true;
     private array $personalQuantities = [];
+    private array $memberPersonalQuantities = [];
+    private array $approvedStockOfMemberByTypeId = [];
     private ProjectContainerStock $containerStock;
     private array $approvedStockByTypeId = [];
     private array $contributedBomItemIds = [];
@@ -56,18 +62,19 @@ final class IntermediateStockProposerTest extends TestCase
     protected function setUp(): void
     {
         $this->owner = new User();
+        $this->member = new User();
         $this->project = (new IndustryProject())->setOwner($this->owner)->setStatus(ProjectStatus::Draft);
         $this->containerStock = new ProjectContainerStock('no_container_name');
 
         $assetRepository = $this->createStub(CachedAssetRepository::class);
         $assetRepository->method('hasPersonalAssetsOf')->willReturnCallback(fn (): bool => $this->personalAssetsSynced);
-        $assetRepository->method('getAggregatedQuantitiesByUser')->willReturnCallback(fn (): array => $this->personalQuantities);
+        $assetRepository->method('getAggregatedQuantitiesByUser')->willReturnCallback(fn (User $user): array => $user === $this->member ? $this->memberPersonalQuantities : $this->personalQuantities);
 
         $containerService = $this->createStub(ProjectContainerService::class);
         $containerService->method('containerStockOf')->willReturnCallback(fn (): ProjectContainerStock => $this->containerStock);
 
         $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
-        $contributionRepository->method('findIntermediateStockByTypeId')->willReturnCallback(fn (): array => $this->approvedStockByTypeId);
+        $contributionRepository->method('findIntermediateStockByTypeId')->willReturnCallback(fn (IndustryProject $project, ?User $contributor = null): array => $contributor === $this->member ? $this->approvedStockOfMemberByTypeId : $this->approvedStockByTypeId);
         $contributionRepository->method('findBomItemIdsWithMaterialContributionOf')->willReturnCallback(fn (): array => $this->contributedBomItemIds);
 
         $chainRecipeIngredients = $this->createStub(ChainRecipeIngredients::class);
@@ -75,7 +82,10 @@ final class IntermediateStockProposerTest extends TestCase
             fn (array $productTypeIds): array => (new InMemoryChainRecipeIngredients($this->producedIngredientsByTypeId))->producedIngredientsOf($productTypeIds),
         );
 
-        $this->proposer = new IntermediateStockProposer($assetRepository, $containerService, $contributionRepository, $chainRecipeIngredients);
+        $structureConfigRepository = $this->createStub(IndustryStructureConfigRepository::class);
+        $structureConfigRepository->method('findByUser')->willReturn([]);
+
+        $this->proposer = new IntermediateStockProposer($assetRepository, $containerService, $contributionRepository, $chainRecipeIngredients, $this->personalStockReaderOn($assetRepository), $structureConfigRepository);
     }
 
     public function testPersonalStockAloneIsProposedForTheRemainingQuantityWithoutContainer(): void
@@ -204,15 +214,70 @@ final class IntermediateStockProposerTest extends TestCase
         self::assertSame(['ready', null, [null]], [$proposal->state, $proposal->unknownReason, array_map(static fn (IntermediateStockProposalLine $line): ?int => $line->containerQuantity, $proposal->lines)]);
     }
 
-    public function testGroupProjectIsNotSoloWhateverTheAssets(): void
+    #[Group('issue-1318')]
+    public function testMemberOfAGroupProjectIsProposedTheirOwnStockWithoutTheContainerOfTheProject(): void
+    {
+        $photonic = $this->component(self::PHOTONIC_METAMATERIALS, 'Photonic Metamaterials', 300_000);
+        $this->addAcceptedMember();
+        $this->project->setContainerNames([self::CONTAINER_NAME]);
+        $this->memberPersonalQuantities = [self::PHOTONIC_METAMATERIALS => 90_000];
+        $this->containerStock = new ProjectContainerStock(null, [self::PHOTONIC_METAMATERIALS => 40_000]);
+
+        $proposal = $this->proposalOf($this->member);
+
+        self::assertSame(['ready', null], [$proposal->state, $proposal->unknownReason]);
+        self::assertSame(
+            [[self::lineId($photonic), self::PHOTONIC_METAMATERIALS, 'Photonic Metamaterials', 300_000, 300_000, 90_000, null, 90_000, 90_000]],
+            $this->linesOf($proposal),
+        );
+    }
+
+    #[Group('issue-1318')]
+    public function testStockOfTheOwnerIsProposedToTheOwnerOnlyAndNeverToAMemberOfTheGroupProject(): void
+    {
+        $crystallite = $this->component(self::CRYSTALLITE_ALLOY, 'Crystallite Alloy', 80_000);
+        $this->addAcceptedMember();
+        $this->personalQuantities = [self::CRYSTALLITE_ALLOY => 50_000];
+
+        $proposalOfTheMember = $this->proposalOf($this->member);
+        $proposalOfTheOwner = $this->proposalOf($this->owner);
+
+        self::assertSame(['ready', []], [$proposalOfTheMember->state, $proposalOfTheMember->lines]);
+        self::assertSame('ready', $proposalOfTheOwner->state);
+        self::assertSame(
+            [[self::lineId($crystallite), self::CRYSTALLITE_ALLOY, 'Crystallite Alloy', 80_000, 80_000, 50_000, null, 50_000, 50_000]],
+            $this->linesOf($proposalOfTheOwner),
+        );
+    }
+
+    #[Group('issue-1318')]
+    public function testSupplyApprovedForAnotherMemberOnlyReducesTheRemainingQuantityWhileTheOwnSupplyOfTheReaderIsDeductedFromTheirStock(): void
+    {
+        $photonic = $this->component(self::PHOTONIC_METAMATERIALS, 'Photonic Metamaterials', 300_000, 200_000);
+        $crystallite = $this->component(self::CRYSTALLITE_ALLOY, 'Crystallite Alloy', 80_000, 25_000);
+        $this->addAcceptedMember();
+        $this->memberPersonalQuantities = [self::PHOTONIC_METAMATERIALS => 150_000, self::CRYSTALLITE_ALLOY => 60_000];
+        $this->approvedStockByTypeId = [self::PHOTONIC_METAMATERIALS => 200_000, self::CRYSTALLITE_ALLOY => 35_000];
+        $this->approvedStockOfMemberByTypeId = [self::CRYSTALLITE_ALLOY => 25_000];
+
+        self::assertSame(
+            [
+                [self::lineId($crystallite), self::CRYSTALLITE_ALLOY, 'Crystallite Alloy', 80_000, 55_000, 60_000, null, 35_000, 35_000],
+                [self::lineId($photonic), self::PHOTONIC_METAMATERIALS, 'Photonic Metamaterials', 300_000, 100_000, 150_000, null, 150_000, 100_000],
+            ],
+            $this->linesOf($this->proposalOf($this->member)),
+        );
+    }
+
+    #[Group('issue-1318')]
+    public function testCompletedGroupProjectIsStillNotSoloForAMember(): void
     {
         $this->component(self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 100);
-        $this->personalQuantities = [self::HYDROGEN_FUEL_BLOCK => 30];
-        $this->project->addMember(
-            (new IndustryProjectParticipant())->setUser(new User())->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted),
-        );
+        $this->addAcceptedMember();
+        $this->memberPersonalQuantities = [self::HYDROGEN_FUEL_BLOCK => 30];
+        $this->project->setStatus(ProjectStatus::Completed);
 
-        $proposal = $this->proposalOf();
+        $proposal = $this->proposalOf($this->member);
 
         self::assertSame(['not_solo', null, []], [$proposal->state, $proposal->unknownReason, $proposal->lines]);
     }
@@ -283,9 +348,16 @@ final class IntermediateStockProposerTest extends TestCase
         );
     }
 
-    private function proposalOf(): IntermediateStockProposal
+    private function proposalOf(?User $reader = null): IntermediateStockProposal
     {
-        return $this->proposer->proposalOf($this->project);
+        return $this->proposer->proposalOf($this->project, $reader ?? $this->owner);
+    }
+
+    private function addAcceptedMember(): void
+    {
+        $this->project->addMember(
+            (new IndustryProjectParticipant())->setUser($this->member)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted),
+        );
     }
 
     private function component(int $typeId, string $typeName, int $requiredQuantity, int $fulfilledQuantity = 0, int $parentTypeId = self::FINAL_PRODUCT): IndustryProjectBomLine

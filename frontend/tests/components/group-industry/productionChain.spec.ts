@@ -203,7 +203,7 @@ describe('ProductionChain overview', () => {
       product: [HAMMERHEAD_II_ID],
       sale: [SALE_ID],
     })
-    expect(wrapper.get('[data-testid="chain-column-inventionMaterials"]').get('[data-testid="chain-materials-summary"]').text()).toContain('1 / 2 material lines supplied')
+    expect(wrapper.get('[data-testid="chain-column-inventionMaterials"]').get('[data-testid="chain-materials-summary"]').text()).toContain('1 / 2 material lines delivered')
     expect(wrapper.get('[data-testid="chain-column-product"]').text()).toContain(label('en', 'flow.product'))
     expect(sale).toContain('5')
     expect(sale).toContain('3.60 M')

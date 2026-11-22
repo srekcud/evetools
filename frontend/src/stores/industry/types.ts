@@ -40,8 +40,9 @@ export interface StructureConfig {
   isCorporationStructure: boolean
   manufacturingMaterialBonus: number
   reactionMaterialBonus: number
-  manufacturingTimeBonus: number
-  reactionTimeBonus: number
+  manufacturingTimeBonus: number | null
+  reactionTimeBonus: number | null
+  hullToSpecify: boolean
   facilityTaxRate: number | null
   createdAt: string
 }
@@ -70,8 +71,9 @@ export interface RigOption {
 export interface StructureBonusPreview {
   manufacturingMaterialBonus: number
   reactionMaterialBonus: number
-  manufacturingTimeBonus: number
-  reactionTimeBonus: number
+  manufacturingTimeBonus: number | null
+  reactionTimeBonus: number | null
+  hullToSpecify: boolean
 }
 
 export const STRUCTURE_LIST_FORMAT = 'evetools.industry-structures'
@@ -158,6 +160,9 @@ export interface UserSettings {
   favoriteReactionSystemId: number | null
   favoriteReactionSystemName: string | null
   exportCostPerM3: number
+  courierHubSolarSystemId: number
+  courierHubSolarSystemName: string | null
+  jumpBridgeCostPerM3: number
 }
 
 // Profit Margin types
@@ -371,10 +376,18 @@ export type PivotMissingComponent = {
   cost: number | null
 }
 
+export type PivotStockStation = {
+  locationId: number
+  locationName: string
+  systemName: string | null
+  quantity: number
+}
+
 export type PivotComponentCoverage = {
   typeId: number
   typeName: string | null
   inStock: number
+  stockByStation: PivotStockStation[]
   candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
 }
 
@@ -404,7 +417,7 @@ export type PivotSourceProduct = {
   marginPercent: number | null
   sellPrice: number
   dailyVolume: number | null
-  keyComponents: { typeId: number; typeName: string | null; inStock: number }[]
+  keyComponents: { typeId: number; typeName: string | null; inStock: number; stockByStation: PivotStockStation[] }[]
   unknownReason?: PivotUnknownReason | null
   missingPriceTypeIds?: number[]
   priceSources?: MaterialsAndSalePriceSources
@@ -589,7 +602,11 @@ export type SlotTrackerJob = {
 
 export type FreeSlotEntry = {
   activityType: string; count: number
-  suggestion: { typeId: number; typeName: string; reason: string } | null
+  suggestion: {
+    typeId: number; typeName: string; reason: string | null
+    project: { id: string; name: string | null } | null; runs: number | null
+    stockByStation?: PivotStockStation[]
+  } | null
 }
 
 export type SlotTrackerCharacter = {
@@ -721,4 +738,53 @@ export interface BlueprintLibraryEntry {
 export interface BlueprintLibrary {
   corporationState: CorporationBlueprintState
   blueprints: BlueprintLibraryEntry[]
+}
+
+export type StructureAccessState = 'granted' | 'denied' | 'unknown'
+
+export type FactoryStationAccess = {
+  characterId: number
+  characterName: string
+  status: StructureAccessState
+}
+
+export type FactoryStation = {
+  id: string
+  name: string
+  structureType: string
+  securityType: string
+  locationId: number | null
+  solarSystemId: number | null
+  solarSystemName: string | null
+  specialisations: ('manufacturing' | 'reaction')[]
+  manufacturingCostIndex: number | null
+  reactionCostIndex: number | null
+  access: FactoryStationAccess[]
+  linesInUse: number | null
+  projects: { id: string; name: string | null }[]
+}
+
+export type FactoryProjectStockState = 'reserved' | 'consumed' | 'returned'
+
+export type FactoryProjectStockLine = {
+  id: string
+  projectId: string
+  projectName: string | null
+  projectStatus: string
+  typeId: number
+  typeName: string
+  state: FactoryProjectStockState
+  quantity: number
+}
+
+export type PersonalStockContainer = {
+  id: string
+  itemId: number
+  name: string
+  divisionName: string | null
+  stationId: number | null
+  stationName: string | null
+  status: 'known' | 'unknown'
+  unknownReason: string | null
+  itemCount: number | null
 }

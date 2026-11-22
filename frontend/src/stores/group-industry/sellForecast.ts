@@ -9,8 +9,18 @@ export const useGroupSellForecastStore = defineStore('group-sell-forecast', () =
   const error = ref<string | null>(null)
   const openedProjectId = ref<string | null>(null)
   let latestRequest = 0
+  let pendingRead: { projectId: string; read: Promise<void> } | null = null
 
-  async function fetchForProject(projectId: string): Promise<void> {
+  function fetchForProject(projectId: string): Promise<void> {
+    if (pendingRead !== null && pendingRead.projectId === projectId) return pendingRead.read
+    const read = readForecast(projectId).finally(() => {
+      if (pendingRead?.read === read) pendingRead = null
+    })
+    pendingRead = { projectId, read }
+    return read
+  }
+
+  async function readForecast(projectId: string): Promise<void> {
     const request = ++latestRequest
     if (openedProjectId.value !== projectId) {
       openedProjectId.value = projectId
@@ -20,6 +30,9 @@ export const useGroupSellForecastStore = defineStore('group-sell-forecast', () =
     error.value = null
     try {
       const fetched = await apiRequest<SellForecast>(`/industry/projects/${projectId}/sell-forecast`)
+      if (typeof fetched !== 'object' || fetched === null || Array.isArray(fetched) || typeof fetched.totals !== 'object' || fetched.totals === null) {
+        throw new Error('Unexpected sell forecast response')
+      }
       if (request !== latestRequest) return
       forecast.value = fetched
     } catch (e) {

@@ -25,6 +25,11 @@ const { formatIsk, formatDateTime, formatNumber } = useFormatters()
 
 const isProjectOwner = computed(() => projectStore.currentProject?.myRole === 'owner')
 const isParticipant = computed(() => projectStore.currentProject?.myRole !== null)
+const canRecordPurchases = computed(() =>
+  isParticipant.value
+  && !props.item.isFulfilled
+  && projectStore.currentProject?.status !== 'completed',
+)
 const isOpen = ref(false)
 const isLoadingSuggestions = ref(false)
 const suggestions = ref<PurchaseSuggestion[]>([])
@@ -198,7 +203,7 @@ async function deletePurchase(purchaseId: string): Promise<void> {
 </script>
 
 <template>
-  <div v-if="item.purchases.length > 0 || isParticipant" class="mt-1">
+  <div v-if="item.purchases.length > 0 || canRecordPurchases" class="mt-1">
     <ul v-if="item.purchases.length > 0" class="space-y-0.5">
       <li
         v-for="purchase in item.purchases"
@@ -235,14 +240,14 @@ async function deletePurchase(purchaseId: string): Promise<void> {
     >{{ purchaseError }}</p>
 
     <button
-      v-if="isParticipant"
+      v-if="canRecordPurchases"
       data-testid="purchases-open"
       class="mt-1 px-2 py-0.5 rounded-sm text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
       @click="openPanel"
     >{{ t('groupIndustry.purchases.open') }}</button>
 
     <BaseModal
-      v-if="isParticipant"
+      v-if="canRecordPurchases"
       :show="isOpen"
       :title="t('groupIndustry.purchases.modalTitle', { name: item.typeName })"
       panel-class="border-slate-700 max-w-3xl max-h-[90vh] overflow-y-auto"

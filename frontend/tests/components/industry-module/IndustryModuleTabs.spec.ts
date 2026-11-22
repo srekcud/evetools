@@ -4,12 +4,17 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import IndustryModuleTabs, { type IndustryModulePage } from '@/components/industry-module/IndustryModuleTabs.vue'
+import appRouter from '@/router'
+
+const FACTORY_PATH = '/industry/factory'
 
 const PAGES: Array<[IndustryModulePage, string]> = [
   ['workshop', '/industry'],
+  ['todo', '/industry/todo'],
   ['projects', '/industry/projects'],
   ['analysis', '/industry/analysis'],
   ['production', '/industry/production'],
+  ['factory', FACTORY_PATH],
   ['revenue', '/industry/revenue'],
 ]
 
@@ -20,10 +25,12 @@ async function mountTabs(active: IndustryModulePage, locale: 'en' | 'fr' = 'en')
     history: createMemoryHistory(),
     routes: [
       { path: '/industry', name: 'industry', component: { template: '<div />' } },
+      { path: '/industry/todo', name: 'industry-todo', component: { template: '<div />' } },
       { path: '/industry/projects', name: 'industry-projects', component: { template: '<div />' } },
       { path: '/industry/analysis', name: 'industry-analysis', component: { template: '<div />' } },
       { path: '/industry/production', name: 'industry-production', component: { template: '<div />' } },
       { path: '/industry/revenue', name: 'industry-revenue', component: { template: '<div />' } },
+      { path: FACTORY_PATH, name: 'industry-factory', component: { template: '<div />' } },
     ],
   })
   await router.push('/industry')
@@ -37,16 +44,16 @@ async function mountTabs(active: IndustryModulePage, locale: 'en' | 'fr' = 'en')
 }
 
 describe('IndustryModuleTabs', () => {
-  it('links the five pages of the module in order', async () => {
+  it('links the seven pages of the module in order', async () => {
     const wrapper = await mountTabs('workshop')
 
     expect(wrapper.findAll('a[title]').map(link => link.attributes('href'))).toEqual(PAGES.map(([, path]) => path))
   })
 
   it.each([
-    ['en', ['Workshop', 'Projects', 'Analysis', 'Production', 'Revenue']],
-    ['fr', ['Atelier', 'Projets', 'Analyse', 'Production', 'Revenus']],
-  ] as const)('labels the five pages in %s', async (locale, labels) => {
+    ['en', ['Workshop', 'To do', 'Projects', 'Analysis', 'Production', 'Factory and stock', 'Revenue']],
+    ['fr', ['Atelier', 'À faire', 'Projets', 'Analyse', 'Production', 'Usine et stock', 'Revenus']],
+  ] as const)('labels the seven pages in %s', async (locale, labels) => {
     const wrapper = await mountTabs('workshop', locale)
 
     expect(wrapper.findAll('a[title]').map(link => link.text().trim())).toEqual(labels)
@@ -57,5 +64,12 @@ describe('IndustryModuleTabs', () => {
 
     const current = wrapper.findAll('a').filter(link => link.attributes('aria-current') === 'page')
     expect(current.map(link => link.attributes('href'))).toEqual([path])
+  })
+
+  it('puts the Factory and stock page behind the sign-in', () => {
+    const route = appRouter.getRoutes().find(candidate => candidate.name === 'industry-factory')
+
+    expect(route?.path).toBe(FACTORY_PATH)
+    expect(route?.meta.requiresAuth).toBe(true)
   })
 })

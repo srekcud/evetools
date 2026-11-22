@@ -24,9 +24,12 @@ const mySalesToggleId = useId()
 const props = defineProps<{
   projectId: string
   isAdmin: boolean
+  canRecord?: boolean
+  isCompleted?: boolean
 }>()
 
 const store = useGroupDistributionStore()
+const mayRecord = computed(() => props.isCompleted !== true && (props.isAdmin || props.canRecord === true))
 const projectStore = useGroupProjectStore()
 const authStore = useAuthStore()
 const { formatNumber, formatDate } = useFormatters()
@@ -166,7 +169,7 @@ onMounted(() => {
 <template>
   <div class="mb-8">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold text-slate-100">Sales</h2>
+      <h2 class="text-lg font-semibold text-slate-100">{{ t('groupIndustry.sales.form.title') }}</h2>
       <label
         v-if="store.sales.length > 0"
         :for="mySalesToggleId"
@@ -176,14 +179,14 @@ onMounted(() => {
         {{ t('groupIndustry.sales.mySales') }}
       </label>
       <button
-        v-if="isAdmin"
+        v-if="mayRecord"
         class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all hover:-translate-y-px"
         @click="toggleSaleForm"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        Record Sale
+        {{ t('groupIndustry.sales.form.record') }}
       </button>
     </div>
 
@@ -217,15 +220,15 @@ onMounted(() => {
           <table class="w-full text-sm">
             <thead>
               <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-                <th class="text-left py-3 px-6">Date</th>
+                <th class="text-left py-3 px-6">{{ t('groupIndustry.sales.form.columns.date') }}</th>
                 <th class="text-left py-3 px-3">{{ t('groupIndustry.sales.item') }}</th>
                 <th class="text-left py-3 px-3">{{ t('groupIndustry.sales.sellerColumn') }}</th>
-                <th class="text-right py-3 px-3">Quantity</th>
-                <th class="text-right py-3 px-3">Unit Price</th>
-                <th class="text-right py-3 px-3">Revenue</th>
+                <th class="text-right py-3 px-3">{{ t('groupIndustry.sales.form.columns.quantity') }}</th>
+                <th class="text-right py-3 px-3">{{ t('groupIndustry.sales.form.columns.unitPrice') }}</th>
+                <th class="text-right py-3 px-3">{{ t('groupIndustry.sales.form.columns.revenue') }}</th>
                 <th class="text-left py-3 px-3">{{ t('groupIndustry.sales.channelColumn') }}</th>
-                <th class="text-left py-3 px-6">Venue</th>
-                <th v-if="isAdmin" class="py-3 px-6"><span class="sr-only">{{ t('groupIndustry.sales.actionsColumn') }}</span></th>
+                <th class="text-left py-3 px-6">{{ t('groupIndustry.sales.form.columns.venue') }}</th>
+                <th v-if="mayRecord" class="py-3 px-6"><span class="sr-only">{{ t('groupIndustry.sales.actionsColumn') }}</span></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800/30">
@@ -260,15 +263,17 @@ onMounted(() => {
                   >{{ sale.venue }}</span>
                   <span v-else class="text-xs text-slate-500">--</span>
                 </td>
-                <td v-if="isAdmin" class="py-3 px-6 text-right whitespace-nowrap">
-                  <button
-                    class="text-xs text-cyan-400 hover:text-cyan-300 mr-3 transition-colors"
-                    @click="startCorrection(sale)"
-                  >{{ t('common.actions.edit') }}</button>
-                  <button
-                    class="text-xs text-red-400 hover:text-red-300 transition-colors"
-                    @click="saleToDelete = sale"
-                  >{{ t('common.actions.delete') }}</button>
+                <td v-if="mayRecord" class="py-3 px-6 text-right whitespace-nowrap">
+                  <template v-if="isAdmin || sale.heldByViewer === true">
+                    <button
+                      class="text-xs text-cyan-400 hover:text-cyan-300 mr-3 transition-colors"
+                      @click="startCorrection(sale)"
+                    >{{ t('common.actions.edit') }}</button>
+                    <button
+                      class="text-xs text-red-400 hover:text-red-300 transition-colors"
+                      @click="saleToDelete = sale"
+                    >{{ t('common.actions.delete') }}</button>
+                  </template>
                 </td>
               </tr>
               <!-- Total row -->
@@ -285,7 +290,7 @@ onMounted(() => {
                 </td>
                 <td class="py-3 px-3"></td>
                 <td class="py-3 px-6"></td>
-                <td v-if="isAdmin" class="py-3 px-6"></td>
+                <td v-if="mayRecord" class="py-3 px-6"></td>
               </tr>
             </tbody>
           </table>
@@ -311,10 +316,10 @@ onMounted(() => {
 
       <!-- Inline Sale Form (admin only) -->
       <div
-        v-if="showSaleForm && isAdmin"
+        v-if="showSaleForm && mayRecord"
         class="mt-4 bg-slate-900/80 rounded-xl border border-cyan-500/20 p-5"
       >
-        <h3 class="text-sm font-semibold text-slate-200 mb-4">{{ correctedSale ? t('groupIndustry.sales.correctTitle') : 'Record a Sale' }}</h3>
+        <h3 class="text-sm font-semibold text-slate-200 mb-4">{{ correctedSale ? t('groupIndustry.sales.correctTitle') : t('groupIndustry.sales.form.recordTitle') }}</h3>
         <div class="grid grid-cols-2 lg:grid-cols-7 gap-3">
           <div v-if="itemChosenByList">
             <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">{{ t('groupIndustry.sales.item') }}</label>
@@ -332,17 +337,17 @@ onMounted(() => {
             </select>
           </div>
           <div v-else>
-            <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">Item Name</label>
+            <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">{{ t('groupIndustry.sales.form.itemName') }}</label>
             <input
               :id="saleTypeNameFieldId"
               v-model="saleForm.typeName"
               type="text"
-              placeholder="e.g. Ishtar"
+              :placeholder="t('groupIndustry.sales.form.itemNamePlaceholder')"
               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
             />
           </div>
           <div>
-            <label :for="saleQuantityFieldId" class="text-xs text-slate-500 mb-1 block">Quantity</label>
+            <label :for="saleQuantityFieldId" class="text-xs text-slate-500 mb-1 block">{{ t('groupIndustry.sales.form.columns.quantity') }}</label>
             <input
               :id="saleQuantityFieldId"
               v-model.number="saleForm.quantity"
@@ -352,7 +357,7 @@ onMounted(() => {
             />
           </div>
           <div>
-            <label :for="saleUnitPriceFieldId" class="text-xs text-slate-500 mb-1 block">Unit Price (ISK)</label>
+            <label :for="saleUnitPriceFieldId" class="text-xs text-slate-500 mb-1 block">{{ t('groupIndustry.sales.form.unitPriceIsk') }}</label>
             <input
               :id="saleUnitPriceFieldId"
               v-model.number="saleForm.unitPrice"
@@ -373,12 +378,12 @@ onMounted(() => {
             </select>
           </div>
           <div>
-            <label :for="saleVenueFieldId" class="text-xs text-slate-500 mb-1 block">Venue</label>
+            <label :for="saleVenueFieldId" class="text-xs text-slate-500 mb-1 block">{{ t('groupIndustry.sales.form.columns.venue') }}</label>
             <input
               :id="saleVenueFieldId"
               v-model="saleForm.venue"
               type="text"
-              placeholder="e.g. Jita 4-4"
+              :placeholder="t('groupIndustry.sales.form.venuePlaceholder')"
               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
             />
           </div>
@@ -405,7 +410,7 @@ onMounted(() => {
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
-                Save
+                {{ t('groupIndustry.sales.form.save') }}
               </template>
             </button>
           </div>

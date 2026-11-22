@@ -82,6 +82,16 @@ final class SdeDecryptorsTest extends TestCase
         ], $decryptors);
     }
 
+    public function testOfTypeIsTheDecryptorOfTheSdeWithItsModifiers(): void
+    {
+        $this->assertEquals(new Decryptor(34204, new Multiplier(1.5), 3, 1, -2), $this->decryptors()->ofType(self::PARITY_DECRYPTOR));
+    }
+
+    public function testOfTypeIsNullForATypeOutsideTheDecryptorGroup(): void
+    {
+        $this->assertNull($this->decryptors()->ofType(self::TRITANIUM));
+    }
+
     public function testDecryptorWithoutItsRunModifierIsAnIncompleteSdeNeverZeroRuns(): void
     {
         $this->dogmaRows = array_values(array_filter(
@@ -124,6 +134,19 @@ final class SdeDecryptorsTest extends TestCase
         }
 
         $repository = $this->createStub(InvTypeRepository::class);
+        $repository->method('findOneBy')->willReturnCallback(
+            static function (array $criteria) use ($types): ?InvType {
+                self::assertEqualsCanonicalizing(['typeId', 'group'], array_keys($criteria), 'a decryptor is looked up by type and group');
+                $groupId = $criteria['group'] instanceof InvGroup ? $criteria['group']->getGroupId() : $criteria['group'];
+                foreach ($types as $type) {
+                    if ($type->getTypeId() === $criteria['typeId'] && $type->getGroup()->getGroupId() === $groupId) {
+                        return $type;
+                    }
+                }
+
+                return null;
+            },
+        );
         $repository->method('findBy')->willReturnCallback(
             static function (array $criteria, ?array $orderBy = null) use ($types): array {
                 self::assertSame(['group'], array_keys($criteria), 'decryptors are looked up by group');

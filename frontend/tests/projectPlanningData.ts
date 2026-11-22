@@ -31,7 +31,7 @@ export function planningJob(overrides: Partial<PlanningJob> & Pick<PlanningJob, 
 export function planningCharacter(overrides: Partial<PlanningCharacter> & Pick<PlanningCharacter, 'characterName'>): PlanningCharacter {
   return {
     skillsUnknown: false,
-    slots: { manufacturing: 4, reaction: 2 },
+    slots: { manufacturing: 4, reaction: 2, science: 3 },
     skills: { industry: 4, advancedIndustry: 3, reactions: 2 },
     endsAt: null,
     jobs: [],
@@ -50,6 +50,7 @@ export function projectPlanning(overrides: Partial<ProjectPlanning> = {}): Proje
     delayCause: null,
     lanesShown: true,
     characters: [],
+    jobs: [],
     unscheduled: [],
     ...overrides,
   }
@@ -99,7 +100,7 @@ export const ARIA_WITH_THE_RAM_AND_THE_ISHTAR = planningCharacter({
 
 export const BRIN_WITH_THE_HECATE = planningCharacter({
   characterName: BRIN_SOLBERG,
-  slots: { manufacturing: 2, reaction: 6 },
+  slots: { manufacturing: 2, reaction: 6, science: 5 },
   skills: { industry: 5, advancedIndustry: 1, reactions: 4 },
   endsAt: '2026-11-08T11:15:00+00:00',
   jobs: [HECATE_JOB, NOCXIUM_REACTION_JOB],

@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\StructureBonusPreviewResource;
 use App\ApiResource\Input\Industry\StructureBonusPreviewInput;
-use App\Entity\IndustryStructureConfig;
+use App\Industry\Infrastructure\Doctrine\StructureBonusSummary;
 
 /**
  * The bonuses come from a structure that is never persisted, so the preview of the form and the
@@ -18,20 +18,23 @@ use App\Entity\IndustryStructureConfig;
  */
 class StructureBonusPreviewProcessor implements ProcessorInterface
 {
+    public function __construct(private readonly StructureBonusSummary $structureBonusSummary)
+    {
+    }
+
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): StructureBonusPreviewResource
     {
         assert($data instanceof StructureBonusPreviewInput);
 
-        $structure = (new IndustryStructureConfig())
-            ->setStructureType($data->structureType)
-            ->setSecurityType($data->securityType)
-            ->setRigs($data->rigs);
+        $bonuses = $this->structureBonusSummary->of($data->structureType, $data->securityType, $data->rigs);
 
         $preview = new StructureBonusPreviewResource();
-        $preview->manufacturingMaterialBonus = $structure->getManufacturingMaterialBonus();
-        $preview->reactionMaterialBonus = $structure->getReactionMaterialBonus();
-        $preview->manufacturingTimeBonus = $structure->getManufacturingTimeBonus();
-        $preview->reactionTimeBonus = $structure->getReactionTimeBonus();
+        $preview->manufacturingMaterialBonus = $bonuses->manufacturingMaterialBonus;
+        $preview->reactionMaterialBonus = $bonuses->reactionMaterialBonus;
+        $preview->manufacturingTimeBonus = $bonuses->manufacturingTimeBonus;
+        $preview->reactionTimeBonus = $bonuses->reactionTimeBonus;
+        $preview->unrecognisedRigs = $bonuses->unrecognisedRigs;
+        $preview->hullToSpecify = $bonuses->hullToSpecify;
 
         return $preview;
     }

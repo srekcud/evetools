@@ -3,11 +3,15 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
-import type { BomItem, JobLocation } from '@/stores/group-industry/types'
+import { useJobDisplayLabel } from '@/composables/useJobDisplayLabel'
+import type { ProjectChoice } from '@/stores/group-industry/companion'
+import type { BomItem, JobLocation, JobMatch } from '@/stores/group-industry/types'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import CompanionGauge from './CompanionGauge.vue'
 import CompanionGroupHeader from './CompanionGroupHeader.vue'
+import CompanionHereBadge from './CompanionHereBadge.vue'
+import CompanionLinePlace from './CompanionLinePlace.vue'
 import { ACTIVITY_STYLES } from './companionActivityStyles'
 import {
   COMPANION_PANES,
@@ -16,12 +20,15 @@ import {
   type CompanionPane,
   type CompanionSectionKey,
 } from './companionCollapsedSections'
-import { activityGroupOf, countdownPartsOf, groupByActivity, jobTimingOf, type ActivityGroup, type CompanionAlert, type CompanionTasks } from './companionTasks'
+import { jobElapsedShareOf } from './jobDisplayState'
+import { activityGroupOf, countdownPartsOf, groupByActivity, jobTimingOf, type ActivityGroup, type CompanionAlert, type CompanionCarry, type CompanionLinePlace as CompanionLinePlaceData, type CompanionTasks } from './companionTasks'
 
 type CopyState = 'idle' | 'copied' | 'failed'
 
+type AlertAction = 'deliver' | 'copy' | 'open' | 'review'
+
 const FREE_LINES_SHOWN = 6
-const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'move_products', 'price_below_break_even', 'undercut_sell_order', 'join_request', 'bom_complete']
+const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'move_products', 'price_below_break_even', 'undercut_sell_order', 'join_request', 'bom_complete', 'jobs_to_assign']
 const GREEN_ALERT_KINDS: CompanionAlert['kind'][] = ['job_ready', 'bom_complete']
 const VALUE_DECIMALS = 1
 const NUMBER_DECIMALS = 0
@@ -30,12 +37,15 @@ const COLUMN_GAUGE_DIAMETER = 54
 const BAR_GAUGE_DIAMETER = 46
 const PRODUCT_IMAGE_SIZE = 64
 const TIME_UNIT_DIGITS = 2
+const PERCENT_BASE = 100
 
 const props = defineProps<{
   tasks: CompanionTasks
   projectName: string
   size: 'bar' | 'column'
   errorMessage: string | null
+  projects?: ProjectChoice[]
+  currentProjectId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -43,10 +53,16 @@ const emit = defineEmits<{
   release: [lineId: string]
   deliver: [lineId: string]
   'open-bom': []
+  'open-unassigned-jobs': []
+  'open-members': []
+  arrive: [transferId: string]
+  'switch-project': [projectId: string]
+  supply: [lineId: string]
   'toggle-size': []
 }>()
 
 const { t } = useI18n()
+const { jobDisplayLabel } = useJobDisplayLabel()
 const { formatNumber, formatIsk } = useFormatters()
 const { getTypeIconUrl, getTypeRenderUrl, onImageError } = useEveImages()
 
@@ -73,6 +89,16 @@ function toggleSection(pane: CompanionPane, group: ActivityGroup): void {
 
 const isBar = computed(() => props.size === 'bar')
 
+const projectChoices = computed(() => props.projects ?? [])
+
+function switchTo(projectId: string): void {
+  if (projectId !== props.currentProjectId) emit('switch-project', projectId)
+}
+
+const hereText = computed(() => (props.tasks.hereSystems === null
+  ? t('groupIndustry.companion.hereUnknown')
+  : t('groupIndustry.companion.here', { places: props.tasks.hereSystems.join(', ') })))
+
 const freeView = computed(() => {
   let remaining = FREE_LINES_SHOWN
   const groups = groupByActivity(props.tasks.free, item => item)
@@ -92,10 +118,12 @@ const jobGroups = computed(() => groupByActivity(
 ))
 const miniBarSegments = computed(() => groupByActivity(props.tasks.free, item => item).map(({ group, entries }) => ({ group, count: entries.length })))
 
+const toDeliverCount = computed(() => props.tasks.mine.length + props.tasks.carries.length + props.tasks.supplies.length)
+
 const tabs = computed(() => COMPANION_PANES.map(pane => ({
   pane,
-  count: pane === 'free' ? props.tasks.free.length : pane === 'mine' ? props.tasks.mine.length : props.tasks.jobs.length,
-  hot: pane === 'mine' ? props.tasks.mine.length > 0 : pane === 'jobs' ? props.tasks.readyJobCount > 0 : false,
+  count: pane === 'free' ? props.tasks.free.length : pane === 'mine' ? toDeliverCount.value : props.tasks.jobs.length,
+  hot: pane === 'mine' ? toDeliverCount.value > 0 : pane === 'jobs' ? props.tasks.readyJobCount > 0 : false,
 })))
 
 const hasTodo = computed(() => props.tasks.toReview !== null || props.tasks.joinRequests !== null)
@@ -146,11 +174,20 @@ function alertText(alert: CompanionAlert): string {
       mine: formatIsk(order.price),
     })
   }
-  if (alert.kind === 'join_request') return t('groupIndustry.companion.alerts.joinRequest', { count: props.tasks.joinRequests })
+  if (alert.kind === 'join_request') {
+    const [onlyRequester] = props.tasks.joinRequestNames
+    if (props.tasks.joinRequests === 1 && props.tasks.joinRequestNames.length === 1) {
+      return t('groupIndustry.companion.alerts.joinRequestNamed', { name: onlyRequester })
+    }
+    return t('groupIndustry.companion.alerts.joinRequest', { count: props.tasks.joinRequests })
+  }
+  if (alert.kind === 'jobs_to_assign') return t('groupIndustry.companion.alerts.jobsToAssign', { count: props.tasks.unassignedJobCount })
   return t('groupIndustry.companion.alerts.bomComplete')
 }
 
-function actionOf(alert: CompanionAlert): 'deliver' | 'copy' | null {
+function actionOf(alert: CompanionAlert): AlertAction | null {
+  if (alert.kind === 'jobs_to_assign') return 'open'
+  if (alert.kind === 'join_request') return 'review'
   if (alert.kind === 'job_ready') return jobOfAlert(alert) === undefined ? null : 'deliver'
   if (alert.kind !== 'undercut_sell_order') return null
   const order = props.tasks.undercutOrders.at(0)
@@ -166,8 +203,16 @@ function alertClasses(kind: CompanionAlert['kind']): string {
     : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
 }
 
-function actionLabel(action: 'deliver' | 'copy'): string {
+function alertActionClasses(action: AlertAction): string {
+  return action === 'deliver'
+    ? 'border-emerald-400 bg-emerald-400 text-emerald-950'
+    : 'border-amber-500/50 text-amber-300 hover:bg-amber-500/10'
+}
+
+function actionLabel(action: AlertAction): string {
   if (action === 'deliver') return t('groupIndustry.companion.deliver')
+  if (action === 'open') return t('groupIndustry.companion.alerts.actionOpen')
+  if (action === 'review') return t('groupIndustry.companion.alerts.actionReview')
   if (copyState.value === 'copied') return t('groupIndustry.companion.alerts.priceCopied')
   if (copyState.value === 'failed') return t('groupIndustry.companion.alerts.priceCopyFailed')
   return t('groupIndustry.companion.alerts.actionCopyPrice')
@@ -194,7 +239,15 @@ async function copySuggestedPrice(event: MouseEvent): Promise<void> {
   }, COPY_FEEDBACK_MS)
 }
 
-function runAlertAction(alert: { action: 'deliver' | 'copy' | null } & CompanionAlert, event: MouseEvent): void {
+function runAlertAction(alert: { action: AlertAction | null } & CompanionAlert, event: MouseEvent): void {
+  if (alert.action === 'open') {
+    emit('open-unassigned-jobs')
+    return
+  }
+  if (alert.action === 'review') {
+    emit('open-members')
+    return
+  }
   if (alert.action === 'deliver') {
     const job = jobOfAlert(alert)
     if (job !== undefined) emit('deliver', job.item.id)
@@ -242,11 +295,44 @@ function padTimeUnit(value: number): string {
   return String(value).padStart(TIME_UNIT_DIGITS, '0')
 }
 
+function jobBarWidth(match: JobMatch): string | null {
+  const share = jobElapsedShareOf(match, props.tasks.now)
+  return share === null ? null : `${Math.round(share * PERCENT_BASE)}%`
+}
+
 function countdownText(remainingMs: number): string {
   const { days, hours, minutes } = countdownPartsOf(remainingMs)
   return days > 0
     ? t('groupIndustry.companion.countdown.days', { days, hours: padTimeUnit(hours) })
     : t('groupIndustry.companion.countdown.clock', { hours: padTimeUnit(hours), minutes: padTimeUnit(minutes) })
+}
+
+function linePlaceOf(lineId: string): CompanionLinePlaceData | null {
+  return props.tasks.linePlaces[lineId] ?? null
+}
+
+function isHereLine(lineId: string): boolean {
+  return linePlaceOf(lineId)?.here === true
+}
+
+function reservationExpiryText(lineId: string): string | null {
+  const expiry = props.tasks.reservationExpiries[lineId]
+  if (expiry === undefined) return null
+  const remainingMs = expiry - props.tasks.now
+  if (remainingMs <= 0) return t('groupIndustry.companion.reservation.expired')
+  return t('groupIndustry.companion.reservation.expiresIn', { time: countdownText(remainingMs) })
+}
+
+function carryName(carry: CompanionCarry): string {
+  return carry.lines.at(0)?.typeName ?? t('common.unknownName')
+}
+
+function carryEtaText(carry: CompanionCarry): string | null {
+  if (carry.state !== 'in_transit') return null
+  const arrival = Date.parse(carry.expectedArrivalAt)
+  if (Number.isNaN(arrival)) return null
+  const remainingMs = arrival - props.tasks.now
+  return remainingMs <= 0 ? t('groupIndustry.companion.carry.due') : countdownText(remainingMs)
 }
 
 function jobStateClasses(state: string): string {
@@ -310,6 +396,13 @@ function unknownReasonText(output: JobLocation): string | null {
             {{ t('groupIndustry.companion.live') }}
           </span>
           <span
+            data-testid="companion-here"
+            :data-unknown="tasks.hereSystems === null ? 'true' : undefined"
+            class="min-w-0 truncate"
+            :class="[isBar ? 'flex-1' : 'max-w-[45%] flex-shrink-0', tasks.hereSystems === null ? 'italic text-slate-500' : 'text-slate-300']"
+            :title="hereText"
+          >{{ hereText }}</span>
+          <span
             v-if="!isBar"
             data-testid="companion-final-jobs"
             class="min-w-0 flex-1 truncate"
@@ -358,7 +451,7 @@ function unknownReasonText(output: JobLocation): string | null {
         :title="t('groupIndustry.companion.tabs.mine')"
       >
         <span class="text-xs uppercase tracking-[0.14em] text-slate-500">{{ t('groupIndustry.companion.tabs.mine') }}</span>
-        <span class="font-mono text-lg" :class="tasks.mine.length > 0 ? 'text-emerald-300' : 'text-slate-100'">{{ tasks.mine.length }}</span>
+        <span class="font-mono text-lg" :class="toDeliverCount > 0 ? 'text-emerald-300' : 'text-slate-100'">{{ toDeliverCount }}</span>
       </div>
       <div
         data-testid="companion-count-jobs"
@@ -399,7 +492,7 @@ function unknownReasonText(output: JobLocation): string | null {
           data-testid="companion-alert-action"
           :data-state="topAlert.action === 'copy' ? copyState : undefined"
           class="flex-shrink-0 border px-2 py-0.5 text-xs font-bold uppercase tracking-wider"
-          :class="topAlert.action === 'deliver' ? 'border-emerald-400 bg-emerald-400 text-emerald-950' : 'border-amber-500/50 text-amber-300 hover:bg-amber-500/10'"
+          :class="alertActionClasses(topAlert.action)"
           @click="runAlertAction(topAlert, $event)"
         >{{ actionLabel(topAlert.action) }}</button>
       </div>
@@ -438,6 +531,26 @@ function unknownReasonText(output: JobLocation): string | null {
         </div>
       </div>
 
+      <div
+        v-if="projectChoices.length > 1"
+        data-testid="companion-project-switch"
+        role="group"
+        :aria-label="t('groupIndustry.companion.projectSwitch')"
+        class="flex flex-shrink-0 gap-1 px-3 pt-2"
+      >
+        <button
+          v-for="choice in projectChoices"
+          :key="choice.id"
+          type="button"
+          data-testid="companion-project-choice"
+          :aria-pressed="choice.id === currentProjectId"
+          :title="choice.name"
+          class="min-w-0 flex-1 truncate border px-1 py-0.5 text-[11.5px] font-semibold uppercase tracking-wider"
+          :class="choice.id === currentProjectId ? 'border-cyan-400 text-cyan-400' : 'border-slate-700 text-slate-300 hover:bg-slate-800'"
+          @click="switchTo(choice.id)"
+        >{{ choice.name }}</button>
+      </div>
+
       <div v-if="alertViews.length > 0" class="mx-3 mt-2 flex max-h-24 flex-shrink-0 flex-col gap-1.5 overflow-y-auto">
         <div
           v-for="alert in alertViews"
@@ -459,7 +572,7 @@ function unknownReasonText(output: JobLocation): string | null {
             data-testid="companion-alert-action"
             :data-state="alert.action === 'copy' ? copyState : undefined"
             class="flex-shrink-0 border px-2 py-1 text-xs font-bold uppercase tracking-wider"
-            :class="alert.action === 'deliver' ? 'border-emerald-400 bg-emerald-400 text-emerald-950' : 'border-amber-500/50 text-amber-300 hover:bg-amber-500/10'"
+            :class="alertActionClasses(alert.action)"
             @click="runAlertAction(alert, $event)"
           >{{ actionLabel(alert.action) }}</button>
         </div>
@@ -517,7 +630,9 @@ function unknownReasonText(output: JobLocation): string | null {
                   <p class="flex items-center gap-1">
                     <span class="min-w-0 truncate text-sm font-semibold text-slate-100" :title="item.typeName">{{ item.typeName }}</span>
                     <BlueprintNameCopyButton :blueprint-name="item.blueprintName ?? null" />
+                    <CompanionHereBadge v-if="isHereLine(item.id)" />
                   </p>
+                  <CompanionLinePlace v-if="linePlaceOf(item.id) !== null" :place="linePlaceOf(item.id)!" />
                   <span
                     v-if="item.isJob && tasks.waitingForComponents.includes(item.id)"
                     data-testid="companion-waiting"
@@ -557,7 +672,91 @@ function unknownReasonText(output: JobLocation): string | null {
         </div>
 
         <div v-show="activePane === 'mine'" data-testid="companion-pane-mine" class="flex flex-col gap-2">
-          <p v-if="tasks.mine.length === 0" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyMine') }}</p>
+          <p v-if="toDeliverCount === 0 && !tasks.carriesUnknown" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyMine') }}</p>
+          <p
+            v-if="tasks.carriesUnknown"
+            data-testid="companion-carries-unknown"
+            data-unknown="true"
+            class="text-xs italic text-slate-500"
+          >{{ t('groupIndustry.companion.carry.unknown') }}</p>
+          <section v-if="tasks.carries.length > 0" data-testid="companion-carries" class="flex flex-col gap-1">
+            <h2 class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-emerald-300">
+              {{ t('groupIndustry.companion.carry.title') }}
+              <span class="font-mono font-normal text-slate-400">{{ tasks.carries.length }}</span>
+            </h2>
+            <ul class="flex flex-col gap-1">
+              <li
+                v-for="carry in tasks.carries"
+                :key="carry.id"
+                data-testid="companion-carry"
+                :data-state="carry.state"
+                class="flex items-center gap-2 border-l-2 border-emerald-400 bg-gradient-to-r from-emerald-400/10 to-white/[0.02] py-1 pr-1.5 pl-2"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="flex items-center gap-1">
+                    <span class="min-w-0 truncate text-sm font-semibold text-slate-100" :title="carryName(carry)">{{ carryName(carry) }}</span>
+                    <span v-if="carry.lines.length > 1" class="flex-shrink-0 font-mono text-xs text-slate-400">+{{ carry.lines.length - 1 }}</span>
+                    <CompanionHereBadge v-if="carry.here === true" />
+                  </p>
+                  <p data-testid="companion-carry-route" class="truncate text-xs text-slate-400">
+                    <span v-if="carry.from !== null" :title="carry.from">{{ carry.from }}</span>
+                    <span v-else data-unknown="true" class="italic text-slate-500">{{ t('common.unknownValue') }}</span>
+                    &rarr;
+                    <span v-if="carry.to !== null" :title="carry.to">{{ carry.to }}</span>
+                    <span v-else data-unknown="true" class="italic text-slate-500">{{ t('common.unknownValue') }}</span>
+                  </p>
+                  <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">
+                    <span v-if="carry.volume !== null">{{ formatNumber(carry.volume, NUMBER_DECIMALS) }} m&sup3;</span>
+                    <span v-else data-unknown="true" class="font-sans italic text-slate-500">{{ t('common.unknownValue') }}</span>
+                    <span v-if="carryEtaText(carry) !== null"> &middot; {{ carryEtaText(carry) }}</span>
+                  </p>
+                </div>
+                <span class="flex-shrink-0 border border-slate-700 px-1.5 py-0.5 text-xs uppercase tracking-wider text-slate-300">{{ t(`groupIndustry.companion.carry.states.${carry.state}`) }}</span>
+                <button
+                  v-if="carry.state === 'in_transit'"
+                  type="button"
+                  data-testid="companion-carry-arrive"
+                  class="flex-shrink-0 border border-emerald-400 bg-emerald-400 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-950"
+                  @click="emit('arrive', carry.id)"
+                >{{ t('groupIndustry.companion.carry.arrived') }}</button>
+              </li>
+            </ul>
+          </section>
+          <section v-if="tasks.supplies.length > 0" data-testid="companion-supplies" class="flex flex-col gap-1">
+            <h2 class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-cyan-300">
+              {{ t('groupIndustry.companion.supply.title') }}
+              <span class="font-mono font-normal text-slate-400">{{ tasks.supplies.length }}</span>
+            </h2>
+            <ul class="flex flex-col gap-1">
+              <li
+                v-for="supply in tasks.supplies"
+                :key="supply.item.id"
+                data-testid="companion-supply"
+                class="flex items-center gap-2 py-1 pr-1.5"
+                :class="lineStyle(activityGroupOf(supply.item))"
+              >
+                <div class="relative ml-1 h-[30px] w-[30px] flex-shrink-0 bg-black">
+                  <img data-testid="companion-line-icon" :src="getTypeIconUrl(supply.item.typeId, PRODUCT_IMAGE_SIZE)" alt="" class="h-full w-full" @error="onImageError">
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="flex items-center gap-1">
+                    <span class="min-w-0 truncate text-sm font-semibold text-slate-100" :title="supply.item.typeName">{{ t('groupIndustry.companion.supply.label', { name: supply.item.typeName }) }}</span>
+                    <CompanionHereBadge v-if="supply.here === true" />
+                  </p>
+                  <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">
+                    &times;{{ formatNumber(supply.quantity, NUMBER_DECIMALS) }}
+                    <span v-if="supply.locationName !== null" class="font-sans" :title="supply.locationName">&middot; {{ supply.locationName }}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  data-testid="companion-supply-apply"
+                  class="flex-shrink-0 border border-emerald-400 bg-emerald-400 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-950"
+                  @click="emit('supply', supply.item.id)"
+                >{{ t('groupIndustry.companion.supply.apply') }}</button>
+              </li>
+            </ul>
+          </section>
           <div v-for="group in mineGroups" :key="group.group" :data-testid="`companion-group-mine-${group.group}`" class="flex flex-col gap-1">
             <CompanionGroupHeader pane="mine" :group="group.group" :count="group.entries.length" :open="isOpen('mine', group.group)" @toggle="toggleSection('mine', group.group)" />
             <ul v-if="isOpen('mine', group.group)" class="flex flex-col gap-1">
@@ -578,13 +777,22 @@ function unknownReasonText(output: JobLocation): string | null {
                     <span class="min-w-0 truncate text-sm font-semibold text-slate-100" :title="entry.item.typeName">{{ entry.item.typeName }}</span>
                     <BlueprintNameCopyButton :blueprint-name="entry.item.blueprintName ?? null" />
                     <OpenInGameButton v-if="!entry.item.isJob" type="market" :target-id="entry.item.typeId" />
+                    <CompanionHereBadge v-if="isHereLine(entry.item.id)" />
                   </p>
+                  <CompanionLinePlace v-if="linePlaceOf(entry.item.id) !== null" :place="linePlaceOf(entry.item.id)!" />
                   <span
                     v-if="entry.item.isJob && tasks.waitingForComponents.includes(entry.item.id)"
                     data-testid="companion-waiting"
                     class="inline-block rounded border border-amber-500/40 px-1 text-xs text-amber-300"
                   >{{ t('groupIndustry.companion.waitingForComponents') }}</span>
-                  <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">&times;{{ formatNumber(entry.quantity, NUMBER_DECIMALS) }}</p>
+                  <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">
+                    &times;{{ formatNumber(entry.quantity, NUMBER_DECIMALS) }}
+                    <span
+                      v-if="reservationExpiryText(entry.item.id) !== null"
+                      data-testid="companion-reservation-expiry"
+                      class="font-sans text-amber-300"
+                    >&middot; {{ reservationExpiryText(entry.item.id) }}</span>
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -682,11 +890,14 @@ function unknownReasonText(output: JobLocation): string | null {
                       style="font-variant-numeric: tabular-nums;"
                     >{{ countdownText(job.timing.remainingMs) }}</p>
                     <p v-else data-testid="companion-job-eta" data-unknown="true" class="text-xs italic text-slate-500">{{ t('common.unknownValue') }}</p>
-                    <p data-testid="companion-job-status" class="text-xs uppercase tracking-wider text-slate-400">{{ t(`groupIndustry.companion.jobStatus.${job.match.status}`) }}</p>
+                    <p data-testid="companion-job-status" class="text-xs uppercase tracking-wider text-slate-400">{{ jobDisplayLabel(job.timing.state) }}</p>
                   </div>
                 </div>
                 <div v-if="job.timing.state === 'ready'" data-testid="companion-job-bar" class="ml-[42px] h-[3px] bg-white/10">
                   <div class="h-full w-full bg-emerald-400 shadow-[0_0_6px_rgb(52_211_153)]" />
+                </div>
+                <div v-else-if="jobBarWidth(job.match) !== null" data-testid="companion-job-bar" class="ml-[42px] h-[3px] bg-white/10">
+                  <div class="h-full bg-cyan-400" :style="{ width: jobBarWidth(job.match) ?? undefined }" />
                 </div>
               </li>
             </ul>

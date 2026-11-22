@@ -13,6 +13,7 @@ export default defineConfig({
         environment: 'happy-dom',
         globals: true,
         include: ['tests/**/*.spec.ts'],
+        setupFiles: ['tests/setup/clearBrowserStorage.ts'],
     },
     appType: 'spa',
     server: {

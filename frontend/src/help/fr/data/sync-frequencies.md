@@ -15,6 +15,7 @@ Ce tableau est généré depuis le code par `app:help:generate-tables` : ne le m
 | Jobs d'industrie | 30 min |
 | Opérations de minage récurrentes | 30 min |
 | Prix des alertes de marché | 30 min |
+| Purge des réservations de lignes expirées | 30 min |
 | Blueprints personnels et de la corporation | 1 h |
 | Données PVE | 1 h |
 | Prix du marché de Jita | 1 h |

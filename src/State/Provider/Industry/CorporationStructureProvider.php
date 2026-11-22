@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\CorporationStructureListResource;
 use App\ApiResource\Industry\CorporationStructureResource;
 use App\Entity\User;
+use App\Industry\Infrastructure\Doctrine\StructureBonusSummary;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
@@ -25,6 +26,7 @@ class CorporationStructureProvider implements ProviderInterface
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
+        private readonly StructureBonusSummary $structureBonusSummary,
     ) {
     }
 
@@ -69,15 +71,18 @@ class CorporationStructureProvider implements ProviderInterface
             $resource->locationName = $config->getName();
             $resource->isCorporationOwned = true;
             $resource->structureType = $config->getStructureType();
+            $bonuses = $this->structureBonusSummary->of($config->getStructureType(), $config->getSecurityType(), $config->getRigs());
             $resource->sharedConfig = [
                 'securityType' => $config->getSecurityType(),
                 'structureType' => $config->getStructureType(),
                 'rigs' => $config->getRigs(),
                 'facilityTaxRate' => $config->getFacilityTaxPercent(),
-                'manufacturingMaterialBonus' => $config->getManufacturingMaterialBonus(),
-                'reactionMaterialBonus' => $config->getReactionMaterialBonus(),
-                'manufacturingTimeBonus' => $config->getManufacturingTimeBonus(),
-                'reactionTimeBonus' => $config->getReactionTimeBonus(),
+                'manufacturingMaterialBonus' => $bonuses->manufacturingMaterialBonus,
+                'reactionMaterialBonus' => $bonuses->reactionMaterialBonus,
+                'manufacturingTimeBonus' => $bonuses->manufacturingTimeBonus,
+                'reactionTimeBonus' => $bonuses->reactionTimeBonus,
+                'unrecognisedRigs' => $bonuses->unrecognisedRigs,
+                'hullToSpecify' => $bonuses->hullToSpecify,
             ];
 
             $structures[$locationId] = $resource;

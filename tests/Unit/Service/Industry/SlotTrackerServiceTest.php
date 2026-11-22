@@ -17,8 +17,11 @@ use App\Repository\CharacterRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\IndustryCalculationService;
+use App\Service\Industry\Project\OpenProjectStepsToLaunch;
+use App\Service\Industry\Project\StepToLaunch;
 use App\Service\Industry\SlotTrackerService;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -31,6 +34,7 @@ use PHPUnit\Framework\TestCase;
 class SlotTrackerServiceTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
+    use StubsPersonalStockReader;
 
     private CharacterRepository&MockObject $characterRepository;
     private CachedIndustryJobRepository&MockObject $jobRepository;
@@ -40,9 +44,12 @@ class SlotTrackerServiceTest extends TestCase
     private IndustryStockpileTargetRepository&MockObject $stockpileTargetRepository;
     private CachedAssetRepository&MockObject $assetRepository;
     private IndustryProjectJobMatchRepository&MockObject $projectJobMatchRepository;
+    private OpenProjectStepsToLaunch&MockObject $openProjectSteps;
     private SlotTrackerService $service;
     private User&MockObject $user;
     private array $characterIdsWithoutCachedSkills = [];
+    private array $stepsToLaunch = [];
+    private int $stepReadCount = 0;
 
     protected function setUp(): void
     {
@@ -54,6 +61,12 @@ class SlotTrackerServiceTest extends TestCase
         $this->stockpileTargetRepository = $this->createMock(IndustryStockpileTargetRepository::class);
         $this->assetRepository = $this->createMock(CachedAssetRepository::class);
         $this->projectJobMatchRepository = $this->createMock(IndustryProjectJobMatchRepository::class);
+        $this->openProjectSteps = $this->createMock(OpenProjectStepsToLaunch::class);
+        $this->openProjectSteps->method('forUser')->willReturnCallback(function (): array {
+            ++$this->stepReadCount;
+
+            return $this->stepsToLaunch;
+        });
         $this->skillRepository->method('hasCachedSkills')->willReturnCallback(
             fn (Character $character): bool => !in_array($character->getEveCharacterId(), $this->characterIdsWithoutCachedSkills, true),
         );
@@ -65,8 +78,9 @@ class SlotTrackerServiceTest extends TestCase
             $this->calculationService,
             $this->typeNameResolver,
             $this->stockpileTargetRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->projectJobMatchRepository,
+            $this->openProjectSteps,
         );
 
         $this->user = $this->createMock(User::class);
@@ -668,7 +682,7 @@ class SlotTrackerServiceTest extends TestCase
         $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
 
         $this->assertSame([
-            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 25%']],
+            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 25%', 'project' => null, 'runs' => null, 'stockByStation' => []]],
             ['activityType' => 'reaction', 'count' => 1, 'suggestion' => null],
             ['activityType' => 'science', 'count' => 1, 'suggestion' => null],
         ], $result['characters'][0]['freeSlots']);
@@ -690,7 +704,7 @@ class SlotTrackerServiceTest extends TestCase
         $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
 
         $this->assertSame(
-            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 75%']],
+            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 75%', 'project' => null, 'runs' => null, 'stockByStation' => []]],
             $result['characters'][0]['freeSlots'][0],
         );
     }
@@ -819,6 +833,7 @@ class SlotTrackerServiceTest extends TestCase
     private const int ERIDANUS_CHARACTER_ID = 3005;
     private const int FORNAX_CHARACTER_ID = 3006;
     private const int REACTION_ACTIVITY_ID = 9;
+    private const string RIFTER_WAVE_PROJECT_ID = '01970000-0000-7000-8000-000000001207';
 
     #[Group('issue-218')]
     public function testCharacterWithUnknownSkillsHasUnknownMaxSlotsAndNoFreeSlotDespiteAStockpileTargetBelowTarget(): void
@@ -1083,8 +1098,8 @@ class SlotTrackerServiceTest extends TestCase
 
         $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
 
-        $this->assertSame(['typeId' => 11399, 'typeName' => 'Morphite', 'reason' => 'stockpile at 63%'], $freeSlots[0]['suggestion']);
-        $this->assertSame(['typeId' => 16673, 'typeName' => 'Fernite Carbide', 'reason' => 'stockpile at 0%'], $freeSlots[1]['suggestion']);
+        $this->assertSame(['typeId' => 11399, 'typeName' => 'Morphite', 'reason' => 'stockpile at 63%', 'project' => null, 'runs' => null, 'stockByStation' => []], $freeSlots[0]['suggestion']);
+        $this->assertSame(['typeId' => 16673, 'typeName' => 'Fernite Carbide', 'reason' => 'stockpile at 0%', 'project' => null, 'runs' => null, 'stockByStation' => []], $freeSlots[1]['suggestion']);
     }
 
     public function testFreeSlotSuggestionSkipsFullTargetsAndKeepsTheFirstOfTwoTargetsWithTheSameLowestCoverage(): void
@@ -1101,7 +1116,7 @@ class SlotTrackerServiceTest extends TestCase
         $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
 
         $this->assertSame([
-            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => 11530, 'typeName' => 'Plasma Thruster', 'reason' => 'stockpile at 33%']],
+            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => 11530, 'typeName' => 'Plasma Thruster', 'reason' => 'stockpile at 33%', 'project' => null, 'runs' => null, 'stockByStation' => []]],
             ['activityType' => 'reaction', 'count' => 1, 'suggestion' => null],
             ['activityType' => 'science', 'count' => 1, 'suggestion' => null],
         ], $freeSlots);
@@ -1121,9 +1136,224 @@ class SlotTrackerServiceTest extends TestCase
         $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::ROBOTICS_TYPE_ID => 7]);
 
         $this->assertSame(
-            ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 14%'],
+            ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 14%', 'project' => null, 'runs' => null, 'stockByStation' => []],
             $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'][0]['suggestion'],
         );
+    }
+
+    #[Group('issue-1168')]
+    public function testStockpileSuggestionListsThePersonalStockOfItsTypeByStation(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->stockpileTarget(11530, 'Plasma Thruster', 40, 'component')]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([11530 => 16]);
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            11530 => ['total' => 16, 'locations' => [
+                ['locationId' => 60_003_760, 'locationName' => 'Jita IV - Moon 4', 'systemName' => 'Jita', 'quantity' => 10],
+                ['locationId' => 1_035_466_617_946, 'locationName' => 'Ishtar Keepstar', 'systemName' => null, 'quantity' => 6],
+            ]],
+            587 => ['total' => 3, 'locations' => [
+                ['locationId' => 60_003_760, 'locationName' => 'Jita IV - Moon 4', 'systemName' => 'Jita', 'quantity' => 3],
+            ]],
+        ]);
+
+        $suggestion = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'][0]['suggestion'];
+
+        $this->assertSame('stockpile at 40%', $suggestion['reason']);
+        $this->assertSame([
+            ['locationId' => 60_003_760, 'locationName' => 'Jita IV - Moon 4', 'systemName' => 'Jita', 'quantity' => 10],
+            ['locationId' => 1_035_466_617_946, 'locationName' => 'Ishtar Keepstar', 'systemName' => null, 'quantity' => 6],
+        ], $suggestion['stockByStation']);
+    }
+
+    #[Group('issue-1168')]
+    public function testStockpileSuggestionOfATypeWithoutStockHasNoStation(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->stockpileTarget(11530, 'Plasma Thruster', 40, 'component')]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([]);
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([]);
+
+        $suggestion = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'][0]['suggestion'];
+
+        $this->assertSame('stockpile at 0%', $suggestion['reason']);
+        $this->assertSame([], $suggestion['stockByStation']);
+    }
+
+    #[Group('issue-1168')]
+    public function testStockpileCoverageStaysComputedOnTheTotalWhateverTheStationsHold(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([
+            $this->stockpileTarget(11530, 'Plasma Thruster', 40, 'component'),
+            $this->stockpileTarget(11531, 'Fusion Thruster', 40, 'component'),
+        ]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([11530 => 30, 11531 => 20]);
+        $this->assetRepository->method('getQuantitiesByUserWithLocations')->willReturn([
+            11530 => ['total' => 30, 'locations' => [
+                ['locationId' => 1, 'locationName' => 'Station A', 'systemName' => 'Alpha', 'quantity' => 10],
+                ['locationId' => 2, 'locationName' => 'Station B', 'systemName' => 'Beta', 'quantity' => 10],
+                ['locationId' => 3, 'locationName' => 'Station C', 'systemName' => 'Gamma', 'quantity' => 10],
+            ]],
+            11531 => ['total' => 20, 'locations' => [
+                ['locationId' => 1, 'locationName' => 'Station A', 'systemName' => 'Alpha', 'quantity' => 20],
+            ]],
+        ]);
+
+        $suggestion = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'][0]['suggestion'];
+
+        $this->assertSame(11531, $suggestion['typeId']);
+        $this->assertSame('stockpile at 50%', $suggestion['reason']);
+        $this->assertSame([['locationId' => 1, 'locationName' => 'Station A', 'systemName' => 'Alpha', 'quantity' => 20]], $suggestion['stockByStation']);
+    }
+
+    #[Group('issue-1168')]
+    public function testStepToLaunchSuggestionCarriesNoStockByStation(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stepsToLaunch = [$this->stepToLaunch('manufacturing', 'Rifter Hull', 1_207_101, 4)];
+
+        $suggestion = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'][0]['suggestion'];
+
+        $this->assertArrayNotHasKey('stockByStation', $suggestion);
+    }
+
+    #[Group('issue-1207')]
+    public function testFreeSlotSuggestionIsTheFirstStepToLaunchOfTheSlotCategory(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stepsToLaunch = [
+            $this->stepToLaunch('manufacturing', 'Rifter Hull', 1_207_101, 4),
+            $this->stepToLaunch('manufacturing', 'Maelstrom Hull', 1_207_102, 9),
+        ];
+
+        $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
+
+        $this->assertSame([
+            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => 1_207_101, 'typeName' => 'Rifter Hull', 'reason' => null, 'project' => ['id' => self::RIFTER_WAVE_PROJECT_ID, 'name' => 'Rifter wave'], 'runs' => 4]],
+            ['activityType' => 'reaction', 'count' => 1, 'suggestion' => null],
+            ['activityType' => 'science', 'count' => 1, 'suggestion' => null],
+        ], $freeSlots);
+    }
+
+    #[Group('issue-1207')]
+    public function testEachSlotCategoryReceivesTheFirstStepToLaunchOfItsOwnCategory(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stepsToLaunch = [
+            $this->stepToLaunch('science', 'Rifter Blueprint', 1_207_103, 20),
+            $this->stepToLaunch('reaction', 'Helium Fuel Block', 1_207_104, 3),
+            $this->stepToLaunch('manufacturing', 'Rifter Hull', 1_207_101, 4),
+        ];
+
+        $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
+
+        $this->assertSame(
+            ['manufacturing', 'reaction', 'science'],
+            array_column($freeSlots, 'activityType'),
+        );
+        $this->assertSame([1_207_101, 1_207_104, 1_207_103], array_column(array_column($freeSlots, 'suggestion'), 'typeId'));
+        $this->assertSame([4, 3, 20], array_column(array_column($freeSlots, 'suggestion'), 'runs'));
+        $this->assertSame([null, null, null], array_column(array_column($freeSlots, 'suggestion'), 'reason'));
+    }
+
+    #[Group('issue-1207')]
+    public function testStepToLaunchComesBeforeTheStockpileTargetOfTheSameCategory(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stepsToLaunch = [$this->stepToLaunch('manufacturing', 'Rifter Hull', 1_207_101, 4)];
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->stockpileTarget(587, 'Rifter', 40, 'final_product')]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([587 => 4]);
+
+        $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
+
+        $this->assertSame(
+            ['typeId' => 1_207_101, 'typeName' => 'Rifter Hull', 'reason' => null, 'project' => ['id' => self::RIFTER_WAVE_PROJECT_ID, 'name' => 'Rifter wave'], 'runs' => 4],
+            $freeSlots[0]['suggestion'],
+        );
+        $this->assertSame(
+            ['typeId' => 587, 'typeName' => 'Rifter', 'reason' => 'stockpile at 10%', 'project' => null, 'runs' => null, 'stockByStation' => []],
+            $freeSlots[2]['suggestion'],
+        );
+    }
+
+    #[Group('issue-1207')]
+    public function testStockpileTargetIsTheFallbackWhenNoStepIsToLaunch(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->stockpileTarget(587, 'Rifter', 40, 'final_product')]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([587 => 4]);
+
+        $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
+
+        $this->assertSame(
+            ['typeId' => 587, 'typeName' => 'Rifter', 'reason' => 'stockpile at 10%', 'project' => null, 'runs' => null, 'stockByStation' => []],
+            $freeSlots[0]['suggestion'],
+        );
+    }
+
+    #[Group('issue-1207')]
+    public function testFreeSlotsHaveNoSuggestionWithoutAnyStepToLaunchNorStockpileTarget(): void
+    {
+        $this->givenOnePilotWithoutJobNorSkill();
+
+        $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
+
+        $this->assertSame([null, null, null], array_column($freeSlots, 'suggestion'));
+    }
+
+    #[Group('issue-1207')]
+    public function testStepToLaunchIsNotSuggestedWhenTheCharacterHasNoFreeSlotOfItsCategory(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(2_118_009, 'Isha Venn', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(62, self::ROBOTICS_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 3, '-1 day', '+4 days'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+        $this->stepsToLaunch = [$this->stepToLaunch('manufacturing', 'Rifter Hull', 1_207_101, 4)];
+
+        $freeSlots = $this->service->getSlotStatus($this->user)['characters'][0]['freeSlots'];
+
+        $this->assertSame([
+            ['activityType' => 'reaction', 'count' => 1, 'suggestion' => null],
+            ['activityType' => 'science', 'count' => 1, 'suggestion' => null],
+        ], $freeSlots);
+    }
+
+    #[Group('issue-1207')]
+    public function testStepsToLaunchAreNotReadWhenNoCharacterHasAFreeSlot(): void
+    {
+        $this->givenCharacters([$this->auroraWithUnknownSkills()]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
+        $this->stepsToLaunch = [$this->stepToLaunch('manufacturing', 'Rifter Hull', 1_207_101, 4)];
+
+        $aurora = $this->service->getSlotStatus($this->user)['characters'][0];
+
+        $this->assertSame([], $aurora['freeSlots']);
+        $this->assertSame(0, $this->stepReadCount);
+    }
+
+    #[Group('issue-1207')]
+    public function testTwoCharactersWithAFreeSlotOfTheSameCategoryBothReceiveTheFirstStepAndStepsAreReadOnce(): void
+    {
+        $this->characterRepository->method('findByUser')->willReturn([
+            $this->createCharacterMock(2_118_010, 'Tamsin Rook', true),
+            $this->createCharacterMock(2_118_011, 'Kel Anvar', false),
+        ]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+        $this->stepsToLaunch = [$this->stepToLaunch('manufacturing', 'Rifter Hull', 1_207_101, 4)];
+
+        $characters = $this->service->getSlotStatus($this->user)['characters'];
+
+        $this->assertSame([1_207_101], array_column(array_column($characters[0]['freeSlots'], 'suggestion'), 'typeId'));
+        $this->assertSame([1_207_101], array_column(array_column($characters[1]['freeSlots'], 'suggestion'), 'typeId'));
+        $this->assertSame(1, $this->stepReadCount);
+    }
+
+    private function stepToLaunch(string $slotCategory, string $typeName, int $typeId, int $runs): StepToLaunch
+    {
+        return new StepToLaunch($slotCategory, self::RIFTER_WAVE_PROJECT_ID, 'Rifter wave', $typeId, $typeName, $runs);
     }
 
     private function givenOnePilotWithoutJobNorSkill(): void
@@ -1200,8 +1430,9 @@ class SlotTrackerServiceTest extends TestCase
             $this->calculationService,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),
             $this->stockpileTargetRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->projectJobMatchRepository,
+            $this->openProjectSteps,
         );
     }
 
@@ -1214,8 +1445,9 @@ class SlotTrackerServiceTest extends TestCase
             $this->calculationService,
             new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock()),
             $this->stockpileTargetRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->projectJobMatchRepository,
+            $this->openProjectSteps,
         );
     }
 

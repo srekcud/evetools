@@ -6,6 +6,8 @@ namespace App\Industry\Domain;
 
 final class ProductionSchedule
 {
+    private const string LABORATORY_POOL = 'Laboratory';
+
     /**
      * @param list<ScheduleJob>                 $jobs
      * @param list<ScheduleWorker>              $workers
@@ -43,7 +45,7 @@ final class ProductionSchedule
             }
 
             [$scheduledJob, $slotIndex] = $assignment;
-            $slotsFreeAt[$scheduledJob->workerId][$job->activity->name][$slotIndex] = $scheduledJob->end;
+            $slotsFreeAt[$scheduledJob->workerId][self::poolOf($job->activity)][$slotIndex] = $scheduledJob->end;
             $endsByJobId[$job->id] = $scheduledJob->end;
             $assignments[] = $scheduledJob;
         }
@@ -54,7 +56,7 @@ final class ProductionSchedule
     /**
      * @param list<ScheduleWorker> $workers
      *
-     * @return array<string, array<string, array<int, \DateTimeImmutable>>> worker id => activity name => slot free time
+     * @return array<string, array<string, array<int, \DateTimeImmutable>>> worker id => pool name => slot free time
      */
     private static function initialSlots(array $workers, \DateTimeImmutable $start): array
     {
@@ -63,6 +65,7 @@ final class ProductionSchedule
             $slotsFreeAt[$worker->id] = [
                 ActivityKind::Manufacturing->name => array_pad([], max(0, $worker->manufacturingSlots), $start),
                 ActivityKind::Reaction->name => array_pad([], max(0, $worker->reactionSlots), $start),
+                self::LABORATORY_POOL => array_pad([], max(0, $worker->laboratorySlots), $start),
             ];
         }
 
@@ -80,7 +83,7 @@ final class ProductionSchedule
         $best = null;
         foreach ($workers as $worker) {
             $durationSeconds = $job->durationSecondsByWorker[$worker->id] ?? null;
-            $slots = $slotsFreeAt[$worker->id][$job->activity->name] ?? [];
+            $slots = $slotsFreeAt[$worker->id][self::poolOf($job->activity)] ?? [];
             if (null === $durationSeconds || [] === $slots) {
                 continue;
             }
@@ -94,6 +97,11 @@ final class ProductionSchedule
         }
 
         return $best;
+    }
+
+    private static function poolOf(ActivityKind $activity): string
+    {
+        return $activity->isLaboratory() ? self::LABORATORY_POOL : $activity->name;
     }
 
     /**

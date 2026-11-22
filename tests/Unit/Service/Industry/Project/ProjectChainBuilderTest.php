@@ -531,6 +531,21 @@ final class ProjectChainBuilderTest extends TestCase
         );
     }
 
+    #[Group('issue-1193')]
+    public function testCopyAndInventionNodesWithDeliveredJobsCoveringTheirRunsAreDoneAndAnActiveOneIsActive(): void
+    {
+        $this->link($this->copy, 'delivered', self::COPY_RUNS);
+        $this->link($this->invention, 'active', 8);
+
+        $chain = $this->chainOfHammerheads();
+
+        self::assertSame(
+            ['done', 'active'],
+            [$this->node($chain, self::COPY_LINE_ID)->status, $this->node($chain, self::INVENTION_LINE_ID)->status],
+        );
+        self::assertSame([self::COPY_RUNS], array_column($this->node($chain, self::COPY_LINE_ID)->jobs, 'runs'));
+    }
+
     #[Group('issue-524')]
     public function testCopyNodeOfABomBuiltBeforeTheCopyStructureWasPlannedHasAnUnknownDurationWithItsCause(): void
     {

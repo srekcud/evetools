@@ -7,9 +7,9 @@ namespace App\State\Provider\Industry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\BatchScanResultResource;
-use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\CourierHubSettings;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\BatchProfitScannerService;
@@ -59,8 +59,6 @@ class BatchScanProvider implements ProviderInterface
         // Load user settings for defaults
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
 
-        $exportCostPerM3 = $settings?->getExportCostPerM3() ?? EveConstants::DEFAULT_EXPORT_COST_PER_M3;
-
         // Resolve structure ID
         $structureId = $structureIdParam !== null ? (int) $structureIdParam : null;
         if ($structureId === null && in_array($sellVenue, ['structure', 'contracts'], true)) {
@@ -77,7 +75,7 @@ class BatchScanProvider implements ProviderInterface
             $structureId,
             $solarSystems->manufacturingSolarSystemId,
             $this->salesFeesResolver->forUser($user),
-            $exportCostPerM3,
+            CourierHubSettings::resolve($settings),
             $user,
             $solarSystems->reactionSolarSystemId,
             SellQuoteReading::CachedOnly,

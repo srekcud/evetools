@@ -14,6 +14,7 @@ use App\Service\Industry\StockpileService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -24,6 +25,7 @@ use PHPUnit\Framework\TestCase;
 final class StockpileStatusIntermediateStockTest extends TestCase
 {
     use BuildsStockpileOnWidgetSde;
+    use StubsPersonalStockReader;
 
     private const int ONE_RUN = 1;
     private const int TWO_RUNS = 2;
@@ -65,7 +67,7 @@ final class StockpileStatusIntermediateStockTest extends TestCase
         $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt(self::JITA_PRICES));
         $this->service = new StockpileService(
             $targetRepository,
-            $assetRepository,
+            $this->personalStockReaderOn($assetRepository),
             $jitaMarketService,
             $this->productionPlanningOnWidgetSde(),
             $this->userStructuresOfThePilot(),

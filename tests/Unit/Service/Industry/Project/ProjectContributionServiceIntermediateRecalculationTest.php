@@ -135,7 +135,7 @@ final class ProjectContributionServiceIntermediateRecalculationTest extends Test
 
         $contribution = $this->service->submit($this->ownerParticipant, $this->hydrogenFuelBlock, ContributionType::JobInstall, 3, 7_500.0);
 
-        self::assertSame([ContributionStatus::Approved, 3], [$contribution->getStatus(), $this->hydrogenFuelBlock->getFulfilledQuantity()]);
+        self::assertSame([ContributionStatus::Approved, 120], [$contribution->getStatus(), $this->hydrogenFuelBlock->getFulfilledQuantity()]);
     }
 
     public function testRefusalOfTheRecalculationIsReportedAsADomainExceptionWithItsReason(): void

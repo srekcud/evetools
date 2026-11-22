@@ -709,6 +709,15 @@
     }
   },
   "industry": {
+      "activeProject": {
+        "column": "Projet actif",
+        "placeholder": "Projet actif de {character}",
+        "none": "Aucun projet actif",
+        "panelTitle": "Dédier un personnage à ce projet",
+        "hint": "Les jobs lancés par un personnage coché sont rattachés en priorité à ce projet. Un personnage n'est dédié qu'à un seul projet à la fois.",
+        "error": "Projet actif indisponible, réessayez.",
+        "currentlyDedicatedTo": "actuellement dédié à {project}"
+      },
     "partialPrice": {
       "marker": "{percent} % couvert",
       "noticeTitle": "Prix partiel : carnet Jita trop court",
@@ -974,6 +983,10 @@
         "notRequired": "Non requis",
         "component": "Composant",
         "inStock": "En Stock",
+        "stockByStation": {
+          "heading": "Stock par station",
+          "toggle": "{quantity} en stock de {name} : afficher le stock par station"
+        },
         "pivotCandidates": "Candidats Pivot",
         "sortBy": "Trier par",
         "coverageMargin": "Couverture x Marge",
@@ -1096,7 +1109,7 @@
           "button": "Ouvrir les ventes"
         },
         "complete_project": {
-          "text": "Tout est vendu : clôturez le projet pour figer les comptes.",
+          "text": "Clôturez le projet pour figer les comptes.",
           "button": "Clôturer le projet"
         },
         "await_jobs": {
@@ -1226,8 +1239,13 @@
       },
       "freeSlots": "{count} slots {type} libres",
       "allOccupied": "Tous les slots {type} occupes",
+      "stockByStation": {
+        "inStock": "{quantity} en stock",
+        "toggle": "{name} : afficher le stock par station"
+      },
       "buildSuggestion": "Construire",
       "inventSuggestion": "Inventer",
+      "stepRuns": "{runs} runs · {project}",
       "timeline": {
         "title": "Chronologie des Jobs",
         "hoverHint": "Survolez les barres pour les details. Barres triees par fin.",
@@ -1261,6 +1279,7 @@
       "maxJobDurationHint": "Les jobs dépassant cette durée seront découpés automatiquement",
       "feesTitle": "Coût d'export",
       "exportCost": "Coût d'export (ISK/m³)",
+      "jumpBridgeCost": "Tarif du pont (ISK/m³)",
       "feesErrors": {
         "invalid": "Chaque taux doit être compris entre 0 et 100 % et le coût d'export être positif ou nul. Rien n'a été enregistré.",
         "failed": "Échec de l'enregistrement des frais."
@@ -1326,7 +1345,8 @@
       "description": "Définissez vos systèmes préférés pour la fabrication et les réactions.",
       "manufacturing": "Fabrication",
       "reactions": "Réactions",
-      "searchSystem": "Rechercher un système..."
+      "searchSystem": "Rechercher un système...",
+      "courierHub": "Hub de courier"
     },
     "syncFailures": {
       "jobsTitle": "Jobs non synchronisés pour {count} personnage, le matching a utilisé les derniers jobs connus : | Jobs non synchronisés pour {count} personnages, le matching a utilisé les derniers jobs connus :",
@@ -1470,6 +1490,13 @@
       "facilityTaxLabel": "Taxe d'installation (%)",
       "facilityTaxValue": "{rate} %",
       "facilityTaxNotSet": "non saisie",
+      "hullToSpecify": {
+        "title": "Coque à préciser",
+        "hint": "Le bonus de rôle dépend de la coque : choisis-la pour le connaître",
+        "pick": "Coque",
+        "apply": "Appliquer",
+        "previewValue": "Coque à préciser"
+      },
       "facilityTaxUnknownHelp": "Taxe d'installation de la structure non saisie : le coût d'installation reste inconnu tant que vous ne la renseignez pas. Saisissez 0 si la structure ne prélève rien.",
       "facilityTaxNpcFixed": "{rate} (fixée par le jeu)",
       "facilityTaxOutOfRange": "La taxe d'installation doit être comprise entre {min} et {max} %",
@@ -2681,6 +2708,7 @@
         "notifications-purge": "Purge des notifications",
         "market-history-purge": "Purge de l'historique de marche",
         "shared-lists-purge": "Purge des listes partagees",
+        "line-reservations-purge": "Purge des réservations de lignes",
         "sde-build": "Vérification de la build SDE",
         "packaged-volumes": "Volumes reconditionnés",
         "assets": "Assets",
@@ -2906,6 +2934,479 @@
     }
   },
   "groupIndustry": {
+    "station": {
+      "back": "Projets",
+      "unnamed": "Station sans nom",
+      "unnamedProject": "Projet sans nom",
+      "tiles": {
+        "occupied": "Lignes occupées",
+        "expected": "Attendu ici",
+        "carryAway": "À emporter d'ici",
+        "access": "Accès"
+      },
+      "tileDetails": {
+        "occupied": "jobs de vos projets",
+        "expected": "lots en route",
+        "carryAway": "lots prêts à partir",
+        "access": "jobs à lancer ici"
+      },
+      "accessValue": "{granted} confirmés, {unknown} inconnus",
+      "byProject": "Par projet",
+      "youOwn": "vous êtes propriétaire",
+      "ownedBy": "projet de {name}",
+      "todoHere": "À faire ici",
+      "empty": "Aucun de vos projets ne fait quoi que ce soit à cette station.",
+      "loadError": "Lecture de la station impossible :",
+      "unavailable": "{project} : quantités indisponibles ({reason})",
+      "unreadable": "Lecture impossible de ces projets : {projects}",
+      "note": "Une station vue de l'intérieur : ce que vos projets y font, ce qui arrive, ce qui doit partir. Seuls vos projets apparaissent."
+    },
+    "inventionView": {
+      "title": "Comprendre l'invention",
+      "intro": "{product} : on ne peut pas fabriquer un T2 sans BPC T2, et un BPC T2 ne s'achète pas ici : on l'invente à partir d'un blueprint T1.",
+      "detailsError": "Détails de l'invention indisponibles :",
+      "bpo": { "glyph": "BPO", "title": "BPO T1", "subtitle": "reste en place, non consommé" },
+      "copyArrow": "copie",
+      "copies": { "title": "{count} copies", "subtitle": "1 run chacune" },
+      "datacores": { "title": "Datacores", "subtitle": "consommés à chaque tentative" },
+      "inventionArrow": "invention · {attempts} tentatives · {chance} %",
+      "successArrow": "chaque réussite = 1 BPC",
+      "bpcExpected": "≈ {count} BPC T2",
+      "bpcObtained": "{count} BPC T2",
+      "bpcUnknown": "BPC T2",
+      "bpcRuns": "{runs} runs",
+      "bpcEfficiency": "ME {me} / TE {te}",
+      "manufacturingArrow": "fabrication",
+      "caption": {
+        "idle": "1 point = 1 tentative · ≈ {count} réussies attendues",
+        "idleUnknown": "1 point = 1 tentative",
+        "running": "en cours : le résultat tombe à la fin du job",
+        "result": "{successes} réussies · {failures} ratées",
+        "unknownResult": "terminée : résultat non communiqué par l'ESI"
+      },
+      "dot": {
+        "empty": "Tentative {number} : pas encore lancée",
+        "busy": "Tentative {number} : en cours",
+        "win": "Réussie : 1 BPC obtenu (les points réussis passent en premier, leur place n'est pas l'ordre réel)",
+        "lose": "Ratée : copie et datacores perdus",
+        "unknown": "Tentative {number} : résultat inconnu"
+      },
+      "notes": {
+        "consumption": "Chaque tentative consomme une copie et ses datacores, réussie ou ratée.",
+        "randomness": "Le hasard est sur le nombre de BPC : le plan en attend en moyenne, jamais avec certitude.",
+        "decryptor": "Un décrypteur change la chance, les runs et le ME/TE du BPC (tableau dans la section Invention)."
+      }
+    },
+    "flowPlanning": {
+      "title": "Planning estimé",
+      "loading": "Calcul du planning...",
+      "loadError": "Le planning n'a pas pu être lu",
+      "expectedEnd": "Fin des jobs",
+      "transfersNote": "Transferts entre stations non inclus",
+      "empty": "Rien à planifier",
+      "undatedTitle": "Estimation inconnue",
+      "dayOffset": "J+{days}",
+      "done": "Fait",
+      "views": {
+        "flux": "Flux",
+        "planning": "Planning"
+      },
+      "states": {
+        "planned": "Prévu",
+        "running": "En cours",
+        "waiting": "En attente",
+        "done": "Fait"
+      }
+    },
+    "iskBand": {
+      "label": "Argent du projet",
+      "unknown": "Inconnu",
+      "labels": {
+        "committed": "Engagé",
+        "onSite": "Sur place",
+        "expected": "Ventes prévues",
+        "cashed": "Encaissé",
+        "costPerUnit": "Coût par unité",
+        "profit": "Profit",
+        "estimatedProfit": "Profit estimé",
+        "provisionalProfit": "Profit provisoire"
+      },
+      "notes": {
+        "committed": "achats, stock pris, installations",
+        "onSite": "valeur estimée dans les stations du projet",
+        "expected": "net de frais, {market}",
+        "cashed": "net de frais, tout est vendu",
+        "cashedUnsold": "net de frais, {count} produit encore invendu | net de frais, {count} produits encore invendus",
+        "costPerUnit": "estimation, par unité du projet",
+        "profit": "réel",
+        "estimatedProfit": "d'après la prévision de vente",
+        "provisionalProfit": "vendu jusqu'ici, il reste des produits"
+      }
+    },
+    "flow": {
+      "columns": {
+        "toBring": "À apporter",
+        "onSite": "Sur place",
+        "inProduction": "En fabrication",
+        "out": "Sorti",
+        "done": "Vendu",
+        "doneHandedOver": "Remis"
+      },
+      "states": {
+        "toBring": "À apporter",
+        "inTransit": "En transit",
+        "onSite": "Sur place",
+        "consumed": "Consommé",
+        "inProduction": "En fabrication",
+        "out": "Sorti",
+        "toBuy": "À acheter",
+        "toLaunch": "À lancer",
+        "sold": "Vendu",
+        "expected": "attendu",
+        "unknown": "Inconnu"
+      },
+      "fold": {
+        "onSite": "+ {count} sur place : {names}",
+        "consumed": "+ {count} consommés : {names}",
+        "expected": "+ {count} attendus : {names}",
+        "collapse": "\u2212 replier"
+      },
+      "expected": {
+        "out": "sorti à {from} · à emporter",
+        "inProduction": "en fabrication à {from}",
+        "toLaunch": "à lancer à {from}",
+        "toBuy": "à acheter à {from}"
+      },
+      "here": "ici",
+      "openStation": "Ouvrir la vue de la station",
+      "sources": {
+        "stock": "stock",
+        "blueprint": "blueprint",
+        "invention": "invention"
+      },
+      "remaining": "{time} restant",
+      "progress": "Avancement de {name}",
+      "unnamedType": "Type sans nom",
+      "unnamedStation": "Station sans nom",
+      "unresolvedRow": "Lieu à choisir",
+      "empty": "Rien à afficher pour l'instant",
+      "unavailable": "Quantités indisponibles : {reason}",
+      "quantitiesError": "Lecture des quantités par station impossible :",
+      "unknownReasons": {
+        "market_not_chosen": "Marché non choisi",
+        "market_structure_unset": "Structure de marché non définie",
+        "station_unresolved": "Station de l'étape non résolue",
+        "location_unresolved": "Lieu non résolu",
+        "plan_unavailable": "Plan indisponible",
+        "consumption_unknown": "Consommation inconnue",
+        "job_consumption_unknown": "Consommation des jobs inconnue",
+        "no_container_at_station": "Aucun conteneur à cette station",
+        "transfer_unreadable": "Transferts illisibles",
+        "corporation_assets_not_synced": "Assets de la corporation non synchronisés",
+        "personal_assets_not_synced": "Assets personnels non synchronisés"
+      },
+      "actions": {
+        "title": "À faire du projet",
+        "loading": "Chargement des actions…",
+        "empty": "Rien à faire pour ce projet",
+        "error": "Lecture des actions impossible :",
+        "anywhere": "N'importe où",
+        "unknownPlace": "Lieu inconnu",
+        "reservedByOthers": "Déjà pris : {holders}",
+        "unknownMember": "Membre inconnu",
+        "verbs": {
+          "launch_job": "Lancer",
+          "source_material": "Acheter",
+          "review_contributions": "Relire les dépôts",
+          "review_join_requests": "Accepter les demandes"
+        }
+      },
+      "detail": {
+        "unknown": "Inconnu",
+        "closeDetail": "Fermer le détail",
+        "nothingMore": "Rien de plus sur cette carte.",
+        "intro": "Ce que les onglets actuels montrent sur cet objet, réuni sur sa carte.",
+        "linkJob": "Lier un job",
+        "openTab": "Ouvrir l'onglet",
+        "loading": "Chargement…",
+        "noContainer": "Aucun container suivi",
+        "titles": {
+          "buyOrBuild": "Acheter ou fabriquer",
+          "whereToBuy": "Où acheter",
+          "courier": "Courier",
+          "contributions": "Apports",
+          "useMyStock": "Utiliser mon stock",
+          "depositToCheck": "Dépôt à vérifier",
+          "blueprints": "BPC possédés",
+          "research": "Recherche",
+          "jobs": "Jobs ESI",
+          "reservation": "Réservation et location",
+          "planning": "Planning",
+          "structure": "Structure",
+          "decryptors": "Choix du décrypteur",
+          "whereToSell": "Où vendre",
+          "sellOrders": "Mes ordres",
+          "salesToMatch": "Ventes à rattacher"
+        },
+        "origins": {
+          "buyOrBuild": "Approvisionnement › Acheter ou fabriquer",
+          "whereToBuy": "Approvisionnement › Où acheter",
+          "courier": "Approvisionnement › Contrats de courier",
+          "contributions": "Contributions",
+          "useMyStock": "Approvisionnement › Utiliser mon stock",
+          "depositToCheck": "Contributions › Apports à vérifier",
+          "blueprints": "Approvisionnement › BPC possédés",
+          "research": "Production › Recherche",
+          "jobs": "Production › Chaîne, Lier un job",
+          "reservation": "Production › Réservation, location de lignes",
+          "planning": "Planning",
+          "structure": "Production › Structures, Santé des structures",
+          "decryptors": "Invention › Choix du décrypteur",
+          "whereToSell": "Finances › Prévision de vente",
+          "sellOrders": "Ventes › Mes ordres",
+          "salesToMatch": "Ventes › Ventes à rattacher"
+        },
+        "buyOrBuild": {
+          "options": {
+            "build": "Fabriquer",
+            "jita": "Jita + import",
+            "structure": "Marché de la capitale"
+          },
+          "excluded": "acheté (blacklist)",
+          "perUnit": "{amount}/u",
+          "chosen": "choisie",
+          "recommended": "conseillée",
+          "gap": "écart {amount}",
+          "onRecommended": "sur la conseillée",
+          "none": "Aucun choix chiffré pour ce type.",
+          "onSaleOnly": "{quantity} en vente seulement",
+          "stockUnknown": "stock inconnu",
+          "switch": {
+            "toBuy": "Passer en achat",
+            "toBuild": "Passer en fabrication",
+            "confirmToBuy": "{name} sera acheté au lieu d'être fabriqué. La BOM sera recalculée ; une ligne qui a un job lié, un achat ou un apport ne peut pas être retirée.",
+            "confirmToBuild": "{name} sera fabriqué au lieu d'être acheté. La BOM sera recalculée ; une ligne qui a un job lié, un achat ou un apport ne peut pas être retirée.",
+            "confirm": "Confirmer",
+            "error": "Le composant n'a pas pu être basculé"
+          }
+        },
+        "fields": {
+          "jita": "Jita, import compris",
+          "structure": "Structure ({name})",
+          "bestSide": "Meilleur côté",
+          "volume": "Volume",
+          "collateral": "Collatéral",
+          "reward": "Récompense",
+          "route": "Trajet",
+          "contract": "Contrat",
+          "inContainers": "Dans les containers",
+          "reserved": "Réservé",
+          "free": "Libre",
+          "plannedStart": "Début prévu",
+          "plannedEnd": "Fin prévue",
+          "realEnd": "Fin réelle",
+          "wait": "Attente",
+          "meTe": "ME / TE",
+          "currentLevel": "Niveau actuel",
+          "targetLevel": "Niveau cible",
+          "verdict": "Verdict",
+          "net": "Net",
+          "decryptor": "Décrypteur",
+          "chance": "Chance",
+          "runsColumn": "Runs",
+          "attempts": "Tentatives",
+          "costPerUnit": "Coût par unité",
+          "market": "Marché",
+          "netPerUnit": "Net par unité",
+          "coverage": "Couverture",
+          "daysToSell": "Jours pour vendre"
+        },
+        "sides": {
+          "jita": "Jita",
+          "structure": "Structure"
+        },
+        "kinds": {
+          "bpc": "BPC",
+          "bpo": "BPO"
+        },
+        "places": {
+          "here": "ici",
+          "elsewhere": "ailleurs"
+        },
+        "verdicts": {
+          "worth": "à lancer",
+          "notWorth": "pas rentable"
+        },
+        "positions": {
+          "first": "1er",
+          "undercut": "sous-coté"
+        },
+        "phrases": {
+          "courierWholeProject": "Pour tout le projet : le courier ne se découpe pas par ligne.",
+          "contractLinked": "Contrat lié (n° {id})",
+          "contractNotLinked": "Aucun contrat lié",
+          "fulfilled": "{fulfilled} sur {required}",
+          "noPurchase": "Pas encore d'achat pour cette ligne.",
+          "awaitingCheck": "dépôt à vérifier",
+          "reservedByOthers": "Pris par d'autres",
+          "depositToCheck": "Déposé, pas encore vu dans le container. Le propriétaire le confirme dans l'onglet Contributions.",
+          "runs": "{runs} runs",
+          "manualLink": "lien manuel",
+          "noJob": "Aucun job lié. Lancés en jeu, les jobs se lient à la prochaine synchronisation.",
+          "mine": "(moi)",
+          "expiresAt": "expire le {date}",
+          "noReservation": "Aucune réservation de ligne.",
+          "lineRental": "location de ligne",
+          "lanesHidden": "Planning par personnage masqué sur ce projet",
+          "notPlanned": "Pas de job planifié pour cette ligne.",
+          "noStructure": "Aucune structure : pas de job lié",
+          "noBlueprint": "Aucun blueprint rattaché à cette ligne.",
+          "noResearch": "Aucune recherche proposée pour cet objet.",
+          "noInvention": "Pas de données d'invention",
+          "suggestedPrice": "prix suggéré {price}",
+          "noSellOrder": "Aucun ordre de vente pour cet objet.",
+          "cannotRecordSales": "Vous ne pouvez pas rattacher de ventes sur ce projet.",
+          "noSaleToMatch": "Aucune vente à rattacher.",
+          "contractNumber": "contrat n° {id}",
+          "recordedSales": "Ventes déjà enregistrées"
+        }
+      }
+    },
+    "setup": {
+      "crumbProjects": "Projets",
+      "stepProducts": "Produits et BPC",
+      "stepStations": "Stations",
+      "stepSourcing": "Acheter ou fabriquer, où acheter",
+      "next": "Suivant : acheter ou fabriquer ▶",
+      "validate": "Valider et démarrer",
+      "saveStations": "Enregistrer les stations",
+      "saving": "Enregistrement…",
+      "skip": "Passer, garder les conseillées",
+      "saveFailed": "Les choix n'ont pas tous été enregistrés : {message}. Relancer « Valider et démarrer » réécrit les mêmes valeurs.",
+      "stations": {
+        "title": "Démarrage · étape 2 / 3 : les stations",
+        "intro": "Une station par type de travail du plan. Validez la conseillée ou choisissez-en une autre.",
+        "workTypes": {
+          "reaction": "Réactions",
+          "components": "Composants",
+          "hulls": "Coques",
+          "final_products": "Produits finaux",
+          "blueprints": "Copie et invention"
+        },
+        "need": "{jobs} jobs · {runs} runs",
+        "activities": {
+          "reaction": "réaction",
+          "manufacturing": "fabrication",
+          "copy": "copie"
+        },
+        "recommended": "conseillée",
+        "materialBonus": "Bonus matériaux",
+        "materials": "Matériaux",
+        "installation": "Installation",
+        "transport": "Transport",
+        "total": "Total",
+        "delta": "Écart",
+        "cheapest": "le moins cher",
+        "unknown": "inconnu",
+        "notCompared": "coût non comparé",
+        "unknownStation": "station inconnue",
+        "taxRate": "Taxe d'installation {percent}",
+        "taxNotSet": "Taxe non saisie.",
+        "taxNotSetLink": "La saisir dans les réglages des structures",
+        "policy": {
+          "title": "Politique du projet",
+          "outsideLabel": "Accepter une station hors du système préféré",
+          "thresholdLabel": "Économie minimale (ISK)",
+          "save": "Enregistrer",
+          "hint": "Une station hors du système préféré n'est retenue que si elle économise au moins ce montant. L'enregistrement recalcule la liste de matériaux.",
+          "error": "La politique du projet n'a pas pu être mise à jour"
+        },
+        "position": {
+          "favorite": "Système préféré",
+          "outside": "Hors du système préféré",
+          "jumps": "{count} saut | {count} sauts",
+          "jumpsUnknown": "sauts inconnus"
+        },
+        "banner": {
+          "onlyFavoriteSystem": "{structure} reviendrait {amount} moins cher, transport compris. Non retenue : le projet n'accepte que le système préféré.",
+          "belowThreshold": "{structure} reviendrait {amount} moins cher, transport compris. Économie sous le seuil du projet ({threshold}) : le plan reste sur la station retenue.",
+          "notRetained": "{structure} reviendrait {amount} moins cher, transport compris. Non retenue.",
+          "allow": "Autoriser pour ce projet",
+          "revert": "Revenir au système préféré"
+        },
+        "hullToSpecify": {
+          "title": "Ces structures sont laissées de côté : coque à préciser",
+          "item": "{name}"
+        },
+        "legs": {
+          "courier": "courier",
+          "jump_bridge": "pont",
+          "to_hub": "vers le hub"
+        },
+        "legLine": "{kind} · {volume} m³",
+        "legUnknown": "{kind} · {volume} m³ · coût inconnu",
+        "locks": {
+          "job_launched": "Un job est lancé : la station ne peut plus changer.",
+          "purchase_made": "Un achat est fait : la station ne peut plus changer."
+        },
+        "stale": "La station choisie n'existe plus, la conseillée s'applique.",
+        "summaryCost": "Coût du projet estimé",
+        "againstRecommended": "+ {amount} par rapport aux conseillées",
+        "allRecommended": "toutes les stations conseillées",
+        "summaryTransport": "Transports",
+        "summaryStations": "Stations",
+        "allToRecommended": "Tout mettre sur les conseillées",
+        "next": "Suivant : acheter ou fabriquer ▶",
+        "footnote": "Tarif courier {courier} ISK/m³, tarif du pont {bridge} ISK/m³. Même calcul que la comparaison « Structures » de l'onglet Production, fait une fois pour tout le plan, avec les trajets entre stations. Après validation, une station se change tant que rien n'y a été acheté ni lancé.",
+        "footnoteWithHub": "Courier Jita vers {hub} : {courier} ISK/m³, tarif du pont {bridge} ISK/m³. Même calcul que la comparaison « Structures » de l'onglet Production, fait une fois pour tout le plan, avec les trajets entre stations. Après validation, une station se change tant que rien n'y a été acheté ni lancé.",
+        "footnoteUnknownRates": "Les tarifs de transport ne sont pas lus : les trajets sont chiffrés inconnus.",
+        "empty": "Aucun travail à placer pour ce projet : passez à l'étape suivante.",
+        "loadFailed": "Les stations n'ont pas pu être comparées : {message}"
+      },
+      "sourcing": {
+        "title": "Démarrage · étape 3 / 3 : acheter ou fabriquer, et où acheter",
+        "intro": "Chaque option est livrée là où elle sert : Jita plus import jusqu'au hub de courier, ou marché de la capitale.",
+        "neededColumn": "Ce qu'il faut",
+        "build": "Fabriquer",
+        "jita": "Jita + import",
+        "structure": "Marché de la capitale",
+        "sections": {
+          "components": "Composants T2 et coques",
+          "reactions": "Réactions composites",
+          "base": "Matières à acheter"
+        },
+        "sectionCounts": "{build} fabriqués · {jita} Jita · {structure} capitale",
+        "offRecommended": "{count} hors conseillé",
+        "showBase": "＋ afficher les {count} lignes",
+        "hideBase": "− replier",
+        "forStation": "pour {station}",
+        "optionLabel": "{type} : {option}",
+        "perUnit": "{amount}/u",
+        "recommended": "conseillé",
+        "buildDetail": "{total} · intrants {inputs} + installation {installation} + transport {transport} · {runs} runs",
+        "jitaDetail": "{total} · dont import {transport}",
+        "reusedPerUnit": "{amount}/u si le surplus resert",
+        "reusedSaving": "avec réemploi du surplus, fabriquer économise {amount}",
+        "volumePerUnit": "{volume} m³/u",
+        "withoutImport": "Sans l'import, le choix change.",
+        "onSaleOnly": "{quantity} en vente seulement",
+        "stockUnknown": "stock inconnu",
+        "summaryDelivered": "Coût livré du projet",
+        "againstFirst": "{amount} par rapport aux conseillés",
+        "allRecommended": "tout sur les conseillés",
+        "unknown": "inconnu",
+        "purchasesJita": "Achats à Jita",
+        "purchasesJitaDetail": "{types} types · dont import {amount}",
+        "purchasesStructure": "Achats à la capitale",
+        "purchasesStructureDetail": "{types} types",
+        "back": "◀ Stations",
+        "allToRecommended": "Tout sur les conseillés",
+        "validate": "Valider et démarrer",
+        "footnote": "Prix : Jita = carnet d'ordres parcouru pour la quantité ; capitale = snapshot du marché de votre structure de marché (prix minimum et quantité en vente). Fabriquer = intrants livrés au meilleur choix de chaque intrant, plus installation, plus transport vers la station qui consomme. Le marché choisi est gardé ligne par ligne ; acheter ou fabriquer recalcule les quantités.",
+        "empty": "Rien à décider pour ce projet.",
+        "loadFailed": "Les décisions d'achat n'ont pas pu être calculées : {message}"
+      }
+    },
     "refusals": {
       "workedLineDropped": "La ligne « {line} » a un job lié, un achat ou un apport : elle ne peut pas être retirée de la BOM.",
       "lineOverReceived": "La ligne « {line} » a déjà reçu {received}, plus que les {needed} dont la nouvelle BOM a besoin.",
@@ -2916,7 +3417,23 @@
       "blacklistDraftOnly": "Les catégories en blacklist ne peuvent changer que tant que le projet est en brouillon."
     },
     "title": "Projets",
+    "unassignedJobs": {
+      "title": "Jobs à attribuer ({count})",
+      "loading": "Chargement des jobs à attribuer",
+      "assign": "Attribuer",
+      "dismiss": "Pas pour un projet",
+      "oversized": "Trop gros",
+      "runs": "{count} run | {count} runs",
+      "remainingRuns": "{count} run restant | {count} runs restants",
+      "signals": {
+        "intent": "Prévu",
+        "place": "Container du projet",
+        "structure": "Structure prévue",
+        "exact_fit": "Runs exacts"
+      }
+    },
     "available": {
+      "loadError": "Échec du chargement des projets",
       "runs": "Runs",
       "members": "membres",
       "joinProject": "Rejoindre le projet",
@@ -2943,65 +3460,29 @@
       "costsHint": "Les coûts et la comparaison à l'achat sont dans la carte Acheter ou fabriquer."
     },
     "planning": {
-      "title": "Planning",
-      "loading": "Calcul du planning...",
-      "loadError": "Le planning n'a pas pu être lu",
-      "plannedEnd": "Fin prévue",
-      "expectedEnd": "Fin attendue",
-      "delayTitle": "Écart",
-      "delay": {
-        "late": "{duration} de retard",
-        "early": "{duration} d'avance",
-        "onTime": "Dans les temps"
-      },
       "structureNotice": "Une structure prévue pour certains jobs n'est plus configurée : leurs durées sont sans bonus de structure, les jobs réels peuvent finir plus tôt.",
       "unscheduledTitle": "Jobs impossibles à planifier",
       "unscheduledReason": {
         "no_eligible_worker": "Aucun personnage ne peut lancer ce job",
         "dependency_unscheduled": "Un job dont il dépend ne peut pas être planifié",
-        "duration_unknown": "Durée inconnue"
+        "duration_unknown": "Durée inconnue",
+        "invention_not_planned": "Invention non planifiée : la fin planifiée ne la compte pas"
       },
-      "noCharacters": "Aucun personnage ne participe encore à ce projet.",
-      "ganttCharacter": "Personnage",
-      "now": "Maintenant",
-      "noJob": "Aucun job",
-      "skillsUnknownCause": "Compétences non synchronisées : aucun job ne peut être confié à ce personnage",
-      "runs": "{runs} runs",
       "copyBlueprintName": "Copier le nom du blueprint « {name} »",
       "blueprintNameCopied": "Nom du blueprint copié",
       "blueprintNameCopyFailed": "Copie impossible : le navigateur a refusé l'accès au presse-papier",
-      "activity": {
-        "manufacturing": "Fabrication",
-        "reaction": "Réaction"
-      },
       "wait": {
         "waitingJob": "Attend {names}",
         "waitingMaterials": "Attend des matériaux : {names}",
         "unknown": "Cause de l'attente inconnue",
         "late": "{duration} de retard"
-      },
-      "legend": {
-        "planned": "Prévu",
-        "active": "En cours",
-        "done": "Fait",
-        "wait": "Attente"
-      },
-      "assignmentsTitle": "Qui lance quoi",
-      "columns": {
-        "character": "Personnage",
-        "manufacturingSlots": "Slots fabrication",
-        "reactionSlots": "Slots réaction",
-        "industry": "Industry",
-        "advancedIndustry": "Advanced Industry",
-        "reactions": "Reactions",
-        "jobs": "Jobs",
-        "endsAt": "Fin"
       }
     },
     "chain": {
       "title": "Chaîne de production",
       "jobsSync": {
         "syncedAgo": "Jobs synchronisés {since}",
+        "next": "prochaine vers {time}",
         "unknown": "Synchro des jobs inconnue"
       },
       "jobNotSeenHint": "Un job lancé en jeu apparaît après la prochaine synchro des jobs.",
@@ -3051,8 +3532,8 @@
         "soldUnits": "Unités vendues",
         "grossRevenue": "Revenu brut",
         "openInTree": "Ouvrir dans l'arbre des jobs",
-        "supplied": "{fulfilled} / {required} fournis",
-        "materialsSummary": "{supplied} / {total} lignes de matériaux fournies",
+        "supplied": "{fulfilled} / {required} livrés",
+        "materialsSummary": "{supplied} / {total} lignes de matériaux livrées",
         "materialsSummaryUnknown": "{count} inconnues",
         "openSourcing": "Ouvrir l'onglet Approvisionnement",
         "doneCount": "Terminés : {count}"
@@ -3114,7 +3595,7 @@
       "loading": "Comparaison de l'achat et de la fabrication...",
       "loadError": "La comparaison acheter ou fabriquer n'a pas pu être lue",
       "empty": "Aucun intermédiaire à comparer : le plan ne fabrique rien entre les matériaux et le produit.",
-      "importRate": "import Jita : {rate} ISK / m³ / saut",
+      "importRate": "Jita vers {hub} : {rate} ISK / m³ + pont {bridgeRate} ISK / m³",
       "columns": {
         "intermediate": "Intermédiaire",
         "quantity": "Qté",
@@ -3130,11 +3611,11 @@
         "unknown": "inconnu"
       },
       "ifSurplusReused": "{amount} si le surplus resert",
-      "importDetail": "{volume} m³ × {jumps} sauts",
+      "importDetail": "{volume} m³",
       "saving": "économie {amount}",
       "savingIfSurplusReused": "avec réemploi du surplus, fabriquer économise {amount}",
       "withoutImport": "sans l'import : acheter",
-      "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × sauts × le tarif). Le surplus d'un run n'est pas crédité au projet.",
+      "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × le tarif Jita vers le hub, plus le tarif du pont sauf si l'atelier est dans le système du hub). Le surplus d'un run n'est pas crédité au projet.",
       "switch": {
         "toBuy": "Passer en achat",
         "toBuild": "Passer en fabrication",
@@ -3155,7 +3636,11 @@
       "loading": "Lecture des données d'invention...",
       "loadError": "Impossible de lire la comparaison des décrypteurs.",
       "empty": "Aucun produit final inventé (T2) dans ce projet : il n'y a pas de décrypteur à comparer.",
-      "footnote": "Lecture seule : rien n'est enregistré et le plan du projet ne change pas. La probabilité, les runs, le ME et le TE de la copie inventée viennent du SDE et des compétences de l'inventeur choisi ; le coût par unité porte sur les unités du projet."
+      "useDecryptor": "Utiliser ce décrypteur",
+      "useNoDecryptor": "Utiliser sans décrypteur",
+      "usedInPlan": "Utilisé dans le plan",
+      "applyError": "Impossible d'appliquer le décrypteur au projet.",
+      "footnote": "Le choix du décrypteur est enregistré sur le projet : les tentatives et les matériaux de la ligne d'invention du plan le suivent. La probabilité, les runs, le ME et le TE viennent du SDE et des compétences de l'inventeur choisi ; le plan, lui, compte les tentatives sans compétences. Le coût par unité porte sur les unités du projet."
     },
     "research": {
       "title": "Recherche à lancer ?",
@@ -3204,7 +3689,7 @@
       "loadError": "L'approvisionnement des matériaux n'a pas pu être lu",
       "empty": "Plus aucun matériau à sourcer.",
       "noReservation": "Vous n'avez pris aucun matériau. Utilisez « Je m'en charge » dans Matériaux à sourcer pour lister ici ce que vous achetez.",
-      "importRate": "Import depuis Jita : {rate} ISK / m³ / saut",
+      "importRate": "Jita vers {hub} : {rate} ISK / m³ + pont {bridgeRate} ISK / m³",
       "columns": {
         "material": "Matériau",
         "quantity": "Restant",
@@ -3226,7 +3711,7 @@
         "structure": "Structure",
         "best": "Meilleur"
       },
-      "hint": "Jita = prix de vente pondéré de la quantité restante plus l'import jusqu'à l'atelier (m³ × sauts × le tarif). Structure = prix de vente le plus bas de ta structure de marché préférée."
+      "hint": "Jita = prix de vente pondéré de la quantité restante plus l'import jusqu'à l'atelier (m³ × le tarif Jita vers le hub, plus le tarif du pont sauf si l'atelier est dans le système du hub). Structure = prix de vente le plus bas de ta structure de marché préférée."
     },
     "purchasesToDeliver": {
       "title": "Achats à amener au container",
@@ -3359,9 +3844,23 @@
       "cancel": "Annuler",
       "saveError": "La blacklist n'a pas pu être enregistrée"
     },
+    "startupChoices": {
+      "title": "Choix du démarrage",
+      "editStations": "Modifier les stations",
+      "unexpectedAnswer": "réponse inattendue",
+      "loadFailed": "la lecture a échoué",
+      "stationsFailed": "Les stations choisies au démarrage n'ont pas pu être lues : {message}",
+      "sourcingFailed": "Les choix acheter ou fabriquer n'ont pas pu être lus : {message}",
+      "recommended": "conseillée : {station}",
+      "gap": "écart {amount}",
+      "gapUnknown": "inconnu",
+      "sourcingCounts": "Intermédiaires : {build} fabriqués, {jita} achetés à Jita, {structure} achetés à la capitale.",
+      "sourcingOff": "{count} choix hors conseillé, écart {amount}.",
+      "sourcingOnRecommended": "Tout sur les conseillés."
+    },
     "prepare": {
       "title": "Préparer",
-      "help": "Réglez la blacklist, l'exclusion de l'invention, acheter ou fabriquer et les structures avant de démarrer. Le démarrage verrouille la blacklist et l'exclusion de l'invention ; acheter ou fabriquer et les structures restent modifiables."
+      "help": "Réglez la blacklist et l'exclusion de l'invention avant de démarrer. Le démarrage les verrouille."
     },
     "inventionExclusion": {
       "label": "Exclure l'invention",
@@ -3376,7 +3875,6 @@
       "loadError": "L'activité du projet n'a pas pu être lue",
       "unknown": "inconnu",
       "unknownCost": "inconnu",
-      "finished": "terminé",
       "startedAt": "Démarré",
       "cost": "Coût",
       "ends": "Fin",
@@ -3448,7 +3946,12 @@
       },
       "validate": "Déclarer le stock sélectionné",
       "validating": "Déclaration...",
-      "validationFailed": "La déclaration s'est arrêtée"
+      "validationFailed": "La déclaration s'est arrêtée",
+      "stations": {
+        "onSite": "Sur place",
+        "offSite": "Hors site",
+        "noneOnSite": "Rien sur place à {station}"
+      }
     },
     "t2BlueprintCopyProposal": {
       "title": "BPC T2 possédés",
@@ -3495,7 +3998,9 @@
     },
     "kpis": {
       "activeProjects": "Projets actifs",
-      "activeDesc": "en cours de production",
+      "activeDesc": "en production",
+      "sellingProjects": "En vente",
+      "sellingDesc": "en attente de ventes ou de clôture",
       "totalContributions": "Contributions totales",
       "contributionsDesc": "sur tous les projets",
       "pendingApprovals": "Approbations en attente",
@@ -3513,11 +4018,14 @@
       "completed": "Terminé"
     },
     "bom": {
+      "priceBasisHint": "(moy. Jita 5 %)",
+      "pricesNote": "Prix : moyenne des 5 % meilleurs ordres de vente Jita",
+      "fulfillment": "Avancement de la BOM",
       "jobsOnProduction": "Composants et BPC dans l'onglet Production",
       "materialsToSource": "Materiaux a sourcer",
       "item": "Item",
       "required": "Requis",
-      "fulfilled": "Fourni",
+      "fulfilled": "Livré",
       "remaining": "Restant",
       "progress": "Progression",
       "estCost": "Cout est.",
@@ -3567,6 +4075,24 @@
       "correctionFailed": "La correction n'a pas pu être enregistrée"
     },
     "jobs": {
+      "displayState": {
+        "running": "En cours",
+        "paused": "En pause",
+        "ready": "À livrer",
+        "delivered": "Livré",
+        "cancelled": "Annulé",
+        "reverted": "Rétabli",
+        "unknown": "Statut inconnu"
+      },
+      "esiStatus": {
+        "active": "En cours",
+        "paused": "En pause",
+        "ready": "Terminé",
+        "delivered": "Livré",
+        "cancelled": "Annulé",
+        "reverted": "Rétabli",
+        "unknown": "Statut inconnu"
+      },
       "product": "Produit",
       "activity": "Activite",
       "runs": "Runs",
@@ -3577,6 +4103,8 @@
       "finalProducts": "Produits finaux",
       "coveredByContainer": "Couvert par le container",
       "containerRemaining": "Container {covered} / {required}, reste {remaining} à lancer",
+      "expectedBlueprintCopies": "≈ {count} BPC attendus",
+      "obtainedBlueprintCopies": "{count} BPC obtenus",
       "coveredCount": "{count} couvert(s) par le container",
       "matchJobs": "Associer les jobs",
       "matchError": "Échec de l'association des jobs",
@@ -3585,7 +4113,8 @@
       "matchLineReasons": {
         "producer_missing_from_sde": "Blueprint ou réaction absent du SDE",
         "no_runs": "Aucun run défini sur cette ligne",
-        "contribution_not_refreshed": "Contribution non recalculée"
+        "contribution_not_refreshed": "Contribution non recalculée",
+        "invention_data_missing": "Données d'invention absentes du SDE"
       },
       "matchedRuns": "{runs} runs associés",
       "character": "Personnage",
@@ -3594,12 +4123,24 @@
       "unlink": "Délier",
       "link": "Lier",
       "linkModalTitle": "Lier un job à {name}",
-      "linkModalDescription": "Choisissez un job industriel des membres du projet pour le compter sur cette ligne.",
+      "linkModalDescription": "Choisissez un job industriel à compter sur cette ligne : le vôtre, ou celui de n'importe quel participant si vous êtes propriétaire du projet.",
       "availableJobsLoading": "Chargement des jobs...",
       "availableJobsEmpty": "Aucun job à lier",
       "alreadyLinkedTo": "Déjà lié à {name}",
+      "linkedToAnotherProject": "Lié à un autre projet",
+      "sharedRuns": "{linkedRuns} / {runs} runs déjà attribuées",
+      "runsToAssign": "Runs à attribuer",
       "availableJobsError": "Échec du chargement des jobs disponibles",
       "linkError": "Échec du lien du job",
+      "linkRefusals": {
+        "activityMismatch": "Ce job n'exerce pas l'activité de cette ligne.",
+        "blueprintMismatch": "Ce job n'utilise pas le blueprint qui produit cette ligne.",
+        "noOutput": "Ce job n'a rien produit, il ne peut pas être lié.",
+        "alreadyLinked": "Toutes les runs de ce job sont déjà liées à d'autres lignes.",
+        "alreadyShared": "Ce job porte déjà une part sur cette ligne.",
+        "notEnoughRuns": "Il ne reste que {runs} runs libres sur ce job.",
+        "jobNotFound": "Ce job ne fait pas partie des jobs que vous pouvez lier."
+      },
       "unlinkError": "Échec de la suppression du lien"
     },
     "jobLocations": {
@@ -3683,6 +4224,10 @@
         "loadError": "Impossible de charger les transactions wallet.",
         "linkError": "Échec de la liaison de la transaction"
       },
+      "project": "Projet : {name}",
+      "typeId": "ID de type : {id}",
+      "remaining": "{quantity} restant",
+      "estimatedValueIsk": "Valeur estimée (ISK)",
       "title": "Ajouter une contribution",
       "type": "Type de contribution",
       "item": "Item",
@@ -3732,6 +4277,44 @@
       }
     },
     "contributions": {
+      "typeLabels": {
+        "material": "Matériaux",
+        "job_install": "Installation de job",
+        "bpc": "BPC",
+        "line_rental": "Location de ligne",
+        "courier": "Courrier"
+      },
+      "statusLabels": {
+        "pending": "En attente",
+        "approved": "Approuvé",
+        "rejected": "Rejeté"
+      },
+      "table": {
+        "allTypes": "Tous les types",
+        "allStatuses": "Tous les statuts",
+        "empty": "Aucun apport pour le moment",
+        "emptyHint": "Les apports apparaîtront ici dès que les membres commenceront à contribuer",
+        "columns": {
+          "character": "Personnage",
+          "type": "Type",
+          "item": "Objet / Description",
+          "quantity": "Qté",
+          "valuation": "Valorisation",
+          "method": "Méthode",
+          "status": "Statut",
+          "actions": "Actions"
+        },
+        "confirmDelivery": "Confirmer la livraison",
+        "approve": "Approuver",
+        "reject": "Rejeter",
+        "reopen": "Rouvrir",
+        "totalEngagedCosts": "Total des coûts engagés",
+        "approvedValue": "Valeur approuvée",
+        "pendingValue": "Valeur en attente",
+        "approvedCount": "Approuvés : {count}",
+        "pendingCount": "En attente : {count}",
+        "rejectedCount": "Rejetés : {count}"
+      },
       "own": {
         "edit": "Modifier",
         "withdraw": "Retirer",
@@ -3768,6 +4351,32 @@
       }
     },
     "distribution": {
+      "table": {
+        "title": "Répartition du profit",
+        "totalPayout": "Total à verser",
+        "columns": {
+          "character": "Personnage",
+          "costsEngaged": "Coûts engagés",
+          "sharePercent": "Part %",
+          "profitPart": "Part du profit",
+          "payoutTotal": "Total à verser"
+        },
+        "showBreakdown": "Afficher le détail",
+        "hideBreakdown": "Masquer le détail",
+        "breakdown": {
+          "materials": "Matériaux",
+          "jobInstall": "Installation de job",
+          "bpc": "BPC",
+          "lineRental": "Location de ligne"
+        },
+        "formulaTitle": "Formule de répartition",
+        "formulaPayout": "Versement = Coûts engagés x (1 + Marge %)",
+        "formulaDetail": "= Coûts engagés x (Revenu net / Coût total du projet)",
+        "lossBadge": "PERTE",
+        "lossTitle": "Scénario de perte",
+        "lossText": "Ce projet s'est soldé par une perte (marge négative). Chaque contributeur absorbe sa part proportionnelle. La formule reste la même, mais {factor} devient inférieur à 1 : chaque contributeur reçoit moins que ses coûts engagés initiaux.",
+        "lossFactor": "(1 + marge %)"
+      },
       "undistributable": "Répartition impossible : aucune contribution approuvée n'a de coût, le revenu net ne peut pas être réparti",
       "unknownContributionValue": "Un apport approuvé n'a pas de prix connu : le coût de production, le profit et les payouts restent inconnus tant qu'il n'en a pas.",
       "unclaimedStockNotice": "Du stock en container n'est pas encore réclamé : le coût du projet, le profit et les payouts restent inconnus tant qu'il n'est pas réclamé, attribué ou donné.",
@@ -3884,6 +4493,23 @@
       }
     },
     "sales": {
+      "form": {
+        "title": "Ventes",
+        "record": "Enregistrer une vente",
+        "recordTitle": "Enregistrer une vente",
+        "columns": {
+          "date": "Date",
+          "quantity": "Quantité",
+          "unitPrice": "Prix unitaire",
+          "revenue": "Revenu",
+          "venue": "Lieu"
+        },
+        "itemName": "Nom de l'objet",
+        "itemNamePlaceholder": "ex. Ishtar",
+        "unitPriceIsk": "Prix unitaire (ISK)",
+        "venuePlaceholder": "ex. Jita 4-4",
+        "save": "Enregistrer"
+      },
       "empty": "Aucune vente enregistrée",
       "emptyHint": "Les ventes apparaissent ici une fois enregistrées. Rattache les transactions du wallet et les contrats listés sous « {transactions} », ou ajoute-en une à la main.",
       "item": "Item",
@@ -3937,8 +4563,20 @@
       "recordAllFailure": "{date} · {character} : {message}"
     },
     "members": {
+      "confirm": {
+        "promoteTitle": "Promouvoir en admin",
+        "promoteSubtitle": "Promouvoir {name} en admin ?",
+        "promote": "Promouvoir",
+        "demoteTitle": "Rétrograder en membre",
+        "demoteSubtitle": "Rétrograder {name} en membre ?",
+        "demote": "Rétrograder",
+        "kickTitle": "Exclure le membre",
+        "kickSubtitle": "Retirer {name} du projet ?",
+        "kick": "Exclure"
+      },
+      "corporationLogoAlt": "Logo de la corporation",
       "roles": {
-        "owner": "Proprietaire",
+        "owner": "Propriétaire",
         "admin": "Admin",
         "member": "Membre"
       },
@@ -3948,6 +4586,9 @@
       "noPending": "Aucune demande d'adhesion en attente.",
       "noPendingHint": "Partagez le lien d'invitation pour inviter de nouveaux membres",
       "columns": {
+        "role": "Rôle",
+        "status": "Statut",
+        "joined": "Rejoint le",
         "character": "Personnage",
         "corporation": "Corporation",
         "requested": "Demandé le",
@@ -3969,6 +4610,35 @@
       "leaveBlockedByContributions": "Vous ne pouvez pas quitter : vous avez contribué à ce projet.",
       "leaveSuccess": "Vous avez quitte le projet."
     },
+    "overview": {
+      "columns": {
+        "project": "Projet",
+        "you": "Vous",
+        "team": "Propriétaire · équipe",
+        "toBring": "À apporter",
+        "onSite": "Sur place",
+        "inProduction": "En fabrication",
+        "out": "Sorti",
+        "done": "Vendu / remis",
+        "awaited": "Qui est attendu"
+      },
+      "summary": {
+        "runs": "{count} runs",
+        "items": "{items} items · {runs} runs"
+      },
+      "unknownCards": "+ {count} ?",
+      "unknown": "?",
+      "notStarted": "—",
+      "you": "vous",
+      "esi": "ESI (jobs, couriers)",
+      "closed": "clôturé",
+      "flowReason": {
+        "plan_unavailable": "Le plan de production n'est pas encore lisible",
+        "consumption_unknown": "La consommation de matières d'un job démarré n'est pas lisible",
+        "not_started": "Le projet n'a pas démarré",
+        "completed": "Le projet est clôturé"
+      }
+    },
     "shareLink": {
       "title": "Lien d'invitation",
       "copied": "Lien copie !",
@@ -3976,6 +4646,7 @@
       "otherCorp": "Les autres joueurs devront etre approuves."
     },
     "container": {
+      "linkedToCorpOffices": "lié aux bureaux de la corporation",
       "verify": "Tout verifier",
       "verifyAll": "Tout verifier",
       "verifying": "Verification...",
@@ -4021,6 +4692,20 @@
     },
     "modals": {
       "newProject": {
+        "itemsCount": "{count} objet | {count} objets",
+        "createError": "Échec de la création du projet",
+        "blacklistCategories": {
+          "advanced_components": "Composants avancés",
+          "capital_components": "Composants capitaux",
+          "advanced_capital_components": "Composants capitaux avancés",
+          "hybrid_components": "Composants hybrides",
+          "fuel_blocks": "Blocs de carburant",
+          "tools": "Outils (R.A.M.)",
+          "simple_reactions": "Réactions simples",
+          "complex_reactions": "Réactions composites",
+          "hybrid_reactions": "Réactions hybrides",
+          "biochem_reactions": "Réactions biochimiques"
+        },
         "title": "Nouveau projet",
         "subtitle": "Creer un nouveau projet industriel multi-items",
         "nameLabel": "Nom",
@@ -4071,10 +4756,10 @@
         "containerLabel": "Containers corp",
         "containerPlaceholder": "ex: Fleet Doctrine Materials",
         "containerHint": "Si defini, les admins peuvent verifier les contributions materielles contre le contenu de ces containers dans les bureaux corp partages. Un nom par ligne, la casse est ignoree.",
-        "blacklist": "Liste noire",
-        "blacklistLabel": "Liste noire",
-        "blacklistDesc": "Les items ci-dessous seront achetes, pas fabriques.",
-        "blacklistHint": "Defauts issus de vos parametres industrie. Surcharge par projet.",
+        "blacklist": "Blacklist",
+        "blacklistLabel": "Blacklist",
+        "blacklistDesc": "Les items ci-dessous seront achetés, pas fabriqués.",
+        "blacklistHint": "Défauts issus de vos paramètres industrie. Surcharge par projet.",
         "blacklistFromSettings": "depuis vos réglages",
         "blacklistSettingsItems": "{count} item exclu par vos réglages | {count} items exclus par vos réglages",
         "lineRentalInfo": "Tarifs location de ligne :",
@@ -4145,11 +4830,11 @@
       "team": "Équipe",
       "chain": "Production",
       "invention": "Invention",
-      "planning": "Planning",
       "journal": "Journal",
       "comingSoon": "À venir"
     },
     "templates": {
+      "saveError": "Échec de l'enregistrement du modèle de projet",
       "templateColumn": "Modèle",
       "itemsColumn": "Items",
       "sharedColumn": "Partagé",
@@ -4164,7 +4849,7 @@
       "deleteMessage": "{name} sera supprimé. Les projets déjà créés avec ce modèle ne sont pas touchés.",
       "empty": "Aucun modèle : enregistre un projet comme modèle",
       "saveTitle": "Enregistrer comme modèle",
-      "saveSubtitle": "Garde les items, la liste noire et les options de ce projet pour les suivants",
+      "saveSubtitle": "Garde les items, la blacklist et les options de ce projet pour les suivants",
       "nameLabel": "Nom du modèle",
       "namePlaceholder": "ex. Chaîne Hammerhead",
       "shareLabel": "Partager avec ma corporation",
@@ -4172,8 +4857,7 @@
       "saveButton": "Enregistrer le modèle"
     },
     "cockpit": {
-      "railLabel": "Phases du projet",
-      "unavailable": "Phases et prochaine action indisponibles pour le moment.",
+      "unavailable": "L'alerte de prix est indisponible pour le moment.",
       "phases": {
         "prepare": "Préparer",
         "supply": "Approvisionner",
@@ -4181,81 +4865,9 @@
         "sell": "Vendre",
         "close": "Clôturer"
       },
-      "states": {
-        "done": "Terminée",
-        "current": "En cours",
-        "blocked": "Bloquée",
-        "upcoming": "À venir"
-      },
       "blockedReasons": {
         "materials_missing": "{count} matériaux à couvrir",
         "jobs_unfinished": "{count} jobs à terminer"
-      },
-      "nextAction": {
-        "label": "Prochaine action",
-        "project_completed": {
-          "title": "Projet terminé",
-          "description": "Les comptes sont figés : il n'y a plus rien à faire sur ce projet."
-        },
-        "settle_transfers": {
-          "title": "Régler les virements",
-          "description": "{quantity} virements attendent encore d'être reçus : les destinataires les cochent dans l'onglet Finances.",
-          "button": "Ouvrir les virements"
-        },
-        "copy_recap": {
-          "title": "Copier le récapitulatif",
-          "description": "Les comptes sont figés : copiez le récapitulatif Discord depuis l'onglet Finances pour partager le résultat.",
-          "button": "Ouvrir le récapitulatif"
-        },
-        "review_join_requests": {
-          "title": "Demandes d'adhésion à traiter",
-          "description": "{quantity} pilotes attendent que vous acceptiez ou refusiez leur demande de rejoindre le projet.",
-          "button": "Traiter les demandes"
-        },
-        "review_contributions": {
-          "title": "Contributions à relire",
-          "description": "{quantity} contributions attendent votre décision avant d'être comptées dans la BOM.",
-          "button": "Relire les contributions"
-        },
-        "start_project": {
-          "title": "Démarrer le projet",
-          "description": "Les matériaux sont prêts à être apportés : passez le projet en cours.",
-          "descriptionLocks": "Vérifiez d'abord le bloc Préparer : le démarrage verrouille la blacklist et l'exclusion de l'invention, plus rien n'y sera modifiable ensuite."
-        },
-        "source_material": {
-          "title": "Approvisionner un matériau",
-          "description": "Il manque {quantity} {typeName} pour couvrir la BOM.",
-          "button": "Contribuer"
-        },
-        "await_jobs": {
-          "title": "Jobs en cours",
-          "description": "Tous les runs sont lancés : fin du dernier job le {endsAt}.",
-          "descriptionUnknownEnd": "Tous les runs sont lancés, la date de fin du dernier job est inconnue.",
-          "button": "Voir les jobs"
-        },
-        "launch_job": {
-          "title": "Lancer un job",
-          "description": "{quantity} runs de {typeName} restent à lancer.",
-          "descriptionUnknownRuns": "Des jobs de {typeName} restent à lancer, le nombre de runs restants est inconnu.",
-          "button": "Voir les jobs"
-        },
-        "start_selling": {
-          "title": "Passer à la vente",
-          "description": "La production est terminée : ouvrez la vente des produits."
-        },
-        "record_sale": {
-          "title": "Enregistrer les ventes",
-          "description": "{quantity} unités restent à vendre ou à enregistrer.",
-          "button": "Ouvrir les ventes"
-        },
-        "complete_project": {
-          "title": "Clôturer le projet",
-          "description": "Tout est vendu : clôturez le projet pour figer les comptes."
-        },
-        "nothing_to_do": {
-          "title": "Rien à faire pour vous",
-          "description": "Le projet avance sans vous pour le moment."
-        }
       },
       "priceAlert": {
         "title": "Jita ({jitaPrice}) est sous votre seuil de rentabilité ({breakEven}).",
@@ -4268,6 +4880,17 @@
       "description": "Creez un nouveau projet pour commencer."
     },
     "detail": {
+      "itemsCount": "{count} objet | {count} objets",
+      "runsCount": "{count} run | {count} runs",
+      "manager": "Gestionnaire : {name}",
+      "contributorsCount": "{count} contributeur | {count} contributeurs",
+      "leafMaterials": "Matériaux de base pour {count} objets",
+      "blacklistedCategories": "{count} catégorie en blacklist | {count} catégories en blacklist",
+      "addContribution": "Ajouter un apport",
+      "activeMembers": "{count} membre actif | {count} membres actifs",
+      "pendingMembers": "{count} en attente",
+      "linkCopied": "Lien copié !",
+      "linkCopyFailed": "Échec de la copie du lien",
       "backToList": "Retour aux projets",
       "shareLink": "Lien de partage",
       "invite": "Inviter",
@@ -4290,6 +4913,7 @@
         "title": "Supprimer le projet",
         "message": "Etes-vous sur de vouloir supprimer ce projet ? Cette action est irreversible. Toutes les contributions, ventes et donnees de distribution seront definitivement perdues."
       },
+      "nextStatus": "Passer à {status}",
       "shareLinkReason": {
         "private": "Un projet privé ne peut pas être rejoint par lien. Rendez-le public pour inviter des personnes.",
         "draft": "Un projet en brouillon n'est pas encore ouvert. Publiez-le pour inviter des personnes."
@@ -4297,6 +4921,10 @@
       "shareLinkShortcut": {
         "makePublic": "Rendre public",
         "publish": "Publier"
+      },
+      "draftActions": {
+        "published": "Publier",
+        "in_progress": "Démarrer"
       },
       "statusActions": {
         "published": "Publier",
@@ -4343,7 +4971,64 @@
       "finalMargin": "Marge finale : {margin} %",
       "marginUnknown": "Marge finale inconnue : un coût ou un frais manque",
       "transfers": "Virements cochés comme reçus : {received} / {total}",
-      "transfersUnavailable": "Les virements ne sont pas encore calculables"
+      "transfersUnavailable": "Les virements ne sont pas encore calculables",
+      "open": {
+        "contributions": "Ouvrir les contributions",
+        "sales": "Ouvrir les ventes",
+        "distribution": "Ouvrir les finances"
+      }
+    },
+    "settlementBlock": {
+      "title": "Répartition",
+      "subtitle": "au prorata des apports réels (achats, stock, apports, installations)",
+      "closedStamp": "Clôturé",
+      "close": "Clôturer ce projet",
+      "columns": {
+        "participant": "Participant",
+        "share": "Part",
+        "receives": "Reçoit",
+        "transfer": "Virement"
+      },
+      "holdsSales": "détient les ventes",
+      "transferReceived": "reçu",
+      "transferAwaiting": "en attente de {name}",
+      "tickReceived": "Reçu",
+      "onlyRecipient": "Seul le destinataire peut cocher ce virement",
+      "cascade": {
+        "title": "Cascade",
+        "netRevenue": "Ventes nettes",
+        "materials": "Matières (achats et stock)",
+        "installations": "Installations",
+        "surplus": "Surplus rendu au stock",
+        "surplusNotStored": "pas encore rangé",
+        "profit": "Profit"
+      },
+      "recap": {
+        "title": "Virements et récap",
+        "reference": "Référence de paiement",
+        "hint": "Chaque virement porte cette référence : à coller dans le jeu.",
+        "copy": "Copier",
+        "copied": "Copié",
+        "copyDiscord": "Copier pour Discord",
+        "discordHint": "un message Markdown, rien n'est posté à ta place",
+        "discordUnavailable": "Le récap est disponible quand les virements sont connus.",
+        "copyFailed": "Le presse-papiers a refusé la copie : sélectionne le texte et copie-le à la main."
+      },
+      "surplus": {
+        "title": "Surplus",
+        "loading": "Lecture du surplus",
+        "loadError": "Le surplus n'a pas pu être lu.",
+        "type": "Type",
+        "quantity": "Surplus",
+        "value": "Valeur",
+        "total": "Total compté",
+        "notValued": "non valorisé",
+        "store": "Ranger au stock corpo",
+        "storing": "Rangement",
+        "stored": "Rangé au stock corpo par {name} le {date} · {value} comptée au projet",
+        "storedWithoutName": "Rangé au stock corpo le {date} · {value} comptée au projet",
+        "unknownValue": "valeur inconnue"
+      }
     },
     "transfers": {
       "title": "Virements entre membres",
@@ -4388,6 +5073,31 @@
       "sections": {
         "awaiting": "En attente d'approbation"
       },
+      "here": "Ici : {places}",
+      "projectSwitch": "Projets du compagnon",
+      "hereUnknown": "Ici : inconnu",
+      "hereBadge": "ici",
+      "reservation": {
+        "expiresIn": "expire dans {time}",
+        "expired": "expirée"
+      },
+      "carry": {
+        "title": "À emporter",
+        "arrived": "Arrivé",
+        "due": "attendu",
+        "unknown": "À emporter inconnu : les transferts entre stations n'ont pas pu être lus",
+        "states": {
+          "awaiting_departure": "En attente de départ",
+          "in_transit": "En route",
+          "arrived": "Arrivé",
+          "unknown": "Inconnu"
+        }
+      },
+      "supply": {
+        "title": "Apports depuis mon stock",
+        "label": "Apport · {name}",
+        "apply": "Apporter"
+      },
       "emptyFree": "Toutes les lignes ont un responsable.",
       "emptyMine": "Rien à livrer.",
       "emptyJobs": "Aucun de vos jobs sur ce projet.",
@@ -4417,11 +5127,6 @@
         "contributions": "{count} contributions à revoir",
         "joinRequests": "{count} demandes d'adhésion"
       },
-      "jobStatus": {
-        "active": "En cours",
-        "paused": "En pause",
-        "ready": "Terminé"
-      },
       "output": "Sortie : {place}",
       "outputUnknown": "Sortie : inconnue",
       "bomFulfillment": "BOM complétée : {percent} %",
@@ -4436,6 +5141,10 @@
         "bomComplete": "BOM complète",
         "moveProducts": "Déplacer {quantity} produits dans le container du projet ({count} jobs)",
         "joinRequest": "{count} demandes d'adhésion",
+        "joinRequestNamed": "{name} demande à rejoindre",
+        "actionReview": "Examiner",
+        "jobsToAssign": "{count} job à attribuer | {count} jobs à attribuer",
+        "actionOpen": "Ouvrir",
         "priceBelowBreakEven": "Jita {jitaPrice} < seuil {breakEven} · ne pas vendre au marché pour l'instant",
         "undercutSellOrder": "Sous-coté : {typeName} ×{quantity} à {market}, meilleur prix {best} contre {mine}"
       },
@@ -4569,13 +5278,156 @@
   "industryModule": {
     "tabs": {
       "workshop": "Atelier",
+      "todo": "À faire",
       "projects": "Projets",
       "analysis": "Analyse",
       "production": "Production",
+      "factory": "Usine et stock",
       "revenue": "Revenus"
     },
     "pages": {
       "revenue": "Revenus"
+    }
+  },
+  "industryFactory": {
+    "unnamedProject": "Projet sans nom",
+    "title": "Usine et stock",
+    "stations": {
+      "title": "Usine",
+      "subtitle": "stations spécialisées, accès, index et charge, tous projets",
+      "empty": "Aucune station configurée. Ajoute tes structures dans les réglages Industrie.",
+      "columns": {
+        "station": "Station",
+        "specialisation": "Spécialisation",
+        "index": "Index",
+        "access": "Accès",
+        "lines": "Lignes occupées",
+        "projects": "Projets"
+      },
+      "specialisation": {
+        "manufacturing": "Fabrication",
+        "reaction": "Réactions"
+      },
+      "noSpecialisation": "Aucun bonus de rig",
+      "systemUnknown": "Système inconnu",
+      "access": {
+        "granted": "Accès",
+        "denied": "Pas d'accès",
+        "unknown": "Accès inconnu"
+      }
+    },
+    "stockpile": {
+      "title": "Stockpile",
+      "subtitle": "cibles de stock de la corpo",
+      "empty": "Aucune cible de produit fini dans le stockpile.",
+      "columns": {
+        "item": "Article",
+        "level": "Niveau",
+        "station": "Station"
+      },
+      "noStation": "Aucune station",
+      "belowTarget": "sous la cible : {count} à refaire",
+      "createProject": "Créer un projet"
+    },
+    "projectStock": {
+      "title": "Stock utilisé ou rendu par les projets",
+      "subtitle": "matière apportée à tes projets",
+      "empty": "Aucun stock engagé dans un projet.",
+      "columns": {
+        "item": "Article",
+        "quantity": "Quantité",
+        "project": "Projet",
+        "state": "État"
+      },
+      "state": {
+        "reserved": "Réservé",
+        "consumed": "Consommé",
+        "returned": "Rendu au stock"
+      }
+    },
+    "playerLines": {
+      "title": "Lignes par joueur",
+      "subtitle": "lignes occupées et libres, par personnage",
+      "empty": "Aucun personnage.",
+      "columns": {
+        "player": "Joueur"
+      },
+      "free": "{count} libres"
+    },
+    "blueprints": {
+      "title": "Blueprints",
+      "subtitle": "originaux, copies et où ils sont rangés",
+      "columns": {
+        "usedBy": "Utilisé par"
+      }
+    },
+    "personalStock": {
+      "title": "Mon stock perso",
+      "subtitle": "containers des divisions corpo qui comptent comme ton propre stock",
+      "empty": "Aucun container déclaré : seuls tes hangars perso comptent comme ton stock.",
+      "columns": {
+        "container": "Container",
+        "place": "Où",
+        "reading": "Lecture"
+      },
+      "items": "{count} article | {count} articles",
+      "remove": "Retirer",
+      "itemIdLabel": "Item id du container",
+      "declare": "Déclarer",
+      "unknownReason": {
+        "owner_without_corporation": "Inconnu : pas de corporation",
+        "no_director": "Inconnu : aucun directeur connecté",
+        "corporation_assets_not_synced": "Inconnu : assets corpo non synchronisés",
+        "no_visible_division": "Inconnu : aucune division visible",
+        "corporation_assets_stale": "Inconnu : assets corpo trop anciens",
+        "container_in_hidden_division": "Inconnu : container dans une division masquée",
+        "container_not_found": "Inconnu : container introuvable",
+        "station_unresolved": "Inconnu : station non résolue",
+        "other": "Inconnu : lecture impossible"
+      }
+    }
+  },
+  "industryTodo": {
+    "title": "À faire",
+    "summary": "{actions} sur {projects}, rangées par lieu",
+    "actionsCount": "{n} action | {n} actions",
+    "projectsCount": "{n} projet | {n} projets",
+    "loading": "Chargement des actions…",
+    "empty": "Rien à faire",
+    "unnamedProject": "Projet sans nom",
+    "unnamedStation": "Station sans nom",
+    "anywhere": "Partout",
+    "hereBadge": "vous y êtes",
+    "accessUnknown": "Accès inconnu",
+    "reservedByOthers": "Déjà pris : {holders}",
+    "unknownMember": "Membre inconnu",
+    "unknownPlace": "Lieu inconnu",
+    "unknownReasons": {
+      "market_not_chosen": "Marché non choisi",
+      "market_structure_unset": "Structure de marché non réglée",
+      "station_unresolved": "Station de l'étape non résolue"
+    },
+    "verbs": {
+      "launch_job": "Lancer",
+      "source_material": "Acheter",
+      "review_contributions": "Vérifier",
+      "review_join_requests": "Accepter"
+    },
+    "details": {
+      "launch_job": "{n} run à lancer | {n} runs à lancer",
+      "launchJobUnknownRuns": "runs à définir",
+      "source_material": "{n} à acheter",
+      "review_contributions": "{n} contribution à relire | {n} contributions à relire",
+      "review_join_requests": "{n} demande d'adhésion | {n} demandes d'adhésion"
+    },
+    "multibuy": {
+      "button": "Multibuy · {lines} lignes, {projects}",
+      "projects": "{n} projet | {n} projets",
+      "projectButton": "Multibuy · {project} · {lines}",
+      "lines": "{n} ligne | {n} lignes",
+      "copied": "Copié. La synchro du wallet rattachera la transaction aux projets quand elle le pourra",
+      "copyFailed": "Le navigateur a refusé la copie",
+      "skipped": "{n} ligne sans nom ou sans quantité non incluse | {n} lignes sans nom ou sans quantité non incluses"
     }
   },
   "pveModule": {

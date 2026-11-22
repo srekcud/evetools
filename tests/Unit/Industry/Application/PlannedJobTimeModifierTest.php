@@ -14,6 +14,7 @@ use App\Industry\Domain\RigBonus;
 use App\Industry\Domain\RigSecurityModifiers;
 use App\Industry\Domain\SecurityClass;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -31,6 +32,7 @@ final class PlannedJobTimeModifierTest extends TestCase
     private const string RAITARU_ID = 'raitaru-id';
     private const string SOTIYO_ID = 'sotiyo-id';
     private const string TATARA_ID = 'tatara-id';
+    private const string AZBEL_ID = 'azbel-id';
 
     public function testJobWithoutPlannedStructureHasNoStructureTimeBonus(): void
     {
@@ -82,6 +84,36 @@ final class PlannedJobTimeModifierTest extends TestCase
         $this->assertNull($this->modifier()->of(self::RAITARU_ID, [], self::HORNET_TYPE_ID, ActivityKind::Manufacturing));
     }
 
+    #[Group('issue-1204')]
+    public function testCopyTakesTheCopyTimeOfItsPlannedStructureFromItsRoleBonusAndItsCopyRigsOnly(): void
+    {
+        $modifier = $this->modifier()->ofCopy(self::AZBEL_ID, $this->structures());
+
+        $this->assertNotNull($modifier);
+        $this->assertEqualsWithDelta(0.8 * 0.496, $modifier->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-1204')]
+    public function testCopyInAStructureWithoutScienceRigGetsTheTimeRoleBonusAlone(): void
+    {
+        $modifier = $this->modifier()->ofCopy(self::RAITARU_ID, $this->structures());
+
+        $this->assertNotNull($modifier);
+        $this->assertEqualsWithDelta(0.85, $modifier->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-1204')]
+    public function testCopyPlannedInAStructureThatIsNoLongerConfiguredIsUnknownNeverNeutral(): void
+    {
+        $this->assertNull($this->modifier()->ofCopy('deleted-structure-id', $this->structures()));
+    }
+
+    #[Group('issue-1204')]
+    public function testCopyIsUnknownWhenTheUserConfiguresNoStructureAtAll(): void
+    {
+        $this->assertNull($this->modifier()->ofCopy(self::AZBEL_ID, []));
+    }
+
     private function modifier(): PlannedJobTimeModifier
     {
         return new PlannedJobTimeModifier(new InMemoryRigCategories(
@@ -101,6 +133,7 @@ final class PlannedJobTimeModifierTest extends TestCase
         return [
             new ProductionStructure(self::RAITARU_ID, StructureType::EngineeringComplex, SecurityClass::NullSec, null, new \DateTimeImmutable('2026-01-01'), Multiplier::one(), [], Multiplier::one(), 0.0, new Multiplier(0.85), [], Multiplier::one(), [$engineeringRig]),
             new ProductionStructure(self::SOTIYO_ID, StructureType::EngineeringComplex, SecurityClass::NullSec, null, new \DateTimeImmutable('2026-01-01'), Multiplier::one(), [], Multiplier::one(), 0.0, new Multiplier(0.7)),
+            new ProductionStructure(self::AZBEL_ID, StructureType::EngineeringComplex, SecurityClass::NullSec, null, new \DateTimeImmutable('2026-01-01'), Multiplier::one(), [], Multiplier::one(), 0.0, new Multiplier(0.8), [ProductionStructures::scienceRig(ActivityKind::Copying, 24.0, null), ProductionStructures::scienceRig(ActivityKind::ResearchTime, 10.0, null)]),
             new ProductionStructure(self::TATARA_ID, StructureType::Refinery, SecurityClass::NullSec, null, new \DateTimeImmutable('2026-01-01'), Multiplier::one(), [], Multiplier::one(), 0.0, Multiplier::one(), [], new Multiplier(0.75), [$refineryRig]),
         ];
     }

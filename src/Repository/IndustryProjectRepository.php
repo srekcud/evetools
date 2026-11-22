@@ -135,4 +135,19 @@ class IndustryProjectRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return list<string> project ids, oldest first
+     */
+    public function findAllIdsOldestFirst(): array
+    {
+        $rows = $this->createQueryBuilder('p')
+            ->select('p.id AS id')
+            ->orderBy('p.createdAt', 'ASC')
+            ->addOrderBy('p.id', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(static fn (mixed $id): string => $id instanceof \Stringable ? (string) $id : $id, $rows));
+    }
 }

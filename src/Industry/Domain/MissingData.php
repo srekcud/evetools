@@ -14,6 +14,7 @@ final readonly class MissingData
     private const string COPY_SKILLS = 'copy_skills';
     private const string COPY_STRUCTURE_NOT_PLANNED = 'copy_structure_not_planned';
     private const string COST_INDEX = 'cost_index';
+    private const string COURIER_HUB = 'courier_hub';
     private const string FACILITY_TAX = 'facility_tax';
     private const string INVENTION_PROBABILITY = 'invention_probability';
     private const string ITEM_VOLUME = 'item_volume';
@@ -26,6 +27,7 @@ final readonly class MissingData
     private const string RESEARCH_SKILL = 'research_skill';
     private const string RESEARCHER = 'researcher';
     private const string STRUCTURE_PRICE = 'structure_price';
+    private const string UNRECOGNISED_RIG = 'unrecognised_rig';
 
     private function __construct(public string $reason, public ?int $typeId)
     {
@@ -44,6 +46,11 @@ final readonly class MissingData
     public static function structurePrice(int $typeId): self
     {
         return new self(self::STRUCTURE_PRICE, $typeId);
+    }
+
+    public static function courierHub(): self
+    {
+        return new self(self::COURIER_HUB, null);
     }
 
     public static function costIndex(): self
@@ -112,6 +119,11 @@ final readonly class MissingData
     public static function noCopyStructure(): self
     {
         return new self(self::NO_COPY_STRUCTURE, null);
+    }
+
+    public static function unrecognisedRig(): self
+    {
+        return new self(self::UNRECOGNISED_RIG, null);
     }
 
     public static function plannedStructureDeleted(): self
