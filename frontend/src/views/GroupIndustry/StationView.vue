@@ -102,7 +102,7 @@ watch(() => syncStore.getSyncProgress('industry-project'), () => {
             :data-testid="`station-tile-${tile.key === 'carryAway' ? 'carry-away' : tile.key}`"
             class="border border-slate-800 bg-slate-900 p-3"
           >
-            <div data-testid="station-tile-label" class="font-display text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">{{ t(`groupIndustry.station.tiles.${tile.key}`) }}</div>
+            <div data-testid="station-tile-label" class="font-display text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">{{ t(`groupIndustry.station.tiles.${tile.key}`) }}</div>
             <div data-testid="station-tile-value" class="font-display text-lg font-bold text-slate-100">{{ tile.value }}</div>
             <div class="text-xs text-slate-500">{{ t(`groupIndustry.station.tileDetails.${tile.key}`) }}</div>
           </div>
@@ -142,7 +142,7 @@ watch(() => syncStore.getSyncProgress('industry-project'), () => {
                   >
                     <span data-testid="station-project-name" class="break-words font-display text-[15px] font-bold tracking-wide text-cyan-400">{{ projectLabel(row) }}</span>
                   </router-link>
-                  <span data-testid="station-project-role" class="text-[11px] text-slate-500">{{ roleLabel(row) }}</span>
+                  <span data-testid="station-project-role" class="text-xs text-slate-500">{{ roleLabel(row) }}</span>
                 </div>
                 <div
                   v-for="column in FLOW_COLUMNS"

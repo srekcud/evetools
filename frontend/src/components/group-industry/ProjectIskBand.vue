@@ -67,7 +67,7 @@ function valueClassOf(cell: IskBandCell): string[] {
       class="border-r border-slate-800 px-3.5 py-2.5 last:border-r-0"
       :class="isUnknown(cell) ? UNKNOWN_HATCH : ''"
     >
-      <div class="font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{{ labelOf(cell) }}</div>
+      <div class="font-display text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{{ labelOf(cell) }}</div>
       <div
         data-testid="isk-band-value"
         class="inline-block font-display text-[19px] font-bold tracking-[0.02em]"
@@ -77,7 +77,7 @@ function valueClassOf(cell: IskBandCell): string[] {
         <span v-if="isUnknown(cell)" :title="t('groupIndustry.iskBand.unknown')">—</span>
         <template v-else>{{ formatIsk(cell.amount) }}</template>
       </div>
-      <div class="text-[11px] text-slate-500">{{ noteOf(cell) }}</div>
+      <div class="text-xs text-slate-500">{{ noteOf(cell) }}</div>
     </div>
   </div>
 </template>

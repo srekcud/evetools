@@ -108,7 +108,7 @@ watch(() => props.projectId, loadSettlementData, { immediate: true })
         <span
           v-if="isCompleted"
           data-testid="settlement-closed-stamp"
-          class="border border-emerald-400/50 px-2 py-0.5 font-display text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-300"
+          class="border border-emerald-400/50 px-2 py-0.5 font-display text-xs font-bold uppercase tracking-[0.14em] text-emerald-300"
         >{{ t('groupIndustry.settlementBlock.closedStamp') }}</span>
         <button
           v-else-if="canClose"
@@ -128,7 +128,7 @@ watch(() => props.projectId, loadSettlementData, { immediate: true })
       <div v-if="showTransfers" class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="text-left font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+            <tr class="text-left font-display text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
               <th class="px-3 py-1.5">{{ t('groupIndustry.settlementBlock.columns.participant') }}</th>
               <th class="px-3 py-1.5 text-right">{{ t('groupIndustry.settlementBlock.columns.share') }}</th>
               <th class="px-3 py-1.5 text-right">{{ t('groupIndustry.settlementBlock.columns.receives') }}</th>
@@ -182,7 +182,7 @@ watch(() => props.projectId, loadSettlementData, { immediate: true })
 
       <div class="grid gap-4 border-t border-slate-800/60 p-3 md:grid-cols-2">
         <div>
-          <h3 class="mb-1.5 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{{ t('groupIndustry.settlementBlock.cascade.title') }}</h3>
+          <h3 class="mb-1.5 font-display text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{{ t('groupIndustry.settlementBlock.cascade.title') }}</h3>
           <dl class="text-sm">
             <div
               v-for="line in cascade"
@@ -202,7 +202,7 @@ watch(() => props.projectId, loadSettlementData, { immediate: true })
         </div>
 
         <div v-if="showTransfers">
-          <h3 class="mb-1.5 font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{{ t('groupIndustry.settlementBlock.recap.title') }}</h3>
+          <h3 class="mb-1.5 font-display text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{{ t('groupIndustry.settlementBlock.recap.title') }}</h3>
           <template v-if="settlement !== null">
             <p class="mb-2 flex flex-wrap items-center gap-2 text-sm text-slate-300">
               <span>{{ t('groupIndustry.settlementBlock.recap.reference') }}</span>
@@ -240,7 +240,7 @@ watch(() => props.projectId, loadSettlementData, { immediate: true })
     </div>
     <div v-else-if="surplusStore.lines.length > 0" data-testid="settlement-surplus" class="border-t border-slate-800/60 p-3">
       <div class="mb-1.5 flex flex-wrap items-center gap-3">
-        <h3 class="font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{{ t('groupIndustry.settlementBlock.surplus.title') }}</h3>
+        <h3 class="font-display text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{{ t('groupIndustry.settlementBlock.surplus.title') }}</h3>
         <button
           v-if="canManage && !surplusStore.stored"
           type="button"
@@ -261,7 +261,7 @@ watch(() => props.projectId, loadSettlementData, { immediate: true })
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="text-left font-display text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+            <tr class="text-left font-display text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
               <th class="py-1 pr-3">{{ t('groupIndustry.settlementBlock.surplus.type') }}</th>
               <th class="px-3 py-1 text-right">{{ t('groupIndustry.settlementBlock.surplus.quantity') }}</th>
               <th class="py-1 pl-3 text-right">{{ t('groupIndustry.settlementBlock.surplus.value') }}</th>

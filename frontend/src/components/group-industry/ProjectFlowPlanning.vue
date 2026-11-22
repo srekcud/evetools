@@ -163,7 +163,7 @@ function stationLabel(station: PlanningStation): string {
       >{{ t('groupIndustry.flowPlanning.empty') }}</p>
 
       <template v-if="flowPlanning.stations.length > 0">
-        <ul class="mb-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
+        <ul class="mb-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
           <li v-for="state in LEGEND_STATES" :key="state" class="inline-flex items-center gap-1.5">
             <span class="h-2 w-4" :class="BAR_STYLES[state]" />
             {{ t(`groupIndustry.flowPlanning.states.${state}`) }}

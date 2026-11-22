@@ -151,13 +151,13 @@ const remaining = computed(() => {
       <span
         v-if="card.source !== null"
         data-testid="flow-card-source"
-        class="whitespace-nowrap rounded-sm border px-1.5 text-[10px]"
+        class="whitespace-nowrap rounded-sm border px-1.5 text-xs"
         :class="SOURCE_CLASSES[card.source]"
       >{{ t(`groupIndustry.flow.sources.${card.source}`) }}</span>
       <span
         v-if="isExpected"
         data-testid="flow-card-expected"
-        class="whitespace-nowrap rounded-sm border border-dashed border-current px-1.5 text-[10px]"
+        class="whitespace-nowrap rounded-sm border border-dashed border-current px-1.5 text-xs"
         :class="activityStyle.text"
       >{{ t('groupIndustry.flow.states.expected') }}</span>
       <span v-if="expectedWhy !== null" data-testid="flow-card-expected-why" :class="card.expected?.origin === 'out' ? 'text-amber-400' : ''">{{ expectedWhy }}</span>

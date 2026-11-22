@@ -91,7 +91,7 @@ async function confirmSwitch(sourcingRow: SourcingRow): Promise<void> {
         <span
           v-if="isExcluded"
           data-testid="flow-detail-buy-or-build-excluded"
-          class="rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300"
+          class="rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 text-xs text-amber-300"
         >{{ detailText('buyOrBuild.excluded') }}</span>
         <span
           v-if="comparison.state === 'onRecommended'"
@@ -120,11 +120,11 @@ async function confirmSwitch(sourcingRow: SourcingRow): Promise<void> {
           <span class="tabular-nums text-slate-500">{{ detailText('buyOrBuild.perUnit', { amount: iskOrUnknown(option.perUnit) }) }}</span>
           <span
             v-if="row.chosen === choice"
-            class="rounded-sm border border-cyan-500/40 bg-cyan-500/10 px-1.5 text-[10px] text-cyan-300"
+            class="rounded-sm border border-cyan-500/40 bg-cyan-500/10 px-1.5 text-xs text-cyan-300"
           >{{ detailText('buyOrBuild.chosen') }}</span>
           <span
             v-if="row.recommended === choice"
-            class="rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300"
+            class="rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 text-xs text-amber-300"
           >{{ detailText('buyOrBuild.recommended') }}</span>
           <span v-if="!option.eligible" class="text-amber-400">{{ stockText(option) }}</span>
         </li>
