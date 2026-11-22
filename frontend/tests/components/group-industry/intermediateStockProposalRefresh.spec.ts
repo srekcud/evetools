@@ -38,6 +38,8 @@ const HYDROGEN_FUEL_BLOCK: IntermediateStockProposalLine = {
   containerQuantity: 50,
   stockQuantity: 80,
   proposedQuantity: 80,
+  stockByStation: [],
+  plannedStationName: null,
 }
 const FERNITE_ALLOY: IntermediateStockProposalLine = {
   bomItemId: 'line-fernite-alloy',
@@ -49,6 +51,8 @@ const FERNITE_ALLOY: IntermediateStockProposalLine = {
   containerQuantity: null,
   stockQuantity: 45,
   proposedQuantity: 45,
+  stockByStation: [],
+  plannedStationName: null,
 }
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })

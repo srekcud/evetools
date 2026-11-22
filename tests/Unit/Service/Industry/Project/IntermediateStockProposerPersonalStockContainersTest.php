@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\Project\ChainRecipeIngredients;
 use App\Service\Industry\Project\IntermediateStockProposal;
 use App\Service\Industry\Project\IntermediateStockProposer;
@@ -55,12 +56,16 @@ final class IntermediateStockProposerPersonalStockContainersTest extends TestCas
             fn (array $productTypeIds): array => (new InMemoryChainRecipeIngredients([]))->producedIngredientsOf($productTypeIds),
         );
 
+        $structureConfigRepository = $this->createStub(IndustryStructureConfigRepository::class);
+        $structureConfigRepository->method('findByUser')->willReturn([]);
+
         $this->proposer = new IntermediateStockProposer(
             $assetRepository,
             $this->createStub(ProjectContainerService::class),
             $this->createStub(IndustryProjectContributionRepository::class),
             $chainRecipeIngredients,
             $this->personalStockReader,
+            $structureConfigRepository,
         );
     }
 

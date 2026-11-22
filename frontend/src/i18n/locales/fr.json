@@ -3599,7 +3599,12 @@
       },
       "validate": "Déclarer le stock sélectionné",
       "validating": "Déclaration...",
-      "validationFailed": "La déclaration s'est arrêtée"
+      "validationFailed": "La déclaration s'est arrêtée",
+      "stations": {
+        "onSite": "Sur place",
+        "offSite": "Hors site",
+        "noneOnSite": "Rien sur place à {station}"
+      }
     },
     "t2BlueprintCopyProposal": {
       "title": "BPC T2 possédés",

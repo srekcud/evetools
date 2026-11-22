@@ -13,6 +13,7 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\Project\ChainRecipeIngredients;
 use App\Service\Industry\Project\IntermediateStockProposal;
 use App\Service\Industry\Project\IntermediateStockProposalLine;
@@ -77,7 +78,10 @@ final class IntermediateStockProposerTest extends TestCase
             fn (array $productTypeIds): array => (new InMemoryChainRecipeIngredients($this->producedIngredientsByTypeId))->producedIngredientsOf($productTypeIds),
         );
 
-        $this->proposer = new IntermediateStockProposer($assetRepository, $containerService, $contributionRepository, $chainRecipeIngredients, $this->personalStockReaderOn($assetRepository));
+        $structureConfigRepository = $this->createStub(IndustryStructureConfigRepository::class);
+        $structureConfigRepository->method('findByUser')->willReturn([]);
+
+        $this->proposer = new IntermediateStockProposer($assetRepository, $containerService, $contributionRepository, $chainRecipeIngredients, $this->personalStockReaderOn($assetRepository), $structureConfigRepository);
     }
 
     public function testPersonalStockAloneIsProposedForTheRemainingQuantityWithoutContainer(): void

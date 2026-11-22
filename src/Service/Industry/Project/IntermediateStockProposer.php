@@ -6,9 +6,11 @@ namespace App\Service\Industry\Project;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryStructureConfig;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\Stock\PersonalStockReader;
 
 final readonly class IntermediateStockProposer
@@ -22,6 +24,7 @@ final readonly class IntermediateStockProposer
         private IndustryProjectContributionRepository $contributionRepository,
         private ChainRecipeIngredients $recipeIngredients,
         private PersonalStockReader $personalStock,
+        private IndustryStructureConfigRepository $structureConfigRepository,
     ) {
     }
 
@@ -60,9 +63,14 @@ final readonly class IntermediateStockProposer
             $this->recipeIngredients->producedIngredientsOf(ChainManufacturingLevels::jobTypeIdsOf($bomLines)),
         );
 
+        $ownerStructuresById = [];
+        foreach ($this->structureConfigRepository->findByUser($owner) as $structure) {
+            $ownerStructuresById[$structure->getId()->toRfc4122()] = $structure;
+        }
+
         $lines = [];
         foreach ($this->rankZeroComponentLines($bomLines) as $bomLine) {
-            $line = $this->lineOf($bomLine, $personalQuantities, $containerQuantities, $approvedStock, $contributedBomItemIds);
+            $line = $this->lineOf($bomLine, $personalQuantities, $personalStock->locationsByTypeId, $ownerStructuresById, $containerQuantities, $approvedStock, $contributedBomItemIds);
             if (null !== $line) {
                 $lines[] = $line;
             }
@@ -75,6 +83,8 @@ final readonly class IntermediateStockProposer
 
     /**
      * @param array<int, int>      $personalQuantities
+     * @param array<int, array{total: int, locations: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>}> $personalLocations
+     * @param array<string, IndustryStructureConfig> $ownerStructuresById
      * @param array<int, int>|null $containerQuantities
      * @param array<int, int>      $approvedStock
      * @param list<string>         $contributedBomItemIds
@@ -82,6 +92,8 @@ final readonly class IntermediateStockProposer
     private function lineOf(
         IndustryProjectBomLine $bomLine,
         array $personalQuantities,
+        array $personalLocations,
+        array $ownerStructuresById,
         ?array $containerQuantities,
         array $approvedStock,
         array $contributedBomItemIds,
@@ -101,6 +113,8 @@ final readonly class IntermediateStockProposer
             return null;
         }
 
+        $plannedStructure = self::plannedStationOf($bomLine, $ownerStructuresById);
+
         return new IntermediateStockProposalLine(
             $bomItemId,
             $typeId,
@@ -111,7 +125,49 @@ final readonly class IntermediateStockProposer
             $containerQuantity,
             $stockQuantity,
             $proposedQuantity,
+            self::stockByStationOf(\array_key_exists($typeId, $personalLocations) ? $personalLocations[$typeId]['locations'] : [], $plannedStructure?->getLocationId()),
+            $plannedStructure?->getName(),
         );
+    }
+
+    /**
+     * @param array<string, IndustryStructureConfig> $ownerStructuresById
+     */
+    private static function plannedStationOf(IndustryProjectBomLine $bomLine, array $ownerStructuresById): ?IndustryStructureConfig
+    {
+        $plannedStructureId = $bomLine->getPlannedStructureId();
+        if (null === $plannedStructureId || !isset($ownerStructuresById[$plannedStructureId])) {
+            return null;
+        }
+
+        $plannedStructure = $ownerStructuresById[$plannedStructureId];
+
+        return null === $plannedStructure->getLocationId() ? null : $plannedStructure;
+    }
+
+    /**
+     * @param list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}> $locations
+     *
+     * @return list<IntermediateStockStationQuantity>
+     */
+    private static function stockByStationOf(array $locations, ?int $plannedLocationId): array
+    {
+        $stations = array_map(
+            static fn (array $location): IntermediateStockStationQuantity => new IntermediateStockStationQuantity(
+                $location['locationId'],
+                $location['locationName'],
+                $location['systemName'],
+                $location['quantity'],
+                null === $plannedLocationId ? null : $location['locationId'] === $plannedLocationId,
+            ),
+            $locations,
+        );
+
+        if (null !== $plannedLocationId) {
+            usort($stations, static fn (IntermediateStockStationQuantity $left, IntermediateStockStationQuantity $right): int => (int) $right->onSite <=> (int) $left->onSite);
+        }
+
+        return $stations;
     }
 
     /**

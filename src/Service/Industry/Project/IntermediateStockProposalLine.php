@@ -6,6 +6,9 @@ namespace App\Service\Industry\Project;
 
 final readonly class IntermediateStockProposalLine
 {
+    /**
+     * @param list<IntermediateStockStationQuantity> $stockByStation
+     */
     public function __construct(
         public string $bomItemId,
         public int $typeId,
@@ -16,6 +19,8 @@ final readonly class IntermediateStockProposalLine
         public ?int $containerQuantity,
         public int $stockQuantity,
         public int $proposedQuantity,
+        public array $stockByStation,
+        public ?string $plannedStationName,
     ) {
     }
 }

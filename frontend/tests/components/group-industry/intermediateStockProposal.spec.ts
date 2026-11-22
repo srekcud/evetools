@@ -10,6 +10,7 @@ import type {
   IntermediateStockProposal as IntermediateStockProposalResource,
   IntermediateStockProposalLine,
   IntermediateStockProposalState,
+  IntermediateStockStationQuantity,
   IntermediateStockUnknownReason,
 } from '@/stores/group-industry/types'
 
@@ -37,6 +38,8 @@ const HYDROGEN_FUEL_BLOCK: IntermediateStockProposalLine = {
   containerQuantity: 50,
   stockQuantity: 80,
   proposedQuantity: 80,
+  stockByStation: [],
+  plannedStationName: null,
 }
 const FERNITE_ALLOY: IntermediateStockProposalLine = {
   bomItemId: 'line-fernite-alloy',
@@ -48,6 +51,8 @@ const FERNITE_ALLOY: IntermediateStockProposalLine = {
   containerQuantity: null,
   stockQuantity: 45,
   proposedQuantity: 45,
+  stockByStation: [],
+  plannedStationName: null,
 }
 const CERAMIC_POWDER: IntermediateStockProposalLine = {
   bomItemId: 'line-ceramic-powder',
@@ -59,6 +64,43 @@ const CERAMIC_POWDER: IntermediateStockProposalLine = {
   containerQuantity: null,
   stockQuantity: 25,
   proposedQuantity: 25,
+  stockByStation: [],
+  plannedStationName: null,
+}
+
+const ISHTAR_STATION_ON_SITE: IntermediateStockStationQuantity = {
+  locationId: 1_035_466_617_946,
+  locationName: 'Ishtar Citadel',
+  systemName: 'Gamis',
+  quantity: 12_500,
+  onSite: true,
+}
+const JITA_STATION_OFF_SITE: IntermediateStockStationQuantity = {
+  locationId: 60_003_760,
+  locationName: 'Jita IV - Moon 4',
+  systemName: 'Jita',
+  quantity: 40,
+  onSite: false,
+}
+const AMARR_STATION_UNKNOWN_SITE: IntermediateStockStationQuantity = {
+  locationId: 60_008_494,
+  locationName: 'Amarr VIII (Oris)',
+  systemName: 'Amarr',
+  quantity: 275,
+  onSite: null,
+}
+const ROBOTICS_BY_STATION: IntermediateStockProposalLine = {
+  bomItemId: 'line-robotics',
+  typeId: 11_542,
+  typeName: 'Robotics',
+  demandQuantity: 300,
+  remainingQuantity: 300,
+  personalQuantity: 12_540,
+  containerQuantity: null,
+  stockQuantity: 12_540,
+  proposedQuantity: 300,
+  stockByStation: [ISHTAR_STATION_ON_SITE, JITA_STATION_OFF_SITE],
+  plannedStationName: 'Ishtar',
 }
 
 const UNKNOWN_REASONS: IntermediateStockUnknownReason[] = [
@@ -72,8 +114,8 @@ const UNKNOWN_REASONS: IntermediateStockUnknownReason[] = [
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
 
-function text(key: string): string {
-  return i18n.global.t(key).replace(BLANK, ' ')
+function text(key: string, params: Record<string, string> = {}): string {
+  return i18n.global.t(key, params).replace(BLANK, ' ')
 }
 
 function proposal(
@@ -128,6 +170,10 @@ function callSequence(): string[] {
 function rowText(wrapper: VueWrapper, line: IntermediateStockProposalLine): string {
   const found = wrapper.find(`[data-testid="intermediate-stock-proposal-row-${line.bomItemId}"]`)
   return found.exists() ? found.text().replace(BLANK, ' ') : 'absent'
+}
+
+function stationsOf(wrapper: VueWrapper, line: IntermediateStockProposalLine): string {
+  return textOf(wrapper, `intermediate-stock-proposal-stations-${line.bomItemId}`)
 }
 
 function textOf(wrapper: VueWrapper, testId: string): string {
@@ -272,10 +318,74 @@ describe('intermediate stock proposal panel', () => {
     expect(sequence.slice(refusedPost + 1)).toEqual(expect.arrayContaining([`GET ${PROPOSAL_PATH}`, `GET ${BOM_PATH}`]))
   })
 
+  it('lists the stations of a line in a sub-row with name, system and formatted quantity while the Personal column and the quantity field stay unchanged', async () => {
+    serveProposals(proposal([ROBOTICS_BY_STATION]))
+
+    const wrapper = await mountProposal()
+
+    const stations = stationsOf(wrapper, ROBOTICS_BY_STATION)
+    expect(['Ishtar Citadel', 'Gamis', '12,500', 'Jita IV - Moon 4', 'Jita', '40'].filter(part => !stations.includes(part))).toEqual([])
+    expect(stations.indexOf('Ishtar Citadel')).toBeLessThan(stations.indexOf('Jita IV - Moon 4'))
+    expect(rowText(wrapper, ROBOTICS_BY_STATION)).toContain('12,540')
+    expect((wrapper.find(`[data-testid="intermediate-stock-proposal-quantity-${ROBOTICS_BY_STATION.bomItemId}"]`).element as HTMLInputElement).value).toBe('300')
+  })
+
+  it('marks a station on site with the On site badge and no Off site badge', async () => {
+    serveProposals(proposal([{ ...ROBOTICS_BY_STATION, stockByStation: [ISHTAR_STATION_ON_SITE] }]))
+
+    const wrapper = await mountProposal()
+
+    const stations = stationsOf(wrapper, ROBOTICS_BY_STATION)
+    expect(stations).toContain('Ishtar Citadel')
+    expect(stations).toContain(text('groupIndustry.intermediateStockProposal.stations.onSite'))
+    expect(stations).not.toContain(text('groupIndustry.intermediateStockProposal.stations.offSite'))
+  })
+
+  it('marks a station off site with the Off site badge and no On site badge', async () => {
+    serveProposals(proposal([{ ...ROBOTICS_BY_STATION, stockByStation: [JITA_STATION_OFF_SITE], plannedStationName: null }]))
+
+    const wrapper = await mountProposal()
+
+    const stations = stationsOf(wrapper, ROBOTICS_BY_STATION)
+    expect(stations).toContain('Jita IV - Moon 4')
+    expect(stations).toContain(text('groupIndustry.intermediateStockProposal.stations.offSite'))
+    expect(stations).not.toContain(text('groupIndustry.intermediateStockProposal.stations.onSite'))
+  })
+
+  it('shows no badge for a station whose site is unknown', async () => {
+    serveProposals(proposal([{ ...ROBOTICS_BY_STATION, stockByStation: [AMARR_STATION_UNKNOWN_SITE], plannedStationName: null }]))
+
+    const wrapper = await mountProposal()
+
+    const stations = stationsOf(wrapper, ROBOTICS_BY_STATION)
+    expect(stations).toContain('Amarr VIII (Oris)')
+    expect(stations).toContain('275')
+    expect(stations).not.toContain(text('groupIndustry.intermediateStockProposal.stations.onSite'))
+    expect(stations).not.toContain(text('groupIndustry.intermediateStockProposal.stations.offSite'))
+  })
+
+  it('says nothing is on site at the station of the plan when every entry is off site', async () => {
+    serveProposals(proposal([{ ...ROBOTICS_BY_STATION, stockByStation: [JITA_STATION_OFF_SITE] }]))
+
+    const wrapper = await mountProposal()
+
+    expect(stationsOf(wrapper, ROBOTICS_BY_STATION)).toContain(text('groupIndustry.intermediateStockProposal.stations.noneOnSite', { station: 'Ishtar' }))
+  })
+
+  it('renders no station sub-row for a line without any station entry', async () => {
+    serveProposals(proposal([{ ...ROBOTICS_BY_STATION, stockByStation: [] }]))
+
+    const wrapper = await mountProposal()
+
+    expect(rowText(wrapper, ROBOTICS_BY_STATION)).toContain('Robotics')
+    expect(stationsOf(wrapper, ROBOTICS_BY_STATION)).toBe('absent')
+  })
+
   it('has the labels in English and French', () => {
     const keys = [
       'title', 'toggle', 'loading', 'loadError', 'empty', 'unknownTitle', 'validate', 'validating', 'validationFailed',
       'columns.type', 'columns.remaining', 'columns.personal', 'columns.container', 'columns.stock', 'columns.quantity',
+      'stations.onSite', 'stations.offSite', 'stations.noneOnSite',
       ...UNKNOWN_REASONS.map(reason => `unknown.${reason}`),
     ]
     const missing = (['en', 'fr'] as const).flatMap(locale => keys.filter(key => i18n.global.te(`groupIndustry.intermediateStockProposal.${key}`, locale) === false))

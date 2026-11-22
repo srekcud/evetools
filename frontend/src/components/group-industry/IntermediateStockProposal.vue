@@ -45,6 +45,10 @@ const canValidate = computed(() =>
   !proposalStore.validating && selectedLines.value.length > 0 && selectedLines.value.every(isValidQuantity),
 )
 
+function isNothingOnSite(line: IntermediateStockProposalLine): boolean {
+  return line.plannedStationName !== null && !line.stockByStation.some(station => station.onSite === true)
+}
+
 function keptQuantity(line: IntermediateStockProposalLine): number | string {
   const previous = quantities.value[line.bomItemId]
   if (previous === undefined) return line.proposedQuantity
@@ -166,9 +170,8 @@ async function validate(): Promise<void> {
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800/60">
+              <template v-for="line in lines" :key="line.bomItemId">
               <tr
-                v-for="line in lines"
-                :key="line.bomItemId"
                 :data-testid="`intermediate-stock-proposal-row-${line.bomItemId}`"
               >
                 <td class="px-4 py-2">
@@ -199,6 +202,40 @@ async function validate(): Promise<void> {
                   />
                 </td>
               </tr>
+              <tr
+                v-if="line.stockByStation.length > 0"
+                :data-testid="`intermediate-stock-proposal-stations-${line.bomItemId}`"
+                class="bg-slate-950/40"
+              >
+                <td></td>
+                <td colspan="6" class="px-4 pb-3 pt-0">
+                  <p
+                    v-if="isNothingOnSite(line)"
+                    class="mb-1 text-xs text-amber-300"
+                  >{{ t('groupIndustry.intermediateStockProposal.stations.noneOnSite', { station: line.plannedStationName }) }}</p>
+                  <ul class="space-y-0.5 text-xs">
+                    <li
+                      v-for="station in line.stockByStation"
+                      :key="station.locationId"
+                      class="flex items-center gap-2 rounded px-2 py-1"
+                      :class="station.onSite === true ? 'bg-cyan-500/10 text-cyan-300' : station.onSite === false ? 'text-slate-500' : 'text-slate-400'"
+                    >
+                      <span class="font-medium truncate" :title="station.locationName">{{ station.locationName }}</span>
+                      <span v-if="station.systemName !== null" class="text-slate-500">{{ station.systemName }}</span>
+                      <span class="ml-auto tabular-nums">{{ formatNumber(station.quantity, 0) }}</span>
+                      <span
+                        v-if="station.onSite === true"
+                        class="px-1.5 py-0.5 rounded border border-cyan-500/40 bg-cyan-500/15 text-cyan-300 uppercase tracking-wider"
+                      >{{ t('groupIndustry.intermediateStockProposal.stations.onSite') }}</span>
+                      <span
+                        v-else-if="station.onSite === false"
+                        class="px-1.5 py-0.5 rounded border border-slate-700 text-slate-500 uppercase tracking-wider"
+                      >{{ t('groupIndustry.intermediateStockProposal.stations.offSite') }}</span>
+                    </li>
+                  </ul>
+                </td>
+              </tr>
+              </template>
             </tbody>
           </table>
         </div>

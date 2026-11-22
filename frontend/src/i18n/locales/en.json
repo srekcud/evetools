@@ -3599,7 +3599,12 @@
       },
       "validate": "Declare the selected stock",
       "validating": "Declaring...",
-      "validationFailed": "The declaration stopped"
+      "validationFailed": "The declaration stopped",
+      "stations": {
+        "onSite": "On site",
+        "offSite": "Off site",
+        "noneOnSite": "Nothing on site at {station}"
+      }
     },
     "t2BlueprintCopyProposal": {
       "title": "Owned T2 BPCs",

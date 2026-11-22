@@ -1311,6 +1311,14 @@ export type IntermediateStockUnknownReason =
   | 'no_visible_division'
   | 'owner_without_corporation'
 
+export interface IntermediateStockStationQuantity {
+  locationId: number
+  locationName: string
+  systemName: string | null
+  quantity: number
+  onSite: boolean | null
+}
+
 export interface IntermediateStockProposalLine {
   bomItemId: string
   typeId: number
@@ -1321,6 +1329,8 @@ export interface IntermediateStockProposalLine {
   containerQuantity: number | null
   stockQuantity: number
   proposedQuantity: number
+  stockByStation: IntermediateStockStationQuantity[]
+  plannedStationName: string | null
 }
 
 export interface IntermediateStockProposal {
