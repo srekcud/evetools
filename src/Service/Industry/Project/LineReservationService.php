@@ -42,12 +42,13 @@ class LineReservationService
             throw new \DomainException(sprintf('The quantity to reserve must be between 1 and %d', $freeQuantity));
         }
 
-        $reservation = $this->reservationRepository->findOneByLineAndParticipant($line, $participant);
+        $reservation = $this->reservationRepository->findOneIncludingExpiredByLineAndParticipant($line, $participant);
         if ($reservation === null) {
             $reservation = new IndustryProjectLineReservation($line, $participant, $reservedQuantity);
             $this->entityManager->persist($reservation);
         } else {
             $reservation->setQuantity($reservedQuantity);
+            $reservation->renew();
         }
 
         $this->entityManager->flush();

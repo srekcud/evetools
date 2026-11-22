@@ -41,6 +41,7 @@ class SyncTracker
         'notifications-purge' => 86400,
         'market-history-purge' => 86400,
         'shared-lists-purge' => 86400,
+        'line-reservations-purge' => 1800,
         'sde-build' => 86400,
         'packaged-volumes' => 604800,
     ];

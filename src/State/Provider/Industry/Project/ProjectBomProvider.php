@@ -227,6 +227,7 @@ class ProjectBomProvider implements ProviderInterface
                 'participantId' => $reservation->getParticipant()->getId()->toRfc4122(),
                 'characterName' => PilotName::of($reservation->getParticipant()->getUser()),
                 'quantity' => $reservation->getQuantity(),
+                'expiresAt' => $reservation->getExpiresAt()->format(\DateTimeInterface::ATOM),
                 'isMine' => $reservation->getParticipant()->getUser()?->getId()?->toRfc4122() === $viewer->getId()?->toRfc4122(),
             ],
             $visibleReservations,

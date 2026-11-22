@@ -2683,6 +2683,7 @@
         "notifications-purge": "Notifications purge",
         "market-history-purge": "Market history purge",
         "shared-lists-purge": "Shared lists purge",
+        "line-reservations-purge": "Line reservations purge",
         "sde-build": "SDE build check",
         "packaged-volumes": "Packaged volumes",
         "assets": "Assets",

@@ -10,20 +10,46 @@ use App\Entity\IndustryProjectLineReservation;
 use App\Entity\IndustryProjectParticipant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Clock\ClockInterface;
 
 /**
  * @extends ServiceEntityRepository<IndustryProjectLineReservation>
  */
 class IndustryProjectLineReservationRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
+    public function __construct(ManagerRegistry $registry, private readonly ClockInterface $clock)
     {
         parent::__construct($registry, IndustryProjectLineReservation::class);
     }
 
     public function findOneByLineAndParticipant(IndustryProjectBomLine $line, IndustryProjectParticipant $participant): ?IndustryProjectLineReservation
     {
+        return $this->createQueryBuilder('reservation')
+            ->andWhere('reservation.bomLine = :line')
+            ->andWhere('reservation.participant = :participant')
+            ->andWhere('reservation.expiresAt > :now')
+            ->setParameter('line', $line)
+            ->setParameter('participant', $participant)
+            ->setParameter('now', $this->clock->now())
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function findOneIncludingExpiredByLineAndParticipant(IndustryProjectBomLine $line, IndustryProjectParticipant $participant): ?IndustryProjectLineReservation
+    {
         return $this->findOneBy(['bomLine' => $line, 'participant' => $participant]);
+    }
+
+    /**
+     * @return list<IndustryProjectLineReservation>
+     */
+    public function findExpired(): array
+    {
+        return $this->createQueryBuilder('reservation')
+            ->andWhere('reservation.expiresAt <= :now')
+            ->setParameter('now', $this->clock->now())
+            ->getQuery()
+            ->getResult();
     }
 
     public function sumQuantityOfOthers(IndustryProjectBomLine $line, IndustryProjectParticipant $participant): int
@@ -32,8 +58,10 @@ class IndustryProjectLineReservationRepository extends ServiceEntityRepository
             ->select('COALESCE(SUM(reservation.quantity), 0)')
             ->andWhere('reservation.bomLine = :line')
             ->andWhere('reservation.participant != :participant')
+            ->andWhere('reservation.expiresAt > :now')
             ->setParameter('line', $line)
             ->setParameter('participant', $participant)
+            ->setParameter('now', $this->clock->now())
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -46,7 +74,9 @@ class IndustryProjectLineReservationRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('reservation')
             ->innerJoin('reservation.bomLine', 'line')
             ->andWhere('line.project = :project')
+            ->andWhere('reservation.expiresAt > :now')
             ->setParameter('project', $project)
+            ->setParameter('now', $this->clock->now())
             ->orderBy('reservation.reservedAt', 'ASC')
             ->getQuery()
             ->getResult();
@@ -61,8 +91,10 @@ class IndustryProjectLineReservationRepository extends ServiceEntityRepository
             ->innerJoin('reservation.bomLine', 'line')
             ->andWhere('line.project = :project')
             ->andWhere('reservation.participant = :participant')
+            ->andWhere('reservation.expiresAt > :now')
             ->setParameter('project', $project)
             ->setParameter('participant', $participant)
+            ->setParameter('now', $this->clock->now())
             ->getQuery()
             ->getResult();
     }

@@ -9,6 +9,7 @@ use App\Message\CheckCourierContracts;
 use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
 use App\Message\CheckSdeBuild;
+use App\Message\PurgeExpiredLineReservations;
 use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
@@ -94,6 +95,7 @@ final readonly class HelpDescriptions
         PurgeOldNotifications::class => ['fr' => 'Purge des notifications anciennes', 'en' => 'Purge of old notifications'],
         PurgeOldMarketHistory::class => ['fr' => 'Purge de l\'historique de marché', 'en' => 'Purge of market history'],
         PurgeExpiredSharedLists::class => ['fr' => 'Purge des listes d\'achats partagées expirées', 'en' => 'Purge of expired shared shopping lists'],
+        PurgeExpiredLineReservations::class => ['fr' => 'Purge des réservations de lignes expirées', 'en' => 'Purge of expired line reservations'],
         CheckSdeBuild::class => ['fr' => 'Version du SDE (alerte aux admins, aucun import automatique)', 'en' => 'SDE build (admin alert, no automatic import)'],
         SyncPackagedVolumes::class => ['fr' => 'Volumes reconditionnés des types présents dans les inventaires', 'en' => 'Packaged volumes of the types found in inventories'],
     ];

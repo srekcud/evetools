@@ -2683,6 +2683,7 @@
         "notifications-purge": "Purge des notifications",
         "market-history-purge": "Purge de l'historique de marche",
         "shared-lists-purge": "Purge des listes partagees",
+        "line-reservations-purge": "Purge des réservations de lignes",
         "sde-build": "Vérification de la build SDE",
         "packaged-volumes": "Volumes reconditionnés",
         "assets": "Assets",

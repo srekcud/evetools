@@ -14,6 +14,7 @@ This table is generated from the code by `app:help:generate-tables`: do not edit
 | Market alert prices | 30 min |
 | Planetary colonies | 30 min |
 | Public contracts (The Forge) | 30 min |
+| Purge of expired line reservations | 30 min |
 | Recurring mining operations | 30 min |
 | Jita market prices | 1 h |
 | Mining ledger | 1 h |

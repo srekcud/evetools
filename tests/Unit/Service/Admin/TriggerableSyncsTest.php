@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Admin;
 
 use App\Message\CheckSdeBuild;
+use App\Message\PurgeExpiredLineReservations;
 use App\Message\SyncCostIndices;
 use App\Message\SyncPackagedVolumes;
 use App\Message\SyncWalletTransactions;
@@ -74,6 +75,13 @@ class TriggerableSyncsTest extends TestCase
     public function testPackagedVolumesDispatchesItsOwnMessage(): void
     {
         $this->assertEquals([new SyncPackagedVolumes()], TriggerableSyncs::messagesFor('packaged-volumes'));
+    }
+
+    #[Group('issue-1301')]
+    public function testLineReservationsPurgeDispatchesItsOwnMessage(): void
+    {
+        $this->assertTrue(TriggerableSyncs::isTriggerable('line-reservations-purge'));
+        $this->assertEquals([new PurgeExpiredLineReservations()], TriggerableSyncs::messagesFor('line-reservations-purge'));
     }
 
     public function testSdeBuildDispatchesItsOwnMessage(): void

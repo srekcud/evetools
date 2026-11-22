@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Help;
 
+use App\Message\PurgeExpiredLineReservations;
 use App\Scheduler\SyncScheduler;
 use App\Service\ESI\AuthenticationService;
 use App\Service\Help\HelpDescriptionMissing;
@@ -11,6 +12,7 @@ use App\Service\Help\HelpDescriptions;
 use App\Service\Help\ScheduledSyncReader;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Lock\LockFactory;
@@ -45,6 +47,15 @@ final class HelpDescriptionsTest extends TestCase
         foreach ($this->scheduledMessageClasses() as $messageClass) {
             self::assertNotSame('', trim($descriptions->syncLabel($messageClass, $language)), \sprintf('%s (%s)', $messageClass, $language));
         }
+    }
+
+    #[Group('issue-1301')]
+    public function testExpiredLineReservationsPurgeIsLabelledInBothLanguages(): void
+    {
+        $descriptions = new HelpDescriptions();
+
+        self::assertSame('Purge des réservations de lignes expirées', $descriptions->syncLabel(PurgeExpiredLineReservations::class, 'fr'));
+        self::assertSame('Purge of expired line reservations', $descriptions->syncLabel(PurgeExpiredLineReservations::class, 'en'));
     }
 
     public function testNoDescriptionIsLeftForAScopeThatIsNoLongerRequired(): void

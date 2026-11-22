@@ -674,6 +674,35 @@ class ProjectBomProviderTest extends TestCase
         }
     }
 
+    #[Group('issue-1301')]
+    public function testReservationExposesItsExpiryFortyEightHoursAfterItWasMadeInAtomFormat(): void
+    {
+        $setup = $this->pendingScenario(150, 0);
+        $line = $setup['line'];
+        $reservations = $this->createStub(IndustryProjectLineReservationRepository::class);
+        $reservations->method('findByProject')->willReturn([
+            new IndustryProjectLineReservation($line, $setup['mine'], 50, new \DateTimeImmutable('2026-11-21 10:15:00')),
+            new IndustryProjectLineReservation($line, $setup['other'], 30, new \DateTimeImmutable('2026-11-22 01:40:30')),
+        ]);
+
+        $resource = $this->readPendingScenario($setup, [], $reservations);
+
+        self::assertCount(2, $resource->reservations);
+        foreach ($resource->reservations as $reservation) {
+            self::assertArrayHasKey('expiresAt', $reservation);
+            $keys = array_keys($reservation);
+            sort($keys);
+            self::assertSame(['characterName', 'expiresAt', 'isMine', 'participantId', 'quantity'], $keys);
+        }
+        self::assertSame(
+            [[50, '2026-11-23T10:15:00+00:00'], [30, '2026-11-24T01:40:30+00:00']],
+            array_map(
+                static fn (array $reservation): array => [$reservation['quantity'], $reservation['expiresAt']],
+                $resource->reservations,
+            ),
+        );
+    }
+
     #[Group('issue-1093')]
     public function testFulfilledLineWithReservationsHiddenStillCarriesItsPendingContributions(): void
     {

@@ -62,6 +62,7 @@ framework:
             App\Message\PurgeOldMarketHistory: async
             App\Message\PurgeOldNotifications: async
             App\Message\PurgeExpiredSharedLists: async
+            App\Message\PurgeExpiredLineReservations: async
             App\Message\WarmupStructureOwnersMessage: async
             App\Message\TakeMiningLedgerSnapshot: async
             App\Message\TriggerMiningOperationRecurrences: async
