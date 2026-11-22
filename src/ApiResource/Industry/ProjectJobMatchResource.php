@@ -72,6 +72,9 @@ class ProjectJobMatchResource
 
     public bool $manual;
 
+    /** @var list<string>|null */
+    public ?array $matchSignals = null;
+
     /** @var array{blueprint: array<string, mixed>, output: array<string, mixed>}|null */
     public ?array $locations = null;
 
@@ -90,6 +93,7 @@ class ProjectJobMatchResource
         $resource->facilityId = $match->getFacilityId();
         $resource->facilityName = $match->getFacilityName();
         $resource->manual = $match->isManual();
+        $resource->matchSignals = $match->getMatchSignals();
 
         return $resource;
     }

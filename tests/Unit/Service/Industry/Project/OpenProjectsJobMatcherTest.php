@@ -25,18 +25,13 @@ final class OpenProjectsJobMatcherTest extends TestCase
 {
     private const int ISHTAR_TYPE_ID = 12005;
     private const int TRITANIUM_TYPE_ID = 34;
-    private const int CONTAINER_ITEM_ID = 1_040_000_000_001;
 
     private array $steps = [];
     private array $projectsOfUser = [];
     private array $recordedProjects = [];
-    private array $contestedJobs = [];
-    private array $contestedQueries = [];
-    private array $stepsWhenContestedWasComputed = [];
-    private array $contestedPassedToMatching = [];
-    private array $containerOwnerQueries = [];
-    private array $containerOwnersPassed = [];
+    private array $matchedProjectNames = [];
     private ?IndustryProject $failingProject = null;
+    private bool $passFails = false;
     private BufferingLogger $logger;
     private OpenProjectsJobMatcher $matcher;
 
@@ -48,39 +43,26 @@ final class OpenProjectsJobMatcherTest extends TestCase
         );
 
         $jobMatcher = $this->createStub(IndustryJobMatcher::class);
-        $jobMatcher->method('containerOwnersByLocationId')->willReturnCallback(function (array $projects): array {
-            $this->containerOwnerQueries[] = array_map(static fn (IndustryProject $project): ?string => $project->getName(), $projects);
-
-            return [self::CONTAINER_ITEM_ID => ['owner-project-id']];
-        });
-        $jobMatcher->method('contestedJobIds')->willReturnCallback(function (array $projects, array $containerOwners = []): array {
-            $this->containerOwnersPassed[] = ['contested', $containerOwners];
-            $this->contestedQueries[] = array_map(static fn (IndustryProject $project): ?string => $project->getName(), $projects);
-            $this->stepsWhenContestedWasComputed = $this->steps;
-
-            return $this->contestedJobs;
-        });
-        $jobMatcher->method('matchEsiJobs')->willReturnCallback(function (IndustryProject $project, array $contestedJobIds = [], array $containerOwners = []): array {
-            if ($project === $this->failingProject) {
+        $jobMatcher->method('matchOpenProjects')->willReturnCallback(function (array $projects): array {
+            if ($this->passFails) {
                 throw new \RuntimeException('matching failed');
             }
-            $this->containerOwnersPassed[] = [$project->getName(), $containerOwners];
-            $this->steps[] = ['match', $project->getName()];
-            $this->contestedPassedToMatching[] = [$project->getName(), $contestedJobIds];
+            $names = array_map(static fn (IndustryProject $project): ?string => $project->getName(), $projects);
+            $this->steps[] = ['match', $names];
+            array_push($this->matchedProjectNames, ...$names);
 
-            return [];
+            $failures = [];
+            foreach ($projects as $project) {
+                $failures[$project->getId()->toRfc4122()] = [];
+            }
+
+            return $failures;
         });
         $jobMatcher->method('releaseAutomaticMatches')->willReturnCallback(function (IndustryProject $project): void {
             if ($project === $this->failingProject) {
                 throw new \RuntimeException('release failed');
             }
             $this->steps[] = ['release', $project->getName()];
-        });
-        $jobMatcher->method('releaseMatchesWithoutOutput')->willReturnCallback(function (IndustryProject $project): void {
-            if ($project === $this->failingProject) {
-                throw new \RuntimeException('release failed');
-            }
-            $this->steps[] = ['release-ended', $project->getName()];
         });
 
         $derivedContributionService = $this->createStub(DerivedContributionService::class);
@@ -90,39 +72,44 @@ final class OpenProjectsJobMatcherTest extends TestCase
 
         $jobActivityRecorder = $this->createStub(ProjectJobActivityRecorder::class);
         $jobActivityRecorder->method('recordJobsOf')->willReturnCallback(function (IndustryProject $project): void {
-            $this->recordedProjects[] = [$project->getName(), \in_array(['match', $project->getName()], $this->steps, true)];
+            if ($project === $this->failingProject) {
+                throw new \RuntimeException('recording failed');
+            }
+            $this->recordedProjects[] = [$project->getName(), \in_array($project->getName(), $this->matchedProjectNames, true)];
         });
 
         $this->logger = new BufferingLogger();
         $this->matcher = new OpenProjectsJobMatcher($projectRepository, $jobMatcher, $derivedContributionService, $this->logger, $jobActivityRecorder);
     }
 
-    #[Group('issue-1245')]
-    public function testEveryOpenProjectOfTheUserIsReleasedThenMatchedAndItsJobLinesAreRefreshedAndNothingElse(): void
+    #[Group('issue-1246')]
+    public function testEveryLaunchedProjectOfTheUserIsMatchedInOnePassThenItsJobLinesAreRefreshedAndNothingElse(): void
     {
         $this->projectsOfUser = [$this->project('Ishtar batch'), $this->project('Ishtar again')];
 
         $this->matcher->matchOpenProjectsOf(new User());
 
         self::assertSame(
-            [['release-ended', 'Ishtar batch'], ['release-ended', 'Ishtar again'], ['match', 'Ishtar batch'], ['refresh', 'Ishtar'], ['match', 'Ishtar again'], ['refresh', 'Ishtar']],
+            [['match', ['Ishtar batch', 'Ishtar again']], ['refresh', 'Ishtar'], ['refresh', 'Ishtar']],
             $this->steps,
         );
     }
 
-    #[Group('issue-1245')]
-    public function testAProjectThatFailsToMatchIsLoggedAndTheOthersAreStillMatched(): void
+    #[Group('issue-1246')]
+    public function testAPassThatFailsIsLoggedOnceWithTheProjectsAndTheJobLinesAreStillRefreshed(): void
     {
-        $failing = $this->project('Broken batch');
-        $this->failingProject = $failing;
-        $this->projectsOfUser = [$failing, $this->project('Ishtar batch')];
+        $first = $this->project('Broken batch');
+        $second = $this->project('Ishtar batch');
+        $this->passFails = true;
+        $this->projectsOfUser = [$first, $second];
 
         $this->matcher->matchOpenProjectsOf(new User());
 
-        self::assertSame([['release-ended', 'Ishtar batch'], ['match', 'Ishtar batch'], ['refresh', 'Ishtar']], $this->steps);
-        $warnings = array_filter($this->logger->cleanLogs(), static fn (array $record): bool => 'warning' === $record[0]);
+        self::assertSame([['refresh', 'Ishtar'], ['refresh', 'Ishtar']], $this->steps);
+        $warnings = array_values(array_filter($this->logger->cleanLogs(), static fn (array $record): bool => 'warning' === $record[0]));
         self::assertCount(1, $warnings);
-        self::assertSame('Failed to match jobs of project', array_values($warnings)[0][1]);
+        self::assertSame('Failed to match jobs of projects', $warnings[0][1]);
+        self::assertSame([$first->getId()->toRfc4122(), $second->getId()->toRfc4122()], $warnings[0][2]['projectIds']);
     }
 
     #[Group('issue-321')]
@@ -135,8 +122,21 @@ final class OpenProjectsJobMatcherTest extends TestCase
         self::assertSame([['Ishtar batch', true], ['Ishtar again', true]], $this->recordedProjects);
     }
 
-    #[Group('issue-321')]
-    public function testAProjectWhoseMatchingFailsIsNotRecordedAndTheOthersAre(): void
+    #[Group('issue-1246')]
+    public function testTheJobsAreStillRecordedForEveryProjectWhenThePassFails(): void
+    {
+        $this->passFails = true;
+        $this->projectsOfUser = [$this->project('Broken batch'), $this->project('Ishtar batch')];
+
+        $this->matcher->matchOpenProjectsOf(new User());
+
+        self::assertSame([['Broken batch', false], ['Ishtar batch', false]], $this->recordedProjects);
+        $warnings = array_values(array_filter($this->logger->cleanLogs(), static fn (array $record): bool => 'warning' === $record[0]));
+        self::assertSame(['Failed to match jobs of projects'], array_map(static fn (array $record): string => $record[1], $warnings));
+    }
+
+    #[Group('issue-1246')]
+    public function testAProjectWhoseRecordingFailsIsLoggedAndTheOthersAreStillRecordedAndRefreshed(): void
     {
         $failing = $this->project('Broken batch');
         $this->failingProject = $failing;
@@ -145,7 +145,10 @@ final class OpenProjectsJobMatcherTest extends TestCase
         $this->matcher->matchOpenProjectsOf(new User());
 
         self::assertSame([['Ishtar batch', true]], $this->recordedProjects);
-        $this->logger->cleanLogs();
+        self::assertSame([['match', ['Broken batch', 'Ishtar batch']], ['refresh', 'Ishtar']], $this->steps);
+        $warnings = array_filter($this->logger->cleanLogs(), static fn (array $record): bool => 'warning' === $record[0]);
+        self::assertCount(1, $warnings);
+        self::assertSame('Failed to match jobs of project', array_values($warnings)[0][1]);
     }
 
     public function testAUserWithoutOpenProjectMatchesNothing(): void
@@ -167,7 +170,7 @@ final class OpenProjectsJobMatcherTest extends TestCase
     }
 
     #[Group('issue-1123')]
-    #[Group('issue-1245')]
+    #[Group('issue-1246')]
     public function testADraftIsReleasedBeforeTheOtherProjectsAreMatchedEvenWhenItIsListedAfterThem(): void
     {
         $this->projectsOfUser = [$this->project('Launch', ProjectStatus::InProgress), $this->project('Nomad 18', ProjectStatus::Draft)];
@@ -175,21 +178,21 @@ final class OpenProjectsJobMatcherTest extends TestCase
         $this->matcher->matchOpenProjectsOf(new User());
 
         self::assertSame(
-            [['release', 'Nomad 18'], ['refresh', 'Ishtar'], ['release-ended', 'Launch'], ['match', 'Launch'], ['refresh', 'Ishtar']],
+            [['release', 'Nomad 18'], ['refresh', 'Ishtar'], ['match', ['Launch']], ['refresh', 'Ishtar']],
             $this->steps,
         );
     }
 
     #[Group('issue-1123')]
-    #[Group('issue-1245')]
+    #[Group('issue-1246')]
     #[DataProvider('statusesMatchedAutomatically')]
-    public function testEveryOpenStatusOtherThanDraftIsReleasedThenMatched(ProjectStatus $status): void
+    public function testEveryOpenStatusOtherThanDraftIsMatched(ProjectStatus $status): void
     {
         $this->projectsOfUser = [$this->project('Ishtar batch', $status)];
 
         $this->matcher->matchOpenProjectsOf(new User());
 
-        self::assertSame([['release-ended', 'Ishtar batch'], ['match', 'Ishtar batch'], ['refresh', 'Ishtar']], $this->steps);
+        self::assertSame([['match', ['Ishtar batch']], ['refresh', 'Ishtar']], $this->steps);
     }
 
     /**
@@ -203,7 +206,7 @@ final class OpenProjectsJobMatcherTest extends TestCase
     }
 
     #[Group('issue-1123')]
-    #[Group('issue-1245')]
+    #[Group('issue-1246')]
     public function testADraftThatFailsToBeReleasedIsLoggedAndTheOtherProjectsAreStillMatched(): void
     {
         $failing = $this->project('Nomad 18', ProjectStatus::Draft);
@@ -212,56 +215,13 @@ final class OpenProjectsJobMatcherTest extends TestCase
 
         $this->matcher->matchOpenProjectsOf(new User());
 
-        self::assertSame([['release-ended', 'Launch'], ['match', 'Launch'], ['refresh', 'Ishtar']], $this->steps);
+        self::assertSame([['match', ['Launch']], ['refresh', 'Ishtar']], $this->steps);
         $warnings = array_filter($this->logger->cleanLogs(), static fn (array $record): bool => 'warning' === $record[0]);
         self::assertCount(1, $warnings);
     }
 
-    #[Group('issue-1124')]
-    #[Group('issue-1245')]
-    public function testTheContestedJobsAreComputedOnceOverTheProjectsOtherThanDraftsAfterTheirRelease(): void
-    {
-        $this->contestedJobs = [7_124_800 => true];
-        $this->projectsOfUser = [
-            $this->project('Launch', ProjectStatus::InProgress),
-            $this->project('Nomad 18', ProjectStatus::Draft),
-            $this->project('Selling batch', ProjectStatus::Selling),
-        ];
-
-        $this->matcher->matchOpenProjectsOf(new User());
-
-        self::assertSame([['Launch', 'Selling batch']], $this->contestedQueries);
-        self::assertSame(
-            [['release', 'Nomad 18'], ['refresh', 'Ishtar'], ['release-ended', 'Launch'], ['release-ended', 'Selling batch']],
-            $this->stepsWhenContestedWasComputed,
-        );
-        self::assertSame(
-            [['Launch', [7_124_800 => true]], ['Selling batch', [7_124_800 => true]]],
-            $this->contestedPassedToMatching,
-        );
-    }
-
-    #[Group('issue-1125')]
-    public function testTheContainerOwnersAreComputedOnceOverTheSameProjectsAsTheContestedJobsAndPassedToEveryCall(): void
-    {
-        $this->projectsOfUser = [
-            $this->project('Launch', ProjectStatus::InProgress),
-            $this->project('Nomad 18', ProjectStatus::Draft),
-            $this->project('Selling batch', ProjectStatus::Selling),
-        ];
-
-        $this->matcher->matchOpenProjectsOf(new User());
-
-        $owners = [1_040_000_000_001 => ['owner-project-id']];
-        self::assertSame([['Launch', 'Selling batch']], $this->containerOwnerQueries);
-        self::assertSame(
-            [['contested', $owners], ['Launch', $owners], ['Selling batch', $owners]],
-            $this->containerOwnersPassed,
-        );
-    }
-
-    #[Group('issue-1245')]
-    public function testLaunchedProjectsAreOnlyReleasedOfTheirMatchesWithoutOutputWhileDraftsAreFullyReleased(): void
+    #[Group('issue-1246')]
+    public function testTheLaunchedProjectsAreMatchedInOnePassWhileDraftsAreFullyReleasedAndLeftOutOfIt(): void
     {
         $this->projectsOfUser = [
             $this->project('Launch', ProjectStatus::InProgress),
@@ -275,28 +235,13 @@ final class OpenProjectsJobMatcherTest extends TestCase
             [
                 ['release', 'Nomad 18'],
                 ['refresh', 'Ishtar'],
-                ['release-ended', 'Launch'],
-                ['release-ended', 'Selling batch'],
-                ['match', 'Launch'],
+                ['match', ['Launch', 'Selling batch']],
                 ['refresh', 'Ishtar'],
-                ['match', 'Selling batch'],
                 ['refresh', 'Ishtar'],
             ],
             $this->steps,
         );
-    }
-
-    #[Group('issue-1124')]
-    public function testAProjectWhoseReleaseFailedIsLeftOutOfTheContestedJobs(): void
-    {
-        $failing = $this->project('Broken batch');
-        $this->failingProject = $failing;
-        $this->projectsOfUser = [$failing, $this->project('Ishtar batch'), $this->project('Ishtar again')];
-
-        $this->matcher->matchOpenProjectsOf(new User());
-
-        self::assertSame([['Ishtar batch', 'Ishtar again']], $this->contestedQueries);
-        $this->logger->cleanLogs();
+        self::assertSame([['Launch', true], ['Selling batch', true]], $this->recordedProjects);
     }
 
     private function project(string $name, ProjectStatus $status = ProjectStatus::InProgress): IndustryProject

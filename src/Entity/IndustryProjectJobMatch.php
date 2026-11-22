@@ -58,6 +58,10 @@ class IndustryProjectJobMatch
     #[ORM\Column(type: 'boolean')]
     private bool $manual = false;
 
+    /** @var list<string>|null */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $matchSignals = null;
+
     public function __construct()
     {
         $this->matchedAt = new \DateTimeImmutable();
@@ -208,6 +212,24 @@ class IndustryProjectJobMatch
     public function setManual(bool $manual): static
     {
         $this->manual = $manual;
+
+        return $this;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    public function getMatchSignals(): ?array
+    {
+        return $this->matchSignals;
+    }
+
+    /**
+     * @param list<string>|null $matchSignals
+     */
+    public function setMatchSignals(?array $matchSignals): static
+    {
+        $this->matchSignals = $matchSignals;
 
         return $this;
     }

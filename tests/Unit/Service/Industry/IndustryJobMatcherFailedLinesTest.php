@@ -14,10 +14,13 @@ use App\Enum\IndustryActivityType;
 use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
+use App\Repository\IndustryProjectLineReservationRepository;
+use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Industry\LineMatchFailure;
+use App\Service\Industry\Project\ProjectContainerScope;
 use App\Service\Industry\Project\ProjectContainerService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -72,6 +75,12 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
             },
         );
 
+        $containerService = $this->createStub(ProjectContainerService::class);
+        $containerService->method('containerScopeOf')->willReturn(new ProjectContainerScope('no_container_name'));
+
+        $reservationRepository = $this->createStub(IndustryProjectLineReservationRepository::class);
+        $reservationRepository->method('findByProject')->willReturn([]);
+
         $this->matcher = new IndustryJobMatcher(
             $this->createStub(IndustryCalculationService::class),
             $jobRepository,
@@ -79,7 +88,9 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
             $jobMatchRepository,
             $this->createStub(EntityManagerInterface::class),
             $this->logger,
-            $this->createStub(ProjectContainerService::class),
+            $containerService,
+            $reservationRepository,
+            $this->createStub(IndustryStructureConfigRepository::class),
         );
     }
 
@@ -94,7 +105,7 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
         $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 5);
         $ramLine = $this->jobLine(self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 4);
 
-        $failures = $this->matcher->matchEsiJobs($this->project($unknownLine, $ishtarLine, $ramLine));
+        $failures = $this->matcher->matchOpenProjects([$this->project($unknownLine, $ishtarLine, $ramLine)])[self::PROJECT_ID];
 
         self::assertSame(
             [['typeId' => self::UNKNOWN_TYPE_ID, 'typeName' => 'Unknown Hull', 'reason' => 'producer_missing_from_sde']],
@@ -111,7 +122,7 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
         $withoutRunsLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 5)->setRuns(null);
         $ramLine = $this->jobLine(self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 4);
 
-        $failures = $this->matcher->matchEsiJobs($this->project($withoutRunsLine, $ramLine));
+        $failures = $this->matcher->matchOpenProjects([$this->project($withoutRunsLine, $ramLine)])[self::PROJECT_ID];
 
         self::assertSame(
             [['typeId' => self::ISHTAR_TYPE_ID, 'typeName' => 'Ishtar', 'reason' => 'no_runs']],
@@ -125,7 +136,7 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
         $unknownLine = $this->jobLine(self::UNKNOWN_TYPE_ID, 'Unknown Hull', 5);
         $withoutRunsLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 5)->setRuns(null);
 
-        $this->matcher->matchEsiJobs($this->project($unknownLine, $withoutRunsLine));
+        $this->matcher->matchOpenProjects([$this->project($unknownLine, $withoutRunsLine)]);
 
         self::assertSame(
             [
@@ -140,7 +151,7 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
     {
         $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 5);
 
-        $failures = $this->matcher->matchEsiJobs($this->project($ishtarLine));
+        $failures = $this->matcher->matchOpenProjects([$this->project($ishtarLine)])[self::PROJECT_ID];
 
         self::assertSame([[], []], [$failures, $this->logger->cleanLogs()]);
         self::assertSame([7_980_001], $this->matchedJobIdsOf($ishtarLine));

@@ -20,6 +20,8 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
+use App\Repository\IndustryProjectLineReservationRepository;
+use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
@@ -218,6 +220,8 @@ final class LinkJobProcessorTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
             $this->createStub(ProjectContainerService::class),
+            $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(IndustryStructureConfigRepository::class),
         );
 
         return new LinkJobProcessor(

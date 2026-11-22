@@ -11,6 +11,7 @@ use App\ApiResource\Industry\ProjectJobMatchResource;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
+use App\Enum\ProjectStatus;
 use App\Repository\CharacterRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
@@ -98,28 +99,22 @@ class MatchJobsProcessor implements ProcessorInterface
             $project = $this->projectRepository->find($projectId) ?? throw new NotFoundHttpException('Project not found');
         }
 
-        $openProjects = $this->projectRepository->findOpenOfAcceptedParticipant($user);
+        $openProjects = array_values(array_filter(
+            $this->projectRepository->findOpenOfAcceptedParticipant($user),
+            static fn (IndustryProject $openProject): bool => $openProject->getStatus() !== ProjectStatus::Draft,
+        ));
         if (!\in_array($project, $openProjects, true)) {
             $openProjects[] = $project;
         }
-        foreach ($openProjects as $openProject) {
-            $this->jobMatcher->releaseMatchesWithoutOutput($openProject);
-        }
-        $containerOwners = $this->jobMatcher->containerOwnersByLocationId($openProjects);
-        $lineFailures = $this->jobMatcher->matchEsiJobs($project, $this->jobMatcher->contestedJobIds($openProjects, $containerOwners), $containerOwners);
-        $this->jobActivityRecorder->recordJobsOf($project);
+        $failuresByProjectId = $this->jobMatcher->matchOpenProjects($openProjects);
+        $targetProjectId = $project->getId()->toRfc4122();
+        $lineFailures = $failuresByProjectId[$targetProjectId];
 
-        foreach ($project->getBomItems() as $line) {
-            if (!$line->isManufacturingOrReactionJob()) {
-                continue;
-            }
-
-            try {
-                $this->derivedContributionService->refreshLine($line);
-            } catch (\LogicException $e) {
-                $failure = LineMatchFailure::contributionNotRefreshed($line);
-                $this->logger->warning('Failed to match jobs of line', $failure->logContext($project->getId()->toRfc4122(), $e->getMessage()));
-                $lineFailures[] = $failure;
+        foreach ($openProjects as $matchedProject) {
+            $this->jobActivityRecorder->recordJobsOf($matchedProject);
+            $refreshFailures = $this->refreshContributionsOf($matchedProject);
+            if ($matchedProject === $project) {
+                $lineFailures = [...$lineFailures, ...$refreshFailures];
             }
         }
 
@@ -141,6 +136,29 @@ class MatchJobsProcessor implements ProcessorInterface
         );
 
         return $result;
+    }
+
+    /**
+     * @return list<LineMatchFailure>
+     */
+    private function refreshContributionsOf(IndustryProject $project): array
+    {
+        $failures = [];
+        foreach ($project->getBomItems() as $line) {
+            if (!$line->isManufacturingOrReactionJob()) {
+                continue;
+            }
+
+            try {
+                $this->derivedContributionService->refreshLine($line);
+            } catch (\LogicException $e) {
+                $failure = LineMatchFailure::contributionNotRefreshed($line);
+                $this->logger->warning('Failed to match jobs of line', $failure->logContext($project->getId()->toRfc4122(), $e->getMessage()));
+                $failures[] = $failure;
+            }
+        }
+
+        return $failures;
     }
 
     /**
