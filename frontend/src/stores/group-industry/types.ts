@@ -1544,6 +1544,7 @@ export interface PlacedAction {
   quantity: number | null
   place: ActionPlace
   here: boolean | null
+}
 
 export type StationTransferCarrierKind = 'courier' | 'jump_bridge' | 'pilot'
 
