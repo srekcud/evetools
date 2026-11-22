@@ -350,14 +350,13 @@ class IndustryProjectService
         $line->setEstimatedPrice($plannedLine->getEstimatedPrice());
     }
 
-    public function planOf(IndustryProject $project, User $owner, ?int $unblacklistedTypeId = null): PlannedProduction
+    public function planOf(IndustryProject $project, User $owner): PlannedProduction
     {
         return $this->plannedProductionOf(
             $project,
             $owner,
             $this->contributionRepository->findIntermediateStockByTypeId($project),
             $this->ownedBlueprintsOf($owner),
-            $unblacklistedTypeId,
         );
     }
 
@@ -365,17 +364,14 @@ class IndustryProjectService
      * @param array<int, int>               $stockByTypeId
      * @param array<int, OwnedBlueprintUse> $ownedBlueprints by product typeId
      */
-    private function plannedProductionOf(IndustryProject $project, User $owner, array $stockByTypeId, array $ownedBlueprints, ?int $unblacklistedTypeId = null): PlannedProduction
+    private function plannedProductionOf(IndustryProject $project, User $owner, array $stockByTypeId, array $ownedBlueprints): PlannedProduction
     {
         return $this->plannedProductionWithBlacklistOf(
             $project,
             $owner,
             $stockByTypeId,
             $ownedBlueprints,
-            array_values(array_filter(
-                $project->getBlacklistTypeIds(),
-                static fn (int $typeId): bool => $typeId !== $unblacklistedTypeId,
-            )),
+            array_values($project->getBlacklistTypeIds()),
         );
     }
 
