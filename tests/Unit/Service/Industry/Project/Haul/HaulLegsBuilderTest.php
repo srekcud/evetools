@@ -239,6 +239,17 @@ final class HaulLegsBuilderTest extends TestCase
         self::assertSame([[self::ZYDRINE, 'Zydrine', null, 'purchase_origin_unknown']], $this->unreadableOf($legs));
     }
 
+    public function testPurchaseWithAnUnknownMissingQuantityHasNoLegAndIsReportedUnreadableForItsType(): void
+    {
+        $legs = $this->builder->build($this->readings(
+            [$this->type(self::ZYDRINE, 'Zydrine', $this->station(self::STATION_A), $this->station(self::STATION_B, toBring: 10))],
+            purchases: [$this->purchase(self::ZYDRINE, PurchaseOriginKind::Jita, 30000142, 'Jita', null)],
+        ));
+
+        self::assertSame([], $this->legsOf($legs));
+        self::assertSame([[self::ZYDRINE, 'Zydrine', null, 'purchase_delivery_unknown']], $this->unreadableOf($legs));
+    }
+
     public function testQuantityOnTheRoadIsAnInTransitLineOfTheLegBetweenTheRouteEnds(): void
     {
         $legs = $this->builder->build($this->readings(
@@ -577,9 +588,9 @@ final class HaulLegsBuilderTest extends TestCase
         return new StationQuantity($locationId, null, 0, 0, $inProduction, 0, $out, $toBring, $inTransit, $reason);
     }
 
-    private function purchase(int $typeId, PurchaseOriginKind $kind, ?int $solarSystemId, ?string $solarSystemName, int $missing): PurchaseToDeliver
+    private function purchase(int $typeId, PurchaseOriginKind $kind, ?int $solarSystemId, ?string $solarSystemName, ?int $missing): PurchaseToDeliver
     {
-        return new PurchaseToDeliver('bom-line-'.$typeId, $typeId, $kind, $solarSystemId, $solarSystemName, $missing, $missing, PurchaseDeliveryState::Missing);
+        return new PurchaseToDeliver('bom-line-'.$typeId, $typeId, $kind, $solarSystemId, $solarSystemName, $missing ?? 1, $missing, PurchaseDeliveryState::Missing);
     }
 
     private function personalStock(int $typeId, array $locations, array $containers = []): PersonalStock
