@@ -158,6 +158,10 @@ final class IndustryJobMatcherTest extends TestCase
             fn (array $esiJobIds): array => array_intersect_key($this->storedUnassignedJobs, array_flip($esiJobIds)),
         );
 
+        $unassignedJobRepository->method('findWithoutOutput')->willReturnCallback(
+            fn (): array => array_values(array_filter($this->storedUnassignedJobs, static fn (UnassignedJob $row): bool => $row->getJob()->hasNoOutput())),
+        );
+
         $reservationRepository = $this->createStub(IndustryProjectLineReservationRepository::class);
         $reservationRepository->method('findByProject')->willReturnCallback(
             fn (IndustryProject $project): array => $this->reservationsByProjectId[$project->getId()->toRfc4122()] ?? [],
@@ -1208,6 +1212,22 @@ final class IndustryJobMatcherTest extends TestCase
         self::assertSame([], $this->matchedJobIdsOf($ishtarLine));
         self::assertSame([$stored], $this->removedUnassignedJobs());
         self::assertSame([], $this->persistedUnassignedJobs());
+    }
+
+    #[Group('issue-1247')]
+    public function testTheStoredRowOfACancelledJobIsRemovedEvenWhenNoLineIsLeftToMatch(): void
+    {
+        $fullLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $keptJob = $this->job(7_247_071, self::ISHTAR_FINAL_LINE_RUNS, '2026-11-02 08:00:00');
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $keptJob);
+        $project = $this->project($fullLine);
+        $this->matcher->matchOpenProjects([$project]);
+        $cancelledJob = $this->job(7_247_072, 5, '2026-11-02 08:00:00', status: 'cancelled');
+        $stored = $this->givenStoredUnassignedJob($cancelledJob);
+
+        $this->matcher->matchOpenProjects([$project]);
+
+        self::assertSame([$stored], $this->removedUnassignedJobs());
     }
 
     #[Group('issue-1247')]

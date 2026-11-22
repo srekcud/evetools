@@ -204,10 +204,17 @@ class IndustryJobMatcher
             $this->entityManager->persist($row);
         }
 
+        $removed = [];
         foreach ($stored as $jobId => $row) {
             if (!\in_array($jobId, $unassignedIds, true)) {
-                $this->entityManager->remove($row);
+                $removed[spl_object_id($row)] = $row;
             }
+        }
+        foreach ($this->unassignedJobRepository->findWithoutOutput() as $row) {
+            $removed[spl_object_id($row)] = $row;
+        }
+        foreach ($removed as $row) {
+            $this->entityManager->remove($row);
         }
     }
 

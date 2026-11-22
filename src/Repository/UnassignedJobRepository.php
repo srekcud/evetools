@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\CachedIndustryJob;
 use App\Entity\UnassignedJob;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -40,5 +41,18 @@ class UnassignedJobRepository extends ServiceEntityRepository
         }
 
         return $byEsiJobId;
+    }
+
+    /**
+     * @return list<UnassignedJob>
+     */
+    public function findWithoutOutput(): array
+    {
+        return array_values($this->createQueryBuilder('u')
+            ->join('u.job', 'j')
+            ->where('j.status IN (:statuses)')
+            ->setParameter('statuses', CachedIndustryJob::STATUSES_WITHOUT_OUTPUT)
+            ->getQuery()
+            ->getResult());
     }
 }

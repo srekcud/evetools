@@ -59,6 +59,19 @@ final class UnassignedJobRepositoryTest extends IntegrationTestCase
         self::assertSame([], $this->repository->findByEsiJobIds([]));
     }
 
+    public function testFindWithoutOutputReturnsOnlyTheRowsOfCancelledAndRevertedJobs(): void
+    {
+        $this->givenUnassignedJob(self::FIRST_ESI_JOB_ID, [])->getJob()->setStatus(CachedIndustryJob::STATUS_CANCELLED);
+        $this->givenUnassignedJob(self::SECOND_ESI_JOB_ID, [])->getJob()->setStatus(CachedIndustryJob::STATUS_REVERTED);
+        $this->givenUnassignedJob(self::THIRD_ESI_JOB_ID, [])->getJob()->setStatus(CachedIndustryJob::STATUS_DELIVERED);
+        $this->flushAndClear();
+
+        $esiJobIds = array_map(static fn (UnassignedJob $row): int => $row->getJob()->getJobId(), $this->repository->findWithoutOutput());
+        sort($esiJobIds);
+
+        self::assertSame([self::FIRST_ESI_JOB_ID, self::SECOND_ESI_JOB_ID], $esiJobIds);
+    }
+
     public function testTheRowIsDeletedWithItsCachedJob(): void
     {
         $unassignedJob = $this->givenUnassignedJob(self::FIRST_ESI_JOB_ID, []);
