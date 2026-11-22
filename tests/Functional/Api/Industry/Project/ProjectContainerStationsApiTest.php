@@ -152,15 +152,16 @@ final class ProjectContainerStationsApiTest extends WebTestCase
         self::assertSame([[self::CONTAINER_NAME, null], ['X', self::ALPHA_LOCATION_ID]], $this->storedContainers());
     }
 
-    public function testNameTakenByAContainerOfAnotherStationIsRefusedWith409(): void
+    public function testNameUsedByAContainerOfAnotherStationCreatesASecondContainerAtThisStation(): void
     {
         $this->persistContainer('Mats', self::BETA_LOCATION_ID);
 
         $this->actAs($this->owner);
         $this->request('POST', $this->containersUri(), ['locationId' => self::ALPHA_LOCATION_ID, 'name' => 'Mats']);
 
-        self::assertResponseStatusCodeSame(409);
-        self::assertSame([[self::CONTAINER_NAME, null], ['Mats', self::BETA_LOCATION_ID]], $this->storedContainers());
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('Mats', $this->responseJson()['container']['name']);
+        self::assertSame([[self::CONTAINER_NAME, null], ['Mats', self::ALPHA_LOCATION_ID], ['Mats', self::BETA_LOCATION_ID]], $this->storedContainers());
     }
 
     public function testLocationThatIsNotAStationOfThePlanIsRefusedWith422(): void
@@ -280,7 +281,7 @@ final class ProjectContainerStationsApiTest extends WebTestCase
     private function storedContainers(): array
     {
         $rows = $this->em->getConnection()->fetchAllAssociative(
-            'SELECT name, location_id FROM industry_project_containers WHERE project_id = :projectId ORDER BY name COLLATE "C"',
+            'SELECT name, location_id FROM industry_project_containers WHERE project_id = :projectId ORDER BY name COLLATE "C", location_id NULLS FIRST',
             ['projectId' => $this->ishtarBatch->getId()->toRfc4122()],
         );
 

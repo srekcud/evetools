@@ -209,6 +209,31 @@ final class StationMigrationTest extends IntegrationTestCase
         self::assertSame([], $reverted->changedSince);
     }
 
+    public function testRevertAfterAContainerWasSplitOverTwoStationsLeavesTheSingleContainerWithoutLocation(): void
+    {
+        $project = $this->newProject('Split run');
+        $this->addComponentLines($project, $this->azbelAId, $this->sotiyoBId);
+        $containerId = $this->addContainer($project, self::FIRST_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_A, self::FIRST_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_B, self::FIRST_CONTAINER_NAME);
+        $this->flushAndClear();
+        $projectId = $project->getId()->toRfc4122();
+
+        $this->migration->run(true, $projectId, $this->logPath);
+        $this->em->clear();
+        self::assertCount(2, $this->reloadedProject($projectId)->getContainers());
+        $this->em->clear();
+
+        $reverted = $this->migration->revert($this->logPath, true);
+        $this->em->clear();
+
+        $containers = $this->reloadedProject($projectId)->getContainers()->toArray();
+        self::assertCount(2, array_filter($reverted->reverted, static fn (StationMigrationChange $change): bool => StationMigrationChangeKind::ContainerLocation === $change->kind));
+        self::assertCount(1, $containers);
+        self::assertSame($containerId, $containers[0]->getId()->toRfc4122());
+        self::assertNull($containers[0]->getLocationId());
+    }
+
     public function testRevertWithoutApplyOnlyReportsWhatItWouldUndo(): void
     {
         $applied = $this->migration->run(true, null, $this->logPath);

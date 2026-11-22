@@ -131,7 +131,21 @@ final readonly class StationMigration
         }
 
         $container->clearLocation();
+        $this->removeWhenAnotherUnlocatedContainerHasTheSameName($container);
 
         return true;
+    }
+
+    private function removeWhenAnotherUnlocatedContainerHasTheSameName(IndustryProjectContainer $container): void
+    {
+        $projectContainers = $container->getProject()->getContainers();
+        $nameKey = IndustryProjectContainer::keyOf($container->getName());
+        $hasTwin = array_any(
+            $projectContainers->toArray(),
+            static fn (IndustryProjectContainer $other): bool => $other !== $container && null === $other->getLocationId() && IndustryProjectContainer::keyOf($other->getName()) === $nameKey,
+        );
+        if ($hasTwin) {
+            $projectContainers->removeElement($container);
+        }
     }
 }

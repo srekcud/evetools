@@ -92,7 +92,7 @@ final class ProjectContainerPlacerTest extends TestCase
         }
     }
 
-    public function testRefusesANameAlreadyTakenByAContainerOfAnotherStation(): void
+    public function testCreatesASecondContainerWhenTheNameIsAlreadyUsedAtAnotherStation(): void
     {
         $this->project->setWorkStations([
             'final_products' => $this->workStation($this->stationA),
@@ -100,12 +100,23 @@ final class ProjectContainerPlacerTest extends TestCase
         ]);
         $this->project->getContainers()->add((new IndustryProjectContainer($this->project, 'Mats'))->locateAt(self::STATION_B_LOCATION_ID));
 
-        $this->expectException(ContainerNameTakenException::class);
+        $station = $this->placerWithStations([$this->stationA, $this->stationB])->place($this->project, self::STATION_A_LOCATION_ID, 'mats');
+
+        self::assertSame([['Mats', self::STATION_B_LOCATION_ID], ['mats', self::STATION_A_LOCATION_ID]], $this->containersOfProject());
+        self::assertSame('mats', $station->containerName);
+        self::assertSame($this->project->getContainers()->last()->getId()->toRfc4122(), $station->containerId);
+    }
+
+    public function testStillRefusesAStationThatHasAContainerNamedLikeTheGivenName(): void
+    {
+        $this->project->getContainers()->add((new IndustryProjectContainer($this->project, 'Mats'))->locateAt(self::STATION_A_LOCATION_ID));
+
+        $this->expectException(StationAlreadyHasContainerException::class);
 
         try {
-            $this->placerWithStations([$this->stationA, $this->stationB])->place($this->project, self::STATION_A_LOCATION_ID, 'Mats');
+            $this->placerWithStations([$this->stationA])->place($this->project, self::STATION_A_LOCATION_ID, 'Mats');
         } finally {
-            self::assertSame([['Mats', self::STATION_B_LOCATION_ID]], $this->containersOfProject());
+            self::assertSame([['Mats', self::STATION_A_LOCATION_ID]], $this->containersOfProject());
         }
     }
 

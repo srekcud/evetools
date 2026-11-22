@@ -31,17 +31,17 @@ final class ContainerLocationInferenceTest extends TestCase
 
     public function testASingleAssetInAStationGivesThatStation(): void
     {
-        self::assertSame(self::STATION_A, $this->inference->of([self::STATION_A]));
+        self::assertSame([self::STATION_A], $this->inference->of([self::STATION_A]));
     }
 
     public function testSeveralAssetsInTheSameStationGiveThatStationOnce(): void
     {
-        self::assertSame(self::STATION_B, $this->inference->of([self::STATION_B, self::STATION_B, self::STATION_B]));
+        self::assertSame([self::STATION_B], $this->inference->of([self::STATION_B, self::STATION_B, self::STATION_B]));
     }
 
-    public function testAssetsInTwoStationsMeanContainerInSeveralStations(): void
+    public function testAssetsInTwoStationsGiveBothStationsInAscendingOrder(): void
     {
-        self::assertSame(StationMigrationReason::ContainerInSeveralStations, $this->inference->of([self::STATION_A, self::STATION_B]));
+        self::assertSame([self::STATION_A, self::STATION_B], $this->inference->of([self::STATION_B, self::STATION_A, self::STATION_B]));
     }
 
     public function testAnAssetWhoseStationIsUnresolvedMeansStationUnresolved(): void

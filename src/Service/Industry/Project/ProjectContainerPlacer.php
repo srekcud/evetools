@@ -36,13 +36,11 @@ final readonly class ProjectContainerPlacer
             throw new ContainerNameTakenException('A personal stock container has this name');
         }
 
-        $sameNameContainer = $this->containerNamed($project, $containerName);
-        if (null === $sameNameContainer) {
+        $unlocatedSameNameContainer = $this->unlocatedContainerNamed($project, $containerName);
+        if (null === $unlocatedSameNameContainer) {
             $project->addContainerAt($containerName, $locationId);
-        } elseif (null === $sameNameContainer->getLocationId()) {
-            $sameNameContainer->locateAt($locationId);
         } else {
-            throw new ContainerNameTakenException('A container of the project already has this name');
+            $unlocatedSameNameContainer->locateAt($locationId);
         }
 
         return $this->stationAt($project, $locationId);
@@ -69,11 +67,11 @@ final readonly class ProjectContainerPlacer
         );
     }
 
-    private function containerNamed(IndustryProject $project, string $containerName): ?IndustryProjectContainer
+    private function unlocatedContainerNamed(IndustryProject $project, string $containerName): ?IndustryProjectContainer
     {
         $key = IndustryProjectContainer::keyOf($containerName);
         foreach ($project->getContainers() as $container) {
-            if (IndustryProjectContainer::keyOf($container->getName()) === $key) {
+            if (null === $container->getLocationId() && IndustryProjectContainer::keyOf($container->getName()) === $key) {
                 return $container;
             }
         }

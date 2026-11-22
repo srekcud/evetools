@@ -461,7 +461,12 @@ class IndustryProject
     /** @return list<string> */
     public function getContainerNames(): array
     {
-        return array_values($this->containers->map(static fn (IndustryProjectContainer $container): string => $container->getName())->toArray());
+        $namesByKey = [];
+        foreach ($this->containers as $container) {
+            $namesByKey[IndustryProjectContainer::keyOf($container->getName())] ??= $container->getName();
+        }
+
+        return array_values($namesByKey);
     }
 
     public function addContainerAt(string $name, int $locationId): IndustryProjectContainer

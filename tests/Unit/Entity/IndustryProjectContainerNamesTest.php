@@ -60,6 +60,27 @@ final class IndustryProjectContainerNamesTest extends TestCase
         self::assertCount(2, $project->getContainers());
     }
 
+    public function testTheSameNameAtSeveralStationsIsListedOnce(): void
+    {
+        $project = new IndustryProject();
+        $project->addContainerAt('Mats', 60_003_760);
+        $project->addContainerAt('mats', 60_008_494);
+        $project->addContainerAt('Fuel', 60_011_866);
+
+        self::assertSame(['Mats', 'Fuel'], $project->getContainerNames());
+    }
+
+    public function testReplacingTheNamesKeepsEveryRowOfAnAlreadyLocatedName(): void
+    {
+        $project = new IndustryProject();
+        $project->addContainerAt('Mats', 60_003_760);
+        $project->addContainerAt('Mats', 60_008_494);
+
+        $project->setContainerNames(['Mats']);
+
+        self::assertSame([60_003_760, 60_008_494], array_map(static fn (IndustryProjectContainer $container): ?int => $container->getLocationId(), $project->getContainers()->toArray()));
+    }
+
     public function testEmptyListClearsTheNames(): void
     {
         $project = (new IndustryProject())->setContainerNames(['Mats']);
