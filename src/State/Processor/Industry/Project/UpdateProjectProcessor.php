@@ -20,6 +20,7 @@ use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectProducerCharacters;
 use App\Service\Industry\Project\ProjectSellStructures;
+use App\Service\Industry\Project\ProjectWorkStationChoices;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -28,6 +29,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -54,6 +56,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         private readonly ProjectSellStructures $sellStructures,
         private readonly LineReservationService $lineReservations,
         private readonly ProjectLaunchPriceFreezer $launchPrices,
+        private readonly ?ProjectWorkStationChoices $workStationChoices = null,
     ) {
     }
 
@@ -96,6 +99,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         $this->changeTheBlacklist($project, $data);
         $this->changeTheInventionExclusion($project, $data);
         $this->changeTheSelectionPolicy($project, $data);
+        $this->changeTheWorkStations($project, $data);
         $this->changeTheSellStructure($user, $project, $data);
         $this->changeTheProducerCharacters($project, $data);
 
@@ -241,6 +245,21 @@ class UpdateProjectProcessor implements ProcessorInterface
             $project->setExcludesInvention($previousExcludesInvention);
 
             throw new BadRequestHttpException($e->getMessage());
+        }
+    }
+
+    private function changeTheWorkStations(IndustryProject $project, UpdateProjectInput $data): void
+    {
+        if (null === $data->workStations) {
+            return;
+        }
+
+        $workStationChoices = $this->workStationChoices ?? throw new \LogicException('Changing the work stations needs the work station choices.');
+
+        try {
+            $workStationChoices->change($project, $data->workStations);
+        } catch (\InvalidArgumentException $e) {
+            throw new UnprocessableEntityHttpException($e->getMessage(), $e);
         }
     }
 

@@ -21,6 +21,7 @@ final readonly class ProductionPlanning
         private SystemCostIndices $costIndices,
         private RigCategories $rigCategories,
         private ?StructureTotalCostComparator $totalCostComparator = null,
+        private ?WorkTypeClassifier $workTypeClassifier = null,
     ) {
     }
 
@@ -31,11 +32,15 @@ final readonly class ProductionPlanning
 
     public function planWithStructuresOf(ProductionPlanRequest $request): PlannedProduction
     {
+        if ([] !== $request->workStructures && null === $this->workTypeClassifier) {
+            throw new \LogicException('Work structures need a work type classifier.');
+        }
+
         $recipes = new RecipeMemory($this->blueprints);
         $planner = new ProductionPlanner($this->blueprints);
         $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices, $this->totalCostComparator, $request->selectionPolicy);
         $targets = self::targetsWithOwnedEfficiency($request, $recipes);
-        $materialModifiers = new StructureMaterialModifiers($selector, $this->rigCategories, [], self::referenceRunsOf($targets));
+        $materialModifiers = new StructureMaterialModifiers($selector, $this->rigCategories, [], self::referenceRunsOf($targets), $this->workStructureAssignmentsOf($request));
 
         $ownedEfficiencies = array_map(static fn (OwnedBlueprintUse $use): BlueprintEfficiency => $use->efficiency, $request->ownedBlueprints);
 
@@ -66,7 +71,20 @@ final readonly class ProductionPlanning
             $structureChoices[PlannedProduction::choiceKey($job->productTypeId, $job->activity)] = $materialModifiers->choiceFor($recipe);
         }
 
-        return new PlannedProduction($plan, $structureChoices, $selector->select(ActivityKind::Copying, null));
+        return new PlannedProduction($plan, $structureChoices, $selector->select(ActivityKind::Copying, null, $request->workStructures[WorkType::Blueprints->value] ?? null));
+    }
+
+    private function workStructureAssignmentsOf(ProductionPlanRequest $request): ?WorkStructureAssignments
+    {
+        if (null === $this->workTypeClassifier || [] === $request->workStructures) {
+            return null;
+        }
+
+        return new WorkStructureAssignments(
+            $this->workTypeClassifier,
+            $request->workStructures,
+            array_map(static fn (PlanTarget $target): int => $target->productTypeId, $request->targets),
+        );
     }
 
     /**

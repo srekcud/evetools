@@ -14,6 +14,7 @@ class UpdateProjectInput
     public const int MAXIMUM_BLACKLIST_ENTRIES = 200;
     public const int MAXIMUM_CONTAINER_NAMES = 20;
     public const int MAXIMUM_CONTAINER_NAME_LENGTH = 255;
+    public const int MAXIMUM_WORK_STATIONS = 5;
 
     #[Assert\Length(max: 255)]
     public ?string $name = null;
@@ -43,6 +44,11 @@ class UpdateProjectInput
     public ?bool $acceptsOutsideFavoriteSystem = null;
 
     public ?bool $excludesInvention = null;
+
+    /** @var array<string, string|null>|null */
+    #[Assert\Count(max: self::MAXIMUM_WORK_STATIONS)]
+    #[Assert\All([new Assert\Type('string'), new Assert\Uuid()])]
+    public ?array $workStations = null;
 
     /** @var list<int>|null */
     #[Assert\Count(min: 1, max: self::MAXIMUM_PRODUCER_CHARACTERS)]

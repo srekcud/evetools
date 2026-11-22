@@ -132,6 +132,9 @@ class IndustryProjectResource
 
     public bool $excludesInvention = false;
 
+    /** @var array<string, array{structureId: string, recommendedStructureId: string|null}> */
+    public array $workStations = [];
+
     /** @var list<int>|null */
     public ?array $producerCharacterIds = null;
 

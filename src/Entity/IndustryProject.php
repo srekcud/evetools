@@ -72,6 +72,10 @@ class IndustryProject
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $producerCharacterIds = null;
 
+    /** @var array<string, array{structureId: string, recommendedStructureId: string|null}>|null */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $workStations = null;
+
     #[ORM\Column(type: 'float', options: ['default' => self::DEFAULT_MINIMUM_OUTSIDE_SAVING])]
     private float $minimumOutsideSaving = self::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
@@ -330,6 +334,23 @@ class IndustryProject
     public function setAcceptsOutsideFavoriteSystem(bool $acceptsOutsideFavoriteSystem): static
     {
         $this->acceptsOutsideFavoriteSystem = $acceptsOutsideFavoriteSystem;
+        return $this;
+    }
+
+    /**
+     * @return array<string, array{structureId: string, recommendedStructureId: string|null}>
+     */
+    public function getWorkStations(): array
+    {
+        return $this->workStations ?? [];
+    }
+
+    /**
+     * @param array<string, array{structureId: string, recommendedStructureId: string|null}> $workStations
+     */
+    public function setWorkStations(array $workStations): static
+    {
+        $this->workStations = [] === $workStations ? null : $workStations;
         return $this;
     }
 

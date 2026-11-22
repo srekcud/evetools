@@ -14,9 +14,19 @@ final class MissingDataPresenter
      */
     public static function of(Cost $cost): array
     {
+        return self::ofList($cost->missingData);
+    }
+
+    /**
+     * @param list<MissingData> $missingData
+     *
+     * @return list<array{reason: string, typeId: ?int}>
+     */
+    public static function ofList(array $missingData): array
+    {
         return array_map(
-            static fn (MissingData $missingData): array => ['reason' => $missingData->reason, 'typeId' => $missingData->typeId],
-            $cost->missingData,
+            static fn (MissingData $missing): array => ['reason' => $missing->reason, 'typeId' => $missing->typeId],
+            $missingData,
         );
     }
 }

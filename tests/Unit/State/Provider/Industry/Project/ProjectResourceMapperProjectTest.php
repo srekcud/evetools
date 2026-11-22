@@ -308,6 +308,27 @@ final class ProjectResourceMapperProjectTest extends TestCase
         self::assertSame([false, true], [$withoutExclusion, $this->resource()->excludesInvention]);
     }
 
+    #[Group('issue-1285')]
+    public function testResourceExposesTheWorkStationChoicesOfTheProjectOrNone(): void
+    {
+        $withoutChoice = $this->resource()->workStations;
+        $this->project->setWorkStations([
+            'components' => ['structureId' => '01970000-0000-7000-8000-0000000000a1', 'recommendedStructureId' => '01970000-0000-7000-8000-0000000000a2'],
+            'reaction' => ['structureId' => '01970000-0000-7000-8000-0000000000a3', 'recommendedStructureId' => null],
+        ]);
+
+        self::assertSame(
+            [
+                [],
+                [
+                    'components' => ['structureId' => '01970000-0000-7000-8000-0000000000a1', 'recommendedStructureId' => '01970000-0000-7000-8000-0000000000a2'],
+                    'reaction' => ['structureId' => '01970000-0000-7000-8000-0000000000a3', 'recommendedStructureId' => null],
+                ],
+            ],
+            [$withoutChoice, $this->resource()->workStations],
+        );
+    }
+
     private function resource(): IndustryProjectResource
     {
         return $this->mapper->projectToResource($this->project, $this->ownerMembership);

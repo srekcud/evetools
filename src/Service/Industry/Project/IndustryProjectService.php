@@ -371,19 +371,44 @@ class IndustryProjectService
             )),
         );
 
+        $structures = $this->structuresOf($owner);
+
         try {
             return $this->productionPlanning->planWithStructuresOf(new ProductionPlanRequest(
                 $this->targetsOf($project, $stockByTypeId),
-                $this->structuresOf($owner),
+                $structures,
                 $this->favoriteSystemsOf($owner),
                 $blacklistedTypeIds,
                 array_map(static fn (int $stock): Quantity => new Quantity($stock), $stockByTypeId),
                 new StructureSelectionPolicy($project->isAcceptsOutsideFavoriteSystem(), new Isk($project->getMinimumOutsideSaving())),
                 $ownedBlueprints,
+                $this->workStructuresOf($project, $structures),
             ));
         } catch (\DomainException $e) {
             throw new \RuntimeException($e->getMessage(), 0, $e);
         }
+    }
+
+    /**
+     * @param list<ProductionStructure> $structures
+     *
+     * @return array<string, ProductionStructure> by WorkType value, without the structures the owner no longer has
+     */
+    private function workStructuresOf(IndustryProject $project, array $structures): array
+    {
+        $structuresById = [];
+        foreach ($structures as $structure) {
+            $structuresById[$structure->id] = $structure;
+        }
+
+        $workStructures = [];
+        foreach ($project->getWorkStations() as $workType => $choice) {
+            if (isset($structuresById[$choice['structureId']])) {
+                $workStructures[$workType] = $structuresById[$choice['structureId']];
+            }
+        }
+
+        return $workStructures;
     }
 
     /**
