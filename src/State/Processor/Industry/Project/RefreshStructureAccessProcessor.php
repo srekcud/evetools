@@ -59,10 +59,11 @@ final readonly class RefreshStructureAccessProcessor implements ProcessorInterfa
         if ($cooldown->isHit()) {
             throw new TooManyRequestsHttpException(self::COOLDOWN_SECONDS, 'A refresh of the structure access was queued less than five minutes ago');
         }
-        $cooldown->set(true)->expiresAfter(self::COOLDOWN_SECONDS);
-        $this->cache->save($cooldown);
 
         $this->messageBus->dispatch(new RefreshProjectStructureAccess($projectId));
+
+        $cooldown->set(true)->expiresAfter(self::COOLDOWN_SECONDS);
+        $this->cache->save($cooldown);
 
         $resource = new ProjectStructureAccessRefreshResource();
         $resource->projectId = $projectId;

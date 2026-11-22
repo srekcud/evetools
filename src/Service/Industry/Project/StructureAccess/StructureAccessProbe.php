@@ -23,7 +23,7 @@ final readonly class StructureAccessProbe
     public function probe(Character $character, int $structureId): StructureAccessStatus
     {
         $token = $character->getEveToken();
-        if (null === $token) {
+        if (null === $token || !$token->hasScope(self::REQUIRED_SCOPE)) {
             return StructureAccessStatus::Unknown;
         }
 
@@ -32,10 +32,10 @@ final readonly class StructureAccessProbe
         try {
             $this->esiClient->get($endpoint, $token);
         } catch (EsiApiException $answer) {
-            return self::FORBIDDEN === $answer->statusCode && $endpoint === $answer->endpoint && $token->hasScope(self::REQUIRED_SCOPE)
+            return self::FORBIDDEN === $answer->statusCode && $endpoint === $answer->endpoint
                 ? StructureAccessStatus::Denied
                 : StructureAccessStatus::Unknown;
-        } catch (EveAuthRequiredException|\RuntimeException) {
+        } catch (EveAuthRequiredException|\RuntimeException|\JsonException) {
             return StructureAccessStatus::Unknown;
         }
 

@@ -126,9 +126,9 @@ final class StructureAccessRefresherTest extends TestCase
 
         $report = $this->refresherFor($project, $members)->refreshProject($project);
 
-        self::assertCount(40, $this->requestedUrls);
-        self::assertSame([40, true, false], [$report->probed, $report->capped, $report->stoppedForBudget]);
-        self::assertCount(40, $this->persistedRows);
+        self::assertCount(20, $this->requestedUrls);
+        self::assertSame([20, true, false], [$report->probed, $report->capped, $report->stoppedForBudget]);
+        self::assertCount(20, $this->persistedRows);
     }
 
     #[DataProvider('exhaustedBudgetLevels')]
@@ -142,6 +142,17 @@ final class StructureAccessRefresherTest extends TestCase
         self::assertSame([], $this->requestedUrls);
         self::assertSame([0, true, false], [$report->probed, $report->stoppedForBudget, $report->capped]);
         self::assertSame([], $this->persistedRows);
+    }
+
+    public function testAnErrorBudgetWithoutFreshObservationDoesNotStopTheProbes(): void
+    {
+        $owner = $this->pilotOf($this->characterOf());
+        $project = $this->projectPlannedAt($owner, [self::KEEPSTAR_STRUCTURE_ID]);
+
+        $report = $this->refresherFor($project, [$owner], budgetLevel: 'unknown')->refreshProject($project);
+
+        self::assertCount(1, $this->requestedUrls);
+        self::assertSame([1, false, false], [$report->probed, $report->stoppedForBudget, $report->capped]);
     }
 
     public static function exhaustedBudgetLevels(): iterable

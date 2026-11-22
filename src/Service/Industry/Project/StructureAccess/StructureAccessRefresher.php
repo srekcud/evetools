@@ -17,11 +17,11 @@ use Symfony\Component\Clock\ClockInterface;
 
 final readonly class StructureAccessRefresher
 {
-    public const int MAXIMUM_PROBES = 40;
+    public const int MAXIMUM_PROBES = 20;
     public const int DENIED_RECHECK_HOURS = 24;
     public const int GRANTED_RECHECK_DAYS = 7;
 
-    private const string BUDGET_LEVEL_OK = 'ok';
+    private const array EXHAUSTED_BUDGET_LEVELS = ['low', 'critical'];
 
     public function __construct(
         private PlanStations $planStations,
@@ -42,39 +42,41 @@ final readonly class StructureAccessRefresher
         $stoppedForBudget = false;
         $capped = false;
 
-        foreach ($this->pairsOf($project) as [$character, $structureId]) {
-            $row = $this->accessRepository->findOneByCharacterAndStructure($character, $structureId);
+        try {
+            foreach ($this->pairsOf($project) as [$character, $structureId]) {
+                $row = $this->accessRepository->findOneByCharacterAndStructure($character, $structureId);
 
-            $latestJobEnd = $this->jobRepository->latestEndDateAtStructure($character, $structureId);
-            if (null !== $latestJobEnd && (null === $row || StructureAccessStatus::Granted === $row->getStatus() || $latestJobEnd >= $row->getCheckedAt())) {
-                $this->record($character, $structureId, $row, StructureAccessStatus::Granted, StructureAccessSource::Job, $now);
-                ++$skipped;
-                continue;
-            }
+                $latestJobEnd = $this->jobRepository->latestEndDateAtStructure($character, $structureId);
+                if (null !== $latestJobEnd && (null === $row || StructureAccessStatus::Granted === $row->getStatus() || $latestJobEnd >= $row->getCheckedAt())) {
+                    $this->record($character, $structureId, $row, StructureAccessStatus::Granted, StructureAccessSource::Job, $now);
+                    ++$skipped;
+                    continue;
+                }
 
-            if (null !== $row && $this->isFresh($row, $now)) {
-                ++$skipped;
-                continue;
-            }
+                if (null !== $row && $this->isFresh($row, $now)) {
+                    ++$skipped;
+                    continue;
+                }
 
-            if (self::BUDGET_LEVEL_OK !== $this->errorBudget->snapshot()['level']) {
-                $stoppedForBudget = true;
-                break;
-            }
+                if (\in_array($this->errorBudget->snapshot()['level'], self::EXHAUSTED_BUDGET_LEVELS, true)) {
+                    $stoppedForBudget = true;
+                    break;
+                }
 
-            if ($probed >= self::MAXIMUM_PROBES) {
-                $capped = true;
-                break;
-            }
+                if ($probed >= self::MAXIMUM_PROBES) {
+                    $capped = true;
+                    break;
+                }
 
-            ++$probed;
-            $status = $this->probe->probe($character, $structureId);
-            if (StructureAccessStatus::Unknown !== $status) {
-                $this->record($character, $structureId, $row, $status, StructureAccessSource::Esi, $now);
+                ++$probed;
+                $status = $this->probe->probe($character, $structureId);
+                if (StructureAccessStatus::Unknown !== $status) {
+                    $this->record($character, $structureId, $row, $status, StructureAccessSource::Esi, $now);
+                }
             }
+        } finally {
+            $this->entityManager->flush();
         }
-
-        $this->entityManager->flush();
 
         return new StructureAccessRefreshReport($probed, $skipped, $stoppedForBudget, $capped);
     }

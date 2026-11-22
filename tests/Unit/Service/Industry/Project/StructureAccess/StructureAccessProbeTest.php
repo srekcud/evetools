@@ -61,7 +61,18 @@ final class StructureAccessProbeTest extends TestCase
         yield 'error limited' => [static fn (): MockResponse => new MockResponse('{"error":"Error limited"}', ['http_code' => 420])];
         yield 'rate limited' => [static fn (): MockResponse => new MockResponse('{"error":"Too many requests"}', ['http_code' => 429, 'response_headers' => ['Retry-After' => '0']])];
         yield 'server error' => [static fn (): MockResponse => new MockResponse('{"error":"Bad gateway"}', ['http_code' => 502])];
+        yield 'invalid body' => [static fn (): MockResponse => new MockResponse('not json', ['http_code' => 200])];
         yield 'network error' => [static fn (): MockResponse => new MockResponse('', ['error' => 'connection refused'])];
+    }
+
+    public function testTokenWithoutTheStructureScopeIsUnknownWithoutAnyRequest(): void
+    {
+        $probe = $this->probeAnswering(static fn (): MockResponse => new MockResponse('{"error":"Forbidden"}', ['http_code' => 403]));
+
+        $status = $probe->probe($this->characterOf(withScope: false), self::KEEPSTAR_STRUCTURE_ID);
+
+        self::assertSame(StructureAccessStatus::Unknown, $status);
+        self::assertSame([], $this->requestedUrls);
     }
 
     public function testCharacterWithoutUsableTokenIsUnknownWithoutAnyRequest(): void
