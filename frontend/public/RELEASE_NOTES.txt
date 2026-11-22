@@ -3,6 +3,43 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.31 (2026-11-22)
+--------------------------------------------------------------------------------
+
+### Industrie - transport
+- Nouvel onglet Transport dans le compagnon : une course par trajet entre
+  deux stations du projet, avec le volume, l'etat de chaque ligne (prete,
+  en production avec compte a rebours, en transit) et les courses qui partent
+  de la ou se trouve un de vos personnages en premier
+- Une course se declare en un clic, vous comme transporteur ; les transferts
+  en cours et leur bouton Arrive passent dans cet onglet
+- Une course qui part de votre stock personnel renvoie vers "Utiliser mon
+  stock" pour la fourniture et ne declare que le transfert
+
+### Industrie - page projet
+- La section du flux se replie, avec un resume du nombre de cartes par etat ;
+  le choix est retenu par projet
+- Ouvrir une section depuis son en-tete fait defiler la page jusqu'a elle
+- Le bloc de solde n'est plus repete dans les sections en dessous (cascade,
+  repartition, transferts, recap Discord, surplus)
+- Projet solo : plus d'onglet "A assigner" dans le compagnon, toutes les
+  lignes sont a vous et le compagnon s'ouvre sur "A livrer"
+
+### Industrie - conteneurs et stations
+- Un meme nom de conteneur de projet peut servir dans plusieurs stations
+- Les conteneurs ranges dans un bureau de corporation a l'interieur d'une
+  structure de la corporation sont lus a la bonne station
+- Une station sans conteneur localise indique que l'emplacement du conteneur
+  est inconnu au lieu de "aucun conteneur dans cette station"
+
+### Industrie - ventes
+- Le prix conseille pour passer sous un ordre de vente baisse d'un cran de
+  prix du jeu au lieu de 100 ISK
+
+### Industrie - corrections
+- Tailles de texte du flux alignees sur le reste de l'application
+
+--------------------------------------------------------------------------------
 Version 0.30 (2026-11-22)
 --------------------------------------------------------------------------------
 
