@@ -18,6 +18,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(StationQuantityCalculator::class)]
 #[Group('issue-1294')]
+#[Group('issue-1353')]
 final class StationQuantityCalculatorTest extends TestCase
 {
     use BuildsChainBomLines;
@@ -180,6 +181,30 @@ final class StationQuantityCalculatorTest extends TestCase
         $entries = $this->computeScenario($readings);
 
         self::assertSame([[self::STATION_B, 100, 0, 0, null, null, null, 0, 'no_container_at_station']], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+    }
+
+    public function testStationWithoutLocatedContainerIsUnknownBecauseAProjectContainerHasNoLocation(): void
+    {
+        $readings = [
+            ProjectContainerReading::known('c-a', 'Ishtar A', self::STATION_A, [], null),
+            ProjectContainerReading::known('c-nowhere', 'Ishtar legacy', null, [], null),
+        ];
+
+        $entries = $this->computeScenario($readings);
+
+        self::assertSame([[self::STATION_B, 100, 0, 0, null, null, null, 0, 'container_location_unknown']], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+    }
+
+    public function testStationWithALocatedContainerIsNotAffectedByAnUnlocatedContainer(): void
+    {
+        $readings = [
+            ProjectContainerReading::known('c-b', 'Ishtar B', self::STATION_B, [new ProjectContainerContent(self::ZYDRINE, 'Zydrine', 30)], null),
+            ProjectContainerReading::known('c-nowhere', 'Ishtar legacy', null, [], null),
+        ];
+
+        $entries = $this->computeScenario($readings);
+
+        self::assertSame([[self::STATION_B, 100, 0, 0, 30, 0, 70, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
     }
 
     public function testUncomputablePlanGivesNullStationsAndPlanUnavailableForEveryType(): void
