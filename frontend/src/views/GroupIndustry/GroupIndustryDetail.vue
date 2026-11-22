@@ -85,6 +85,7 @@ import { unfinishedLinesOf } from './sellingConfirmation'
 import { groupJoinUrl } from './groupJoinUrl'
 import { DETAIL_TABS, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
+import { flowStateSummary, readFlowCollapsed, writeFlowCollapsed } from './flowCollapse'
 import { isSourcingCollapsed, isSourcingComplete, readSourcingOverride, writeSourcingOverride, type SourcingOverride } from './sourcingCollapse'
 import { refreshesWithSettlementBlock, type GroupProjectRefresh } from './groupProjectRefreshes'
 import { useFlash } from '@/composables/useUpdateFlash'
@@ -234,8 +235,9 @@ const sectionsRoot = ref<HTMLElement | null>(null)
 let sectionToggledByUser = false
 
 function toggleSection(tab: ProjectDetailTab): void {
-  sectionToggledByUser = true
-  activeTab.value = activeTab.value === tab ? null : tab
+  const closing = activeTab.value === tab
+  sectionToggledByUser = closing
+  activeTab.value = closing ? null : tab
 }
 
 watch([activeTab, sectionsRoot], ([tab]) => {
@@ -313,6 +315,18 @@ const flowGrid = computed(() => {
     now: flowNow.value,
   })
 })
+
+const flowCollapsed = ref(false)
+const flowSummary = computed(() => (flowGrid.value === null ? [] : flowStateSummary(flowGrid.value)))
+
+watch(projectId, id => {
+  flowCollapsed.value = readFlowCollapsed(localStorage, id)
+}, { immediate: true })
+
+function toggleFlow(): void {
+  flowCollapsed.value = !flowCollapsed.value
+  writeFlowCollapsed(localStorage, projectId.value, flowCollapsed.value)
+}
 
 const iskBand = computed(() => buildIskBand({
   distribution: distributionStore.distribution,
@@ -830,7 +844,34 @@ function applyShareLinkShortcut(): void {
 
       <ProjectIskBand v-if="flowLoaded" :band="iskBand" />
 
-      <div class="mb-6 grid gap-4 xl:grid-cols-[1fr_320px]">
+      <div data-testid="flow-section-header" class="flex flex-wrap items-center gap-x-4 gap-y-1" :class="flowCollapsed ? 'mb-6' : 'mb-3'">
+        <button
+          type="button"
+          data-testid="flow-section-toggle"
+          :aria-expanded="!flowCollapsed"
+          :title="t(flowCollapsed ? 'groupIndustry.flow.expand' : 'groupIndustry.flow.collapse')"
+          class="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-widest text-slate-300 hover:text-cyan-300"
+          @click="toggleFlow"
+        >
+          <svg class="h-3 w-3 flex-none text-slate-500 transition-transform" :class="flowCollapsed ? '' : 'rotate-90'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+          {{ t('groupIndustry.flow.sectionTitle') }}
+        </button>
+        <ul v-if="flowCollapsed && flowSummary.length > 0" :aria-label="t('groupIndustry.flow.summaryLabel')" class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
+          <li
+            v-for="entry in flowSummary"
+            :key="entry.state"
+            data-testid="flow-summary-state"
+            :data-state="entry.state"
+            :data-count="entry.count"
+          >
+            <span class="font-mono text-slate-200">{{ entry.count }}</span> {{ t(`groupIndustry.flow.states.${entry.state}`) }}
+          </li>
+        </ul>
+      </div>
+
+      <div v-if="!flowCollapsed" class="mb-6 grid gap-4 xl:grid-cols-[1fr_320px]">
         <div class="min-w-0">
           <p v-if="stationQuantitiesStore.error !== null" data-testid="flow-quantities-error" role="alert" class="mb-3 border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
             {{ t('groupIndustry.flow.quantitiesError') }} {{ stationQuantitiesStore.error }}

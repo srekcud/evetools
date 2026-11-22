@@ -3044,6 +3044,10 @@
       }
     },
     "flow": {
+      "sectionTitle": "Flow",
+      "collapse": "Collapse the flow",
+      "expand": "Expand the flow",
+      "summaryLabel": "Cards per state",
       "columns": {
         "toBring": "To bring",
         "onSite": "On site",
