@@ -77,6 +77,60 @@ final class CourierHubTest extends TestCase
         );
     }
 
+    #[Group('issue-1287')]
+    public function testBridgeFromAndToTheSameSystemCostsNothingAndTheCostIsKnown(): void
+    {
+        $cost = $this->hub()->bridgeCostOf(100.0, self::WORKSHOP_SYSTEM_ID, self::WORKSHOP_SYSTEM_ID);
+
+        self::assertSame(0.0, $this->amountOf($cost));
+    }
+
+    #[Group('issue-1287')]
+    public function testBridgeBetweenTwoDifferentSystemsPaysTheBridgeRateOnTheVolumeWithoutTheRateFromJita(): void
+    {
+        $hub = $this->hub();
+
+        self::assertSame(
+            [5_000.0, 5_000.0, 0.0],
+            [
+                $this->amountOf($hub->bridgeCostOf(100.0, self::HUB_SYSTEM_ID, self::WORKSHOP_SYSTEM_ID)),
+                $this->amountOf($hub->bridgeCostOf(100.0, self::WORKSHOP_SYSTEM_ID, self::HUB_SYSTEM_ID)),
+                $this->amountOf($hub->bridgeCostOf(0.0, self::HUB_SYSTEM_ID, self::WORKSHOP_SYSTEM_ID)),
+            ],
+        );
+    }
+
+    #[Group('issue-1287')]
+    public function testBridgeRateOfAnotherHubIsUsedWhateverTheSystemsAreComparedTo(): void
+    {
+        $otherHub = new CourierHub(self::WORKSHOP_SYSTEM_ID, 900.0, 25.0);
+
+        $cost = $otherHub->bridgeCostOf(50.0, self::JITA_SYSTEM_ID, self::HUB_SYSTEM_ID);
+
+        self::assertSame(1_250.0, $this->amountOf($cost));
+    }
+
+    #[Group('issue-1287')]
+    public function testBridgeWithAZeroRateBetweenTwoDifferentSystemsCostsNothing(): void
+    {
+        $cost = (new CourierHub(self::HUB_SYSTEM_ID, self::COURIER_ISK_PER_CUBIC_METER, 0.0))->bridgeCostOf(100.0, self::HUB_SYSTEM_ID, self::WORKSHOP_SYSTEM_ID);
+
+        self::assertSame(0.0, $this->amountOf($cost));
+    }
+
+    #[Group('issue-1287')]
+    public function testBridgeWithAnUnknownSystemGivesAnUnknownCostWithTheMissingJumpRouteAndNeverZero(): void
+    {
+        $hub = $this->hub();
+
+        foreach ([[null, self::WORKSHOP_SYSTEM_ID], [self::HUB_SYSTEM_ID, null], [null, null]] as [$from, $to]) {
+            $cost = $hub->bridgeCostOf(100.0, $from, $to);
+
+            self::assertFalse($cost->isKnown());
+            self::assertEquals([MissingData::jumpRoute()], $cost->missingData);
+        }
+    }
+
     private function hub(): CourierHub
     {
         return new CourierHub(self::HUB_SYSTEM_ID, self::COURIER_ISK_PER_CUBIC_METER, self::BRIDGE_ISK_PER_CUBIC_METER);

@@ -32,4 +32,16 @@ final readonly class CourierHub
 
         return Cost::known(new Isk($cubicMeters * $iskPerCubicMeter));
     }
+
+    public function bridgeCostOf(float $cubicMeters, ?int $fromSolarSystemId, ?int $toSolarSystemId): Cost
+    {
+        if (null === $fromSolarSystemId || null === $toSolarSystemId) {
+            return Cost::unknown(MissingData::jumpRoute());
+        }
+        if ($fromSolarSystemId === $toSolarSystemId) {
+            return Cost::known(new Isk(0.0));
+        }
+
+        return Cost::known(new Isk($cubicMeters * $this->jumpBridgeIskPerCubicMeter));
+    }
 }

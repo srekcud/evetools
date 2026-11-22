@@ -12,11 +12,18 @@ final class InMemoryStructureMarketPrices implements StructureMarketPrices
     /** @var list<array{int, list<int>}> */
     public array $requests = [];
 
+    /** @var list<array{int, list<int>}> */
+    public array $volumeRequests = [];
+
     /**
      * @param array<int, array<int, float>> $unitPricesByStructureThenTypeId
+     * @param array<int, array<int, int>>   $sellVolumesByStructureThenTypeId
      */
-    public function __construct(private readonly array $unitPricesByStructureThenTypeId = [], private readonly ?\DateTimeImmutable $lastSync = null)
-    {
+    public function __construct(
+        private readonly array $unitPricesByStructureThenTypeId = [],
+        private readonly ?\DateTimeImmutable $lastSync = null,
+        private readonly array $sellVolumesByStructureThenTypeId = [],
+    ) {
     }
 
     public function isSynced(int $structureId): bool
@@ -41,5 +48,19 @@ final class InMemoryStructureMarketPrices implements StructureMarketPrices
         }
 
         return $unitPrices;
+    }
+
+    public function sellVolumesFor(int $structureId, array $typeIds): array
+    {
+        $this->volumeRequests[] = [$structureId, $typeIds];
+
+        $sellVolumes = [];
+        foreach ($typeIds as $typeId) {
+            if (isset($this->sellVolumesByStructureThenTypeId[$structureId][$typeId])) {
+                $sellVolumes[$typeId] = $this->sellVolumesByStructureThenTypeId[$structureId][$typeId];
+            }
+        }
+
+        return $sellVolumes;
     }
 }

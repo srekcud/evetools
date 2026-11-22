@@ -6,12 +6,20 @@ namespace App\Industry\Infrastructure\Market;
 
 use App\Industry\Application\StructureMarketPrices;
 use App\Industry\Domain\Isk;
+use App\Repository\StructureMarketSnapshotRepository;
 use App\Service\StructureMarketService;
 
 final readonly class StructureMarketCachePrices implements StructureMarketPrices
 {
-    public function __construct(private StructureMarketService $structureMarketService)
+    public function __construct(
+        private StructureMarketService $structureMarketService,
+        private StructureMarketSnapshotRepository $snapshotRepository,
+    ) {
+    }
+
+    public function sellVolumesFor(int $structureId, array $typeIds): array
     {
+        return $this->snapshotRepository->latestSellVolumes($structureId, $typeIds);
     }
 
     public function isSynced(int $structureId): bool

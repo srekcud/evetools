@@ -37,30 +37,44 @@ final class MaterialSourcingPresenter
             'saving' => self::roundedIsk($sourcing->saving),
             'missingData' => MissingDataPresenter::of($jitaWithImportCost),
             'warnings' => PartialPricePresenter::of($jitaWithImportCost),
+            'lineId' => $sourcing->lineId,
+            'chosenMarket' => $sourcing->chosenMarket?->value,
+            'market' => $sourcing->market()->value,
+            'selectedTotal' => self::rounded($sourcing->selectedCost()),
+            'structureBridgeTotal' => self::rounded($sourcing->structureBridgeCost),
+            'structureDeliveredTotal' => self::rounded($sourcing->structureDeliveredCost()),
+            'structureAvailableQuantity' => $sourcing->structureAvailableQuantity,
+            'structureStock' => $sourcing->structureStock()->value,
         ];
     }
 
     /**
      * @param list<MaterialSourcing> $sourcings
      *
-     * @return array{jitaWithImport: ?float, structure: ?float, best: ?float}
+     * @return array{jitaWithImport: ?float, structure: ?float, structureDelivered: ?float, best: ?float, selected: ?float}
      */
     public static function totalsOf(array $sourcings): array
     {
         $nothing = Cost::known(new Isk(0.0));
         $jitaWithImport = $nothing;
         $structure = $nothing;
+        $structureDelivered = $nothing;
         $best = $nothing;
+        $selected = $nothing;
         foreach ($sourcings as $sourcing) {
             $jitaWithImport = $jitaWithImport->plus($sourcing->jitaWithImportCost());
             $structure = $structure->plus($sourcing->structureCost);
+            $structureDelivered = $structureDelivered->plus($sourcing->structureDeliveredCost());
             $best = $best->plus($sourcing->bestCost());
+            $selected = $selected->plus($sourcing->selectedCost());
         }
 
         return [
             'jitaWithImport' => self::rounded($jitaWithImport),
             'structure' => self::rounded($structure),
+            'structureDelivered' => self::rounded($structureDelivered),
             'best' => self::rounded($best),
+            'selected' => self::rounded($selected),
         ];
     }
 

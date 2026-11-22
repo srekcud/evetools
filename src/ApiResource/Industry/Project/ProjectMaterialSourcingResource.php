@@ -55,9 +55,9 @@ class ProjectMaterialSourcingResource
     public bool $hasReservations = false;
 
     /**
-     * @var array{jitaWithImport: ?float, structure: ?float, best: ?float}
+     * @var array{jitaWithImport: ?float, structure: ?float, structureDelivered: ?float, best: ?float, selected: ?float}
      */
-    public array $totals = ['jitaWithImport' => null, 'structure' => null, 'best' => null];
+    public array $totals = ['jitaWithImport' => null, 'structure' => null, 'structureDelivered' => null, 'best' => null, 'selected' => null];
 
     /**
      * @var list<array<string, mixed>>

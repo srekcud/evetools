@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Service\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
+use App\Enum\SourcingMarket;
 use App\Industry\Application\ConsumingActivities;
 use App\Industry\Application\MaterialToSource;
+use App\Industry\Application\SourcingSide;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Plan;
 use App\Industry\Domain\Quantity;
@@ -32,6 +34,8 @@ final class MaterialsToSourceFactory
                 $line->getTypeId(),
                 new Quantity($remainingQuantity),
                 $consumingActivities[$line->getTypeId()] ?? ActivityKind::Manufacturing,
+                $line->getId()->toRfc4122(),
+                self::sideOf($line),
             );
         }
 
@@ -59,9 +63,20 @@ final class MaterialsToSourceFactory
                 $line->getTypeId(),
                 new Quantity($quantityToSource),
                 $consumingActivities[$line->getTypeId()] ?? ActivityKind::Manufacturing,
+                $line->getId()->toRfc4122(),
+                self::sideOf($line),
             );
         }
 
         return $materials;
+    }
+
+    private static function sideOf(IndustryProjectBomLine $line): ?SourcingSide
+    {
+        return match ($line->getSourcingMarket()) {
+            SourcingMarket::Jita => SourcingSide::Jita,
+            SourcingMarket::Structure => SourcingSide::Structure,
+            null => null,
+        };
     }
 }

@@ -6,14 +6,17 @@ namespace App\Tests\Unit\State\Provider\Industry\Project;
 
 use ApiPlatform\Metadata\Get;
 use App\ApiResource\Industry\Project\ProjectMaterialSourcingResource;
+use App\Entity\CachedStructure;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
+use App\Industry\Application\CourierHub;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\MaterialSourcingComparator;
 use App\Industry\Application\PlannedProduction;
+use App\Enum\SourcingMarket;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
@@ -23,6 +26,7 @@ use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
@@ -52,6 +56,9 @@ final class ProjectMaterialSourcingProviderTest extends TestCase
     private const int CADMIUM_REQUIRED = 38_200;
     private const int REACTION_RUNS = 33;
     private const int CADMIUM_NEED = 3_213;
+    private const int STRUCTURE_ID = 1_035_466_543_993;
+    private const int WORKSHOP_SYSTEM_ID = 30_002_187;
+    private const int HUB_SYSTEM_ID = 30_000_772;
 
     public function testJobMaterialNeedsAreMappedFromThePlanAlreadyComputedAndHandedToTheContainerFulfillment(): void
     {
@@ -93,6 +100,7 @@ final class ProjectMaterialSourcingProviderTest extends TestCase
             $this->createStub(IndustryProjectParticipantRepository::class),
             $this->createStub(IndustryProjectLineReservationRepository::class),
             $this->createStub(IndustryProjectContributionRepository::class),
+            cachedStructureRepository: $this->createStub(CachedStructureRepository::class),
         );
 
         $sourcing = $provider->provide(new Get(), ['projectId' => $project->getId()->toRfc4122()]);
@@ -147,11 +155,149 @@ final class ProjectMaterialSourcingProviderTest extends TestCase
             ->setIsJob(false);
     }
 
+    #[Group('issue-1287')]
+    public function testStructureSystemIsReadFromTheCachedStructureAndTheBridgeAndTheStockAreCarriedToTheRow(): void
+    {
+        $owner = $this->pilotWithMarketStructure();
+        $project = (new IndustryProject())->setOwner($owner)->setName('Cadmium batch');
+        $line = $this->cadmiumLine();
+
+        $sourcing = $this->sourcingOf(
+            $project,
+            $owner,
+            [$line],
+            $this->sourcingComparator(),
+            $this->structureMarket(),
+            $this->cachedStructureIn(self::HUB_SYSTEM_ID),
+            $this->favoriteSystemsWithTheHub(),
+        );
+
+        self::assertCount(1, $sourcing->rows);
+        $row = $sourcing->rows[0];
+        self::assertSame(
+            [$line->getId()->toRfc4122(), 38_200 * 80.0, 19_100.0, 3_075_100.0, 40_000, 'enough', 'structure', null, 'structure', 3_075_100.0],
+            [$row['lineId'], $row['structureTotal'], $row['structureBridgeTotal'], $row['structureDeliveredTotal'], $row['structureAvailableQuantity'], $row['structureStock'], $row['side'], $row['chosenMarket'], $row['market'], $row['selectedTotal']],
+        );
+        self::assertArrayHasKey('chosenMarket', $row);
+    }
+
+    #[Group('issue-1287')]
+    public function testStoredSourcingMarketOfTheLineIsPresentedAsTheChosenAndEffectiveMarketOfTheRow(): void
+    {
+        $owner = $this->pilotWithMarketStructure();
+        $project = (new IndustryProject())->setOwner($owner)->setName('Cadmium batch');
+        $line = $this->cadmiumLine()->setSourcingMarket(SourcingMarket::Jita);
+
+        $sourcing = $this->sourcingOf(
+            $project,
+            $owner,
+            [$line],
+            $this->sourcingComparator(),
+            $this->structureMarket(),
+            $this->cachedStructureIn(self::HUB_SYSTEM_ID),
+            $this->favoriteSystemsWithTheHub(),
+        );
+
+        $row = $sourcing->rows[0];
+        self::assertSame(['structure', 'jita', 'jita', 4_144_700.0], [$row['side'], $row['chosenMarket'], $row['market'], $row['selectedTotal']]);
+    }
+
+    #[Group('issue-1287')]
+    public function testStructureNotResolvedInTheCacheHasAnUnknownBridgeAndTheRowFallsBackToJita(): void
+    {
+        $owner = $this->pilotWithMarketStructure();
+        $project = (new IndustryProject())->setOwner($owner)->setName('Cadmium batch');
+
+        $sourcing = $this->sourcingOf(
+            $project,
+            $owner,
+            [$this->cadmiumLine()],
+            $this->sourcingComparator(),
+            $this->structureMarket(),
+            $this->cachedStructureIn(null),
+            $this->favoriteSystemsWithTheHub(),
+        );
+
+        $row = $sourcing->rows[0];
+        self::assertArrayHasKey('structureBridgeTotal', $row);
+        self::assertSame([null, null, 'jita', 4_144_700.0], [$row['structureBridgeTotal'], $row['structureDeliveredTotal'], $row['side'], $row['selectedTotal']]);
+    }
+
+    #[Group('issue-1287')]
+    public function testStructureAbsentFromTheCachedStructuresHasAnUnknownBridge(): void
+    {
+        $owner = $this->pilotWithMarketStructure();
+        $project = (new IndustryProject())->setOwner($owner)->setName('Cadmium batch');
+        $cachedStructures = $this->createStub(CachedStructureRepository::class);
+        $cachedStructures->method('findByStructureId')->willReturn(null);
+
+        $sourcing = $this->sourcingOf(
+            $project,
+            $owner,
+            [$this->cadmiumLine()],
+            $this->sourcingComparator(),
+            $this->structureMarket(),
+            $cachedStructures,
+            $this->favoriteSystemsWithTheHub(),
+        );
+
+        $row = $sourcing->rows[0];
+        self::assertSame([null, 'jita'], [$row['structureBridgeTotal'], $row['side']]);
+    }
+
+    private function pilotWithMarketStructure(): User
+    {
+        $owner = $this->pilot();
+        $owner->setPreferredMarketStructureId(self::STRUCTURE_ID)->setPreferredMarketStructureName('Perimeter - Tranquility Trading Tower');
+
+        return $owner;
+    }
+
+    private function sourcingComparator(): MaterialSourcingComparator
+    {
+        return new MaterialSourcingComparator(
+            new InMemoryMarketPrices([self::CADMIUM => 100.0]),
+            $this->structureMarket(),
+            new InMemoryItemVolumes([self::CADMIUM => 0.01]),
+            new InMemoryJumpDistances(),
+        );
+    }
+
+    private function structureMarket(): InMemoryStructureMarketPrices
+    {
+        return new InMemoryStructureMarketPrices(
+            [self::STRUCTURE_ID => [self::CADMIUM => 80.0]],
+            null,
+            [self::STRUCTURE_ID => [self::CADMIUM => 40_000]],
+        );
+    }
+
+    private function cachedStructureIn(?int $solarSystemId): CachedStructureRepository
+    {
+        $cachedStructure = (new CachedStructure())->setStructureId(self::STRUCTURE_ID)->setName('Perimeter - Tranquility Trading Tower')->setSolarSystemId($solarSystemId);
+        $cachedStructures = $this->createStub(CachedStructureRepository::class);
+        $cachedStructures->method('findByStructureId')->willReturnMap([[self::STRUCTURE_ID, $cachedStructure]]);
+
+        return $cachedStructures;
+    }
+
+    private function favoriteSystemsWithTheHub(): FavoriteSystems
+    {
+        return new FavoriteSystems(self::WORKSHOP_SYSTEM_ID, self::WORKSHOP_SYSTEM_ID, new CourierHub(self::HUB_SYSTEM_ID, 800.0, 50.0));
+    }
+
     /**
      * @param list<IndustryProjectBomLine> $bomLines
      */
-    private function sourcingOf(IndustryProject $project, User $reader, array $bomLines): ProjectMaterialSourcingResource
-    {
+    private function sourcingOf(
+        IndustryProject $project,
+        User $reader,
+        array $bomLines,
+        ?MaterialSourcingComparator $comparator = null,
+        ?InMemoryStructureMarketPrices $structureMarket = null,
+        ?CachedStructureRepository $cachedStructures = null,
+        ?FavoriteSystems $favoriteSystems = null,
+    ): ProjectMaterialSourcingResource {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($reader);
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
@@ -160,7 +306,7 @@ final class ProjectMaterialSourcingProviderTest extends TestCase
         $bomLineRepository->method('findBy')->willReturn($bomLines);
         $projectService = $this->createStub(IndustryProjectService::class);
         $projectService->method('planOf')->willReturn(new PlannedProduction(new Plan([], [], []), []));
-        $projectService->method('favoriteSystemsOf')->willReturn(FavoriteSystems::none());
+        $projectService->method('favoriteSystemsOf')->willReturn($favoriteSystems ?? FavoriteSystems::none());
         $containerFulfillment = $this->createStub(ProjectContainerFulfillment::class);
         $containerFulfillment->method('ofWithJobMaterialNeeds')->willReturn(ProjectLineFulfillments::none());
         $provider = new ProjectMaterialSourcingProvider(
@@ -169,12 +315,13 @@ final class ProjectMaterialSourcingProviderTest extends TestCase
             $bomLineRepository,
             new ProjectAccessChecker($this->createStub(IndustryProjectParticipantRepository::class)),
             $projectService,
-            new MaterialSourcingComparator(new InMemoryMarketPrices([]), new InMemoryStructureMarketPrices(), new InMemoryItemVolumes(), new InMemoryJumpDistances()),
-            new InMemoryStructureMarketPrices(),
+            $comparator ?? new MaterialSourcingComparator(new InMemoryMarketPrices([]), new InMemoryStructureMarketPrices(), new InMemoryItemVolumes(), new InMemoryJumpDistances()),
+            $structureMarket ?? new InMemoryStructureMarketPrices(),
             $containerFulfillment,
             $this->createStub(IndustryProjectParticipantRepository::class),
             $this->createStub(IndustryProjectLineReservationRepository::class),
             $this->createStub(IndustryProjectContributionRepository::class),
+            cachedStructureRepository: $cachedStructures ?? $this->createStub(CachedStructureRepository::class),
         );
 
         return $provider->provide(new Get(), ['projectId' => $project->getId()->toRfc4122()]);

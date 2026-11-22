@@ -9,7 +9,12 @@ use App\Industry\Domain\Quantity;
 
 final readonly class MaterialToSource
 {
-    public function __construct(public int $typeId, public Quantity $quantity, public ActivityKind $consumedBy)
-    {
+    public function __construct(
+        public int $typeId,
+        public Quantity $quantity,
+        public ActivityKind $consumedBy,
+        public ?string $lineId = null,
+        public ?SourcingSide $chosenMarket = null,
+    ) {
     }
 }

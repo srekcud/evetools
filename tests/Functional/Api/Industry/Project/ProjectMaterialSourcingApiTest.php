@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry\Project;
 
+use App\Entity\CachedStructure;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectLineReservation;
 use App\Entity\IndustryProjectParticipant;
@@ -16,9 +17,11 @@ use App\Entity\Sde\MapConstellation;
 use App\Entity\Sde\MapRegion;
 use App\Entity\Sde\MapSolarSystem;
 use App\Entity\Sde\MapSolarSystemJump;
+use App\Entity\StructureMarketSnapshot;
 use App\Constant\EveConstants;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Enum\SourcingMarket;
 use App\Tests\Functional\Api\Industry\SeedsJitaOrderBooksAndCostIndices;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\Group;
@@ -59,10 +62,15 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
     private const int MORPHITE_REMAINING = 147;
     private const int NOCXIUM_REMAINING = 600;
     private const int TRITANIUM_REQUIRED = 12_000;
+    private const int TRITANIUM_STRUCTURE_STOCK = 50_000;
+    private const int TRITANIUM_STRUCTURE_STOCK_SHORT = 11_999;
+    private const int MORPHITE_STRUCTURE_STOCK = 500;
+    private const float CHOSEN_BRIDGE_ISK_PER_CUBIC_METER = 20.0;
 
     private const array ROW_KEYS = [
-        'bestTotal', 'importTotal', 'jitaTotal', 'jitaWithImportTotal', 'jumps', 'missingData', 'quantity', 'saving',
-        'side', 'structureFallback', 'structureTotal', 'typeId', 'typeName', 'volumePerUnit', 'warnings',
+        'bestTotal', 'chosenMarket', 'importTotal', 'jitaTotal', 'jitaWithImportTotal', 'jumps', 'lineId', 'market', 'missingData', 'quantity', 'saving',
+        'selectedTotal', 'side', 'structureAvailableQuantity', 'structureBridgeTotal', 'structureDeliveredTotal', 'structureFallback', 'structureStock',
+        'structureTotal', 'typeId', 'typeName', 'volumePerUnit', 'warnings',
     ];
 
     protected function setUp(): void
@@ -117,7 +125,46 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
             [self::NOCXIUM_TYPE_ID, self::NOCXIUM_REMAINING, 'unknown', null, null, null, null, null],
             [$nocxium['typeId'], $nocxium['quantity'], $nocxium['side'], $nocxium['jitaTotal'], $nocxium['jitaWithImportTotal'], $nocxium['structureTotal'], $nocxium['bestTotal'], $nocxium['saving']],
         );
-        self::assertSame(['jitaWithImport' => null, 'structure' => null, 'best' => null], $body['totals']);
+        self::assertSame(
+            self::sortedByKey(['jitaWithImport' => null, 'structure' => null, 'structureDelivered' => null, 'best' => null, 'selected' => null]),
+            self::sortedByKey($body['totals']),
+        );
+    }
+
+    #[Group('issue-1287')]
+    public function testRowsCarryTheLineIdTheStoredChoiceTheStructureStockAndTheDeliveredTotalsWithTheBridgeOfTheStructureSystem(): void
+    {
+        $this->preferTheStructureAndSyncItsMarket([self::TRITANIUM_TYPE_ID => self::TRITANIUM_STRUCTURE_STOCK_SHORT, self::MORPHITE_TYPE_ID => self::MORPHITE_STRUCTURE_STOCK]);
+        $this->em->getRepository(IndustryUserSettings::class)->findOneBy(['user' => $this->owner])->setJumpBridgeCostPerM3(self::CHOSEN_BRIDGE_ISK_PER_CUBIC_METER);
+        $this->tritaniumLine->setSourcingMarket(SourcingMarket::Structure);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->sourcingUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        [$tritanium, $nocxium, $morphite] = $this->rowsSortedBy('typeId', $this->responseJson()['rows']);
+        self::assertSame(
+            [$this->idOf($this->tritaniumLine), 'structure', 'structure', 'jita', 'insufficient', self::TRITANIUM_STRUCTURE_STOCK_SHORT],
+            [$tritanium['lineId'], $tritanium['chosenMarket'], $tritanium['market'], $tritanium['side'], $tritanium['structureStock'], $tritanium['structureAvailableQuantity']],
+        );
+        self::assertEqualsWithDelta(
+            [120_000.0, 2_400.0, 122_400.0, 122_400.0, 158_400.0],
+            [$tritanium['structureTotal'], $tritanium['structureBridgeTotal'], $tritanium['structureDeliveredTotal'], $tritanium['selectedTotal'], $tritanium['bestTotal']],
+            0.01,
+        );
+        self::assertSame(
+            [$this->idOf($this->morphiteLine), 'structure', 'enough', self::MORPHITE_STRUCTURE_STOCK],
+            [$morphite['lineId'], $morphite['market'], $morphite['structureStock'], $morphite['structureAvailableQuantity']],
+        );
+        self::assertArrayHasKey('chosenMarket', $morphite);
+        self::assertNull($morphite['chosenMarket']);
+        self::assertEqualsWithDelta([2_499_000.0, 294.0, 2_499_294.0, 2_499_294.0], [$morphite['structureTotal'], $morphite['structureBridgeTotal'], $morphite['structureDeliveredTotal'], $morphite['selectedTotal']], 0.01);
+        foreach (['chosenMarket', 'structureAvailableQuantity', 'structureBridgeTotal', 'structureDeliveredTotal', 'selectedTotal'] as $key) {
+            self::assertArrayHasKey($key, $nocxium);
+            self::assertNull($nocxium[$key], $key);
+        }
+        self::assertSame([$this->idOf($this->nocxiumLine), 'unknown', 'unknown'], [$nocxium['lineId'], $nocxium['structureStock'], $nocxium['market']]);
     }
 
     public function testMaterialAlreadyFulfilledIsNotToSource(): void
@@ -229,7 +276,11 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->responseJson();
         self::assertSame([self::TRITANIUM_TYPE_ID], array_column($body['rows'], 'typeId'));
-        self::assertEqualsWithDelta([156_000.0, 120_000.0, 120_000.0], [$body['totals']['jitaWithImport'], $body['totals']['structure'], $body['totals']['best']], 0.01);
+        self::assertEqualsWithDelta(
+            [156_000.0, 120_000.0, 120_000.0, 120_000.0, 120_000.0],
+            [$body['totals']['jitaWithImport'], $body['totals']['structure'], $body['totals']['structureDelivered'], $body['totals']['best'], $body['totals']['selected']],
+            0.01,
+        );
     }
 
     #[Group('issue-1011')]
@@ -293,7 +344,10 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->responseJson();
         self::assertSame([[], false], [$body['rows'], $body['hasReservations']]);
-        self::assertSame(['jitaWithImport' => 0.0, 'structure' => 0.0, 'best' => 0.0], $body['totals']);
+        self::assertSame(
+            self::sortedByKey(['jitaWithImport' => 0.0, 'structure' => 0.0, 'structureDelivered' => 0.0, 'best' => 0.0, 'selected' => 0.0]),
+            self::sortedByKey($body['totals']),
+        );
     }
 
     #[Group('issue-1011')]
@@ -357,9 +411,35 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
         ];
     }
 
-    private function preferTheStructureAndSyncItsMarket(): void
+    /**
+     * @param array<string, mixed> $values
+     *
+     * @return array<string, mixed>
+     */
+    private static function sortedByKey(array $values): array
+    {
+        ksort($values);
+
+        return $values;
+    }
+
+    /**
+     * @param array<int, int> $sellVolumes
+     */
+    private function preferTheStructureAndSyncItsMarket(array $sellVolumes = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_STRUCTURE_STOCK, self::MORPHITE_TYPE_ID => self::MORPHITE_STRUCTURE_STOCK]): void
     {
         $this->member->setPreferredMarketStructureId(self::STRUCTURE_ID)->setPreferredMarketStructureName(self::STRUCTURE_NAME);
+        $this->em->persist((new CachedStructure())->setStructureId(self::STRUCTURE_ID)->setName(self::STRUCTURE_NAME)->setSolarSystemId(self::HUB_SYSTEM_ID));
+        foreach ($sellVolumes as $typeId => $sellVolume) {
+            $this->em->persist(
+                (new StructureMarketSnapshot())
+                    ->setStructureId(self::STRUCTURE_ID)
+                    ->setTypeId($typeId)
+                    ->setDate(new \DateTimeImmutable('today'))
+                    ->setSellMin(self::TRITANIUM_TYPE_ID === $typeId ? self::TRITANIUM_STRUCTURE_PRICE : self::MORPHITE_STRUCTURE_PRICE)
+                    ->setSellVolume($sellVolume),
+            );
+        }
         $this->em->flush();
         $this->saveInCache('structure_market.cache', 'structure_market_'.self::STRUCTURE_ID, [
             self::TRITANIUM_TYPE_ID => ['sell' => self::TRITANIUM_STRUCTURE_PRICE, 'buy' => null],

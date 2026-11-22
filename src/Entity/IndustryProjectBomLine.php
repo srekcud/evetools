@@ -7,6 +7,7 @@ namespace App\Entity;
 use App\Enum\BomLineMarkState;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Enum\SourcingMarket;
 use App\Repository\IndustryProjectBomLineRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -74,6 +75,9 @@ class IndustryProjectBomLine
 
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $surplusQuantity = null;
+
+    #[ORM\Column(type: 'string', length: 20, nullable: true)]
+    private ?string $sourcingMarket = null;
 
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $meLevel = null;
@@ -249,6 +253,18 @@ class IndustryProjectBomLine
     public function setParentTypeId(?int $parentTypeId): static
     {
         $this->parentTypeId = $parentTypeId;
+        return $this;
+    }
+
+    public function getSourcingMarket(): ?SourcingMarket
+    {
+        return null === $this->sourcingMarket ? null : SourcingMarket::from($this->sourcingMarket);
+    }
+
+    public function setSourcingMarket(?SourcingMarket $sourcingMarket): static
+    {
+        $this->sourcingMarket = $sourcingMarket?->value;
+
         return $this;
     }
 

@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Service\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
 use App\Industry\Application\MaterialToSource;
+use App\Enum\SourcingMarket;
+use App\Industry\Application\SourcingSide;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
@@ -32,15 +34,15 @@ final class MaterialsToSourceFactoryTest extends TestCase
 
     public function testEveryMaterialWithARemainingQuantityIsToSourceForThatRemainingQuantity(): void
     {
-        $materials = MaterialsToSourceFactory::of(
-            [$this->material(self::TRITANIUM, 12_000, 2_000), $this->material(self::PYERITE, 500, 0)],
-            new Plan([], [], []),
-        );
+        $tritanium = $this->material(self::TRITANIUM, 12_000, 2_000);
+        $pyerite = $this->material(self::PYERITE, 500, 0);
+
+        $materials = MaterialsToSourceFactory::of([$tritanium, $pyerite], new Plan([], [], []));
 
         self::assertEquals(
             [
-                new MaterialToSource(self::TRITANIUM, new Quantity(10_000), ActivityKind::Manufacturing),
-                new MaterialToSource(self::PYERITE, new Quantity(500), ActivityKind::Manufacturing),
+                new MaterialToSource(self::TRITANIUM, new Quantity(10_000), ActivityKind::Manufacturing, lineId: $tritanium->getId()->toRfc4122()),
+                new MaterialToSource(self::PYERITE, new Quantity(500), ActivityKind::Manufacturing, lineId: $pyerite->getId()->toRfc4122()),
             ],
             $materials,
         );
@@ -78,16 +80,19 @@ final class MaterialsToSourceFactoryTest extends TestCase
     {
         $fulfillments = new ProjectLineFulfillments(ContainerStockState::Known, [self::RAM_STARSHIP_TECH => 2, self::TRITANIUM => 12_000]);
 
+        $ram = $this->material(self::RAM_STARSHIP_TECH, 55, 0);
+        $pyerite = $this->material(self::PYERITE, 500, 0);
+
         $materials = MaterialsToSourceFactory::of(
-            [$this->material(self::RAM_STARSHIP_TECH, 55, 0), $this->material(self::TRITANIUM, 12_000, 0), $this->material(self::PYERITE, 500, 0)],
+            [$ram, $this->material(self::TRITANIUM, 12_000, 0), $pyerite],
             new Plan([], [], []),
             $fulfillments,
         );
 
         self::assertEquals(
             [
-                new MaterialToSource(self::RAM_STARSHIP_TECH, new Quantity(53), ActivityKind::Manufacturing),
-                new MaterialToSource(self::PYERITE, new Quantity(500), ActivityKind::Manufacturing),
+                new MaterialToSource(self::RAM_STARSHIP_TECH, new Quantity(53), ActivityKind::Manufacturing, lineId: $ram->getId()->toRfc4122()),
+                new MaterialToSource(self::PYERITE, new Quantity(500), ActivityKind::Manufacturing, lineId: $pyerite->getId()->toRfc4122()),
             ],
             $materials,
         );
@@ -96,13 +101,15 @@ final class MaterialsToSourceFactoryTest extends TestCase
     #[Group('issue-866')]
     public function testUnreadableContainerLeavesTheContributionsAsTheOnlyDeduction(): void
     {
+        $tritanium = $this->material(self::TRITANIUM, 12_000, 2_000);
+
         $materials = MaterialsToSourceFactory::of(
-            [$this->material(self::TRITANIUM, 12_000, 2_000)],
+            [$tritanium],
             new Plan([], [], []),
             new ProjectLineFulfillments(ContainerStockState::Unknown),
         );
 
-        self::assertEquals([new MaterialToSource(self::TRITANIUM, new Quantity(10_000), ActivityKind::Manufacturing)], $materials);
+        self::assertEquals([new MaterialToSource(self::TRITANIUM, new Quantity(10_000), ActivityKind::Manufacturing, lineId: $tritanium->getId()->toRfc4122())], $materials);
     }
 
     #[Group('issue-1011')]
@@ -120,8 +127,8 @@ final class MaterialsToSourceFactoryTest extends TestCase
 
         self::assertEquals(
             [
-                new MaterialToSource(self::TRITANIUM, new Quantity(4_000), ActivityKind::Manufacturing),
-                new MaterialToSource(self::MORPHITE, new Quantity(20), ActivityKind::Manufacturing),
+                new MaterialToSource(self::TRITANIUM, new Quantity(4_000), ActivityKind::Manufacturing, lineId: $tritanium->getId()->toRfc4122()),
+                new MaterialToSource(self::MORPHITE, new Quantity(20), ActivityKind::Manufacturing, lineId: $morphite->getId()->toRfc4122()),
             ],
             $materials,
         );
@@ -147,7 +154,47 @@ final class MaterialsToSourceFactoryTest extends TestCase
             new ProjectLineFulfillments(ContainerStockState::Known, [self::PYERITE => 500]),
         );
 
-        self::assertEquals([new MaterialToSource(self::TRITANIUM, new Quantity(10_000), ActivityKind::Manufacturing)], $materials);
+        self::assertEquals([new MaterialToSource(self::TRITANIUM, new Quantity(10_000), ActivityKind::Manufacturing, lineId: $tritanium->getId()->toRfc4122())], $materials);
+    }
+
+    #[Group('issue-1287')]
+    public function testEveryMaterialCarriesTheIdOfItsLineAndItsStoredSourcingMarketOrNothing(): void
+    {
+        $tritanium = $this->material(self::TRITANIUM, 12_000, 2_000)->setSourcingMarket(SourcingMarket::Structure);
+        $pyerite = $this->material(self::PYERITE, 500, 0)->setSourcingMarket(SourcingMarket::Jita);
+        $morphite = $this->material(self::MORPHITE, 150, 3);
+
+        $materials = MaterialsToSourceFactory::of([$tritanium, $pyerite, $morphite], new Plan([], [], []));
+
+        self::assertSame(
+            [
+                [$tritanium->getId()->toRfc4122(), SourcingSide::Structure],
+                [$pyerite->getId()->toRfc4122(), SourcingSide::Jita],
+                [$morphite->getId()->toRfc4122(), null],
+            ],
+            array_map(static fn (MaterialToSource $material): array => [$material->lineId, $material->chosenMarket], $materials),
+        );
+    }
+
+    #[Group('issue-1287')]
+    public function testReservedMaterialsCarryTheIdOfTheirLineAndTheirStoredSourcingMarketOrNothing(): void
+    {
+        $tritanium = $this->material(self::TRITANIUM, 12_000, 2_000)->setSourcingMarket(SourcingMarket::Jita);
+        $pyerite = $this->material(self::PYERITE, 500, 0);
+
+        $materials = MaterialsToSourceFactory::reservedOf(
+            [$tritanium, $pyerite],
+            new Plan([], [], []),
+            [$tritanium->getId()->toRfc4122() => 4_000, $pyerite->getId()->toRfc4122() => 100],
+        );
+
+        self::assertSame(
+            [
+                [$tritanium->getId()->toRfc4122(), SourcingSide::Jita, 4_000],
+                [$pyerite->getId()->toRfc4122(), null, 100],
+            ],
+            array_map(static fn (MaterialToSource $material): array => [$material->lineId, $material->chosenMarket, $material->quantity->value], $materials),
+        );
     }
 
     private function material(int $typeId, int $required, int $fulfilled): IndustryProjectBomLine

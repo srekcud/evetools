@@ -14,6 +14,7 @@ use App\Industry\Application\MaterialSourcingComparator;
 use App\Industry\Application\StructureMarketPrices;
 use App\Entity\IndustryProject;
 use App\Enum\ParticipantStatus;
+use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
@@ -48,6 +49,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         private IndustryProjectParticipantRepository $participantRepository,
         private IndustryProjectLineReservationRepository $reservationRepository,
         private IndustryProjectContributionRepository $contributionRepository,
+        private CachedStructureRepository $cachedStructureRepository,
         private ?MapSolarSystemRepository $solarSystemRepository = null,
     ) {
     }
@@ -90,6 +92,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
                 : MaterialsToSourceFactory::reservedOf($bomLines, $planned->plan, $reservedQuantityByLineId, $fulfillments),
             $structureId,
             $favoriteSystems,
+            null === $structureId ? null : $this->cachedStructureRepository->findByStructureId($structureId)?->getSolarSystemId(),
         );
         $typeNames = [];
         foreach ($bomLines as $line) {
