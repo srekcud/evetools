@@ -367,13 +367,40 @@ class IndustryProjectService
      */
     private function plannedProductionOf(IndustryProject $project, User $owner, array $stockByTypeId, array $ownedBlueprints, ?int $unblacklistedTypeId = null): PlannedProduction
     {
-        $blacklistedTypeIds = $this->resolveBlacklistedTypeIds(
-            $project->getBlacklistGroupIds(),
+        return $this->plannedProductionWithBlacklistOf(
+            $project,
+            $owner,
+            $stockByTypeId,
+            $ownedBlueprints,
             array_values(array_filter(
                 $project->getBlacklistTypeIds(),
                 static fn (int $typeId): bool => $typeId !== $unblacklistedTypeId,
             )),
         );
+    }
+
+    /**
+     * @param list<int> $boughtTypeIds types bought on top of the imposed purchases of the project groups, replacing the blacklisted types of the project
+     */
+    public function planWithPurchasesOf(IndustryProject $project, User $owner, array $boughtTypeIds): PlannedProduction
+    {
+        return $this->plannedProductionWithBlacklistOf(
+            $project,
+            $owner,
+            $this->contributionRepository->findIntermediateStockByTypeId($project),
+            $this->ownedBlueprintsOf($owner),
+            $boughtTypeIds,
+        );
+    }
+
+    /**
+     * @param array<int, int>               $stockByTypeId
+     * @param array<int, OwnedBlueprintUse> $ownedBlueprints by product typeId
+     * @param list<int>                     $blacklistTypeIds
+     */
+    private function plannedProductionWithBlacklistOf(IndustryProject $project, User $owner, array $stockByTypeId, array $ownedBlueprints, array $blacklistTypeIds): PlannedProduction
+    {
+        $blacklistedTypeIds = $this->resolveBlacklistedTypeIds($project->getBlacklistGroupIds(), $blacklistTypeIds);
 
         $structures = $this->structuresOf($owner);
 

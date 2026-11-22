@@ -105,6 +105,7 @@ services:
     App\Industry\Application\ShipProducts: '@App\Industry\Infrastructure\Sde\SdeShipProducts'
     App\Industry\Application\InventionSkillRequirements: '@App\Industry\Infrastructure\Sde\SdeInventionSkillRequirements'
     App\Industry\Application\IntermediateBuildCosts: '@App\Industry\Application\ProductionCostIntermediateBuildCosts'
+    App\Industry\Application\JobInstallationCosts: '@App\Industry\Application\StructureComparatorJobInstallationCosts'
 
 when@test:
     services:

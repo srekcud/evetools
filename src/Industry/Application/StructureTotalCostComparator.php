@@ -81,6 +81,15 @@ final readonly class StructureTotalCostComparator
         );
     }
 
+    public function installationOf(Recipe $recipe, Runs $referenceRuns, ?ProductionStructure $structure, bool $alphaClone): Cost
+    {
+        if (null === $structure?->solarSystemId) {
+            return Cost::unknown(MissingData::costIndex());
+        }
+
+        return $this->installCost($recipe, $referenceRuns, $structure, $structure->solarSystemId, $alphaClone);
+    }
+
     private function materialCost(Recipe $recipe, Runs $referenceRuns, ?string $productCategory, ProductionStructure $structure): Cost
     {
         $multiplier = $structure->materialMultiplierFor($recipe->activity, $productCategory);

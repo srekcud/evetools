@@ -68,7 +68,7 @@ final readonly class MaterialSourcingComparator
         $importCost = JitaPurchase::importCostOf($typeId, $quantity, $volumePerUnit, $workshopSystemId, $favoriteSystems->courierHub);
         $jitaWithImportCost = $jitaCost->plus($importCost);
         $structureCost = self::structureCostOf($typeId, $quantity, $structurePrices);
-        $structureBridgeCost = self::bridgeCostOf($typeId, $quantity, $volumePerUnit, $structureSystemId, $workshopSystemId, $favoriteSystems->courierHub);
+        $structureBridgeCost = Delivery::bridgeCostOf($typeId, $quantity, $volumePerUnit, $structureSystemId, $workshopSystemId, $favoriteSystems->courierHub);
         $structureDeliveredCost = $structureCost->plus($structureBridgeCost);
         $structureAvailableQuantity = $structureSellVolumes[$typeId] ?? null;
         $side = self::sideOf($jitaWithImportCost, $structureDeliveredCost, null !== $structureAvailableQuantity && $structureAvailableQuantity >= $quantity);
@@ -101,27 +101,6 @@ final readonly class MaterialSourcingComparator
         return null === $unitPrice
             ? Cost::unknown(MissingData::structurePrice($typeId))
             : Cost::known(new Isk($quantity * $unitPrice->amount));
-    }
-
-    private static function bridgeCostOf(int $typeId, int $quantity, ?float $volumePerUnit, ?int $structureSystemId, ?int $workshopSystemId, ?CourierHub $hub): Cost
-    {
-        $missingData = [];
-        if (null === $volumePerUnit) {
-            $missingData[] = MissingData::itemVolume($typeId);
-        }
-        if (null === $structureSystemId || null === $workshopSystemId) {
-            $missingData[] = MissingData::jumpRoute();
-        } elseif (null === $hub && $structureSystemId !== $workshopSystemId) {
-            $missingData[] = MissingData::courierHub();
-        }
-        if ([] !== $missingData) {
-            return Cost::unknown(...$missingData);
-        }
-        if (null === $hub) {
-            return Cost::known(new Isk(0.0));
-        }
-
-        return $hub->bridgeCostOf($volumePerUnit * $quantity, $structureSystemId, $workshopSystemId);
     }
 
     private static function sideOf(Cost $jitaWithImportCost, Cost $structureDeliveredCost, bool $structureHasEnoughStock): SourcingSide
