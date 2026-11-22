@@ -21,7 +21,7 @@ const settlementStore = useGroupSettlementStore()
 const recap = computed((): string | null => {
   const project = projectStore.currentProject
   const distribution = distributionStore.distribution
-  if (project === null || project.status !== 'completed' || distribution === null) return null
+  if (project === null || project.personalUse === true || project.status !== 'completed' || distribution === null) return null
   return buildProjectDiscordRecap({
     project,
     distribution,
