@@ -3,14 +3,20 @@ import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
 import { useSyncStore, type GroupProjectEvent } from '@/stores/sync'
-import { stationQuantity, STATION_A_ID, typeQuantities, ZYDRINE } from '../../components/group-industry/projectFlowFixtures'
+import { bomLineOf, COMPONENT_X, stationQuantity, STATION_A_ID, typeQuantities, ZYDRINE } from '../../components/group-industry/projectFlowFixtures'
+import type { GroupMemberRole, GroupProjectStatus } from '@/stores/group-industry/types'
+import { sourcingDecisions, sourcingOption, sourcingRow } from '../../projectSetupFixtures'
 import {
   answerApi,
+  callsTo,
   cockpitOf,
   mountCockpitDetail,
   nextAction,
   nyxProject,
+  PROJECT_ID,
+  PROJECT_PATH,
   route,
+  sentPatchBodies,
 } from './projectCockpitFixtures'
 
 const { replace } = vi.hoisted(() => ({ replace: vi.fn() }))
@@ -53,6 +59,35 @@ function zydrineCard(wrapper: VueWrapper) {
 async function clickZydrineCard(wrapper: VueWrapper): Promise<void> {
   await zydrineCard(wrapper)?.trigger('click')
   await flushPromises()
+}
+
+const SWITCH = '[data-testid="flow-detail-buy-or-build-switch"]'
+const CONFIRM = '[data-testid="flow-detail-buy-or-build-switch-confirm"]'
+
+async function mountWithArmorPlatesCard(role: GroupMemberRole, status: GroupProjectStatus = 'in_progress'): Promise<VueWrapper> {
+  route.query = {}
+  const wrapper = await mountCockpitDetail({
+    project: nyxProject(status, role, { membersCount: 3 }),
+    bom: [bomLineOf({ id: 'line-armor-plates', ...COMPONENT_X, isJob: true, activityType: 'manufacturing', runs: 4 })],
+    cockpit: cockpitOf(status, nextAction({ code: 'launch_job', tab: 'materials', quantity: 3 })),
+    stationQuantities: [typeQuantities(COMPONENT_X, [stationQuantity({ locationId: STATION_A_ID, stationName: 'Azbel', toBring: 40 })])],
+  })
+  const answerOthers = vi.mocked(apiRequest).getMockImplementation()!
+  const decisions = {
+    ...sourcingDecisions(1_000_000, [sourcingRow(COMPONENT_X.typeId, {
+      typeName: COMPONENT_X.typeName,
+      stage: 'component',
+      options: { build: sourcingOption({ total: 1_200_000, perUnit: 30_000 }), jita: sourcingOption({ total: 900_000, perUnit: 22_500 }) },
+      chosen: 'build',
+      recommended: 'jita',
+    })]),
+    id: PROJECT_ID,
+  }
+  vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) =>
+    endpoint.split('?')[0] === `${PROJECT_PATH}/sourcing-decisions` ? decisions : answerOthers(endpoint, options))
+  await wrapper.findAll(CARD).find(card => card.text().includes(COMPONENT_X.typeName))?.trigger('click')
+  await flushPromises()
+  return wrapper
 }
 
 enableAutoUnmount(afterEach)
@@ -117,5 +152,29 @@ describe('group project detail card detail', () => {
 
     expect(zydrineCard(wrapper)).toBeUndefined()
     expect(wrapper.find(DETAIL).exists()).toBe(false)
+  })
+
+  it('offers the buy or build switch on an intermediate card to the owner of a project in progress, and reads the plan again after it', async () => {
+    const wrapper = await mountWithArmorPlatesCard('owner')
+    const bomReadsBefore = callsTo(`${PROJECT_PATH}/bom`)
+
+    await wrapper.get(SWITCH).trigger('click')
+    await wrapper.get(CONFIRM).trigger('click')
+    await flushPromises()
+
+    expect(sentPatchBodies()).toEqual([{ blacklistTypeIds: [COMPONENT_X.typeId] }])
+    expect(callsTo(`${PROJECT_PATH}/bom`)).toBeGreaterThan(bomReadsBefore)
+  })
+
+  it('offers the switch to an admin but shows the choice without it to a member and on a completed project', async () => {
+    expect((await mountWithArmorPlatesCard('admin')).find(SWITCH).exists()).toBe(true)
+
+    const member = await mountWithArmorPlatesCard('member')
+    expect(member.find('[data-testid="flow-detail-block-buyOrBuild"]').exists()).toBe(true)
+    expect(member.find(SWITCH).exists()).toBe(false)
+
+    const completed = await mountWithArmorPlatesCard('owner', 'completed')
+    expect(completed.find('[data-testid="flow-detail-block-buyOrBuild"]').exists()).toBe(true)
+    expect(completed.find(SWITCH).exists()).toBe(false)
   })
 })

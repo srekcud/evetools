@@ -457,4 +457,154 @@ describe('ProjectFlowCardDetail buy or build block', () => {
     expect(wrapper.find('[data-testid="flow-detail-block-planning"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="flow-detail-block-planning"] [role="alert"]').exists()).toBe(false)
   })
+
+  it('emits switched even when the project drops the type from its blacklist before the call returns', async () => {
+    const mounted: { wrapper?: VueWrapper } = {}
+    const bought = projectOf({ blacklistTypeIds: [TRITANIUM.typeId] })
+    answerApi({
+      patch: async () => {
+        await mounted.wrapper?.setProps({ project: bought })
+        return bought
+      },
+    })
+    const wrapper = await boughtArmorPlates([TRITANIUM.typeId, COMPONENT_X.typeId])
+    mounted.wrapper = wrapper
+
+    await clickSwitchThenConfirm(wrapper)
+
+    expect(wrapper.find(BLOCK).exists()).toBe(false)
+    expect(wrapper.emitted('switched')).toHaveLength(1)
+  })
+
+  it('closes the confirmation, enables the switch again and clears the alert on a second attempt that succeeds', async () => {
+    const outcomes = [() => Promise.reject(new Error(WORKED_LINE_REFUSAL)), () => Promise.resolve(projectOf({ blacklistTypeIds: [34, 11_540] }))]
+    answerApi({ patch: () => outcomes.shift()!() })
+    const wrapper = await builtArmorPlates()
+
+    await clickSwitchThenConfirm(wrapper)
+
+    expect(part(wrapper, 'switch-confirmation').exists()).toBe(false)
+    expect(part(wrapper, 'switch').attributes('disabled')).toBeUndefined()
+    expect(part(wrapper, 'switch-error').exists()).toBe(true)
+
+    await clickSwitchThenConfirm(wrapper)
+
+    expect(part(wrapper, 'switch-error').exists()).toBe(false)
+    expect(patchBodies()).toEqual([{ blacklistTypeIds: [34, 11_540] }, { blacklistTypeIds: [34, 11_540] }])
+    expect(wrapper.emitted('switched')).toHaveLength(1)
+  })
+
+  it('names the switch and its confirmation after the direction and the type, and labels the marks and the badge', async () => {
+    answerApi({ decisions: decisionsOf([armorPlatesRow({ chosen: 'build', recommended: 'jita' })]) })
+    const built = await builtArmorPlates()
+
+    expect(textOf(built, 'switch')).toBe(messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.switch.toBuy'))
+    await press(built, 'switch')
+    expect(textOf(built, 'switch-confirmation')).toContain(`${COMPONENT_X.typeName} will be bought instead of built`)
+    expect(optionRow(built, 'build')).toContain(messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.chosen'))
+    expect(optionRow(built, 'build')).not.toContain(messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.recommended'))
+    expect(optionRow(built, 'jita')).toContain(messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.recommended'))
+    expect(optionRow(built, 'jita')).not.toContain(messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.chosen'))
+
+    answerApi({ decisions: decisionsOf([armorPlatesRow({ chosen: 'jita', recommended: 'jita', bought: true })]) })
+    const bought = await boughtArmorPlates()
+
+    expect(textOf(bought, 'switch')).toBe(messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.switch.toBuild'))
+    expect(textOf(bought, 'excluded')).toBe(messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.excluded'))
+    await press(bought, 'switch')
+    expect(textOf(bought, 'switch-confirmation')).toContain(`${COMPONENT_X.typeName} will be built instead of bought`)
+  })
+
+  it('shows no gap and no on-recommended mark when the recommended or the chosen option is unknown', async () => {
+    for (const marks of [{ chosen: 'build', recommended: null }, { chosen: null, recommended: 'jita' }] as const) {
+      answerApi({ decisions: decisionsOf([armorPlatesRow(marks)]) })
+      const wrapper = await builtArmorPlates()
+
+      expect(part(wrapper, 'gap').exists(), JSON.stringify(marks)).toBe(false)
+      expect(part(wrapper, 'on-recommended').exists(), JSON.stringify(marks)).toBe(false)
+    }
+  })
+
+  it('says the gap is unknown when only the chosen total is unknown, and shows a saving without a plus sign', async () => {
+    answerApi({
+      decisions: decisionsOf([armorPlatesRow({
+        options: { build: sourcingOption({ total: null, perUnit: null }), jita: sourcingOption({ total: 900_000, perUnit: 22_500 }) },
+        chosen: 'build',
+        recommended: 'jita',
+      })]),
+    })
+    const unknownGap = await builtArmorPlates()
+
+    expect(textOf(unknownGap, 'gap').toLowerCase()).toContain(UNKNOWN_LABEL)
+    expect(textOf(unknownGap, 'gap')).not.toContain('+')
+
+    answerApi({
+      decisions: decisionsOf([armorPlatesRow({
+        options: { build: sourcingOption({ total: 800_000, perUnit: 20_000 }), jita: sourcingOption({ total: 900_000, perUnit: 22_500 }) },
+        chosen: 'build',
+        recommended: 'jita',
+      })]),
+    })
+    const saving = await builtArmorPlates()
+
+    expect(textOf(saving, 'gap')).toContain(formatIsk(-100_000))
+    expect(textOf(saving, 'gap')).not.toContain('+')
+  })
+
+  it('puts the total before the unit price on each option and says unknown for a missing unit price only', async () => {
+    answerApi({
+      decisions: decisionsOf([armorPlatesRow({
+        options: {
+          build: sourcingOption({ total: 1_200_000, perUnit: 30_000 }),
+          jita: sourcingOption({ total: 1_500_000, perUnit: null }),
+        },
+      })]),
+    })
+
+    const wrapper = await builtArmorPlates()
+
+    const build = optionRow(wrapper, 'build')
+    expect(build.indexOf(formatIsk(1_200_000))).toBeGreaterThanOrEqual(0)
+    expect(build.indexOf(formatIsk(1_200_000))).toBeLessThan(build.indexOf(`${formatIsk(30_000)}/u`))
+    const jita = optionRow(wrapper, 'jita')
+    expect(jita).toContain(formatIsk(1_500_000))
+    expect(jita.toLowerCase()).toContain(`${UNKNOWN_LABEL}/u`)
+    expect(build.toLowerCase()).not.toContain(UNKNOWN_LABEL)
+  })
+
+  it('shows the stock warning only on an option that cannot be fully bought, with its quantity or an unknown stock', async () => {
+    answerApi({
+      decisions: decisionsOf([armorPlatesRow({
+        options: {
+          build: sourcingOption({ total: 1_200_000, perUnit: 30_000 }),
+          jita: sourcingOption({ total: 1_500_000, perUnit: 37_500, eligible: true, availableQuantity: 9_999 }),
+          structure: sourcingOption({ total: 1_350_000, perUnit: 33_750, eligible: false, availableQuantity: null, structureId: '9001' }),
+        },
+      })]),
+    })
+
+    const wrapper = await builtArmorPlates()
+
+    expect(optionRow(wrapper, 'jita')).not.toContain(formatNumber(9_999, 0))
+    expect(optionRow(wrapper, 'build')).not.toContain(messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.stockUnknown'))
+    expect(optionRow(wrapper, 'structure')).toContain(messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.stockUnknown'))
+  })
+
+  it('shows a server refusal that is not a known one as it is, and the generic text when the error has no message', async () => {
+    answerApi({ patch: () => Promise.reject(new Error('Something else went wrong on the server')) })
+    const unknown = await builtArmorPlates()
+
+    await clickSwitchThenConfirm(unknown)
+
+    expect(textOf(unknown, 'switch-error')).toContain('Something else went wrong on the server')
+
+    answerApi({ patch: () => Promise.reject(new Error('')) })
+    const silent = await builtArmorPlates()
+
+    await clickSwitchThenConfirm(silent)
+
+    const generic = messageOf('en', 'groupIndustry.flow.detail.buyOrBuild.switch.error')
+    expect(textOf(silent, 'switch-error')).toContain(generic)
+    expect(textOf(silent, 'switch-error')).not.toContain('Something else')
+  })
 })

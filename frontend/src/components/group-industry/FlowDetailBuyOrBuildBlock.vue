@@ -13,10 +13,7 @@ const props = defineProps<{
   line: BomItem
   canSwitch: boolean
   blacklistTypeIds: number[]
-}>()
-
-const emit = defineEmits<{
-  switched: []
+  afterSwitch: () => void
 }>()
 
 const CHOICES: SetupSourcingChoice[] = ['build', 'jita', 'structure']
@@ -74,8 +71,8 @@ async function confirmSwitch(sourcingRow: SourcingRow): Promise<void> {
   switchError.value = null
   try {
     await projectStore.updateProject(props.projectId, { blacklistTypeIds })
+    props.afterSwitch()
     await setupStore.fetchSourcingDecisions(props.projectId)
-    emit('switched')
   } catch (error) {
     switchError.value = failureMessageOf(error)
   } finally {

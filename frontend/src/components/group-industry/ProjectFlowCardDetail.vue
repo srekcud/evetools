@@ -48,6 +48,10 @@ const { statusOf, refresh } = useFlowDetailLoader({
   canRecordSales: () => props.canRecordSales,
 })
 
+function notifySwitched(): void {
+  emit('switched')
+}
+
 defineExpose({ refresh })
 </script>
 
@@ -95,7 +99,7 @@ defineExpose({ refresh })
           :line="line"
           :can-switch="canSwitchSourcing === true"
           :blacklist-type-ids="project.blacklistTypeIds"
-          @switched="emit('switched')"
+          :after-switch="notifySwitched"
         />
         <FlowDetailSupplyBlock v-else-if="DETAIL_BLOCK_FAMILIES[kind] === 'supply'" :kind="kind" :card="card" :line="line" />
         <FlowDetailJobBlock v-else-if="DETAIL_BLOCK_FAMILIES[kind] === 'job'" :kind="kind" :project-id="projectId" :line="line" :can-link-jobs="canLinkJobs" />
