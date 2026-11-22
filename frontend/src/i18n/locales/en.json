@@ -4960,10 +4960,109 @@
       "projects": "Projects",
       "analysis": "Analysis",
       "production": "Production",
+      "factory": "Factory and stock",
       "revenue": "Revenue"
     },
     "pages": {
       "revenue": "Revenue"
+    }
+  },
+  "industryFactory": {
+    "unnamedProject": "Unnamed project",
+    "title": "Factory and stock",
+    "stations": {
+      "title": "Factory",
+      "subtitle": "specialised stations, access, index and load, across all projects",
+      "empty": "No station configured. Add your structures in the Industry settings.",
+      "columns": {
+        "station": "Station",
+        "specialisation": "Specialisation",
+        "index": "Index",
+        "access": "Access",
+        "lines": "Lines in use",
+        "projects": "Projects"
+      },
+      "specialisation": {
+        "manufacturing": "Manufacturing",
+        "reaction": "Reactions"
+      },
+      "noSpecialisation": "No rig bonus",
+      "systemUnknown": "System unknown",
+      "access": {
+        "granted": "Access",
+        "denied": "No access",
+        "unknown": "Access unknown"
+      }
+    },
+    "stockpile": {
+      "title": "Stockpile",
+      "subtitle": "corporation stock targets",
+      "empty": "No finished product target in the stockpile.",
+      "columns": {
+        "item": "Item",
+        "level": "Level",
+        "station": "Station"
+      },
+      "noStation": "No station",
+      "belowTarget": "below target: {count} to rebuild",
+      "createProject": "Create a project"
+    },
+    "projectStock": {
+      "title": "Stock used or returned by projects",
+      "subtitle": "material put into your projects",
+      "empty": "No stock committed to a project.",
+      "columns": {
+        "item": "Item",
+        "quantity": "Quantity",
+        "project": "Project",
+        "state": "State"
+      },
+      "state": {
+        "reserved": "Reserved",
+        "consumed": "Consumed",
+        "returned": "Returned to stock"
+      }
+    },
+    "playerLines": {
+      "title": "Lines per player",
+      "subtitle": "slots in use and free, per character",
+      "empty": "No character.",
+      "columns": {
+        "player": "Player"
+      },
+      "free": "{count} free"
+    },
+    "blueprints": {
+      "title": "Blueprints",
+      "subtitle": "originals, copies and where they sit",
+      "columns": {
+        "usedBy": "Used by"
+      }
+    },
+    "personalStock": {
+      "title": "My personal stock",
+      "subtitle": "containers of the corporation divisions that count as your own stock",
+      "empty": "No container declared: only your personal hangars count as your stock.",
+      "columns": {
+        "container": "Container",
+        "place": "Where",
+        "reading": "Reading"
+      },
+      "items": "{count} item | {count} items",
+      "remove": "Remove",
+      "itemIdLabel": "Container item id",
+      "declare": "Declare",
+      "unknownReason": {
+        "owner_without_corporation": "Unknown: no corporation",
+        "no_director": "Unknown: no director connected",
+        "corporation_assets_not_synced": "Unknown: corporation assets not synced",
+        "no_visible_division": "Unknown: no visible division",
+        "corporation_assets_stale": "Unknown: corporation assets out of date",
+        "container_in_hidden_division": "Unknown: container in a hidden division",
+        "container_not_found": "Unknown: container not found",
+        "station_unresolved": "Unknown: station not resolved",
+        "other": "Unknown: could not be read"
+      }
     }
   },
   "industryTodo": {

@@ -4960,10 +4960,109 @@
       "projects": "Projets",
       "analysis": "Analyse",
       "production": "Production",
+      "factory": "Usine et stock",
       "revenue": "Revenus"
     },
     "pages": {
       "revenue": "Revenus"
+    }
+  },
+  "industryFactory": {
+    "unnamedProject": "Projet sans nom",
+    "title": "Usine et stock",
+    "stations": {
+      "title": "Usine",
+      "subtitle": "stations spécialisées, accès, index et charge, tous projets",
+      "empty": "Aucune station configurée. Ajoute tes structures dans les réglages Industrie.",
+      "columns": {
+        "station": "Station",
+        "specialisation": "Spécialisation",
+        "index": "Index",
+        "access": "Accès",
+        "lines": "Lignes occupées",
+        "projects": "Projets"
+      },
+      "specialisation": {
+        "manufacturing": "Fabrication",
+        "reaction": "Réactions"
+      },
+      "noSpecialisation": "Aucun bonus de rig",
+      "systemUnknown": "Système inconnu",
+      "access": {
+        "granted": "Accès",
+        "denied": "Pas d'accès",
+        "unknown": "Accès inconnu"
+      }
+    },
+    "stockpile": {
+      "title": "Stockpile",
+      "subtitle": "cibles de stock de la corpo",
+      "empty": "Aucune cible de produit fini dans le stockpile.",
+      "columns": {
+        "item": "Article",
+        "level": "Niveau",
+        "station": "Station"
+      },
+      "noStation": "Aucune station",
+      "belowTarget": "sous la cible : {count} à refaire",
+      "createProject": "Créer un projet"
+    },
+    "projectStock": {
+      "title": "Stock utilisé ou rendu par les projets",
+      "subtitle": "matière apportée à tes projets",
+      "empty": "Aucun stock engagé dans un projet.",
+      "columns": {
+        "item": "Article",
+        "quantity": "Quantité",
+        "project": "Projet",
+        "state": "État"
+      },
+      "state": {
+        "reserved": "Réservé",
+        "consumed": "Consommé",
+        "returned": "Rendu au stock"
+      }
+    },
+    "playerLines": {
+      "title": "Lignes par joueur",
+      "subtitle": "lignes occupées et libres, par personnage",
+      "empty": "Aucun personnage.",
+      "columns": {
+        "player": "Joueur"
+      },
+      "free": "{count} libres"
+    },
+    "blueprints": {
+      "title": "Blueprints",
+      "subtitle": "originaux, copies et où ils sont rangés",
+      "columns": {
+        "usedBy": "Utilisé par"
+      }
+    },
+    "personalStock": {
+      "title": "Mon stock perso",
+      "subtitle": "containers des divisions corpo qui comptent comme ton propre stock",
+      "empty": "Aucun container déclaré : seuls tes hangars perso comptent comme ton stock.",
+      "columns": {
+        "container": "Container",
+        "place": "Où",
+        "reading": "Lecture"
+      },
+      "items": "{count} article | {count} articles",
+      "remove": "Retirer",
+      "itemIdLabel": "Item id du container",
+      "declare": "Déclarer",
+      "unknownReason": {
+        "owner_without_corporation": "Inconnu : pas de corporation",
+        "no_director": "Inconnu : aucun directeur connecté",
+        "corporation_assets_not_synced": "Inconnu : assets corpo non synchronisés",
+        "no_visible_division": "Inconnu : aucune division visible",
+        "corporation_assets_stale": "Inconnu : assets corpo trop anciens",
+        "container_in_hidden_division": "Inconnu : container dans une division masquée",
+        "container_not_found": "Inconnu : container introuvable",
+        "station_unresolved": "Inconnu : station non résolue",
+        "other": "Inconnu : lecture impossible"
+      }
     }
   },
   "industryTodo": {

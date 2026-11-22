@@ -30,6 +30,7 @@ describe('industry module routes, query and memory', () => {
     ['to do', 'industry-todo', '/industry/todo'],
     ['projects', 'industry-projects', '/industry/projects'],
     ['production', 'industry-production', '/industry/production'],
+    ['factory and stock', 'industry-factory', '/industry/factory'],
     ['revenue', 'industry-revenue', '/industry/revenue'],
     ['workshop', 'industry', '/industry'],
     ['corporation hangars', 'industry-hangars', '/industry/hangars'],

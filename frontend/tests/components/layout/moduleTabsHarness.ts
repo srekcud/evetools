@@ -11,6 +11,7 @@ const NAMED_ROUTES: Record<string, string> = {
   'industry-analysis': '/industry/analysis',
   'industry-production': '/industry/production',
   'industry-revenue': '/industry/revenue',
+  'industry-factory': '/industry/factory',
   'mining-operations': '/mining/operations',
   'mining-moons': '/mining/moons',
   'mining-sites': '/mining/sites',

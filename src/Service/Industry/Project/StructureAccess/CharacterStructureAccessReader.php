@@ -9,7 +9,7 @@ use App\Enum\StructureAccessStatus;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterStructureAccessRepository;
 
-final readonly class CharacterStructureAccessReader
+final readonly class CharacterStructureAccessReader implements CharacterStructureAccess
 {
     public function __construct(
         private CharacterStructureAccessRepository $accessRepository,

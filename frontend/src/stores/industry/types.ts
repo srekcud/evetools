@@ -737,3 +737,52 @@ export interface BlueprintLibrary {
   corporationState: CorporationBlueprintState
   blueprints: BlueprintLibraryEntry[]
 }
+
+export type StructureAccessState = 'granted' | 'denied' | 'unknown'
+
+export type FactoryStationAccess = {
+  characterId: number
+  characterName: string
+  status: StructureAccessState
+}
+
+export type FactoryStation = {
+  id: string
+  name: string
+  structureType: string
+  securityType: string
+  locationId: number | null
+  solarSystemId: number | null
+  solarSystemName: string | null
+  specialisations: ('manufacturing' | 'reaction')[]
+  manufacturingCostIndex: number | null
+  reactionCostIndex: number | null
+  access: FactoryStationAccess[]
+  linesInUse: number | null
+  projects: { id: string; name: string | null }[]
+}
+
+export type FactoryProjectStockState = 'reserved' | 'consumed' | 'returned'
+
+export type FactoryProjectStockLine = {
+  id: string
+  projectId: string
+  projectName: string | null
+  projectStatus: string
+  typeId: number
+  typeName: string
+  state: FactoryProjectStockState
+  quantity: number
+}
+
+export type PersonalStockContainer = {
+  id: string
+  itemId: number
+  name: string
+  divisionName: string | null
+  stationId: number | null
+  stationName: string | null
+  status: 'known' | 'unknown'
+  unknownReason: string | null
+  itemCount: number | null
+}
