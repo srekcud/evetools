@@ -1208,6 +1208,27 @@ export interface ProjectPurchasesToDeliver {
   rows: PurchaseToDeliverRow[]
 }
 
+export interface StationQuantity {
+  locationId: number | null
+  stationName: string | null
+  needed: number
+  consumed: number
+  inProduction: number
+  onSite: number | null
+  out: number | null
+  toBring: number | null
+  inTransit: number | null
+  unknownReason: string | null
+}
+
+export interface TypeStationQuantities {
+  typeId: number
+  typeName: string
+  lineIds: string[]
+  unknownReason: string | null
+  stations: StationQuantity[] | null
+}
+
 export type StructureHealthState = 'ok' | 'low-fuel' | 'offline-service' | 'unknown'
 
 export interface StructureHealthRow {

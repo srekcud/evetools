@@ -34,27 +34,46 @@ final readonly class StartedJobConsumption
     {
         $consumedByTypeId = [];
         foreach ($jobLines as $line) {
-            $startedRuns = self::startedRunsOf($line);
-            if (0 === $startedRuns) {
-                continue;
-            }
-
-            $lineRuns = $line->getRuns() ?? throw new \UnexpectedValueException(\sprintf('Job line %s has no runs.', $line->getId()->toRfc4122()));
-            if (0 === $lineRuns) {
-                continue;
-            }
-
-            $lineNeeds = $jobMaterialNeeds[$line->getId()->toRfc4122()] ?? null;
-            if (null === $lineNeeds) {
+            $lineConsumption = self::ofLine($line, $jobMaterialNeeds[$line->getId()->toRfc4122()] ?? null);
+            if (null === $lineConsumption) {
                 return self::unknown();
             }
 
-            foreach ($lineNeeds as $typeId => $neededQuantity) {
-                $consumedByTypeId[$typeId] = ($consumedByTypeId[$typeId] ?? 0) + intdiv($neededQuantity * min($startedRuns, $lineRuns), $lineRuns);
+            foreach ($lineConsumption as $typeId => $quantity) {
+                $consumedByTypeId[$typeId] = ($consumedByTypeId[$typeId] ?? 0) + $quantity;
             }
         }
 
         return new self($consumedByTypeId, false);
+    }
+
+    /**
+     * @param array<int, int>|null $lineNeeds
+     *
+     * @return array<int, int>|null
+     */
+    public static function ofLine(IndustryProjectBomLine $line, ?array $lineNeeds): ?array
+    {
+        $startedRuns = self::startedRunsOf($line);
+        if (0 === $startedRuns) {
+            return [];
+        }
+
+        $lineRuns = $line->getRuns() ?? throw new \UnexpectedValueException(\sprintf('Job line %s has no runs.', $line->getId()->toRfc4122()));
+        if (0 === $lineRuns) {
+            return [];
+        }
+
+        if (null === $lineNeeds) {
+            return null;
+        }
+
+        $consumedByTypeId = [];
+        foreach ($lineNeeds as $typeId => $neededQuantity) {
+            $consumedByTypeId[$typeId] = intdiv($neededQuantity * min($startedRuns, $lineRuns), $lineRuns);
+        }
+
+        return $consumedByTypeId;
     }
 
     private static function startedRunsOf(IndustryProjectBomLine $line): int
