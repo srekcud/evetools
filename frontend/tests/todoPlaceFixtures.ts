@@ -63,6 +63,7 @@ export function placedAction(
     typeName: null,
     quantity: null,
     here: null,
+    access: null,
     ...fields,
   }
 }

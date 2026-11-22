@@ -10,10 +10,14 @@ use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Enum\ProjectStatus;
+use App\Enum\StructureAccessSource;
+use App\Enum\StructureAccessStatus;
 use App\Service\Industry\Project\Action\ActionPlace;
 use App\Service\Industry\Project\Action\LaunchJobActions;
 use App\Service\Industry\Project\Action\PlacedAction;
 use App\Service\Industry\Project\Action\PlacedActionCode;
+use App\Service\Industry\Project\StructureAccess\MemberStructureAccess;
+use App\Tests\Unit\Service\Industry\Project\StructureAccess\BuildsStructureAccess;
 use App\Tests\Unit\State\Provider\Industry\Project\BuildsWorkshopProjects;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -25,6 +29,7 @@ use PHPUnit\Framework\TestCase;
 final class LaunchJobActionsTest extends TestCase
 {
     use BuildsActionPlaces;
+    use BuildsStructureAccess;
     use BuildsWorkshopProjects;
 
     private const int COMPONENT_TYPE_ID = 11_540;
@@ -34,7 +39,7 @@ final class LaunchJobActionsTest extends TestCase
 
     public function testJobLineWithRunsStillToLaunchIsAnActionWithTheRemainingRunsAtTheStationOfItsStep(): void
     {
-        $owner = $this->pilot();
+        $owner = new User();
         $azbel = $this->azbelConfig();
         $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $owner);
         $component = $this->jobOf($project, self::COMPONENT_TYPE_ID, 'Composant X', 'component', 8, 8, 0)->setPlannedStructureId($azbel->getId()->toRfc4122());
@@ -54,6 +59,7 @@ final class LaunchJobActionsTest extends TestCase
                     'Composant X',
                     5,
                     ActionPlace::station(self::AZBEL_LOCATION_ID, self::AZBEL_NAME, self::PERIMETER_SYSTEM_ID, self::PERIMETER_SYSTEM_NAME),
+                    StructureAccessStatus::Unknown,
                 ),
             ],
             $actions,
@@ -62,7 +68,7 @@ final class LaunchJobActionsTest extends TestCase
 
     public function testJobLineWithoutRunCountStaysAnActionWithAnUnknownQuantity(): void
     {
-        $owner = $this->pilot();
+        $owner = new User();
         $azbel = $this->azbelConfig();
         $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $owner);
         $this->jobOf($project, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', null, 2, 0)->setPlannedStructureId($azbel->getId()->toRfc4122());
@@ -111,12 +117,13 @@ final class LaunchJobActionsTest extends TestCase
 
         self::assertCount(1, $actions);
         self::assertEquals(ActionPlace::unknown(ActionPlace::UNKNOWN_STATION_UNRESOLVED), $actions[0]->place);
+        self::assertNull($actions[0]->access);
     }
 
     public function testStepStationIsReadFromTheConfigurationsOfTheOwnerNotOfTheReader(): void
     {
         $owner = $this->pilot();
-        $reader = $this->pilot();
+        $reader = new User();
         $azbel = $this->azbelConfig();
         $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $owner);
         $this->jobOf($project, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', 3, 3, 0)->setPlannedStructureId($azbel->getId()->toRfc4122());
@@ -145,9 +152,61 @@ final class LaunchJobActionsTest extends TestCase
         yield 'completed' => [ProjectStatus::Completed, 0];
     }
 
-    private function launchJobActions(User $owner, array $ownerConfigs): LaunchJobActions
+    #[DataProvider('storedProofsWithTheOfferedAccess')]
+    public function testStepInAStructureIsOfferedUnlessTheReaderIsDeniedThere(?StructureAccessStatus $storedStatus, ?StructureAccessStatus $expectedAccess): void
     {
-        return new LaunchJobActions($this->placeResolver($ownerConfigs));
+        $character = $this->characterOf();
+        $reader = $this->pilotOf($character);
+        $azbel = $this->azbelConfig();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $this->pilot());
+        $component = $this->jobOf($project, self::COMPONENT_TYPE_ID, 'Composant X', 'component', 8, 8, 0)->setPlannedStructureId($azbel->getId()->toRfc4122());
+        $this->matchedRunsOn($component, 3);
+        $rows = null === $storedStatus ? [] : [$this->accessRowOf($character, self::AZBEL_LOCATION_ID, $storedStatus, StructureAccessSource::Esi, '2026-11-21T10:00:00+00:00')];
+
+        $actions = $this->launchJobActions($reader, [$azbel], new MemberStructureAccess($this->readerHolding($rows)))->actionsOf($project, $reader);
+
+        self::assertEquals(
+            null === $expectedAccess ? [] : [
+                new PlacedAction(
+                    $project->getId()->toRfc4122(),
+                    'Ishtar batch',
+                    PlacedActionCode::LaunchJob,
+                    $component->getId()->toRfc4122(),
+                    self::COMPONENT_TYPE_ID,
+                    'Composant X',
+                    5,
+                    ActionPlace::station(self::AZBEL_LOCATION_ID, self::AZBEL_NAME, self::PERIMETER_SYSTEM_ID, self::PERIMETER_SYSTEM_NAME),
+                    $expectedAccess,
+                ),
+            ],
+            $actions,
+        );
+    }
+
+    public static function storedProofsWithTheOfferedAccess(): iterable
+    {
+        yield 'denied reader gets no action' => [StructureAccessStatus::Denied, null];
+        yield 'reader without proof gets the action flagged unknown' => [null, StructureAccessStatus::Unknown];
+        yield 'granted reader gets the action flagged granted' => [StructureAccessStatus::Granted, StructureAccessStatus::Granted];
+    }
+
+    public function testStepInANpcStationCarriesNoAccess(): void
+    {
+        $reader = $this->pilotOf($this->characterOf());
+        $jitaFortizar = $this->azbelConfig(self::JITA_FORTIZAR_STATION_ID);
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $this->pilot());
+        $this->jobOf($project, self::COMPONENT_TYPE_ID, 'Composant X', 'component', 8, 8, 0)->setPlannedStructureId($jitaFortizar->getId()->toRfc4122());
+
+        $actions = $this->launchJobActions($reader, [$jitaFortizar])->actionsOf($project, $reader);
+
+        self::assertCount(1, $actions);
+        self::assertSame(self::JITA_FORTIZAR_STATION_ID, $actions[0]->place->locationId);
+        self::assertNull($actions[0]->access);
+    }
+
+    private function launchJobActions(User $owner, array $ownerConfigs, ?MemberStructureAccess $memberAccess = null): LaunchJobActions
+    {
+        return new LaunchJobActions($this->placeResolver($ownerConfigs), $memberAccess ?? new MemberStructureAccess($this->readerHolding()));
     }
 
     private function codesWithTypeIdsAndQuantities(array $actions): array

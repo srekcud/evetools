@@ -141,7 +141,12 @@ onBeforeUnmount(() => {
       <span class="min-w-0 flex-1">
         <span v-if="action.typeName" class="block truncate text-sm text-slate-200" :title="action.typeName">{{ action.typeName }}</span>{{ ' ' }}
         <small v-if="detailOf(action)" class="block text-xs text-slate-400">{{ detailOf(action) }}</small>{{ ' ' }}
-        <span class="mt-0.5 inline-block rounded-sm border border-slate-700 px-1 text-[10.5px] text-slate-400">{{ projectLabel(action) }}</span>
+        <span class="mt-0.5 inline-block rounded-sm border border-slate-700 px-1 text-[10.5px] text-slate-400">{{ projectLabel(action) }}</span>{{ ' ' }}
+        <span
+          v-if="action.access === 'unknown'"
+          data-testid="todo-access-unknown"
+          class="mt-0.5 inline-block rounded-sm border border-amber-400/30 px-1 text-[10.5px] text-amber-400"
+        >{{ t('industryTodo.accessUnknown') }}</span>
       </span>
       <svg class="h-4 w-4 shrink-0 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />

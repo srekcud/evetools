@@ -66,4 +66,9 @@ class PlacedActionResource
     public array $place = ['kind' => 'anywhere', 'locationId' => null, 'name' => null, 'solarSystemId' => null, 'solarSystemName' => null, 'unknownReason' => null];
 
     public ?bool $here = null;
+
+    /**
+     * @var 'granted'|'unknown'|null
+     */
+    public ?string $access = null;
 }

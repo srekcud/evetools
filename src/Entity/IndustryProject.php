@@ -266,6 +266,22 @@ class IndustryProject
         );
     }
 
+    /**
+     * @return list<User> the owner first, then the accepted participants in the order they joined
+     */
+    public function acceptedUsers(): array
+    {
+        $users = [$this->owner];
+        foreach ($this->members as $member) {
+            $participant = $member->getUser();
+            if (ParticipantStatus::Accepted === $member->getStatus() && null !== $participant && !\in_array($participant, $users, true)) {
+                $users[] = $participant;
+            }
+        }
+
+        return $users;
+    }
+
     public function isManagedBy(User $user): bool
     {
         if ($this->owner === $user) {

@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\PlacedActionResource;
 use App\Entity\User;
+use App\Enum\StructureAccessStatus;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\Action\LocatedAction;
 use App\Service\Industry\Project\Action\UserActionReader;
@@ -70,6 +71,12 @@ class PlacedActionsProvider implements ProviderInterface
         $resource->quantity = $action->quantity;
         $resource->place = $action->place->toArray();
         $resource->here = $located->here;
+        $resource->access = match ($action->access) {
+            null => null,
+            StructureAccessStatus::Granted => 'granted',
+            StructureAccessStatus::Unknown => 'unknown',
+            StructureAccessStatus::Denied => throw new \LogicException('An action denied to the pilot is never offered.'),
+        };
 
         return $resource;
     }

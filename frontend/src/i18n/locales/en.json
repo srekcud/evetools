@@ -4958,6 +4958,7 @@
     "unnamedStation": "Unnamed station",
     "anywhere": "Anywhere",
     "hereBadge": "you are here",
+    "accessUnknown": "Access unknown",
     "unknownPlace": "Unknown place",
     "unknownReasons": {
       "market_not_chosen": "Market not chosen",

@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Entity\Character;
+use App\Entity\CharacterStructureAccess;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\MapConstellation;
 use App\Entity\Sde\MapRegion;
 use App\Entity\Sde\MapSolarSystem;
+use App\Entity\User;
 use App\Enum\SourcingMarket;
+use App\Enum\StructureAccessSource;
+use App\Enum\StructureAccessStatus;
 use App\Service\ESI\CharacterLocation;
 use App\Service\ESI\CharacterLocationReader;
 use PHPUnit\Framework\Attributes\Group;
@@ -89,7 +93,7 @@ final class PlacedActionsApiTest extends WebTestCase
             array_map(static fn (array $action): array => [$action['code'], $action['projectName'], $action['typeName'], $action['quantity'], $action['here']], $actions),
         );
         foreach ($actions as $action) {
-            self::assertSame(['bomLineId', 'code', 'here', 'id', 'place', 'projectId', 'projectName', 'quantity', 'typeId', 'typeName'], $this->sortedKeys($action));
+            self::assertSame(['access', 'bomLineId', 'code', 'here', 'id', 'place', 'projectId', 'projectName', 'quantity', 'typeId', 'typeName'], $this->sortedKeys($action));
             self::assertArrayHasKey('here', $action);
         }
         self::assertSame(
@@ -104,9 +108,11 @@ final class PlacedActionsApiTest extends WebTestCase
                 'quantity' => self::ISHTAR_RUNS,
                 'place' => ['kind' => 'station', 'locationId' => self::AZBEL_LOCATION_ID, 'name' => 'Azbel', 'solarSystemId' => self::PERIMETER_SYSTEM_ID, 'solarSystemName' => 'Perimeter', 'unknownReason' => null],
                 'here' => true,
+                'access' => 'unknown',
             ],
             $actions[0],
         );
+        self::assertSame(['unknown', 'unknown', null, null, null, null, null, null], array_column($actions, 'access'));
         self::assertSame(
             ['kind' => 'station', 'locationId' => self::MARKET_STRUCTURE_ID, 'name' => self::MARKET_STRUCTURE_NAME, 'solarSystemId' => null, 'solarSystemName' => null, 'unknownReason' => null],
             $actions[2]['place'],
@@ -124,6 +130,46 @@ final class PlacedActionsApiTest extends WebTestCase
         self::assertArrayHasKey('typeId', $actions[7]);
         self::assertNull($actions[7]['typeId']);
         self::assertSame($this->ishtarBatch->getId()->toRfc4122().':review_join_requests:-', $actions[7]['id']);
+    }
+
+    public function testMemberDeniedInTheStationOfAStepIsNotOfferedItWhileAGrantedOwnerIsOfferedItFlaggedGranted(): void
+    {
+        $this->holdAccess($this->member, self::AZBEL_LOCATION_ID, StructureAccessStatus::Denied);
+        $this->holdAccess($this->owner, self::AZBEL_LOCATION_ID, StructureAccessStatus::Granted);
+
+        $this->actAs($this->member);
+        $this->request('GET', self::PLACE_ACTIONS_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(
+            [['source_material', 'Morphite'], ['source_material', 'Nocxium'], ['source_material', 'Tritanium']],
+            array_map(static fn (array $action): array => [$action['code'], $action['typeName']], $this->responseJson()),
+        );
+
+        $this->actAs($this->owner);
+        $this->request('GET', self::PLACE_ACTIONS_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        $actions = $this->responseJson();
+        $launches = $this->rowsSortedBy('typeName', array_values(array_filter($actions, static fn (array $action): bool => 'launch_job' === $action['code'])));
+        self::assertSame([['Ishtar', 'granted'], ['R.A.M.- Starship Tech', 'granted']], array_map(static fn (array $action): array => [$action['typeName'], $action['access']], $launches));
+        $sourcing = array_values(array_filter($actions, static fn (array $action): bool => 'source_material' === $action['code']))[0];
+        self::assertArrayHasKey('access', $sourcing);
+        self::assertNull($sourcing['access']);
+    }
+
+    public function testMemberWithoutAnyProofIsOfferedTheStepFlaggedUnknown(): void
+    {
+        $this->actAs($this->member);
+        $this->request('GET', self::PLACE_ACTIONS_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        $launches = $this->rowsSortedBy('typeName', array_values(array_filter($this->responseJson(), static fn (array $action): bool => 'launch_job' === $action['code'])));
+        self::assertCount(2, $launches);
+        foreach ($launches as $launch) {
+            self::assertArrayHasKey('access', $launch);
+            self::assertSame('unknown', $launch['access']);
+        }
     }
 
     public function testProjectRouteReadsTheActionsOfThatProjectOnly(): void
@@ -204,6 +250,12 @@ final class PlacedActionsApiTest extends WebTestCase
             fn (Character $character): ?CharacterLocation => $this->locationsByEveCharacterId[$character->getEveCharacterId()] ?? null,
         );
         self::getContainer()->set(CharacterLocationReader::class, $reader);
+    }
+
+    private function holdAccess(User $user, int $structureId, StructureAccessStatus $status): void
+    {
+        $this->em->persist(new CharacterStructureAccess($user->getMainCharacter(), $structureId, $status, StructureAccessSource::Esi, new \DateTimeImmutable()));
+        $this->em->flush();
     }
 
     private function sortedKeys(array $action): array

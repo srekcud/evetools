@@ -1544,6 +1544,8 @@ export interface ActionPlace {
   unknownReason: string | null
 }
 
+export type PlacedActionAccess = 'granted' | 'unknown'
+
 export interface PlacedAction {
   id: string
   projectId: string
@@ -1555,6 +1557,7 @@ export interface PlacedAction {
   quantity: number | null
   place: ActionPlace
   here: boolean | null
+  access: PlacedActionAccess | null
 }
 
 export interface CharacterLocationRead {

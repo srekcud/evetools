@@ -63,15 +63,7 @@ class ProjectAccessChecker
      */
     public function acceptedParticipantsOf(IndustryProject $project): array
     {
-        $users = [$project->getOwner()];
-        foreach ($project->getMembers() as $member) {
-            $participant = $member->getUser();
-            if (ParticipantStatus::Accepted === $member->getStatus() && null !== $participant && !\in_array($participant, $users, true)) {
-                $users[] = $participant;
-            }
-        }
-
-        return $users;
+        return $project->acceptedUsers();
     }
 
     public function assertContributionOf(User $user, IndustryProjectContribution $contribution): void

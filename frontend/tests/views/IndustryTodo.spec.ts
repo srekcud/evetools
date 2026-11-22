@@ -138,6 +138,35 @@ describe('IndustryTodo view', () => {
     expect(wrapper.findAll('[data-testid="todo-here-badge"]')).toHaveLength(0)
   })
 
+  it('flags an action whose station access is unknown with an access unknown badge', async () => {
+    const wrapper = await mountWith([
+      placedAction({ id: 'u1', code: 'launch_job', place: AZBEL_PLACE, typeId: 12005, typeName: 'Ishtar', quantity: 2, access: 'unknown' }),
+    ])
+
+    const badges = wrapper.findAll('[data-testid="todo-action"] [data-testid="todo-access-unknown"]')
+    expect(badges).toHaveLength(1)
+    expect(badges[0].text()).toBe('Access unknown')
+  })
+
+  it('shows no access badge on an action with a granted access or no access at all', async () => {
+    const wrapper = await mountWith([
+      placedAction({ id: 'g1', code: 'launch_job', place: AZBEL_PLACE, typeId: 12005, typeName: 'Ishtar', quantity: 2, access: 'granted' }),
+      LAUNCH_RAM_AT_AZBEL,
+      SOURCE_TRITANIUM_400_AT_JITA,
+    ])
+
+    expect(wrapper.findAll('[data-testid="todo-action"]')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid="todo-access-unknown"]')).toHaveLength(0)
+  })
+
+  it('words the access unknown badge in French', async () => {
+    const wrapper = await mountWith([
+      placedAction({ id: 'u2', code: 'launch_job', place: AZBEL_PLACE, typeId: 12005, typeName: 'Ishtar', quantity: 2, access: 'unknown' }),
+    ], 'fr')
+
+    expect(wrapper.get('[data-testid="todo-access-unknown"]').text()).toBe('Accès inconnu')
+  })
+
   it('words each action with its verb, its quantity, its project and a link to the project', async () => {
     const wrapper = await mountWith([
       LAUNCH_RAM_AT_AZBEL,

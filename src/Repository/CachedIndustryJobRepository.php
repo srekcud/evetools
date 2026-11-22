@@ -95,6 +95,21 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
         return $newest;
     }
 
+    public function latestEndDateAtStructure(Character $character, int $structureId): ?\DateTimeImmutable
+    {
+        $job = $this->createQueryBuilder('j')
+            ->where('j.character = :character')
+            ->andWhere('j.stationId = :structureId')
+            ->setParameter('character', $character)
+            ->setParameter('structureId', $structureId)
+            ->orderBy('j.endDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $job?->getEndDate();
+    }
+
     /**
      * @param list<int> $blueprintItemIds
      *

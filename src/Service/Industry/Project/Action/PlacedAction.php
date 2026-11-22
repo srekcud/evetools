@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project\Action;
 
+use App\Enum\StructureAccessStatus;
+
 final readonly class PlacedAction
 {
     private const string NO_LINE = '-';
@@ -17,6 +19,7 @@ final readonly class PlacedAction
         public ?string $typeName,
         public ?int $quantity,
         public ActionPlace $place,
+        public ?StructureAccessStatus $access = null,
     ) {
     }
 
