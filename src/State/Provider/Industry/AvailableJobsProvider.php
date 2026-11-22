@@ -16,6 +16,7 @@ use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
+use App\Service\Industry\IndustryJobMatcher;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -35,6 +36,7 @@ class AvailableJobsProvider implements ProviderInterface
         private readonly IndustryCalculationService $calculationService,
         private readonly ProjectAccessChecker $accessChecker,
         private readonly IndustryProjectJobMatchRepository $jobMatchRepository,
+        private readonly IndustryJobMatcher $jobMatcher,
     ) {
     }
 
@@ -61,8 +63,11 @@ class AvailableJobsProvider implements ProviderInterface
         );
 
         $blueprintTypeIds = [];
+        $jobLinesByBlueprintTypeId = [];
         foreach ($jobLines as $line) {
-            $blueprintTypeIds[$this->productRepository->producerOf($line->getTypeId())->getTypeId()] = true;
+            $blueprintTypeId = $this->productRepository->producerOf($line->getTypeId())->getTypeId();
+            $blueprintTypeIds[$blueprintTypeId] = true;
+            $jobLinesByBlueprintTypeId[$blueprintTypeId][] = $line;
         }
 
         $characterIds = [];
@@ -90,7 +95,12 @@ class AvailableJobsProvider implements ProviderInterface
         }
 
         $resources = array_map(
-            fn (CachedIndustryJob $job): AvailableJobResource => $this->toResource($job, $project, $linkedRunsByJobId[$job->getJobId()]),
+            fn (CachedIndustryJob $job): AvailableJobResource => $this->toResource(
+                $job,
+                $project,
+                $linkedRunsByJobId[$job->getJobId()],
+                $jobLinesByBlueprintTypeId[$job->getBlueprintTypeId()],
+            ),
             $jobsWithOutput,
         );
 
@@ -99,7 +109,10 @@ class AvailableJobsProvider implements ProviderInterface
         return $resources;
     }
 
-    private function toResource(CachedIndustryJob $job, IndustryProject $project, int $linkedRuns): AvailableJobResource
+    /**
+     * @param list<IndustryProjectBomLine> $linesOfTheBlueprint
+     */
+    private function toResource(CachedIndustryJob $job, IndustryProject $project, int $linkedRuns, array $linesOfTheBlueprint): AvailableJobResource
     {
         $resource = new AvailableJobResource();
         $resource->esiJobId = $job->getJobId();
@@ -114,16 +127,24 @@ class AvailableJobsProvider implements ProviderInterface
         $resource->characterName = $job->getCharacter()->getName();
         $resource->linkedRuns = $linkedRuns;
         $resource->remainingRuns = $job->getRuns() - $linkedRuns;
+        $resource->linkableBomLineIds = array_values(array_map(
+            static fn (IndustryProjectBomLine $line): string => $line->getId()->toRfc4122(),
+            array_filter($linesOfTheBlueprint, fn (IndustryProjectBomLine $line): bool => $this->jobMatcher->isJobOfBomLineActivity($job, $line)),
+        ));
 
+        $linkedRunsInThisProject = 0;
         foreach ($project->getBomItems() as $line) {
             foreach ($line->getJobMatches() as $match) {
                 if ($match->getEsiJobId() === $job->getJobId()) {
+                    $linkedRunsInThisProject += $match->getRuns();
                     $resource->linkedToBomLineId = $line->getId()->toRfc4122();
                     $resource->linkedToBomLineName = $line->getTypeName();
                     $resource->matchId = (string) $match->getId();
                 }
             }
         }
+
+        $resource->linkedToAnotherProject = $linkedRuns > $linkedRunsInThisProject;
 
         return $resource;
     }

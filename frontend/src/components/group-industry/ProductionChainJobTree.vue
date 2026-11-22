@@ -18,6 +18,7 @@ import ContainerLineStatus from './ContainerLineStatus.vue'
 import { containerLineOf, isPartlyCoveredByTheContainer } from './jobContainerCoverage'
 import { formatCountdown } from './jobCountdown'
 import { jobDisplayOf } from './jobDisplayState'
+import { isLinkableActivity } from './jobLinking'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import UnclaimedStockBadge from './UnclaimedStockBadge.vue'
@@ -283,7 +284,7 @@ function plansStructure(node: ChainNode): boolean {
                 </li>
               </ul>
               <button
-                v-if="canLinkJobs === true"
+                v-if="canLinkJobs === true && isLinkableActivity(bomItemOf(item.node)!)"
                 type="button"
                 data-testid="link-job-open"
                 class="mt-1 px-2 py-0.5 rounded-sm text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"

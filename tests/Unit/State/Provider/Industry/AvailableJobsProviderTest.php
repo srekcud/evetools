@@ -9,6 +9,7 @@ use App\ApiResource\Industry\AvailableJobResource;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -20,6 +21,7 @@ use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
+use App\Service\Industry\IndustryJobMatcher;
 use App\State\Provider\Industry\AvailableJobsProvider;
 use App\Tests\Unit\State\Processor\Industry\TracksJobsAndPurchasesOnIshtarBom;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -38,6 +40,7 @@ final class AvailableJobsProviderTest extends TestCase
     private const int ISHTAR_JOB_ID = 7_362_601;
     private const int RAM_JOB_ID = 7_362_602;
     private const int CANCELLED_RAM_JOB_ID = 7_362_603;
+    private const int UNTOUCHED_JOB_ID = 7_362_604;
     private const string NO_ACCESS = '403 You do not have access to this project';
 
     private array $cachedJobs = [];
@@ -45,6 +48,8 @@ final class AvailableJobsProviderTest extends TestCase
     private array $jobLookups = [];
 
     private array $matchesOfOtherProjects = [];
+
+    private array $linesOfAnotherActivity = [];
 
     protected function setUp(): void
     {
@@ -118,6 +123,64 @@ final class AvailableJobsProviderTest extends TestCase
             [[self::RAM_JOB_ID, 4, 4, 0, null], [self::ISHTAR_JOB_ID, 6, 0, 6, null]],
             array_map(static fn (AvailableJobResource $job): array => [$job->esiJobId, $job->runs, $job->linkedRuns, $job->remainingRuns, $job->linkedToBomLineId], $jobs),
         );
+    }
+
+    #[Group('issue-1199')]
+    public function testEachJobListsOnlyTheLinesOfTheProjectItsBlueprintProduces(): void
+    {
+        $this->job($this->ownerMainCharacter, self::ISHTAR_JOB_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 5, 1_482_350.25, '2026-11-02T08:00:00+00:00');
+        $this->job($this->ownerAltCharacter, self::RAM_JOB_ID, self::RAM_BLUEPRINT_TYPE_ID, self::RAM_TYPE_ID, 4, 86_250.5, '2026-11-03T08:00:00+00:00');
+
+        $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame(
+            [[self::RAM_JOB_ID, [$this->ramLine->getId()->toRfc4122()]], [self::ISHTAR_JOB_ID, [$this->ishtarLine->getId()->toRfc4122()]]],
+            array_map(static fn (AvailableJobResource $job): array => [$job->esiJobId, $job->linkableBomLineIds], $jobs),
+        );
+    }
+
+    #[Group('issue-1199')]
+    public function testALineWhoseActivityTheJobDoesNotRunIsNotLinkable(): void
+    {
+        $this->job($this->ownerMainCharacter, self::ISHTAR_JOB_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 5, 1_482_350.25, '2026-11-02T08:00:00+00:00');
+        $this->linesOfAnotherActivity[] = $this->ishtarLine;
+
+        $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([[]], array_map(static fn (AvailableJobResource $job): array => $job->linkableBomLineIds, $jobs));
+    }
+
+    #[Group('issue-1199')]
+    public function testAJobIsLinkedToAnotherProjectOnlyWhenRunsOfOtherProjectsAreAttributedToIt(): void
+    {
+        $this->job($this->ownerMainCharacter, self::ISHTAR_JOB_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 20, 1_000_000.0, '2026-11-02T08:00:00+00:00');
+        $this->job($this->ownerAltCharacter, self::RAM_JOB_ID, self::RAM_BLUEPRINT_TYPE_ID, self::RAM_TYPE_ID, 4, 86_250.5, '2026-11-03T08:00:00+00:00');
+        $this->job($this->adminCharacter, self::UNTOUCHED_JOB_ID, self::RAM_BLUEPRINT_TYPE_ID, self::RAM_TYPE_ID, 4, 86_250.5, '2026-11-04T08:00:00+00:00');
+        $ownShare = (new IndustryProjectJobMatch())->setEsiJobId(self::ISHTAR_JOB_ID)->setRuns(5)->setStatus('active');
+        (new \ReflectionProperty(IndustryProjectJobMatch::class, 'id'))->setValue($ownShare, Uuid::v4());
+        $this->ishtarLine->addJobMatch($ownShare);
+        $this->matchesOfOtherProjects[] = (new IndustryProjectJobMatch())->setEsiJobId(self::ISHTAR_JOB_ID)->setRuns(7)->setStatus('active');
+        $this->matchesOfOtherProjects[] = (new IndustryProjectJobMatch())->setEsiJobId(self::RAM_JOB_ID)->setRuns(4)->setStatus('active');
+
+        $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame(
+            [[self::UNTOUCHED_JOB_ID, false], [self::RAM_JOB_ID, true], [self::ISHTAR_JOB_ID, true]],
+            array_map(static fn (AvailableJobResource $job): array => [$job->esiJobId, $job->linkedToAnotherProject], $jobs),
+        );
+    }
+
+    #[Group('issue-1199')]
+    public function testAJobLinkedOnlyInThisProjectIsNotLinkedToAnotherProject(): void
+    {
+        $this->job($this->ownerMainCharacter, self::ISHTAR_JOB_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 5, 1_000_000.0, '2026-11-02T08:00:00+00:00');
+        $ownShare = (new IndustryProjectJobMatch())->setEsiJobId(self::ISHTAR_JOB_ID)->setRuns(5)->setStatus('active');
+        (new \ReflectionProperty(IndustryProjectJobMatch::class, 'id'))->setValue($ownShare, Uuid::v4());
+        $this->ishtarLine->addJobMatch($ownShare);
+
+        $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([false], array_map(static fn (AvailableJobResource $job): bool => $job->linkedToAnotherProject, $jobs));
     }
 
     public function testJobsWithoutOutputAreLeftOut(): void
@@ -204,6 +267,11 @@ final class AvailableJobsProviderTest extends TestCase
             static fn (int $typeId): ?string => [self::ISHTAR_TYPE_ID => 'Ishtar', self::RAM_TYPE_ID => 'R.A.M.- Starship Tech'][$typeId] ?? null,
         );
 
+        $jobMatcher = $this->createStub(IndustryJobMatcher::class);
+        $jobMatcher->method('isJobOfBomLineActivity')->willReturnCallback(
+            fn (CachedIndustryJob $job, IndustryProjectBomLine $line): bool => !\in_array($line, $this->linesOfAnotherActivity, true),
+        );
+
         return (new AvailableJobsProvider(
             $this->securityOf($user),
             $this->projectRepository(),
@@ -212,6 +280,7 @@ final class AvailableJobsProviderTest extends TestCase
             $calculationService,
             $this->accessChecker(),
             $this->jobMatchRepository(),
+            $jobMatcher,
         ))->provide(new GetCollection(), ['projectId' => $project->getId()->toRfc4122()]);
     }
 

@@ -7,6 +7,7 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import IskAmount from '@/components/common/IskAmount.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import type { AvailableJob } from '@/stores/group-industry/types'
+import { isTakenByAnotherProject } from './jobLinking'
 
 defineProps<{
   show: boolean
@@ -116,7 +117,12 @@ function link(job: AvailableJob): void {
                   class="px-2 py-0.5 rounded-sm text-xs bg-emerald-500/10 text-emerald-400"
                 >{{ t('groupIndustry.jobs.alreadyLinkedTo', { name: job.linkedToBomLineName ?? job.linkedToBomLineId }) }}</span>
                 <span
-                  v-if="job.linkedRuns > 0"
+                  v-if="isTakenByAnotherProject(job)"
+                  data-testid="available-job-linked-elsewhere"
+                  class="px-2 py-0.5 rounded-sm text-xs bg-slate-700/50 text-slate-400"
+                >{{ t('groupIndustry.jobs.linkedToAnotherProject') }}</span>
+                <span
+                  v-else-if="job.linkedRuns > 0"
                   data-testid="available-job-shared"
                   class="ml-1 px-2 py-0.5 rounded-sm text-xs bg-amber-500/10 text-amber-400"
                 >{{ t('groupIndustry.jobs.sharedRuns', { linkedRuns: job.linkedRuns, runs: job.runs }) }}</span>

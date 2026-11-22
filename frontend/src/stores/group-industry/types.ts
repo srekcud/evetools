@@ -553,6 +553,8 @@ export type AvailableJob = {
   matchId: string | null
   linkedRuns: number
   remainingRuns: number
+  linkableBomLineIds: string[]
+  linkedToAnotherProject: boolean
 }
 
 export type PurchaseSuggestion = {

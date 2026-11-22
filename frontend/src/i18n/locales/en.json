@@ -3656,10 +3656,20 @@
       "availableJobsLoading": "Loading jobs...",
       "availableJobsEmpty": "No job available to link",
       "alreadyLinkedTo": "Already linked to {name}",
+      "linkedToAnotherProject": "Linked to another project",
       "sharedRuns": "{linkedRuns} / {runs} runs already assigned",
       "runsToAssign": "Runs to assign",
       "availableJobsError": "Failed to load the available jobs",
       "linkError": "Failed to link the job",
+      "linkRefusals": {
+        "activityMismatch": "This job does not run the activity of this line.",
+        "blueprintMismatch": "This job does not use the blueprint that produces this line.",
+        "noOutput": "This job produced nothing, it cannot be linked.",
+        "alreadyLinked": "All the runs of this job are already linked to other lines.",
+        "alreadyShared": "This job already carries a share on this line.",
+        "notEnoughRuns": "Only {runs} runs of this job are still free.",
+        "jobNotFound": "This job is not among the jobs you can link."
+      },
       "unlinkError": "Failed to unlink the job"
     },
     "jobLocations": {

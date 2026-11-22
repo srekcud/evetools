@@ -14,6 +14,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import ChainStatusFilter from './ChainStatusFilter.vue'
 import { CHAIN_STATUSES, chainStatusDotClass } from './chainStatus'
 import { recallChainStatusFilter, rememberChainStatusFilter } from './chainStatusFilter'
+import { jobsLinkableToLine } from './jobLinking'
 import { CHAIN_VIEWS, recallChainView, rememberChainView, type ChainFocusRequest, type ChainView } from './chainView'
 import ProductionChainFlow from './ProductionChainFlow.vue'
 import ProductionChainJobTree from './ProductionChainJobTree.vue'
@@ -223,7 +224,7 @@ watch(
       v-if="canLinkJobs === true"
       :show="linkScreenLine !== null"
       :line-name="linkScreenLine?.typeName ?? ''"
-      :jobs="availableJobs"
+      :jobs="jobsLinkableToLine(availableJobs, linkScreenLine?.id ?? null)"
       :loading="isLoadingAvailableJobs"
       :error="jobLinkError"
       :linking-esi-job-id="linkingEsiJobId"

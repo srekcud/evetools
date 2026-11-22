@@ -57,4 +57,9 @@ class AvailableJobResource
     public int $linkedRuns = 0;
 
     public int $remainingRuns = 0;
+
+    /** @var list<string> */
+    public array $linkableBomLineIds = [];
+
+    public bool $linkedToAnotherProject = false;
 }

@@ -3656,10 +3656,20 @@
       "availableJobsLoading": "Chargement des jobs...",
       "availableJobsEmpty": "Aucun job à lier",
       "alreadyLinkedTo": "Déjà lié à {name}",
+      "linkedToAnotherProject": "Lié à un autre projet",
       "sharedRuns": "{linkedRuns} / {runs} runs déjà attribuées",
       "runsToAssign": "Runs à attribuer",
       "availableJobsError": "Échec du chargement des jobs disponibles",
       "linkError": "Échec du lien du job",
+      "linkRefusals": {
+        "activityMismatch": "Ce job n'exerce pas l'activité de cette ligne.",
+        "blueprintMismatch": "Ce job n'utilise pas le blueprint qui produit cette ligne.",
+        "noOutput": "Ce job n'a rien produit, il ne peut pas être lié.",
+        "alreadyLinked": "Toutes les runs de ce job sont déjà liées à d'autres lignes.",
+        "alreadyShared": "Ce job porte déjà une part sur cette ligne.",
+        "notEnoughRuns": "Il ne reste que {runs} runs libres sur ce job.",
+        "jobNotFound": "Ce job ne fait pas partie des jobs que vous pouvez lier."
+      },
       "unlinkError": "Échec de la suppression du lien"
     },
     "jobLocations": {

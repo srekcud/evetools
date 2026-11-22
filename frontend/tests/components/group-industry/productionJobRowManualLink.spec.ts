@@ -98,6 +98,8 @@ const AVAILABLE_JOBS = [
     matchId: null,
     linkedRuns: 0,
     remainingRuns: 4,
+    linkableBomLineIds: [ISHTAR_LINE_ID],
+    linkedToAnotherProject: false,
   },
   {
     esiJobId: 9002,
@@ -115,6 +117,8 @@ const AVAILABLE_JOBS = [
     matchId: 'match-dax',
     linkedRuns: 6,
     remainingRuns: 0,
+    linkableBomLineIds: [ISHTAR_LINE_ID],
+    linkedToAnotherProject: false,
   },
 ]
 
