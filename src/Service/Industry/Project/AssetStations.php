@@ -10,12 +10,16 @@ use App\Repository\CachedAssetRepository;
 final class AssetStations
 {
     private const string ITEM_LOCATION_TYPE = 'item';
+    private const string SPACE_LOCATION_TYPE = 'solar_system';
 
     /** @var array<int, CachedAsset> */
     private array $visibleAssetsByItemId = [];
 
     /** @var array<int, CachedAsset>|null */
     private ?array $officesByItemId = null;
+
+    /** @var array<int, CachedAsset>|null */
+    private ?array $structuresByItemId = null;
 
     /**
      * @param CachedAsset[] $visibleAssets
@@ -47,7 +51,11 @@ final class AssetStations
         }
 
         $office = $this->offices()[$top->getLocationId()] ?? null;
-        if (null === $office || self::ITEM_LOCATION_TYPE === $office->getLocationType()) {
+        if (null === $office) {
+            return null;
+        }
+
+        if (self::ITEM_LOCATION_TYPE === $office->getLocationType() && !$this->isCorporationStructure($office->getLocationId())) {
             return null;
         }
 
@@ -89,5 +97,33 @@ final class AssetStations
         $this->officesByItemId = $this->cachedAssetRepository->findCorporationByItemIds($this->corporationId, array_keys($officeItemIds));
 
         return $this->officesByItemId;
+    }
+
+    private function isCorporationStructure(int $itemId): bool
+    {
+        $structure = $this->structures()[$itemId] ?? null;
+
+        return null !== $structure && self::SPACE_LOCATION_TYPE === $structure->getLocationType();
+    }
+
+    /**
+     * @return array<int, CachedAsset>
+     */
+    private function structures(): array
+    {
+        if (null !== $this->structuresByItemId) {
+            return $this->structuresByItemId;
+        }
+
+        $parentItemIds = [];
+        foreach ($this->offices() as $office) {
+            if (self::ITEM_LOCATION_TYPE === $office->getLocationType()) {
+                $parentItemIds[$office->getLocationId()] = true;
+            }
+        }
+
+        $this->structuresByItemId = $this->cachedAssetRepository->findCorporationByItemIds($this->corporationId, array_keys($parentItemIds));
+
+        return $this->structuresByItemId;
     }
 }
