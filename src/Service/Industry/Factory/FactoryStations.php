@@ -83,10 +83,10 @@ final readonly class FactoryStations
     {
         $bonuses = $this->structureBonusSummary->of($configuration->getStructureType(), $configuration->getSecurityType(), $configuration->getRigs());
         $specialisations = [];
-        if ($bonuses->manufacturingMaterialBonus > 0.0 || $bonuses->manufacturingTimeBonus > 0.0) {
+        if ($bonuses->manufacturingMaterialBonus > 0.0 || (null !== $bonuses->manufacturingTimeBonus && $bonuses->manufacturingTimeBonus > 0.0)) {
             $specialisations[] = self::MANUFACTURING;
         }
-        if ($bonuses->reactionMaterialBonus > 0.0 || $bonuses->reactionTimeBonus > 0.0) {
+        if ($bonuses->reactionMaterialBonus > 0.0 || (null !== $bonuses->reactionTimeBonus && $bonuses->reactionTimeBonus > 0.0)) {
             $specialisations[] = self::REACTION;
         }
 

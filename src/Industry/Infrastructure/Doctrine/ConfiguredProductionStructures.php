@@ -71,7 +71,7 @@ final class ConfiguredProductionStructures implements UserProductionStructures, 
     {
         $configurations = array_values(array_filter(
             $this->structureConfigRepository->findBy(['user' => $userId, 'isDeleted' => false]),
-            static fn (IndustryStructureConfig $configuration): bool => self::NPC_STATION !== $configuration->getStructureType(),
+            static fn (IndustryStructureConfig $configuration): bool => self::NPC_STATION !== $configuration->getStructureType() && !$configuration->isHullToSpecify(),
         ));
         $rigNames = [];
         foreach ($configurations as $configuration) {

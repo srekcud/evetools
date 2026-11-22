@@ -55,7 +55,7 @@ final class ProjectWorkStationsApiTest extends WebTestCase
     private const float CENTS = 0.01;
     private const int ISHTAR_JOB_ID = 128_500_001;
 
-    private const array RESOURCE_KEYS = ['courierHubSolarSystemId', 'courierIskPerCubicMeter', 'id', 'jumpBridgeIskPerCubicMeter', 'workTypes'];
+    private const array RESOURCE_KEYS = ['courierHubSolarSystemId', 'courierIskPerCubicMeter', 'id', 'jumpBridgeIskPerCubicMeter', 'structuresToSpecify', 'workTypes'];
 
     private const array WORK_TYPE_KEYS = [
         'activity', 'choiceStale', 'chosenStructureId', 'costsCompared', 'jobs', 'lockReason', 'locked', 'recommendedStructureId', 'rows', 'runs',
@@ -128,6 +128,51 @@ final class ProjectWorkStationsApiTest extends WebTestCase
             sort($legKeys);
             self::assertSame(self::LEG_KEYS, $legKeys);
         }
+    }
+
+    #[Group('issue-1343')]
+    public function testOwnerWithoutHullToSpecifyStructureExposesAnEmptyListOfStructuresToSpecify(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->workStationsUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertArrayHasKey('structuresToSpecify', $this->responseJson());
+        self::assertSame([], $this->responseJson()['structuresToSpecify']);
+    }
+
+    #[Group('issue-1343')]
+    public function testHullToSpecifyStructuresOfTheOwnerAreListedAndLeftOutOfTheComparisonWithoutFailingThePlan(): void
+    {
+        $legacyComplex = $this->legacyStructureOfTheOwner('Legacy Complex', 'engineering_complex');
+        $legacyRefinery = $this->legacyStructureOfTheOwner('Legacy Refinery', 'refinery');
+        $this->legacyStructureOfTheOwner('Deleted Legacy', 'engineering_complex')->setIsDeleted(true);
+        $foreignLegacy = (new IndustryStructureConfig())
+            ->setUser($this->member)
+            ->setName('Foreign Legacy')
+            ->setStructureType('engineering_complex')
+            ->setSecurityType('highsec')
+            ->setSolarSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID)
+            ->setRigs([]);
+        $this->em->persist($foreignLegacy);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->workStationsUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $listed = $this->responseJson()['structuresToSpecify'];
+        usort($listed, static fn (array $a, array $b): int => $a['name'] <=> $b['name']);
+        self::assertSame(
+            [
+                ['id' => $legacyComplex->getId()->toRfc4122(), 'name' => 'Legacy Complex', 'structureType' => 'engineering_complex'],
+                ['id' => $legacyRefinery->getId()->toRfc4122(), 'name' => 'Legacy Refinery', 'structureType' => 'refinery'],
+            ],
+            $listed,
+        );
+        $comparedNames = array_column($this->workTypeOf('final_products')['rows'], 'name');
+        sort($comparedNames);
+        self::assertSame([self::WORKSHOP_NAME, self::ANNEX_NAME], $comparedNames);
     }
 
     public function testFinalProductsAreComparedAmongTheStructuresOfTheOwnerWithTheirTravelsAndTheRecommendedOneIsTheCheapest(): void
@@ -645,6 +690,22 @@ final class ProjectWorkStationsApiTest extends WebTestCase
             ->setExportCostPerM3(self::COURIER_ISK_PER_CUBIC_METER)
             ->setJumpBridgeCostPerM3(self::JUMP_BRIDGE_ISK_PER_CUBIC_METER));
         $this->em->flush();
+    }
+
+    private function legacyStructureOfTheOwner(string $name, string $structureType): IndustryStructureConfig
+    {
+        $structure = (new IndustryStructureConfig())
+            ->setUser($this->owner)
+            ->setName($name)
+            ->setStructureType($structureType)
+            ->setSecurityType('highsec')
+            ->setSolarSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID)
+            ->setFacilityTaxPercent(0.0)
+            ->setRigs([]);
+        $this->em->persist($structure);
+        $this->em->flush();
+
+        return $structure;
     }
 
     private function raitaruInJita(string $name, float $facilityTaxPercent): IndustryStructureConfig

@@ -30,9 +30,11 @@ class StructureBonusPreviewResource
 
     public float $reactionMaterialBonus = 0.0;
 
-    public float $manufacturingTimeBonus = 0.0;
+    public ?float $manufacturingTimeBonus = null;
 
-    public float $reactionTimeBonus = 0.0;
+    public ?float $reactionTimeBonus = null;
+
+    public bool $hullToSpecify = false;
 
     /** @var list<string> */
     public array $unrecognisedRigs = [];

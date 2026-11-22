@@ -40,8 +40,9 @@ export interface StructureConfig {
   isCorporationStructure: boolean
   manufacturingMaterialBonus: number
   reactionMaterialBonus: number
-  manufacturingTimeBonus: number
-  reactionTimeBonus: number
+  manufacturingTimeBonus: number | null
+  reactionTimeBonus: number | null
+  hullToSpecify: boolean
   facilityTaxRate: number | null
   createdAt: string
 }
@@ -70,8 +71,9 @@ export interface RigOption {
 export interface StructureBonusPreview {
   manufacturingMaterialBonus: number
   reactionMaterialBonus: number
-  manufacturingTimeBonus: number
-  reactionTimeBonus: number
+  manufacturingTimeBonus: number | null
+  reactionTimeBonus: number | null
+  hullToSpecify: boolean
 }
 
 export const STRUCTURE_LIST_FORMAT = 'evetools.industry-structures'

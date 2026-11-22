@@ -203,14 +203,17 @@ final class ConfiguredProductionStructuresTest extends TestCase
         $this->assertSame($raitaru->getId()->toRfc4122(), $structures[0]->id);
     }
 
+    #[Group('issue-1343')]
     #[DataProvider('legacyStructureTypeProvider')]
-    public function testLegacyStructureTypeIsRefusedRatherThanGivenAGuessedBonus(string $legacyStructureType): void
+    public function testHullToSpecifyStructureIsLeftOutOfTheConfiguredStructuresWithoutError(string $legacyStructureType): void
     {
         $this->configure($legacyStructureType, 'nullsec');
+        $azbel = $this->configure('azbel', 'nullsec');
 
-        $this->expectException(\UnexpectedValueException::class);
+        $structures = $this->structures()->configuredBy(self::USER_ID);
 
-        $this->structures()->configuredBy(self::USER_ID);
+        $this->assertCount(1, $structures);
+        $this->assertSame($azbel->getId()->toRfc4122(), $structures[0]->id);
     }
 
     /**
@@ -220,6 +223,16 @@ final class ConfiguredProductionStructuresTest extends TestCase
     {
         yield 'engineering_complex' => ['engineering_complex'];
         yield 'refinery' => ['refinery'];
+    }
+
+    #[Group('issue-1343')]
+    public function testUnknownStructureTypeOtherThanTheLegacyOnesIsStillRefused(): void
+    {
+        $this->configure('keepstar', 'nullsec');
+
+        $this->expectException(\UnexpectedValueException::class);
+
+        $this->structures()->configuredBy(self::USER_ID);
     }
 
     public function testUnknownSecurityTypeIsRefused(): void

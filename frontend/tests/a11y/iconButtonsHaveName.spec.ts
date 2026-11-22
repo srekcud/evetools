@@ -99,6 +99,7 @@ const STRUCTURE: StructureConfigRecord = {
   reactionMaterialBonus: 0,
   manufacturingTimeBonus: 15,
   reactionTimeBonus: 0,
+  hullToSpecify: false,
   facilityTaxRate: 1,
   createdAt: '2026-10-01T10:00:00+00:00',
 }

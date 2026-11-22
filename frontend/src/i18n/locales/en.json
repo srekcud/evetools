@@ -1490,6 +1490,13 @@
       "facilityTaxLabel": "Facility tax (%)",
       "facilityTaxValue": "{rate}%",
       "facilityTaxNotSet": "not set",
+      "hullToSpecify": {
+        "title": "Hull to specify",
+        "hint": "The role bonus depends on the hull: pick it to find out",
+        "pick": "Hull",
+        "apply": "Apply",
+        "previewValue": "Hull to specify"
+      },
       "facilityTaxUnknownHelp": "Facility tax of the structure not entered: the install cost stays unknown until you enter it. Enter 0 if the structure really charges nothing.",
       "facilityTaxNpcFixed": "{rate} (set by the game)",
       "facilityTaxOutOfRange": "Facility tax must be between {min} and {max}%",
@@ -3300,6 +3307,10 @@
           "notRetained": "{structure} would cost {amount} less, transport included. Not retained.",
           "allow": "Allow for this project",
           "revert": "Back to the favorite system"
+        },
+        "hullToSpecify": {
+          "title": "These structures are left out: hull to specify",
+          "item": "{name}"
         },
         "legs": {
           "courier": "courier",

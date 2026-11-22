@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Industry\Infrastructure\Doctrine;
 
 use App\Constant\StructureRigTargets;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\InvType;
 use App\Industry\Application\StructureBonuses;
 use App\Industry\Domain\ActivityKind;
@@ -37,13 +38,15 @@ final readonly class StructureBonusSummary
         $distinctRigNames = array_values(array_unique($rigNames));
         $rigTypes = $this->invTypeRepository->findByNames($distinctRigNames);
         $recognisedRigNames = array_filter($distinctRigNames, static fn (string $rigName): bool => \array_key_exists($rigName, $rigTypes));
+        $hullToSpecify = \array_key_exists($structureType, IndustryStructureConfig::HULLS_OF_LEGACY_TYPE);
 
         return new StructureBonuses(
             $this->materialBonusOf(ActivityKind::Manufacturing, $security, $recognisedRigNames, $rigTypes),
             $this->materialBonusOf(ActivityKind::Reaction, $security, $recognisedRigNames, $rigTypes),
-            $this->timeBonusOf(ActivityKind::Manufacturing, $security, $structureTypeId, $recognisedRigNames, $rigTypes),
-            $this->timeBonusOf(ActivityKind::Reaction, $security, $structureTypeId, $recognisedRigNames, $rigTypes),
+            $hullToSpecify ? null : $this->timeBonusOf(ActivityKind::Manufacturing, $security, $structureTypeId, $recognisedRigNames, $rigTypes),
+            $hullToSpecify ? null : $this->timeBonusOf(ActivityKind::Reaction, $security, $structureTypeId, $recognisedRigNames, $rigTypes),
             array_values(array_diff($distinctRigNames, $recognisedRigNames)),
+            $hullToSpecify,
         );
     }
 

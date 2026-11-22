@@ -261,6 +261,41 @@ function resetForm() {
   saveError.value = null
 }
 
+const HULLS_OF_LEGACY_TYPE: Record<string, StructureConfig['structureType'][]> = {
+  engineering_complex: ['raitaru', 'azbel', 'sotiyo'],
+  refinery: ['athanor', 'tatara'],
+}
+
+const hullPicks = ref<Record<string, string>>({})
+const hullErrors = ref<Record<string, string>>({})
+
+function hullsOf(structure: StructureConfig): StructureConfig['structureType'][] {
+  return HULLS_OF_LEGACY_TYPE[structure.structureType] ?? []
+}
+
+function isPositive(bonus: number | null): boolean {
+  return bonus !== null && bonus > 0
+}
+
+function previewTimeBonus(key: 'manufacturingTimeBonus' | 'reactionTimeBonus'): string {
+  const preview = bonusPreview.value
+  if (!preview) return '…'
+  const bonus = preview[key]
+  return bonus === null ? t('industry.structures.hullToSpecify.previewValue') : `-${bonus}%`
+}
+
+async function applyHull(structure: StructureConfig) {
+  const hull = hullPicks.value[structure.id]
+  if (!hull) return
+  const { [structure.id]: _cleared, ...otherErrors } = hullErrors.value
+  hullErrors.value = otherErrors
+  try {
+    await store.updateStructure(structure.id, { structureType: hull as StructureConfig['structureType'] })
+  } catch (e) {
+    hullErrors.value = { ...hullErrors.value, [structure.id]: e instanceof ApiError ? e.message : t('industry.structures.saveError') }
+  }
+}
+
 const isRefinery = computed(() => ['athanor', 'tatara', 'refinery'].includes(formStructureType.value))
 const isEngineeringComplex = computed(() => ['raitaru', 'azbel', 'sotiyo', 'engineering_complex'].includes(formStructureType.value))
 
@@ -846,7 +881,7 @@ watch(
               </div>
               <div>
                 <span class="text-xs text-slate-500">TE Manufacturing:</span>
-                <span class="text-sm text-amber-400 ml-1">{{ bonusPreview ? `-${bonusPreview.manufacturingTimeBonus}%` : '…' }}</span>
+                <span class="text-sm text-amber-400 ml-1">{{ previewTimeBonus('manufacturingTimeBonus') }}</span>
               </div>
             </div>
             <div v-if="isRefinery" class="flex flex-wrap gap-4">
@@ -856,7 +891,7 @@ watch(
               </div>
               <div>
                 <span class="text-xs text-slate-500">TE Reactions:</span>
-                <span class="text-sm text-amber-400 ml-1">{{ bonusPreview ? `-${bonusPreview.reactionTimeBonus}%` : '…' }}</span>
+                <span class="text-sm text-amber-400 ml-1">{{ previewTimeBonus('reactionTimeBonus') }}</span>
               </div>
             </div>
             <div v-if="formStructureType === 'station'" class="text-slate-500 text-sm">
@@ -926,26 +961,55 @@ watch(
               <span v-else class="italic">{{ t('industry.structures.facilityTaxNotSet') }}</span>
             </p>
             <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-              <template v-if="structure.manufacturingMaterialBonus > 0 || structure.manufacturingTimeBonus > 0">
+              <template v-if="structure.manufacturingMaterialBonus > 0 || isPositive(structure.manufacturingTimeBonus)">
                 <div>
                   <span class="text-xs text-slate-500">ME Manuf:</span>
                   <span class="text-sm text-emerald-400 ml-1">-{{ structure.manufacturingMaterialBonus }}%</span>
                 </div>
-                <div>
+                <div v-if="structure.manufacturingTimeBonus !== null">
                   <span class="text-xs text-slate-500">TE Manuf:</span>
                   <span class="text-sm text-amber-400 ml-1">-{{ structure.manufacturingTimeBonus }}%</span>
                 </div>
               </template>
-              <template v-if="structure.reactionMaterialBonus > 0 || structure.reactionTimeBonus > 0">
+              <template v-if="structure.reactionMaterialBonus > 0 || isPositive(structure.reactionTimeBonus)">
                 <div>
                   <span class="text-xs text-slate-500">ME Reactions:</span>
                   <span class="text-sm text-emerald-400 ml-1">-{{ structure.reactionMaterialBonus }}%</span>
                 </div>
-                <div>
+                <div v-if="structure.reactionTimeBonus !== null">
                   <span class="text-xs text-slate-500">TE Reactions:</span>
                   <span class="text-sm text-amber-400 ml-1">-{{ structure.reactionTimeBonus }}%</span>
                 </div>
               </template>
+            </div>
+            <div
+              v-if="structure.hullToSpecify"
+              :data-testid="`hull-to-specify-warning-${structure.id}`"
+              class="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2"
+            >
+              <p class="text-sm font-medium text-amber-400">{{ t('industry.structures.hullToSpecify.title') }}</p>
+              <p class="text-xs text-amber-300">{{ t('industry.structures.hullToSpecify.hint') }}</p>
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <select
+                  v-model="hullPicks[structure.id]"
+                  :data-testid="`hull-to-specify-select-${structure.id}`"
+                  :aria-label="t('industry.structures.hullToSpecify.pick')"
+                  class="rounded-sm border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                >
+                  <option value="">{{ t('industry.structures.hullToSpecify.pick') }}</option>
+                  <option v-for="hull in hullsOf(structure)" :key="hull" :value="hull">{{ structureTypeLabels[hull] }}</option>
+                </select>
+                <button
+                  type="button"
+                  :data-testid="`hull-to-specify-apply-${structure.id}`"
+                  :disabled="!hullPicks[structure.id]"
+                  class="rounded-sm bg-amber-500/20 px-2 py-1 text-xs text-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
+                  @click="applyHull(structure)"
+                >
+                  {{ t('industry.structures.hullToSpecify.apply') }}
+                </button>
+              </div>
+              <p v-if="hullErrors[structure.id]" class="mt-1 text-xs text-red-400">{{ hullErrors[structure.id] }}</p>
             </div>
             <div v-if="structure.rigs.length > 0" class="mt-2 flex flex-wrap gap-1">
               <span

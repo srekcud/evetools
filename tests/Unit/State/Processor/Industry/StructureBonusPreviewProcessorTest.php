@@ -62,6 +62,27 @@ final class StructureBonusPreviewProcessorTest extends TestCase
         $this->assertSame(2.64, $preview->reactionMaterialBonus);
     }
 
+    #[Group('issue-1343')]
+    public function testPreviewOfARefineryOfLegacyTypeIsAHullToSpecifyWithUnknownTimeBonuses(): void
+    {
+        $preview = $this->preview('refinery', 'nullsec', [self::SDE_COMPOSITE_REACTOR_ME_II]);
+
+        $this->assertTrue($preview->hullToSpecify);
+        $this->assertNull($preview->manufacturingTimeBonus);
+        $this->assertNull($preview->reactionTimeBonus);
+        $this->assertSame(2.64, $preview->reactionMaterialBonus);
+    }
+
+    #[Group('issue-1343')]
+    public function testPreviewOfAKnownHullIsNotAHullToSpecifyAndKeepsNumericTimeBonuses(): void
+    {
+        $preview = $this->preview('tatara', 'nullsec', [self::SDE_L_SET_REACTOR_EFFICIENCY_II]);
+
+        $this->assertFalse($preview->hullToSpecify);
+        $this->assertSame(0.0, $preview->manufacturingTimeBonus);
+        $this->assertSame(44.8, $preview->reactionTimeBonus);
+    }
+
     public static function savedStructureProvider(): iterable
     {
         foreach (self::configurationProvider() as $label => [$structureType, $securityType, $rigs]) {

@@ -19,6 +19,12 @@ class IndustryStructureConfig
 
     public const float NPC_STATION_FACILITY_TAX_PERCENT = 0.25;
 
+    /** @var array<string, list<string>> */
+    public const array HULLS_OF_LEGACY_TYPE = [
+        'engineering_complex' => ['raitaru', 'azbel', 'sotiyo'],
+        'refinery' => ['athanor', 'tatara'],
+    ];
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]
     private Uuid $id;
@@ -220,6 +226,11 @@ class IndustryStructureConfig
     public function isNpcStation(): bool
     {
         return isset($this->structureType) && $this->structureType === self::NPC_STATION_STRUCTURE_TYPE;
+    }
+
+    public function isHullToSpecify(): bool
+    {
+        return isset($this->structureType) && \array_key_exists($this->structureType, self::HULLS_OF_LEGACY_TYPE);
     }
 
     public function setFacilityTaxPercent(?float $facilityTaxPercent): self

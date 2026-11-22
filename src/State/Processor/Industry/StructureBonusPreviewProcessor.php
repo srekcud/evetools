@@ -34,6 +34,7 @@ class StructureBonusPreviewProcessor implements ProcessorInterface
         $preview->manufacturingTimeBonus = $bonuses->manufacturingTimeBonus;
         $preview->reactionTimeBonus = $bonuses->reactionTimeBonus;
         $preview->unrecognisedRigs = $bonuses->unrecognisedRigs;
+        $preview->hullToSpecify = $bonuses->hullToSpecify;
 
         return $preview;
     }

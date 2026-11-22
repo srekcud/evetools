@@ -1490,6 +1490,13 @@
       "facilityTaxLabel": "Taxe d'installation (%)",
       "facilityTaxValue": "{rate} %",
       "facilityTaxNotSet": "non saisie",
+      "hullToSpecify": {
+        "title": "Coque à préciser",
+        "hint": "Le bonus de rôle dépend de la coque : choisis-la pour le connaître",
+        "pick": "Coque",
+        "apply": "Appliquer",
+        "previewValue": "Coque à préciser"
+      },
       "facilityTaxUnknownHelp": "Taxe d'installation de la structure non saisie : le coût d'installation reste inconnu tant que vous ne la renseignez pas. Saisissez 0 si la structure ne prélève rien.",
       "facilityTaxNpcFixed": "{rate} (fixée par le jeu)",
       "facilityTaxOutOfRange": "La taxe d'installation doit être comprise entre {min} et {max} %",
@@ -3300,6 +3307,10 @@
           "notRetained": "{structure} reviendrait {amount} moins cher, transport compris. Non retenue.",
           "allow": "Autoriser pour ce projet",
           "revert": "Revenir au système préféré"
+        },
+        "hullToSpecify": {
+          "title": "Ces structures sont laissées de côté : coque à préciser",
+          "item": "{name}"
         },
         "legs": {
           "courier": "courier",

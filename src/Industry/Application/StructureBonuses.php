@@ -12,9 +12,10 @@ final readonly class StructureBonuses
     public function __construct(
         public float $manufacturingMaterialBonus,
         public float $reactionMaterialBonus,
-        public float $manufacturingTimeBonus,
-        public float $reactionTimeBonus,
+        public ?float $manufacturingTimeBonus,
+        public ?float $reactionTimeBonus,
         public array $unrecognisedRigs,
+        public bool $hullToSpecify,
     ) {
     }
 }

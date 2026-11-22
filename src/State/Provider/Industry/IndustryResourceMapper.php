@@ -36,6 +36,7 @@ class IndustryResourceMapper
         $resource->manufacturingTimeBonus = $bonuses->manufacturingTimeBonus;
         $resource->reactionTimeBonus = $bonuses->reactionTimeBonus;
         $resource->unrecognisedRigs = $bonuses->unrecognisedRigs;
+        $resource->hullToSpecify = $bonuses->hullToSpecify;
         $resource->createdAt = $structure->getCreatedAt()->format('c');
 
         return $resource;

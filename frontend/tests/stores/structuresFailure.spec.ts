@@ -22,6 +22,7 @@ const RAITARU_PERIMETER: StructureConfig = {
   reactionMaterialBonus: 0,
   manufacturingTimeBonus: 15,
   reactionTimeBonus: 0,
+  hullToSpecify: false,
   facilityTaxRate: 0.5,
   createdAt: '2026-10-20T09:00:00+00:00',
 }

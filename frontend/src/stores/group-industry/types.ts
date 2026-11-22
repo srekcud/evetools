@@ -1491,6 +1491,13 @@ export type ProjectWorkStations = {
   courierIskPerCubicMeter: number | null
   jumpBridgeIskPerCubicMeter: number | null
   workTypes: WorkStationType[]
+  structuresToSpecify: StructureToSpecify[]
+}
+
+export type StructureToSpecify = {
+  id: string
+  name: string
+  structureType: string
 }
 
 export type SetupSourcingChoice = 'build' | 'jita' | 'structure'

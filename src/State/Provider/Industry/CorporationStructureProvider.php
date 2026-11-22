@@ -82,6 +82,7 @@ class CorporationStructureProvider implements ProviderInterface
                 'manufacturingTimeBonus' => $bonuses->manufacturingTimeBonus,
                 'reactionTimeBonus' => $bonuses->reactionTimeBonus,
                 'unrecognisedRigs' => $bonuses->unrecognisedRigs,
+                'hullToSpecify' => $bonuses->hullToSpecify,
             ];
 
             $structures[$locationId] = $resource;

@@ -64,6 +64,43 @@ class IndustryResourceMapperTest extends TestCase
         $this->assertSame(30.0, $resource->manufacturingTimeBonus);
     }
 
+    #[Group('issue-1343')]
+    public function testStructureResourceOfALegacyTypeIsAHullToSpecifyWithUnknownTimeBonusesAndItsMaterialBonus(): void
+    {
+        $mapper = new IndustryResourceMapper($this->sdeStructureBonusSummary());
+
+        $legacy = new IndustryStructureConfig();
+        $legacy->setName('Legacy Complex');
+        $legacy->setStructureType('engineering_complex');
+        $legacy->setSecurityType('nullsec');
+        $legacy->setRigs([self::SDE_AMMUNITION_ME_II]);
+
+        $resource = $mapper->structureToResource($legacy);
+
+        $this->assertTrue($resource->hullToSpecify);
+        $this->assertNull($resource->manufacturingTimeBonus);
+        $this->assertNull($resource->reactionTimeBonus);
+        $this->assertSame(5.04, $resource->manufacturingMaterialBonus);
+    }
+
+    #[Group('issue-1343')]
+    public function testStructureResourceOfAKnownHullIsNotAHullToSpecifyAndHasNumericTimeBonuses(): void
+    {
+        $mapper = new IndustryResourceMapper($this->sdeStructureBonusSummary());
+
+        $raitaru = new IndustryStructureConfig();
+        $raitaru->setName('Highsec Raitaru');
+        $raitaru->setStructureType('raitaru');
+        $raitaru->setSecurityType('highsec');
+        $raitaru->setRigs([]);
+
+        $resource = $mapper->structureToResource($raitaru);
+
+        $this->assertFalse($resource->hullToSpecify);
+        $this->assertSame(15.0, $resource->manufacturingTimeBonus);
+        $this->assertSame(0.0, $resource->reactionTimeBonus);
+    }
+
     public function testStructureResourceExposesTheGameFacilityTaxForAnNpcStationStoredWithAnotherTax(): void
     {
         $mapper = new IndustryResourceMapper($this->sdeStructureBonusSummary());

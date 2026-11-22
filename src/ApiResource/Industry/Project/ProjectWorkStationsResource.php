@@ -46,4 +46,9 @@ class ProjectWorkStationsResource
      * @var list<array<string, mixed>>
      */
     public array $workTypes = [];
+
+    /**
+     * @var list<array{id: string, name: string, structureType: string}>
+     */
+    public array $structuresToSpecify = [];
 }

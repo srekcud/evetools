@@ -153,13 +153,14 @@ export function copyType(overrides: Partial<WorkStationType> = {}): WorkStationT
   }
 }
 
-export function projectWorkStations(workTypes: WorkStationType[] = [reactionType(), componentsType()]): ProjectWorkStations {
+export function projectWorkStations(workTypes: WorkStationType[] = [reactionType(), componentsType()], structuresToSpecify: ProjectWorkStations['structuresToSpecify'] = []): ProjectWorkStations {
   return {
     id: 'project-nyx-batch',
     courierHubSolarSystemId: 30_000_142,
     courierIskPerCubicMeter: 800,
     jumpBridgeIskPerCubicMeter: 150,
     workTypes,
+    structuresToSpecify,
   }
 }
 

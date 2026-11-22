@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Industry\Infrastructure\Doctrine;
 
+use App\Industry\Application\StructureBonuses;
 use App\Industry\Infrastructure\Doctrine\StructureBonusSummary;
 use App\Tests\Unit\Support\StubsSdeStructureBonuses;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -103,11 +104,48 @@ final class StructureBonusSummaryTest extends TestCase
         $this->assertSame([0.0, 0.0, 0.0, 0.0, []], self::sdeBonusesAsList($bonuses));
     }
 
-    public function testLegacyStructureTypeHasNoRoleBonusButItsRigsAreStillRead(): void
+    #[Group('issue-1343')]
+    public function testEngineeringComplexInNullsecWithoutRigIsAHullToSpecifyWithUnknownTimeBonuses(): void
+    {
+        $bonuses = $this->sdeStructureBonusSummary()->of('engineering_complex', 'nullsec', []);
+
+        $this->assertSame([true, 0.0, 0.0, null, null], self::hullToSpecifyAsList($bonuses));
+    }
+
+    #[Group('issue-1343')]
+    public function testRefineryInNullsecWithoutRigIsAHullToSpecifyWithUnknownTimeBonuses(): void
+    {
+        $bonuses = $this->sdeStructureBonusSummary()->of('refinery', 'nullsec', []);
+
+        $this->assertSame([true, 0.0, 0.0, null, null], self::hullToSpecifyAsList($bonuses));
+    }
+
+    #[Group('issue-1343')]
+    public function testEngineeringComplexWithARecognisedManufacturingRigKeepsItsMaterialBonusAndHasUnknownTimeBonuses(): void
     {
         $bonuses = $this->sdeStructureBonusSummary()->of('engineering_complex', 'nullsec', [self::SDE_AMMUNITION_ME_II]);
 
-        $this->assertSame([5.04, 0.0, 0.0, 0.0, []], self::sdeBonusesAsList($bonuses));
+        $this->assertSame([true, 5.04, 0.0, null, null], self::hullToSpecifyAsList($bonuses));
+    }
+
+    #[Group('issue-1343')]
+    public function testAzbelInNullsecWithoutRigIsNotAHullToSpecifyAndGivesItsRoleTimeBonus(): void
+    {
+        $bonuses = $this->sdeStructureBonusSummary()->of('azbel', 'nullsec', []);
+
+        $this->assertFalse($bonuses->hullToSpecify);
+        $this->assertNotNull($bonuses->manufacturingTimeBonus);
+        $this->assertNotNull($bonuses->reactionTimeBonus);
+    }
+
+    #[Group('issue-1343')]
+    public function testTataraInNullsecWithoutRigIsNotAHullToSpecifyAndGivesItsRoleReactionTimeBonus(): void
+    {
+        $bonuses = $this->sdeStructureBonusSummary()->of('tatara', 'nullsec', []);
+
+        $this->assertFalse($bonuses->hullToSpecify);
+        $this->assertSame(0.0, $bonuses->manufacturingTimeBonus);
+        $this->assertNotNull($bonuses->reactionTimeBonus);
     }
 
     public function testTwoJobTimeRigsStackMultiplicativelyWithTheRoleBonus(): void
@@ -129,5 +167,16 @@ final class StructureBonusSummaryTest extends TestCase
         $this->expectException(\UnexpectedValueException::class);
 
         $this->sdeStructureBonusSummary()->of('raitaru', 'wormhole', []);
+    }
+
+    private static function hullToSpecifyAsList(StructureBonuses $bonuses): array
+    {
+        return [
+            $bonuses->hullToSpecify,
+            $bonuses->manufacturingMaterialBonus,
+            $bonuses->reactionMaterialBonus,
+            $bonuses->manufacturingTimeBonus,
+            $bonuses->reactionTimeBonus,
+        ];
     }
 }

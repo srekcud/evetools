@@ -187,6 +187,17 @@ const gapLabel = computed(() => {
     <p v-if="hasStaleChoice" class="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-300">
       {{ t('groupIndustry.setup.stations.stale') }}
     </p>
+    <div
+      v-if="workStations.structuresToSpecify.length > 0"
+      data-testid="hull-to-specify-notice"
+      class="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-300"
+    >
+      <p class="font-medium">{{ t('groupIndustry.setup.stations.hullToSpecify.title') }}</p>
+      <ul class="mt-1 list-disc pl-5">
+        <li v-for="structure in workStations.structuresToSpecify" :key="structure.id">{{ t('groupIndustry.setup.stations.hullToSpecify.item', { name: structure.name }) }}</li>
+      </ul>
+      <router-link :to="STRUCTURE_SETTINGS_LOCATION" class="mt-1 inline-block underline hover:text-amber-200">{{ t('groupIndustry.setup.stations.taxNotSetLink') }}</router-link>
+    </div>
     <p v-if="workStations.workTypes.length === 0" class="mb-4 text-sm text-slate-400">
       {{ t('groupIndustry.setup.stations.empty') }}
     </p>

@@ -21,6 +21,10 @@ import {
 const RAW_TRANSLATION_KEY = /groupIndustry\.[a-zA-Z.]+/
 const STANDALONE_ZERO = /(^|[^\d.,])0([^\d.,]|$)/
 const ZERO_PERCENT = /(^|[^\d.,])0\s?%/
+const HULL_NOTICE_TEST_ID = 'hull-to-specify-notice'
+const HULL_NOTICE_TITLE = { fr: 'Ces structures sont laissées de côté : coque à préciser', en: 'These structures are left out: hull to specify' } as const
+const LEGACY_COMPLEX = { id: 'structure-legacy-complex', name: 'Perimeter Complex', structureType: 'engineering_complex' }
+const LEGACY_REFINERY = { id: 'structure-legacy-refinery', name: 'Sotiyo Hek Refinery', structureType: 'refinery' }
 
 type PolicyProps = {
   acceptsOutsideFavoriteSystem?: boolean
@@ -29,10 +33,10 @@ type PolicyProps = {
   policyError?: string | null
 }
 
-function mountStations(workStations: ProjectWorkStations, picks: StationPicks, policy: PolicyProps = {}): VueWrapper {
+function mountStations(workStations: ProjectWorkStations, picks: StationPicks, policy: PolicyProps = {}, locale: 'fr' | 'en' = 'fr'): VueWrapper {
   return mount(ProjectSetupStations, {
     props: { workStations, picks, acceptsOutsideFavoriteSystem: false, minimumOutsideSaving: 5, ...policy },
-    global: { plugins: [createI18n({ legacy: false, locale: 'fr', messages: { en, fr } })], stubs: { RouterLink: RouterLinkStub } },
+    global: { plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })], stubs: { RouterLink: RouterLinkStub } },
   })
 }
 
@@ -325,6 +329,24 @@ describe('ProjectSetupStations', () => {
     })
   })
 
+  it.each(['fr', 'en'] as const)('lists every structure left out for its hull to specify under the title with the link to the structure settings (%s)', locale => {
+    const wrapper = mountStations(projectWorkStations(undefined, [LEGACY_COMPLEX, LEGACY_REFINERY]), {}, {}, locale)
+    const notice = byTestId(wrapper, HULL_NOTICE_TEST_ID)
+    const link = notice.exists() ? notice.findComponent(RouterLinkStub) : null
+
+    expect({
+      title: notice.exists() ? notice.text().includes(HULL_NOTICE_TITLE[locale]) : null,
+      names: notice.exists() ? [notice.text().includes(LEGACY_COMPLEX.name), notice.text().includes(LEGACY_REFINERY.name)] : null,
+      linkTarget: link?.exists() ? link.props('to') : 'link-absent',
+      rawKey: RAW_TRANSLATION_KEY.test(wrapper.text()),
+    }).toEqual({
+      title: true,
+      names: [true, true],
+      linkTarget: { name: 'settings', params: { section: 'industry' } },
+      rawKey: false,
+    })
+  })
+
   it('shows a banner with the station and the saving for each reason, the action to allow or to go back to the favorite system, and no banner on a type without difference', async () => {
     const onlyFavorite = bannerScenario({ policy: { acceptsOutsideFavoriteSystem: false } })
     const belowThreshold = bannerScenario({ policy: { acceptsOutsideFavoriteSystem: true, minimumOutsideSaving: 500 } })
@@ -417,5 +439,24 @@ describe('ProjectSetupStations', () => {
       emitted: locked.emitted('update:policy'),
       cheapestPickedBanner: byTestId(cheapestPicked, 'station-banner-reaction').exists(),
     }).toEqual({ lockedBannerShown: true, switchDisabled: true, emitted: undefined, cheapestPickedBanner: false })
+  })
+
+  it('shows no notice when no structure is left out for its hull to specify', () => {
+    const wrapper = mountStations(projectWorkStations(), {})
+
+    expect({
+      notice: byTestId(wrapper, HULL_NOTICE_TEST_ID).exists(),
+      title: wrapper.text().includes(HULL_NOTICE_TITLE.fr),
+    }).toEqual({ notice: false, title: false })
+  })
+
+  it('shows the notice even when the types of work have no row', () => {
+    const wrapper = mountStations(projectWorkStations([], [LEGACY_REFINERY]), {})
+
+    expect({
+      notice: byTestId(wrapper, HULL_NOTICE_TEST_ID).exists(),
+      name: textOf(wrapper, HULL_NOTICE_TEST_ID).includes(LEGACY_REFINERY.name),
+      emptyMessage: wrapper.text().includes(fr.groupIndustry.setup.stations.empty),
+    }).toEqual({ notice: true, name: true, emptyMessage: true })
   })
 })

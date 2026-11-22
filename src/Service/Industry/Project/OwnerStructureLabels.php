@@ -31,6 +31,21 @@ final readonly class OwnerStructureLabels
     }
 
     /**
+     * @return list<array{id: string, name: string, structureType: string}>
+     */
+    public function hullToSpecifyOf(User $owner): array
+    {
+        $structures = [];
+        foreach ($this->structureConfigRepository->findByUser($owner) as $configuration) {
+            if ($configuration->isHullToSpecify()) {
+                $structures[] = ['id' => $configuration->getId()->toRfc4122(), 'name' => $configuration->getName(), 'structureType' => $configuration->getStructureType()];
+            }
+        }
+
+        return $structures;
+    }
+
+    /**
      * @param list<ProductionStructure> $structures
      *
      * @return array<int, string> by solar system id

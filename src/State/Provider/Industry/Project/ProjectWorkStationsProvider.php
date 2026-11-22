@@ -73,6 +73,7 @@ final readonly class ProjectWorkStationsProvider implements ProviderInterface
         $resource->courierHubSolarSystemId = $courierHub->solarSystemId;
         $resource->courierIskPerCubicMeter = $courierHub->iskPerCubicMeterFromJita;
         $resource->jumpBridgeIskPerCubicMeter = $courierHub->jumpBridgeIskPerCubicMeter;
+        $resource->structuresToSpecify = $this->structureLabels->hullToSpecifyOf($owner);
         $resource->workTypes = array_map(
             fn (WorkTypeAdvice $advice): array => WorkStationPresenter::of(
                 $advice,

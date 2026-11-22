@@ -134,6 +134,28 @@ final class FactoryStationsTest extends TestCase
         self::assertSame(['reaction'], $station->specialisations);
     }
 
+    #[Group('issue-1343')]
+    public function testHullToSpecifyWithoutRigHasNoSpecialisationSinceItsTimeBonusesAreUnknown(): void
+    {
+        $this->configs = [];
+        $this->config('Legacy Complex', 'engineering_complex', self::ATHANOR_STRUCTURE_ID, self::PERIMETER_SYSTEM_ID, []);
+
+        $station = $this->onlyStation($this->factoryStations()->of($this->user));
+
+        self::assertSame([], $station->specialisations);
+    }
+
+    #[Group('issue-1343')]
+    public function testHullToSpecifyWithAManufacturingRigIsSpecialisedByItsMaterialBonusOnly(): void
+    {
+        $this->configs = [];
+        $this->config('Legacy Complex', 'engineering_complex', self::ATHANOR_STRUCTURE_ID, self::PERIMETER_SYSTEM_ID, [self::MANUFACTURING_ME_RIG]);
+
+        $station = $this->onlyStation($this->factoryStations()->of($this->user));
+
+        self::assertSame(['manufacturing'], $station->specialisations);
+    }
+
     public function testStationWithoutAnyBonusHasNoSpecialisation(): void
     {
         $this->configs = [];

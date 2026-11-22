@@ -136,6 +136,38 @@ class CorporationStructureProviderTest extends TestCase
         $this->assertSame([], $sharedConfig['unrecognisedRigs']);
     }
 
+    #[Group('issue-1343')]
+    public function testSharedConfigOfALegacyTypeIsAHullToSpecifyWithUnknownTimeBonuses(): void
+    {
+        $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Complex');
+        $sharedStructure->setRigs([self::SDE_AMMUNITION_ME_II]);
+
+        $sharedConfig = $this->sharedConfigOf($sharedStructure);
+
+        $this->assertArrayHasKey('hullToSpecify', $sharedConfig);
+        $this->assertTrue($sharedConfig['hullToSpecify']);
+        $this->assertArrayHasKey('manufacturingTimeBonus', $sharedConfig);
+        $this->assertNull($sharedConfig['manufacturingTimeBonus']);
+        $this->assertArrayHasKey('reactionTimeBonus', $sharedConfig);
+        $this->assertNull($sharedConfig['reactionTimeBonus']);
+        $this->assertSame(5.04, $sharedConfig['manufacturingMaterialBonus']);
+    }
+
+    #[Group('issue-1343')]
+    public function testSharedConfigOfAKnownHullIsNotAHullToSpecifyAndKeepsNumericTimeBonuses(): void
+    {
+        $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Tatara');
+        $sharedStructure->setStructureType('tatara');
+        $sharedStructure->setRigs([]);
+
+        $sharedConfig = $this->sharedConfigOf($sharedStructure);
+
+        $this->assertArrayHasKey('hullToSpecify', $sharedConfig);
+        $this->assertFalse($sharedConfig['hullToSpecify']);
+        $this->assertSame(0.0, $sharedConfig['manufacturingTimeBonus']);
+        $this->assertSame(25.0, $sharedConfig['reactionTimeBonus']);
+    }
+
     private function sharedConfigOfStructureTaxedAt(?float $facilityTaxPercent): array
     {
         $sharedStructure = $this->createCorporationStructure($this->createUser(), self::VISIBLE_LOCATION_ID, 'Corp Raitaru');

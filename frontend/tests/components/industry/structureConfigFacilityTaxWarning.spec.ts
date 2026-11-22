@@ -34,6 +34,7 @@ const RAITARU_WITHOUT_FACILITY_TAX: StructureConfigRecord = {
   reactionMaterialBonus: 0,
   manufacturingTimeBonus: 15,
   reactionTimeBonus: 0,
+  hullToSpecify: false,
   facilityTaxRate: null,
   createdAt: '2026-10-20T09:00:00+00:00',
 }
