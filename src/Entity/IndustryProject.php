@@ -254,6 +254,19 @@ class IndustryProject
         )->count();
     }
 
+    public function isManagedBy(User $user): bool
+    {
+        if ($this->owner === $user) {
+            return true;
+        }
+
+        return $this->members->exists(
+            static fn (int $key, IndustryProjectParticipant $member): bool => $member->getUser() === $user
+                && $member->getStatus() === ParticipantStatus::Accepted
+                && \in_array($member->getRole(), [ParticipantRole::Owner, ParticipantRole::Admin], true),
+        );
+    }
+
     public function pendingJoinRequestCount(): int
     {
         return $this->members->filter(

@@ -1519,3 +1519,29 @@ export type SetupMarketWrite = {
   typeId: number
   market: 'jita' | 'structure'
 }
+
+export type PlacedActionCode = 'launch_job' | 'source_material' | 'review_contributions' | 'review_join_requests'
+
+export type ActionPlaceKind = 'station' | 'anywhere' | 'unknown'
+
+export interface ActionPlace {
+  kind: ActionPlaceKind
+  locationId: number | null
+  name: string | null
+  solarSystemId: number | null
+  solarSystemName: string | null
+  unknownReason: string | null
+}
+
+export interface PlacedAction {
+  id: string
+  projectId: string
+  projectName: string | null
+  code: PlacedActionCode
+  bomLineId: string | null
+  typeId: number | null
+  typeName: string | null
+  quantity: number | null
+  place: ActionPlace
+  here: boolean | null
+}
