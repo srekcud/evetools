@@ -266,6 +266,27 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         self::assertSame([4_246 => 42], $this->repository->findIntermediateStockByTypeId($project));
     }
 
+    #[Group('issue-1318')]
+    public function testIntermediateStockByTypeIdCanBeRestrictedToTheApprovedContributionsOfOneContributor(): void
+    {
+        $project = $this->createProject('Ishtar');
+        $owner = $this->addMember($project, ParticipantRole::Owner);
+        $member = $this->addMember($project, ParticipantRole::Member);
+        $jobLine = $this->addJobLine($project, 4_246, 'Hydrogen Fuel Block');
+        $this->addContributionOn($owner, $jobLine, ContributionStatus::Approved)->setQuantity(30);
+        $this->addContributionOn($member, $jobLine, ContributionStatus::Approved)->setQuantity(12);
+        $this->em->flush();
+
+        self::assertSame(
+            [[4_246 => 42], [4_246 => 12], [4_246 => 30]],
+            [
+                $this->repository->findIntermediateStockByTypeId($project),
+                $this->repository->findIntermediateStockByTypeId($project, $member->getUser()),
+                $this->repository->findIntermediateStockByTypeId($project, $owner->getUser()),
+            ],
+        );
+    }
+
     #[Group('issue-803')]
     public function testMaterialContributionsOnInventionAndCopyLinesNeverCountAsIntermediateStock(): void
     {

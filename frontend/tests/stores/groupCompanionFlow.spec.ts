@@ -129,15 +129,13 @@ describe('useGroupCompanionStore place and flow reads', () => {
 })
 
 describe('useGroupCompanionStore stock proposal access', () => {
-  it.each(['member', 'admin'] as const)('does not read the stock proposal of a project where I am only %s, and reports no error', async (role) => {
+  it.each(['owner', 'member', 'admin'] as const)('reads the stock proposal of a project where I am %s', async (role) => {
     servedRole = role
-    failingPaths[PROPOSAL_PATH] = 'Only the owner can read the stock proposal'
     const store = useGroupCompanionStore()
 
     await store.open(COMPANION_PROJECT_ID)
-    await store.handleEvents(['bom_updated'])
 
-    expect({ loads: callsTo(PROPOSAL_PATH), proposal: store.stockProposal, error: store.error }).toEqual({ loads: 0, proposal: null, error: null })
+    expect({ loads: callsTo(PROPOSAL_PATH), error: store.error }).toEqual({ loads: 1, error: null })
   })
 })
 

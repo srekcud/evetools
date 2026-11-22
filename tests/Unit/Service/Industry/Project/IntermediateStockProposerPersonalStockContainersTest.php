@@ -76,7 +76,7 @@ final class IntermediateStockProposerPersonalStockContainersTest extends TestCas
         $this->declareContainer($this->owner, 'Perso A', $persoA);
         $this->removeFromAssets($persoA);
 
-        $proposal = $this->proposer->proposalOf($this->project);
+        $proposal = $this->proposer->proposalOf($this->project, $this->owner);
 
         self::assertSame([IntermediateStockProposal::STATE_ASSETS_UNKNOWN, 'container_not_found', []], [$proposal->state, $proposal->unknownReason, $proposal->lines]);
     }
@@ -88,7 +88,7 @@ final class IntermediateStockProposerPersonalStockContainersTest extends TestCas
         $this->cacheItem(self::HYDROGEN_FUEL_BLOCK, self::CONTAINER_HYDROGEN_FUEL_BLOCK, $persoA, 'Hydrogen Fuel Block');
         $this->declareContainer($this->owner, 'Perso A', $persoA);
 
-        $proposal = $this->proposer->proposalOf($this->project);
+        $proposal = $this->proposer->proposalOf($this->project, $this->owner);
 
         self::assertSame([IntermediateStockProposal::STATE_READY, null], [$proposal->state, $proposal->unknownReason]);
         self::assertSame(

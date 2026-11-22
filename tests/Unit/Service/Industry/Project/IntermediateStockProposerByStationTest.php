@@ -251,7 +251,7 @@ final class IntermediateStockProposerByStationTest extends TestCase
 
     private function theOnlyLine(): IntermediateStockProposalLine
     {
-        $lines = $this->proposer->proposalOf($this->project)->lines;
+        $lines = $this->proposer->proposalOf($this->project, $this->owner)->lines;
         self::assertCount(1, $lines);
 
         return $lines[0];

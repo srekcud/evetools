@@ -7,6 +7,7 @@ namespace App\Tests\Functional\Api\Industry\Project;
 use App\Entity\CachedAsset;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryStructureConfig;
+use App\Enum\ProjectStatus;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -165,17 +166,45 @@ final class ProjectIntermediateStockProposalApiTest extends WebTestCase
         );
     }
 
-    public function testAcceptedMemberWhoDoesNotOwnTheProjectIsRefused(): void
+    #[Group('issue-1318')]
+    public function testAcceptedMemberReadsTheStockOfTheirOwnHangarWithoutTheContainerOfTheGroupProject(): void
     {
+        $this->memberHangarHolds(self::RAM_STARSHIP_TECH_TYPE_ID, 40);
+
         $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->proposalUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $resource = $this->responseJson();
+        self::assertArrayHasKey('unknownReason', $resource);
+        self::assertNull($resource['unknownReason']);
+        self::assertSame('ready', $resource['state']);
+        self::assertCount(1, $resource['lines']);
+        $line = $resource['lines'][0];
+        self::assertArrayHasKey('containerQuantity', $line);
+        self::assertNull($line['containerQuantity']);
+        self::assertSame(
+            [$this->idOf($this->ramJobLine), self::RAM_STARSHIP_TECH_TYPE_ID, 40, 40, 40],
+            [$line['bomItemId'], $line['typeId'], $line['personalQuantity'], $line['stockQuantity'], $line['proposedQuantity']],
+        );
+    }
+
+    #[Group('issue-1318')]
+    public function testUserWhoDoesNotTakePartInTheProjectIsRefused(): void
+    {
+        $this->client->loginUser($this->outsider, 'api');
         $this->request('GET', $this->proposalUri($this->ishtarBatch->getId()->toRfc4122()));
 
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testGroupProjectIsNotSoloForItsOwner(): void
+    #[Group('issue-1318')]
+    public function testCompletedGroupProjectIsNotSoloForItsOwner(): void
     {
-        $this->client->loginUser($this->owner, 'api');
+        $this->ishtarBatch->setStatus(ProjectStatus::Completed);
+        $this->em->flush();
+
+        $this->actAs($this->owner);
         $this->request('GET', $this->proposalUri($this->ishtarBatch->getId()->toRfc4122()));
 
         self::assertResponseStatusCodeSame(200);
@@ -183,6 +212,23 @@ final class ProjectIntermediateStockProposalApiTest extends WebTestCase
         self::assertArrayHasKey('unknownReason', $resource);
         self::assertNull($resource['unknownReason']);
         self::assertSame(['not_solo', []], [$resource['state'], $resource['lines']]);
+    }
+
+    private function memberHangarHolds(int $typeId, int $quantity): void
+    {
+        $asset = (new CachedAsset())
+            ->setItemId(1_070_800_000_003)
+            ->setTypeId($typeId)
+            ->setTypeName('R.A.M.- Starship Tech')
+            ->setQuantity($quantity)
+            ->setLocationId(self::JITA_LOCATION_ID)
+            ->setLocationName(self::JITA_LOCATION_NAME)
+            ->setSolarSystemName('Jita')
+            ->setLocationType('station')
+            ->setCharacter($this->member->getMainCharacter())
+            ->setIsCorporationAsset(false);
+        $this->em->persist($asset);
+        $this->em->flush();
     }
 
     private function plannedAtIshtarWithStockThere(): void

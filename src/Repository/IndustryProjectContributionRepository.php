@@ -202,9 +202,9 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
     /**
      * @return array<int, int> by typeId
      */
-    public function findIntermediateStockByTypeId(IndustryProject $project): array
+    public function findIntermediateStockByTypeId(IndustryProject $project, ?User $contributor = null): array
     {
-        $rows = $this->createQueryBuilder('c')
+        $query = $this->createQueryBuilder('c')
             ->select('line.typeId AS typeId', 'SUM(c.quantity) AS stock')
             ->join('c.bomItem', 'line')
             ->andWhere('c.project = :project')
@@ -216,9 +216,15 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
             ->setParameter('type', ContributionType::Material->value)
             ->setParameter('status', ContributionStatus::Approved->value)
             ->setParameter('producingActivities', [IndustryProjectBomLine::ACTIVITY_MANUFACTURING, IndustryProjectBomLine::ACTIVITY_REACTION])
-            ->groupBy('line.typeId')
-            ->getQuery()
-            ->getScalarResult();
+            ->groupBy('line.typeId');
+
+        if (null !== $contributor) {
+            $query->join('c.member', 'contributorMember')
+                ->andWhere('contributorMember.user = :contributor')
+                ->setParameter('contributor', $contributor);
+        }
+
+        $rows = $query->getQuery()->getScalarResult();
 
         $stockByTypeId = [];
         foreach ($rows as $row) {

@@ -24,6 +24,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ContributorPaidPurchaseReader;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
+use App\Tests\Unit\Support\BuildsOwnStockSupplyGuard;
 use App\Service\Industry\Project\UnclaimedStockGuard;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
@@ -51,6 +52,8 @@ use Symfony\Component\Uid\Uuid;
 #[Group('issue-363')]
 class SubmitSoloContributionProcessorTest extends TestCase
 {
+    use BuildsOwnStockSupplyGuard;
+
     private const int ZYDRINE_TYPE_ID = 39;
     private const float ZYDRINE_BOM_PRICE = 1000.0;
     private const float ZYDRINE_JITA_PRICE = 1062.5;
@@ -128,6 +131,7 @@ class SubmitSoloContributionProcessorTest extends TestCase
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             $this->createStub(ContributorWalletRefresher::class),
             $this->createStub(UnclaimedStockGuard::class),
+            $this->ownStockSupplyGuardOver(static fn (): array => []),
         );
     }
 

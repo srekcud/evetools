@@ -840,7 +840,7 @@ function applyShareLinkShortcut(): void {
         </ProjectPrepareBlock>
 
         <IntermediateStockProposal
-          v-if="isOwner && !isCompleted"
+          v-if="(isOwner || isAcceptedMember) && !isCompleted"
           :project-id="projectId"
           :project-status="project.status"
           @validated="onContributionSubmitted"

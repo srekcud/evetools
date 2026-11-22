@@ -47,9 +47,9 @@ final readonly class ProjectIntermediateStockProposalProvider implements Provide
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
-        $proposal = $this->proposer->proposalOf($project);
+        $proposal = $this->proposer->proposalOf($project, $user);
 
         $resource = new ProjectIntermediateStockProposalResource();
         $resource->id = $projectId;

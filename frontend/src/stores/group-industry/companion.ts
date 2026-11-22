@@ -114,6 +114,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   }
 
   function loadStockProposal(id: string): Promise<void> {
+    if (project.value?.myStatus !== 'accepted') return Promise.resolve()
     return readFlow<IntermediateStockProposal>(id, `/industry/projects/${id}/intermediate-stock-proposal`, (value) => { stockProposal.value = value }, 'Failed to fetch the stock proposal')
   }
 
@@ -126,11 +127,6 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     positions.value = null
     transfers.value = null
     stockProposal.value = null
-  }
-
-  function loadOwnedStockProposal(id: string): Promise<void> {
-    if (project.value?.myRole !== 'owner') return Promise.resolve()
-    return loadStockProposal(id)
   }
 
   async function loadMembers(id: string): Promise<void> {
@@ -155,7 +151,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     const projectLoad = loadProject(id)
     await Promise.all([
       projectLoad,
-      projectLoad.then(() => loadOwnedStockProposal(id)),
+      projectLoad.then(() => loadStockProposal(id)),
       loadBom(id),
       loadChain(id),
       loadCockpitAlerts(id),
@@ -246,7 +242,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     } catch (failure) {
       reportFailure(failure, 'Failed to supply the line')
     }
-    await Promise.all([loadBom(id), loadOwnedStockProposal(id)])
+    await Promise.all([loadBom(id), loadStockProposal(id)])
   }
 
   async function switchProject(id: string): Promise<void> {
@@ -257,7 +253,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   async function handleEvents(actions: string[]): Promise<void> {
     const id = projectId.value
     if (id === null) return
-    const loads = [loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id), unassignedJobs.load(), loadPlacedActions(id), loadOwnedStockProposal(id)]
+    const loads = [loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id), unassignedJobs.load(), loadPlacedActions(id), loadStockProposal(id)]
     if (actions.some(action => action === TRANSFER_EVENT || action === RECONNECTION_REFRESH)) loads.push(loadTransfers(id))
     if (actions.includes(RECONNECTION_REFRESH)) loads.push(loadPositions(id), loadMyProjects(id))
     if (actions.some(action => action.startsWith(MEMBER_EVENT_PREFIX)) && isAdmin.value) loads.push(loadMembers(id))
