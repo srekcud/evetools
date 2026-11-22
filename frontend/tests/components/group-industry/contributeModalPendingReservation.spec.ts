@@ -21,7 +21,7 @@ function reservedLine(quantity: number, pendingQuantity: number): BomItem {
     typeName: 'Nocxium',
     requiredQuantity: 150,
     remainingQuantity: 150,
-    reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity, isMine: true }],
+    reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
     pendingContributions: pendingQuantity > 0 ? [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: pendingQuantity, isMine: true }] : [],
     reservedQuantity: quantity,
   })

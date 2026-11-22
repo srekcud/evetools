@@ -32,6 +32,8 @@ class CharacterLocationResource
 
     public ?int $solarSystemId = null;
 
+    public ?string $solarSystemName = null;
+
     public ?int $stationId = null;
 
     public ?int $structureId = null;

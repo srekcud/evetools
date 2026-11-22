@@ -20,6 +20,7 @@ import { useGroupCompanionStore } from '@/stores/group-industry/companion'
 import { useUnassignedJobsStore } from '@/stores/group-industry/unassignedJobs'
 
 const CLOCK_TICK_MS = 30_000
+const POSITION_REFRESH_MS = 60_000
 const BACKGROUND_RGB = '2 6 23'
 
 const { t } = useI18n()
@@ -34,6 +35,7 @@ const size = ref<CompanionWindowSizeKey>(recallCompanionWindowSize())
 const now = ref(Date.now())
 const mountPoint = shallowRef<HTMLElement | null>(null)
 let clockTimer: ReturnType<typeof setInterval> | null = null
+let positionTimer: ReturnType<typeof setInterval> | null = null
 
 const projectName = computed(() => {
   const project = companion.project
@@ -54,6 +56,13 @@ const tasks = computed(() => {
     undercutOrders: companion.undercutOrders,
     unassignedJobCount: unassignedJobs.count,
     now: now.value,
+    flow: {
+      placedActions: companion.placedActions,
+      positions: companion.positions,
+      transfers: companion.transfers,
+      stockProposal: companion.stockProposal,
+      myEveCharacterIds: authStore.user === null ? [] : authStore.user.characters.map(character => character.eveCharacterId),
+    },
   })
 })
 
@@ -69,6 +78,12 @@ const shownMessage = computed(() => companion.error ?? noticeText())
 function stopClock(): void {
   if (clockTimer !== null) clearInterval(clockTimer)
   clockTimer = null
+  if (positionTimer !== null) clearInterval(positionTimer)
+  positionTimer = null
+}
+
+function isWindowHidden(): boolean {
+  return (detached.currentWindow.value?.document ?? document).visibilityState === 'hidden'
 }
 
 function startClock(): void {
@@ -77,6 +92,9 @@ function startClock(): void {
   clockTimer = setInterval(() => {
     now.value = Date.now()
   }, CLOCK_TICK_MS)
+  positionTimer = setInterval(() => {
+    if (!isWindowHidden()) void companion.refreshPlace()
+  }, POSITION_REFRESH_MS)
 }
 
 function openWindowContent(opened: Window): void {
@@ -127,6 +145,10 @@ async function goToProject(query: Record<string, string>): Promise<void> {
 
 function deliver(lineId: string): Promise<void> {
   return goToProject({ contribute: lineId })
+}
+
+function openMembers(): Promise<void> {
+  return goToProject({ tab: 'members' })
 }
 
 function openBom(): Promise<void> {
@@ -185,6 +207,9 @@ onBeforeUnmount(() => {
       @deliver="deliver"
       @open-bom="openBom"
       @open-unassigned-jobs="openUnassignedJobs"
+      @open-members="openMembers"
+      @arrive="companion.arriveTransfer"
+      @supply="companion.supply"
       @toggle-size="toggleSize"
     />
     <p v-else class="p-3 font-mono text-sm text-slate-300" role="status">{{ shownMessage ?? t('groupIndustry.companion.loading') }}</p>

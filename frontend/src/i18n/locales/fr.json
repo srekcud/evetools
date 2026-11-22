@@ -4732,6 +4732,30 @@
       "sections": {
         "awaiting": "En attente d'approbation"
       },
+      "here": "Ici : {places}",
+      "hereUnknown": "Ici : inconnu",
+      "hereBadge": "ici",
+      "reservation": {
+        "expiresIn": "expire dans {time}",
+        "expired": "expirée"
+      },
+      "carry": {
+        "title": "À emporter",
+        "arrived": "Arrivé",
+        "due": "attendu",
+        "unknown": "À emporter inconnu : les transferts entre stations n'ont pas pu être lus",
+        "states": {
+          "awaiting_departure": "En attente de départ",
+          "in_transit": "En route",
+          "arrived": "Arrivé",
+          "unknown": "Inconnu"
+        }
+      },
+      "supply": {
+        "title": "Apports depuis mon stock",
+        "label": "Apport · {name}",
+        "apply": "Apporter"
+      },
       "emptyFree": "Toutes les lignes ont un responsable.",
       "emptyMine": "Rien à livrer.",
       "emptyJobs": "Aucun de vos jobs sur ce projet.",
@@ -4775,6 +4799,8 @@
         "bomComplete": "BOM complète",
         "moveProducts": "Déplacer {quantity} produits dans le container du projet ({count} jobs)",
         "joinRequest": "{count} demandes d'adhésion",
+        "joinRequestNamed": "{name} demande à rejoindre",
+        "actionReview": "Examiner",
         "jobsToAssign": "{count} job à attribuer | {count} jobs à attribuer",
         "actionOpen": "Ouvrir",
         "priceBelowBreakEven": "Jita {jitaPrice} < seuil {breakEven} · ne pas vendre au marché pour l'instant",

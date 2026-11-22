@@ -53,6 +53,8 @@ final class CharacterLocationApiTest extends WebTestCase
                 $entries,
             ),
         );
+        self::assertArrayHasKey('solarSystemName', $entries[0]);
+        self::assertNull($entries[0]['solarSystemName']);
         self::assertNotContains($otherMemberCharacterId, array_column($entries, 'eveCharacterId'));
     }
 

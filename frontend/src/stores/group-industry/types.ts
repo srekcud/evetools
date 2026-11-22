@@ -175,6 +175,7 @@ export type LineReservation = {
   characterName: string | null
   quantity: number
   isMine: boolean
+  expiresAt: string
 }
 
 export type PendingContribution = {
@@ -1554,6 +1555,17 @@ export interface PlacedAction {
   quantity: number | null
   place: ActionPlace
   here: boolean | null
+}
+
+export interface CharacterLocationRead {
+  id: string
+  eveCharacterId: number
+  solarSystemId: number | null
+  solarSystemName: string | null
+  stationId: number | null
+  structureId: number | null
+  online: boolean | null
+  lastLoginAt: string | null
 }
 
 export type StationTransferCarrierKind = 'courier' | 'jump_bridge' | 'pilot'

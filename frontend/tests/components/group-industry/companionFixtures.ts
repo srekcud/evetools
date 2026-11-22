@@ -1,5 +1,21 @@
 import type { CompanionTasks } from '@/components/group-industry/companionTasks'
-import type { BomItem, GroupMember, GroupProject, JobLocation, JobLocationStatus, JobLocations, JobMatch } from '@/stores/group-industry/types'
+import type {
+  ActionPlace,
+  BomItem,
+  CharacterLocationRead,
+  GroupMember,
+  GroupProject,
+  IntermediateStockProposal,
+  IntermediateStockProposalLine,
+  JobLocation,
+  JobLocationStatus,
+  JobLocations,
+  JobMatch,
+  PlacedAction,
+  ProjectStationTransfer,
+  StationTransferLine,
+  StationTransferPlace,
+} from '@/stores/group-industry/types'
 
 export const COMPANION_PROJECT_ID = 'project-ishtar-322'
 export const COMPANION_NOW = '2026-11-21T12:00:00+00:00'
@@ -119,6 +135,13 @@ export function companionTasksOf(overrides: Partial<CompanionTasks> = {}): Compa
     priceAlert: null,
     undercutOrders: [],
     waitingForComponents: [],
+    hereSystems: ['Jita'],
+    linePlaces: {},
+    carries: [],
+    carriesUnknown: false,
+    supplies: [],
+    reservationExpiries: {},
+    joinRequestNames: [],
     ...overrides,
   }
 }
@@ -141,5 +164,132 @@ export function jobLocations(
   return {
     blueprint: jobLocation(options.blueprint ?? 'inside'),
     output: jobLocation(output, options.unknownReason ?? null),
+  }
+}
+
+export const JITA_SYSTEM_ID = 30_000_142
+export const JITA_STATION_ID = 60_003_760
+export const PERIMETER_SYSTEM_ID = 30_000_144
+export const MAIN_EVE_CHARACTER_ID = 2_112_000_001
+export const ALT_EVE_CHARACTER_ID = 2_112_000_002
+
+export function stationPlace(overrides: Partial<ActionPlace> = {}): ActionPlace {
+  return {
+    kind: 'station',
+    locationId: JITA_STATION_ID,
+    name: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
+    solarSystemId: JITA_SYSTEM_ID,
+    solarSystemName: 'Jita',
+    unknownReason: null,
+    ...overrides,
+  }
+}
+
+export function placedAction(overrides: Partial<PlacedAction> = {}): PlacedAction {
+  return {
+    id: 'action-1',
+    projectId: COMPANION_PROJECT_ID,
+    projectName: 'Ishtar batch',
+    code: 'source_material',
+    bomLineId: 'bom-line',
+    typeId: 34,
+    typeName: 'Tritanium',
+    quantity: 1000,
+    place: stationPlace(),
+    here: true,
+    ...overrides,
+  }
+}
+
+export function characterLocation(overrides: Partial<CharacterLocationRead> = {}): CharacterLocationRead {
+  return {
+    id: 'character-main',
+    eveCharacterId: MAIN_EVE_CHARACTER_ID,
+    solarSystemId: JITA_SYSTEM_ID,
+    solarSystemName: 'Jita',
+    stationId: JITA_STATION_ID,
+    structureId: null,
+    online: true,
+    lastLoginAt: null,
+    ...overrides,
+  }
+}
+
+export function transferPlace(overrides: Partial<StationTransferPlace> = {}): StationTransferPlace {
+  return {
+    solarSystemId: JITA_SYSTEM_ID,
+    solarSystemName: 'Jita',
+    locationId: JITA_STATION_ID,
+    stationName: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
+    ...overrides,
+  }
+}
+
+export function transferLine(overrides: Partial<StationTransferLine> = {}): StationTransferLine {
+  return {
+    typeId: 11_399,
+    typeName: 'Morphite',
+    quantity: 300,
+    volume: 3,
+    departed: null,
+    arrived: null,
+    inTransit: null,
+    departureSource: 'declared',
+    arrivalSource: 'pending',
+    unknownReason: null,
+    ...overrides,
+  }
+}
+
+export function stationTransfer(overrides: Partial<ProjectStationTransfer> = {}): ProjectStationTransfer {
+  return {
+    id: 'transfer-1',
+    routeId: 'route-1',
+    legIndex: 0,
+    legCount: 1,
+    from: transferPlace(),
+    to: transferPlace({
+      solarSystemId: PERIMETER_SYSTEM_ID,
+      solarSystemName: 'Perimeter',
+      locationId: 1_040_000_000_001,
+      stationName: 'Perimeter - Tranquility Trading Tower',
+    }),
+    carrier: { kind: 'pilot', characterId: MAIN_EVE_CHARACTER_ID, contractId: null },
+    declaredBy: 'participant-alpha',
+    declaredAt: '2026-11-21T10:00:00+00:00',
+    expectedArrivalAt: '2026-11-21T14:00:00+00:00',
+    arrivedAt: null,
+    state: 'in_transit',
+    volume: 900,
+    unknownReason: null,
+    lines: [transferLine()],
+    ...overrides,
+  }
+}
+
+export function stockProposalLine(overrides: Partial<IntermediateStockProposalLine> = {}): IntermediateStockProposalLine {
+  return {
+    bomItemId: 'bom-line',
+    typeId: 11_399,
+    typeName: 'Morphite',
+    demandQuantity: 300,
+    remainingQuantity: 300,
+    personalQuantity: 300,
+    containerQuantity: 0,
+    stockQuantity: 300,
+    proposedQuantity: 300,
+    stockByStation: [{ locationId: JITA_STATION_ID, locationName: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant', systemName: 'Jita', quantity: 300, onSite: true }],
+    plannedStationName: null,
+    ...overrides,
+  }
+}
+
+export function stockProposal(overrides: Partial<IntermediateStockProposal> = {}): IntermediateStockProposal {
+  return {
+    id: 'proposal-1',
+    state: 'ready',
+    unknownReason: null,
+    lines: [stockProposalLine()],
+    ...overrides,
   }
 }

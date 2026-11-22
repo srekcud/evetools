@@ -4732,6 +4732,30 @@
       "sections": {
         "awaiting": "Awaiting approval"
       },
+      "here": "Here: {places}",
+      "hereUnknown": "Here: unknown",
+      "hereBadge": "here",
+      "reservation": {
+        "expiresIn": "expires in {time}",
+        "expired": "expired"
+      },
+      "carry": {
+        "title": "To carry",
+        "arrived": "Arrived",
+        "due": "due",
+        "unknown": "Carries unknown: the station transfers could not be read",
+        "states": {
+          "awaiting_departure": "Awaiting departure",
+          "in_transit": "In transit",
+          "arrived": "Arrived",
+          "unknown": "Unknown"
+        }
+      },
+      "supply": {
+        "title": "Supplies from my stock",
+        "label": "Supply · {name}",
+        "apply": "Supply"
+      },
       "emptyFree": "Every line has an owner.",
       "emptyMine": "Nothing to deliver.",
       "emptyJobs": "No job of yours on this project.",
@@ -4775,6 +4799,8 @@
         "bomComplete": "BOM complete",
         "moveProducts": "Move {quantity} products into the project container ({count} jobs)",
         "joinRequest": "{count} join requests",
+        "joinRequestNamed": "{name} asks to join",
+        "actionReview": "Review",
         "jobsToAssign": "{count} job to assign | {count} jobs to assign",
         "actionOpen": "Open",
         "priceBelowBreakEven": "Jita {jitaPrice} < break-even {breakEven} · do not sell on the market for now",

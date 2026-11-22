@@ -4,7 +4,7 @@ import type { BomItem } from '@/stores/group-industry/types'
 type Line = Pick<BomItem, 'id' | 'reservations'>
 
 function reservation(isMine: boolean): BomItem['reservations'][number] {
-  return { participantId: `participant-${isMine ? 'me' : 'other'}`, characterName: 'Brann Holt', quantity: 100, isMine }
+  return { participantId: `participant-${isMine ? 'me' : 'other'}`, characterName: 'Brann Holt', quantity: 100, isMine, expiresAt: '2026-11-21T14:00:00+00:00' }
 }
 
 describe('reservedLineIdsOfMine', () => {

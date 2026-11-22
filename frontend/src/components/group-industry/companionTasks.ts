@@ -1,6 +1,19 @@
 import { jobDisplayOf, type JobDisplay, type JobDisplayState } from './jobDisplayState'
 import { pendingQuantityOf } from './pendingContributions'
-import type { BomItem, ChainNode, GroupMember, GroupProject, JobMatch, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
+import type {
+  BomItem,
+  CharacterLocationRead,
+  ChainNode,
+  GroupMember,
+  GroupProject,
+  IntermediateStockProposal,
+  JobMatch,
+  PlacedAction,
+  ProjectPriceAlert,
+  ProjectSellOrder,
+  ProjectStationTransfer,
+  StationTransferState,
+} from '@/stores/group-industry/types'
 
 export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'jobs_to_assign' | 'move_products' | 'price_below_break_even' | 'undercut_sell_order'
 
@@ -17,6 +30,37 @@ export type CompanionProduct = { typeId: number; typeName: string; runs: number;
 export type FreeValue = { total: number | null; unknownLines: number }
 
 export type JobTiming = JobDisplay
+
+export type CompanionLinePlace = { stationName: string | null; systemName: string | null; here: boolean | null }
+
+export type CompanionCarry = {
+  id: string
+  state: StationTransferState
+  from: string | null
+  to: string | null
+  fromSystem: string | null
+  toSystem: string | null
+  volume: number | null
+  lines: { typeName: string; quantity: number }[]
+  expectedArrivalAt: string
+  here: boolean | null
+}
+
+export type CompanionSupply = {
+  item: BomItem
+  quantity: number
+  locationName: string | null
+  systemName: string | null
+  here: boolean | null
+}
+
+export type CompanionFlowInput = {
+  placedActions: PlacedAction[] | null
+  positions: CharacterLocationRead[] | null
+  transfers: ProjectStationTransfer[] | null
+  stockProposal: IntermediateStockProposal | null
+  myEveCharacterIds: number[]
+}
 
 export type CompanionTasks = {
   now: number
@@ -40,6 +84,13 @@ export type CompanionTasks = {
   priceAlert: ProjectPriceAlert | null
   undercutOrders: ProjectSellOrder[]
   waitingForComponents: string[]
+  hereSystems: string[] | null
+  linePlaces: Record<string, CompanionLinePlace>
+  carries: CompanionCarry[]
+  carriesUnknown: boolean
+  supplies: CompanionSupply[]
+  reservationExpiries: Record<string, number>
+  joinRequestNames: string[]
 }
 
 export type CompanionTasksInput = {
@@ -52,6 +103,7 @@ export type CompanionTasksInput = {
   undercutOrders: ProjectSellOrder[]
   unassignedJobCount: number | null
   now: number
+  flow?: CompanionFlowInput
 }
 
 const MY_JOB_STATUSES = ['active', 'paused', 'ready']
@@ -73,6 +125,10 @@ const MINUTES_PER_HOUR = 60
 const MINUTES_PER_DAY = 1_440
 const MATERIAL_GROUP: ActivityGroup = 'material'
 const UNKNOWN_GROUP: ActivityGroup = 'unknown'
+const READY_PROPOSAL_STATE = 'ready'
+const ARRIVED_TRANSFER_STATE = 'arrived'
+const PLACED_LINE_ACTION_CODES = ['launch_job', 'source_material']
+const STATION_PLACE_KIND = 'station'
 const KNOWN_JOB_ACTIVITIES: ActivityGroup[] = ['copy', 'invention', 'reaction', 'manufacturing']
 export const ACTIVITY_GROUP_ORDER: ActivityGroup[] = ['copy', 'invention', 'reaction', 'manufacturing', 'material', 'unknown']
 
@@ -168,10 +224,86 @@ function productOf(project: GroupProject): CompanionProduct | null {
   return { typeId: first.typeId, typeName: first.typeName, runs: first.runs, otherCount: others.length }
 }
 
-export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks {
-  const { bomItems, chainNodes, project, members, myCharacterNames, priceAlert, undercutOrders, unassignedJobCount, now } = input
+function hereFirst<Entry>(entries: Entry[], isHere: (entry: Entry) => boolean): Entry[] {
+  return [...entries.filter(isHere), ...entries.filter(entry => !isHere(entry))]
+}
 
-  const free = inChainOrder(bomItems.filter(isFree), item => item, chainNodes)
+function hereSystemsOf(positions: CharacterLocationRead[] | null): string[] | null {
+  if (positions === null) return null
+  const names = new Set(positions.flatMap(position => (position.solarSystemName === null ? [] : [position.solarSystemName])))
+  return names.size === 0 ? null : [...names]
+}
+
+function linePlacesOf(placedActions: PlacedAction[] | null): Record<string, CompanionLinePlace> {
+  const places: Record<string, CompanionLinePlace> = {}
+  for (const action of placedActions ?? []) {
+    if (action.bomLineId === null || !PLACED_LINE_ACTION_CODES.includes(action.code)) continue
+    if (action.place.kind !== STATION_PLACE_KIND || action.bomLineId in places) continue
+    places[action.bomLineId] = { stationName: action.place.name, systemName: action.place.solarSystemName, here: action.here }
+  }
+  return places
+}
+
+function isAtStationOf(positions: CharacterLocationRead[] | null, locationId: number | null): boolean | null {
+  if (positions === null || locationId === null) return null
+  return positions.some(position => (position.stationId ?? position.structureId) === locationId)
+}
+
+function carriesOf(flow: CompanionFlowInput): CompanionCarry[] {
+  const carries = (flow.transfers ?? [])
+    .filter(transfer => transfer.state !== ARRIVED_TRANSFER_STATE
+      && transfer.carrier.characterId !== null
+      && flow.myEveCharacterIds.includes(transfer.carrier.characterId))
+    .map((transfer): CompanionCarry => ({
+      id: transfer.id,
+      state: transfer.state,
+      from: transfer.from.stationName ?? transfer.from.solarSystemName,
+      to: transfer.to.stationName ?? transfer.to.solarSystemName,
+      fromSystem: transfer.from.solarSystemName,
+      toSystem: transfer.to.solarSystemName,
+      volume: transfer.volume,
+      lines: transfer.lines.map(line => ({ typeName: line.typeName, quantity: line.quantity })),
+      expectedArrivalAt: transfer.expectedArrivalAt,
+      here: isAtStationOf(flow.positions, transfer.from.locationId),
+    }))
+  return hereFirst(carries, carry => carry.here === true)
+}
+
+function suppliesOf(proposal: IntermediateStockProposal | null, bomItems: BomItem[]): CompanionSupply[] {
+  if (proposal === null || proposal.state !== READY_PROPOSAL_STATE) return []
+  const supplies = proposal.lines.flatMap((line): CompanionSupply[] => {
+    const item = bomItems.find(candidate => candidate.id === line.bomItemId)
+    if (item === undefined || line.proposedQuantity <= 0) return []
+    const station = line.stockByStation.at(0)
+    return [{
+      item,
+      quantity: line.proposedQuantity,
+      locationName: station?.locationName ?? null,
+      systemName: station?.systemName ?? null,
+      here: station?.onSite ?? null,
+    }]
+  })
+  return hereFirst(supplies, supply => supply.here === true)
+}
+
+function reservationExpiriesOf(mine: CompanionTasks['mine']): Record<string, number> {
+  const expiries: Record<string, number> = {}
+  for (const { item } of mine) {
+    const reservation = item.reservations.find(candidate => candidate.isMine)
+    if (reservation === undefined) continue
+    const expiry = Date.parse(reservation.expiresAt)
+    if (!Number.isNaN(expiry)) expiries[item.id] = expiry
+  }
+  return expiries
+}
+
+export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks {
+  const { bomItems, chainNodes, project, members, myCharacterNames, priceAlert, undercutOrders, unassignedJobCount, now, flow } = input
+
+  const linePlaces = linePlacesOf(flow?.placedActions ?? null)
+  const isHereLine = (item: BomItem): boolean => linePlaces[item.id]?.here === true
+
+  const free = hereFirst(inChainOrder(bomItems.filter(isFree), item => item, chainNodes), isHereLine)
 
   const myReservations = bomItems.flatMap((item) => {
     const reservation = item.reservations.find(candidate => candidate.isMine)
@@ -181,7 +313,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
   const reservationsToDeliver = myReservations
     .map(({ item, reservation }) => ({ item, quantity: reservation.quantity - pendingQuantityOf(item, reservation.participantId) }))
     .filter(entry => entry.quantity > 0)
-  const mine = inChainOrder(reservationsToDeliver, entry => entry.item, chainNodes)
+  const mine = hereFirst(inChainOrder(reservationsToDeliver, entry => entry.item, chainNodes), entry => isHereLine(entry.item))
 
   const awaitingApproval = bomItems.flatMap((item) => {
     const quantity = item.pendingContributions
@@ -247,5 +379,14 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     priceAlert,
     undercutOrders,
     waitingForComponents,
+    hereSystems: hereSystemsOf(flow?.positions ?? null),
+    linePlaces,
+    carries: flow === undefined ? [] : carriesOf(flow),
+    carriesUnknown: flow !== undefined && flow.transfers === null,
+    supplies: suppliesOf(flow?.stockProposal ?? null, bomItems),
+    reservationExpiries: reservationExpiriesOf(mine),
+    joinRequestNames: isAdmin(project)
+      ? members.flatMap(member => (member.status === PENDING_MEMBER_STATUS && member.characterName !== null ? [member.characterName] : []))
+      : [],
   }
 }

@@ -38,8 +38,8 @@ describe('buildCompanionTasks', () => {
       requiredQuantity: 150,
       remainingQuantity: 150,
       reservations: [
-        { participantId: 'participant-alpha', characterName: 'Alpha', quantity: 50, isMine: true },
-        { participantId: 'participant-zeta', characterName: 'Zeta', quantity: 20, isMine: false },
+        { participantId: 'participant-alpha', characterName: 'Alpha', quantity: 50, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' },
+        { participantId: 'participant-zeta', characterName: 'Zeta', quantity: 20, isMine: false, expiresAt: '2026-11-21T14:00:00+00:00' },
       ],
       reservedQuantity: 70,
       freeQuantity: 80,
@@ -52,7 +52,7 @@ describe('buildCompanionTasks', () => {
       fulfilledQuantity: 5000,
       remainingQuantity: 0,
       isFulfilled: true,
-      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 10, isMine: true }],
+      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 10, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
       reservedQuantity: 10,
       freeQuantity: 400,
     })
@@ -62,7 +62,7 @@ describe('buildCompanionTasks', () => {
       typeName: 'Morphite',
       requiredQuantity: 300,
       remainingQuantity: 300,
-      reservations: [{ participantId: 'participant-zeta', characterName: 'Zeta', quantity: 300, isMine: false }],
+      reservations: [{ participantId: 'participant-zeta', characterName: 'Zeta', quantity: 300, isMine: false, expiresAt: '2026-11-21T14:00:00+00:00' }],
       reservedQuantity: 300,
       freeQuantity: 0,
     })
@@ -482,7 +482,7 @@ describe('buildCompanionTasks awaiting approval', () => {
       typeName: 'Nocxium',
       requiredQuantity: 150,
       remainingQuantity: 150,
-      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity, isMine }],
+      reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity, isMine, expiresAt: '2026-11-21T14:00:00+00:00' }],
       pendingContributions: pendingQuantity > 0
         ? [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: pendingQuantity, isMine }]
         : [],
@@ -616,7 +616,7 @@ describe('buildCompanionTasks awaiting approval', () => {
     it('orders my build lines to deliver like the chain', () => {
       const reserved = BOM_ORDER.map(item => ({
         ...item,
-        reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 1, isMine: true }],
+        reservations: [{ participantId: 'participant-alpha', characterName: 'Alpha', quantity: 1, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
       }))
 
       expect(tasksOf(reserved, { chainNodes: CHAIN }).mine.map(entry => entry.item.id)).toEqual([

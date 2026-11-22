@@ -7,7 +7,9 @@ namespace App\Tests\Unit\State\Provider\Me;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\Me\CharacterLocationResource;
 use App\Entity\Character;
+use App\Entity\Sde\MapSolarSystem;
 use App\Entity\User;
+use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\CharacterLocation;
 use App\Service\ESI\CharacterLocationReader;
 use App\State\Provider\Me\CharacterLocationCollectionProvider;
@@ -26,6 +28,7 @@ final class CharacterLocationCollectionProviderTest extends TestCase
     private const int ALT_EVE_CHARACTER_ID = 2_112_000_002;
     private const int OTHER_MEMBER_EVE_CHARACTER_ID = 2_112_000_099;
     private const int JITA_SYSTEM_ID = 30_000_142;
+    private const int SYSTEM_MISSING_FROM_SDE_ID = 31_999_999;
     private const int JITA_FORTIZAR_STATION_ID = 60_003_760;
     private const int KEEPSTAR_STRUCTURE_ID = 1_040_000_000_001;
 
@@ -82,11 +85,38 @@ final class CharacterLocationCollectionProviderTest extends TestCase
         self::assertSame([self::MAIN_EVE_CHARACTER_ID], $readEveCharacterIds);
     }
 
+    public function testSolarSystemNameIsResolvedFromTheSdeForTheCharacterPosition(): void
+    {
+        $user = $this->userWithCharacters([self::MAIN_EVE_CHARACTER_ID => 'Main Pilot']);
+        $reader = $this->readerLocating([
+            self::MAIN_EVE_CHARACTER_ID => new CharacterLocation(self::JITA_SYSTEM_ID, self::JITA_FORTIZAR_STATION_ID, null, true, null),
+        ]);
+
+        $resources = $this->provide($user, $reader);
+
+        self::assertSame('Jita', $resources[0]->solarSystemName);
+    }
+
+    public function testSolarSystemNameIsNullWhenThePositionIsUnreadableOrTheSystemIsMissingFromTheSde(): void
+    {
+        $user = $this->userWithCharacters([self::MAIN_EVE_CHARACTER_ID => 'Main Pilot', self::ALT_EVE_CHARACTER_ID => 'Alt Pilot']);
+        $reader = $this->readerLocating([
+            self::MAIN_EVE_CHARACTER_ID => null,
+            self::ALT_EVE_CHARACTER_ID => new CharacterLocation(self::SYSTEM_MISSING_FROM_SDE_ID, null, self::KEEPSTAR_STRUCTURE_ID, false, null),
+        ]);
+
+        $resources = $this->provide($user, $reader);
+
+        self::assertNull($resources[0]->solarSystemName);
+        self::assertSame(self::SYSTEM_MISSING_FROM_SDE_ID, $resources[1]->solarSystemId);
+        self::assertNull($resources[1]->solarSystemName);
+    }
+
     public function testAnonymousRequestIsRefused(): void
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(null);
-        $provider = new CharacterLocationCollectionProvider($security, $this->createStub(CharacterLocationReader::class));
+        $provider = new CharacterLocationCollectionProvider($security, $this->createStub(CharacterLocationReader::class), $this->createStub(MapSolarSystemRepository::class));
 
         $this->expectException(UnauthorizedHttpException::class);
 
@@ -101,7 +131,19 @@ final class CharacterLocationCollectionProviderTest extends TestCase
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
 
-        return (new CharacterLocationCollectionProvider($security, $reader))->provide(new GetCollection());
+        return (new CharacterLocationCollectionProvider($security, $reader, $this->solarSystemsInSde()))->provide(new GetCollection());
+    }
+
+    private function solarSystemsInSde(): MapSolarSystemRepository
+    {
+        $repository = $this->createStub(MapSolarSystemRepository::class);
+        $repository->method('findBySolarSystemId')->willReturnCallback(
+            static fn (int $solarSystemId): ?MapSolarSystem => $solarSystemId === self::JITA_SYSTEM_ID
+                ? (new MapSolarSystem())->setSolarSystemId(self::JITA_SYSTEM_ID)->setSolarSystemName('Jita')
+                : null,
+        );
+
+        return $repository;
     }
 
     /**

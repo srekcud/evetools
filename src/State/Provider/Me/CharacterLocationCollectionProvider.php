@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Me\CharacterLocationResource;
 use App\Entity\Character;
 use App\Entity\User;
+use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\CharacterLocationReader;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -21,6 +22,7 @@ class CharacterLocationCollectionProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly CharacterLocationReader $locationReader,
+        private readonly MapSolarSystemRepository $solarSystemRepository,
     ) {
     }
 
@@ -49,6 +51,7 @@ class CharacterLocationCollectionProvider implements ProviderInterface
         $resource->id = $character->getId()?->toRfc4122() ?? '';
         $resource->eveCharacterId = $character->getEveCharacterId();
         $resource->solarSystemId = $location?->solarSystemId;
+        $resource->solarSystemName = null === $location ? null : $this->solarSystemRepository->findBySolarSystemId($location->solarSystemId)?->getSolarSystemName();
         $resource->stationId = $location?->stationId;
         $resource->structureId = $location?->structureId;
         $resource->online = $location?->online;

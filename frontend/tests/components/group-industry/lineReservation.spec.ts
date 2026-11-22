@@ -74,7 +74,7 @@ describe('LineReservation', () => {
 
   it('names who handles the line and how much, and offers the I will handle it action on an incomplete line', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false, expiresAt: '2026-11-21T14:00:00+00:00' }],
       reservedQuantity: 30,
       freeQuantity: 50,
     }))
@@ -115,7 +115,7 @@ describe('LineReservation', () => {
 
   it('offers Release when the participant holds a reservation and releases it', async () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
       reservedQuantity: 30,
       freeQuantity: 50,
     }))
@@ -128,7 +128,7 @@ describe('LineReservation', () => {
 
   it('shows the quantity still to deliver on the reservation chip and the pending contribution on its own amber chip', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
       pendingContributions: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 10, isMine: true }],
       reservedQuantity: 30,
       freeQuantity: 50,
@@ -140,7 +140,7 @@ describe('LineReservation', () => {
 
   it('shows no pending chip on a reservation without pending contribution', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
       reservedQuantity: 30,
       freeQuantity: 50,
     }))
@@ -151,7 +151,7 @@ describe('LineReservation', () => {
 
   it('hides the reservation chip, never showing ×0, when the pending contributions cover the whole reservation', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
       pendingContributions: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
       reservedQuantity: 30,
       freeQuantity: 50,
@@ -164,7 +164,7 @@ describe('LineReservation', () => {
 
   it('hides the reservation chip when the pending quantity exceeds the reservation', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
+      reservations: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true, expiresAt: '2026-11-21T14:00:00+00:00' }],
       pendingContributions: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 40, isMine: true }],
       reservedQuantity: 30,
       freeQuantity: 50,
@@ -176,7 +176,7 @@ describe('LineReservation', () => {
 
   it('subtracts only the pending quantity of the same participant from a reservation', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false, expiresAt: '2026-11-21T14:00:00+00:00' }],
       pendingContributions: [{ participantId: 'm-2', characterName: 'Aria Solberg', quantity: 30, isMine: true }],
       reservedQuantity: 30,
       freeQuantity: 50,
@@ -266,7 +266,7 @@ describe('LineReservation', () => {
 
   it('does not offer to reserve a line without free quantity left', () => {
     const wrapper = mountReservation(line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 80, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 80, isMine: false, expiresAt: '2026-11-21T14:00:00+00:00' }],
       reservedQuantity: 80,
       freeQuantity: 0,
     }))
@@ -281,7 +281,7 @@ describe('BomTable reservation column', () => {
     setActivePinia(createPinia())
     const store = useGroupProjectStore()
     const item = line({
-      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false }],
+      reservations: [{ participantId: 'm-1', characterName: 'Brann Holt', quantity: 30, isMine: false, expiresAt: '2026-11-21T14:00:00+00:00' }],
       reservedQuantity: 30,
       freeQuantity: 50,
     })

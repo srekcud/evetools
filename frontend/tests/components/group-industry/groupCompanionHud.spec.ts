@@ -190,7 +190,7 @@ describe('GroupCompanion HUD lines', () => {
 })
 
 describe('GroupCompanion HUD alerts', () => {
-  it('delivers the line of a ready job from its alert and gives no action button to the alerts without action', async () => {
+  it('delivers the line of a ready job from its alert and gives an action button to the join request and none to the alerts without action', async () => {
     const ready = jobEntry('ishtar', 'manufacturing', 'ready', NOW - ONE_MINUTE)
     const wrapper = mountCompanion(companionTasksOf({
       jobs: [ready],
@@ -206,7 +206,7 @@ describe('GroupCompanion HUD alerts', () => {
       topAlert: wrapper.get('[data-testid="companion-alert"]').attributes('data-kind'),
     }).toEqual({
       deliver: [[ready.item.id]],
-      actionButtons: [['job_ready', true], ['join_request', false], ['bom_complete', false]],
+      actionButtons: [['job_ready', true], ['join_request', true], ['bom_complete', false]],
       topAlert: 'job_ready',
     })
   })
