@@ -5189,7 +5189,7 @@
       "copyPrice": "Copier {price}",
       "reconnect": "Reconnectez-vous avec {characters} pour lire leurs ordres de vente (nouvelle permission ESI).",
       "empty": "Aucun ordre de vente pour les produits de ce projet.",
-      "hint": "Ordres lus toutes les 5 minutes. Le bouton copie le prix à coller en modifiant l'ordre en jeu (100 ISK sous le meilleur prix) ; rien n'est modifié depuis evetools."
+      "hint": "Ordres lus toutes les 5 minutes. Le bouton copie le prix à coller en modifiant l'ordre en jeu (un cran sous le meilleur prix) ; rien n'est modifié depuis evetools."
     }
   },
   "market": {

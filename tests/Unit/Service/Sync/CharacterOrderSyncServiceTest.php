@@ -75,7 +75,7 @@ final class CharacterOrderSyncServiceTest extends TestCase
         self::assertCount(1, $this->persisted);
         $row = $this->persisted[0];
         self::assertSame(
-            [1, $this->main, self::HAMMERHEAD_TYPE_ID, EveConstants::JITA_STATION_ID, 1000.0, 4, 10, OrderPositionState::Undercut, 2, 900.0, 800.0, self::NOW],
+            [1, $this->main, self::HAMMERHEAD_TYPE_ID, EveConstants::JITA_STATION_ID, 1000.0, 4, 10, OrderPositionState::Undercut, 2, 900.0, 899.9, self::NOW],
             [$row->getOrderId(), $row->getCharacter(), $row->getTypeId(), $row->getLocationId(), $row->getPrice(), $row->getVolumeRemain(), $row->getVolumeTotal(), $row->getPosition()->state, $row->getPosition()->rank, $row->getPosition()->bestPrice, $row->getPosition()->suggestedPrice, $row->getUndercutSince()?->format('Y-m-d H:i:s')],
         );
         self::assertSame(self::NOW, $row->getSyncedAt()->format('Y-m-d H:i:s'));

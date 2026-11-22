@@ -5189,7 +5189,7 @@
       "copyPrice": "Copy {price}",
       "reconnect": "Log in again with {characters} to read their sell orders (new ESI permission).",
       "empty": "No sell order for the products of this project.",
-      "hint": "Orders are read every 5 minutes. The button copies the price to paste when you edit the order in game (100 ISK below the best price); nothing is modified from evetools."
+      "hint": "Orders are read every 5 minutes. The button copies the price to paste when you edit the order in game (one price step below the best price); nothing is modified from evetools."
     }
   },
   "market": {
