@@ -276,8 +276,7 @@ final class ManualJobLinkerTest extends TestCase
 
         $outcome = $this->outcomeOf(fn () => $this->manualJobLinker()->link($job, $inventionLine));
 
-        self::assertStringStartsWith('400 ', $outcome);
-        self::assertNotSame('400 Job activity does not match BOM line activity', $outcome);
+        self::assertSame('400 No invention data for the BOM line product', $outcome);
         self::assertSame([[], []], [$inventionLine->getJobMatches()->toArray(), $this->refreshedLines]);
     }
 

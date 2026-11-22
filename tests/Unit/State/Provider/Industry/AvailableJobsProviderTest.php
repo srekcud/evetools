@@ -159,8 +159,8 @@ final class AvailableJobsProviderTest extends TestCase
     #[Group('issue-1193')]
     public function testAnInventionJobIsListedOnTheT1BlueprintOfTheInventionAndAnInventionLineWithoutDataIsIgnored(): void
     {
-        $inventionLine = $this->jobLine($this->ishtarProject, self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', 3, 3)->setActivityType('invention');
         $this->jobLine($this->ishtarProject, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'blueprint', 2, 2)->setActivityType('invention');
+        $inventionLine = $this->jobLine($this->ishtarProject, self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', 3, 3)->setActivityType('invention');
         $this->job($this->ownerMainCharacter, self::INVENTION_JOB_ID, self::VEXOR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 3, 120_000.0, '2026-11-02T08:00:00+00:00', activityId: IndustryActivityType::Invention->value);
 
         $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
@@ -171,6 +171,21 @@ final class AvailableJobsProviderTest extends TestCase
         );
         self::assertContains(self::VEXOR_BLUEPRINT_TYPE_ID, $this->jobLookups[0][0]);
         self::assertContains(8, $this->jobLookups[0][3]);
+    }
+
+    #[Group('issue-1193')]
+    public function testAReactionLineListsTheJobsOfBothReactionActivitiesAndLinksTheirs(): void
+    {
+        $this->ramLine->setActivityType('reaction');
+        $this->job($this->ownerMainCharacter, self::RAM_JOB_ID, self::RAM_BLUEPRINT_TYPE_ID, self::RAM_TYPE_ID, 4, 86_250.5, '2026-11-02T08:00:00+00:00', activityId: 11);
+
+        $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame(
+            [[self::RAM_JOB_ID, [$this->ramLine->getId()->toRfc4122()]]],
+            array_map(static fn (AvailableJobResource $job): array => [$job->esiJobId, $job->linkableBomLineIds], $jobs),
+        );
+        self::assertEqualsCanonicalizing([1, 9, 11], $this->jobLookups[0][3]);
     }
 
     #[Group('issue-1199')]

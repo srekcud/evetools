@@ -424,6 +424,21 @@ final class IndustryJobMatcherTest extends TestCase
     }
 
     #[Group('issue-1193')]
+    public function testACopyLineCoveredByStockHasNoCandidate(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', 0, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_022, 1, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($copyLine));
+        self::assertSame([], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
     public function testAManufacturingJobOnTheBlueprintOfACopyLineIsNotMatchedToIt(): void
     {
         $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');

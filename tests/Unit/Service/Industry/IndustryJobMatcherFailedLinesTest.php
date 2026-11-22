@@ -76,6 +76,12 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
             },
         );
 
+        $productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $productTypeId, int $activityId): ?IndustryActivityProduct => self::RAM_TYPE_ID === $productTypeId && IndustryActivityType::Manufacturing->value === $activityId
+                ? self::producer(self::RAM_BLUEPRINT_TYPE_ID, self::RAM_TYPE_ID)
+                : null,
+        );
+
         $containerService = $this->createStub(ProjectContainerService::class);
         $containerService->method('containerScopeOf')->willReturn(new ProjectContainerScope('no_container_name'));
 
@@ -166,6 +172,21 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
             [['warning', 'Failed to match jobs of line', ['projectId' => self::PROJECT_ID, 'typeId' => self::ISHTAR_TYPE_ID, 'reason' => 'invention_data_missing']]],
             $this->logger->cleanLogs(),
         );
+    }
+
+    #[Group('issue-1193')]
+    public function testAnInventionLineWhoseT2BlueprintHasNoInventionSourceIsReportedAndTheOtherLinesAreMatched(): void
+    {
+        $inventionLine = $this->jobLine(self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 3)->setActivityType('invention')->setJobGroup('blueprint');
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 5);
+
+        $failures = $this->matcher->matchOpenProjects([$this->project($inventionLine, $ishtarLine)])[self::PROJECT_ID];
+
+        self::assertSame(
+            [['typeId' => self::RAM_TYPE_ID, 'typeName' => 'R.A.M.- Starship Tech', 'reason' => 'invention_data_missing']],
+            array_map(static fn (LineMatchFailure $failure): array => $failure->toArray(), $failures),
+        );
+        self::assertSame([[], [7_980_001]], [$this->matchedJobIdsOf($inventionLine), $this->matchedJobIdsOf($ishtarLine)]);
     }
 
     public function testReportsNothingAndLogsNothingWhenEveryLineIsMatchable(): void
