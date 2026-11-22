@@ -13,6 +13,7 @@ use App\Entity\UnassignedJob;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ParticipantStatus;
+use App\Exception\InventionDataMissingException;
 use App\Exception\ProducerMissingFromSdeException;
 use App\Industry\Domain\JobMatching\AssignmentCandidate;
 use App\Industry\Domain\JobMatching\CandidateJob;
@@ -35,12 +36,6 @@ use Symfony\Component\Uid\Uuid;
 
 class IndustryJobMatcher
 {
-    private const int ESI_REACTION_ACTIVITY_ID = 9;
-    private const array JOB_ACTIVITY_IDS_BY_LINE_ACTIVITY_TYPE = [
-        'manufacturing' => [IndustryActivityType::Manufacturing->value],
-        'reaction' => [self::ESI_REACTION_ACTIVITY_ID, IndustryActivityType::Reaction->value],
-    ];
-
     /** @var array<string, int|null> */
     private array $locationIdsByStructureConfigId = [];
 
@@ -120,8 +115,8 @@ class IndustryJobMatcher
                     $reservingInstallerIds[$lineId] ?? [],
                 );
 
-                $queryKey = $blueprintTypeId.'|'.implode(',', array_map(static fn (Uuid|int|null $id): string => (string) $id, $characterIds)).'|'.$project->getCreatedAt()->format('U.u');
-                $jobsByQuery[$queryKey] ??= $this->jobRepository->findManufacturingJobsByBlueprint($blueprintTypeId, $characterIds, null, $project->getCreatedAt());
+                $queryKey = $blueprintTypeId.'|'.implode(',', $line->esiJobActivityIds()).'|'.implode(',', array_map(static fn (Uuid|int|null $id): string => (string) $id, $characterIds)).'|'.$project->getCreatedAt()->format('U.u');
+                $jobsByQuery[$queryKey] ??= $this->jobRepository->findJobsByBlueprintAndActivities($blueprintTypeId, $line->esiJobActivityIds(), $characterIds, null, $project->getCreatedAt());
                 foreach ($jobsByQuery[$queryKey] as $job) {
                     if (isset($dismissedJobIds[$job->getJobId()])) {
                         continue;
@@ -168,14 +163,23 @@ class IndustryJobMatcher
         return $failures;
     }
 
+    public function expectedBlueprintTypeIdOf(IndustryProjectBomLine $line): int
+    {
+        if (IndustryProjectBomLine::ACTIVITY_INVENTION !== $line->getActivityType()) {
+            return $this->productRepository->producerOf($line->getTypeId())->getTypeId();
+        }
+
+        $t2Manufacturing = $this->productRepository->findBlueprintForProduct($line->getTypeId(), IndustryActivityType::Manufacturing->value)
+            ?? throw new InventionDataMissingException($line->getTypeId());
+
+        return ($this->productRepository->findBlueprintForProduct($t2Manufacturing->getTypeId(), IndustryActivityType::Invention->value)
+            ?? throw new InventionDataMissingException($line->getTypeId()))->getTypeId();
+    }
+
     public function isJobOfBomLineActivity(CachedIndustryJob $job, IndustryProjectBomLine $line): bool
     {
-        $lineActivityType = $line->getActivityType();
-
-        return $line->isManufacturingOrReactionJob()
-            && $lineActivityType !== null
-            && \array_key_exists($lineActivityType, self::JOB_ACTIVITY_IDS_BY_LINE_ACTIVITY_TYPE)
-            && \in_array($job->getActivityId(), self::JOB_ACTIVITY_IDS_BY_LINE_ACTIVITY_TYPE[$lineActivityType], true);
+        return $line->isMatchableJob()
+            && \in_array($job->getActivityId(), $line->esiJobActivityIds(), true);
     }
 
     public function linkJobToBomLine(CachedIndustryJob $job, IndustryProjectBomLine $line, ?int $runs = null): IndustryProjectJobMatch
@@ -365,13 +369,16 @@ class IndustryJobMatcher
             }
 
             try {
-                $producer = $this->productRepository->producerOf($line->getTypeId());
+                $blueprintTypeId = $this->expectedBlueprintTypeIdOf($line);
             } catch (ProducerMissingFromSdeException) {
                 $failures[] = LineMatchFailure::producerMissingFromSde($line);
                 continue;
+            } catch (InventionDataMissingException) {
+                $failures[] = LineMatchFailure::inventionDataMissing($line);
+                continue;
             }
 
-            $lines[] = [$line, $remainingRuns, $producer->getTypeId()];
+            $lines[] = [$line, $remainingRuns, $blueprintTypeId];
         }
 
         return ['lines' => $lines, 'failures' => $failures];
@@ -383,7 +390,7 @@ class IndustryJobMatcher
     private function unavailableJobIdsOf(IndustryProject $project): array
     {
         $jobLines = $project->getBomItems()->filter(
-            static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob(),
+            static fn (IndustryProjectBomLine $line): bool => $line->isMatchableJob(),
         );
 
         return array_fill_keys([
@@ -431,7 +438,7 @@ class IndustryJobMatcher
     private function recomputableJobLinesOf(IndustryProject $project): array
     {
         return $project->getBomItems()->filter(
-            static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob() && !$line->hasManualJobMatch(),
+            static fn (IndustryProjectBomLine $line): bool => $line->isMatchableJob() && !$line->hasManualJobMatch(),
         )->toArray();
     }
 

@@ -14,6 +14,7 @@ use App\Industry\Domain\LineRentalCategory;
 use App\Repository\CachedIndustryJobRepository;
 use App\Service\Industry\Project\LineRentalCategoryResolver;
 use App\Service\Industry\Project\LineRentalSuggester;
+use App\Service\Industry\Project\LineRentalSuggestion;
 use App\Service\Industry\Project\LineRentalUnknownReason;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -210,17 +211,39 @@ final class LineRentalSuggesterTest extends TestCase
         self::assertNull($suggestion->category);
     }
 
+    #[Group('issue-1193')]
+    public function testLinkedCopyOrInventionLineGetsNoRentalSuggestionWhateverTheCategoryOfItsProduct(): void
+    {
+        $suggestions = [];
+        foreach (['copy', 'invention'] as $activityType) {
+            $this->cachedJobs = [];
+            $this->line = $this->lineOf(self::PULSE_LASER_II_TYPE_ID, 'Pulse Laser II', $activityType);
+            $this->linkJob(8001, $this->contributorMain, self::SECONDS_PER_DAY, 10);
+            $suggestions[$activityType] = $this->suggester->suggest($this->contributor, $this->line);
+        }
+
+        self::assertSame(
+            [[null, LineRentalUnknownReason::UnknownCategory, null], [null, LineRentalUnknownReason::UnknownCategory, null]],
+            array_values(array_map(
+                static fn (LineRentalSuggestion $suggestion): array => [$suggestion->suggestedValue, $suggestion->unknownReason, $suggestion->category],
+                $suggestions,
+            )),
+        );
+    }
+
     private function character(int $eveCharacterId, string $name): Character
     {
         return (new Character())->setEveCharacterId($eveCharacterId)->setName($name);
     }
 
-    private function lineOf(int $typeId, string $typeName): IndustryProjectBomLine
+    private function lineOf(int $typeId, string $typeName, string $activityType = 'manufacturing'): IndustryProjectBomLine
     {
         $line = new IndustryProjectBomLine();
         $line->setProject($this->project);
         $line->setTypeId($typeId);
         $line->setTypeName($typeName);
+        $line->setIsJob(true);
+        $line->setActivityType($activityType);
 
         return $line;
     }

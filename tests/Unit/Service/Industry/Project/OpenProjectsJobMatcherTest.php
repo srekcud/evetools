@@ -95,6 +95,29 @@ final class OpenProjectsJobMatcherTest extends TestCase
         );
     }
 
+    #[Group('issue-1193')]
+    public function testCopyAndInventionLinesAreNeverRefreshedWhileTheManufacturingLineIs(): void
+    {
+        $project = $this->project('Ishtar batch');
+        foreach (['copy' => 10, 'invention' => 3] as $activityType => $runs) {
+            $project->addBomItem(
+                (new IndustryProjectBomLine())
+                    ->setTypeId(self::ISHTAR_TYPE_ID)
+                    ->setTypeName('Ishtar '.$activityType)
+                    ->setRequiredQuantity($runs)
+                    ->setIsJob(true)
+                    ->setJobGroup('blueprint')
+                    ->setActivityType($activityType)
+                    ->setRuns($runs),
+            );
+        }
+        $this->projectsOfUser = [$project];
+
+        $this->matcher->matchOpenProjectsOf(new User());
+
+        self::assertSame([['match', ['Ishtar batch']], ['refresh', 'Ishtar']], $this->steps);
+    }
+
     #[Group('issue-1246')]
     public function testAPassThatFailsIsLoggedOnceWithTheProjectsAndTheJobLinesAreStillRefreshed(): void
     {

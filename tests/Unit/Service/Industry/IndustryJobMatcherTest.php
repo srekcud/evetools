@@ -47,6 +47,14 @@ final class IndustryJobMatcherTest extends TestCase
     private const int ISHTAR_TYPE_ID = 12005;
     private const int ISHTAR_BLUEPRINT_TYPE_ID = 12006;
     private const int ISHTAR_FINAL_LINE_RUNS = 5;
+    private const int VEXOR_TYPE_ID = 12003;
+    private const int VEXOR_BLUEPRINT_TYPE_ID = 12004;
+    private const int HARBINGER_TYPE_ID = 12010;
+    private const int HARBINGER_BLUEPRINT_TYPE_ID = 12011;
+    private const int ISHTAR_COPY_LINE_RUNS = 10;
+    private const int ISHTAR_INVENTION_LINE_RUNS = 3;
+    private const int ESI_COPYING_ACTIVITY_ID = 5;
+    private const int ESI_INVENTION_ACTIVITY_ID = 8;
     private const int RAM_TYPE_ID = 11478;
     private const int RAM_BLUEPRINT_TYPE_ID = 11479;
     private const int RAM_COMPONENT_LINE_RUNS = 4;
@@ -80,6 +88,8 @@ final class IndustryJobMatcherTest extends TestCase
 
     private array $jobQueries = [];
 
+    private array $activityQueries = [];
+
     private array $scopesByProjectId = [];
 
     private array $reservationsByProjectId = [];
@@ -99,13 +109,15 @@ final class IndustryJobMatcherTest extends TestCase
     protected function setUp(): void
     {
         $this->jobRepository = $this->createMock(CachedIndustryJobRepository::class);
-        $this->jobRepository->method('findManufacturingJobsByBlueprint')->willReturnCallback(
-            function (int $blueprintTypeId, array $characterIds, ?int $runs, \DateTimeImmutable $startedSince): array {
+        $this->jobRepository->method('findJobsByBlueprintAndActivities')->willReturnCallback(
+            function (int $blueprintTypeId, array $activityIds, array $characterIds, ?int $runs, \DateTimeImmutable $startedSince): array {
                 $this->jobQueries[] = [$blueprintTypeId, $characterIds, $runs, $startedSince];
+                $this->activityQueries[] = [$blueprintTypeId, $activityIds];
 
                 return array_values(array_filter(
                     $this->jobsByBlueprint[$blueprintTypeId] ?? [],
                     static fn (CachedIndustryJob $job): bool => $job->getStartDate() >= $startedSince
+                        && \in_array($job->getActivityId(), $activityIds, true)
                         && \in_array($job->getCharacter()->getId(), $characterIds, true),
                 ));
             },
@@ -128,6 +140,14 @@ final class IndustryJobMatcherTest extends TestCase
                 self::ISHTAR_TYPE_ID => self::producer(self::ISHTAR_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing, self::ISHTAR_TYPE_ID),
                 self::RAM_TYPE_ID => self::producer(self::RAM_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing, self::RAM_TYPE_ID),
                 self::FERROGEL_TYPE_ID => self::producer(self::FERROGEL_FORMULA_TYPE_ID, IndustryActivityType::Reaction, self::FERROGEL_TYPE_ID),
+                self::VEXOR_TYPE_ID => self::producer(self::VEXOR_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing, self::VEXOR_TYPE_ID),
+            },
+        );
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $productTypeId, int $activityId): ?IndustryActivityProduct => match ([$productTypeId, $activityId]) {
+                [self::ISHTAR_TYPE_ID, IndustryActivityType::Manufacturing->value] => self::producer(self::ISHTAR_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing, self::ISHTAR_TYPE_ID),
+                [self::ISHTAR_BLUEPRINT_TYPE_ID, IndustryActivityType::Invention->value] => self::producer(self::VEXOR_BLUEPRINT_TYPE_ID, IndustryActivityType::Invention, self::ISHTAR_BLUEPRINT_TYPE_ID),
+                default => null,
             },
         );
 
@@ -330,15 +350,146 @@ final class IndustryJobMatcherTest extends TestCase
         self::assertSame(6, $ferrogelLine->getMatchedRuns());
     }
 
-    public function testMaterialAndInventionLinesAreNotMatched(): void
+    #[Group('issue-1193')]
+    public function testMaterialLineIsNotMatchedWhileTheInventionLineIsMatchedToTheInventionJobOfTheT1BlueprintOfItsProduct(): void
     {
         $tritaniumLine = (new IndustryProjectBomLine())->setTypeId(self::TRITANIUM_TYPE_ID)->setTypeName('Tritanium')->setRequiredQuantity(12_000)->setIsJob(false);
-        $inventionLine = $this->jobLine(self::ISHTAR_BLUEPRINT_TYPE_ID, 'Ishtar Blueprint', 'blueprint', 3, 'invention');
+        $inventionLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_INVENTION_LINE_RUNS, 'invention');
+        $this->givenJobs(
+            self::VEXOR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_041, 3, '2026-11-02 08:00:00', activityId: self::ESI_INVENTION_ACTIVITY_ID),
+        );
 
         $this->matcher->matchOpenProjects([$this->project($tritaniumLine, $inventionLine)]);
 
-        self::assertSame([], $this->jobQueries);
-        self::assertSame([[], []], [$this->matchedJobIdsOf($tritaniumLine), $this->matchedJobIdsOf($inventionLine)]);
+        self::assertSame([[], [7_193_041]], [$this->matchedJobIdsOf($tritaniumLine), $this->matchedJobIdsOf($inventionLine)]);
+        self::assertSame(3, $inventionLine->getMatchedRuns());
+        self::assertSame([[self::VEXOR_BLUEPRINT_TYPE_ID, [self::ESI_INVENTION_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testCopyLineIsMatchedToTheCopyingJobOfItsProducerBlueprintAndItsNodeCountsAllItsRuns(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_001, 10, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([7_193_001], $this->matchedJobIdsOf($copyLine));
+        self::assertSame(10, $copyLine->getMatchedRuns());
+        self::assertSame([[self::ISHTAR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testCopyLineKeepsTheRemainderOfItsRunsForASecondCopyingJob(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_011, 6, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+        self::assertSame([7_193_011], $this->matchedJobIdsOf($copyLine));
+        self::assertSame(6, $copyLine->getMatchedRuns());
+        self::assertSame(4, $copyLine->getRuns() - $copyLine->getMatchedRuns());
+
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_011, 6, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+            $this->job(7_193_012, 4, '2026-11-02 09:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+        $this->matcher->matchOpenProjects([$copyLine->getProject()]);
+
+        self::assertSame([7_193_011, 7_193_012], $this->matchedJobIdsOf($copyLine));
+        self::assertSame(10, $copyLine->getMatchedRuns());
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyingJobLargerThanTheRunsOfTheCopyLineIsNeverMatched(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_021, 12, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($copyLine));
+        self::assertSame(0, $copyLine->getMatchedRuns());
+        self::assertSame([[self::ISHTAR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testAManufacturingJobOnTheBlueprintOfACopyLineIsNotMatchedToIt(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_031, 10, '2026-11-02 08:00:00', activityId: IndustryActivityType::Manufacturing->value),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($copyLine));
+        self::assertSame([[self::ISHTAR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testAnInventionJobOnAnotherBlueprintThanTheT1BlueprintOfTheInventionIsNotMatched(): void
+    {
+        $inventionLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_INVENTION_LINE_RUNS, 'invention');
+        $this->givenJobs(
+            self::HARBINGER_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_051, 3, '2026-11-02 08:00:00', activityId: self::ESI_INVENTION_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($inventionLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($inventionLine));
+        self::assertSame([[self::VEXOR_BLUEPRINT_TYPE_ID, [self::ESI_INVENTION_ACTIVITY_ID]]], $this->activityQueries);
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyLineAndAnInventionLineOnTheSameT1BlueprintEachTakeTheJobOfTheirOwnActivity(): void
+    {
+        $t1CopyLine = $this->jobLine(self::VEXOR_TYPE_ID, 'Vexor', 'blueprint', 3, 'copy');
+        $inventionLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_INVENTION_LINE_RUNS, 'invention');
+        $this->givenJobs(
+            self::VEXOR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_061, 3, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+            $this->job(7_193_062, 3, '2026-11-02 09:00:00', activityId: self::ESI_INVENTION_ACTIVITY_ID),
+        );
+
+        $this->matcher->matchOpenProjects([$this->project($t1CopyLine, $inventionLine)]);
+
+        self::assertSame([7_193_061], $this->matchedJobIdsOf($t1CopyLine));
+        self::assertSame([7_193_062], $this->matchedJobIdsOf($inventionLine));
+        self::assertSame(
+            [[self::VEXOR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]], [self::VEXOR_BLUEPRINT_TYPE_ID, [self::ESI_INVENTION_ACTIVITY_ID]]],
+            $this->activityQueries,
+        );
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyingJobAlreadyMatchedToAnotherProjectIsNotMatchedToTheCopyLine(): void
+    {
+        $copyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $otherProjectCopyLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', self::ISHTAR_COPY_LINE_RUNS, 'copy');
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_193_071, 10, '2026-11-02 08:00:00', activityId: self::ESI_COPYING_ACTIVITY_ID),
+        );
+        $this->jobsMatchedToProjects[] = [$this->project($otherProjectCopyLine), 7_193_071];
+
+        $this->matcher->matchOpenProjects([$this->project($copyLine)]);
+
+        self::assertSame([], $this->matchedJobIdsOf($copyLine));
+        self::assertSame([], $this->persistedUnassignedJobs());
+        self::assertSame([[self::ISHTAR_BLUEPRINT_TYPE_ID, [self::ESI_COPYING_ACTIVITY_ID]]], $this->activityQueries);
     }
 
     public function testMatchingTwiceKeepsASingleMatchPerJob(): void

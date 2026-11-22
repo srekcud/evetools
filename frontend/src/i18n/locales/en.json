@@ -3759,7 +3759,8 @@
       "matchLineReasons": {
         "producer_missing_from_sde": "Blueprint or reaction missing from the SDE",
         "no_runs": "No runs set on this line",
-        "contribution_not_refreshed": "Contribution not recalculated"
+        "contribution_not_refreshed": "Contribution not recalculated",
+        "invention_data_missing": "Invention data missing from the SDE"
       },
       "matchedRuns": "{runs} runs matched",
       "character": "Character",

@@ -1,6 +1,6 @@
 import type { AvailableJob, BomItem } from '@/stores/group-industry/types'
 
-const LINKABLE_ACTIVITIES = ['manufacturing', 'reaction']
+const LINKABLE_ACTIVITIES = ['manufacturing', 'reaction', 'copy', 'invention']
 
 const LINK_REFUSALS: { pattern: RegExp; key: string; runsGroup?: number }[] = [
   { pattern: /^Job activity does not match BOM line activity$/, key: 'activityMismatch' },

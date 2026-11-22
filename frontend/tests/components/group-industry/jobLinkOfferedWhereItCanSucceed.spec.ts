@@ -1,4 +1,5 @@
 import { enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { isLinkableActivity } from '@/components/group-industry/jobLinking'
 import { ApiError, apiRequest } from '@/services/api'
 import type { AvailableJob, BomItem } from '@/stores/group-industry/types'
 import { present } from '../../present'
@@ -114,11 +115,19 @@ beforeEach(() => {
 })
 
 describe('Link job offered only where it can succeed', () => {
-  it('offers the link action on manufacturing and reaction lines and on no copy or invention line', async () => {
+  it('offers the link action on manufacturing, reaction, copy and invention lines', async () => {
     const lines = [MANUFACTURING_LINE, REACTION_LINE, COPY_LINE, INVENTION_LINE]
     const wrapper = await mountProductionJobRows({ lines, projectId: PROJECT_ID })
 
-    expect(lines.map(line => rowOfLine(wrapper, line.id).find(OPEN_LINK_SCREEN).exists())).toEqual([true, true, false, false])
+    expect(lines.map(line => rowOfLine(wrapper, line.id).find(OPEN_LINK_SCREEN).exists())).toEqual([true, true, true, true])
+  })
+
+  it('treats the four job activities as linkable and a material line or a line without activity as not linkable', () => {
+    const materialLine = jobLine({ id: 'material-tritanium', typeId: 34, typeName: 'Tritanium', isJob: false, jobGroup: null, activityType: null, runs: null })
+    const lineWithoutActivity = jobLine({ id: 'job-without-activity', activityType: null })
+
+    expect([MANUFACTURING_LINE, REACTION_LINE, COPY_LINE, INVENTION_LINE, materialLine, lineWithoutActivity].map(isLinkableActivity))
+      .toEqual([true, true, true, true, false, false])
   })
 
   it('lists only the jobs whose blueprint produces the line, and marks a job taken by another project without a link action', async () => {

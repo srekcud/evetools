@@ -109,6 +109,62 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
         self::assertSame([], $this->find());
     }
 
+    #[Group('issue-1193')]
+    public function testKeepsOnlyTheJobsOfTheRequestedActivities(): void
+    {
+        $this->createJob(startDate: '2026-03-01', runs: 1, activityId: self::ACTIVITY_MANUFACTURING);
+        $this->createJob(startDate: '2026-03-02', runs: 2, activityId: self::ACTIVITY_COPYING);
+        $this->createJob(startDate: '2026-03-03', runs: 3, activityId: self::ACTIVITY_INVENTION);
+        $this->createJob(startDate: '2026-03-04', runs: 4, activityId: self::ACTIVITY_RESEARCH_TIME);
+        $this->createJob(startDate: '2026-03-05', runs: 5, activityId: self::ACTIVITY_RESEARCH_MATERIAL);
+        $this->createJob(startDate: '2026-03-06', runs: 6, activityId: self::ACTIVITY_REVERSE_ENGINEERING);
+        $this->flushAndClear();
+
+        self::assertSame(
+            [[2], [3], [2, 3], [1]],
+            [
+                $this->runsOf($this->find(activityIds: [self::ACTIVITY_COPYING])),
+                $this->runsOf($this->find(activityIds: [self::ACTIVITY_INVENTION])),
+                $this->runsOf($this->find(activityIds: [self::ACTIVITY_COPYING, self::ACTIVITY_INVENTION])),
+                $this->runsOf($this->find(activityIds: [self::ACTIVITY_MANUFACTURING])),
+            ],
+        );
+    }
+
+    #[Group('issue-1193')]
+    public function testCopyingAndInventionJobsStillHonourTheCharacterStatusTargetRunsAndStartDateFilters(): void
+    {
+        $otherCharacter = $this->createCharacter(name: 'Other Pilot');
+        $this->createJob(startDate: '2026-03-01 11:00:00', runs: 4, activityId: self::ACTIVITY_COPYING);
+        $this->createJob(startDate: '2026-03-02 11:00:00', runs: 4, activityId: self::ACTIVITY_COPYING, status: 'cancelled');
+        $this->createJob(startDate: '2026-03-03 11:00:00', runs: 4, activityId: self::ACTIVITY_COPYING, character: $otherCharacter);
+        $this->createJob(startDate: '2026-03-04 11:00:00', runs: 7, activityId: self::ACTIVITY_COPYING, jobId: 800_007);
+        $this->createJob(startDate: '2026-03-05 11:00:00', runs: 7, activityId: self::ACTIVITY_COPYING, jobId: 800_008, blueprintTypeId: self::OTHER_BLUEPRINT_TYPE_ID);
+        $this->flushAndClear();
+
+        $jobs = $this->find(targetRuns: 7, startedAfter: new \DateTimeImmutable('2026-03-02 00:00:00'), activityIds: [self::ACTIVITY_COPYING]);
+
+        self::assertSame([800_007], $this->jobIdsOf($jobs));
+    }
+
+    #[Group('issue-1193')]
+    public function testJobsOfSeveralBlueprintsAreListedForTheRequestedActivitiesOnly(): void
+    {
+        $this->createJob(startDate: '2026-03-01', runs: 1, activityId: self::ACTIVITY_MANUFACTURING, jobId: 810_001);
+        $this->createJob(startDate: '2026-03-02', runs: 2, activityId: self::ACTIVITY_COPYING, jobId: 810_002);
+        $this->createJob(startDate: '2026-03-03', runs: 3, activityId: self::ACTIVITY_INVENTION, jobId: 810_003, blueprintTypeId: self::OTHER_BLUEPRINT_TYPE_ID);
+        $this->createJob(startDate: '2026-03-04', runs: 4, activityId: self::ACTIVITY_RESEARCH_TIME, jobId: 810_004, blueprintTypeId: self::OTHER_BLUEPRINT_TYPE_ID);
+        $this->createJob(startDate: '2026-03-05', runs: 5, activityId: self::ACTIVITY_COPYING, jobId: 810_005, blueprintTypeId: 1_000_003);
+        $this->flushAndClear();
+        $characterIds = [$this->character->getId()];
+        $blueprintTypeIds = [self::BLUEPRINT_TYPE_ID, self::OTHER_BLUEPRINT_TYPE_ID];
+
+        $copyingOnly = $this->repository->findByBlueprintsAndCharacters($blueprintTypeIds, [self::ACTIVITY_COPYING], $characterIds);
+        $copyingAndInvention = $this->repository->findByBlueprintsAndCharacters($blueprintTypeIds, [self::ACTIVITY_COPYING, self::ACTIVITY_INVENTION], $characterIds);
+
+        self::assertSame([[810_002], [810_003, 810_002]], [$this->jobIdsOf($copyingOnly), $this->jobIdsOf($copyingAndInvention)]);
+    }
+
     public function testKeepsOnlyJobsOfTheGivenCharacters(): void
     {
         $otherCharacter = $this->createCharacter(name: 'Other Pilot');
@@ -268,12 +324,12 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
      *
      * @return CachedIndustryJob[]
      */
-    private function find(?array $characters = null, ?int $targetRuns = null, ?\DateTimeImmutable $startedAfter = null): array
+    private function find(?array $characters = null, ?int $targetRuns = null, ?\DateTimeImmutable $startedAfter = null, array $activityIds = [self::ACTIVITY_MANUFACTURING, self::ACTIVITY_REACTION_ESI, self::ACTIVITY_REACTION_SDE]): array
     {
         // Same argument shape as IndustryJobMatcher: a list of character UUIDs.
         $characterIds = array_map(static fn (Character $c) => $c->getId(), $characters ?? [$this->character]);
 
-        return $this->repository->findManufacturingJobsByBlueprint(self::BLUEPRINT_TYPE_ID, $characterIds, $targetRuns, $startedAfter);
+        return $this->repository->findJobsByBlueprintAndActivities(self::BLUEPRINT_TYPE_ID, $activityIds, $characterIds, $targetRuns, $startedAfter);
     }
 
     /**

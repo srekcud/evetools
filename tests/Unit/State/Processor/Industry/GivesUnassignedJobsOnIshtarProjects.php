@@ -79,12 +79,12 @@ trait GivesUnassignedJobsOnIshtarProjects
         return [$this->ishtarProject, $this->hecateProject, $this->rivalProject, $this->strangersProject, $this->completedProject, $this->draftProject];
     }
 
-    private function givenUnassignedJob(int $esiJobId, Character $installer, int $blueprintTypeId, int $productTypeId, int $runs, string $startDate, array $candidates, string $status = 'active', ?int $stationId = null): UnassignedJob
+    private function givenUnassignedJob(int $esiJobId, Character $installer, int $blueprintTypeId, int $productTypeId, int $runs, string $startDate, array $candidates, string $status = 'active', ?int $stationId = null, int $activityId = 1): UnassignedJob
     {
         $job = (new CachedIndustryJob())
             ->setJobId($esiJobId)
             ->setCharacter($installer)
-            ->setActivityId(1)
+            ->setActivityId($activityId)
             ->setBlueprintTypeId($blueprintTypeId)
             ->setProductTypeId($productTypeId)
             ->setRuns($runs)

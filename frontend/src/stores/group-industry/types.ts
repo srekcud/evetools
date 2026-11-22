@@ -151,7 +151,7 @@ export type CharacterMatchFailure = {
   statusCode: number | null
 }
 
-export type LineMatchFailureReason = 'producer_missing_from_sde' | 'no_runs' | 'contribution_not_refreshed'
+export type LineMatchFailureReason = 'producer_missing_from_sde' | 'no_runs' | 'contribution_not_refreshed' | 'invention_data_missing'
 
 export type LineMatchFailure = {
   typeId: number

@@ -23,7 +23,15 @@ class IndustryProjectBomLine
 {
     public const string ACTIVITY_MANUFACTURING = 'manufacturing';
     public const string ACTIVITY_REACTION = 'reaction';
+    public const string ACTIVITY_COPY = 'copy';
+    public const string ACTIVITY_INVENTION = 'invention';
     private const string JOB_GROUP_COMPONENT = 'component';
+    private const array ESI_JOB_ACTIVITY_IDS_BY_ACTIVITY_TYPE = [
+        self::ACTIVITY_MANUFACTURING => [1],
+        self::ACTIVITY_REACTION => [9, 11],
+        self::ACTIVITY_COPY => [5],
+        self::ACTIVITY_INVENTION => [8],
+    ];
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -344,6 +352,18 @@ class IndustryProjectBomLine
     public function isManufacturingOrReactionJob(): bool
     {
         return $this->isJob && \in_array($this->activityType, [self::ACTIVITY_MANUFACTURING, self::ACTIVITY_REACTION], true);
+    }
+
+    public function isMatchableJob(): bool
+    {
+        return $this->isJob && null !== $this->activityType && \array_key_exists($this->activityType, self::ESI_JOB_ACTIVITY_IDS_BY_ACTIVITY_TYPE);
+    }
+
+    /** @return list<int> */
+    public function esiJobActivityIds(): array
+    {
+        return self::ESI_JOB_ACTIVITY_IDS_BY_ACTIVITY_TYPE[$this->activityType ?? '']
+            ?? throw new \LogicException(\sprintf('BOM line activity "%s" has no ESI job activity', $this->activityType ?? 'none'));
     }
 
     /** @return Collection<int, IndustryProjectJobMatch> */

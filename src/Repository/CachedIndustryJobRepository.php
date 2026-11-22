@@ -153,28 +153,30 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find manufacturing/reaction jobs matching a blueprint type ID with EXACT run count.
-     * Activity IDs: 1 = Manufacturing, 9 = Reactions, 11 = Reverse Engineering
+     * Find jobs of the given ESI activities matching a blueprint type ID.
      *
      * @param int                     $blueprintTypeId Blueprint to match
+     * @param list<int>               $activityIds     ESI activity ids
      * @param list<\Symfony\Component\Uid\Uuid|int|null> $characterIds Characters to search
      * @param int|null                $targetRuns      If provided, only return jobs with exact run match
      * @param \DateTimeImmutable|null $startedAfter    Only match jobs started after this date
      *
      * @return CachedIndustryJob[]
      */
-    public function findManufacturingJobsByBlueprint(
+    public function findJobsByBlueprintAndActivities(
         int $blueprintTypeId,
+        array $activityIds,
         array $characterIds,
         ?int $targetRuns = null,
         ?\DateTimeImmutable $startedAfter = null,
     ): array {
         $qb = $this->createQueryBuilder('j')
             ->where('j.blueprintTypeId = :bpId')
-            ->andWhere('j.activityId IN (1, 9, 11)')
+            ->andWhere('j.activityId IN (:activityIds)')
             ->andWhere('j.character IN (:chars)')
             ->andWhere('j.status NOT IN (:statusesWithoutOutput)')
             ->setParameter('bpId', $blueprintTypeId)
+            ->setParameter('activityIds', $activityIds)
             ->setParameter('chars', $characterIds)
             ->setParameter('statusesWithoutOutput', CachedIndustryJob::STATUSES_WITHOUT_OUTPUT);
 
@@ -198,6 +200,7 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
      * Find all jobs matching any of the given blueprint type IDs for the given characters.
      *
      * @param int[]                    $blueprintTypeIds
+     * @param list<int>                $activityIds
      * @param list<\Symfony\Component\Uid\Uuid|int|null> $characterIds
      * @param \DateTimeImmutable|null  $startedAfter
      *
@@ -205,14 +208,16 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
      */
     public function findByBlueprintsAndCharacters(
         array $blueprintTypeIds,
+        array $activityIds,
         array $characterIds,
         ?\DateTimeImmutable $startedAfter = null,
     ): array {
         $qb = $this->createQueryBuilder('j')
             ->where('j.blueprintTypeId IN (:bpIds)')
-            ->andWhere('j.activityId IN (1, 9, 11)')
+            ->andWhere('j.activityId IN (:activityIds)')
             ->andWhere('j.character IN (:chars)')
             ->setParameter('bpIds', $blueprintTypeIds)
+            ->setParameter('activityIds', $activityIds)
             ->setParameter('chars', $characterIds);
 
         if ($startedAfter !== null) {

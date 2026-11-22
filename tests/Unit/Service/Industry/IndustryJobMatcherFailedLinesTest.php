@@ -56,7 +56,7 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
         $this->logger = new BufferingLogger();
 
         $jobRepository = $this->createStub(CachedIndustryJobRepository::class);
-        $jobRepository->method('findManufacturingJobsByBlueprint')->willReturnCallback(
+        $jobRepository->method('findJobsByBlueprintAndActivities')->willReturnCallback(
             fn (int $blueprintTypeId): array => match ($blueprintTypeId) {
                 self::ISHTAR_BLUEPRINT_TYPE_ID => [$this->job(7_980_001, 5, self::ISHTAR_BLUEPRINT_TYPE_ID)],
                 self::RAM_BLUEPRINT_TYPE_ID => [$this->job(7_980_002, 4, self::RAM_BLUEPRINT_TYPE_ID)],
@@ -145,6 +145,25 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
                 ['warning', 'Failed to match jobs of line', ['projectId' => self::PROJECT_ID, 'typeId' => self::UNKNOWN_TYPE_ID, 'reason' => 'producer_missing_from_sde']],
                 ['warning', 'Failed to match jobs of line', ['projectId' => self::PROJECT_ID, 'typeId' => self::ISHTAR_TYPE_ID, 'reason' => 'no_runs']],
             ],
+            $this->logger->cleanLogs(),
+        );
+    }
+
+    #[Group('issue-1193')]
+    public function testAnInventionLineWhoseInventionDataIsMissingIsReportedAndLoggedAndTheOtherLinesAreMatched(): void
+    {
+        $inventionLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 3)->setActivityType('invention')->setJobGroup('blueprint');
+        $ramLine = $this->jobLine(self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 4);
+
+        $failures = $this->matcher->matchOpenProjects([$this->project($inventionLine, $ramLine)])[self::PROJECT_ID];
+
+        self::assertSame(
+            [['typeId' => self::ISHTAR_TYPE_ID, 'typeName' => 'Ishtar', 'reason' => 'invention_data_missing']],
+            array_map(static fn (LineMatchFailure $failure): array => $failure->toArray(), $failures),
+        );
+        self::assertSame([[], [7_980_002]], [$this->matchedJobIdsOf($inventionLine), $this->matchedJobIdsOf($ramLine)]);
+        self::assertSame(
+            [['warning', 'Failed to match jobs of line', ['projectId' => self::PROJECT_ID, 'typeId' => self::ISHTAR_TYPE_ID, 'reason' => 'invention_data_missing']]],
             $this->logger->cleanLogs(),
         );
     }

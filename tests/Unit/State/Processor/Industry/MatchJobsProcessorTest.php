@@ -473,6 +473,27 @@ final class MatchJobsProcessorTest extends TestCase
         );
     }
 
+    #[Group('issue-1193')]
+    public function testListsTheJobMatchesOfCopyAndInventionLinesButRefreshesTheContributionsOfTheManufacturingLinesOnly(): void
+    {
+        $ishtarLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);
+        $copyLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(10)->setIsJob(true)->setJobGroup('blueprint')->setActivityType('copy')->setRuns(10);
+        $inventionLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(3)->setIsJob(true)->setJobGroup('blueprint')->setActivityType('invention')->setRuns(3);
+        $this->project->addBomItem($ishtarLine);
+        $this->project->addBomItem($copyLine);
+        $this->project->addBomItem($inventionLine);
+        $copyLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(7_193_501)->setRuns(10)->setStatus('active')->setCost(480_000.0));
+        $inventionLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(7_193_502)->setRuns(3)->setStatus('active')->setCost(120_000.0));
+
+        $result = $this->matchJobs();
+
+        self::assertSame(
+            [[7_193_501, 10, $copyLine->getId()->toRfc4122()], [7_193_502, 3, $inventionLine->getId()->toRfc4122()]],
+            array_map(static fn (ProjectJobMatchResource $match): array => [$match->esiJobId, $match->runs, $match->bomLineId], $result->jobMatches),
+        );
+        self::assertSame([[$ishtarLine->getId()->toRfc4122(), 1]], $this->refreshedLines);
+    }
+
     #[Group('issue-798')]
     public function testListsALineWhoseContributionCouldNotBeRefreshedAndRefreshesTheOthers(): void
     {

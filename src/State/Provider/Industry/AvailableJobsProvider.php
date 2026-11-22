@@ -11,10 +11,10 @@ use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\User;
+use App\Exception\InventionDataMissingException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\UuidOrNotFound;
@@ -32,7 +32,6 @@ class AvailableJobsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly CachedIndustryJobRepository $jobRepository,
-        private readonly IndustryActivityProductRepository $productRepository,
         private readonly IndustryCalculationService $calculationService,
         private readonly ProjectAccessChecker $accessChecker,
         private readonly IndustryProjectJobMatchRepository $jobMatchRepository,
@@ -59,15 +58,22 @@ class AvailableJobsProvider implements ProviderInterface
         $jobOwners = $this->accessChecker->usersWhoseJobsCanBeLinkedBy($user, $project);
 
         $jobLines = $project->getBomItems()->filter(
-            static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob(),
+            static fn (IndustryProjectBomLine $line): bool => $line->isMatchableJob(),
         );
 
         $blueprintTypeIds = [];
         $jobLinesByBlueprintTypeId = [];
+        $activityIds = [];
         foreach ($jobLines as $line) {
-            $blueprintTypeId = $this->productRepository->producerOf($line->getTypeId())->getTypeId();
+            try {
+                $blueprintTypeId = $this->jobMatcher->expectedBlueprintTypeIdOf($line);
+            } catch (InventionDataMissingException) {
+                continue;
+            }
+
             $blueprintTypeIds[$blueprintTypeId] = true;
             $jobLinesByBlueprintTypeId[$blueprintTypeId][] = $line;
+            $activityIds = [...$activityIds, ...$line->esiJobActivityIds()];
         }
 
         $characterIds = [];
@@ -83,6 +89,7 @@ class AvailableJobsProvider implements ProviderInterface
 
         $jobs = $this->jobRepository->findByBlueprintsAndCharacters(
             array_keys($blueprintTypeIds),
+            array_values(array_unique($activityIds)),
             $characterIds,
             $project->getCreatedAt(),
         );

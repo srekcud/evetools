@@ -28,7 +28,7 @@ class UnassignedJobCandidates
         $assignable = [];
         foreach ($unassignedJob->getCandidates() as $stored) {
             $line = $this->bomLineRepository->find($stored['lineId']);
-            if ($line === null || !$line->isManufacturingOrReactionJob()) {
+            if ($line === null || !$line->isMatchableJob()) {
                 continue;
             }
 

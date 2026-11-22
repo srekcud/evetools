@@ -30,6 +30,7 @@ final class ManualJobLinkerTest extends TestCase
     private const int INVENTION_JOB_ID = 7_248_103;
     private const int CANCELLED_JOB_ID = 7_248_104;
     private const int REVERTED_JOB_ID = 7_248_105;
+    private const int COPY_JOB_ID = 7_193_201;
     private const int LINKED_ELSEWHERE_JOB_ID = 7_248_106;
     private const int SHARED_JOB_ID = 7_250_101;
     private const int SHARED_JOB_RUNS = 20;
@@ -204,6 +205,85 @@ final class ManualJobLinkerTest extends TestCase
         self::assertSame('granted', $outcome);
         self::assertSame(5, $match->getRuns());
         self::assertNull($match->getCost());
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyLineIsLinkedToACopyingJobOnTheProducerBlueprintWithoutRefreshingTheContributions(): void
+    {
+        $copyLine = $this->blueprintLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'copy', 10);
+        $job = $this->job(self::COPY_JOB_ID, $this->ownerAltCharacter, self::ISHTAR_BLUEPRINT_TYPE_ID, 6, IndustryActivityType::Copying->value);
+
+        $outcome = $this->outcomeOf(function () use ($job, $copyLine, &$match): void {
+            $match = $this->manualJobLinker()->link($job, $copyLine);
+        });
+
+        self::assertSame('granted', $outcome);
+        self::assertSame([6, 0], [$copyLine->getMatchedRuns(), $copyLine->getFulfilledQuantity()]);
+        self::assertSame([$match], $copyLine->getJobMatches()->toArray());
+        self::assertSame(
+            [self::COPY_JOB_ID, 6, 'Aria Alt', true, $copyLine],
+            [$match->getEsiJobId(), $match->getRuns(), $match->getCharacterName(), $match->isManual(), $match->getBomLine()],
+        );
+        self::assertSame([], $this->refreshedLines);
+    }
+
+    #[Group('issue-1193')]
+    public function testAnInventionLineIsLinkedToAnInventionJobOnTheT1BlueprintWithoutRefreshingTheContributions(): void
+    {
+        $inventionLine = $this->blueprintLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'invention', 3);
+        $job = $this->job(self::INVENTION_JOB_ID, $this->ownerMainCharacter, self::VEXOR_BLUEPRINT_TYPE_ID, 3, IndustryActivityType::Invention->value);
+
+        $outcome = $this->outcomeOf(function () use ($job, $inventionLine, &$match): void {
+            $match = $this->manualJobLinker()->link($job, $inventionLine);
+        });
+
+        self::assertSame('granted', $outcome);
+        self::assertSame([[self::INVENTION_JOB_ID, 3, true], 3], [[$match->getEsiJobId(), $match->getRuns(), $match->isManual()], $inventionLine->getMatchedRuns()]);
+        self::assertSame([], $this->refreshedLines);
+    }
+
+    #[Group('issue-1193')]
+    public function testAnInventionJobOnTheProducerBlueprintOfTheProductIsRefusedOnTheInventionLine(): void
+    {
+        $inventionLine = $this->blueprintLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'invention', 3);
+        $job = $this->job(self::INVENTION_JOB_ID, $this->ownerMainCharacter, self::ISHTAR_BLUEPRINT_TYPE_ID, 3, IndustryActivityType::Invention->value);
+
+        self::assertSame(
+            '400 Job blueprint does not match BOM line blueprint',
+            $this->outcomeOf(fn () => $this->manualJobLinker()->link($job, $inventionLine)),
+        );
+        self::assertCount(0, $inventionLine->getJobMatches());
+    }
+
+    #[Group('issue-1193')]
+    public function testAnInventionJobIsRefusedOnACopyLineOfTheSameBlueprint(): void
+    {
+        $copyLine = $this->blueprintLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'copy', 10);
+        $job = $this->job(self::INVENTION_JOB_ID, $this->ownerMainCharacter, self::ISHTAR_BLUEPRINT_TYPE_ID, 3, IndustryActivityType::Invention->value);
+
+        self::assertSame(
+            '400 Job activity does not match BOM line activity',
+            $this->outcomeOf(fn () => $this->manualJobLinker()->link($job, $copyLine)),
+        );
+        self::assertSame([[], []], [$copyLine->getJobMatches()->toArray(), $this->refreshedLines]);
+    }
+
+    #[Group('issue-1193')]
+    public function testAnInventionLineWithoutInventionDataIsRefusedAsABadRequestOtherThanTheActivityMismatch(): void
+    {
+        $inventionLine = $this->blueprintLine(self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'invention', 3);
+        $job = $this->job(self::INVENTION_JOB_ID, $this->ownerMainCharacter, self::VEXOR_BLUEPRINT_TYPE_ID, 3, IndustryActivityType::Invention->value);
+
+        $outcome = $this->outcomeOf(fn () => $this->manualJobLinker()->link($job, $inventionLine));
+
+        self::assertStringStartsWith('400 ', $outcome);
+        self::assertNotSame('400 Job activity does not match BOM line activity', $outcome);
+        self::assertSame([[], []], [$inventionLine->getJobMatches()->toArray(), $this->refreshedLines]);
+    }
+
+    private function blueprintLine(int $typeId, string $typeName, string $activityType, int $runs): IndustryProjectBomLine
+    {
+        return $this->jobLine($this->ishtarProject, $typeId, $typeName, 'blueprint', $runs, $runs)->setActivityType($activityType);
     }
 
     private function givenShare(int $esiJobId, IndustryProjectBomLine $line, int $runs, ?float $cost = null): IndustryProjectJobMatch

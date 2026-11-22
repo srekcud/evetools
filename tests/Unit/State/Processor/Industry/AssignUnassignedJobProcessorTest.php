@@ -11,6 +11,7 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Service\Industry\Project\ProjectJobActivityRecorder;
 use App\State\Processor\Industry\AssignUnassignedJobProcessor;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -25,6 +26,8 @@ final class AssignUnassignedJobProcessorTest extends TestCase
 {
     use GivesUnassignedJobsOnIshtarProjects;
     use BuildsManualJobLinker;
+
+    private const int COPY_JOB_ID = 7_193_301;
 
     private array $recordedProjects = [];
 
@@ -185,6 +188,29 @@ final class AssignUnassignedJobProcessorTest extends TestCase
             $this->outcomeOf(fn () => $this->assign($this->owner, self::ISHTAR_JOB_ID, $this->ishtarLine)),
         );
         $this->assertNothingHappened();
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyLineIsAssignableToACopyingJobWithoutRefreshingTheContributions(): void
+    {
+        $copyLine = $this->jobLine($this->ishtarProject, self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', 10, 10)->setActivityType('copy');
+        $this->givenUnassignedJob(
+            self::COPY_JOB_ID,
+            $this->ownerAltCharacter,
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            self::ISHTAR_TYPE_ID,
+            6,
+            '2026-11-02T08:00:00+00:00',
+            [$this->candidateOf($this->ishtarProject, $copyLine, 3)],
+            activityId: IndustryActivityType::Copying->value,
+        );
+
+        $outcome = $this->outcomeOf(fn () => $this->assign($this->owner, self::COPY_JOB_ID, $copyLine));
+
+        self::assertSame('granted', $outcome);
+        self::assertSame([self::COPY_JOB_ID], array_map(static fn (IndustryProjectJobMatch $match): int => $match->getEsiJobId(), $copyLine->getJobMatches()->toArray()));
+        self::assertSame(6, $copyLine->getMatchedRuns());
+        self::assertSame([[], [$this->ishtarProject]], [$this->refreshedLines, $this->recordedProjects]);
     }
 
     private function assertNothingHappened(): void

@@ -22,6 +22,8 @@ use Psr\Log\NullLogger;
 
 trait BuildsManualJobLinker
 {
+    private const int VEXOR_BLUEPRINT_TYPE_ID = 12004;
+
     private array $storedJobMatches = [];
 
     private array $removedEntities = [];
@@ -52,6 +54,22 @@ trait BuildsManualJobLinker
                 ->setQuantity(1),
         );
 
+        $productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $productTypeId, int $activityId): ?IndustryActivityProduct => match ([$productTypeId, $activityId]) {
+                [self::ISHTAR_TYPE_ID, IndustryActivityType::Manufacturing->value] => (new IndustryActivityProduct())
+                    ->setTypeId(self::ISHTAR_BLUEPRINT_TYPE_ID)
+                    ->setActivityId(IndustryActivityType::Manufacturing->value)
+                    ->setProductTypeId(self::ISHTAR_TYPE_ID)
+                    ->setQuantity(1),
+                [self::ISHTAR_BLUEPRINT_TYPE_ID, IndustryActivityType::Invention->value] => (new IndustryActivityProduct())
+                    ->setTypeId(self::VEXOR_BLUEPRINT_TYPE_ID)
+                    ->setActivityId(IndustryActivityType::Invention->value)
+                    ->setProductTypeId(self::ISHTAR_BLUEPRINT_TYPE_ID)
+                    ->setQuantity(1),
+                default => null,
+            },
+        );
+
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('remove')->willReturnCallback(function (object $entity): void {
             $this->removedEntities[] = $entity;
@@ -70,6 +88,6 @@ trait BuildsManualJobLinker
             $unassignedJobRepository ?? $this->createStub(UnassignedJobRepository::class),
         );
 
-        return new ManualJobLinker($matcher, $productRepository, $jobMatchRepository, $this->derivedContributionService());
+        return new ManualJobLinker($matcher, $jobMatchRepository, $this->derivedContributionService());
     }
 }

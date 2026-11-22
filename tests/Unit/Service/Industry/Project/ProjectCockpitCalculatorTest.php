@@ -454,6 +454,21 @@ final class ProjectCockpitCalculatorTest extends TestCase
         self::assertSame(['start_selling', false, null, 'selling', null, null, null, null], $this->actionRow($cockpit));
     }
 
+    #[Group('issue-1193')]
+    public function testLaunchJobSkipsABlueprintLineWhoseCopyRunsAreAllDeliveredAndPicksTheBlueprintLineStillToLaunch(): void
+    {
+        $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [
+            $this->material('line-tritanium', self::TRITANIUM_TYPE_ID, 'Tritanium', 5_000, 5_000),
+            $this->job('line-hammerhead-copy', 'blueprint', self::HAMMERHEAD_II_BLUEPRINT_TYPE_ID, 'Hammerhead II Blueprint', 20, 0, 20, 20, 20),
+            $this->job('line-ishtar-invention', 'blueprint', self::ISHTAR_BLUEPRINT_TYPE_ID, 'Ishtar Blueprint', 3, 0, 3, 0),
+        ], [], 0, true);
+
+        self::assertSame(
+            ['launch_job', false, 'materials', null, 'line-ishtar-invention', self::ISHTAR_BLUEPRINT_TYPE_ID, 'Ishtar Blueprint', 3],
+            $this->actionRow($cockpit),
+        );
+    }
+
     public function testJobLineWhoseDeliveredRunsFallShortOfItsRunsStaysToLaunchWithTheRunsNotYetMatched(): void
     {
         $cockpit = $this->cockpitOf(ProjectStatus::InProgress, 1, [

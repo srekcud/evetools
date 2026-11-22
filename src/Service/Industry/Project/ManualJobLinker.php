@@ -7,8 +7,8 @@ namespace App\Service\Industry\Project;
 use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
+use App\Exception\InventionDataMissingException;
 use App\Repository\IndustryProjectJobMatchRepository;
-use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryJobMatcher;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
@@ -16,7 +16,6 @@ class ManualJobLinker
 {
     public function __construct(
         private readonly IndustryJobMatcher $jobMatcher,
-        private readonly IndustryActivityProductRepository $productRepository,
         private readonly IndustryProjectJobMatchRepository $jobMatchRepository,
         private readonly DerivedContributionService $derivedContributionService,
     ) {
@@ -30,7 +29,13 @@ class ManualJobLinker
             throw new BadRequestHttpException('Job activity does not match BOM line activity');
         }
 
-        if ($job->getBlueprintTypeId() !== $this->productRepository->producerOf($line->getTypeId())->getTypeId()) {
+        try {
+            $expectedBlueprintTypeId = $this->jobMatcher->expectedBlueprintTypeIdOf($line);
+        } catch (InventionDataMissingException) {
+            throw new BadRequestHttpException('No invention data for the BOM line product');
+        }
+
+        if ($job->getBlueprintTypeId() !== $expectedBlueprintTypeId) {
             throw new BadRequestHttpException('Job blueprint does not match BOM line blueprint');
         }
 
@@ -54,7 +59,9 @@ class ManualJobLinker
         }
 
         $match = $this->jobMatcher->linkJobToBomLine($job, $line, $runs ?? $freeRuns);
-        $this->derivedContributionService->refreshLine($line);
+        if ($line->isManufacturingOrReactionJob()) {
+            $this->derivedContributionService->refreshLine($line);
+        }
 
         return $match;
     }

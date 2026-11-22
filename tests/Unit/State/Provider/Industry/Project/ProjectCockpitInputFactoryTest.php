@@ -55,6 +55,28 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         self::assertSame(15, $input->bomLines[0]->matchedRuns);
     }
 
+    #[Group('issue-1193')]
+    public function testCopyAndInventionLinesCarryTheMatchedAndDeliveredRunsOfTheirEsiJobs(): void
+    {
+        $owner = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+        $this->productOf($project, self::SABRE_TYPE_ID, 'Sabre', 5);
+        $copyLine = $this->jobOf($project, self::SABRE_TYPE_ID, 'Sabre', 'blueprint', 10, 10, 0)->setActivityType('copy');
+        $inventionLine = $this->jobOf($project, self::GILA_TYPE_ID, 'Gila', 'blueprint', 3, 3, 0)->setActivityType('invention');
+        $this->jobMatchOn($copyLine, 6, 'delivered');
+        $this->jobMatchOn($copyLine, 4, 'delivered');
+        $this->jobMatchOn($inventionLine, 2, 'active');
+
+        $input = (new ProjectCockpitInputFactory())->create($project, $owner);
+
+        $runsBySabreAndGilaLine = [];
+        foreach ($input->bomLines as $line) {
+            $runsBySabreAndGilaLine[$line->typeName] = [$line->matchedRuns, $line->deliveredRuns];
+        }
+        self::assertSame([10, 10], $runsBySabreAndGilaLine['Sabre']);
+        self::assertSame([2, 0], $runsBySabreAndGilaLine['Gila']);
+    }
+
     #[Group('issue-1195')]
     public function testJobLineCarriesTheLatestEndDateOfItsRunningEsiJobsOnly(): void
     {

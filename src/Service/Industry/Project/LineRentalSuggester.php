@@ -24,7 +24,7 @@ class LineRentalSuggester
 
     public function suggest(User $contributor, IndustryProjectBomLine $line): LineRentalSuggestion
     {
-        $category = $this->categoryResolver->categoryOf($line->getTypeId());
+        $category = $line->isManufacturingOrReactionJob() ? $this->categoryResolver->categoryOf($line->getTypeId()) : null;
         if ($category === null) {
             return $this->unknown(LineRentalUnknownReason::UnknownCategory);
         }

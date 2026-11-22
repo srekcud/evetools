@@ -12,14 +12,13 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectParticipant;
-use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Exception\InventionDataMissingException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
-use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
 use App\State\Provider\Industry\AvailableJobsProvider;
@@ -41,6 +40,9 @@ final class AvailableJobsProviderTest extends TestCase
     private const int RAM_JOB_ID = 7_362_602;
     private const int CANCELLED_RAM_JOB_ID = 7_362_603;
     private const int UNTOUCHED_JOB_ID = 7_362_604;
+    private const int COPY_JOB_ID = 7_193_401;
+    private const int INVENTION_JOB_ID = 7_193_402;
+    private const int VEXOR_BLUEPRINT_TYPE_ID = 12004;
     private const string NO_ACCESS = '403 You do not have access to this project';
 
     private array $cachedJobs = [];
@@ -137,6 +139,38 @@ final class AvailableJobsProviderTest extends TestCase
             [[self::RAM_JOB_ID, [$this->ramLine->getId()->toRfc4122()]], [self::ISHTAR_JOB_ID, [$this->ishtarLine->getId()->toRfc4122()]]],
             array_map(static fn (AvailableJobResource $job): array => [$job->esiJobId, $job->linkableBomLineIds], $jobs),
         );
+    }
+
+    #[Group('issue-1193')]
+    public function testACopyingJobOnTheBlueprintOfAProductIsLinkableToTheCopyLineAndNotToTheManufacturingLineOfThatProduct(): void
+    {
+        $copyLine = $this->jobLine($this->ishtarProject, self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', 10, 10)->setActivityType('copy');
+        $this->job($this->ownerMainCharacter, self::COPY_JOB_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 6, 480_000.0, '2026-11-02T08:00:00+00:00', activityId: IndustryActivityType::Copying->value);
+
+        $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame(
+            [[self::COPY_JOB_ID, [$copyLine->getId()->toRfc4122()]]],
+            array_map(static fn (AvailableJobResource $job): array => [$job->esiJobId, $job->linkableBomLineIds], $jobs),
+        );
+        self::assertEqualsCanonicalizing([1, 5], $this->jobLookups[0][3]);
+    }
+
+    #[Group('issue-1193')]
+    public function testAnInventionJobIsListedOnTheT1BlueprintOfTheInventionAndAnInventionLineWithoutDataIsIgnored(): void
+    {
+        $inventionLine = $this->jobLine($this->ishtarProject, self::ISHTAR_TYPE_ID, 'Ishtar', 'blueprint', 3, 3)->setActivityType('invention');
+        $this->jobLine($this->ishtarProject, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'blueprint', 2, 2)->setActivityType('invention');
+        $this->job($this->ownerMainCharacter, self::INVENTION_JOB_ID, self::VEXOR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 3, 120_000.0, '2026-11-02T08:00:00+00:00', activityId: IndustryActivityType::Invention->value);
+
+        $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame(
+            [[self::INVENTION_JOB_ID, [$inventionLine->getId()->toRfc4122()]]],
+            array_map(static fn (AvailableJobResource $job): array => [$job->esiJobId, $job->linkableBomLineIds], $jobs),
+        );
+        self::assertContains(self::VEXOR_BLUEPRINT_TYPE_ID, $this->jobLookups[0][0]);
+        self::assertContains(8, $this->jobLookups[0][3]);
     }
 
     #[Group('issue-1199')]
@@ -248,19 +282,15 @@ final class AvailableJobsProviderTest extends TestCase
     {
         $jobRepository = $this->createStub(CachedIndustryJobRepository::class);
         $jobRepository->method('findByBlueprintsAndCharacters')->willReturnCallback(
-            function (array $blueprintTypeIds, array $characterIds, ?\DateTimeImmutable $startedAfter = null): array {
-                $this->jobLookups[] = [array_values($blueprintTypeIds), $characterIds, $startedAfter];
+            function (array $blueprintTypeIds, array $activityIds, array $characterIds, ?\DateTimeImmutable $startedAfter = null): array {
+                $this->jobLookups[] = [array_values($blueprintTypeIds), $characterIds, $startedAfter, $activityIds];
 
-                return $this->cachedJobs;
+                return array_values(array_filter(
+                    $this->cachedJobs,
+                    static fn (CachedIndustryJob $job): bool => \in_array($job->getBlueprintTypeId(), $blueprintTypeIds, true)
+                        && \in_array($job->getActivityId(), $activityIds, true),
+                ));
             },
-        );
-        $productRepository = $this->createStub(IndustryActivityProductRepository::class);
-        $productRepository->method('producerOf')->willReturnCallback(
-            static fn (int $productTypeId): IndustryActivityProduct => (new IndustryActivityProduct())
-                ->setTypeId($productTypeId === self::ISHTAR_TYPE_ID ? self::ISHTAR_BLUEPRINT_TYPE_ID : self::RAM_BLUEPRINT_TYPE_ID)
-                ->setActivityId(IndustryActivityType::Manufacturing->value)
-                ->setProductTypeId($productTypeId)
-                ->setQuantity(1),
         );
         $calculationService = $this->createStub(IndustryCalculationService::class);
         $calculationService->method('resolveTypeName')->willReturnCallback(
@@ -269,14 +299,22 @@ final class AvailableJobsProviderTest extends TestCase
 
         $jobMatcher = $this->createStub(IndustryJobMatcher::class);
         $jobMatcher->method('isJobOfBomLineActivity')->willReturnCallback(
-            fn (CachedIndustryJob $job, IndustryProjectBomLine $line): bool => !\in_array($line, $this->linesOfAnotherActivity, true),
+            fn (CachedIndustryJob $job, IndustryProjectBomLine $line): bool => !\in_array($line, $this->linesOfAnotherActivity, true)
+                && \in_array($job->getActivityId(), $line->esiJobActivityIds(), true),
+        );
+        $jobMatcher->method('expectedBlueprintTypeIdOf')->willReturnCallback(
+            static fn (IndustryProjectBomLine $line): int => match (true) {
+                $line->getActivityType() === 'invention' && $line->getTypeId() === self::ISHTAR_TYPE_ID => self::VEXOR_BLUEPRINT_TYPE_ID,
+                $line->getActivityType() === 'invention' => throw new InventionDataMissingException($line->getTypeId()),
+                $line->getTypeId() === self::ISHTAR_TYPE_ID => self::ISHTAR_BLUEPRINT_TYPE_ID,
+                default => self::RAM_BLUEPRINT_TYPE_ID,
+            },
         );
 
         return (new AvailableJobsProvider(
             $this->securityOf($user),
             $this->projectRepository(),
             $jobRepository,
-            $productRepository,
             $calculationService,
             $this->accessChecker(),
             $this->jobMatchRepository(),
@@ -304,13 +342,13 @@ final class AvailableJobsProviderTest extends TestCase
         return $repository;
     }
 
-    private function job(Character $installer, int $jobId, int $blueprintTypeId, int $productTypeId, int $runs, float $cost, string $startDate, string $status = 'active'): void
+    private function job(Character $installer, int $jobId, int $blueprintTypeId, int $productTypeId, int $runs, float $cost, string $startDate, string $status = 'active', int $activityId = 1): void
     {
         $start = new \DateTimeImmutable($startDate);
         $this->cachedJobs[] = (new CachedIndustryJob())
             ->setCharacter($installer)
             ->setJobId($jobId)
-            ->setActivityId(1)
+            ->setActivityId($activityId)
             ->setBlueprintTypeId($blueprintTypeId)
             ->setProductTypeId($productTypeId)
             ->setRuns($runs)
