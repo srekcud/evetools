@@ -1544,4 +1544,57 @@ export interface PlacedAction {
   quantity: number | null
   place: ActionPlace
   here: boolean | null
+
+export type StationTransferCarrierKind = 'courier' | 'jump_bridge' | 'pilot'
+
+export type StationTransferState = 'awaiting_departure' | 'in_transit' | 'arrived' | 'unknown'
+
+export type StationTransferSource = 'assets' | 'declared' | 'pending'
+
+export interface StationTransferPlace {
+  solarSystemId: number
+  solarSystemName: string | null
+  locationId: number | null
+  stationName: string | null
+}
+
+export interface StationTransferLine {
+  typeId: number
+  typeName: string
+  quantity: number
+  volume: number | null
+  departed: number | null
+  arrived: number | null
+  inTransit: number | null
+  departureSource: Exclude<StationTransferSource, 'pending'>
+  arrivalSource: StationTransferSource
+  unknownReason: string | null
+}
+
+export interface ProjectStationTransfer {
+  id: string
+  routeId: string
+  legIndex: number
+  legCount: number
+  from: StationTransferPlace
+  to: StationTransferPlace
+  carrier: { kind: StationTransferCarrierKind; characterId: number | null; contractId: number | null }
+  declaredBy: string
+  declaredAt: string
+  expectedArrivalAt: string
+  arrivedAt: string | null
+  state: StationTransferState
+  volume: number | null
+  unknownReason: string | null
+  lines: StationTransferLine[]
+}
+
+export interface DeclareStationTransferInput {
+  fromSolarSystemId: number
+  fromLocationId: number | null
+  toSolarSystemId: number
+  toLocationId: number | null
+  lines: { typeId: number; quantity: number }[]
+  carrierCharacterId: number | null
+  contractId: number | null
 }

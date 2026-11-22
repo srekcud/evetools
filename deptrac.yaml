@@ -160,6 +160,14 @@ deptrac:
       - App\State\Provider\Industry\Project\ProjectResourceMapper
     App\State\Processor\Industry\Project\CreateProjectTemplateProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\DeclareStationTransferProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+      - App\State\Provider\Industry\Project\ProjectStationTransferResourceMapper
+    App\State\Processor\Industry\Project\ArriveStationTransferProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+      - App\State\Provider\Industry\Project\ProjectStationTransferResourceMapper
+    App\State\Processor\Industry\Project\DeleteStationTransferProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\LinkCourierContractProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
       - App\State\Provider\Industry\Project\ProjectCourierResourceMapper

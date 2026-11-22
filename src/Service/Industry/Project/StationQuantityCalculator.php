@@ -13,6 +13,7 @@ final readonly class StationQuantityCalculator
     public const string REASON_CONSUMPTION_UNKNOWN = 'consumption_unknown';
     public const string REASON_STATION_UNRESOLVED = 'station_unresolved';
     public const string REASON_NO_CONTAINER_AT_STATION = 'no_container_at_station';
+    public const string REASON_TRANSFER_UNREADABLE = 'transfer_unreadable';
 
     private const array JOB_GROUPS = ['component', 'final'];
     private const array STATUSES_IN_PRODUCTION = [CachedIndustryJob::STATUS_ACTIVE, CachedIndustryJob::STATUS_PAUSED, CachedIndustryJob::STATUS_READY];
@@ -24,10 +25,11 @@ final readonly class StationQuantityCalculator
      * @param list<ProjectContainerReading> $readings
      * @param array<string, int|null> $locationIdByStructureId
      * @param array<int, string> $stationNameByLocationId stations of the plan, in plan order
+     * @param array<int, array<int, int|null>> $inTransitByLocationAndType by arrival location id, by type id
      *
      * @return list<TypeStationQuantities>
      */
-    public function compute(array $bomLines, ?array $jobMaterialNeeds, array $readings, array $locationIdByStructureId, array $stationNameByLocationId): array
+    public function compute(array $bomLines, ?array $jobMaterialNeeds, array $readings, array $locationIdByStructureId, array $stationNameByLocationId, array $inTransitByLocationAndType = []): array
     {
         $linesByTypeId = [];
         foreach ($bomLines as $line) {
@@ -62,7 +64,7 @@ final readonly class StationQuantityCalculator
                 $entry[0],
                 $entry[1][0]->getTypeName(),
                 self::lineIdsOf($entry[1]),
-                $this->stationsOf($entry[0], $demand, $readingsByLocationId, $stationNameByLocationId),
+                $this->stationsOf($entry[0], $demand, $readingsByLocationId, $stationNameByLocationId, $inTransitByLocationAndType),
                 null,
             ),
             $entries,
@@ -159,10 +161,11 @@ final readonly class StationQuantityCalculator
      * @param array<int, array<int, array{needed: int, consumed: int, inProduction: int}>> $demand
      * @param array<int, ProjectContainerReading> $readingsByLocationId
      * @param array<int, string> $stationNameByLocationId
+     * @param array<int, array<int, int|null>> $inTransitByLocationAndType
      *
      * @return list<StationQuantity>
      */
-    private function stationsOf(int $typeId, array $demand, array $readingsByLocationId, array $stationNameByLocationId): array
+    private function stationsOf(int $typeId, array $demand, array $readingsByLocationId, array $stationNameByLocationId, array $inTransitByLocationAndType): array
     {
         $stationKeys = [];
         foreach ($demand[$typeId] ?? [] as $stationKey => $figures) {
@@ -176,12 +179,18 @@ final readonly class StationQuantityCalculator
             }
         }
 
+        foreach ($inTransitByLocationAndType as $locationId => $inTransitByTypeId) {
+            if (\array_key_exists($typeId, $inTransitByTypeId) && (null === $inTransitByTypeId[$typeId] || $inTransitByTypeId[$typeId] > 0)) {
+                $stationKeys[$locationId] = true;
+            }
+        }
+
         $orderedKeys = $this->orderedStationKeys(array_keys($stationKeys), array_keys($stationNameByLocationId));
 
         $stations = [];
         foreach ($orderedKeys as $stationKey) {
             $figures = $demand[$typeId][$stationKey] ?? ['needed' => 0, 'consumed' => 0, 'inProduction' => 0];
-            $stations[] = $this->stationOf($stationKey, $figures, $readingsByLocationId[$stationKey] ?? null, $typeId, $stationNameByLocationId);
+            $stations[] = $this->stationOf($stationKey, $figures, $readingsByLocationId[$stationKey] ?? null, $typeId, $stationNameByLocationId, $this->inTransitAt($inTransitByLocationAndType, $stationKey, $typeId));
         }
 
         return $stations;
@@ -191,34 +200,45 @@ final readonly class StationQuantityCalculator
      * @param array{needed: int, consumed: int, inProduction: int} $figures
      * @param array<int, string> $stationNameByLocationId
      */
-    private function stationOf(int $stationKey, array $figures, ?ProjectContainerReading $reading, int $typeId, array $stationNameByLocationId): StationQuantity
+    private function stationOf(int $stationKey, array $figures, ?ProjectContainerReading $reading, int $typeId, array $stationNameByLocationId, ?int $inTransit): StationQuantity
     {
         if (self::UNRESOLVED_STATION_KEY === $stationKey) {
-            return $this->unreadableStation(null, null, $figures, self::REASON_STATION_UNRESOLVED);
+            return $this->unreadableStation(null, null, $figures, self::REASON_STATION_UNRESOLVED, 0);
         }
 
         $stationName = $stationNameByLocationId[$stationKey] ?? null;
         if (null === $reading) {
-            return $this->unreadableStation($stationKey, $stationName, $figures, self::REASON_NO_CONTAINER_AT_STATION);
+            return $this->unreadableStation($stationKey, $stationName, $figures, self::REASON_NO_CONTAINER_AT_STATION, $inTransit);
         }
 
         if (null === $reading->contents) {
-            return $this->unreadableStation($stationKey, $stationName, $figures, $reading->unknownReason ?? throw new \LogicException(\sprintf('The unknown reading of container %s has no reason.', $reading->containerId)));
+            return $this->unreadableStation($stationKey, $stationName, $figures, $reading->unknownReason ?? throw new \LogicException(\sprintf('The unknown reading of container %s has no reason.', $reading->containerId)), $inTransit);
         }
 
         $rawQuantity = $this->rawQuantityOf($reading, $typeId);
         $remaining = max(0, $figures['needed'] - $figures['consumed']);
         $onSite = min($rawQuantity, $remaining);
+        $toBring = null === $inTransit ? null : max(0, $remaining - $onSite - $inTransit);
 
-        return new StationQuantity($stationKey, $stationName, $figures['needed'], $figures['consumed'], $figures['inProduction'], $onSite, $rawQuantity - $onSite, $remaining - $onSite, null, null);
+        return new StationQuantity($stationKey, $stationName, $figures['needed'], $figures['consumed'], $figures['inProduction'], $onSite, $rawQuantity - $onSite, $toBring, $inTransit, null === $inTransit ? self::REASON_TRANSFER_UNREADABLE : null);
     }
 
     /**
      * @param array{needed: int, consumed: int, inProduction: int} $figures
      */
-    private function unreadableStation(?int $locationId, ?string $stationName, array $figures, string $reason): StationQuantity
+    private function unreadableStation(?int $locationId, ?string $stationName, array $figures, string $reason, ?int $inTransit): StationQuantity
     {
-        return new StationQuantity($locationId, $stationName, $figures['needed'], $figures['consumed'], $figures['inProduction'], null, null, null, null, $reason);
+        return new StationQuantity($locationId, $stationName, $figures['needed'], $figures['consumed'], $figures['inProduction'], null, null, null, $inTransit, $reason);
+    }
+
+    /**
+     * @param array<int, array<int, int|null>> $inTransitByLocationAndType
+     */
+    private function inTransitAt(array $inTransitByLocationAndType, int $locationId, int $typeId): ?int
+    {
+        $inTransitByTypeId = $inTransitByLocationAndType[$locationId] ?? [];
+
+        return \array_key_exists($typeId, $inTransitByTypeId) ? $inTransitByTypeId[$typeId] : 0;
     }
 
     private function rawQuantityOf(ProjectContainerReading $reading, int $typeId): int

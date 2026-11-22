@@ -25,6 +25,7 @@ Source : `debug:router --env=test` (gabarits `industry/projects` et `industry/li
 | `PATCH /{id}` | `assertAdminOrOwner` |
 | `DELETE /{id}` | propriétaire seul, `isDeletable()` (400 sinon) |
 | `GET /{projectId}/bom`, `/chain`, `/buy-or-build`, `/structures`, `/work-stations`, `/surplus`, `/distribution`, `/contributions`, `/members`, `/sales`, `/settlement`, `/line-rental-suggestions/{id}` | `assertAcceptedMember` |
+| `GET`, `POST /{projectId}/station-transfers`, `POST /{projectId}/station-transfers/{id}/arrive`, `DELETE /{projectId}/station-transfers/{id}` | membre `accepted` pour lire et déclarer (projet `completed` : 409) ; arrivée et suppression : déclarant, propriétaire ou admin ; suppression d'un tronçon arrivé : 409 ; publication Mercure `station_transfer_changed` (#1295) |
 | `POST /{projectId}/contributions` | participant `accepted` (`SubmitContributionProcessor`) |
 | `POST /{projectId}/contributions/unclaimed-stock` | propriétaire seul (`assertOwner`, `AllocateUnclaimedStockProcessor`) : attribuer le stock non réclamé d'une ligne matériau à un participant `accepted` (prix de lancement) ou le donner (valeur 0) ; apport `approved` d'office, garde `UnclaimedStockGuard` (projet en cours, stock du container connu, quantité au plus le non réclamé, 400 sinon) |
 | `POST /{projectId}/wallet-refresh` | `assertAcceptedMember` (`RefreshProjectWalletProcessor`), projet `completed` : 400 ; seuls les personnages de l'appelant ; 200 `{queuedCharacters, notDueCharacters}` |

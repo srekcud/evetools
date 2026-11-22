@@ -7,6 +7,10 @@ namespace App\Service\Industry\Project;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Service\Industry\Project\Transfer\InTransitByStation;
+use App\Service\Industry\Project\Transfer\ProjectStationTransfers;
+use App\Service\Industry\Project\Transfer\StationTransferReading;
+use App\Service\Industry\Project\Transfer\TransferLegState;
 
 final readonly class ProjectStationQuantities
 {
@@ -16,6 +20,7 @@ final readonly class ProjectStationQuantities
         private ProjectContainerStations $stations,
         private IndustryStructureConfigRepository $structureConfigRepository,
         private StationQuantityCalculator $calculator,
+        private ProjectStationTransfers $transfers,
     ) {
     }
 
@@ -38,12 +43,18 @@ final readonly class ProjectStationQuantities
             }
         }
 
+        $readings = $this->readings->of($project);
+
         return $this->calculator->compute(
             $bomLines,
             $this->needsLoader->load($project, array_values(array_filter($bomLines, static fn (IndustryProjectBomLine $line): bool => $line->isJob()))),
-            $this->readings->of($project),
+            $readings,
             $locationIdByStructureId,
             $stationNameByLocationId,
+            InTransitByStation::of(array_map(
+                static fn (StationTransferReading $reading): TransferLegState => $reading->state,
+                $this->transfers->of($project, $readings),
+            )),
         );
     }
 }

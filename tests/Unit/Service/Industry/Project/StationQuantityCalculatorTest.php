@@ -56,21 +56,21 @@ final class StationQuantityCalculatorTest extends TestCase
     {
         $entries = $this->computeScenario($this->emptyContainers());
 
-        self::assertSame([[self::STATION_B, 100, 0, 0, 0, 0, 100, null, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 100, 0, 0, 0, 0, 100, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
     }
 
     public function testStockInTheProjectContainerOfTheStationIsOnSiteAndTheRestIsToBring(): void
     {
         $entries = $this->computeScenario($this->containersWith(self::STATION_B, [new ProjectContainerContent(self::ZYDRINE, 'Zydrine', 60)]));
 
-        self::assertSame([[self::STATION_B, 100, 0, 0, 60, 0, 40, null, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 100, 0, 0, 60, 0, 40, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
     }
 
     public function testStockBeyondTheNeedOfTheStationIsOutAndNothingIsToBring(): void
     {
         $entries = $this->computeScenario($this->containersWith(self::STATION_B, [new ProjectContainerContent(self::ZYDRINE, 'Zydrine', 130)]));
 
-        self::assertSame([[self::STATION_B, 100, 0, 0, 100, 30, 0, null, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 100, 0, 0, 100, 30, 0, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
     }
 
     public function testStartedRunsAreConsumedAndReduceWhatTheStationStillNeeds(): void
@@ -79,8 +79,8 @@ final class StationQuantityCalculatorTest extends TestCase
 
         $entries = $this->computeScenario($this->containersWith(self::STATION_B, [new ProjectContainerContent(self::ZYDRINE, 'Zydrine', 30)]));
 
-        self::assertSame([[self::STATION_B, 100, 50, 0, 30, 0, 20, null, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
-        self::assertSame([[self::STATION_B, 40, 20, 0, 0, 0, 20, null, null]], $this->rowsOf($this->entryOf($entries, self::COMPONENT_X)), 'the started runs consume the Composant X of station B too');
+        self::assertSame([[self::STATION_B, 100, 50, 0, 30, 0, 20, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 40, 20, 0, 0, 0, 20, 0, null]], $this->rowsOf($this->entryOf($entries, self::COMPONENT_X)), 'the started runs consume the Composant X of station B too');
     }
 
     public function testUnreadableContainerGivesNullOnSiteOutAndToBringWithItsReason(): void
@@ -94,7 +94,7 @@ final class StationQuantityCalculatorTest extends TestCase
 
         $tritanium = $this->entryOf($entries, self::TRITANIUM);
         self::assertNull($tritanium->unknownReason);
-        self::assertSame([[self::STATION_A, 80, 0, 0, null, null, null, null, 'corporation_assets_not_synced']], $this->rowsOf($tritanium));
+        self::assertSame([[self::STATION_A, 80, 0, 0, null, null, null, 0, 'corporation_assets_not_synced']], $this->rowsOf($tritanium));
     }
 
     public function testActiveJobIsInProductionAtItsStationWhileItsProductIsToBringToTheConsumingStation(): void
@@ -105,12 +105,12 @@ final class StationQuantityCalculatorTest extends TestCase
 
         self::assertSame(
             [
-                [self::STATION_A, 0, 0, 40, 0, 0, 0, null, null],
-                [self::STATION_B, 40, 0, 0, 0, 0, 40, null, null],
+                [self::STATION_A, 0, 0, 40, 0, 0, 0, 0, null],
+                [self::STATION_B, 40, 0, 0, 0, 0, 40, 0, null],
             ],
             $this->rowsOf($this->entryOf($entries, self::COMPONENT_X)),
         );
-        self::assertSame([[self::STATION_A, 80, 80, 0, 0, 0, 0, null, null]], $this->rowsOf($this->entryOf($entries, self::TRITANIUM)));
+        self::assertSame([[self::STATION_A, 80, 80, 0, 0, 0, 0, 0, null]], $this->rowsOf($this->entryOf($entries, self::TRITANIUM)));
     }
 
     public function testDeliveredJobIsOutOfTheMachineAndItsProductInTheContainerOfItsStationIsOut(): void
@@ -121,8 +121,8 @@ final class StationQuantityCalculatorTest extends TestCase
 
         self::assertSame(
             [
-                [self::STATION_A, 0, 0, 0, 0, 40, 0, null, null],
-                [self::STATION_B, 40, 0, 0, 0, 0, 40, null, null],
+                [self::STATION_A, 0, 0, 0, 0, 40, 0, 0, null],
+                [self::STATION_B, 40, 0, 0, 0, 0, 40, 0, null],
             ],
             $this->rowsOf($this->entryOf($entries, self::COMPONENT_X)),
         );
@@ -132,14 +132,14 @@ final class StationQuantityCalculatorTest extends TestCase
     {
         $entries = $this->computeScenario($this->containersWith(self::STATION_B, [new ProjectContainerContent(self::COMPONENT_X, 'Composant X', 15)]));
 
-        self::assertSame([[self::STATION_B, 40, 0, 0, 15, 0, 25, null, null]], $this->rowsOf($this->entryOf($entries, self::COMPONENT_X)));
+        self::assertSame([[self::STATION_B, 40, 0, 0, 15, 0, 25, 0, null]], $this->rowsOf($this->entryOf($entries, self::COMPONENT_X)));
     }
 
     public function testFinalProductInTheContainerIsOutAndNeverNeeded(): void
     {
         $entries = $this->computeScenario($this->containersWith(self::STATION_B, [new ProjectContainerContent(self::ISHTAR, 'Ishtar', 20)]));
 
-        self::assertSame([[self::STATION_B, 0, 0, 0, 0, 20, 0, null, null]], $this->rowsOf($this->entryOf($entries, self::ISHTAR)));
+        self::assertSame([[self::STATION_B, 0, 0, 0, 0, 20, 0, 0, null]], $this->rowsOf($this->entryOf($entries, self::ISHTAR)));
     }
 
     public function testContainerOfTheProjectWithoutLocationFeedsNoEntry(): void
@@ -151,7 +151,7 @@ final class StationQuantityCalculatorTest extends TestCase
 
         $entries = $this->computeScenario($readings);
 
-        self::assertSame([[self::STATION_B, 100, 0, 0, 0, 0, 100, null, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 100, 0, 0, 0, 0, 100, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
     }
 
     public function testJobLineWithoutPlannedStructureIsAnUnresolvedStationEntry(): void
@@ -160,7 +160,7 @@ final class StationQuantityCalculatorTest extends TestCase
 
         $entries = $this->computeScenario($this->emptyContainers());
 
-        self::assertSame([[null, 100, 0, 0, null, null, null, null, 'station_unresolved']], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[null, 100, 0, 0, null, null, null, 0, 'station_unresolved']], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
         self::assertNull($this->entryOf($entries, self::ZYDRINE)->stations[0]->stationName);
     }
 
@@ -169,7 +169,7 @@ final class StationQuantityCalculatorTest extends TestCase
         foreach ([[self::STRUCTURE_A => self::STATION_A, self::STRUCTURE_B => null], [self::STRUCTURE_A => self::STATION_A]] as $locationIdByStructureId) {
             $entries = $this->computeScenario($this->emptyContainers(), $locationIdByStructureId);
 
-            self::assertSame([[null, 100, 0, 0, null, null, null, null, 'station_unresolved']], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+            self::assertSame([[null, 100, 0, 0, null, null, null, 0, 'station_unresolved']], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
         }
     }
 
@@ -179,7 +179,7 @@ final class StationQuantityCalculatorTest extends TestCase
 
         $entries = $this->computeScenario($readings);
 
-        self::assertSame([[self::STATION_B, 100, 0, 0, null, null, null, null, 'no_container_at_station']], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 100, 0, 0, null, null, null, 0, 'no_container_at_station']], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
     }
 
     public function testUncomputablePlanGivesNullStationsAndPlanUnavailableForEveryType(): void
@@ -213,7 +213,7 @@ final class StationQuantityCalculatorTest extends TestCase
 
         $entries = $this->computeScenario($this->emptyContainers());
 
-        self::assertSame([[self::STATION_B, 100, 0, 0, 0, 0, 100, null, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 100, 0, 0, 0, 0, 100, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
         self::assertSame([], $this->rowsOf($this->entryOf($entries, self::ISHTAR)));
     }
 
@@ -244,10 +244,10 @@ final class StationQuantityCalculatorTest extends TestCase
 
         $entries = $this->compute([$this->zydrineLine, $firstVariant, $secondVariant], $needs, $this->emptyContainers());
 
-        self::assertSame([[self::STATION_B, 104, 52, 0, 0, 0, 52, null, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 104, 52, 0, 0, 0, 52, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
         $ishtar = $this->entryOf($entries, self::ISHTAR);
         self::assertSame([self::lineId($firstVariant), self::lineId($secondVariant)], $ishtar->lineIds);
-        self::assertSame([[self::STATION_B, 0, 0, 5, 0, 0, 0, null, null]], $this->rowsOf($ishtar));
+        self::assertSame([[self::STATION_B, 0, 0, 5, 0, 0, 0, 0, null]], $this->rowsOf($ishtar));
     }
 
     public function testTypeNameFallsBackToTheBomLineWhenTheAssetHasNone(): void
@@ -255,7 +255,7 @@ final class StationQuantityCalculatorTest extends TestCase
         $entries = $this->computeScenario($this->containersWith(self::STATION_B, [new ProjectContainerContent(self::ZYDRINE, null, 60)]));
 
         self::assertSame('Zydrine', $this->entryOf($entries, self::ZYDRINE)->typeName);
-        self::assertSame([[self::STATION_B, 100, 0, 0, 60, 0, 40, null, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 100, 0, 0, 60, 0, 40, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
     }
 
     public function testEntriesAreOrderedByTypeNameThenTypeIdAndEachListsItsLines(): void
@@ -310,11 +310,11 @@ final class StationQuantityCalculatorTest extends TestCase
         $zydrine = $this->entryOf($entries, self::ZYDRINE);
         self::assertSame(
             [
-                [self::STATION_B, 10, 0, 0, 0, 0, 10, null, null],
-                [self::STATION_A, 5, 0, 0, 0, 0, 5, null, null],
-                [250, 0, 0, 0, 0, 3, 0, null, null],
-                [300, 0, 0, 0, 0, 7, 0, null, null],
-                [null, 2, 0, 0, null, null, null, null, 'station_unresolved'],
+                [self::STATION_B, 10, 0, 0, 0, 0, 10, 0, null],
+                [self::STATION_A, 5, 0, 0, 0, 0, 5, 0, null],
+                [250, 0, 0, 0, 0, 3, 0, 0, null],
+                [300, 0, 0, 0, 0, 7, 0, 0, null],
+                [null, 2, 0, 0, null, null, null, 0, 'station_unresolved'],
             ],
             $this->rowsOf($zydrine),
         );
@@ -330,7 +330,7 @@ final class StationQuantityCalculatorTest extends TestCase
 
         $entries = $this->computeScenario($this->containersWith(self::STATION_B, [new ProjectContainerContent(self::ZYDRINE, 'Zydrine', 3)]));
 
-        self::assertSame([[self::STATION_B, 100, 100, 0, 0, 3, 0, null, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+        self::assertSame([[self::STATION_B, 100, 100, 0, 0, 3, 0, 0, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
     }
 
     public function testActivePausedAndReadyRunsAreInProductionWhileDeliveredAndRevertedOnesAreNot(): void
@@ -365,7 +365,7 @@ final class StationQuantityCalculatorTest extends TestCase
 
         $entries = $this->compute([$reaction], [self::lineId($reaction) => [self::TRITANIUM => 600]], $this->emptyContainers());
 
-        self::assertSame([[self::STATION_A, 0, 0, 500, 0, 0, 0, null, null]], $this->rowsOf($this->entryOf($entries, self::REACTION_PRODUCT)));
+        self::assertSame([[self::STATION_A, 0, 0, 500, 0, 0, 0, 0, null]], $this->rowsOf($this->entryOf($entries, self::REACTION_PRODUCT)));
     }
 
     public function testBlueprintJobLineBringsNoNeedAndIsNotInProduction(): void
@@ -381,14 +381,52 @@ final class StationQuantityCalculatorTest extends TestCase
         self::assertSame([], $this->rowsOf($this->entryOf($entries, self::DATACORE)));
     }
 
-    private function computeScenario(array $readings, array $locationIdByStructureId = [self::STRUCTURE_A => self::STATION_A, self::STRUCTURE_B => self::STATION_B]): array
+    public function testTransferInTransitToTheStationIsDeductedFromWhatIsToBring(): void
+    {
+        $readings = $this->containersWith(self::STATION_B, [new ProjectContainerContent(self::ZYDRINE, 'Zydrine', 60)]);
+
+        $entries = $this->computeScenario($readings, inTransitByLocationAndType: [self::STATION_B => [self::ZYDRINE => 30]]);
+
+        self::assertSame([[self::STATION_B, 100, 0, 0, 60, 0, 10, 30, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+    }
+
+    public function testTransferCoveringTheWholeNeedLeavesNothingToBring(): void
+    {
+        $entries = $this->computeScenario($this->emptyContainers(), inTransitByLocationAndType: [self::STATION_B => [self::ZYDRINE => 100]]);
+
+        self::assertSame([[self::STATION_B, 100, 0, 0, 0, 0, 0, 100, null]], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+    }
+
+    public function testUnreadableTransferGivesNullInTransitAndNullToBringWithTransferUnreadable(): void
+    {
+        $readings = $this->containersWith(self::STATION_B, [new ProjectContainerContent(self::ZYDRINE, 'Zydrine', 60)]);
+
+        $entries = $this->computeScenario($readings, inTransitByLocationAndType: [self::STATION_B => [self::ZYDRINE => null]]);
+
+        self::assertSame([[self::STATION_B, 100, 0, 0, 60, 0, null, null, 'transfer_unreadable']], $this->rowsOf($this->entryOf($entries, self::ZYDRINE)));
+    }
+
+    public function testStationWithOnlyAnInTransitQuantityHasAnEntryOfItsOwn(): void
+    {
+        $entries = $this->computeScenario($this->emptyContainers(), inTransitByLocationAndType: [self::STATION_A => [self::ZYDRINE => 25]]);
+
+        self::assertSame(
+            [
+                [self::STATION_A, 0, 0, 0, 0, 0, 0, 25, null],
+                [self::STATION_B, 100, 0, 0, 0, 0, 100, 0, null],
+            ],
+            $this->rowsOf($this->entryOf($entries, self::ZYDRINE)),
+        );
+    }
+
+    private function computeScenario(array $readings, array $locationIdByStructureId = [self::STRUCTURE_A => self::STATION_A, self::STRUCTURE_B => self::STATION_B], array $inTransitByLocationAndType = []): array
     {
         $needs = [
             self::lineId($this->componentXJob) => [self::TRITANIUM => 80],
             self::lineId($this->finalJob) => [self::ZYDRINE => 100, self::COMPONENT_X => 40],
         ];
 
-        return $this->compute([$this->zydrineLine, $this->tritaniumLine, $this->componentXJob, $this->finalJob], $needs, $readings, $locationIdByStructureId);
+        return $this->compute([$this->zydrineLine, $this->tritaniumLine, $this->componentXJob, $this->finalJob], $needs, $readings, $locationIdByStructureId, inTransitByLocationAndType: $inTransitByLocationAndType);
     }
 
     private function compute(
@@ -397,8 +435,9 @@ final class StationQuantityCalculatorTest extends TestCase
         array $readings,
         array $locationIdByStructureId = [self::STRUCTURE_A => self::STATION_A, self::STRUCTURE_B => self::STATION_B],
         array $stationNameByLocationId = [self::STATION_A => 'Structure A', self::STATION_B => 'Structure B'],
+        array $inTransitByLocationAndType = [],
     ): array {
-        return (new StationQuantityCalculator())->compute($bomLines, $needs, $readings, $locationIdByStructureId, $stationNameByLocationId);
+        return (new StationQuantityCalculator())->compute($bomLines, $needs, $readings, $locationIdByStructureId, $stationNameByLocationId, $inTransitByLocationAndType);
     }
 
     private function emptyContainers(): array
