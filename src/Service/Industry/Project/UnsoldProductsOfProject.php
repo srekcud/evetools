@@ -18,6 +18,10 @@ final readonly class UnsoldProductsOfProject
      */
     public function of(IndustryProject $project, iterable $sales): array
     {
+        if ($project->isPersonalUse()) {
+            return [];
+        }
+
         $toSellByTypeId = $this->toSellByTypeId($project);
         if ($toSellByTypeId === []) {
             return [];

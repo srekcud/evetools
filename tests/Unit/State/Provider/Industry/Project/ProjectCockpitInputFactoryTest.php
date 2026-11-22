@@ -385,6 +385,17 @@ final class ProjectCockpitInputFactoryTest extends TestCase
         self::assertSame(0, $input->purchasesToDeliverCount);
     }
 
+    #[Group('issue-1210')]
+    public function testInputCarriesThePersonalUseOfTheProject(): void
+    {
+        $owner = $this->pilot();
+        $personalProject = $this->workshopProject('Sabre for me', ProjectStatus::InProgress, $owner)->setPersonalUse(true);
+        $soldProject = $this->workshopProject('Sabre batch', ProjectStatus::InProgress, $owner);
+
+        self::assertTrue((new ProjectCockpitInputFactory())->create($personalProject, $owner)->personalUse);
+        self::assertFalse((new ProjectCockpitInputFactory())->create($soldProject, $owner)->personalUse);
+    }
+
     private function purchaseOn(IndustryProjectBomLine $line, int $quantity): void
     {
         $line->addPurchase((new IndustryProjectPurchase())->setTypeId($line->getTypeId())->setQuantity($quantity)->setUnitPrice(1.0)->setTotalPrice((float) $quantity)->setSource('manual'));

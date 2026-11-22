@@ -123,6 +123,7 @@ const projectId = computed(() => route.params.id as string)
 const MINIMUM_TEAM_SIZE = 2
 const TEAM_ONLY_TABS: readonly ProjectDetailTab[] = ['contributions', 'members']
 const INVENTION_TABS: readonly ProjectDetailTab[] = ['invention']
+const PERSONAL_USE_HIDDEN_TABS: readonly ProjectDetailTab[] = ['sales']
 
 const requestedTab = useTabQuery<ProjectDetailTab>(DETAIL_TABS, 'bom')
 const membersLoaded = ref(false)
@@ -206,18 +207,20 @@ const isInventedProductUnknown = computed(() =>
 const hiddenTabs = computed<ProjectDetailTab[]>(() => [
   ...(isWorkedOnAlone.value || isTeamUnknownOnSoloProject.value ? TEAM_ONLY_TABS : []),
   ...(hasNoInventedProduct.value || isInventedProductUnknown.value ? INVENTION_TABS : []),
+  ...(project.value?.personalUse ? PERSONAL_USE_HIDDEN_TABS : []),
 ])
 const activeTab = computed<ProjectDetailTab>({
   get: () => {
     const requested = requestedTab.value
     const isTeamTabOfSoloProject = isWorkedOnAlone.value && TEAM_ONLY_TABS.includes(requested)
     const isInventionTabWithoutProduct = hasNoInventedProduct.value && INVENTION_TABS.includes(requested)
-    return isTeamTabOfSoloProject || isInventionTabWithoutProduct ? 'bom' : requested
+    const isSalesTabOfPersonalUse = project.value?.personalUse === true && PERSONAL_USE_HIDDEN_TABS.includes(requested)
+    return isTeamTabOfSoloProject || isInventionTabWithoutProduct || isSalesTabOfPersonalUse ? 'bom' : requested
   },
   set: (tab) => { requestedTab.value = tab },
 })
 const nextStatuses = computed(() => (project.value
-  ? headerStatuses(project.value.status, project.value.private, cockpit.value?.nextAction.targetStatus ?? null)
+  ? headerStatuses(project.value.status, project.value.private, cockpit.value?.nextAction.targetStatus ?? null, project.value.personalUse)
   : []))
 const pendingStatus = ref<GroupProjectStatus | null>(null)
 
@@ -904,8 +907,8 @@ function applyShareLinkShortcut(): void {
           <FinancialCascade />
           <FinancialSummary v-if="!project?.personalUse" />
           <SellForecastCard v-if="!project?.personalUse" :project-id="projectId" />
-          <DistributionTable v-if="!isWorkedOnAlone" />
-          <ProjectTransfers v-if="!isWorkedOnAlone" :project-id="projectId" />
+          <DistributionTable v-if="!isWorkedOnAlone && !project?.personalUse" />
+          <ProjectTransfers v-if="!isWorkedOnAlone && !project?.personalUse" :project-id="projectId" />
           <ProjectDiscordRecap class="mt-8" />
         </template>
       </div>
@@ -1189,7 +1192,7 @@ function applyShareLinkShortcut(): void {
         <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.completeConfirm.message') }}</p>
         <template v-if="settlementStore.settlement">
           <h3 class="mt-4 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{{ t('groupIndustry.detail.completeConfirm.checksTitle') }}</h3>
-          <ClosingChecksList :checks="settlementStore.settlement.checks" />
+          <ClosingChecksList :checks="settlementStore.settlement.checks" :personal-use="project?.personalUse" />
         </template>
         <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>

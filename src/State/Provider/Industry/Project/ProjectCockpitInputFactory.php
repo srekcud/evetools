@@ -37,6 +37,7 @@ final readonly class ProjectCockpitInputFactory
             $this->unreceivedTransferCount($settlement),
             $project->pendingJoinRequestCount(),
             $this->purchasesToDeliverCount($project, $fulfillments),
+            $project->isPersonalUse(),
         );
     }
 

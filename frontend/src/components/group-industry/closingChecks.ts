@@ -6,10 +6,12 @@ export type ClosingCheck =
   | { key: 'finalMargin'; ok: boolean; marginPercent: number | null }
   | { key: 'transfers'; ok: boolean; received: number | null; total: number | null }
 
-export function buildClosingChecks(checks: ClosingChecksData): ClosingCheck[] {
+export function buildClosingChecks(checks: ClosingChecksData, personalUse = false): ClosingCheck[] {
+  const pendingContributions: ClosingCheck = { key: 'pendingContributions', ok: checks.pendingContributionCount === 0, count: checks.pendingContributionCount }
+  if (personalUse) return [pendingContributions]
   const transfersKnown = checks.transfersTotal !== null && checks.transfersReceived !== null
   return [
-    { key: 'pendingContributions', ok: checks.pendingContributionCount === 0, count: checks.pendingContributionCount },
+    pendingContributions,
     { key: 'unsoldProducts', ok: checks.unsoldProducts.length === 0, products: checks.unsoldProducts },
     { key: 'finalMargin', ok: checks.marginPercent !== null, marginPercent: checks.marginPercent },
     {

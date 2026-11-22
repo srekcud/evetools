@@ -20,6 +20,12 @@ final readonly class ProjectCockpitCalculator
         self::PHASE_SELL,
         self::PHASE_CLOSE,
     ];
+    private const array PERSONAL_USE_PHASE_KEYS = [
+        self::PHASE_PREPARE,
+        self::PHASE_SUPPLY,
+        self::PHASE_PRODUCE,
+        self::PHASE_CLOSE,
+    ];
 
     private const string STATE_DONE = 'done';
     private const string STATE_CURRENT = 'current';
@@ -68,6 +74,7 @@ final readonly class ProjectCockpitCalculator
         $undeliveredJobs = $this->undeliveredJobs($jobLines);
         $unitsToSell = array_sum(array_map(static fn (CockpitBomLine $line): int => $line->requiredQuantity, $finalLines));
         $unitsSold = min($unitsToSell, $this->soldUnitsOf($finalLines, $input->soldQuantityByTypeId));
+        $phaseKeys = $input->personalUse ? self::PERSONAL_USE_PHASE_KEYS : self::PHASE_KEYS;
 
         $counters = [
             self::PHASE_PREPARE => [$input->status === ProjectStatus::Draft ? self::NONE : self::SINGLE_STEP, self::SINGLE_STEP],
@@ -80,11 +87,11 @@ final readonly class ProjectCockpitCalculator
         $purchasesToDeliverCount = $productionStarted ? self::NONE : $input->purchasesToDeliverCount;
         $isSourcingPhase = $input->status === ProjectStatus::InProgress && ($uncoveredMaterials !== [] || $purchasesToDeliverCount > self::NONE) && !$productionStarted;
         $blockedReasons = $this->blockedReasons($input->status, \count($uncoveredMaterials), \count($undeliveredJobs), $isSourcingPhase);
-        $unitsLeftToSell = $unitsToSell - $unitsSold;
-        $currentIndex = $isSourcingPhase ? array_search(self::PHASE_SUPPLY, self::PHASE_KEYS, true) : $this->currentPhaseIndex($input->status, $unitsLeftToSell);
+        $unitsLeftToSell = $input->personalUse ? self::NONE : $unitsToSell - $unitsSold;
+        $currentIndex = $isSourcingPhase ? array_search(self::PHASE_SUPPLY, $phaseKeys, true) : $this->currentPhaseIndex($input->status, $unitsLeftToSell, $phaseKeys);
 
         $phases = [];
-        foreach (self::PHASE_KEYS as $index => $key) {
+        foreach ($phaseKeys as $index => $key) {
             $blockedReason = $blockedReasons[$key] ?? null;
             $state = $blockedReason !== null ? self::STATE_BLOCKED : $this->stateOf($index, $currentIndex);
             $phases[] = new CockpitPhase($key, $state, $counters[$key][0], $counters[$key][1], $blockedReason);
@@ -177,15 +184,20 @@ final readonly class ProjectCockpitCalculator
         return $reasons;
     }
 
-    private function currentPhaseIndex(ProjectStatus $status, int $unitsLeftToSell): int
+    /**
+     * @param list<string> $phaseKeys
+     */
+    private function currentPhaseIndex(ProjectStatus $status, int $unitsLeftToSell, array $phaseKeys): int
     {
-        return match ($status) {
-            ProjectStatus::Draft => 0,
-            ProjectStatus::Published => 1,
-            ProjectStatus::InProgress => 2,
-            ProjectStatus::Selling => $unitsLeftToSell > self::NONE ? 3 : 4,
-            ProjectStatus::Completed => \count(self::PHASE_KEYS),
+        $currentKey = match ($status) {
+            ProjectStatus::Draft => self::PHASE_PREPARE,
+            ProjectStatus::Published => self::PHASE_SUPPLY,
+            ProjectStatus::InProgress => self::PHASE_PRODUCE,
+            ProjectStatus::Selling => $unitsLeftToSell > self::NONE ? self::PHASE_SELL : self::PHASE_CLOSE,
+            ProjectStatus::Completed => null,
         };
+
+        return $currentKey === null ? \count($phaseKeys) : (int) array_search($currentKey, $phaseKeys, true);
     }
 
     private function stateOf(int $index, int $currentIndex): string
@@ -229,7 +241,7 @@ final readonly class ProjectCockpitCalculator
 
     private function closedProjectAction(ProjectCockpitInput $input): CockpitNextAction
     {
-        if ($input->unreceivedTransferCount !== null && $input->unreceivedTransferCount > self::NONE) {
+        if (!$input->personalUse && $input->unreceivedTransferCount !== null && $input->unreceivedTransferCount > self::NONE) {
             return new CockpitNextAction(self::ACTION_SETTLE_TRANSFERS, false, self::TAB_FINANCES, null, null, null, null, $input->unreceivedTransferCount);
         }
 
@@ -256,7 +268,9 @@ final readonly class ProjectCockpitCalculator
             return $jobsToLaunch !== [] ? $this->launchJob($jobsToLaunch) : $this->awaitJobs($undeliveredJobs);
         }
 
-        return $this->managerStatusAction($input, self::ACTION_START_SELLING, ProjectStatus::Selling);
+        return $input->personalUse
+            ? $this->managerStatusAction($input, self::ACTION_COMPLETE_PROJECT, ProjectStatus::Completed)
+            : $this->managerStatusAction($input, self::ACTION_START_SELLING, ProjectStatus::Selling);
     }
 
     /**

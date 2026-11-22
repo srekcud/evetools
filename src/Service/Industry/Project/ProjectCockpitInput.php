@@ -22,6 +22,7 @@ final readonly class ProjectCockpitInput
         public ?int $unreceivedTransferCount = null,
         public int $pendingJoinRequestCount = 0,
         public int $purchasesToDeliverCount = 0,
+        public bool $personalUse = false,
     ) {
     }
 }

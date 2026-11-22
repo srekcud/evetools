@@ -46,6 +46,11 @@ class UpdateProjectProcessor implements ProcessorInterface
         'selling' => ['completed'],
     ];
 
+    private const array PERSONAL_USE_VALID_TRANSITIONS = [
+        ...self::VALID_TRANSITIONS,
+        'in_progress' => ['completed'],
+    ];
+
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
@@ -135,7 +140,8 @@ class UpdateProjectProcessor implements ProcessorInterface
 
         if ($data->status !== null) {
             $currentStatus = $project->getStatus()->value;
-            $allowedTargets = self::VALID_TRANSITIONS[$currentStatus] ?? [];
+            $transitions = $project->isPersonalUse() ? self::PERSONAL_USE_VALID_TRANSITIONS : self::VALID_TRANSITIONS;
+            $allowedTargets = $transitions[$currentStatus] ?? [];
 
             if (!in_array($data->status, $allowedTargets, true)) {
                 throw new BadRequestHttpException(

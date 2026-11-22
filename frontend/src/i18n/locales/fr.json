@@ -1105,7 +1105,7 @@
           "button": "Ouvrir les ventes"
         },
         "complete_project": {
-          "text": "Tout est vendu : clôturez le projet pour figer les comptes.",
+          "text": "Clôturez le projet pour figer les comptes.",
           "button": "Clôturer le projet"
         },
         "await_jobs": {
@@ -4560,7 +4560,7 @@
         },
         "complete_project": {
           "title": "Clôturer le projet",
-          "description": "Tout est vendu : clôturez le projet pour figer les comptes."
+          "description": "Clôturez le projet pour figer les comptes."
         },
         "nothing_to_do": {
           "title": "Rien à faire pour vous",

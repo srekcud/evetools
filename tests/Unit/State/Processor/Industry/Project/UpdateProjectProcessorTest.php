@@ -673,6 +673,78 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertSame('Cannot transition from "completed" to "in_progress"', $refusal->getMessage());
     }
 
+    #[Group('issue-1210')]
+    public function testPersonalUseProjectInProgressCompletesWithTheCompletionDate(): void
+    {
+        $this->project->setPersonalUse(true);
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->status = 'completed';
+        $payloads = $this->capturePublishedPayloads();
+
+        $resource = $this->update($input);
+
+        self::assertSame('completed', $resource->status);
+        self::assertSame(ProjectStatus::Completed, $this->project->getStatus());
+        self::assertNotNull($this->project->getCompletedAt());
+        self::assertSame(['oldStatus' => 'in_progress', 'newStatus' => 'completed'], $payloads[0]['data']);
+    }
+
+    #[Group('issue-1210')]
+    public function testPersonalUseProjectInProgressCannotMoveToSellingAndNothingIsChangedNorPublished(): void
+    {
+        $this->project->setPersonalUse(true);
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->status = 'selling';
+        $this->entityManager->expects($this->never())->method('flush');
+        $this->hub->expects($this->never())->method('publish');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $exception) {
+            $refusal = $exception;
+        }
+
+        self::assertInstanceOf(BadRequestHttpException::class, $refusal);
+        self::assertSame('Cannot transition from "in_progress" to "selling"', $refusal->getMessage());
+        self::assertSame(ProjectStatus::InProgress, $this->project->getStatus());
+    }
+
+    #[Group('issue-1210')]
+    public function testPersonalUseProjectAlreadySellingStillCompletes(): void
+    {
+        $this->project->setPersonalUse(true);
+        $this->project->setStatus(ProjectStatus::Selling);
+        $input = new UpdateProjectInput();
+        $input->status = 'completed';
+
+        $this->update($input);
+
+        self::assertSame(ProjectStatus::Completed, $this->project->getStatus());
+        self::assertNotNull($this->project->getCompletedAt());
+    }
+
+    #[Group('issue-1210')]
+    public function testProjectWithoutPersonalUseCannotCompleteDirectlyFromInProgress(): void
+    {
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->status = 'completed';
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $exception) {
+            $refusal = $exception;
+        }
+
+        self::assertInstanceOf(BadRequestHttpException::class, $refusal);
+        self::assertSame('Cannot transition from "in_progress" to "completed"', $refusal->getMessage());
+        self::assertSame(ProjectStatus::InProgress, $this->project->getStatus());
+    }
+
     public static function everyProjectStatus(): iterable
     {
         foreach (ProjectStatus::cases() as $status) {

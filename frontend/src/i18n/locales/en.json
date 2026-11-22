@@ -1105,7 +1105,7 @@
           "button": "Open the sales"
         },
         "complete_project": {
-          "text": "Everything is sold: close the project to freeze the accounts.",
+          "text": "Close the project to freeze the accounts.",
           "button": "Close the project"
         },
         "await_jobs": {
@@ -4560,7 +4560,7 @@
         },
         "complete_project": {
           "title": "Close the project",
-          "description": "Everything is sold: close the project to freeze the accounts."
+          "description": "Close the project to freeze the accounts."
         },
         "nothing_to_do": {
           "title": "Nothing to do for you",

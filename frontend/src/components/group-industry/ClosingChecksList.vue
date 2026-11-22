@@ -7,11 +7,11 @@ import type { ClosingChecksData } from '@/stores/group-industry/types'
 
 const MARGIN_DECIMALS = 1
 
-const props = defineProps<{ checks: ClosingChecksData }>()
+const props = defineProps<{ checks: ClosingChecksData; personalUse?: boolean }>()
 
 const { t } = useI18n()
 const { formatNumber } = useFormatters()
-const checks = computed(() => buildClosingChecks(props.checks))
+const checks = computed(() => buildClosingChecks(props.checks, props.personalUse))
 </script>
 
 <template>
