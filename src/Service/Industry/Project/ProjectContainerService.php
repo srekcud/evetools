@@ -187,6 +187,69 @@ class ProjectContainerService
         return new ProjectContainerStock(null, $quantities, $contentItemIds, $named['missingContainerNames']);
     }
 
+    public function unavailabilityReasonOf(IndustryProject $project): ?string
+    {
+        $owner = $project->getOwner();
+        $corporationId = $owner->getCorporationId();
+        if ($corporationId === null) {
+            return self::REASON_OWNER_WITHOUT_CORPORATION;
+        }
+
+        return $this->unavailabilityReason($corporationId, $owner);
+    }
+
+    public function notFoundReasonOf(IndustryProject $project, string $containerName): string
+    {
+        $owner = $project->getOwner();
+        $corporationId = $owner->getCorporationId();
+        if ($corporationId === null) {
+            return self::REASON_OWNER_WITHOUT_CORPORATION;
+        }
+
+        return $this->notFoundStatusOf(
+            $corporationId,
+            [$containerName],
+            $owner,
+            $this->cachedAssetRepository->lastCachedAtOfCorporationAssets($corporationId),
+        );
+    }
+
+    /**
+     * Everything stored inside the given containers, sub-containers included, each asset once.
+     *
+     * @param CachedAsset[] $visibleAssets
+     * @param list<int> $rootItemIds
+     *
+     * @return list<CachedAsset>
+     */
+    public function contentsOfContainers(array $visibleAssets, array $rootItemIds): array
+    {
+        $assetsByLocationId = [];
+        foreach ($visibleAssets as $asset) {
+            $assetsByLocationId[$asset->getLocationId()][] = $asset;
+        }
+
+        $pendingContainerItemIds = $rootItemIds;
+        $contents = [];
+        $countedItemIds = [];
+
+        while ($pendingContainerItemIds !== []) {
+            $containerItemId = array_pop($pendingContainerItemIds);
+
+            foreach ($assetsByLocationId[$containerItemId] ?? [] as $content) {
+                if (isset($countedItemIds[$content->getItemId()])) {
+                    continue;
+                }
+
+                $countedItemIds[$content->getItemId()] = true;
+                $contents[] = $content;
+                $pendingContainerItemIds[] = $content->getItemId();
+            }
+        }
+
+        return $contents;
+    }
+
     /**
      * @param list<string> $containerNames
      */
@@ -286,10 +349,8 @@ class ProjectContainerService
             $wantedKeys[IndustryProjectContainer::keyOf($containerName)] = false;
         }
 
-        $assetsByLocationId = [];
         $rootItemIds = [];
         foreach ($visibleAssets as $asset) {
-            $assetsByLocationId[$asset->getLocationId()][] = $asset;
             $itemName = $asset->getItemName();
             if ($itemName === null) {
                 continue;
@@ -306,23 +367,7 @@ class ProjectContainerService
             return null;
         }
 
-        $pendingContainerItemIds = $rootItemIds;
-        $contents = [];
-        $countedItemIds = [];
-
-        while ($pendingContainerItemIds !== []) {
-            $containerItemId = array_pop($pendingContainerItemIds);
-
-            foreach ($assetsByLocationId[$containerItemId] ?? [] as $content) {
-                if (isset($countedItemIds[$content->getItemId()])) {
-                    continue;
-                }
-
-                $countedItemIds[$content->getItemId()] = true;
-                $contents[] = $content;
-                $pendingContainerItemIds[] = $content->getItemId();
-            }
-        }
+        $contents = $this->contentsOfContainers($visibleAssets, $rootItemIds);
 
         $missingContainerNames = array_values(array_filter(
             $containerNames,
