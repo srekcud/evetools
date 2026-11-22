@@ -5070,6 +5070,7 @@
       "tabs": {
         "free": "À attribuer",
         "mine": "À livrer",
+        "transport": "Transport",
         "jobs": "Mes jobs"
       },
       "bar": {
@@ -5105,6 +5106,21 @@
       },
       "emptyFree": "Toutes les lignes ont un responsable.",
       "emptyMine": "Rien à livrer.",
+      "transport": {
+        "title": "Courses à faire",
+        "empty": "Aucune course à faire.",
+        "unknown": "Courses inconnues : les courses n'ont pas pu être lues",
+        "unreadable": "{count} lecture manquante, les courses peuvent être incomplètes | {count} lectures manquantes, les courses peuvent être incomplètes",
+        "accessUnknown": "accès inconnu",
+        "declare": "Déclarer",
+        "declared": "Déclarée",
+        "readyNow": "prêt",
+        "states": {
+          "ready": "prêt à porter",
+          "in_production": "en fabrication",
+          "in_transit": "en route"
+        }
+      },
       "emptyJobs": "Aucun de vos jobs sur ce projet.",
       "more": {
         "free": "+ {count} autres lignes libres · voir la BOM"
