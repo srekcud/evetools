@@ -201,6 +201,9 @@ final class StationTransfersApiTest extends WebTestCase
         yield 'without lines' => [array_diff_key($valid, ['lines' => true])];
         yield 'line without typeId' => [array_replace($valid, ['lines' => [['quantity' => 5]]])];
         yield 'line without quantity' => [array_replace($valid, ['lines' => [['typeId' => 34]]])];
+        yield 'quantity beyond the maximum' => [array_replace($valid, ['lines' => [['typeId' => 34, 'quantity' => 2_147_483_648]]])];
+        yield 'too many lines' => [array_replace($valid, ['lines' => array_fill(0, 501, ['typeId' => 34, 'quantity' => 1])])];
+        yield 'same type summed beyond the maximum' => [array_replace($valid, ['lines' => [['typeId' => 34, 'quantity' => 2_147_483_647], ['typeId' => 34, 'quantity' => 1]]])];
     }
 
     public function testCarrierThatIsNotACharacterOfTheDeclarerIsRefused(): void
@@ -343,6 +346,19 @@ final class StationTransfersApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(409);
         self::assertNull($this->storedLeg($bridgeLeg)->getArrivedAt());
+    }
+
+    public function testLegOfACompletedProjectCannotBeMarkedArrived(): void
+    {
+        [$leg] = $this->persistJumpBridgeBetweenStations($this->member, self::EARLIER_DECLARED_AT);
+        $this->ishtarBatch->setStatus(ProjectStatus::Completed);
+        $this->em->flush();
+
+        $this->actAs($this->member);
+        $this->request('POST', $this->transferUri($leg).'/arrive');
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertNull($this->storedLeg($leg)->getArrivedAt());
     }
 
     public function testLegAlreadyArrivedCannotBeMarkedArrivedAgain(): void

@@ -8,7 +8,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 class DeclareStationTransferInput
 {
+    private const int MAXIMUM_QUANTITY = 2_147_483_647;
     private const int MAXIMUM_SOLAR_SYSTEM_ID = 2_147_483_647;
+    private const int MAXIMUM_LINES = 500;
 
     #[Assert\NotNull]
     #[Assert\Type('int')]
@@ -33,11 +35,11 @@ class DeclareStationTransferInput
      */
     #[Assert\NotNull]
     #[Assert\Type('array')]
-    #[Assert\Count(min: 1)]
+    #[Assert\Count(min: 1, max: self::MAXIMUM_LINES)]
     #[Assert\All([
         new Assert\Collection(fields: [
             'typeId' => [new Assert\NotNull(), new Assert\Type('int'), new Assert\Positive()],
-            'quantity' => [new Assert\NotNull(), new Assert\Type('int'), new Assert\Positive()],
+            'quantity' => [new Assert\NotNull(), new Assert\Type('int'), new Assert\Positive(), new Assert\LessThanOrEqual(self::MAXIMUM_QUANTITY)],
         ]),
     ])]
     public mixed $lines = null;

@@ -63,6 +63,10 @@ final readonly class ArriveStationTransferProcessor implements ProcessorInterfac
             throw new AccessDeniedHttpException('Only the declarer, the project owner or an admin can change this transfer');
         }
 
+        if ($project->isCompleted()) {
+            throw new ConflictHttpException('The project is completed, its transfers can no longer change');
+        }
+
         if (null !== $leg->getArrivedAt()) {
             throw new ConflictHttpException('The transfer already arrived');
         }

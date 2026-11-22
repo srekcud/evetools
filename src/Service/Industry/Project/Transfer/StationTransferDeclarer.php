@@ -20,6 +20,8 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class StationTransferDeclarer
 {
+    private const int MAXIMUM_QUANTITY = 2_147_483_647;
+
     public function __construct(
         private IndustryProjectService $projectService,
         private MapSolarSystemRepository $solarSystemRepository,
@@ -101,7 +103,11 @@ final readonly class StationTransferDeclarer
             if (!isset($bomTypeIds[$line['typeId']])) {
                 throw new InvalidStationTransferException(\sprintf('Type %d is not in the bill of materials of the project', $line['typeId']));
             }
-            $quantityByTypeId[$line['typeId']] = ($quantityByTypeId[$line['typeId']] ?? 0) + $line['quantity'];
+            $summedQuantity = ($quantityByTypeId[$line['typeId']] ?? 0) + $line['quantity'];
+            if ($summedQuantity > self::MAXIMUM_QUANTITY) {
+                throw new InvalidStationTransferException(\sprintf('The quantity of type %d is beyond %d', $line['typeId'], self::MAXIMUM_QUANTITY));
+            }
+            $quantityByTypeId[$line['typeId']] = $summedQuantity;
         }
 
         if ([] === $quantityByTypeId) {
