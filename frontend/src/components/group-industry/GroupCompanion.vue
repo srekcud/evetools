@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useJobDisplayLabel } from '@/composables/useJobDisplayLabel'
+import type { ProjectChoice } from '@/stores/group-industry/companion'
 import type { BomItem, JobLocation } from '@/stores/group-industry/types'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
@@ -41,6 +42,8 @@ const props = defineProps<{
   projectName: string
   size: 'bar' | 'column'
   errorMessage: string | null
+  projects?: ProjectChoice[]
+  currentProjectId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -51,6 +54,7 @@ const emit = defineEmits<{
   'open-unassigned-jobs': []
   'open-members': []
   arrive: [transferId: string]
+  'switch-project': [projectId: string]
   supply: [lineId: string]
   'toggle-size': []
 }>()
@@ -82,6 +86,12 @@ function toggleSection(pane: CompanionPane, group: ActivityGroup): void {
 }
 
 const isBar = computed(() => props.size === 'bar')
+
+const projectChoices = computed(() => props.projects ?? [])
+
+function switchTo(projectId: string): void {
+  if (projectId !== props.currentProjectId) emit('switch-project', projectId)
+}
 
 const hereText = computed(() => (props.tasks.hereSystems === null
   ? t('groupIndustry.companion.hereUnknown')
@@ -512,6 +522,26 @@ function unknownReasonText(output: JobLocation): string | null {
             <div class="absolute inset-y-0 left-0" :class="ACTIVITY_STYLES[segment.group].bar" :style="{ width: `${segment.percent}%` }" />
           </div>
         </div>
+      </div>
+
+      <div
+        v-if="projectChoices.length > 1"
+        data-testid="companion-project-switch"
+        role="group"
+        :aria-label="t('groupIndustry.companion.projectSwitch')"
+        class="flex flex-shrink-0 gap-1 px-3 pt-2"
+      >
+        <button
+          v-for="choice in projectChoices"
+          :key="choice.id"
+          type="button"
+          data-testid="companion-project-choice"
+          :aria-pressed="choice.id === currentProjectId"
+          :title="choice.name"
+          class="min-w-0 flex-1 truncate border px-1 py-0.5 text-[11.5px] font-semibold uppercase tracking-wider"
+          :class="choice.id === currentProjectId ? 'border-cyan-400 text-cyan-400' : 'border-slate-700 text-slate-300 hover:bg-slate-800'"
+          @click="switchTo(choice.id)"
+        >{{ choice.name }}</button>
       </div>
 
       <div v-if="alertViews.length > 0" class="mx-3 mt-2 flex max-h-24 flex-shrink-0 flex-col gap-1.5 overflow-y-auto">

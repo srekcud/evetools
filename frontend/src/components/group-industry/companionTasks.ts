@@ -109,6 +109,7 @@ export type CompanionTasksInput = {
 const MY_JOB_STATUSES = ['active', 'paused', 'ready']
 const WORKED_JOB_STATUSES = ['active', 'paused', 'ready', 'delivered']
 const RUNNING_STATE: JobDisplayState = 'running'
+const FINISHED_JOB_STATES: JobDisplayState[] = ['ready', 'delivered']
 const FINAL_JOB_GROUP = 'final'
 const PENDING_MEMBER_STATUS = 'pending'
 const PRODUCT_ACTIVITIES = ['manufacturing', 'reaction']
@@ -202,10 +203,22 @@ export function countdownPartsOf(remainingMs: number): { days: number; hours: nu
   }
 }
 
-function activityProgressOf(bomItems: BomItem[]): ActivityProgress[] {
+function finishedRunsOf(item: BomItem, now: number): number {
+  return item.jobMatches
+    .filter(match => FINISHED_JOB_STATES.includes(jobDisplayOf(match, now).state))
+    .reduce((total, match) => total + match.runs, 0)
+}
+
+function isDoneInFlow(item: BomItem, now: number): boolean {
+  if (item.isFulfilled) return true
+  if (!item.isJob || item.runs === null || item.runs <= 0) return false
+  return finishedRunsOf(item, now) >= item.runs
+}
+
+function activityProgressOf(bomItems: BomItem[], now: number): ActivityProgress[] {
   return groupByActivity(bomItems, item => item)
     .map(({ group, entries }) => {
-      const delivered = entries.filter(item => item.isFulfilled).length
+      const delivered = entries.filter(item => isDoneInFlow(item, now)).length
       return { group, delivered, total: entries.length, percent: Math.round(delivered / entries.length * PERCENT_BASE) }
     })
 }
@@ -360,7 +373,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
   return {
     now,
     product: productOf(project),
-    activityProgress: activityProgressOf(bomItems),
+    activityProgress: activityProgressOf(bomItems, now),
     deliveredLines: bomItems.filter(item => item.isFulfilled).length,
     totalLines: bomItems.length,
     freeValue: freeValueOf(free),

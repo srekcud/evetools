@@ -202,6 +202,8 @@ onBeforeUnmount(() => {
       :project-name="projectName"
       :size="size"
       :error-message="shownMessage"
+      :projects="companion.projectChoices"
+      :current-project-id="companion.projectId"
       @claim="companion.claim"
       @release="companion.release"
       @deliver="deliver"
@@ -210,6 +212,7 @@ onBeforeUnmount(() => {
       @open-members="openMembers"
       @arrive="companion.arriveTransfer"
       @supply="companion.supply"
+      @switch-project="companion.switchProject"
       @toggle-size="toggleSize"
     />
     <p v-else class="p-3 font-mono text-sm text-slate-300" role="status">{{ shownMessage ?? t('groupIndustry.companion.loading') }}</p>

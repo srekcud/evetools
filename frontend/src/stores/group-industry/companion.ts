@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useSyncStore } from '@/stores/sync'
+import { projectDisplayNameOf } from '@/components/group-industry/projectDisplayName'
 import { useUnassignedJobsStore } from './unassignedJobs'
 import type { BomItem, CharacterLocationRead, ChainNode, GroupMember, GroupProject, IntermediateStockProposal, PlacedAction, ProjectChain, ProjectCockpit, ProjectPriceAlert, ProjectSellOrder, ProjectStationTransfer } from './types'
 
@@ -11,6 +12,9 @@ const RECONNECTION_REFRESH = 'reconnected'
 const CHARACTER_ORDERS_SYNC = 'character-orders'
 const TRANSFER_EVENT = 'station_transfer_changed'
 const MATERIAL_CONTRIBUTION = 'material'
+const COMPLETED_PROJECT_STATUS = 'completed'
+
+export type ProjectChoice = { id: string; name: string }
 
 export const useGroupCompanionStore = defineStore('group-companion', () => {
   const projectId = ref<string | null>(null)
@@ -24,6 +28,10 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   const positions = ref<CharacterLocationRead[] | null>(null)
   const transfers = ref<ProjectStationTransfer[] | null>(null)
   const stockProposal = ref<IntermediateStockProposal | null>(null)
+  const myProjects = ref<GroupProject[] | null>(null)
+  const projectChoices = computed<ProjectChoice[]>(() => (myProjects.value ?? [])
+    .filter(candidate => candidate.status !== COMPLETED_PROJECT_STATUS)
+    .map(candidate => ({ id: candidate.id, name: projectDisplayNameOf(candidate) })))
   const error = ref<string | null>(null)
   const unassignedJobs = useUnassignedJobsStore()
 
@@ -109,6 +117,10 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     return readFlow<IntermediateStockProposal>(id, `/industry/projects/${id}/intermediate-stock-proposal`, (value) => { stockProposal.value = value }, 'Failed to fetch the stock proposal')
   }
 
+  function loadMyProjects(id: string): Promise<void> {
+    return readFlow<GroupProject[]>(id, '/industry/projects', (value) => { myProjects.value = value }, 'Failed to fetch projects')
+  }
+
   function resetFlow(): void {
     placedActions.value = null
     positions.value = null
@@ -151,6 +163,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
       loadPlacedActions(id),
       loadPositions(id),
       loadTransfers(id),
+      loadMyProjects(id),
     ])
     if (isStillOpen(id) && isAdmin.value) await loadMembers(id)
   }
@@ -164,6 +177,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     priceAlert.value = null
     undercutOrders.value = []
     resetFlow()
+    myProjects.value = null
     error.value = null
   }
 
@@ -235,12 +249,17 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     await Promise.all([loadBom(id), loadOwnedStockProposal(id)])
   }
 
+  async function switchProject(id: string): Promise<void> {
+    if (id === projectId.value || !projectChoices.value.some(choice => choice.id === id)) return
+    await open(id)
+  }
+
   async function handleEvents(actions: string[]): Promise<void> {
     const id = projectId.value
     if (id === null) return
     const loads = [loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id), unassignedJobs.load(), loadPlacedActions(id), loadOwnedStockProposal(id)]
     if (actions.some(action => action === TRANSFER_EVENT || action === RECONNECTION_REFRESH)) loads.push(loadTransfers(id))
-    if (actions.includes(RECONNECTION_REFRESH)) loads.push(loadPositions(id))
+    if (actions.includes(RECONNECTION_REFRESH)) loads.push(loadPositions(id), loadMyProjects(id))
     if (actions.some(action => action.startsWith(MEMBER_EVENT_PREFIX)) && isAdmin.value) loads.push(loadMembers(id))
     await Promise.all(loads)
   }
@@ -257,5 +276,5 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
 
   useRefetchOnReconnect(() => handleEvent(RECONNECTION_REFRESH))
 
-  return { projectId, bomItems, chainNodes, project, members, priceAlert, undercutOrders, placedActions, positions, transfers, stockProposal, error, open, close, claim, release, refreshPlace, arriveTransfer, supply, handleEvent, handleEvents }
+  return { projectId, bomItems, chainNodes, project, members, priceAlert, undercutOrders, placedActions, positions, transfers, stockProposal, myProjects, projectChoices, error, open, close, claim, release, refreshPlace, arriveTransfer, supply, switchProject, handleEvent, handleEvents }
 })

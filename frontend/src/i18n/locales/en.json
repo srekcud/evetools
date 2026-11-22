@@ -4733,6 +4733,7 @@
         "awaiting": "Awaiting approval"
       },
       "here": "Here: {places}",
+      "projectSwitch": "Projects of the companion",
       "hereUnknown": "Here: unknown",
       "hereBadge": "here",
       "reservation": {
