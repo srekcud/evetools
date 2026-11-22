@@ -168,6 +168,11 @@ deptrac:
       - App\State\Provider\Industry\Project\ProjectStationTransferResourceMapper
     App\State\Processor\Industry\Project\DeleteStationTransferProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\AttachLineBlueprintProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+      - App\State\Provider\Industry\Project\ProjectLineBlueprintResourceMapper
+    App\State\Processor\Industry\Project\DetachLineBlueprintProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\LinkCourierContractProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
       - App\State\Provider\Industry\Project\ProjectCourierResourceMapper

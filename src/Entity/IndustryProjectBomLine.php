@@ -108,12 +108,17 @@ class IndustryProjectBomLine
     #[ORM\OneToMany(targetEntity: IndustryProjectBomLineMark::class, mappedBy: 'line', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $marks;
 
+    /** @var Collection<int, IndustryProjectLineBlueprint> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectLineBlueprint::class, mappedBy: 'bomLine', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $blueprints;
+
     public function __construct()
     {
         $this->id = Uuid::v7();
         $this->jobMatches = new ArrayCollection();
         $this->marks = new ArrayCollection();
         $this->purchases = new ArrayCollection();
+        $this->blueprints = new ArrayCollection();
     }
 
     public function getId(): Uuid
@@ -364,6 +369,12 @@ class IndustryProjectBomLine
     {
         return self::ESI_JOB_ACTIVITY_IDS_BY_ACTIVITY_TYPE[$this->activityType ?? '']
             ?? throw new \LogicException(\sprintf('BOM line activity "%s" has no ESI job activity', $this->activityType ?? 'none'));
+    }
+
+    /** @return Collection<int, IndustryProjectLineBlueprint> */
+    public function getBlueprints(): Collection
+    {
+        return $this->blueprints;
     }
 
     /** @return Collection<int, IndustryProjectJobMatch> */

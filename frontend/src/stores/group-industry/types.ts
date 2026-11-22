@@ -1609,3 +1609,43 @@ export interface DeclareStationTransferInput {
   carrierCharacterId: number | null
   contractId: number | null
 }
+
+export type LineBlueprintKind = 'bpc' | 'bpo'
+
+export type LineBlueprintState = 'here' | 'elsewhere' | 'unknown'
+
+export interface LineBlueprintTransferToMake {
+  typeId: number
+  typeName: string
+  itemId: number
+  quantity: number
+  from: { locationId: number; name: string; solarSystemName: string | null }
+  to: { locationId: number; name: string | null; solarSystemId: number | null; solarSystemName: string | null }
+}
+
+export interface LineBlueprintCandidate {
+  bomLineId: string
+  itemId: number
+  typeId: number | null
+  typeName: string | null
+  kind: LineBlueprintKind | null
+  runs: number | null
+  materialEfficiency: number | null
+  timeEfficiency: number | null
+  state: LineBlueprintState
+  unknownReason: string | null
+  transferToMake: LineBlueprintTransferToMake | null
+}
+
+export interface ProjectLineBlueprint extends LineBlueprintCandidate {
+  id: string
+  attachedBy: string | null
+  attachedAt: string
+  stepPlace: ActionPlace
+  blueprintPlace: { locationId: number | null; name: string | null; solarSystemName: string | null }
+}
+
+export interface AttachLineBlueprintInput {
+  bomLineId: string
+  itemId: number
+}
