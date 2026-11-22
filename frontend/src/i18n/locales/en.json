@@ -3101,6 +3101,7 @@
         "consumption_unknown": "Consumption unknown",
         "job_consumption_unknown": "Job consumption unknown",
         "no_container_at_station": "No container at this station",
+        "container_location_unknown": "Container location unknown: a project container has no station yet",
         "transfer_unreadable": "Transfers unreadable",
         "corporation_assets_not_synced": "Corporation assets not synced",
         "personal_assets_not_synced": "Personal assets not synced"

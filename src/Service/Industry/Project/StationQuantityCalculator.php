@@ -13,6 +13,7 @@ final readonly class StationQuantityCalculator
     public const string REASON_CONSUMPTION_UNKNOWN = 'consumption_unknown';
     public const string REASON_STATION_UNRESOLVED = 'station_unresolved';
     public const string REASON_NO_CONTAINER_AT_STATION = 'no_container_at_station';
+    public const string REASON_CONTAINER_LOCATION_UNKNOWN = 'container_location_unknown';
     public const string REASON_TRANSFER_UNREADABLE = 'transfer_unreadable';
 
     private const array JOB_GROUPS = ['component', 'final'];
@@ -53,18 +54,25 @@ final readonly class StationQuantityCalculator
 
         $demand = $this->demandOf($bomLines, $jobMaterialNeeds ?? [], $locationIdByStructureId);
         $readingsByLocationId = [];
+        $hasUnlocatedContainer = false;
         foreach ($readings as $reading) {
-            if (null !== $reading->locationId) {
-                $readingsByLocationId[$reading->locationId] = $reading;
+            if (null === $reading->locationId) {
+                $hasUnlocatedContainer = true;
+
+                continue;
             }
+
+            $readingsByLocationId[$reading->locationId] = $reading;
         }
+
+        $missingContainerReason = $hasUnlocatedContainer ? self::REASON_CONTAINER_LOCATION_UNKNOWN : self::REASON_NO_CONTAINER_AT_STATION;
 
         return array_map(
             fn (array $entry): TypeStationQuantities => new TypeStationQuantities(
                 $entry[0],
                 $entry[1][0]->getTypeName(),
                 self::lineIdsOf($entry[1]),
-                $this->stationsOf($entry[0], $demand, $readingsByLocationId, $stationNameByLocationId, $inTransitByLocationAndType),
+                $this->stationsOf($entry[0], $demand, $readingsByLocationId, $stationNameByLocationId, $inTransitByLocationAndType, $missingContainerReason),
                 null,
             ),
             $entries,
@@ -165,7 +173,7 @@ final readonly class StationQuantityCalculator
      *
      * @return list<StationQuantity>
      */
-    private function stationsOf(int $typeId, array $demand, array $readingsByLocationId, array $stationNameByLocationId, array $inTransitByLocationAndType): array
+    private function stationsOf(int $typeId, array $demand, array $readingsByLocationId, array $stationNameByLocationId, array $inTransitByLocationAndType, string $missingContainerReason): array
     {
         $stationKeys = [];
         foreach ($demand[$typeId] ?? [] as $stationKey => $figures) {
@@ -190,7 +198,7 @@ final readonly class StationQuantityCalculator
         $stations = [];
         foreach ($orderedKeys as $stationKey) {
             $figures = $demand[$typeId][$stationKey] ?? ['needed' => 0, 'consumed' => 0, 'inProduction' => 0];
-            $stations[] = $this->stationOf($stationKey, $figures, $readingsByLocationId[$stationKey] ?? null, $typeId, $stationNameByLocationId, $this->inTransitAt($inTransitByLocationAndType, $stationKey, $typeId));
+            $stations[] = $this->stationOf($stationKey, $figures, $readingsByLocationId[$stationKey] ?? null, $typeId, $stationNameByLocationId, $this->inTransitAt($inTransitByLocationAndType, $stationKey, $typeId), $missingContainerReason);
         }
 
         return $stations;
@@ -200,7 +208,7 @@ final readonly class StationQuantityCalculator
      * @param array{needed: int, consumed: int, inProduction: int} $figures
      * @param array<int, string> $stationNameByLocationId
      */
-    private function stationOf(int $stationKey, array $figures, ?ProjectContainerReading $reading, int $typeId, array $stationNameByLocationId, ?int $inTransit): StationQuantity
+    private function stationOf(int $stationKey, array $figures, ?ProjectContainerReading $reading, int $typeId, array $stationNameByLocationId, ?int $inTransit, string $missingContainerReason): StationQuantity
     {
         if (self::UNRESOLVED_STATION_KEY === $stationKey) {
             return $this->unreadableStation(null, null, $figures, self::REASON_STATION_UNRESOLVED, 0);
@@ -208,7 +216,7 @@ final readonly class StationQuantityCalculator
 
         $stationName = $stationNameByLocationId[$stationKey] ?? null;
         if (null === $reading) {
-            return $this->unreadableStation($stationKey, $stationName, $figures, self::REASON_NO_CONTAINER_AT_STATION, $inTransit);
+            return $this->unreadableStation($stationKey, $stationName, $figures, $missingContainerReason, $inTransit);
         }
 
         if (null === $reading->contents) {
