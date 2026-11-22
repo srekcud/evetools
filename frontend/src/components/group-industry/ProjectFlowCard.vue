@@ -3,23 +3,34 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
-import type { FlowCard, FlowCardState } from './projectFlow'
+import { ACTIVITY_STYLES } from './companionActivityStyles'
+import { countdownPartsOf } from './companionTasks'
+import type { FlowCard, FlowCardSource, FlowCardState } from './projectFlow'
 import { useFlowReasonLabel } from './useFlowReasonLabel'
 
 const STRIPES_SKY = 'bg-[repeating-linear-gradient(45deg,transparent_0_6px,rgba(56,189,248,0.05)_6px_12px)]'
 const STRIPES_GREY = 'bg-[repeating-linear-gradient(45deg,transparent_0_6px,rgba(100,116,139,0.13)_6px_12px)]'
 
-const STATE_CLASSES: Record<FlowCardState, string> = {
-  toBring: 'border-l-cyan-400',
-  inTransit: `border-l-sky-400 ${STRIPES_SKY}`,
-  onSite: 'border-l-slate-500',
-  consumed: 'border-l-slate-600 opacity-50',
-  inProduction: 'border-l-sky-400',
-  out: 'border-l-cyan-400',
-  toBuy: 'border-l-amber-400',
-  toLaunch: 'border-l-amber-400',
-  sold: 'border-l-emerald-400',
-  unknown: `border-l-slate-500 italic text-slate-400 ${STRIPES_GREY}`,
+const READY_STRIPE = 'border-l-emerald-400'
+const READY_TINT = 'from-emerald-400/15'
+const READY_BAR = 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]'
+const TIME_UNIT_DIGITS = 2
+
+const STATE_SURFACE_CLASSES: Partial<Record<FlowCardState, string>> = {
+  inTransit: STRIPES_SKY,
+  consumed: 'opacity-50',
+  unknown: `italic text-slate-400 ${STRIPES_GREY}`,
+}
+
+const STATE_TEXT_CLASSES: Partial<Record<FlowCardState, string>> = {
+  toBuy: 'text-amber-400',
+  toLaunch: 'text-amber-400',
+}
+
+const SOURCE_CLASSES: Record<FlowCardSource, string> = {
+  stock: 'border-slate-600 text-slate-400',
+  blueprint: 'border-violet-400/50 text-violet-300',
+  invention: 'border-blue-400/50 text-blue-300',
 }
 
 const props = defineProps<{
@@ -33,29 +44,72 @@ const reasonLabel = useFlowReasonLabel()
 
 const name = computed(() => props.card.typeName ?? t('groupIndustry.flow.unnamedType'))
 const reason = computed(() => (props.card.unknownReason === null ? null : reasonLabel(props.card.unknownReason)))
+const activityStyle = computed(() => ACTIVITY_STYLES[props.card.activity])
+const stripeClass = computed(() => (props.card.ready ? READY_STRIPE : activityStyle.value.stripe))
+const tintClass = computed(() => (props.card.state === 'inTransit' || props.card.state === 'unknown' ? '' : `bg-gradient-to-r ${props.card.ready ? READY_TINT : activityStyle.value.tint} to-transparent`))
+const barClass = computed(() => (props.card.ready ? READY_BAR : activityStyle.value.bar))
+
+function padTimeUnit(value: number): string {
+  return String(value).padStart(TIME_UNIT_DIGITS, '0')
+}
+
+const remaining = computed(() => {
+  if (props.card.remainingMs === null) return null
+  const { days, hours, minutes } = countdownPartsOf(props.card.remainingMs)
+  const time = days > 0
+    ? t('groupIndustry.companion.countdown.days', { days, hours: padTimeUnit(hours) })
+    : t('groupIndustry.companion.countdown.clock', { hours: padTimeUnit(hours), minutes: padTimeUnit(minutes) })
+  return t('groupIndustry.flow.remaining', { time })
+})
 </script>
 
 <template>
   <div
     data-testid="flow-card"
     :data-state="card.state"
+    :data-activity="card.activity"
     class="min-w-0 border border-l-[3px] border-slate-800 bg-slate-900 px-2 py-1.5"
-    :class="STATE_CLASSES[card.state]"
+    :class="[stripeClass, tintClass, STATE_SURFACE_CLASSES[card.state]]"
   >
     <div class="flex min-w-0 items-center gap-2">
-      <img
-        v-if="card.typeId !== null"
-        :src="getTypeIconUrl(card.typeId, 32)"
-        alt=""
-        class="h-[26px] w-[26px] flex-none border border-slate-700"
-        @error="onImageError"
-      >
+      <span v-if="card.typeId !== null" class="relative h-[26px] w-[26px] flex-none bg-black">
+        <img
+          :src="getTypeIconUrl(card.typeId, 32)"
+          alt=""
+          class="h-[26px] w-[26px]"
+          @error="onImageError"
+        >
+        <span
+          v-if="card.bpc"
+          data-testid="flow-card-bpc"
+          class="absolute inset-0 border border-violet-400 shadow-[inset_0_0_0_1px_#000]"
+        />
+      </span>
       <span class="min-w-0 flex-1 truncate text-sm font-medium text-slate-200" :title="name">{{ name }}</span>
       <span v-if="card.quantity !== null" class="whitespace-nowrap text-xs tabular-nums text-slate-400">{{ formatNumber(card.quantity, 0) }}</span>
     </div>
-    <div class="mt-1 flex flex-wrap items-center gap-x-2 text-[11.5px] text-slate-400">
-      <span>{{ t(`groupIndustry.flow.states.${card.state}`) }}</span>
+    <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] text-slate-400">
+      <span
+        v-if="card.source !== null"
+        data-testid="flow-card-source"
+        class="whitespace-nowrap rounded-sm border px-1.5 text-[10px]"
+        :class="SOURCE_CLASSES[card.source]"
+      >{{ t(`groupIndustry.flow.sources.${card.source}`) }}</span>
+      <span :class="STATE_TEXT_CLASSES[card.state]">{{ t(`groupIndustry.flow.states.${card.state}`) }}</span>
+      <span v-if="remaining !== null" data-testid="flow-card-remaining" class="tabular-nums text-sky-300">{{ remaining }}</span>
       <span v-if="reason !== null" class="italic text-slate-500">{{ reason }}</span>
+    </div>
+    <div
+      v-if="card.progress !== null"
+      data-testid="flow-card-progress"
+      role="progressbar"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      :aria-valuenow="card.progress"
+      :aria-label="t('groupIndustry.flow.progress', { name })"
+      class="relative mt-1.5 h-[3px] bg-white/10"
+    >
+      <span class="absolute inset-y-0 left-0" :class="barClass" :style="{ width: `${card.progress}%` }" />
     </div>
   </div>
 </template>

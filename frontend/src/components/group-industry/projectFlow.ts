@@ -1,3 +1,5 @@
+import { activityGroupOf, type ActivityGroup } from './companionTasks'
+import { jobDisplayOf, type JobDisplayState } from './jobDisplayState'
 import { buildProductSales } from './productSales'
 import type { BomItem, GroupProject, GroupSale, PlacedAction, StationQuantity, TypeStationQuantities } from '@/stores/group-industry/types'
 
@@ -7,7 +9,18 @@ export const FLOW_COLUMNS: FlowColumn[] = ['toBring', 'onSite', 'inProduction', 
 
 export type FlowCardState = 'toBring' | 'inTransit' | 'onSite' | 'consumed' | 'inProduction' | 'out' | 'toBuy' | 'toLaunch' | 'sold' | 'unknown'
 
-export interface FlowCard {
+export type FlowCardSource = 'stock' | 'blueprint' | 'invention'
+
+export interface FlowCardDetails {
+  activity: ActivityGroup
+  source: FlowCardSource | null
+  bpc: boolean
+  progress: number | null
+  ready: boolean
+  remainingMs: number | null
+}
+
+export interface FlowCard extends FlowCardDetails {
   key: string
   typeId: number | null
   typeName: string | null
@@ -15,6 +28,8 @@ export interface FlowCard {
   state: FlowCardState
   unknownReason: string | null
 }
+
+type FlowCardBase = Omit<FlowCard, keyof FlowCardDetails>
 
 export type FlowRowKind = 'market' | 'station' | 'unresolved'
 
@@ -38,6 +53,7 @@ export interface FlowGridInput {
   sales: GroupSale[]
   project: GroupProject
   bomItems: BomItem[]
+  now: number
 }
 
 export interface FoldedCell {
@@ -53,6 +69,13 @@ const MIN_CALM_CARDS_TO_FOLD = 2
 const MAX_FOLD_LABEL_NAMES = 3
 const STATIONS_UNAVAILABLE_REASON = 'plan_unavailable'
 const CALM_STATES: FlowCardState[] = ['onSite', 'consumed']
+const FULL_PROGRESS = 100
+const BLUEPRINT_ACTIVITIES: ActivityGroup[] = ['copy', 'invention']
+const STOCK_SOURCE_STATES: FlowCardState[] = ['onSite', 'consumed']
+const FINISHED_JOB_STATES: JobDisplayState[] = ['ready', 'delivered']
+const RUNNING_JOB_STATES: JobDisplayState[] = ['running', 'paused']
+const NO_PROGRESS = { progress: null, ready: false, remainingMs: null }
+const UNKNOWN_DETAILS: FlowCardDetails = { activity: 'unknown', source: null, bpc: false, ...NO_PROGRESS }
 
 function emptyCells(): Record<FlowColumn, FlowCard[]> {
   return { toBring: [], onSite: [], inProduction: [], out: [], done: [] }
@@ -69,8 +92,52 @@ function isPositive(quantity: number | null): quantity is number {
   return quantity !== null && quantity > 0
 }
 
-function quantityCards(type: TypeStationQuantities, station: StationQuantity, rowKey: string): [FlowColumn, FlowCard][] {
-  const card = (state: FlowCardState, quantity: number | null, unknownReason: string | null = null): FlowCard => ({
+function lineOfTypes(bomItems: BomItem[]): Map<number, BomItem> {
+  const lines = new Map<number, BomItem>()
+  for (const item of bomItems) {
+    const known = lines.get(item.typeId)
+    if (known === undefined || (!known.isJob && item.isJob)) lines.set(item.typeId, item)
+  }
+  return lines
+}
+
+function sourceOf(state: FlowCardState, line: BomItem, activity: ActivityGroup): FlowCardSource | null {
+  if (activity === 'invention') return 'invention'
+  if (activity === 'copy') return 'blueprint'
+  const suppliedWithoutPurchase = !line.isJob && line.fulfilledQuantity > line.purchasedQuantity
+  return suppliedWithoutPurchase && STOCK_SOURCE_STATES.includes(state) ? 'stock' : null
+}
+
+function progressOf(state: FlowCardState, line: BomItem, now: number): Pick<FlowCardDetails, 'progress' | 'ready' | 'remainingMs'> {
+  if (!line.isJob) return NO_PROGRESS
+  if (state === 'out') return { progress: FULL_PROGRESS, ready: true, remainingMs: null }
+  if (state !== 'inProduction') return NO_PROGRESS
+  const jobs = line.jobMatches.map(match => ({ runs: match.runs, display: jobDisplayOf(match, now) }))
+  const finishedRuns = jobs
+    .filter(job => FINISHED_JOB_STATES.includes(job.display.state))
+    .reduce((total, job) => total + job.runs, 0)
+  const remainingTimes = jobs.flatMap(job => (RUNNING_JOB_STATES.includes(job.display.state) && job.display.remainingMs !== null ? [job.display.remainingMs] : []))
+  const progress = line.runs !== null && line.runs > 0 ? Math.min(FULL_PROGRESS, Math.round(finishedRuns / line.runs * FULL_PROGRESS)) : null
+  return {
+    progress,
+    ready: progress === FULL_PROGRESS,
+    remainingMs: remainingTimes.length === 0 ? null : Math.max(...remainingTimes),
+  }
+}
+
+function detailsOf(state: FlowCardState, line: BomItem | undefined, now: number): FlowCardDetails {
+  if (line === undefined) return UNKNOWN_DETAILS
+  const activity = activityGroupOf(line)
+  return {
+    activity,
+    source: sourceOf(state, line, activity),
+    bpc: BLUEPRINT_ACTIVITIES.includes(activity),
+    ...progressOf(state, line, now),
+  }
+}
+
+function quantityCards(type: TypeStationQuantities, station: StationQuantity, rowKey: string): [FlowColumn, FlowCardBase][] {
+  const card = (state: FlowCardState, quantity: number | null, unknownReason: string | null = null): FlowCardBase => ({
     key: `${state}:${type.typeId}:${rowKey}`,
     typeId: type.typeId,
     typeName: type.typeName,
@@ -78,7 +145,7 @@ function quantityCards(type: TypeStationQuantities, station: StationQuantity, ro
     state,
     unknownReason,
   })
-  const cards: [FlowColumn, FlowCard][] = []
+  const cards: [FlowColumn, FlowCardBase][] = []
   const readable = station.onSite !== null || station.out !== null || station.toBring !== null
   if (isPositive(station.toBring)) cards.push(['toBring', card('toBring', station.toBring)])
   if (isPositive(station.inTransit)) cards.push(['toBring', card('inTransit', station.inTransit)])
@@ -90,12 +157,17 @@ function quantityCards(type: TypeStationQuantities, station: StationQuantity, ro
   return cards
 }
 
-export function buildFlowGrid({ quantities, actions, sales, project, bomItems }: FlowGridInput): FlowGrid {
+export function buildFlowGrid({ quantities, actions, sales, project, bomItems, now }: FlowGridInput): FlowGrid {
+  const lineByTypeId = lineOfTypes(bomItems)
   const rowsByLocationId = new Map<number, FlowRow>()
   const marketRows: FlowRow[] = []
   const stationRows: FlowRow[] = []
   let unresolvedRow: FlowRow | null = null
   let unavailableReason: string | null = null
+
+  function detailed(card: FlowCardBase): FlowCard {
+    return { ...card, ...detailsOf(card.state, card.typeId === null ? undefined : lineByTypeId.get(card.typeId), now) }
+  }
 
   function createRow(key: string, kind: FlowRowKind, locationId: number | null, name: string | null): FlowRow {
     return { key, kind, locationId, name, here: null, cells: emptyCells() }
@@ -134,7 +206,7 @@ export function buildFlowGrid({ quantities, actions, sales, project, bomItems }:
       const cards = quantityCards(type, station, rowKey)
       if (cards.length === 0) continue
       const row = station.locationId === null ? rowOfUnresolved() : rowOfLocation(station.locationId, station.stationName, 'station')
-      for (const [column, card] of cards) row.cells[column].push(card)
+      for (const [column, card] of cards) row.cells[column].push(detailed(card))
     }
   }
 
@@ -144,14 +216,14 @@ export function buildFlowGrid({ quantities, actions, sales, project, bomItems }:
     const row = rowOfAction(action, isPurchase ? 'market' : 'station')
     if (row === null) continue
     if (action.here === true) row.here = true
-    row.cells[isPurchase ? 'onSite' : 'inProduction'].push({
+    row.cells[isPurchase ? 'onSite' : 'inProduction'].push(detailed({
       key: `action:${action.id}`,
       typeId: action.typeId,
       typeName: action.typeName,
       quantity: action.quantity,
       state: isPurchase ? 'toBuy' : 'toLaunch',
       unknownReason: action.place.kind === 'unknown' ? action.place.unknownReason : null,
-    })
+    }))
   }
 
   if (!project.personalUse) {
@@ -160,7 +232,7 @@ export function buildFlowGrid({ quantities, actions, sales, project, bomItems }:
       const row = project.sellStructureId === null
         ? rowOfUnresolved()
         : rowOfLocation(project.sellStructureId, project.sellStructureName, 'market')
-      row.cells.done.push({ key: `sold:${product.typeId}`, typeId: product.typeId, typeName: product.typeName, quantity: product.sold, state: 'sold', unknownReason: null })
+      row.cells.done.push(detailed({ key: `sold:${product.typeId}`, typeId: product.typeId, typeName: product.typeName, quantity: product.sold, state: 'sold', unknownReason: null }))
     }
   }
 

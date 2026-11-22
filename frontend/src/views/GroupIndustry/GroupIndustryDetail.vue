@@ -19,6 +19,7 @@ import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
 import { useFormatters } from '@/composables/useFormatters'
+import { useNow } from '@/composables/useNow'
 import { useOptionalTabQuery } from '@/composables/useOptionalTabQuery'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
@@ -125,6 +126,7 @@ const { showToast } = useToast()
 const projectId = computed(() => route.params.id as string)
 
 const MINIMUM_TEAM_SIZE = 2
+const MS_PER_MINUTE = 60_000
 const TEAM_ONLY_TABS: readonly ProjectDetailTab[] = ['contributions', 'members']
 const INVENTION_TABS: readonly ProjectDetailTab[] = ['invention']
 const PERSONAL_USE_HIDDEN_TABS: readonly ProjectDetailTab[] = ['sales']
@@ -268,6 +270,8 @@ if (openTab.value === 'distribution') {
 }
 
 const flowLoaded = ref(false)
+const clock = useNow()
+const flowNow = computed(() => Math.floor(clock.value / MS_PER_MINUTE) * MS_PER_MINUTE)
 
 function refreshFlow(id: string, salesAlreadyRefreshed = false): Promise<void>[] {
   return [
@@ -286,6 +290,7 @@ const flowGrid = computed(() => {
     sales: distributionStore.sales,
     project: current,
     bomItems: projectStore.bomItems,
+    now: flowNow.value,
   })
 })
 

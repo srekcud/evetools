@@ -2954,6 +2954,13 @@
         "collapse": "\u2212 replier"
       },
       "here": "ici",
+      "sources": {
+        "stock": "stock",
+        "blueprint": "blueprint",
+        "invention": "invention"
+      },
+      "remaining": "{time} restant",
+      "progress": "Avancement de {name}",
       "unnamedType": "Type sans nom",
       "unnamedStation": "Station sans nom",
       "unresolvedRow": "Lieu à choisir",

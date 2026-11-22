@@ -46,6 +46,7 @@ function gridOf(input: {
     sales: input.sales ?? [],
     project: input.project ?? projectOf(),
     bomItems: input.bomItems ?? [],
+    now: Date.parse('2026-11-22T12:00:00Z'),
   })
 }
 
