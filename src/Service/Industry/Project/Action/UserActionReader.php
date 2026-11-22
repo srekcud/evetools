@@ -46,6 +46,25 @@ final readonly class UserActionReader
     }
 
     /**
+     * @param list<User> $users
+     *
+     * @return list<int> the number of actions of each user on the project, in the order of the users
+     */
+    public function countsOfProject(IndustryProject $project, array $users): array
+    {
+        $counts = [];
+        foreach ($users as $user) {
+            $count = 0;
+            foreach ($this->sources as $source) {
+                $count += \count($source->actionsOf($project, $user));
+            }
+            $counts[] = $count;
+        }
+
+        return $counts;
+    }
+
+    /**
      * @param list<IndustryProject> $projects
      *
      * @return list<LocatedAction>

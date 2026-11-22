@@ -4271,6 +4271,35 @@
       "leaveBlockedByContributions": "Vous ne pouvez pas quitter : vous avez contribué à ce projet.",
       "leaveSuccess": "Vous avez quitte le projet."
     },
+    "overview": {
+      "columns": {
+        "project": "Projet",
+        "you": "Vous",
+        "team": "Propriétaire · équipe",
+        "toBring": "À apporter",
+        "onSite": "Sur place",
+        "inProduction": "En fabrication",
+        "out": "Sorti",
+        "done": "Vendu / remis",
+        "awaited": "Qui est attendu"
+      },
+      "summary": {
+        "runs": "{count} runs",
+        "items": "{items} items · {runs} runs"
+      },
+      "unknownCards": "+ {count} ?",
+      "unknown": "?",
+      "notStarted": "—",
+      "you": "vous",
+      "esi": "ESI (jobs, couriers)",
+      "closed": "clôturé",
+      "flowReason": {
+        "plan_unavailable": "Le plan de production n'est pas encore lisible",
+        "consumption_unknown": "La consommation de matières d'un job démarré n'est pas lisible",
+        "not_started": "Le projet n'a pas démarré",
+        "completed": "Le projet est clôturé"
+      }
+    },
     "shareLink": {
       "title": "Lien d'invitation",
       "copied": "Lien copie !",

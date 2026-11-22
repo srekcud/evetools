@@ -1664,3 +1664,28 @@ export interface AttachLineBlueprintInput {
   bomLineId: string
   itemId: number
 }
+
+export interface ProjectOverviewFlow {
+  toBring: number
+  onSite: number
+  inProduction: number
+  out: number
+  done: number
+}
+
+export interface ProjectOverviewAwaited {
+  name: string
+  mine: boolean
+  count: number
+}
+
+export interface ProjectOverview {
+  projectId: string
+  myRole: GroupMemberRole
+  ownerName: string
+  team: { name: string; role: GroupMemberRole }[]
+  flow: ProjectOverviewFlow | null
+  flowReason: string | null
+  flowUnknown: number
+  awaited: ProjectOverviewAwaited[]
+}

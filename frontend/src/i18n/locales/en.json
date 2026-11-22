@@ -4271,6 +4271,35 @@
       "leaveBlockedByContributions": "You cannot leave: you have contributed to this project.",
       "leaveSuccess": "You have left the project."
     },
+    "overview": {
+      "columns": {
+        "project": "Project",
+        "you": "You",
+        "team": "Owner · team",
+        "toBring": "To bring",
+        "onSite": "On site",
+        "inProduction": "In production",
+        "out": "Out",
+        "done": "Sold / handed over",
+        "awaited": "Who is awaited"
+      },
+      "summary": {
+        "runs": "{count} runs",
+        "items": "{items} items · {runs} runs"
+      },
+      "unknownCards": "+ {count} ?",
+      "unknown": "?",
+      "notStarted": "—",
+      "you": "you",
+      "esi": "ESI (jobs, couriers)",
+      "closed": "closed",
+      "flowReason": {
+        "plan_unavailable": "The production plan cannot be read yet",
+        "consumption_unknown": "The material consumption of a started job cannot be read",
+        "not_started": "The project has not started",
+        "completed": "The project is closed"
+      }
+    },
     "shareLink": {
       "title": "Invite Link",
       "copied": "Link copied!",

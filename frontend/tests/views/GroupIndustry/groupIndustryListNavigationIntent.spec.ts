@@ -46,7 +46,7 @@ function mountList(): VueWrapper {
         ProjectKpiCards: true,
         LineRentalModal: true,
         AvailableProjectCard: true,
-        ProjectCard: true,
+        ProjectsOverviewTable: true,
       },
     },
   })

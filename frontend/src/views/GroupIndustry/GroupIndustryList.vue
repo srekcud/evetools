@@ -12,7 +12,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import ProjectKpiCards from '@/components/group-industry/ProjectKpiCards.vue'
 import UnassignedJobsPanel from '@/components/group-industry/UnassignedJobsPanel.vue'
-import ProjectCard from '@/components/group-industry/ProjectCard.vue'
+import ProjectsOverviewTable from '@/components/group-industry/ProjectsOverviewTable.vue'
 import AvailableProjectCard from '@/components/group-industry/AvailableProjectCard.vue'
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
 import LineRentalModal from '@/components/group-industry/LineRentalModal.vue'
@@ -132,6 +132,7 @@ async function fetchProjects() {
     const myProjectsError = groupProjectStore.error
     await groupProjectStore.fetchAvailableProjects()
     const availableProjectsError = groupProjectStore.error
+    await groupProjectStore.fetchProjectOverviews()
     myProjects.value = groupProjectStore.myProjects
     availableProjects.value = groupProjectStore.availableProjects
     error.value = myProjectsError ?? availableProjectsError
@@ -310,14 +311,13 @@ onMounted(() => {
         </div>
 
         <!-- Project Cards Grid -->
-        <div v-if="filteredProjects.length > 0" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <ProjectCard
-            v-for="project in filteredProjects"
-            :key="project.id"
-            :project="project"
-            @click="navigateToProject"
-          />
-        </div>
+        <ProjectsOverviewTable
+          v-if="filteredProjects.length > 0"
+          :projects="filteredProjects"
+          :overviews="groupProjectStore.projectOverviews"
+          :overview-error="groupProjectStore.projectOverviewsError"
+          @open="navigateToProject"
+        />
 
         <!-- Empty state -->
         <div v-else class="bg-slate-900/80 rounded-xl border border-dashed border-slate-700 p-12 text-center">

@@ -12,7 +12,7 @@ use App\Service\Industry\Project\Transfer\ProjectStationTransfers;
 use App\Service\Industry\Project\Transfer\StationTransferReading;
 use App\Service\Industry\Project\Transfer\TransferLegState;
 
-final readonly class ProjectStationQuantities
+final readonly class ProjectStationQuantities implements StationQuantitiesSource
 {
     public function __construct(
         private ProjectJobMaterialNeedsLoader $needsLoader,
