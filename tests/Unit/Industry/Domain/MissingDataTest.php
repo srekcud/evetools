@@ -52,4 +52,12 @@ final class MissingDataTest extends TestCase
 
         $this->assertSame(['facility_tax', null], [$missingData->reason, $missingData->typeId]);
     }
+
+    #[Group('issue-1331')]
+    public function testUnrecognisedRigBelongsToNoType(): void
+    {
+        $missingData = MissingData::unrecognisedRig();
+
+        $this->assertSame(['unrecognised_rig', null], [$missingData->reason, $missingData->typeId]);
+    }
 }

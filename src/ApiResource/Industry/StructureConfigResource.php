@@ -84,5 +84,8 @@ class StructureConfigResource
 
     public float $reactionTimeBonus = 0.0;
 
+    /** @var list<string> */
+    public array $unrecognisedRigs = [];
+
     public string $createdAt;
 }

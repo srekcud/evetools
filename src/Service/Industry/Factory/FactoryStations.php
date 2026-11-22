@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Enum\StructureAccessStatus;
 use App\Industry\Application\SystemCostIndices;
 use App\Industry\Domain\ActivityKind;
+use App\Industry\Infrastructure\Doctrine\StructureBonusSummary;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryStructureConfigRepository;
@@ -28,6 +29,7 @@ final readonly class FactoryStations
         private CachedIndustryJobRepository $jobRepository,
         private IndustryProjectParticipantRepository $participantRepository,
         private MapSolarSystemRepository $solarSystemRepository,
+        private StructureBonusSummary $structureBonusSummary,
     ) {
     }
 
@@ -79,11 +81,12 @@ final readonly class FactoryStations
      */
     private function specialisationsOf(IndustryStructureConfig $configuration): array
     {
+        $bonuses = $this->structureBonusSummary->of($configuration->getStructureType(), $configuration->getSecurityType(), $configuration->getRigs());
         $specialisations = [];
-        if ($configuration->getManufacturingMaterialBonus() > 0.0 || $configuration->getManufacturingTimeBonus() > 0.0) {
+        if ($bonuses->manufacturingMaterialBonus > 0.0 || $bonuses->manufacturingTimeBonus > 0.0) {
             $specialisations[] = self::MANUFACTURING;
         }
-        if ($configuration->getReactionMaterialBonus() > 0.0 || $configuration->getReactionTimeBonus() > 0.0) {
+        if ($bonuses->reactionMaterialBonus > 0.0 || $bonuses->reactionTimeBonus > 0.0) {
             $specialisations[] = self::REACTION;
         }
 

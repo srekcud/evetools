@@ -20,6 +20,7 @@ final readonly class ProductionStructure
      * @param list<StructureRig> $rigs
      * @param list<ScienceRig> $scienceRigs
      * @param list<TimeRig> $timeRigs
+     * @param list<string> $unrecognisedRigs
      */
     public function __construct(
         public string $id,
@@ -35,6 +36,7 @@ final readonly class ProductionStructure
         public array $scienceRigs = [],
         public Multiplier $reactionTimeRoleBonus = new Multiplier(1.0),
         public array $timeRigs = [],
+        public array $unrecognisedRigs = [],
     ) {
     }
 

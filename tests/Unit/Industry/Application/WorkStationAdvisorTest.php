@@ -351,6 +351,38 @@ final class WorkStationAdvisorTest extends TestCase
         $this->assertSame(['C', 'A', false, null], [$blueprints->recommendedStructureId, $blueprints->chosenStructureId, $blueprints->choiceStale, $blueprints->savingIfRecommended]);
     }
 
+    #[Group('issue-1331')]
+    public function testStructureWithUnrecognisedRigsCarriesTheMissingDataOnceAndKeepsCostsAndRanking(): void
+    {
+        $reference = $this->adviceFor(WorkType::FinalProducts, $this->adviseIshtar([Example::workshopStructureWithoutRig(), Example::structureC()]));
+
+        $advice = $this->adviceFor(WorkType::FinalProducts, $this->adviseIshtar([
+            Example::workshopStructureWithoutRig(),
+            $this->withUnrecognisedRigs(Example::structureC(), ['Standup M-Set Laboratory Optimization II', 'Standup M-Set Laboratory Optimization I']),
+        ]));
+
+        $this->assertSame([['unrecognised_rig', null]], $this->missingDataOf($this->rowOf($advice, 'C')));
+        $this->assertSame([], $this->missingDataOf($this->rowOf($advice, 'A')));
+        $this->assertSame($reference->recommendedStructureId, $advice->recommendedStructureId);
+        $this->assertSame($this->structureIdsOf($reference), $this->structureIdsOf($advice));
+        foreach (['A', 'C'] as $structureId) {
+            $this->assertSame($this->costsOf($this->rowOf($reference, $structureId)), $this->costsOf($this->rowOf($advice, $structureId)));
+        }
+    }
+
+    #[Group('issue-1331')]
+    public function testUnrecognisedRigComesAfterTheMissingDataOfTheCost(): void
+    {
+        $advice = $this->adviceFor(WorkType::FinalProducts, $this->adviseIshtar([
+            $this->withUnrecognisedRigs(Example::riggedStructure('Z', null), ['Standup M-Set Laboratory Optimization II']),
+        ]));
+
+        $reasons = array_map(static fn (array $missingData): string => $missingData[0], $this->missingDataOf($this->rowOf($advice, 'Z')));
+        $this->assertSame('unrecognised_rig', $reasons[array_key_last($reasons)]);
+        $this->assertSame(1, \count(array_keys($reasons, 'unrecognised_rig', true)));
+        $this->assertContains('cost_index', $reasons);
+    }
+
     /**
      * @param array<string, string> $storedStructureIds
      *
@@ -481,6 +513,36 @@ final class WorkStationAdvisorTest extends TestCase
         $this->assertCount(1, $found, \sprintf('Expected one advice for the type of work %s.', $workType->value));
 
         return $found[0];
+    }
+
+    private function withUnrecognisedRigs(ProductionStructure $structure, array $unrecognisedRigs): ProductionStructure
+    {
+        return new ProductionStructure(
+            $structure->id,
+            $structure->type,
+            $structure->security,
+            $structure->solarSystemId,
+            $structure->configuredAt,
+            $structure->manufacturingMaterialRoleBonus,
+            $structure->rigs,
+            $structure->costRoleBonus,
+            $structure->facilityTaxRate,
+            $structure->timeRoleBonus,
+            $structure->scienceRigs,
+            $structure->reactionTimeRoleBonus,
+            $structure->timeRigs,
+            $unrecognisedRigs,
+        );
+    }
+
+    private function missingDataOf(WorkStationRow $row): array
+    {
+        return array_map(static fn (MissingData $missingData): array => [$missingData->reason, $missingData->typeId], $row->missingData);
+    }
+
+    private function costsOf(WorkStationRow $row): array
+    {
+        return [$row->materialsCost, $row->installationCost, $row->transportCost, $row->totalCost, $row->delta];
     }
 
     private function rowOf(WorkTypeAdvice $advice, string $structureId): WorkStationRow

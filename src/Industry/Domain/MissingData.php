@@ -27,6 +27,7 @@ final readonly class MissingData
     private const string RESEARCH_SKILL = 'research_skill';
     private const string RESEARCHER = 'researcher';
     private const string STRUCTURE_PRICE = 'structure_price';
+    private const string UNRECOGNISED_RIG = 'unrecognised_rig';
 
     private function __construct(public string $reason, public ?int $typeId)
     {
@@ -118,6 +119,11 @@ final readonly class MissingData
     public static function noCopyStructure(): self
     {
         return new self(self::NO_COPY_STRUCTURE, null);
+    }
+
+    public static function unrecognisedRig(): self
+    {
+        return new self(self::UNRECOGNISED_RIG, null);
     }
 
     public static function plannedStructureDeleted(): self

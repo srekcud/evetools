@@ -277,7 +277,7 @@ final readonly class WorkStationAdvisor
                 $legs,
                 self::amountOf($total),
                 null,
-                $total->missingData,
+                [] === $structure->unrecognisedRigs ? $total->missingData : [...$total->missingData, MissingData::unrecognisedRig()],
             );
         }
 

@@ -243,6 +243,17 @@ deptrac:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\Service\MiningOperation\MiningBoostShipCapacities:
       - App\Industry\Infrastructure\Sde\DogmaAttributeValues
+    App\Service\Industry\Factory\FactoryStations:
+      - App\Industry\Infrastructure\Doctrine\StructureBonusSummary
+    App\State\Processor\Industry\StructureBonusPreviewProcessor:
+      - App\Industry\Infrastructure\Doctrine\StructureBonusSummary
+    App\State\Provider\Industry\CorporationStructureProvider:
+      - App\Industry\Infrastructure\Doctrine\StructureBonusSummary
+    App\State\Provider\Industry\IndustryResourceMapper:
+      - App\Industry\Infrastructure\Doctrine\StructureBonusSummary
+    App\State\Provider\Industry\RigOptionsProvider:
+      - App\Industry\Infrastructure\Sde\SdeRigBonusReader
+      - App\Industry\Domain\ActivityKind
     App\Service\MiningOperation\MiningOperationEnrolment:
       - App\ApiResource\Input\MiningOperation\CreateMiningOperationInput
     App\State\Processor\MiningOperation\CompleteMiningOperationProcessor:

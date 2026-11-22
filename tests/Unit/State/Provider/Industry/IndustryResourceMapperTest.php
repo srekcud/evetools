@@ -6,48 +6,67 @@ namespace App\Tests\Unit\State\Provider\Industry;
 
 use App\Entity\IndustryStructureConfig;
 use App\State\Provider\Industry\IndustryResourceMapper;
+use App\Tests\Unit\Support\StubsSdeStructureBonuses;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(IndustryResourceMapper::class)]
 class IndustryResourceMapperTest extends TestCase
 {
+    use StubsSdeStructureBonuses;
+
     public function testStructureResourceExposesReactionMaterialBonusWithReactionSecurityMultiplier(): void
     {
-        $mapper = new IndustryResourceMapper();
+        $mapper = new IndustryResourceMapper($this->sdeStructureBonusSummary());
 
         $tatara = new IndustryStructureConfig();
         $tatara->setName('Nullsec Tatara');
         $tatara->setStructureType('tatara');
         $tatara->setSecurityType('nullsec');
-        $tatara->setRigs(['Standup M-Set Composite Reactor Material Efficiency II']);
+        $tatara->setRigs([self::SDE_COMPOSITE_REACTOR_ME_II]);
 
         $resource = $mapper->structureToResource($tatara);
 
-        // Issue #72: 2.4% x 1.1 (nullsec reaction multiplier), not x 2.1 (manufacturing)
         $this->assertSame(2.64, $resource->reactionMaterialBonus);
         $this->assertSame(0.0, $resource->manufacturingMaterialBonus);
     }
 
     public function testStructureResourceExposesStandardLargeRigTimeBonusAtTheSdeScale(): void
     {
-        $mapper = new IndustryResourceMapper();
+        $mapper = new IndustryResourceMapper($this->sdeStructureBonusSummary());
 
         $azbel = new IndustryStructureConfig();
         $azbel->setName('Nullsec Azbel');
         $azbel->setStructureType('azbel');
         $azbel->setSecurityType('nullsec');
-        $azbel->setRigs(['Standup L-Set Basic Large Ship Manufacturing Efficiency II']);
+        $azbel->setRigs([self::SDE_L_SET_BASIC_LARGE_SHIP_EFFICIENCY_II]);
 
         $resource = $mapper->structureToResource($azbel);
 
-        // Issue #94: rig 24 % x 2.1 = 50.4 %, stacked with the Azbel 20 %: 1 - 0.80 x (1 - 0.504)
         $this->assertSame(60.32, $resource->manufacturingTimeBonus);
+    }
+
+    #[Group('issue-1331')]
+    public function testStructureResourceExposesTheRigNamesMissingFromTheSdeOnce(): void
+    {
+        $mapper = new IndustryResourceMapper($this->sdeStructureBonusSummary());
+
+        $sotiyo = new IndustryStructureConfig();
+        $sotiyo->setName('Nullsec Sotiyo');
+        $sotiyo->setStructureType('sotiyo');
+        $sotiyo->setSecurityType('nullsec');
+        $sotiyo->setRigs([self::SDE_XL_SET_LABORATORY_OPTIMIZATION_II, self::SDE_REMOVED_M_SET_LABORATORY_OPTIMIZATION_II, self::SDE_REMOVED_M_SET_LABORATORY_OPTIMIZATION_II]);
+
+        $resource = $mapper->structureToResource($sotiyo);
+
+        $this->assertSame([self::SDE_REMOVED_M_SET_LABORATORY_OPTIMIZATION_II], $resource->unrecognisedRigs);
+        $this->assertSame(30.0, $resource->manufacturingTimeBonus);
     }
 
     public function testStructureResourceExposesTheGameFacilityTaxForAnNpcStationStoredWithAnotherTax(): void
     {
-        $mapper = new IndustryResourceMapper();
+        $mapper = new IndustryResourceMapper($this->sdeStructureBonusSummary());
 
         $station = new IndustryStructureConfig();
         $station->setName('Hek VIII');

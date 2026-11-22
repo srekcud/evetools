@@ -12,6 +12,10 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryStructureConfig;
+use App\Entity\Sde\DgmTypeAttribute;
+use App\Entity\Sde\InvCategory;
+use App\Entity\Sde\InvGroup;
+use App\Entity\Sde\InvType;
 use App\Entity\Sde\MapConstellation;
 use App\Entity\Sde\MapRegion;
 use App\Entity\Sde\MapSolarSystem;
@@ -36,6 +40,11 @@ final class FactoryApiTest extends WebTestCase
     private const int CONSTELLATION_ID = 20_000_020;
     private const int TRITANIUM_TYPE_ID = 34;
     private const int PYERITE_TYPE_ID = 35;
+    private const int RIG_CATEGORY_ID = 1_331;
+    private const int RIG_GROUP_ID = 1_331_001;
+    private const int MANUFACTURING_ME_RIG_TYPE_ID = 1_331_100;
+    private const int HIGH_SEC_MODIFIER_ATTRIBUTE_ID = 2355;
+    private const int MANUFACTURING_MATERIAL_BONUS_ATTRIBUTE_ID = 2594;
     private const string STATIONS_PATH = '/api/industry/factory/stations';
     private const string PROJECT_STOCK_PATH = '/api/industry/factory/project-stock';
     private const string MANUFACTURING_ME_RIG = 'Standup M-Set Basic Large Ship Manufacturing Material Efficiency I';
@@ -64,6 +73,14 @@ final class FactoryApiTest extends WebTestCase
         $this->em->persist($region);
         $this->em->persist($constellation);
         $this->em->persist((new MapSolarSystem())->setSolarSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID)->setSolarSystemName('Jita')->setConstellation($constellation)->setRegionId(self::REGION_ID));
+
+        $rigCategory = (new InvCategory())->setCategoryId(self::RIG_CATEGORY_ID)->setCategoryName('Test Rig');
+        $rigGroup = (new InvGroup())->setGroupId(self::RIG_GROUP_ID)->setGroupName('Test Rig Group')->setCategory($rigCategory);
+        $this->em->persist($rigCategory);
+        $this->em->persist($rigGroup);
+        $this->em->persist((new InvType())->setTypeId(self::MANUFACTURING_ME_RIG_TYPE_ID)->setTypeName(self::MANUFACTURING_ME_RIG)->setGroup($rigGroup));
+        $this->em->persist((new DgmTypeAttribute())->setTypeId(self::MANUFACTURING_ME_RIG_TYPE_ID)->setAttributeId(self::HIGH_SEC_MODIFIER_ATTRIBUTE_ID)->setValueInt(1));
+        $this->em->persist((new DgmTypeAttribute())->setTypeId(self::MANUFACTURING_ME_RIG_TYPE_ID)->setAttributeId(self::MANUFACTURING_MATERIAL_BONUS_ATTRIBUTE_ID)->setValueInt(-2));
 
         $this->raitaru = (new IndustryStructureConfig())
             ->setUser($this->pilot)

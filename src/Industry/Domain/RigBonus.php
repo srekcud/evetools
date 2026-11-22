@@ -18,6 +18,13 @@ final readonly class RigBonus
         }
     }
 
+    public function effectivePercentIn(SecurityClass $security): ?float
+    {
+        $securityModifier = $this->securityModifiers->in($security);
+
+        return null === $securityModifier ? null : $this->reductionPercent * $securityModifier;
+    }
+
     /**
      * mod_rig = 1 − (bonus % × security modifier) / 100.
      */

@@ -33,4 +33,7 @@ class StructureBonusPreviewResource
     public float $manufacturingTimeBonus = 0.0;
 
     public float $reactionTimeBonus = 0.0;
+
+    /** @var list<string> */
+    public array $unrecognisedRigs = [];
 }

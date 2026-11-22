@@ -27,6 +27,7 @@ use App\Service\Industry\Factory\FactoryStationAccess;
 use App\Service\Industry\Factory\FactoryStationProject;
 use App\Service\Industry\Factory\FactoryStations;
 use App\Service\Industry\Project\StructureAccess\CharacterStructureAccess;
+use App\Tests\Unit\Support\StubsSdeStructureBonuses;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -35,14 +36,17 @@ use PHPUnit\Framework\TestCase;
 #[Group('issue-1314')]
 final class FactoryStationsTest extends TestCase
 {
+    use StubsSdeStructureBonuses;
+
     private const int RAITARU_STRUCTURE_ID = 1_031_000_000_100;
     private const int ATHANOR_STRUCTURE_ID = 1_031_000_000_200;
     private const int JITA_SYSTEM_ID = 30_000_142;
     private const int PERIMETER_SYSTEM_ID = 30_000_144;
     private const int ARIA_EVE_ID = 2_131_400_001;
     private const int BRANN_EVE_ID = 2_131_400_002;
-    private const string MANUFACTURING_ME_RIG = 'Standup M-Set Basic Large Ship Manufacturing Material Efficiency I';
-    private const string REACTOR_ME_RIG = 'Standup M-Set Composite Reactor Material Efficiency II';
+    private const string MANUFACTURING_ME_RIG = self::SDE_M_SET_BASIC_LARGE_SHIP_ME_I;
+    private const string REACTOR_ME_RIG = self::SDE_COMPOSITE_REACTOR_ME_II;
+    private const string NULLSEC = 'nullsec';
 
     private User $user;
     private Character $aria;
@@ -81,7 +85,7 @@ final class FactoryStationsTest extends TestCase
 
     public function testManufacturingAndReactionRigsGiveBothSpecialisationsInOrder(): void
     {
-        $this->raitaru->setRigs([self::REACTOR_ME_RIG, self::MANUFACTURING_ME_RIG]);
+        $this->raitaru->setRigs([self::REACTOR_ME_RIG, self::MANUFACTURING_ME_RIG])->setSecurityType(self::NULLSEC);
 
         $station = $this->onlyStation($this->factoryStations()->of($this->user));
 
@@ -91,7 +95,39 @@ final class FactoryStationsTest extends TestCase
     public function testReactionRigAloneGivesOnlyTheReactionSpecialisation(): void
     {
         $this->configs = [];
+        $this->config('Athanor Beta', 'athanor', self::ATHANOR_STRUCTURE_ID, self::PERIMETER_SYSTEM_ID, [self::REACTOR_ME_RIG])->setSecurityType(self::NULLSEC);
+
+        $station = $this->onlyStation($this->factoryStations()->of($this->user));
+
+        self::assertSame(['reaction'], $station->specialisations);
+    }
+
+    #[Group('issue-1331')]
+    public function testReactionRigWithoutModifierInTheSecurityOfTheStationGivesNoSpecialisation(): void
+    {
+        $this->configs = [];
         $this->config('Athanor Beta', 'athanor', self::ATHANOR_STRUCTURE_ID, self::PERIMETER_SYSTEM_ID, [self::REACTOR_ME_RIG]);
+
+        $station = $this->onlyStation($this->factoryStations()->of($this->user));
+
+        self::assertSame([], $station->specialisations);
+    }
+
+    #[Group('issue-1331')]
+    public function testRaitaruWithoutRigIsSpecialisedInManufacturingByItsRoleTimeBonusAlone(): void
+    {
+        $this->raitaru->setRigs([]);
+
+        $station = $this->onlyStation($this->factoryStations()->of($this->user));
+
+        self::assertSame(['manufacturing'], $station->specialisations);
+    }
+
+    #[Group('issue-1331')]
+    public function testTataraWithoutRigIsSpecialisedInReactionByItsRoleTimeBonusAlone(): void
+    {
+        $this->configs = [];
+        $this->config('Tatara Gamma', 'tatara', self::ATHANOR_STRUCTURE_ID, self::PERIMETER_SYSTEM_ID, []);
 
         $station = $this->onlyStation($this->factoryStations()->of($this->user));
 
@@ -319,7 +355,7 @@ final class FactoryStationsTest extends TestCase
             },
         );
 
-        return new FactoryStations($structureConfigRepository, $costIndices, $structureAccess, $jobRepository, $participantRepository, $solarSystemRepository);
+        return new FactoryStations($structureConfigRepository, $costIndices, $structureAccess, $jobRepository, $participantRepository, $solarSystemRepository, $this->sdeStructureBonusSummary());
     }
 
     /**
