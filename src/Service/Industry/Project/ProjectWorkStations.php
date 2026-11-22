@@ -73,7 +73,7 @@ final readonly class ProjectWorkStations
     /**
      * @param list<int> $targetProductTypeIds
      */
-    private function workTypeOf(IndustryProjectBomLine $line, array $targetProductTypeIds): WorkType
+    public function workTypeOf(IndustryProjectBomLine $line, array $targetProductTypeIds): WorkType
     {
         if (self::BLUEPRINT_JOB_GROUP === $line->getJobGroup()) {
             return WorkType::Blueprints;
@@ -112,7 +112,7 @@ final readonly class ProjectWorkStations
     /**
      * @return list<int>
      */
-    private function targetProductTypeIdsOf(IndustryProject $project): array
+    public function targetProductTypeIdsOf(IndustryProject $project): array
     {
         return array_values(array_map(static fn (IndustryProjectProduct $item): int => $item->getTypeId(), $project->getItems()->toArray()));
     }

@@ -67,4 +67,11 @@ class IndustryProjectContainer
 
         return $this;
     }
+
+    public function clearLocation(): static
+    {
+        $this->locationId = null;
+
+        return $this;
+    }
 }
