@@ -49,6 +49,8 @@ final readonly class DeleteStationTransferProcessor implements ProcessorInterfac
             throw new NotFoundHttpException('Project not found');
         }
 
+        $this->accessChecker->assertAcceptedMember($user, $project);
+
         $leg = $this->transferRepository->findOneByProjectAndId($project, UuidOrNotFound::of($data->id, 'Transfer not found'))
             ?? throw new NotFoundHttpException('Transfer not found');
 

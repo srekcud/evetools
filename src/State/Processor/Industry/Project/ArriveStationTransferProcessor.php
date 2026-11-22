@@ -72,7 +72,12 @@ final readonly class ArriveStationTransferProcessor implements ProcessorInterfac
         }
 
         if ($leg->getLegIndex() > 0) {
-            $legBefore = $this->transferRepository->findByRoute($leg->getRouteId())[$leg->getLegIndex() - 1] ?? null;
+            $legBefore = null;
+            foreach ($this->transferRepository->findByRoute($leg->getRouteId()) as $routeLeg) {
+                if ($routeLeg->getLegIndex() === $leg->getLegIndex() - 1) {
+                    $legBefore = $routeLeg;
+                }
+            }
             if (null === $legBefore || null === $legBefore->getArrivedAt()) {
                 throw new ConflictHttpException('The leg before this one has not arrived');
             }
