@@ -3011,6 +3011,31 @@
         "done": "Done"
       }
     },
+    "iskBand": {
+      "label": "Money of the project",
+      "unknown": "Unknown",
+      "labels": {
+        "committed": "Committed",
+        "onSite": "On site",
+        "expected": "Expected sales",
+        "cashed": "Cashed",
+        "costPerUnit": "Cost per unit",
+        "profit": "Profit",
+        "estimatedProfit": "Estimated profit",
+        "provisionalProfit": "Provisional profit"
+      },
+      "notes": {
+        "committed": "purchases, stock taken, installations",
+        "onSite": "estimated value in the project stations",
+        "expected": "net of fees, {market}",
+        "cashed": "net of fees, everything sold",
+        "cashedUnsold": "net of fees, {count} product still unsold | net of fees, {count} products still unsold",
+        "costPerUnit": "estimate, per unit of the project",
+        "profit": "real",
+        "estimatedProfit": "from the sell forecast",
+        "provisionalProfit": "sold so far, products remain"
+      }
+    },
     "flow": {
       "columns": {
         "toBring": "To bring",

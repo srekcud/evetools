@@ -3011,6 +3011,31 @@
         "done": "Fait"
       }
     },
+    "iskBand": {
+      "label": "Argent du projet",
+      "unknown": "Inconnu",
+      "labels": {
+        "committed": "Engagé",
+        "onSite": "Sur place",
+        "expected": "Ventes prévues",
+        "cashed": "Encaissé",
+        "costPerUnit": "Coût par unité",
+        "profit": "Profit",
+        "estimatedProfit": "Profit estimé",
+        "provisionalProfit": "Profit provisoire"
+      },
+      "notes": {
+        "committed": "achats, stock pris, installations",
+        "onSite": "valeur estimée dans les stations du projet",
+        "expected": "net de frais, {market}",
+        "cashed": "net de frais, tout est vendu",
+        "cashedUnsold": "net de frais, {count} produit encore invendu | net de frais, {count} produits encore invendus",
+        "costPerUnit": "estimation, par unité du projet",
+        "profit": "réel",
+        "estimatedProfit": "d'après la prévision de vente",
+        "provisionalProfit": "vendu jusqu'ici, il reste des produits"
+      }
+    },
     "flow": {
       "columns": {
         "toBring": "À apporter",

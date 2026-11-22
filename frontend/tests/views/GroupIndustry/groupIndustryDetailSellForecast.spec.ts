@@ -114,11 +114,11 @@ describe('group project detail sell forecast', () => {
     expect(sellForecastCalls()).toBe(1)
   })
 
-  it.each(OTHER_TABS)('does not mount the sell forecast card nor load its forecast in the %s section', async (tab) => {
+  it.each(OTHER_TABS)('does not mount the sell forecast card in the %s section but reads the forecast once for the ISK band', async (tab) => {
     const wrapper = await mountSellingNyxOn(tab)
 
     expect(wrapper.find(`[data-testid="project-section-${tab}"]`).exists()).toBe(true)
     expect(wrapper.find(SELL_FORECAST_CARD).exists()).toBe(false)
-    expect(sellForecastCalls()).toBe(0)
+    expect(sellForecastCalls()).toBe(1)
   })
 })

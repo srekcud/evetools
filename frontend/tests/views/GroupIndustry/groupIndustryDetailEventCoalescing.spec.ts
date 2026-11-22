@@ -60,7 +60,7 @@ afterEach(() => {
 })
 
 describe('group project detail refreshed by the realtime events', () => {
-  it('refreshes the cockpit and the BOM with no section open but not the contributions nor the distribution, which load when their section opens', async () => {
+  it('refreshes the cockpit, the BOM and the distribution of the ISK band with no section open but not the contributions, which load when their section opens', async () => {
     const wrapper = await mountTeamProject()
     const before = { cockpit: callsTo(COCKPIT_PATH), bom: callsTo(BOM_PATH) }
 
@@ -77,12 +77,12 @@ describe('group project detail refreshed by the realtime events', () => {
     await flushPromises()
 
     expect({ afterEvent, contributionsOnceOpened: callsTo(CONTRIBUTIONS_PATH) }).toEqual({
-      afterEvent: { cockpit: 1, bom: 1, contributions: 0, distribution: 0 },
+      afterEvent: { cockpit: 1, bom: 1, contributions: 0, distribution: 2 },
       contributionsOnceOpened: 1,
     })
   })
 
-  it('refreshes the contributions of the open contributions section but not the distribution, which loads when its section opens', async () => {
+  it('refreshes the contributions of the open contributions section and the distribution of the ISK band', async () => {
     await mountTeamProject('contributions')
     const contributionsAtMount = callsTo(CONTRIBUTIONS_PATH)
 
@@ -92,7 +92,7 @@ describe('group project detail refreshed by the realtime events', () => {
     expect({
       contributions: callsTo(CONTRIBUTIONS_PATH) - contributionsAtMount,
       distribution: callsTo(DISTRIBUTION_PATH),
-    }).toEqual({ contributions: 1, distribution: 0 })
+    }).toEqual({ contributions: 1, distribution: 2 })
   })
 
   it('reads the cockpit once at the first event of a burst and once at the end of the window, however many events follow', async () => {

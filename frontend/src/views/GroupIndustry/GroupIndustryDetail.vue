@@ -15,6 +15,7 @@ import { useGroupActivityStore } from '@/stores/group-industry/activity'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
 import { useGroupPlaceActionsStore } from '@/stores/group-industry/placeActions'
 import { useGroupStationQuantitiesStore } from '@/stores/group-industry/stationQuantities'
+import { useGroupSellForecastStore } from '@/stores/group-industry/sellForecast'
 import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
@@ -46,6 +47,8 @@ import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import ProjectFlowActions from '@/components/group-industry/ProjectFlowActions.vue'
 import ProjectFlowCardDetail from '@/components/group-industry/ProjectFlowCardDetail.vue'
 import ProjectFlowGrid from '@/components/group-industry/ProjectFlowGrid.vue'
+import ProjectIskBand from '@/components/group-industry/ProjectIskBand.vue'
+import { buildIskBand } from '@/components/group-industry/projectIskBand'
 import ProjectFlowPlanning from '@/components/group-industry/ProjectFlowPlanning.vue'
 import ProjectSection from '@/components/group-industry/ProjectSection.vue'
 import { buildFlowGrid, FLOW_COLUMNS } from '@/components/group-industry/projectFlow'
@@ -107,6 +110,7 @@ const inventionStore = useGroupInventionStore()
 const contractSalesStore = useGroupContractSalesStore()
 const settlementStore = useGroupSettlementStore()
 const stationQuantitiesStore = useGroupStationQuantitiesStore()
+const sellForecastStore = useGroupSellForecastStore()
 const placeActionsStore = useGroupPlaceActionsStore()
 
 type SalesTabSection = 'sellOrders' | 'sales' | 'transactionsToLink' | 'contractsToLink'
@@ -280,11 +284,12 @@ const flowNow = computed(() => Math.floor(clock.value / MS_PER_MINUTE) * MS_PER_
 const selectedCardKey = ref<string | null>(null)
 const cardDetail = useTemplateRef<InstanceType<typeof ProjectFlowCardDetail>>('cardDetail')
 
-function refreshFlow(id: string, salesAlreadyRefreshed = false): Promise<void>[] {
+function refreshFlow(id: string, alreadyRefreshed: { sales?: boolean; distribution?: boolean } = {}): Promise<void>[] {
   return [
     stationQuantitiesStore.fetchStationQuantities(id),
     placeActionsStore.fetchOfProject(id),
-    ...(salesAlreadyRefreshed ? [] : [distributionStore.fetchSales(id)]),
+    ...(alreadyRefreshed.sales === true ? [] : [distributionStore.fetchSales(id)]),
+    ...(alreadyRefreshed.distribution === true ? [] : [distributionStore.fetchDistribution(id)]),
     ...(cardDetail.value === null ? [] : [cardDetail.value.refresh()]),
   ]
 }
@@ -306,6 +311,23 @@ const flowGrid = computed(() => {
   })
 })
 
+const iskBand = computed(() => buildIskBand({
+  distribution: distributionStore.distribution,
+  quantities: stationQuantitiesStore.error === null ? stationQuantitiesStore.quantities : null,
+  bomItems: projectStore.bomItems,
+  forecast: sellForecastStore.forecast?.projectId === projectId.value ? sellForecastStore.forecast : null,
+  personalUse: project.value?.personalUse === true,
+}))
+
+watch(
+  [projectId, () => project.value?.id, () => distributionStore.distribution, () => project.value?.sellStructureId, () => project.value?.personalUse],
+  () => {
+    if (project.value === null || project.value.personalUse === true) return
+    void sellForecastStore.fetchForProject(projectId.value)
+  },
+  { immediate: true },
+)
+
 const selectedCard = computed(() => {
   const key = selectedCardKey.value
   if (key === null || flowGrid.value === null) return null
@@ -320,7 +342,7 @@ watch(selectedCard, (card) => {
 
 onMounted(async () => {
   void syncStore.ensureGroupProjectSubscribed(projectId.value)
-  void Promise.all(refreshFlow(projectId.value)).then(() => { flowLoaded.value = true })
+  void Promise.all(refreshFlow(projectId.value, { distribution: openTab.value === 'distribution' })).then(() => { flowLoaded.value = true })
   await Promise.all([
     projectStore.fetchProjectDetail(projectId.value),
     projectStore.fetchBom(projectId.value),
@@ -357,7 +379,7 @@ useCoalescedGroupProjectEvents(
   (actions) => {
     const refreshes = refreshesVisibleOn(actions, activeTab.value)
     const reads = refreshes.map(refresh => refreshGroupProject[refresh](projectId.value))
-    return Promise.all([...reads, ...refreshFlow(projectId.value, refreshes.includes('sales'))]).then(flashProject)
+    return Promise.all([...reads, ...refreshFlow(projectId.value, { sales: refreshes.includes('sales'), distribution: refreshes.includes('distribution') })]).then(flashProject)
   },
 )
 
@@ -801,6 +823,8 @@ function applyShareLinkShortcut(): void {
       </p>
 
       <ProjectInventionView :project-id="projectId" :bom-items="projectStore.bomItems" :now="flowNow" />
+
+      <ProjectIskBand v-if="flowLoaded" :band="iskBand" />
 
       <div class="mb-6 grid gap-4 xl:grid-cols-[1fr_320px]">
         <div class="min-w-0">
