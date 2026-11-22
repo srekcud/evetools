@@ -3277,6 +3277,9 @@
         "unknown": "inconnu",
         "notCompared": "coût non comparé",
         "unknownStation": "station inconnue",
+        "taxRate": "Taxe d'installation {percent}",
+        "taxNotSet": "Taxe non saisie.",
+        "taxNotSetLink": "La saisir dans les réglages des structures",
         "legs": {
           "courier": "courier",
           "jump_bridge": "pont",

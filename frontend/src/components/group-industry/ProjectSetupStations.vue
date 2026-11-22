@@ -6,6 +6,8 @@ import { ACTIVITY_STYLES } from './companionActivityStyles'
 import { selectedStructureId, stationsSummary, type StationPicks } from './projectSetup'
 import type { ProjectWorkStations, WorkStationRow, WorkStationType } from '@/stores/group-industry/types'
 
+const STRUCTURE_SETTINGS_LOCATION = { name: 'settings', params: { section: 'industry' } }
+
 const props = defineProps<{ workStations: ProjectWorkStations; picks: StationPicks; stationsOnly?: boolean }>()
 const emit = defineEmits<{ 'update:picks': [picks: StationPicks]; next: [] }>()
 
@@ -125,6 +127,17 @@ const gapLabel = computed(() => {
               >{{ t('groupIndustry.setup.stations.recommended') }}</span>
             </span>
             <span class="mt-1 block text-xs text-slate-400">{{ [row.kind, row.solarSystemName].filter(part => part !== null).join(' · ') }}</span>
+            <span
+              v-if="row.facilityTaxPercent === null"
+              :data-testid="`station-tax-not-set-${type.workType}-${row.structureId}`"
+              class="mt-0.5 block text-xs text-amber-300"
+            >
+              {{ t('groupIndustry.setup.stations.taxNotSet') }}
+              <router-link :to="STRUCTURE_SETTINGS_LOCATION" class="underline hover:text-amber-200" @click.stop>{{ t('groupIndustry.setup.stations.taxNotSetLink') }}</router-link>
+            </span>
+            <span v-else :data-testid="`station-tax-${type.workType}-${row.structureId}`" class="mt-0.5 block text-xs text-slate-400">
+              {{ t('groupIndustry.setup.stations.taxRate', { percent: `${formatNumber(row.facilityTaxPercent)} %` }) }}
+            </span>
 
             <dl v-if="type.costsCompared" class="mt-2 space-y-0.5 text-xs">
               <div class="flex justify-between gap-2">

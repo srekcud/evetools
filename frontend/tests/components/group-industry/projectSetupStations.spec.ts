@@ -1,4 +1,4 @@
-import { enableAutoUnmount, mount, type VueWrapper } from '@vue/test-utils'
+import { enableAutoUnmount, mount, RouterLinkStub, type VueWrapper } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
@@ -20,11 +20,12 @@ import {
 
 const RAW_TRANSLATION_KEY = /groupIndustry\.[a-zA-Z.]+/
 const STANDALONE_ZERO = /(^|[^\d.,])0([^\d.,]|$)/
+const ZERO_PERCENT = /(^|[^\d.,])0\s?%/
 
 function mountStations(workStations: ProjectWorkStations, picks: StationPicks): VueWrapper {
   return mount(ProjectSetupStations, {
     props: { workStations, picks },
-    global: { plugins: [createI18n({ legacy: false, locale: 'fr', messages: { en, fr } })] },
+    global: { plugins: [createI18n({ legacy: false, locale: 'fr', messages: { en, fr } })], stubs: { RouterLink: RouterLinkStub } },
   })
 }
 
@@ -133,6 +134,37 @@ describe('ProjectSetupStations', () => {
       unknownCardShowsZero: false,
       totalShowsAnyNumber: false,
       gapShowsAnyNumber: false,
+      rawKey: false,
+    })
+  })
+
+  it('shows the installation tax rate of each station and the tax not set warning with its link to the structure settings, never a 0 % rate', async () => {
+    const workStations = projectWorkStations([
+      reactionType({ rows: [stationRow(REACTION_RECOMMENDED_ID, { facilityTaxPercent: 0.25 }), stationRow(REACTION_ALTERNATIVE_ID, { facilityTaxPercent: null })] }),
+      componentsType({ costsCompared: false, rows: [stationRow(COMPONENTS_RECOMMENDED_ID, { facilityTaxPercent: null }), stationRow(COMPONENTS_ALTERNATIVE_ID, { facilityTaxPercent: 1.5 })] }),
+    ])
+    const wrapper = mountStations(workStations, {})
+    const link = wrapper.findComponent(RouterLinkStub)
+
+    expect({
+      setRateDigits: digitsOf(textOf(wrapper, `station-tax-reaction-${REACTION_RECOMMENDED_ID}`)),
+      setRateNotWarned: byTestId(wrapper, `station-tax-not-set-reaction-${REACTION_RECOMMENDED_ID}`).exists(),
+      unsetWarned: byTestId(wrapper, `station-tax-not-set-reaction-${REACTION_ALTERNATIVE_ID}`).exists(),
+      unsetShowsRate: byTestId(wrapper, `station-tax-reaction-${REACTION_ALTERNATIVE_ID}`).exists(),
+      unsetCardShowsZeroPercent: ZERO_PERCENT.test(textOf(wrapper, `station-card-reaction-${REACTION_ALTERNATIVE_ID}`)),
+      linkTarget: link.exists() ? link.props('to') : 'link-absent',
+      notComparedUnsetWarned: byTestId(wrapper, `station-tax-not-set-components-${COMPONENTS_RECOMMENDED_ID}`).exists(),
+      notComparedSetRateDigits: digitsOf(textOf(wrapper, `station-tax-components-${COMPONENTS_ALTERNATIVE_ID}`)),
+      rawKey: RAW_TRANSLATION_KEY.test(wrapper.text()),
+    }).toEqual({
+      setRateDigits: expect.stringContaining('025'),
+      setRateNotWarned: false,
+      unsetWarned: true,
+      unsetShowsRate: false,
+      unsetCardShowsZeroPercent: false,
+      linkTarget: { name: 'settings', params: { section: 'industry' } },
+      notComparedUnsetWarned: true,
+      notComparedSetRateDigits: expect.stringContaining('15'),
       rawKey: false,
     })
   })
