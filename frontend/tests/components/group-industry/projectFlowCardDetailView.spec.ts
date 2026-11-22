@@ -10,6 +10,7 @@ import type { BomItem, GroupProject, JobMatch, SellForecast } from '@/stores/gro
 import { readyCourier } from '../../courierFixtures'
 import { NOCXIUM_UNKNOWN, projectMaterialSourcing, STRUCTURE_NAME, TRITANIUM_AT_JITA } from '../../materialSourcingRows'
 import type { TestLocale } from '../../localeTexts'
+import { sourcingDecisions } from '../../projectSetupFixtures'
 import { bomLineOf, flowCard, ISHTAR, projectOf, TRITANIUM } from './projectFlowFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -68,6 +69,7 @@ function defaultAnswers(): Record<string, unknown> {
     'contract-suggestions': { projectId: PROJECT_ID, candidates: [], unreadableCharacters: [] },
     sales: [],
     invention: { id: PROJECT_ID, products: [] },
+    'sourcing-decisions': { ...sourcingDecisions(null, []), id: PROJECT_ID },
   }
 }
 

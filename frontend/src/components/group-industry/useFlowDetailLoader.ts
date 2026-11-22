@@ -11,6 +11,7 @@ import { useGroupResearchStore } from '@/stores/group-industry/research'
 import { useGroupSellForecastStore } from '@/stores/group-industry/sellForecast'
 import { useProjectSellOrdersStore } from '@/stores/group-industry/sellOrders'
 import { useGroupStructureHealthStore } from '@/stores/group-industry/structureHealth'
+import { useProjectSetupStore } from '@/stores/group-industry/projectSetup'
 import { detailStoreKeysOf, type DetailBlockKind, type DetailStoreKey } from './projectFlowCardDetail'
 
 export interface DetailBlockStatus {
@@ -31,6 +32,7 @@ interface FlowDetailLoaderOptions {
 
 export function useFlowDetailLoader({ projectId, kinds, canRecordSales }: FlowDetailLoaderOptions) {
   const sourcingStore = useGroupMaterialSourcingStore()
+  const setupStore = useProjectSetupStore()
   const courierStore = useGroupCourierStore()
   const lineBlueprintsStore = useGroupLineBlueprintsStore()
   const researchStore = useGroupResearchStore()
@@ -44,6 +46,7 @@ export function useFlowDetailLoader({ projectId, kinds, canRecordSales }: FlowDe
   const inventionStore = useGroupInventionStore()
 
   const readers: Record<DetailStoreKey, StoreReader> = {
+    sourcingDecisions: { read: projectId => setupStore.fetchSourcingDecisions(projectId), error: () => setupStore.decisionsError },
     sourcing: { read: sourcingStore.fetchMaterialSourcing, error: () => sourcingStore.error },
     courier: { read: courierStore.fetchCourier, error: () => courierStore.error },
     lineBlueprints: { read: lineBlueprintsStore.fetchLineBlueprints, error: () => lineBlueprintsStore.error },

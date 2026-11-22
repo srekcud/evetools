@@ -3131,6 +3131,7 @@
         "loading": "Chargement…",
         "noContainer": "Aucun container suivi",
         "titles": {
+          "buyOrBuild": "Acheter ou fabriquer",
           "whereToBuy": "Où acheter",
           "courier": "Courier",
           "contributions": "Apports",
@@ -3148,6 +3149,7 @@
           "salesToMatch": "Ventes à rattacher"
         },
         "origins": {
+          "buyOrBuild": "Approvisionnement › Acheter ou fabriquer",
           "whereToBuy": "Approvisionnement › Où acheter",
           "courier": "Approvisionnement › Contrats de courier",
           "contributions": "Contributions",
@@ -3163,6 +3165,30 @@
           "whereToSell": "Finances › Prévision de vente",
           "sellOrders": "Ventes › Mes ordres",
           "salesToMatch": "Ventes › Ventes à rattacher"
+        },
+        "buyOrBuild": {
+          "options": {
+            "build": "Fabriquer",
+            "jita": "Jita + import",
+            "structure": "Marché de la capitale"
+          },
+          "excluded": "acheté (blacklist)",
+          "perUnit": "{amount}/u",
+          "chosen": "choisie",
+          "recommended": "conseillée",
+          "gap": "écart {amount}",
+          "onRecommended": "sur la conseillée",
+          "none": "Aucun choix chiffré pour ce type.",
+          "onSaleOnly": "{quantity} en vente seulement",
+          "stockUnknown": "stock inconnu",
+          "switch": {
+            "toBuy": "Passer en achat",
+            "toBuild": "Passer en fabrication",
+            "confirmToBuy": "{name} sera acheté au lieu d'être fabriqué. La BOM sera recalculée ; une ligne qui a un job lié, un achat ou un apport ne peut pas être retirée.",
+            "confirmToBuild": "{name} sera fabriqué au lieu d'être acheté. La BOM sera recalculée ; une ligne qui a un job lié, un achat ou un apport ne peut pas être retirée.",
+            "confirm": "Confirmer",
+            "error": "Le composant n'a pas pu être basculé"
+          }
         },
         "fields": {
           "jita": "Jita, import compris",

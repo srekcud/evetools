@@ -1,7 +1,9 @@
-import type { BomItem, GroupContribution, MaterialSourcingRow, PlanningJob, ProjectInventionProduct, ProjectLineBlueprint, ProjectPlanning, ProjectSellOrder, ResearchRow, SellForecastProduct, StructureHealthRow } from '@/stores/group-industry/types'
+import type { BomItem, GroupContribution, MaterialSourcingRow, PlanningJob, ProjectInventionProduct, ProjectLineBlueprint, ProjectPlanning, ProjectSellOrder, ResearchRow, SellForecastProduct, SourcingDecisions, SourcingRow, StructureHealthRow } from '@/stores/group-industry/types'
 import { lineOfTypes, type FlowCard, type FlowCardState } from './projectFlow'
+import { optionTotalOf } from './projectStartupChoices'
 
 export type DetailBlockKind =
+  | 'buyOrBuild'
   | 'whereToBuy'
   | 'courier'
   | 'contributions'
@@ -23,9 +25,11 @@ export interface DetailBlockInput {
   line: BomItem | undefined
   isFinalProduct: boolean
   personalUse: boolean
+  blacklistTypeIds: number[]
 }
 
 export type DetailStoreKey =
+  | 'sourcingDecisions'
   | 'sourcing'
   | 'courier'
   | 'lineBlueprints'
@@ -40,6 +44,7 @@ export type DetailStoreKey =
   | 'invention'
 
 const ORIGIN_KEY_PREFIX = 'groupIndustry.flow.detail.origins'
+const INTERMEDIATE_ACTIVITIES = ['manufacturing', 'reaction']
 const SUPPLY_STATES: FlowCardState[] = ['toBuy', 'toBring', 'inTransit']
 const SUPPLY_BLOCKS: DetailBlockKind[] = ['whereToBuy', 'courier', 'contributions']
 const JOB_BLOCKS: DetailBlockKind[] = ['jobs', 'reservation', 'planning', 'structure']
@@ -47,7 +52,7 @@ const BLUEPRINT_BLOCKS: DetailBlockKind[] = ['blueprints', 'research']
 const SALES_BLOCKS: DetailBlockKind[] = ['whereToSell', 'sellOrders', 'salesToMatch']
 const LINE_RENTAL_CONTRIBUTION_TYPE = 'line_rental'
 const BLOCK_KINDS: DetailBlockKind[] = [
-  'whereToBuy', 'courier', 'contributions', 'useMyStock', 'depositToCheck', 'blueprints', 'research', 'jobs',
+  'buyOrBuild', 'whereToBuy', 'courier', 'contributions', 'useMyStock', 'depositToCheck', 'blueprints', 'research', 'jobs',
   'reservation', 'planning', 'structure', 'decryptors', 'whereToSell', 'sellOrders', 'salesToMatch',
 ]
 
@@ -56,6 +61,7 @@ export const DETAIL_BLOCK_ORIGINS = Object.fromEntries(
 ) as Record<DetailBlockKind, string>
 
 export const DETAIL_BLOCK_TABS: Record<DetailBlockKind, string> = {
+  buyOrBuild: 'bom',
   whereToBuy: 'bom',
   courier: 'bom',
   contributions: 'contributions',
@@ -73,9 +79,10 @@ export const DETAIL_BLOCK_TABS: Record<DetailBlockKind, string> = {
   salesToMatch: 'sales',
 }
 
-export type DetailBlockFamily = 'supply' | 'job' | 'blueprint' | 'sales'
+export type DetailBlockFamily = 'buyOrBuild' | 'supply' | 'job' | 'blueprint' | 'sales'
 
 export const DETAIL_BLOCK_FAMILIES: Record<DetailBlockKind, DetailBlockFamily> = {
+  buyOrBuild: 'buyOrBuild',
   whereToBuy: 'supply',
   courier: 'supply',
   contributions: 'supply',
@@ -95,6 +102,7 @@ export const DETAIL_BLOCK_FAMILIES: Record<DetailBlockKind, DetailBlockFamily> =
 
 export function detailStoreKeysOf(kind: DetailBlockKind, canRecordSales: boolean): DetailStoreKey[] {
   switch (kind) {
+    case 'buyOrBuild': return ['sourcingDecisions']
     case 'whereToBuy': return ['sourcing']
     case 'courier': return ['courier']
     case 'blueprints': return ['lineBlueprints']
@@ -125,9 +133,16 @@ function jobBlocksOf(card: FlowCard): DetailBlockKind[] {
   ]
 }
 
-export function detailBlockKindsOf({ card, line, isFinalProduct, personalUse }: DetailBlockInput): DetailBlockKind[] {
+function isIntermediate(line: BomItem, isFinalProduct: boolean, blacklistTypeIds: number[]): boolean {
+  if (isFinalProduct) return false
+  if (line.isJob) return line.activityType !== null && INTERMEDIATE_ACTIVITIES.includes(line.activityType)
+  return blacklistTypeIds.includes(line.typeId)
+}
+
+export function detailBlockKindsOf({ card, line, isFinalProduct, personalUse, blacklistTypeIds }: DetailBlockInput): DetailBlockKind[] {
   if (line === undefined) return []
   return [
+    ...(isIntermediate(line, isFinalProduct, blacklistTypeIds) ? ['buyOrBuild' as const] : []),
     ...(line.isJob ? jobBlocksOf(card) : materialBlocksOf(card, line)),
     ...(isFinalProduct && !personalUse ? SALES_BLOCKS : []),
   ]
@@ -139,6 +154,26 @@ export function lineOfCard(card: FlowCard, bomItems: BomItem[]): BomItem | undef
 
 export function sourcingRowOf(rows: MaterialSourcingRow[], typeId: number): MaterialSourcingRow | undefined {
   return rows.find(row => row.typeId === typeId)
+}
+
+export type SourcingComparison =
+  | { state: 'none' }
+  | { state: 'onRecommended' }
+  | { state: 'off'; gap: number | null }
+
+export function sourcingRowOfDecisions(decisions: SourcingDecisions | null, projectId: string, typeId: number): SourcingRow | undefined {
+  if (decisions === null || decisions.id !== projectId) return undefined
+  const row = decisions.rows.find(candidate => candidate.typeId === typeId)
+  return row === undefined || row.stage === 'base' ? undefined : row
+}
+
+export function sourcingComparisonOf(row: SourcingRow): SourcingComparison {
+  const { chosen, recommended } = row
+  if (chosen === null || recommended === null) return { state: 'none' }
+  if (chosen === recommended) return { state: 'onRecommended' }
+  const chosenTotal = optionTotalOf(row, chosen)
+  const recommendedTotal = optionTotalOf(row, recommended)
+  return { state: 'off', gap: chosenTotal === null || recommendedTotal === null ? null : chosenTotal - recommendedTotal }
 }
 
 export function blueprintsOfLine(blueprints: ProjectLineBlueprint[], lineId: string): ProjectLineBlueprint[] {

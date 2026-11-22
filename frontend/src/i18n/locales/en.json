@@ -3131,6 +3131,7 @@
         "loading": "Loading…",
         "noContainer": "No container followed",
         "titles": {
+          "buyOrBuild": "Buy or build",
           "whereToBuy": "Where to buy",
           "courier": "Courier",
           "contributions": "Contributions",
@@ -3148,6 +3149,7 @@
           "salesToMatch": "Sales to match"
         },
         "origins": {
+          "buyOrBuild": "Sourcing › Buy or build",
           "whereToBuy": "Sourcing › Where to buy",
           "courier": "Sourcing › Courier contracts",
           "contributions": "Contributions",
@@ -3163,6 +3165,30 @@
           "whereToSell": "Finances › Sell forecast",
           "sellOrders": "Sales › My orders",
           "salesToMatch": "Sales › Sales to match"
+        },
+        "buyOrBuild": {
+          "options": {
+            "build": "Build",
+            "jita": "Jita + import",
+            "structure": "Capital market"
+          },
+          "excluded": "bought (blacklist)",
+          "perUnit": "{amount}/u",
+          "chosen": "chosen",
+          "recommended": "recommended",
+          "gap": "gap {amount}",
+          "onRecommended": "on the recommended",
+          "none": "No priced choice for this type.",
+          "onSaleOnly": "{quantity} on sale only",
+          "stockUnknown": "stock unknown",
+          "switch": {
+            "toBuy": "Switch to buy",
+            "toBuild": "Switch to build",
+            "confirmToBuy": "{name} will be bought instead of built. The material list will be recalculated; a line with a linked job, a purchase or a contribution cannot be removed.",
+            "confirmToBuild": "{name} will be built instead of bought. The material list will be recalculated; a line with a linked job, a purchase or a contribution cannot be removed.",
+            "confirm": "Confirm",
+            "error": "The component could not be switched"
+          }
         },
         "fields": {
           "jita": "Jita, import included",

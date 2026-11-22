@@ -60,7 +60,7 @@ export function canEditStations(workStations: ProjectWorkStations): boolean {
   return workStations.workTypes.length > 0 && workStations.workTypes.every(type => !type.locked)
 }
 
-function optionTotalOf(row: SourcingRow, choice: SetupSourcingChoice): number | null {
+export function optionTotalOf(row: SourcingRow, choice: SetupSourcingChoice): number | null {
   return row.options[choice]?.total ?? null
 }
 

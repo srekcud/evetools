@@ -877,7 +877,9 @@ function applyShareLinkShortcut(): void {
             :project="project"
             :can-link-jobs="isAcceptedMember"
             :can-record-sales="canRecordSales"
+            :can-switch-sourcing="isOwnerOrAdmin && !isCompleted"
             @close="selectedCardKey = null"
+            @switched="onBuyOrBuildSwitched"
           />
           <ProjectFlowActions :actions="placeActionsStore.actions" :loading="placeActionsStore.loading" :error="placeActionsStore.error" />
         </div>

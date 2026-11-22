@@ -6,6 +6,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import type { BomItem, GroupProject } from '@/stores/group-industry/types'
 import FlowDetailBlock from './FlowDetailBlock.vue'
 import FlowDetailBlueprintBlock from './FlowDetailBlueprintBlock.vue'
+import FlowDetailBuyOrBuildBlock from './FlowDetailBuyOrBuildBlock.vue'
 import FlowDetailJobBlock from './FlowDetailJobBlock.vue'
 import FlowDetailSalesBlock from './FlowDetailSalesBlock.vue'
 import FlowDetailSupplyBlock from './FlowDetailSupplyBlock.vue'
@@ -21,10 +22,12 @@ const props = defineProps<{
   project: GroupProject
   canLinkJobs: boolean
   canRecordSales: boolean
+  canSwitchSourcing?: boolean
 }>()
 
 const emit = defineEmits<{
   close: []
+  switched: []
 }>()
 
 const { t } = useI18n()
@@ -37,6 +40,7 @@ const kinds = computed(() => detailBlockKindsOf({
   line: props.line,
   isFinalProduct: props.card.typeId !== null && props.project.items.some(item => item.typeId === props.card.typeId),
   personalUse: props.project.personalUse === true,
+  blacklistTypeIds: props.project.blacklistTypeIds,
 }))
 const { statusOf, refresh } = useFlowDetailLoader({
   projectId: () => props.projectId,
@@ -85,7 +89,15 @@ defineExpose({ refresh })
         :loading="statusOf(kind).loading"
         :error="statusOf(kind).error"
       >
-        <FlowDetailSupplyBlock v-if="DETAIL_BLOCK_FAMILIES[kind] === 'supply'" :kind="kind" :card="card" :line="line" />
+        <FlowDetailBuyOrBuildBlock
+          v-if="DETAIL_BLOCK_FAMILIES[kind] === 'buyOrBuild'"
+          :project-id="projectId"
+          :line="line"
+          :can-switch="canSwitchSourcing === true"
+          :blacklist-type-ids="project.blacklistTypeIds"
+          @switched="emit('switched')"
+        />
+        <FlowDetailSupplyBlock v-else-if="DETAIL_BLOCK_FAMILIES[kind] === 'supply'" :kind="kind" :card="card" :line="line" />
         <FlowDetailJobBlock v-else-if="DETAIL_BLOCK_FAMILIES[kind] === 'job'" :kind="kind" :project-id="projectId" :line="line" :can-link-jobs="canLinkJobs" />
         <FlowDetailBlueprintBlock v-else-if="DETAIL_BLOCK_FAMILIES[kind] === 'blueprint'" :kind="kind" :line="line" />
         <FlowDetailSalesBlock v-else :kind="kind" :type-id="line.typeId" :can-record-sales="canRecordSales" />

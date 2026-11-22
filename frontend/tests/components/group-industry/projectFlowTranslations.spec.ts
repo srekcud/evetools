@@ -250,9 +250,10 @@ describe('the member management confirmation is translated', () => {
 describe('the flow card detail labels exist in both languages', () => {
   const DETAIL_KEYS = 'groupIndustry.flow.detail'
   const MESSAGES: Record<TestLocale, unknown> = { en, fr }
-  const ORIGIN_KINDS = ['whereToBuy', 'courier', 'contributions', 'useMyStock', 'depositToCheck', 'blueprints', 'research', 'jobs', 'reservation', 'planning', 'structure', 'decryptors', 'whereToSell', 'sellOrders', 'salesToMatch']
+  const ORIGIN_KINDS = ['buyOrBuild', 'whereToBuy', 'courier', 'contributions', 'useMyStock', 'depositToCheck', 'blueprints', 'research', 'jobs', 'reservation', 'planning', 'structure', 'decryptors', 'whereToSell', 'sellOrders', 'salesToMatch']
   const PLAIN_KEYS = ['unknown', 'closeDetail', 'nothingMore', 'intro', 'linkJob', 'openTab']
   const FRENCH_ORIGINS: Record<string, string> = {
+    buyOrBuild: 'Approvisionnement › Acheter ou fabriquer',
     whereToBuy: 'Approvisionnement › Où acheter',
     courier: 'Approvisionnement › Contrats de courier',
     contributions: 'Contributions',
@@ -282,6 +283,9 @@ describe('the flow card detail labels exist in both languages', () => {
       expect(Object.entries(texts).filter(([key, text]) => text === '' || text === `missing ${locale} message ${key}`), locale).toEqual([])
     }
     expect(Object.fromEntries(ORIGIN_KINDS.map(kind => [kind, detailText('fr', `origins.${kind}`)]))).toEqual(FRENCH_ORIGINS)
+    expect(detailText('fr', 'titles.buyOrBuild')).toBe('Acheter ou fabriquer')
+    expect(detailText('en', 'titles.buyOrBuild')).toBe('Buy or build')
+    expect(detailText('en', 'origins.buyOrBuild')).toBe('Sourcing › Buy or build')
     expect(detailText('fr', 'intro')).toBe('Ce que les onglets actuels montrent sur cet objet, réuni sur sa carte.')
     expect(detailText('fr', 'nothingMore')).toBe('Rien de plus sur cette carte.')
     expect(detailText('fr', 'unknown').toLowerCase()).toBe('inconnu')

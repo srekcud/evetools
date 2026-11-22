@@ -38,12 +38,13 @@ export function typeQuantities(
   return { ...type, lineIds: [`line-${type.typeId}`], unknownReason, stations }
 }
 
-export function projectOf(fields: Partial<Pick<GroupProject, 'sellStructureId' | 'sellStructureName' | 'personalUse'>> & { items?: { typeId: number; typeName: string }[] } = {}): GroupProject {
+export function projectOf(fields: Partial<Pick<GroupProject, 'sellStructureId' | 'sellStructureName' | 'personalUse' | 'blacklistTypeIds'>> & { items?: { typeId: number; typeName: string }[] } = {}): GroupProject {
   return {
     items: [],
     sellStructureId: null,
     sellStructureName: null,
     personalUse: false,
+    blacklistTypeIds: [],
     ...fields,
   } as unknown as GroupProject
 }

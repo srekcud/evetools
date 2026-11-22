@@ -4,19 +4,24 @@ import type { BomItem, PendingContribution } from '@/stores/group-industry/types
 import { bomLineOf, flowCard, ISHTAR, TRITANIUM, ZYDRINE } from './projectFlowFixtures'
 
 const ALL_KINDS: DetailBlockKind[] = [
-  'whereToBuy', 'courier', 'contributions', 'useMyStock', 'depositToCheck', 'blueprints', 'research', 'jobs',
+  'buyOrBuild', 'whereToBuy', 'courier', 'contributions', 'useMyStock', 'depositToCheck', 'blueprints', 'research', 'jobs',
   'reservation', 'planning', 'structure', 'decryptors', 'whereToSell', 'sellOrders', 'salesToMatch',
 ]
 
+const INTERMEDIATE_BLOCKS: DetailBlockKind[] = ['buyOrBuild']
 const JOB_BLOCKS: DetailBlockKind[] = ['jobs', 'reservation', 'planning', 'structure']
 const SALES_BLOCKS: DetailBlockKind[] = ['whereToSell', 'sellOrders', 'salesToMatch']
 const SUPPLY_BLOCKS: DetailBlockKind[] = ['whereToBuy', 'courier', 'contributions']
+
+const FERNITE = { typeId: 16_670, typeName: 'Fernite Carbide' }
 
 const PENDING_DEPOSIT: PendingContribution = { participantId: 'participant-aria', characterName: 'Aria Solberg', quantity: 250, isMine: true }
 
 const MATERIAL_LINE = bomLineOf({ id: 'line-tritanium', ...TRITANIUM })
 const MATERIAL_LINE_WITH_DEPOSIT = bomLineOf({ id: 'line-tritanium', ...TRITANIUM, pendingContributions: [PENDING_DEPOSIT] })
 const JOB_LINE = bomLineOf({ id: 'line-ishtar', ...ISHTAR, isJob: true, activityType: 'manufacturing', runs: 10 })
+const REACTION_LINE = bomLineOf({ id: 'line-fernite', typeId: FERNITE.typeId, typeName: FERNITE.typeName, isJob: true, activityType: 'reaction', runs: 3 })
+const COVERED_BY_STOCK_LINE = bomLineOf({ id: 'line-ishtar-covered', ...ISHTAR, isJob: true, activityType: 'manufacturing', runs: 0 })
 const INVENTION_LINE = bomLineOf({ id: 'line-ishtar-invention', ...ISHTAR, isJob: true, activityType: 'invention', runs: 4 })
 
 interface DetailCase {
@@ -26,6 +31,7 @@ interface DetailCase {
   line: BomItem | undefined
   isFinalProduct?: boolean
   personalUse?: boolean
+  blacklistTypeIds?: number[]
   expected: DetailBlockKind[]
 }
 
@@ -38,20 +44,25 @@ const CASES: DetailCase[] = [
   { name: 'a material with a deposit awaiting check', state: 'onSite', line: MATERIAL_LINE_WITH_DEPOSIT, expected: ['useMyStock', 'depositToCheck'] },
   { name: 'a stock material with a deposit awaiting check has no contributions block', state: 'onSite', fields: { source: 'stock' }, line: MATERIAL_LINE_WITH_DEPOSIT, expected: ['useMyStock', 'depositToCheck'] },
   { name: 'any other material', state: 'onSite', line: MATERIAL_LINE, expected: ['contributions'] },
-  { name: 'a manufacturing job', state: 'inProduction', fields: { activity: 'manufacturing' }, line: JOB_LINE, expected: JOB_BLOCKS },
+  { name: 'a manufacturing job of an intermediate, buy or build first', state: 'inProduction', fields: { activity: 'manufacturing' }, line: JOB_LINE, expected: [...INTERMEDIATE_BLOCKS, ...JOB_BLOCKS] },
+  { name: 'a reaction job of an intermediate', state: 'inProduction', fields: { activity: 'reaction' }, line: REACTION_LINE, expected: [...INTERMEDIATE_BLOCKS, ...JOB_BLOCKS] },
+  { name: 'an intermediate covered by stock, a job line of zero runs', state: 'onSite', fields: { activity: 'manufacturing' }, line: COVERED_BY_STOCK_LINE, expected: [...INTERMEDIATE_BLOCKS, ...JOB_BLOCKS] },
+  { name: 'an intermediate already bought, a material line in the blacklist', state: 'toBuy', line: MATERIAL_LINE, blacklistTypeIds: [11_540, TRITANIUM.typeId], expected: [...INTERMEDIATE_BLOCKS, ...SUPPLY_BLOCKS] },
+  { name: 'an intermediate already bought and taken from stock', state: 'onSite', fields: { source: 'stock' }, line: MATERIAL_LINE, blacklistTypeIds: [TRITANIUM.typeId], expected: [...INTERMEDIATE_BLOCKS, 'useMyStock'] },
+  { name: 'a material whose type is not in the blacklist', state: 'toBuy', line: MATERIAL_LINE, blacklistTypeIds: [11_540], expected: SUPPLY_BLOCKS },
   { name: 'a blueprint copy job', state: 'inProduction', fields: { activity: 'copy', bpc: true }, line: { ...JOB_LINE, activityType: 'copy' }, expected: ['blueprints', 'research', ...JOB_BLOCKS] },
   { name: 'an invention job', state: 'inProduction', fields: { activity: 'invention', bpc: true }, line: INVENTION_LINE, expected: ['blueprints', 'research', ...JOB_BLOCKS, 'decryptors'] },
   { name: 'a final product that is not a job line', state: 'onSite', line: MATERIAL_LINE, isFinalProduct: true, expected: ['contributions', ...SALES_BLOCKS] },
   { name: 'a final product of a personal use project', state: 'onSite', line: MATERIAL_LINE, isFinalProduct: true, personalUse: true, expected: ['contributions'] },
-  { name: 'a final product job, sales blocks last', state: 'out', fields: { activity: 'manufacturing' }, line: JOB_LINE, isFinalProduct: true, expected: [...JOB_BLOCKS, ...SALES_BLOCKS] },
+  { name: 'a final product job, sales blocks last, no buy or build', state: 'out', fields: { activity: 'manufacturing' }, line: JOB_LINE, isFinalProduct: true, expected: [...JOB_BLOCKS, ...SALES_BLOCKS] },
   { name: 'a final product job of a personal use project', state: 'out', fields: { activity: 'manufacturing' }, line: JOB_LINE, isFinalProduct: true, personalUse: true, expected: JOB_BLOCKS },
 ]
 
 describe('detailBlockKindsOf', () => {
-  it.each(CASES)('lists the blocks of $name', ({ state, fields, line, isFinalProduct = false, personalUse = false, expected }) => {
+  it.each(CASES)('lists the blocks of $name', ({ state, fields, line, isFinalProduct = false, personalUse = false, blacklistTypeIds = [], expected }) => {
     const card = flowCard(state, { typeName: line?.typeName ?? TRITANIUM.typeName, typeId: line?.typeId ?? TRITANIUM.typeId, ...fields })
 
-    expect(detailBlockKindsOf({ card, line, isFinalProduct, personalUse })).toEqual(expected)
+    expect(detailBlockKindsOf({ card, line, isFinalProduct, personalUse, blacklistTypeIds })).toEqual(expected)
   })
 })
 
