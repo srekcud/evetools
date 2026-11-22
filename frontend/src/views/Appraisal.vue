@@ -106,8 +106,10 @@ onMounted(() => {
 
 // -- State --
 
+const DEFAULT_TRANSPORT_COST_PER_M3 = 800
+
 const inputText = ref('')
-const transportCostPerM3 = ref(1200)
+const transportCostPerM3 = ref(DEFAULT_TRANSPORT_COST_PER_M3)
 const selectedFormat = ref<FormatType>('auto')
 const detectedFormat = ref<FormatType | null>(null)
 const selectedStructure = ref<{ id: number | null; name: string }>({ id: null, name: '' })

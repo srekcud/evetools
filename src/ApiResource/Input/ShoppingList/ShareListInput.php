@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\ShoppingList;
 
+use App\Constant\EveConstants;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class ShareListInput
@@ -19,7 +20,7 @@ class ShareListInput
     public array $totals = [];
 
     #[Assert\Positive]
-    public float $transportCostPerM3 = 1200.0;
+    public float $transportCostPerM3 = EveConstants::DEFAULT_EXPORT_COST_PER_M3;
 
     public ?int $structureId = null;
 

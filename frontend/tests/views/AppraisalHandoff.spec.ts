@@ -89,3 +89,14 @@ describe('Appraisal opened with a text handed over', () => {
     expect(appraiseCallCount()).toBe(0)
   })
 })
+
+describe('Appraisal transport cost', () => {
+  it('sends the 800 ISK/m3 courier rate with the parse request by default', async () => {
+    useAppraisalHandoffStore().send(SENT_TEXT)
+
+    await mountAppraisal()
+
+    const parseCall = vi.mocked(authFetch).mock.calls.find(([input]) => String(input) === '/api/shopping-list/parse')
+    expect(JSON.parse(String(parseCall?.[1]?.body)).transportCost).toBe(800)
+  })
+})
