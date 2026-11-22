@@ -53,6 +53,9 @@ final readonly class LineBlueprintPositions
         $readings = [];
         foreach ($this->lineBlueprintRepository->findByProject($project) as $attachment) {
             $attacher = $attachment->getAttachedBy();
+            if (null !== $attacher && !$project->isAcceptedMember($attacher)) {
+                $attacher = null;
+            }
             $blueprint = null;
             if (null !== $attacher) {
                 $attacherId = $attacher->getId()?->toRfc4122() ?? '';

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Industry\Project;
 
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
@@ -34,9 +33,6 @@ use App\State\Provider\Industry\Project\ProjectLineBlueprintCandidatesProvider;
 )]
 class ProjectLineBlueprintCandidateResource
 {
-    #[ApiProperty(identifier: true)]
-    public string $id = '';
-
     public string $bomLineId = '';
 
     public int $itemId = 0;

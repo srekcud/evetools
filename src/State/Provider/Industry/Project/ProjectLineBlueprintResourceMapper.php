@@ -58,7 +58,6 @@ final readonly class ProjectLineBlueprintResourceMapper
     {
         return array_map(static function (LineBlueprintReading $reading): ProjectLineBlueprintCandidateResource {
             $resource = new ProjectLineBlueprintCandidateResource();
-            $resource->id = $reading->line->getId()->toRfc4122().':'.$reading->itemId;
             $resource->bomLineId = $reading->line->getId()->toRfc4122();
             $resource->itemId = $reading->itemId;
             $resource->typeId = $reading->blueprintTypeId;

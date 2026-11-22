@@ -381,6 +381,22 @@ final class LineBlueprintsApiTest extends WebTestCase
         $this->assertNullAt($blueprint, 'transferToMake');
     }
 
+    public function testBlueprintAttachedByAMemberWhoIsNoLongerAcceptedReadsUnknownAttacherUnknownWithoutItsPosition(): void
+    {
+        $this->persistBlueprint(self::MEMBER_BPC_ITEM_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::COPY_QUANTITY, 11, 3, 6, $this->pendingMember);
+        $this->placeInStation(self::MEMBER_BPC_ITEM_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, $this->pendingMember, self::OTHER_STATION_ID);
+        $this->attach($this->ishtarJobLine, self::MEMBER_BPC_ITEM_ID, $this->pendingMember, self::EARLIER_ATTACHED_AT);
+
+        $this->actAs($this->owner);
+        $this->request('GET', $this->lineBlueprintsUri());
+
+        self::assertResponseStatusCodeSame(200);
+        $blueprint = $this->responseJson()[0];
+        self::assertSame(['unknown', 'attacher_unknown'], [$blueprint['state'], $blueprint['unknownReason']]);
+        self::assertSame(['locationId' => null, 'name' => null, 'solarSystemName' => null], $this->ksortedRecursively($blueprint['blueprintPlace']));
+        $this->assertNullAt($blueprint, 'transferToMake');
+    }
+
     public function testBlueprintWithoutAnyAssetReadsUnknownAssetNotFound(): void
     {
         $this->persistBlueprint(self::OWNER_BPC_ITEM_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::COPY_QUANTITY, 20, 2, 4, $this->owner);

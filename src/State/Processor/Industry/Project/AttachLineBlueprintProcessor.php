@@ -20,6 +20,7 @@ use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectLineBlueprintResourceMapper;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -82,7 +83,11 @@ final readonly class AttachLineBlueprintProcessor implements ProcessorInterface
             throw new UnprocessableEntityHttpException($exception->getMessage(), $exception);
         }
 
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->flush();
+        } catch (UniqueConstraintViolationException $exception) {
+            throw new ConflictHttpException('This blueprint is already attached to a step of the project', $exception);
+        }
 
         $this->mercurePublisher->publishGroupProjectEvent(
             $project->getId()->toRfc4122(),
