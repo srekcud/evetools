@@ -133,9 +133,13 @@ function progressOf(state: FlowCardState, line: BomItem, now: number): Pick<Flow
     .reduce((total, job) => total + job.runs, 0)
   const remainingTimes = jobs.flatMap(job => (RUNNING_JOB_STATES.includes(job.display.state) && job.display.remainingMs !== null ? [job.display.remainingMs] : []))
   const remainingMs = remainingTimes.length === 0 ? null : Math.max(...remainingTimes)
-  const shares = jobs.map(job => (job.share === null ? null : job.runs * job.share))
-  if (line.runs === null || line.runs <= 0 || shares.includes(null)) return { progress: null, ready: false, remainingMs }
-  const elapsedRuns = shares.reduce<number>((total, runs) => total + (runs ?? 0), 0)
+  const elapsedRunsByJob: number[] = []
+  for (const job of jobs) {
+    if (job.share === null) return { progress: null, ready: false, remainingMs }
+    elapsedRunsByJob.push(job.runs * job.share)
+  }
+  if (line.runs === null || line.runs <= 0) return { progress: null, ready: false, remainingMs }
+  const elapsedRuns = elapsedRunsByJob.reduce((total, runs) => total + runs, 0)
   const progress = finishedRuns >= line.runs ? FULL_PROGRESS : Math.min(FULL_PROGRESS - 1, Math.round(elapsedRuns / line.runs * FULL_PROGRESS))
   return { progress, ready: progress === FULL_PROGRESS, remainingMs }
 }

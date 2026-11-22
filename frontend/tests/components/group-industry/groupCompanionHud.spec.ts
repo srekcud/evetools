@@ -211,6 +211,20 @@ describe('GroupCompanion HUD lines', () => {
   })
 })
 
+describe('GroupCompanion HUD job bar rounding', () => {
+  it('draws an empty bar for a job that starts now and rounds the share to the nearest percent', () => {
+    const jobs = [
+      jobEntry('carbonide', 'reaction', 'active', NOW + ONE_HOUR, { startDate: new Date(NOW).toISOString() }),
+      jobEntry('invention', 'invention', 'active', NOW + ONE_HOUR, { startDate: new Date(NOW - 2 * ONE_HOUR).toISOString() }),
+    ]
+
+    const wrapper = mountCompanion(companionTasksOf({ jobs }))
+    const lines = wrapper.findAll('[data-testid="companion-job"]')
+
+    expect(lines.map(line => (line.get('[data-testid="companion-job-bar"] > div').element as HTMLElement).style.width)).toEqual(['67%', '0%'])
+  })
+})
+
 describe('GroupCompanion HUD alerts', () => {
   it('delivers the line of a ready job from its alert and gives an action button to the join request and none to the alerts without action', async () => {
     const ready = jobEntry('ishtar', 'manufacturing', 'ready', NOW - ONE_MINUTE)

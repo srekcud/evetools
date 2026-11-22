@@ -100,6 +100,19 @@ describe('job elapsed share', () => {
     expect(jobElapsedShareOf({ status: 'paused', startDate: startedTwoHoursAgo, endDate: endingInTwoHours }, NOW)).toBe(0.5)
   })
 
+  it('stays at 1 for a paused job whose end date has passed', () => {
+    const endedOneHourAgo = new Date(NOW - 3_600_000).toISOString()
+
+    expect(jobElapsedShareOf({ status: 'paused', startDate: new Date(NOW - FOUR_HOURS).toISOString(), endDate: endedOneHourAgo }, NOW)).toBe(1)
+  })
+
+  it('is unknown when the end date is before the start date', () => {
+    const startingInThreeHours = new Date(NOW + 3 * 3_600_000).toISOString()
+    const endingInOneHour = new Date(NOW + 3_600_000).toISOString()
+
+    expect(jobElapsedShareOf({ status: 'active', startDate: startingInThreeHours, endDate: endingInOneHour }, NOW)).toBeNull()
+  })
+
   it.each(['cancelled', 'reverted', 'foo'])('is unknown for a %s job', (status) => {
     expect(jobElapsedShareOf({ status, startDate: startedTwoHoursAgo, endDate: endingInTwoHours }, NOW)).toBeNull()
   })

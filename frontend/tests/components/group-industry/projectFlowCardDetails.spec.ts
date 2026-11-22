@@ -276,6 +276,37 @@ describe('flow card progress', () => {
     expect(card.progress).toBe(50)
   })
 
+  it('rounds the elapsed share to the nearest percent', () => {
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, [elapsedJob(10, 0.126)])], 'inProduction')
+
+    expect(card.progress).toBe(13)
+  })
+
+  it('does not show a paused job past its end date as ready', () => {
+    const startedAt = new Date(NOW - 4 * 60 * 60 * 1000).toISOString()
+    const matches = [linkedJob('paused', 10, new Date(NOW - 60 * 60 * 1000).toISOString(), startedAt)]
+
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, matches)], 'inProduction')
+
+    expect(card).toMatchObject({ progress: 99, ready: false })
+  })
+
+  it('does not show a line as ready while a running job sits next to a ready one', () => {
+    const matches = [linkedJob('active', 4, new Date(NOW - 60_000).toISOString(), new Date(NOW - 3_600_000).toISOString()), elapsedJob(6, 0.5)]
+
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, matches)], 'inProduction')
+
+    expect(card).toMatchObject({ progress: 70, ready: false })
+  })
+
+  it.each(['reverted', 'unknown'])('ignores a %s job next to a running job', (status) => {
+    const matches = [linkedJob(status, 5), elapsedJob(10, 0.5)]
+
+    const card = onlyCardOf(COMPONENT_X, { inProduction: 40 }, [jobLine(COMPONENT_X.typeId, 'reaction', 10, matches)], 'inProduction')
+
+    expect(card.progress).toBe(50)
+  })
+
   it.each(['cancelled', 'reverted', 'unknown'])('ignores a %s job in the finished runs', (status) => {
     const matches = [linkedJob(status, 10)]
 
