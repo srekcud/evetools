@@ -5,7 +5,8 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { ACTIVITY_STYLES } from './companionActivityStyles'
 import { countdownPartsOf } from './companionTasks'
-import type { FlowCard, FlowCardSource, FlowCardState } from './projectFlow'
+import type { FlowCard, FlowCardState } from './projectFlow'
+import { SOURCE_CLASSES } from './projectFlowSourceClasses'
 import { useFlowReasonLabel } from './useFlowReasonLabel'
 
 const STRIPES_SKY = 'bg-[repeating-linear-gradient(45deg,transparent_0_6px,rgba(56,189,248,0.05)_6px_12px)]'
@@ -19,6 +20,7 @@ const TIME_UNIT_DIGITS = 2
 const SOLID_BASE = 'border-slate-800 bg-slate-900'
 const EXPECTED_BASE = 'border-dashed border-slate-600 bg-transparent opacity-85 hover:bg-white/5 hover:opacity-100'
 const HIGHLIGHT_CLASS = 'ring-1 ring-cyan-400/70'
+const SELECTED_CLASS = 'ring-2 ring-cyan-400'
 
 const STATE_SURFACE_CLASSES: Partial<Record<FlowCardState, string>> = {
   inTransit: STRIPES_SKY,
@@ -31,19 +33,18 @@ const STATE_TEXT_CLASSES: Partial<Record<FlowCardState, string>> = {
   toLaunch: 'text-amber-400',
 }
 
-const SOURCE_CLASSES: Record<FlowCardSource, string> = {
-  stock: 'border-slate-600 text-slate-400',
-  blueprint: 'border-violet-400/50 text-violet-300',
-  invention: 'border-blue-400/50 text-blue-300',
-}
+const NESTED_INTERACTIVE_SELECTOR = 'button, a, summary, details'
+const SELECT_KEYS = ['Enter', ' ']
 
 const props = withDefaults(defineProps<{
   card: FlowCard
   highlighted?: boolean
-}>(), { highlighted: false })
+  selected?: boolean
+}>(), { highlighted: false, selected: false })
 
 const emit = defineEmits<{
   highlight: [entered: boolean]
+  select: []
 }>()
 
 const { t } = useI18n()
@@ -66,6 +67,22 @@ onMounted(() => {
 onBeforeUnmount(() => {
   for (const { eventName, listener } of listeners) root.value?.removeEventListener(eventName, listener)
 })
+
+function isFromNestedInteractive(event: Event): boolean {
+  const nested = event.target instanceof Element ? event.target.closest(NESTED_INTERACTIVE_SELECTOR) : null
+  return nested !== null && nested !== root.value
+}
+
+function selectFromClick(event: MouseEvent): void {
+  if (isFromNestedInteractive(event)) return
+  emit('select')
+}
+
+function selectFromKey(event: KeyboardEvent): void {
+  if (!SELECT_KEYS.includes(event.key) || isFromNestedInteractive(event)) return
+  event.preventDefault()
+  emit('select')
+}
 
 const isExpected = computed(() => props.card.state === 'expected')
 const cardKey = computed(() => props.card.expected?.cardKey ?? props.card.key)
@@ -100,14 +117,18 @@ const remaining = computed(() => {
     data-testid="flow-card"
     :data-state="card.state"
     :data-activity="card.activity"
-    role="group"
+    role="button"
     tabindex="0"
     :aria-label="name"
+    :aria-pressed="selected"
+    :data-selected="String(selected)"
     :data-card-key="cardKey"
     :data-highlighted="String(highlighted)"
     :data-expected-origin="card.expected?.origin"
-    class="min-w-0 border border-l-[3px] px-2 py-1.5"
-    :class="[baseClass, stripeClass, tintClass, STATE_SURFACE_CLASSES[card.state], highlighted ? HIGHLIGHT_CLASS : '']"
+    class="min-w-0 cursor-pointer border border-l-[3px] px-2 py-1.5"
+    :class="[baseClass, stripeClass, tintClass, STATE_SURFACE_CLASSES[card.state], highlighted ? HIGHLIGHT_CLASS : '', selected ? SELECTED_CLASS : '']"
+    @click="selectFromClick"
+    @keydown="selectFromKey"
   >
     <div class="flex min-w-0 items-center gap-2">
       <span v-if="card.typeId !== null" class="relative h-[26px] w-[26px] flex-none bg-black">

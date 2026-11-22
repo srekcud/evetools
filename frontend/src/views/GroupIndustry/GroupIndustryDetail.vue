@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, useId, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, useId, nextTick, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -44,10 +44,12 @@ import MemberTable from '@/components/group-industry/MemberTable.vue'
 import PendingRequestsTable from '@/components/group-industry/PendingRequestsTable.vue'
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import ProjectFlowActions from '@/components/group-industry/ProjectFlowActions.vue'
+import ProjectFlowCardDetail from '@/components/group-industry/ProjectFlowCardDetail.vue'
 import ProjectFlowGrid from '@/components/group-industry/ProjectFlowGrid.vue'
 import ProjectFlowPlanning from '@/components/group-industry/ProjectFlowPlanning.vue'
 import ProjectSection from '@/components/group-industry/ProjectSection.vue'
-import { buildFlowGrid } from '@/components/group-industry/projectFlow'
+import { buildFlowGrid, FLOW_COLUMNS } from '@/components/group-industry/projectFlow'
+import { lineOfCard } from '@/components/group-industry/projectFlowCardDetail'
 import ProjectPriceAlertBanner from '@/components/group-industry/ProjectPriceAlertBanner.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
@@ -275,11 +277,15 @@ const flowLoaded = ref(false)
 const clock = useNow()
 const flowNow = computed(() => Math.floor(clock.value / MS_PER_MINUTE) * MS_PER_MINUTE)
 
+const selectedCardKey = ref<string | null>(null)
+const cardDetail = useTemplateRef<InstanceType<typeof ProjectFlowCardDetail>>('cardDetail')
+
 function refreshFlow(id: string, salesAlreadyRefreshed = false): Promise<void>[] {
   return [
     stationQuantitiesStore.fetchStationQuantities(id),
     placeActionsStore.fetchOfProject(id),
     ...(salesAlreadyRefreshed ? [] : [distributionStore.fetchSales(id)]),
+    ...(cardDetail.value === null ? [] : [cardDetail.value.refresh()]),
   ]
 }
 
@@ -298,6 +304,18 @@ const flowGrid = computed(() => {
     bomItems: projectStore.bomItems,
     now: flowNow.value,
   })
+})
+
+const selectedCard = computed(() => {
+  const key = selectedCardKey.value
+  if (key === null || flowGrid.value === null) return null
+  return flowGrid.value.rows
+    .flatMap(row => FLOW_COLUMNS.flatMap(column => row.cells[column]))
+    .find(card => card.key === key) ?? null
+})
+
+watch(selectedCard, (card) => {
+  if (card === null) selectedCardKey.value = null
 })
 
 onMounted(async () => {
@@ -808,11 +826,31 @@ function applyShareLinkShortcut(): void {
                 >{{ t(`groupIndustry.flowPlanning.views.${view}`) }}</button>
               </div>
             </div>
-            <ProjectFlowGrid v-if="flowView === 'flux'" :grid="flowGrid" :personal-use="project.personalUse === true" />
+            <ProjectFlowGrid
+              v-if="flowView === 'flux'"
+              :grid="flowGrid"
+              :personal-use="project.personalUse === true"
+              :selected-key="selectedCardKey"
+              @select="selectedCardKey = $event"
+            />
             <ProjectFlowPlanning v-else :project-id="projectId" :grid="flowGrid" :bom-items="projectStore.bomItems" />
           </template>
         </div>
-        <ProjectFlowActions :actions="placeActionsStore.actions" :loading="placeActionsStore.loading" :error="placeActionsStore.error" />
+        <div class="min-w-0 space-y-4">
+          <ProjectFlowCardDetail
+            v-if="selectedCard !== null"
+            :key="selectedCard.key"
+            ref="cardDetail"
+            :project-id="projectId"
+            :card="selectedCard"
+            :line="lineOfCard(selectedCard, projectStore.bomItems)"
+            :project="project"
+            :can-link-jobs="isAcceptedMember"
+            :can-record-sales="canRecordSales"
+            @close="selectedCardKey = null"
+          />
+          <ProjectFlowActions :actions="placeActionsStore.actions" :loading="placeActionsStore.loading" :error="placeActionsStore.error" />
+        </div>
       </div>
 
       <div ref="sectionsRoot" class="space-y-2">

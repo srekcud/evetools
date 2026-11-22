@@ -105,7 +105,7 @@ function isPositive(quantity: number | null): quantity is number {
   return quantity !== null && quantity > 0
 }
 
-function lineOfTypes(bomItems: BomItem[]): Map<number, BomItem> {
+export function lineOfTypes(bomItems: BomItem[]): Map<number, BomItem> {
   const lines = new Map<number, BomItem>()
   for (const item of bomItems) {
     const known = lines.get(item.typeId)

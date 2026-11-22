@@ -52,6 +52,34 @@ export function finalLine(typeId: number, requiredQuantity: number): BomItem {
   return { typeId, requiredQuantity, jobGroup: 'final', isJob: true } as BomItem
 }
 
+export function bomLineOf(fields: Partial<BomItem> & Pick<BomItem, 'id' | 'typeId' | 'typeName'>): BomItem {
+  return {
+    requiredQuantity: 1000,
+    fulfilledQuantity: 0,
+    remainingQuantity: 1000,
+    fulfillmentPercent: 0,
+    estimatedPrice: null,
+    estimatedTotal: null,
+    isJob: false,
+    jobGroup: null,
+    activityType: null,
+    parentTypeId: null,
+    meLevel: null,
+    teLevel: null,
+    runs: null,
+    isFulfilled: false,
+    jobMatches: [],
+    matchedRuns: 0,
+    purchases: [],
+    purchasedQuantity: 0,
+    reservations: [],
+    pendingContributions: [],
+    reservedQuantity: 0,
+    freeQuantity: 0,
+    ...fields,
+  }
+}
+
 export function saleOf(typeId: number, typeName: string, quantity: number): GroupSale {
   return { typeId, typeName, quantity } as GroupSale
 }

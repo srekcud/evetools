@@ -247,6 +247,47 @@ describe('the member management confirmation is translated', () => {
   })
 })
 
+describe('the flow card detail labels exist in both languages', () => {
+  const DETAIL_KEYS = 'groupIndustry.flow.detail'
+  const MESSAGES: Record<TestLocale, unknown> = { en, fr }
+  const ORIGIN_KINDS = ['whereToBuy', 'courier', 'contributions', 'useMyStock', 'depositToCheck', 'blueprints', 'research', 'jobs', 'reservation', 'planning', 'structure', 'decryptors', 'whereToSell', 'sellOrders', 'salesToMatch']
+  const PLAIN_KEYS = ['unknown', 'closeDetail', 'nothingMore', 'intro', 'linkJob', 'openTab']
+  const FRENCH_ORIGINS: Record<string, string> = {
+    whereToBuy: 'Approvisionnement › Où acheter',
+    courier: 'Approvisionnement › Contrats de courier',
+    contributions: 'Contributions',
+    useMyStock: 'Approvisionnement › Utiliser mon stock',
+    depositToCheck: 'Contributions › Apports à vérifier',
+    blueprints: 'Approvisionnement › BPC possédés',
+    research: 'Production › Recherche',
+    jobs: 'Production › Chaîne, Lier un job',
+    reservation: 'Production › Réservation, location de lignes',
+    planning: 'Planning',
+    structure: 'Production › Structures, Santé des structures',
+    decryptors: 'Invention › Choix du décrypteur',
+    whereToSell: 'Finances › Prévision de vente',
+    sellOrders: 'Ventes › Mes ordres',
+    salesToMatch: 'Ventes › Ventes à rattacher',
+  }
+
+  function detailText(locale: TestLocale, key: string): string {
+    const message = `${DETAIL_KEYS}.${key}`.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], MESSAGES[locale])
+    return typeof message === 'string' ? message.replace(/[\u00a0\u202f]/g, ' ') : `missing ${locale} message ${key}`
+  }
+
+  it('has every block origin and plain label in both languages, worded in French as the spec does', () => {
+    for (const locale of LOCALES) {
+      const texts = Object.fromEntries([...ORIGIN_KINDS.map(kind => `origins.${kind}`), ...PLAIN_KEYS].map(key => [key, detailText(locale, key)]))
+
+      expect(Object.entries(texts).filter(([key, text]) => text === '' || text === `missing ${locale} message ${key}`), locale).toEqual([])
+    }
+    expect(Object.fromEntries(ORIGIN_KINDS.map(kind => [kind, detailText('fr', `origins.${kind}`)]))).toEqual(FRENCH_ORIGINS)
+    expect(detailText('fr', 'intro')).toBe('Ce que les onglets actuels montrent sur cet objet, réuni sur sa carte.')
+    expect(detailText('fr', 'nothingMore')).toBe('Rien de plus sur cette carte.')
+    expect(detailText('fr', 'unknown').toLowerCase()).toBe('inconnu')
+  })
+})
+
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
 })

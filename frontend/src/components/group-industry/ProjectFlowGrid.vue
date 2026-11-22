@@ -10,6 +10,11 @@ import { useFlowReasonLabel } from './useFlowReasonLabel'
 const props = defineProps<{
   grid: FlowGrid
   personalUse: boolean
+  selectedKey?: string | null
+}>()
+
+const emit = defineEmits<{
+  select: [cardKey: string | null]
 }>()
 
 const LEGEND_ACTIVITIES: ActivityGroup[] = ACTIVITY_GROUP_ORDER.filter(activity => activity !== 'unknown')
@@ -25,6 +30,15 @@ const linkedKeys = computed(() => new Set(
 
 function linkKeyOf(card: FlowCard): string {
   return card.expected?.cardKey ?? card.key
+}
+
+function selectCard(card: FlowCard): void {
+  const key = linkKeyOf(card)
+  emit('select', key === props.selectedKey ? null : key)
+}
+
+function isSelected(card: FlowCard): boolean {
+  return card.expected === null && card.key === props.selectedKey
 }
 
 function hoverCard(card: FlowCard, entered: boolean): void {
@@ -132,7 +146,9 @@ function foldLabel(row: FlowRow, column: FlowColumn): string {
                 :key="card.key"
                 :card="card"
                 :highlighted="hoveredLinkKey !== null && hoveredLinkKey === linkKeyOf(card)"
+                :selected="isSelected(card)"
                 @highlight="hoverCard(card, $event)"
+                @select="selectCard(card)"
               />
               <button
                 v-if="foldedCell(row, column).foldedKind !== null"
