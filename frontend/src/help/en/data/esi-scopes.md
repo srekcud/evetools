@@ -20,9 +20,9 @@ This table is generated from the code by `app:help:generate-tables`: do not edit
 | `esi-corporations.read_blueprints.v1` | Corporation blueprints, for the blueprint library. |
 | `esi-skills.read_skills.v1` | Skills of a character: training times, reprocessing level. |
 | `esi-skills.read_skillqueue.v1` | Requested in advance: no feature reads the skill queue yet. |
-| `esi-location.read_location.v1` | Requested in advance: no feature reads the character location yet. |
+| `esi-location.read_location.v1` | Current location of a character (system, station or structure), read on demand with a short cache and never shown to other members. |
 | `esi-location.read_ship_type.v1` | Current ship of a character, for mining operations. |
-| `esi-location.read_online.v1` | Requested in advance: no feature reads the character online status yet. |
+| `esi-location.read_online.v1` | Online status and last login of a character, read with its location, never shown to other members. |
 | `esi-fleets.read_fleet.v1` | Requested in advance: no feature reads the fleet yet. |
 | `esi-universe.read_structures.v1` | Names and locations of player structures. |
 | `esi-search.search_structures.v1` | Structure search, to discover Ansiblex jump gates. |
