@@ -11,6 +11,7 @@ use App\Service\Industry\Project\StationMigration\StationMigrationReport;
 use App\Service\Industry\Project\StationMigration\StationRevertReport;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -104,7 +105,7 @@ final class MigrateToStationModelCommand extends Command
 
     private function printProject(OutputInterface $output, ProjectStationMigrationReport $project): void
     {
-        $output->writeln(\sprintf('Project %s (%s)', $project->projectName ?? $project->projectId, $project->status));
+        $output->writeln(\sprintf('Project %s (%s)', OutputFormatter::escape($project->projectName ?? $project->projectId), $project->status));
         foreach ($project->changes as $change) {
             $output->writeln(\sprintf('  change %s %s -> %s', $change->kind->value, $change->subject, $change->value));
         }

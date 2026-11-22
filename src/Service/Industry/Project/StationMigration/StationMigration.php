@@ -126,7 +126,7 @@ final readonly class StationMigration
     private function undoContainerLocation(StationMigrationChange $change): bool
     {
         $container = Uuid::isValid($change->subject) ? $this->entityManager->find(IndustryProjectContainer::class, $change->subject) : null;
-        if (null === $container || (string) $container->getLocationId() !== $change->value) {
+        if (null === $container || $container->getProject()->getId()->toRfc4122() !== $change->projectId || (string) $container->getLocationId() !== $change->value) {
             return false;
         }
 

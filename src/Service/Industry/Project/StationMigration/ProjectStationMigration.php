@@ -22,6 +22,8 @@ use App\Service\Industry\Project\ProjectWorkStations;
 
 final readonly class ProjectStationMigration
 {
+    private const string REASON_CORPORATION_ASSETS_STALE = 'corporation_assets_stale';
+
     public function __construct(
         private ProjectWorkStations $workStations,
         private IndustryProjectService $projectService,
@@ -138,6 +140,10 @@ final readonly class ProjectStationMigration
 
         $owner = $project->getOwner();
         $corporationId = $owner->getCorporationId() ?? throw new \LogicException('An available project has an owner corporation.');
+        if ($this->containerService->areCorporationAssetsStale($this->cachedAssetRepository->lastCachedAtOfCorporationAssets($corporationId))) {
+            return $refuseAll(StationMigrationReason::AssetsUnavailable, self::REASON_CORPORATION_ASSETS_STALE);
+        }
+
         $visibleAssets = $this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner);
         $assetsByNameKey = [];
         foreach ($visibleAssets as $asset) {

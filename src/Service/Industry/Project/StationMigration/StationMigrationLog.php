@@ -26,9 +26,19 @@ final readonly class StationMigrationLog
             ),
         ], \JSON_PRETTY_PRINT | \JSON_THROW_ON_ERROR);
 
-        if (false === @file_put_contents($path, $content)) {
-            throw new \RuntimeException(\sprintf('The station migration log "%s" cannot be written.', $path));
+        $handle = @fopen($path, 'x');
+        if (false === $handle) {
+            throw new \RuntimeException(\sprintf('The station migration log "%s" cannot be created: the file exists or its folder is missing.', $path));
         }
+
+        try {
+            if (false === fwrite($handle, $content)) {
+                throw new \RuntimeException(\sprintf('The station migration log "%s" cannot be written.', $path));
+            }
+        } finally {
+            fclose($handle);
+        }
+        @chmod($path, 0600);
     }
 
     /**

@@ -31,7 +31,7 @@ Ni `buildBom`, ni plan, ni `plannedStructureId`, ni quantité ne sont touchés ;
 
 ## Lieu des containers
 
-R7. Un container de projet qui a déjà un lieu n'est ni modifié ni rapporté. Un projet `completed` : ses containers sans lieu sont rapportés `project_completed` (les assets d'aujourd'hui ne disent rien du passé). Sinon, assets du propriétaire indisponibles (`ProjectContainerService::unavailabilityReasonOf` non nul) : `assets_unavailable`, avec la raison en détail.
+R7. Un container de projet qui a déjà un lieu n'est ni modifié ni rapporté. Un projet `completed` : ses containers sans lieu sont rapportés `project_completed` (les assets d'aujourd'hui ne disent rien du passé). Sinon, assets du propriétaire indisponibles (`ProjectContainerService::unavailabilityReasonOf` non nul, ou dernière synchro des assets de la corporation de plus de 48 h : détail `corporation_assets_stale`) : `assets_unavailable`, avec la raison en détail.
 
 R8. Sinon, assets nommés comme le container (clé `IndustryProjectContainer::keyOf`) parmi `VisibleCorporationAssetsFinder::findVisibleAssets(corporation du propriétaire, null, propriétaire)`, station de chacun par `AssetStations` (même lecture que `ProjectContainerReadings`). Résultat :
 - aucun asset nommé → `container_not_found` ;
@@ -42,9 +42,9 @@ Les stations du plan incluent déjà les `work_stations` posés par R6 dans le m
 
 ## Journal et annulation
 
-R9. Journal (JSON, une entrée par changement) : `{projectId, kind: work_station|container_location, subject: <type de travail | uuid du container>, value: <uuid de la structure | locationId>}` plus la date d'application. Aucun nom ni montant.
+R9. Journal (JSON, une entrée par changement) : `{projectId, kind: work_station|container_location, subject: <type de travail | uuid du container>, value: <uuid de la structure | locationId>}` plus la date d'application. Aucun nom ni montant. Le fichier est créé en refusant d'écraser un journal existant (mode `0600`) : un second `--apply` avec le même `--log` échoue sans rien appliquer.
 
-R10. `--revert` : pour chaque entrée, `work_station` : si le projet a toujours ce type de travail avec ce `structureId` et `recommendedStructureId` nul, le retire ; `container_location` : si le container a toujours ce lieu, le remet à `null` (nouvelle méthode `IndustryProjectContainer::clearLocation()`). Une valeur qui a changé depuis, un projet ou un container disparu : ignoré et rapporté `changed_since`, jamais écrasé. Même règles de transaction que R2 (simulation par défaut). Fichier illisible ou sans la forme attendue : exit `FAILURE`, rien n'est écrit.
+R10. `--revert` : pour chaque entrée, `work_station` : si le projet a toujours ce type de travail avec ce `structureId` et `recommendedStructureId` nul, le retire ; `container_location` : si le container appartient bien au projet de l'entrée et a toujours ce lieu, le remet à `null` (nouvelle méthode `IndustryProjectContainer::clearLocation()`). Une valeur qui a changé depuis, un projet ou un container disparu : ignoré et rapporté `changed_since`, jamais écrasé. Même règles de transaction que R2 (simulation par défaut). Fichier illisible ou sans la forme attendue : exit `FAILURE`, rien n'est écrit.
 
 ## Exemples (tests rouges)
 

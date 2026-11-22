@@ -517,6 +517,68 @@ final class ProjectStationMigrationTest extends IntegrationTestCase
         self::assertSame([[StationMigrationChangeKind::ContainerLocation, $containerId, StationMigrationReason::ProjectCompleted]], $this->unmigratedOf($report));
     }
 
+    public function testACompletedProjectWithoutCorporationOwnerIsStillReportedAsProjectCompleted(): void
+    {
+        $project = $this->newProject('Delivered offline', ProjectStatus::Completed, $this->createUser());
+        $containerId = $this->addContainer($project, self::FIRST_CONTAINER_NAME);
+        $this->flushAndClear();
+
+        $report = $this->migration->migrate($this->reloadedProject($project));
+
+        self::assertSame([[StationMigrationChangeKind::ContainerLocation, $containerId, StationMigrationReason::ProjectCompleted]], $this->unmigratedOf($report));
+    }
+
+    public function testCorporationAssetsSyncedMoreThan48HoursAgoReportTheContainersAsAssetsUnavailable(): void
+    {
+        $project = $this->newProject();
+        $this->addComponentLines($project, $this->azbelAId);
+        $containerId = $this->addContainer($project, self::FIRST_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_A, self::FIRST_CONTAINER_NAME);
+        $this->flushAndClear();
+        $this->em->getConnection()->executeStatement("UPDATE cached_assets SET cached_at = NOW() - INTERVAL '3 days' WHERE is_corporation_asset = true");
+
+        $report = $this->migration->migrate($this->reloadedProject($project));
+
+        self::assertNull($this->reloadedContainer($containerId)->getLocationId());
+        self::assertCount(1, $report->unmigrated);
+        self::assertSame(
+            [StationMigrationChangeKind::ContainerLocation, $containerId, StationMigrationReason::AssetsUnavailable, 'corporation_assets_stale'],
+            [$report->unmigrated[0]->kind, $report->unmigrated[0]->subject, $report->unmigrated[0]->reason, $report->unmigrated[0]->detail],
+        );
+    }
+
+    public function testAnAssetWithoutNameNextToTheContainerDoesNotPreventItsLocation(): void
+    {
+        $project = $this->newProject();
+        $this->addComponentLines($project, $this->azbelAId);
+        $containerId = $this->addContainer($project, self::FIRST_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_A, self::FIRST_CONTAINER_NAME);
+        $this->persistAsset($this->nextAssetItemId++, 34, 'Tritanium', $this->cacheOfficeAt(self::STATION_A), 'item', 'CorpSAG2', 'Division 2', null);
+        $this->flushAndClear();
+
+        $report = $this->migration->migrate($this->reloadedProject($project));
+
+        self::assertSame(self::STATION_A, $this->reloadedContainer($containerId)->getLocationId());
+        self::assertSame([], $report->unmigrated);
+    }
+
+    public function testContainersAreLocatedInTheOrderOfTheirNameSoTheFirstOneTakesTheStation(): void
+    {
+        $project = $this->newProject();
+        $this->addComponentLines($project, $this->azbelAId);
+        $ishtarId = $this->addContainer($project, self::FIRST_CONTAINER_NAME);
+        $fuelDepotId = $this->addContainer($project, self::SECOND_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_A, self::FIRST_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_A, self::SECOND_CONTAINER_NAME);
+        $this->flushAndClear();
+
+        $report = $this->migration->migrate($this->reloadedProject($project));
+
+        self::assertSame(self::STATION_A, $this->reloadedContainer($fuelDepotId)->getLocationId());
+        self::assertNull($this->reloadedContainer($ishtarId)->getLocationId());
+        self::assertSame([[StationMigrationChangeKind::ContainerLocation, $ishtarId, StationMigrationReason::StationAlreadyHasContainer]], $this->unmigratedOf($report));
+    }
+
     public function testACompletedProjectStillGetsItsPlanStations(): void
     {
         $project = $this->newProject('Delivered fleet', ProjectStatus::Completed);

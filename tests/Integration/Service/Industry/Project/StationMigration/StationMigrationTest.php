@@ -353,6 +353,71 @@ final class StationMigrationTest extends IntegrationTestCase
         self::assertSame($stateAfterFirstRevert, $this->databaseState());
     }
 
+    public function testRevertDoesNotTouchAContainerOfAnotherProjectNamedByAHandEditedLog(): void
+    {
+        $this->migration->run(true, null, $this->logPath);
+        $this->em->clear();
+        $editedLogPath = $this->logDirectory . '/edited.json';
+        (new StationMigrationLog())->write($editedLogPath, [
+            new StationMigrationChange($this->projectIds['sotiyo'], StationMigrationChangeKind::ContainerLocation, $this->containerIds['ishtar'], (string) self::STATION_A),
+        ], new \DateTimeImmutable());
+
+        $reverted = $this->migration->revert($editedLogPath, true);
+        $this->em->clear();
+
+        self::assertSame([], $reverted->reverted);
+        self::assertCount(1, $reverted->changedSince);
+        self::assertSame(self::STATION_A, $this->reloadedContainer($this->containerIds['ishtar'])->getLocationId());
+    }
+
+    public function testRevertReportsEntriesWhoseIdsAreNotUuidsWithoutFailing(): void
+    {
+        (new StationMigrationLog())->write($this->logPath, [
+            new StationMigrationChange('not-a-uuid', StationMigrationChangeKind::WorkStation, 'components', $this->azbelAId),
+            new StationMigrationChange($this->projectIds['ishtar'], StationMigrationChangeKind::ContainerLocation, 'not-a-uuid', (string) self::STATION_A),
+        ], new \DateTimeImmutable());
+
+        $reverted = $this->migration->revert($this->logPath, true);
+
+        self::assertSame([], $reverted->reverted);
+        self::assertCount(2, $reverted->changedSince);
+    }
+
+    public function testApplyRefusesToOverwriteAnExistingLogAndAppliesNothing(): void
+    {
+        file_put_contents($this->logPath, 'previous log');
+        $stateBefore = $this->databaseState();
+        $refused = false;
+
+        try {
+            $this->migration->run(true, null, $this->logPath);
+        } catch (\Throwable) {
+            $refused = true;
+            $this->em->clear();
+        }
+
+        self::assertTrue($refused);
+        self::assertSame('previous log', file_get_contents($this->logPath));
+        self::assertSame($stateBefore, $this->databaseState());
+    }
+
+    public function testAnInvalidOrUnknownProjectIdIsRefusedAndAppliesNothing(): void
+    {
+        $stateBefore = $this->databaseState();
+
+        foreach (['not-a-uuid', '0191b000-0000-7000-8000-00000000ffff'] as $projectId) {
+            try {
+                $this->migration->run(true, $projectId, $this->logPath);
+                self::fail('The project id must be refused.');
+            } catch (\InvalidArgumentException) {
+                $this->em->clear();
+            }
+        }
+
+        self::assertSame($stateBefore, $this->databaseState());
+        self::assertFileDoesNotExist($this->logPath);
+    }
+
     public function testRevertOfAnInvalidLogFailsAndWritesNothing(): void
     {
         $this->migration->run(true, null, $this->logPath);

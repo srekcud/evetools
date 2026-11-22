@@ -193,6 +193,22 @@ final class MigrateToStationModelCommandTest extends IntegrationTestCase
         self::assertSame($stateAfterFirstApply, $this->databaseState());
     }
 
+    public function testAnInvalidOrUnknownProjectOptionFailsTheCommandAndWritesNothing(): void
+    {
+        $stateBefore = $this->databaseState();
+
+        foreach (['not-a-uuid', '0191b000-0000-7000-8000-00000000ffff'] as $projectId) {
+            $tester = $this->tester();
+            $exitCode = $tester->execute(['--apply' => true, '--log' => $this->logPath, '--project' => $projectId]);
+            $this->em->clear();
+
+            self::assertSame(Command::FAILURE, $exitCode);
+        }
+
+        self::assertSame($stateBefore, $this->databaseState());
+        self::assertFileDoesNotExist($this->logPath);
+    }
+
     public function testAFailedLogWriteFailsTheCommandAndAppliesNothing(): void
     {
         $stateBefore = $this->databaseState();
