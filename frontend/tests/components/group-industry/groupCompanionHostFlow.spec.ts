@@ -12,7 +12,9 @@ import {
   COMPANION_PROJECT_ID,
   companionProject,
   MAIN_EVE_CHARACTER_ID,
+  projectTransportLegs,
   stationTransfer,
+  transportLeg,
 } from './companionFixtures'
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }))
@@ -49,6 +51,7 @@ async function mountOpenCompanion(companionWindow: 'visible' | 'hidden' = 'visib
   const refreshPlace = vi.spyOn(companion, 'refreshPlace').mockResolvedValue(undefined)
   const arriveTransfer = vi.spyOn(companion, 'arriveTransfer').mockResolvedValue(undefined)
   const supply = vi.spyOn(companion, 'supply').mockResolvedValue(undefined)
+  const declareLeg = vi.spyOn(companion, 'declareLeg').mockResolvedValue(undefined)
   companion.projectId = COMPANION_PROJECT_ID
   companion.project = companionProject()
   const wrapper = mount(GroupCompanionHost, {
@@ -58,7 +61,7 @@ async function mountOpenCompanion(companionWindow: 'visible' | 'hidden' = 'visib
     },
   })
   await flushPromises()
-  return { wrapper, companion, refreshPlace, arriveTransfer, supply }
+  return { wrapper, companion, refreshPlace, arriveTransfer, supply, declareLeg }
 }
 
 beforeEach(() => {
@@ -106,6 +109,23 @@ describe('GroupCompanionHost place and flow', () => {
     expect({ arriveTransfer: arriveTransfer.mock.calls, supply: supply.mock.calls }).toEqual({
       arriveTransfer: [['transfer-mine']],
       supply: [['bom-morphite']],
+    })
+  })
+
+  it('feeds the tasks with the transport legs and wires the declare leg event of the companion to the store', async () => {
+    const { wrapper, companion, declareLeg } = await mountOpenCompanion()
+    useAuthStore().user = { characters: [{ eveCharacterId: MAIN_EVE_CHARACTER_ID, name: 'Alpha' }] } as never
+    companion.transportLegs = projectTransportLegs({ legs: [transportLeg({ key: 'leg-jita-perimeter' })] })
+    await flushPromises()
+    const tasks = wrapper.getComponent(GroupCompanion).props('tasks')
+
+    wrapper.getComponent(GroupCompanion).vm.$emit('declare-leg', 'leg-jita-perimeter')
+    await flushPromises()
+
+    expect({ legs: tasks.legs.map(leg => leg.key), readyLegCount: tasks.readyLegCount, declareLeg: declareLeg.mock.calls }).toEqual({
+      legs: ['leg-jita-perimeter'],
+      readyLegCount: 1,
+      declareLeg: [['leg-jita-perimeter']],
     })
   })
 

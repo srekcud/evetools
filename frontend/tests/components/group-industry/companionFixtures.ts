@@ -1,4 +1,4 @@
-import type { CompanionTasks } from '@/components/group-industry/companionTasks'
+import type { CompanionLeg, CompanionTasks } from '@/components/group-industry/companionTasks'
 import type {
   ActionPlace,
   BomItem,
@@ -13,6 +13,10 @@ import type {
   JobMatch,
   PlacedAction,
   ProjectStationTransfer,
+  ProjectTransportLeg,
+  ProjectTransportLegLine,
+  ProjectTransportLegPlace,
+  ProjectTransportLegs,
   StationTransferLine,
   StationTransferPlace,
 } from '@/stores/group-industry/types'
@@ -140,6 +144,10 @@ export function companionTasksOf(overrides: Partial<CompanionTasks> = {}): Compa
     linePlaces: {},
     carries: [],
     carriesUnknown: false,
+    legs: [],
+    legsUnknown: false,
+    legsUnreadableCount: 0,
+    readyLegCount: 0,
     supplies: [],
     reservationExpiries: {},
     joinRequestNames: [],
@@ -173,6 +181,11 @@ export const JITA_STATION_ID = 60_003_760
 export const PERIMETER_SYSTEM_ID = 30_000_144
 export const MAIN_EVE_CHARACTER_ID = 2_112_000_001
 export const ALT_EVE_CHARACTER_ID = 2_112_000_002
+export const PERIMETER_STATION_ID = 1_040_000_000_001
+export const AMARR_STATION_ID = 60_008_494
+export const AMARR_SYSTEM_ID = 30_002_187
+export const HEK_STATION_ID = 60_005_686
+export const HEK_SYSTEM_ID = 30_002_053
 
 export function stationPlace(overrides: Partial<ActionPlace> = {}): ActionPlace {
   return {
@@ -293,6 +306,99 @@ export function stockProposal(overrides: Partial<IntermediateStockProposal> = {}
     state: 'ready',
     unknownReason: null,
     lines: [stockProposalLine()],
+    ...overrides,
+  }
+}
+
+export function legPlace(overrides: Partial<ProjectTransportLegPlace> = {}): ProjectTransportLegPlace {
+  return {
+    locationId: JITA_STATION_ID,
+    stationName: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
+    solarSystemId: JITA_SYSTEM_ID,
+    solarSystemName: 'Jita',
+    ...overrides,
+  }
+}
+
+export function perimeterLegPlace(overrides: Partial<ProjectTransportLegPlace> = {}): ProjectTransportLegPlace {
+  return legPlace({
+    locationId: PERIMETER_STATION_ID,
+    stationName: 'Perimeter - Tranquility Trading Tower',
+    solarSystemId: PERIMETER_SYSTEM_ID,
+    solarSystemName: 'Perimeter',
+    ...overrides,
+  })
+}
+
+export function amarrLegPlace(overrides: Partial<ProjectTransportLegPlace> = {}): ProjectTransportLegPlace {
+  return legPlace({
+    locationId: AMARR_STATION_ID,
+    stationName: 'Amarr VIII (Oris) - Emperor Family Academy',
+    solarSystemId: AMARR_SYSTEM_ID,
+    solarSystemName: 'Amarr',
+    ...overrides,
+  })
+}
+
+export function transportLegLine(overrides: Partial<ProjectTransportLegLine> = {}): ProjectTransportLegLine {
+  return {
+    typeId: 11_399,
+    typeName: 'Morphite',
+    quantity: 40,
+    state: 'ready',
+    source: 'project',
+    readyAt: null,
+    unitVolume: 10,
+    volume: 400,
+    unknownReason: null,
+    ...overrides,
+  }
+}
+
+export function transportLeg(overrides: Partial<ProjectTransportLeg> = {}): ProjectTransportLeg {
+  return {
+    key: `${JITA_STATION_ID}>${PERIMETER_STATION_ID}`,
+    departure: legPlace(),
+    arrival: perimeterLegPlace(),
+    access: 'granted',
+    carrierCharacterIds: [MAIN_EVE_CHARACTER_ID],
+    volume: 400,
+    lines: [transportLegLine()],
+    ...overrides,
+  }
+}
+
+export function projectTransportLegs(overrides: Partial<ProjectTransportLegs> = {}): ProjectTransportLegs {
+  return {
+    personalStockUnknownReason: null,
+    unreadable: [],
+    legs: [],
+    ...overrides,
+  }
+}
+
+export function companionLegOf(overrides: Partial<CompanionLeg> = {}): CompanionLeg {
+  return {
+    key: `${JITA_STATION_ID}>${PERIMETER_STATION_ID}`,
+    from: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
+    to: 'Perimeter - Tranquility Trading Tower',
+    fromSystem: 'Jita',
+    toSystem: 'Perimeter',
+    here: false,
+    accessUnknown: false,
+    volume: 400,
+    lines: [transportLegLine()],
+    declared: false,
+    canDeclare: true,
+    declaration: {
+      fromSolarSystemId: JITA_SYSTEM_ID,
+      fromLocationId: JITA_STATION_ID,
+      toSolarSystemId: PERIMETER_SYSTEM_ID,
+      toLocationId: PERIMETER_STATION_ID,
+      lines: [{ typeId: 11_399, quantity: 40 }],
+      carrierCharacterId: MAIN_EVE_CHARACTER_ID,
+      contractId: null,
+    },
     ...overrides,
   }
 }

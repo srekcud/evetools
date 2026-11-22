@@ -2,7 +2,7 @@ import { ACTIVITY_GROUP_ORDER, type ActivityGroup } from './companionTasks'
 
 export const COMPANION_COLLAPSED_STORAGE_KEY = 'groupCompanion.collapsed'
 
-export type CompanionPane = 'free' | 'mine' | 'jobs'
+export type CompanionPane = 'free' | 'mine' | 'transport' | 'jobs'
 
 export type CompanionSectionKey = `${CompanionPane}:${ActivityGroup}`
 

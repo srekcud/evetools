@@ -5,7 +5,7 @@ import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useSyncStore } from '@/stores/sync'
 import { projectDisplayNameOf } from '@/components/group-industry/projectDisplayName'
 import { useUnassignedJobsStore } from './unassignedJobs'
-import type { BomItem, CharacterLocationRead, ChainNode, GroupMember, GroupProject, IntermediateStockProposal, PlacedAction, ProjectChain, ProjectCockpit, ProjectPriceAlert, ProjectSellOrder, ProjectStationTransfer } from './types'
+import type { BomItem, CharacterLocationRead, ChainNode, GroupMember, GroupProject, IntermediateStockProposal, PlacedAction, ProjectChain, ProjectCockpit, ProjectPriceAlert, ProjectSellOrder, ProjectStationTransfer, ProjectTransportLegs } from './types'
 
 const MEMBER_EVENT_PREFIX = 'member_'
 const RECONNECTION_REFRESH = 'reconnected'
@@ -28,6 +28,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   const positions = ref<CharacterLocationRead[] | null>(null)
   const transfers = ref<ProjectStationTransfer[] | null>(null)
   const stockProposal = ref<IntermediateStockProposal | null>(null)
+  const transportLegs = ref<ProjectTransportLegs | null>(null)
   const myProjects = ref<GroupProject[] | null>(null)
   const projectChoices = computed<ProjectChoice[]>(() => (myProjects.value ?? [])
     .filter(candidate => candidate.status !== COMPLETED_PROJECT_STATUS)
@@ -225,6 +226,8 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     await loadTransfers(id)
   }
 
+  async function declareLeg(_key: string): Promise<void> {}
+
   async function supply(lineId: string): Promise<void> {
     const id = projectId.value
     if (id === null) return
@@ -272,5 +275,5 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
 
   useRefetchOnReconnect(() => handleEvent(RECONNECTION_REFRESH))
 
-  return { projectId, bomItems, chainNodes, project, members, priceAlert, undercutOrders, placedActions, positions, transfers, stockProposal, myProjects, projectChoices, error, open, close, claim, release, refreshPlace, arriveTransfer, supply, switchProject, handleEvent, handleEvents }
+  return { projectId, bomItems, chainNodes, project, members, priceAlert, undercutOrders, placedActions, positions, transfers, stockProposal, transportLegs, myProjects, projectChoices, error, open, close, claim, release, refreshPlace, arriveTransfer, declareLeg, supply, switchProject, handleEvent, handleEvents }
 })
