@@ -42,6 +42,14 @@ final class JitaPurchaseImportCostTest extends TestCase
         self::assertSame(0.0, $this->amountOf($cost));
     }
 
+    public function testWorkshopInJitaNeedsNoCourierHubAndHasAKnownImportOfZero(): void
+    {
+        $cost = JitaPurchase::importCostOf(self::HOBGOBLIN_II, 10, 2.5, self::JITA_SYSTEM_ID, null);
+
+        self::assertSame(0.0, $this->amountOf($cost));
+        self::assertSame([], $cost->missingData);
+    }
+
     public function testMissingSdeVolumeLeavesTheImportUnknownBecauseOfTheItemVolume(): void
     {
         $cost = JitaPurchase::importCostOf(self::HOBGOBLIN_II, 10, null, self::WORKSHOP_SYSTEM_ID, $this->hub());
