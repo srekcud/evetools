@@ -247,6 +247,100 @@ describe('IndustryTodo view', () => {
     expect(wrapper.find('[data-testid="todo-copy-error"]').exists()).toBe(false)
   })
 
+  it('adds one multibuy button per project, labelled with its name, next to the all projects one', async () => {
+    const wrapper = await mountWith(EXAMPLE_ACTIONS)
+
+    const groups = wrapper.findAll('[data-testid="todo-place-group"]')
+    expect(groups.map(group => group.findAll('[data-testid="todo-multibuy-project"]').map(button => button.text()))).toEqual([
+      [],
+      ['Multibuy · Ishtar batch · 2 lines', 'Multibuy · Ibis run · 1 line'],
+      [],
+      [],
+    ])
+    expect(wrapper.get('[data-testid="todo-multibuy"]').text()).toBe('Multibuy · 3 lines, 2 projects')
+  })
+
+  it('shows no per-project button when a single project buys at the market', async () => {
+    const wrapper = await mountWith([
+      SOURCE_TRITANIUM_400_AT_JITA,
+      SOURCE_ZYDRINE_50_AT_JITA,
+    ])
+
+    expect(wrapper.findAll('[data-testid="todo-multibuy"]')).toHaveLength(1)
+    expect(wrapper.findAll('[data-testid="todo-multibuy-project"]')).toHaveLength(0)
+  })
+
+  it('copies only the lines of the project of the clicked button, and the all projects text stays whole', async () => {
+    const wrapper = await mountWith(EXAMPLE_ACTIONS)
+
+    const projectButtons = wrapper.findAll('[data-testid="todo-multibuy-project"]')
+    await projectButtons[1].trigger('click')
+    await projectButtons[0].trigger('click')
+    await wrapper.get('[data-testid="todo-multibuy"]').trigger('click')
+    await flushPromises()
+
+    expect(writeText.mock.calls.map(([text]) => text)).toEqual([
+      'Tritanium\t120',
+      'Tritanium\t400\nZydrine\t50',
+      'Tritanium\t520\nZydrine\t50',
+    ])
+  })
+
+  it('tells after a per-project copy that the transaction will be split by project, with no promise on the split', async () => {
+    const wrapper = await mountWith(EXAMPLE_ACTIONS)
+
+    await wrapper.get('[data-testid="todo-multibuy-project"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="todo-multibuy-feedback"]').text()).toBe('Copied. The wallet sync will link the transaction to the projects when it can')
+    expect(wrapper.find('[data-testid="todo-copy-error"]').exists()).toBe(false)
+  })
+
+  it('shows an error and never Copied when the browser refuses a per-project copy', async () => {
+    writeText.mockRejectedValue(new Error('denied'))
+    const wrapper = await mountWith(EXAMPLE_ACTIONS)
+
+    await wrapper.get('[data-testid="todo-multibuy-project"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="todo-multibuy-feedback"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="todo-copy-error"]').text()).not.toBe('')
+  })
+
+  it('copies the quantity left to buy in the per-project text once the others are subtracted', async () => {
+    const wrapper = await mountWith([
+      BUY_TRITANIUM_250_WITH_OTHERS,
+      SOURCE_ZYDRINE_50_AT_JITA,
+      placedAction({ id: 'p1', code: 'source_material', place: JITA_PLACE, typeId: 35, typeName: 'Pyerite', quantity: 70, projectId: IBIS_PROJECT_ID, projectName: 'Ibis run' }),
+    ])
+
+    await wrapper.findAll('[data-testid="todo-multibuy-project"]')[0].trigger('click')
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledExactlyOnceWith('Tritanium\t250\nZydrine\t50')
+  })
+
+  it('words a project without name in the per-project button', async () => {
+    const wrapper = await mountWith([
+      SOURCE_TRITANIUM_400_AT_JITA,
+      placedAction({ id: 'u1', code: 'source_material', place: JITA_PLACE, typeId: 35, typeName: 'Pyerite', quantity: 70, projectId: IBIS_PROJECT_ID, projectName: null }),
+    ])
+
+    expect(wrapper.findAll('[data-testid="todo-multibuy-project"]').map(button => button.text())).toEqual([
+      'Multibuy · Ishtar batch · 1 line',
+      'Multibuy · Unnamed project · 1 line',
+    ])
+  })
+
+  it('words the per-project buttons in French', async () => {
+    const wrapper = await mountWith(EXAMPLE_ACTIONS, 'fr')
+
+    expect(wrapper.findAll('[data-testid="todo-multibuy-project"]').map(button => button.text())).toEqual([
+      'Multibuy · Ishtar batch · 2 lignes',
+      'Multibuy · Ibis run · 1 ligne',
+    ])
+  })
+
   it('tells under an action who already took part of it and how much, in the order of the server', async () => {
     const wrapper = await mountWith([BUY_TRITANIUM_250_WITH_OTHERS, SOURCE_ZYDRINE_50_AT_JITA])
 

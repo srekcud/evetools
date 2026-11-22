@@ -1,9 +1,10 @@
-import { groupActionsByPlace, placeMultibuy, type PlaceGroup } from '@/utils/todoPlaces'
+import { groupActionsByPlace, placeMultibuy, projectMultibuys, type PlaceGroup } from '@/utils/todoPlaces'
 import {
   AZBEL_PLACE,
   ANYWHERE_PLACE,
   EXAMPLE_ACTIONS,
   IBIS_PROJECT_ID,
+  ISHTAR_PROJECT_ID,
   JITA_PLACE,
   SOURCE_ISOGEN_10_MARKET_NOT_CHOSEN,
   SOURCE_TRITANIUM_400_AT_JITA,
@@ -141,5 +142,74 @@ describe('placeMultibuy', () => {
       projectCount: 1,
       skippedCount: 0,
     })
+  })
+})
+
+describe('projectMultibuys', () => {
+  it('gives each project of the market its own lines, in the order of first appearance', () => {
+    const [, jita] = groupActionsByPlace(EXAMPLE_ACTIONS)
+
+    expect(projectMultibuys(jita)).toEqual([
+      {
+        projectId: ISHTAR_PROJECT_ID,
+        projectName: 'Ishtar batch',
+        lines: [
+          { typeName: 'Tritanium', quantity: 400 },
+          { typeName: 'Zydrine', quantity: 50 },
+        ],
+        lineCount: 2,
+      },
+      {
+        projectId: IBIS_PROJECT_ID,
+        projectName: 'Ibis run',
+        lines: [{ typeName: 'Tritanium', quantity: 120 }],
+        lineCount: 1,
+      },
+    ])
+  })
+
+  it('gives none when a single project buys at the market', () => {
+    const group = groupOf(
+      { id: 'g1', code: 'source_material', place: JITA_PLACE, typeId: 34, typeName: 'Tritanium', quantity: 400 },
+      { id: 'g2', code: 'source_material', place: JITA_PLACE, typeId: 35, typeName: 'Pyerite', quantity: 50 },
+    )
+
+    expect(projectMultibuys(group)).toEqual([])
+  })
+
+  it('gives none outside a station nor for another action than a purchase', () => {
+    const groups = groupActionsByPlace([
+      placedAction({ id: 'h1', code: 'source_material', place: ANYWHERE_PLACE, typeName: 'Mexallon', typeId: 36, quantity: 30 }),
+      placedAction({ id: 'h2', code: 'source_material', place: ANYWHERE_PLACE, typeName: 'Pyerite', typeId: 35, quantity: 30, projectId: IBIS_PROJECT_ID }),
+      placedAction({ id: 'h3', code: 'launch_job', place: JITA_PLACE, typeName: 'Ishtar', quantity: 3 }),
+      placedAction({ id: 'h4', code: 'launch_job', place: JITA_PLACE, typeName: 'Ibis', quantity: 3, projectId: IBIS_PROJECT_ID }),
+    ])
+
+    expect(groups.map(projectMultibuys)).toEqual([[], []])
+  })
+
+  it('sums the same type inside a project and leaves out the lines without name or quantity', () => {
+    const group = groupOf(
+      { id: 'i1', code: 'source_material', place: JITA_PLACE, typeId: 34, typeName: 'Tritanium', quantity: 400 },
+      { id: 'i2', code: 'source_material', place: JITA_PLACE, typeId: 34, typeName: 'Tritanium', quantity: 100 },
+      { id: 'i3', code: 'source_material', place: JITA_PLACE, typeId: 35, typeName: 'Pyerite', quantity: 70, projectId: IBIS_PROJECT_ID, projectName: 'Ibis run' },
+      { id: 'i4', code: 'source_material', place: JITA_PLACE, typeId: 36, typeName: null, quantity: 9, projectId: IBIS_PROJECT_ID, projectName: 'Ibis run' },
+      { id: 'i5', code: 'source_material', place: JITA_PLACE, typeId: 37, typeName: 'Isogen', quantity: null },
+    )
+
+    expect(projectMultibuys(group)).toEqual([
+      { projectId: ISHTAR_PROJECT_ID, projectName: 'Ishtar batch', lines: [{ typeName: 'Tritanium', quantity: 500 }], lineCount: 2 },
+      { projectId: IBIS_PROJECT_ID, projectName: 'Ibis run', lines: [{ typeName: 'Pyerite', quantity: 70 }], lineCount: 1 },
+    ])
+  })
+
+  it('does not list a project whose purchases are all left out, and gives none when one project remains', () => {
+    const group = groupOf(
+      { id: 'j1', code: 'source_material', place: JITA_PLACE, typeId: 34, typeName: 'Tritanium', quantity: 400 },
+      { id: 'j2', code: 'source_material', place: JITA_PLACE, typeId: 35, typeName: 'Pyerite', quantity: 70 },
+      { id: 'j3', code: 'source_material', place: JITA_PLACE, typeId: 36, typeName: null, quantity: 9, projectId: IBIS_PROJECT_ID, projectName: 'Ibis run' },
+    )
+
+    expect(projectMultibuys(group)).toEqual([])
   })
 })

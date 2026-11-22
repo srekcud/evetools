@@ -5357,6 +5357,8 @@
     "multibuy": {
       "button": "Multibuy · {lines} lines, {projects}",
       "projects": "{n} project | {n} projects",
+      "projectButton": "Multibuy · {project} · {lines}",
+      "lines": "{n} line | {n} lines",
       "copied": "Copied. The wallet sync will link the transaction to the projects when it can",
       "copyFailed": "The browser refused the copy",
       "skipped": "{n} line without a name or quantity not included | {n} lines without a name or quantity not included"

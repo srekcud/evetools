@@ -19,7 +19,17 @@ export interface PlaceMultibuy {
   skippedCount: number
 }
 
+export interface ProjectMultibuy {
+  projectId: string
+  projectName: string | null
+  lines: MultibuyLine[]
+  lineCount: number
+}
+
+type SourcingWithNameAndQuantity = PlacedAction & { typeName: string; quantity: number }
+
 const MIN_MULTIBUY_LINES = 2
+const MIN_PROJECTS_FOR_PROJECT_MULTIBUY = 2
 
 function placeKey(place: ActionPlace): string {
   switch (place.kind) {
@@ -58,7 +68,7 @@ export function groupActionsByPlace(actions: readonly PlacedAction[]): PlaceGrou
   }))
 }
 
-function isSourcingWithNameAndQuantity(action: PlacedAction): action is PlacedAction & { typeName: string; quantity: number } {
+function isSourcingWithNameAndQuantity(action: PlacedAction): action is SourcingWithNameAndQuantity {
   return action.typeName !== null && action.quantity !== null && action.quantity > 0
 }
 
@@ -66,17 +76,9 @@ function lineKey(action: PlacedAction & { typeName: string }): string {
   return action.typeId === null ? `name:${action.typeName}` : `type:${action.typeId}`
 }
 
-export function placeMultibuy(group: PlaceGroup): PlaceMultibuy | null {
-  if (group.place.kind !== 'station') {
-    return null
-  }
-  const sourcingActions = group.actions.filter(action => action.code === 'source_material')
-  const retained = sourcingActions.filter(isSourcingWithNameAndQuantity)
-  if (retained.length < MIN_MULTIBUY_LINES) {
-    return null
-  }
+function sumLines(actions: readonly SourcingWithNameAndQuantity[]): MultibuyLine[] {
   const linesByKey = new Map<string, MultibuyLine>()
-  for (const action of retained) {
+  for (const action of actions) {
     const key = lineKey(action)
     const line = linesByKey.get(key)
     if (line === undefined) {
@@ -85,8 +87,48 @@ export function placeMultibuy(group: PlaceGroup): PlaceMultibuy | null {
       line.quantity += action.quantity
     }
   }
+  return [...linesByKey.values()]
+}
+
+function retainedSourcingOf(group: PlaceGroup): SourcingWithNameAndQuantity[] {
+  return group.actions.filter(action => action.code === 'source_material').filter(isSourcingWithNameAndQuantity)
+}
+
+export function projectMultibuys(group: PlaceGroup): ProjectMultibuy[] {
+  if (group.place.kind !== 'station') {
+    return []
+  }
+  const actionsByProject = new Map<string, SourcingWithNameAndQuantity[]>()
+  for (const action of retainedSourcingOf(group)) {
+    const projectActions = actionsByProject.get(action.projectId)
+    if (projectActions === undefined) {
+      actionsByProject.set(action.projectId, [action])
+    } else {
+      projectActions.push(action)
+    }
+  }
+  if (actionsByProject.size < MIN_PROJECTS_FOR_PROJECT_MULTIBUY) {
+    return []
+  }
+  return [...actionsByProject.entries()].map(([projectId, actions]) => ({
+    projectId,
+    projectName: actions[0].projectName,
+    lines: sumLines(actions),
+    lineCount: actions.length,
+  }))
+}
+
+export function placeMultibuy(group: PlaceGroup): PlaceMultibuy | null {
+  if (group.place.kind !== 'station') {
+    return null
+  }
+  const sourcingActions = group.actions.filter(action => action.code === 'source_material')
+  const retained = retainedSourcingOf(group)
+  if (retained.length < MIN_MULTIBUY_LINES) {
+    return null
+  }
   return {
-    lines: [...linesByKey.values()],
+    lines: sumLines(retained),
     lineCount: retained.length,
     projectCount: new Set(retained.map(action => action.projectId)).size,
     skippedCount: sourcingActions.length - retained.length,

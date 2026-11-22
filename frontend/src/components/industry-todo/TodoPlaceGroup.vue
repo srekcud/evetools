@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import type { PlacedAction, PlacedActionCode } from '@/stores/group-industry/types'
 import { multibuyText } from '@/utils/multibuy'
-import { placeMultibuy, reservedHoldersText, type PlaceGroup } from '@/utils/todoPlaces'
+import { placeMultibuy, projectMultibuys, reservedHoldersText, type MultibuyLine, type PlaceGroup, type ProjectMultibuy } from '@/utils/todoPlaces'
 
 const COPIED_FEEDBACK_MS = 2000
 const KNOWN_UNKNOWN_REASONS = ['market_not_chosen', 'market_structure_unset', 'station_unresolved']
@@ -26,6 +26,7 @@ function isKnownReason(reason: string | null): reason is string {
 }
 
 const multibuy = computed(() => placeMultibuy(props.group))
+const projectBuys = computed(() => projectMultibuys(props.group))
 
 const placeTitle = computed(() => {
   const { place } = props.group
@@ -60,6 +61,13 @@ const multibuyLabel = computed(() => {
   })
 })
 
+function projectBuyLabel(projectBuy: ProjectMultibuy): string {
+  return t('industryTodo.multibuy.projectButton', {
+    project: projectBuy.projectName === null || projectBuy.projectName === '' ? t('industryTodo.unnamedProject') : projectBuy.projectName,
+    lines: t('industryTodo.multibuy.lines', { n: n(projectBuy.lineCount) }, projectBuy.lineCount),
+  })
+}
+
 function detailOf(action: PlacedAction): string {
   if (action.quantity === null) {
     return action.code === 'launch_job' ? t('industryTodo.details.launchJobUnknownRuns') : ''
@@ -76,18 +84,14 @@ function projectLabel(action: PlacedAction): string {
   return action.projectName === null || action.projectName === '' ? t('industryTodo.unnamedProject') : action.projectName
 }
 
-async function copyMultibuy(): Promise<void> {
-  const read = multibuy.value
-  if (read === null) {
-    return
-  }
+async function copyLines(lines: readonly MultibuyLine[]): Promise<void> {
   if (copiedTimer !== null) {
     clearTimeout(copiedTimer)
     copiedTimer = null
   }
   copyFailed.value = false
   try {
-    await navigator.clipboard.writeText(multibuyText(read.lines))
+    await navigator.clipboard.writeText(multibuyText(lines))
   } catch {
     copied.value = false
     copyFailed.value = true
@@ -96,6 +100,12 @@ async function copyMultibuy(): Promise<void> {
   copyFailed.value = false
   copied.value = true
   copiedTimer = setTimeout(() => { copied.value = false }, COPIED_FEEDBACK_MS)
+}
+
+async function copyMultibuy(): Promise<void> {
+  if (multibuy.value !== null) {
+    await copyLines(multibuy.value.lines)
+  }
 }
 
 onBeforeUnmount(() => {
@@ -123,6 +133,14 @@ onBeforeUnmount(() => {
         class="rounded border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-500/20"
         @click="copyMultibuy"
       >{{ multibuyLabel }}</button>
+      <button
+        v-for="projectBuy in projectBuys"
+        :key="projectBuy.projectId"
+        type="button"
+        data-testid="todo-multibuy-project"
+        class="ml-2 rounded border border-slate-600 bg-slate-800/60 px-2.5 py-1 text-xs font-medium text-slate-300 transition-colors hover:border-cyan-500/40 hover:text-cyan-300"
+        @click="copyLines(projectBuy.lines)"
+      >{{ projectBuyLabel(projectBuy) }}</button>
       <p v-if="copied" data-testid="todo-multibuy-feedback" class="mt-1 text-xs text-emerald-400">{{ t('industryTodo.multibuy.copied') }}</p>
       <p v-if="copyFailed" data-testid="todo-copy-error" class="mt-1 text-xs text-red-400">{{ t('industryTodo.multibuy.copyFailed') }}</p>
       <p v-if="multibuy.skippedCount > 0" data-testid="todo-multibuy-skipped" class="mt-1 text-xs text-slate-500">{{ t('industryTodo.multibuy.skipped', multibuy.skippedCount) }}</p>
