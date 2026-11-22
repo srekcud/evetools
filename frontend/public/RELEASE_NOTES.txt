@@ -3,6 +3,101 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.30 (2026-11-22)
+--------------------------------------------------------------------------------
+
+### A lire avant tout
+- Le module Industrie est refondu : chaque projet suit ses materiaux station
+  par station, de l'achat a la vente. Les projets existants sont convertis
+  au moment de la mise a jour : verifiez les stations de vos projets en cours
+- Les ecrans "Acheter ou fabriquer" et "Stations" disparaissent : leurs
+  reglages passent dans l'assistant de demarrage et le detail des cartes
+- Le cout de transport Jita vers la capitale repart de 800 ISK/m3 pour tous :
+  ajustez-le dans vos parametres si vous utilisiez un autre tarif
+- Les reservations d'achat en cours expirent 48 h apres la mise a jour
+
+### Industrie - demarrer un projet
+- Nouvel assistant de demarrage : une station par type de travail, puis
+  acheter ou fabriquer chaque intermediaire, puis ou acheter chaque ligne
+- Acheter ou fabriquer se decide du bas vers le haut, transport compris ;
+  le plan garde vos choix a cote des choix recommandes
+- L'assistant montre le surplus reutilise, le verdict d'import, la
+  couverture a Jita, le volume et le hub de courrier
+- Cartes de station : taxe d'installation affichee, alerte si elle n'est pas
+  renseignee ; politique hors systemes favoris et seuil reglables, avec le
+  nombre de sauts
+- Bonus des structures lus depuis les donnees du jeu, rigs inconnus signales ;
+  les anciens complexes d'ingenierie et raffineries demandent leur coque
+- Marche de chaque ligne achetee au choix : Jita plus import, ou marche de la
+  capitale ; imports et devis de courrier passent par le hub de courrier
+- ME/TE pre-remplis depuis le meilleur blueprint possede lors d'un ajout
+  manuel ; le decryptor choisi s'applique a la ligne d'invention
+
+### Industrie - page projet
+- Page projet en grille : une ligne par station, une colonne par etat du
+  materiau (a apporter, en transit, sur place, en production, sorti)
+- Cartes de flux : couleur par activite, etat, progression en temps ecoule
+  depuis le debut du job, source ; les articles attendus sont en pointilles
+- Detail d'une carte : jobs, reservations, structure, taxe, location de
+  lignes, et bascule entre acheter et fabriquer un intermediaire
+- Vue planning : jobs par station avec la ligne du jour (remplace la section
+  Planning par personnage)
+- Vue invention : tentatives, copies attendues et copies obtenues
+- Un seul bandeau ISK et un bloc de solde : le surplus stocke compte dans le
+  profit du projet
+- Un conteneur de projet par station ; les transferts entre stations sont
+  detectes depuis les conteneurs ou declares a la main
+- Projet a usage personnel : de Produire a Cloturer sans phase de vente ni
+  recap Discord
+
+### Industrie - jobs
+- Association des jobs en une passe sur tous les projets ouverts : un job
+  n'est lie automatiquement que si un projet gagne nettement, et la liaison
+  reste stable d'une sync a l'autre
+- Liste des jobs non assignes de tous les projets, assignation en un clic
+- Un personnage peut etre dedie a un projet pour l'association des jobs
+- Un job peut servir les lignes de plusieurs projets
+- Les jobs de copie et d'invention sont associes aux etapes du projet
+- Un blueprint precis peut etre attache a une etape, sa station est verifiee
+- Une etape n'est proposee qu'aux membres qui peuvent la lancer dans sa
+  station
+- Un meme etat de job partout (arbre, compagnon, journal) ; pas de compte a
+  rebours si la date de fin est illisible
+
+### Industrie - groupe et membres
+- Un membre synchronise ses propres jobs, lie ses jobs non associes, marque
+  les etapes qu'il a reservees, enregistre et corrige ses ventes
+- Un membre peut fournir des intermediaires depuis son stock ; les
+  conteneurs personnels en division corpo comptent comme son stock
+- Les demandes d'adhesion sont notifiees aux gestionnaires, l'acceptation au
+  demandeur ; un lien d'invitation est desactive sur un projet prive ou en
+  brouillon, avec le motif du refus
+- Compagnon : lieu, transports, fournitures, demandes d'adhesion, changement
+  de projet et barres de progression par activite
+
+### Industrie - nouvelles pages
+- Mes projets : role, equipe, avancement du flux et qui est attendu
+- Usine et stock : stations, lignes par joueur, stockpile, blueprints et
+  stock des projets
+- Vue station : ce que vos projets font dans une station
+- Page A faire : actions groupees par lieu, multibuy par marche, pour tous
+  les projets ou projet par projet, sans ce que d'autres membres ont reserve
+- Stock par station dans le Pivot Advisor, le Slot Tracker et le stock
+  d'intermediaires du projet ; les slots libres proposent d'abord les etapes
+  des projets ouverts
+
+### Industrie - achats et ventes
+- Une transaction wallet peut etre repartie entre lignes et projets ; les
+  transactions sont proposees avant le stock lors d'une declaration d'achat
+- Ventes : ventes a rapprocher en premier, article affiche, "Tout
+  enregistrer" detaille par produit, une suggestion peut etre exclue
+- Cout de transport de l'appraisal et de la liste d'achats au tarif du
+  courrier
+- Corrections : cout de BOM et multibuy sur la quantite restante, libelles
+  traduits et alignes, compteurs coherents, onglets et boutons masques
+  quand ils ne servent pas, messages d'erreur au lieu de listes vides
+
+--------------------------------------------------------------------------------
 Version 0.29 (2026-11-21)
 --------------------------------------------------------------------------------
 
