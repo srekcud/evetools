@@ -8,6 +8,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<IndustryProjectBomLine>
@@ -64,5 +65,21 @@ class IndustryProjectBomLineRepository extends ServiceEntityRepository
             ->orderBy('jobMatch.esiJobId', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function findPlannedStructureIdsByProject(IndustryProject $project): array
+    {
+        $rows = $this->createQueryBuilder('line')
+            ->select('DISTINCT line.plannedStructureId AS plannedStructureId')
+            ->andWhere('line.project = :project')
+            ->andWhere('line.plannedStructureId IS NOT NULL')
+            ->setParameter('project', $project)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_filter($rows, static fn (string $plannedStructureId): bool => Uuid::isValid($plannedStructureId)));
     }
 }

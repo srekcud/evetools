@@ -134,6 +134,10 @@ deptrac:
       - App\Service\Industry\Project\PilotName
     App\Service\Industry\Project\ProjectContainerService:
       - App\ApiResource\Industry\Project\ProjectContainerVerificationResource
+    App\ApiResource\Industry\Project\ProjectContainerStationResource:
+      - App\Service\Industry\Project\ProjectContainerStation
+    App\State\Processor\Industry\Project\PlaceProjectContainerProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\Service\Sync\WalletReadingStateReader:
       - App\ApiResource\Industry\WalletReadingResource
     App\Service\Industry\Project\UnassignedJobCandidates:

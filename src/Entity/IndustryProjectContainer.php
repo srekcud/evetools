@@ -12,6 +12,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'industry_project_containers')]
 #[ORM\Index(columns: ['project_id'])]
 #[ORM\UniqueConstraint(columns: ['project_id', 'name'])]
+#[ORM\UniqueConstraint(columns: ['project_id', 'location_id'])]
 class IndustryProjectContainer
 {
     #[ORM\Id]
@@ -24,6 +25,9 @@ class IndustryProjectContainer
 
     #[ORM\Column(type: 'string', length: 255)]
     private string $name;
+
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $locationId = null;
 
     public function __construct(IndustryProject $project, string $name)
     {
@@ -50,5 +54,17 @@ class IndustryProjectContainer
     public function getName(): string
     {
         return $this->name;
+    }
+
+    public function getLocationId(): ?int
+    {
+        return $this->locationId;
+    }
+
+    public function locateAt(int $locationId): static
+    {
+        $this->locationId = $locationId;
+
+        return $this;
     }
 }

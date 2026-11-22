@@ -416,6 +416,14 @@ class IndustryProject
         return array_values($this->containers->map(static fn (IndustryProjectContainer $container): string => $container->getName())->toArray());
     }
 
+    public function addContainerAt(string $name, int $locationId): IndustryProjectContainer
+    {
+        $container = (new IndustryProjectContainer($this, $name))->locateAt($locationId);
+        $this->containers->add($container);
+
+        return $container;
+    }
+
     /** @param list<string> $containerNames */
     public function setContainerNames(array $containerNames): static
     {
