@@ -4,6 +4,7 @@ import type {
   BomItem,
   CharacterLocationRead,
   ChainNode,
+  DeclareStationTransferInput,
   GroupMember,
   GroupProject,
   IntermediateStockProposal,
@@ -12,6 +13,8 @@ import type {
   ProjectPriceAlert,
   ProjectSellOrder,
   ProjectStationTransfer,
+  ProjectTransportLegLine,
+  ProjectTransportLegs,
   StationTransferState,
 } from '@/stores/group-industry/types'
 
@@ -54,10 +57,26 @@ export type CompanionSupply = {
   here: boolean | null
 }
 
+export type CompanionLeg = {
+  key: string
+  from: string | null
+  to: string | null
+  fromSystem: string | null
+  toSystem: string | null
+  here: boolean | null
+  accessUnknown: boolean
+  volume: number | null
+  lines: ProjectTransportLegLine[]
+  declared: boolean
+  canDeclare: boolean
+  declaration: DeclareStationTransferInput | null
+}
+
 export type CompanionFlowInput = {
   placedActions: PlacedAction[] | null
   positions: CharacterLocationRead[] | null
   transfers: ProjectStationTransfer[] | null
+  transportLegs: ProjectTransportLegs | null
   stockProposal: IntermediateStockProposal | null
   myEveCharacterIds: number[]
 }
@@ -89,6 +108,10 @@ export type CompanionTasks = {
   linePlaces: Record<string, CompanionLinePlace>
   carries: CompanionCarry[]
   carriesUnknown: boolean
+  legs: CompanionLeg[]
+  legsUnknown: boolean
+  legsUnreadableCount: number
+  readyLegCount: number
   supplies: CompanionSupply[]
   reservationExpiries: Record<string, number>
   joinRequestNames: string[]
@@ -409,6 +432,10 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     linePlaces,
     carries: flow === undefined ? [] : carriesOf(flow),
     carriesUnknown: flow !== undefined && flow.transfers === null,
+    legs: [],
+    legsUnknown: false,
+    legsUnreadableCount: 0,
+    readyLegCount: 0,
     supplies: suppliesOf(flow?.stockProposal ?? null, bomItems),
     reservationExpiries: solo ? {} : reservationExpiriesOf(mine),
     joinRequestNames: isAdmin(project)

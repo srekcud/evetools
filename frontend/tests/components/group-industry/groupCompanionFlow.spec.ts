@@ -143,16 +143,17 @@ describe('GroupCompanion place and flow: carries and supplies', () => {
     expect(wrapper.findAll(CARRY).map(carry => carry.text().includes('02:00'))).toEqual([true, false])
   })
 
-  it('marks the carries unknown instead of saying nothing is to deliver when the transfers could not be read', () => {
+  it('marks the carries unknown in the transport tab and leaves the to deliver tab saying there is nothing to deliver', () => {
     const unreadable = mountCompanion(companionTasksOf({ carriesUnknown: true }))
     const known = mountCompanion(companionTasksOf())
 
     expect({
-      unreadable: unreadable.findAll('[data-testid="companion-carries-unknown"]').map(line => line.attributes('data-unknown')),
+      unreadable: unreadable.findAll('[data-testid="companion-pane-transport"] [data-testid="companion-carries-unknown"]').map(line => line.attributes('data-unknown')),
+      unreadableInMine: unreadable.findAll('[data-testid="companion-pane-mine"] [data-testid="companion-carries-unknown"]').length,
       emptyWhenUnreadable: unreadable.get('[data-testid="companion-pane-mine"]').text().includes(en.groupIndustry.companion.emptyMine),
       known: known.findAll('[data-testid="companion-carries-unknown"]').length,
       emptyWhenKnown: known.get('[data-testid="companion-pane-mine"]').text().includes(en.groupIndustry.companion.emptyMine),
-    }).toEqual({ unreadable: ['true'], emptyWhenUnreadable: false, known: 0, emptyWhenKnown: true })
+    }).toEqual({ unreadable: ['true'], unreadableInMine: 0, emptyWhenUnreadable: true, known: 0, emptyWhenKnown: true })
   })
 
   it('offers the arrival button only for a carry in transit and emits the carry id', async () => {
@@ -196,7 +197,7 @@ describe('GroupCompanion place and flow: carries and supplies', () => {
     })
   })
 
-  it('puts the carries then the supplies above the activity groups of the reservations to deliver', () => {
+  it('puts the supplies above the activity groups of the reservations to deliver and the carries in the transport tab', () => {
     const mine = [{ item: bomLine({ id: 'bom-isogen', typeId: 37, typeName: 'Isogen' }), quantity: 50 }]
     const wrapper = mountCompanion(companionTasksOf({
       mine,
@@ -206,7 +207,11 @@ describe('GroupCompanion place and flow: carries and supplies', () => {
     const html = wrapper.get('[data-testid="companion-pane-mine"]').html()
     const position = (testId: string) => html.indexOf(`data-testid="${testId}"`)
 
-    expect(position('companion-carries') >= 0 && position('companion-carries') < position('companion-supply') && position('companion-supply') < position('companion-group-mine-material')).toBe(true)
+    expect({
+      suppliesAboveGroups: position('companion-supply') >= 0 && position('companion-supply') < position('companion-group-mine-material'),
+      carriesInMine: wrapper.findAll('[data-testid="companion-pane-mine"] [data-testid="companion-carry"]').length,
+      carriesInTransport: wrapper.findAll('[data-testid="companion-pane-transport"] [data-testid="companion-carry"]').length,
+    }).toEqual({ suppliesAboveGroups: true, carriesInMine: 0, carriesInTransport: 1 })
   })
 })
 
@@ -264,24 +269,25 @@ describe('GroupCompanion place and flow: join requests', () => {
 })
 
 describe('GroupCompanion place and flow: to deliver tab', () => {
-  it('counts the reservations, the carries and the supplies in the to deliver tab and the bar, and makes the tab hot', () => {
+  it('counts the reservations and the supplies, not the carries, in the to deliver tab and the bar, and makes the tab hot', () => {
     const tasks = companionTasksOf({
       mine: [{ item: bomLine({ id: 'bom-isogen', typeId: 37, typeName: 'Isogen' }), quantity: 50 }],
       carries: [carryOf({ id: 'transfer-a' }), carryOf({ id: 'transfer-b' })],
       supplies: [supplyOf('bom-morphite', 11_399, 'Morphite', 300, true)],
     })
-    const idle = companionTasksOf()
+    const idle = companionTasksOf({ carries: [carryOf({ id: 'transfer-a' })] })
 
     const column = mountCompanion(tasks)
     const bar = mountCompanion(tasks, { size: 'bar' })
     const idleColumn = mountCompanion(idle)
 
     expect({
-      tab: column.get('[data-testid="companion-tab-mine"]').text().includes('4'),
+      tab: column.get('[data-testid="companion-tab-mine"]').text().endsWith('2'),
       hot: column.get('[data-testid="companion-tab-mine"]').attributes('data-hot'),
-      bar: bar.get('[data-testid="companion-count-mine"]').text().includes('4'),
+      bar: bar.get('[data-testid="companion-count-mine"]').text().includes('2'),
+      idleTab: idleColumn.get('[data-testid="companion-tab-mine"]').text().endsWith('0'),
       idleHot: idleColumn.get('[data-testid="companion-tab-mine"]').attributes('data-hot'),
-    }).toEqual({ tab: true, hot: 'true', bar: true, idleHot: 'false' })
+    }).toEqual({ tab: true, hot: 'true', bar: true, idleTab: true, idleHot: 'false' })
   })
 
   it('keeps the count of the reservations alone when there is no flow data', () => {
