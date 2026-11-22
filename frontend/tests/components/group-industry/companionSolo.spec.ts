@@ -133,12 +133,14 @@ describe('GroupCompanion on a solo project', () => {
       claimButtons: wrapper.findAll('[data-testid="companion-claim"]').length,
       minePaneShown: paneIsShown(wrapper, 'mine'),
       mineLines: wrapper.findAll('[data-testid="companion-mine-line"]').length,
+      columns: wrapper.get('[role="tablist"]').classes().includes('grid-cols-3'),
     }).toEqual({
-      tabs: ['companion-tab-mine', 'companion-tab-jobs'],
+      tabs: ['companion-tab-mine', 'companion-tab-transport', 'companion-tab-jobs'],
       freePane: false,
       claimButtons: 0,
       minePaneShown: true,
       mineLines: 2,
+      columns: true,
     })
   })
 
@@ -171,6 +173,6 @@ describe('GroupCompanion on a solo project', () => {
       tabs: wrapper.findAll('[role="tab"]').map(tab => tab.attributes('data-testid')),
       claimButtons: wrapper.findAll('[data-testid="companion-claim"]').length,
       releaseButtons: wrapper.findAll('[data-testid="companion-release"]').length,
-    }).toEqual({ tabs: ['companion-tab-free', 'companion-tab-mine', 'companion-tab-jobs'], claimButtons: 1, releaseButtons: 1 })
+    }).toEqual({ tabs: ['companion-tab-free', 'companion-tab-mine', 'companion-tab-transport', 'companion-tab-jobs'], claimButtons: 1, releaseButtons: 1 })
   })
 })

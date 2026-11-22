@@ -1565,6 +1565,52 @@ export interface DeclareStationTransferInput {
   contractId: number | null
 }
 
+export interface ProjectTransportLegPlace {
+  locationId: number | null
+  stationName: string | null
+  solarSystemId: number | null
+  solarSystemName: string | null
+}
+
+export type ProjectTransportLegLineState = 'ready' | 'in_production' | 'in_transit'
+
+export type ProjectTransportLegLineSource = 'purchase' | 'project' | 'personal_stock' | 'transfer'
+
+export interface ProjectTransportLegLine {
+  typeId: number
+  typeName: string
+  quantity: number | null
+  state: ProjectTransportLegLineState
+  source: ProjectTransportLegLineSource
+  readyAt: string | null
+  unitVolume: number | null
+  volume: number | null
+  unknownReason: string | null
+}
+
+export interface ProjectTransportLeg {
+  key: string
+  departure: ProjectTransportLegPlace
+  arrival: ProjectTransportLegPlace
+  access: 'granted' | 'unknown'
+  carrierCharacterIds: number[]
+  volume: number | null
+  lines: ProjectTransportLegLine[]
+}
+
+export interface ProjectTransportLegsUnreadable {
+  typeId: number
+  typeName: string
+  locationId: number | null
+  reason: string
+}
+
+export interface ProjectTransportLegs {
+  personalStockUnknownReason: string | null
+  unreadable: ProjectTransportLegsUnreadable[]
+  legs: ProjectTransportLeg[]
+}
+
 export type LineBlueprintKind = 'bpc' | 'bpo'
 
 export type LineBlueprintState = 'here' | 'elsewhere' | 'unknown'

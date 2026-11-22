@@ -60,6 +60,7 @@ const tasks = computed(() => {
       placedActions: companion.placedActions,
       positions: companion.positions,
       transfers: companion.transfers,
+      transportLegs: companion.transportLegs,
       stockProposal: companion.stockProposal,
       myEveCharacterIds: authStore.user === null ? [] : authStore.user.characters.map(character => character.eveCharacterId),
     },

@@ -56,6 +56,7 @@ const emit = defineEmits<{
   'open-unassigned-jobs': []
   'open-members': []
   arrive: [transferId: string]
+  'declare-leg': [key: string]
   'switch-project': [projectId: string]
   supply: [lineId: string]
   'toggle-size': []
