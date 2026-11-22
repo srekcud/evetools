@@ -344,6 +344,19 @@ class IndustryProjectBomLine
         return $this;
     }
 
+    public function getQuantityOfRuns(int $runs): int
+    {
+        if (!$this->isManufacturingOrReactionJob()) {
+            return $runs;
+        }
+
+        if (null === $this->runs || $this->runs < 1) {
+            throw new \LogicException('A job line without runs has no quantity per run.');
+        }
+
+        return intdiv($this->requiredQuantity * $runs, $this->runs);
+    }
+
     public function getMatchedRuns(): int
     {
         return array_sum($this->jobMatches->map(static fn (IndustryProjectJobMatch $jobMatch): int => $jobMatch->getRuns())->toArray());

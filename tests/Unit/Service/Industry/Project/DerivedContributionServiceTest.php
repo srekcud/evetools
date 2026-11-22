@@ -18,6 +18,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Service\Industry\Project\DerivedContributionService;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
@@ -114,6 +115,7 @@ final class DerivedContributionServiceTest extends TestCase
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->createMock(NotificationDispatcher::class),
+            $this->createStub(LineReservationService::class),
         );
     }
 

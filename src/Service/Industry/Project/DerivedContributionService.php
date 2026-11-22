@@ -30,6 +30,7 @@ class DerivedContributionService
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
         NotificationDispatcher $notificationDispatcher,
+        private readonly LineReservationService $lineReservations,
     ) {
         $this->duplicateNotifier = new DuplicateContributionNotifier($notificationDispatcher);
     }
@@ -118,7 +119,10 @@ class DerivedContributionService
         }
 
         if ($existing === null) {
-            return $this->create($line, $contributingParticipant, $type, $quantity, $value);
+            $createdId = $this->create($line, $contributingParticipant, $type, $quantity, $value);
+            $this->settleReservationOfInstalledRuns($line, $contributingParticipant, $type, 0, $quantity);
+
+            return $createdId;
         }
 
         if ($existing->getQuantity() === $quantity && $existing->getEstimatedValue() === $value) {
@@ -126,10 +130,25 @@ class DerivedContributionService
         }
 
         $this->shiftFulfillment($line, $existing, $quantity - $existing->getQuantity());
+        $this->settleReservationOfInstalledRuns($line, $contributingParticipant, $type, $existing->getQuantity(), $quantity);
         $existing->setQuantity($quantity);
         $existing->setEstimatedValue($value);
 
         return $existing->getId()->toRfc4122();
+    }
+
+    private function settleReservationOfInstalledRuns(
+        IndustryProjectBomLine $line,
+        IndustryProjectParticipant $installer,
+        ContributionType $type,
+        int $previousRuns,
+        int $installedRuns,
+    ): void {
+        if (ContributionType::JobInstall !== $type || $installedRuns <= $previousRuns || $line->isCoveredByStock()) {
+            return;
+        }
+
+        $this->lineReservations->settleApproval($line, $installer, $line->getQuantityOfRuns($installedRuns) - $line->getQuantityOfRuns($previousRuns));
     }
 
     private function create(

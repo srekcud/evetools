@@ -19,6 +19,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Service\Industry\Project\DerivedContributionService;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
@@ -113,6 +114,7 @@ final class DerivedContributionServiceDeclaredOverDerivedTest extends TestCase
             $this->entityManager,
             new MercurePublisherService($hub, new NullLogger()),
             $this->notificationDispatcher,
+            $this->createStub(LineReservationService::class),
         );
     }
 

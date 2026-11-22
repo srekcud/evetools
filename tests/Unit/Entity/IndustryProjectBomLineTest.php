@@ -194,6 +194,66 @@ final class IndustryProjectBomLineTest extends TestCase
         self::assertSame(6, $line->getDeliveredRuns());
     }
 
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfAManufacturingLineWithAnOutputOfOneIsTheRuns(): void
+    {
+        $line = $this->jobLineOfRuns(10);
+
+        self::assertSame(4, $line->getQuantityOfRuns(4));
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfALineWithOneRunIsItsRequiredQuantity(): void
+    {
+        $line = $this->jobLineOfRuns(1)->setRequiredQuantity(7);
+
+        self::assertSame(7, $line->getQuantityOfRuns(1));
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfAManufacturingLineMultipliesTheRunsByItsOutputPerRun(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setRequiredQuantity(50);
+
+        self::assertSame([20, 50], [$line->getQuantityOfRuns(4), $line->getQuantityOfRuns(10)]);
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfAReactionLineMultipliesTheRunsByItsOutputPerRun(): void
+    {
+        $line = $this->jobLineOfRuns(5)->setActivityType('reaction')->setRequiredQuantity(1_000);
+
+        self::assertSame(600, $line->getQuantityOfRuns(3));
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfACopyLineIsTheRunsWhateverItsRequiredQuantity(): void
+    {
+        $line = $this->jobLineOfRuns(8)->setActivityType('copying')->setRequiredQuantity(40);
+
+        self::assertSame(3, $line->getQuantityOfRuns(3));
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfALineWithoutRunsIsRefused(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setRuns(null);
+
+        $this->expectException(\LogicException::class);
+
+        $line->getQuantityOfRuns(4);
+    }
+
+    #[Group('issue-1202')]
+    public function testQuantityOfRunsOfALineWithZeroRunsIsRefused(): void
+    {
+        $line = $this->jobLineOfRuns(10)->setRuns(0);
+
+        $this->expectException(\LogicException::class);
+
+        $line->getQuantityOfRuns(4);
+    }
+
     private function jobLineOfRuns(int $runs): IndustryProjectBomLine
     {
         return (new IndustryProjectBomLine())

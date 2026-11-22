@@ -67,6 +67,7 @@ use App\Service\ESI\EveSsoTokenRevoker;
 use App\Service\ESI\TokenManager;
 use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Industry\Project\DistributionResult;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
@@ -822,6 +823,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
                 $this->em,
                 new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
                 $this->createStub(NotificationDispatcher::class),
+                $this->createStub(LineReservationService::class),
             ),
         );
     }
