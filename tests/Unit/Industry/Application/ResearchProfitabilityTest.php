@@ -209,6 +209,24 @@ final class ResearchProfitabilityTest extends TestCase
         );
     }
 
+    #[Group('issue-1345')]
+    public function testCostsAreAskedWithTheMaterialAndTimeEfficiencyOfTheFirstJobOfTheProductWhenTheOtherJobsDiffer(): void
+    {
+        $buildCosts = $this->hobgoblinCosts(me0: 1_000_000.0, me1: 980_000.0);
+        $laterJob = new Job(self::HOBGOBLIN_II, ActivityKind::Manufacturing, new Runs(4), new MaterialEfficiency(5), new TimeEfficiency(self::JOB_TIME_EFFICIENCY + 4), [self::TRITANIUM => new Quantity(1_000)]);
+
+        $suggestions = $this->suggestionsOf(
+            $buildCosts,
+            $this->planOf($this->manufacturingJob(self::HOBGOBLIN_II, runs: 6, me: 0), $laterJob),
+            [self::HOBGOBLIN_II => $this->owned(me: 0)],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertSame(10, $suggestions[0]->runs);
+        self::assertSame([0, 1], array_column($buildCosts->calls, 'materialEfficiency'));
+        self::assertSame([self::JOB_TIME_EFFICIENCY, self::JOB_TIME_EFFICIENCY], array_column($buildCosts->calls, 'timeEfficiency'));
+    }
+
     public function testConfiguredStructureGivesItsCostBonusItsFacilityTaxAndItsOwnSystemIndex(): void
     {
         $suggestions = $this->suggestionsOf(
