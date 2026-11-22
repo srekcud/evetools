@@ -11,9 +11,11 @@ use App\Entity\User;
 use App\Message\RefreshProjectStructureAccess;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -22,10 +24,14 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final readonly class RefreshStructureAccessProcessor implements ProcessorInterface
 {
+    private const string COOLDOWN_KEY_PREFIX = 'structure_access_refresh_';
+    private const int COOLDOWN_SECONDS = 300;
+
     public function __construct(
         private Security $security,
         private IndustryProjectRepository $projectRepository,
         private MessageBusInterface $messageBus,
+        private CacheItemPoolInterface $cache,
     ) {
     }
 
@@ -49,6 +55,13 @@ final readonly class RefreshStructureAccessProcessor implements ProcessorInterfa
         }
 
         $projectId = $project->getId()->toRfc4122();
+        $cooldown = $this->cache->getItem(self::COOLDOWN_KEY_PREFIX.$projectId);
+        if ($cooldown->isHit()) {
+            throw new TooManyRequestsHttpException(self::COOLDOWN_SECONDS, 'A refresh of the structure access was queued less than five minutes ago');
+        }
+        $cooldown->set(true)->expiresAfter(self::COOLDOWN_SECONDS);
+        $this->cache->save($cooldown);
+
         $this->messageBus->dispatch(new RefreshProjectStructureAccess($projectId));
 
         $resource = new ProjectStructureAccessRefreshResource();

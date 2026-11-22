@@ -27,13 +27,15 @@ final readonly class StructureAccessProbe
             return StructureAccessStatus::Unknown;
         }
 
+        $endpoint = sprintf('/universe/structures/%d/', $structureId);
+
         try {
-            $this->esiClient->get(sprintf('/universe/structures/%d/', $structureId), $token);
+            $this->esiClient->get($endpoint, $token);
         } catch (EsiApiException $answer) {
-            return self::FORBIDDEN === $answer->statusCode && $token->hasScope(self::REQUIRED_SCOPE)
+            return self::FORBIDDEN === $answer->statusCode && $endpoint === $answer->endpoint && $token->hasScope(self::REQUIRED_SCOPE)
                 ? StructureAccessStatus::Denied
                 : StructureAccessStatus::Unknown;
-        } catch (EveAuthRequiredException) {
+        } catch (EveAuthRequiredException|\RuntimeException) {
             return StructureAccessStatus::Unknown;
         }
 

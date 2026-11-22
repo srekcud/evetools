@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry\Project\StructureAccess;
 
 use App\Enum\StructureAccessStatus;
+use App\Exception\EsiApiException;
 use App\Service\Industry\Project\StructureAccess\StructureAccessProbe;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -71,6 +72,23 @@ final class StructureAccessProbeTest extends TestCase
 
         self::assertSame(StructureAccessStatus::Unknown, $withoutToken);
         self::assertSame([], $this->requestedUrls);
+    }
+
+    #[DataProvider('tokenFailuresThatProveNothing')]
+    public function testFailureOfTheTokenRefreshIsUnknownNeverDenied(\Throwable $tokenFailure): void
+    {
+        $probe = $this->probeAnswering(static fn (): MockResponse => new MockResponse('{"name":"Keepstar"}'), tokenFailure: $tokenFailure);
+
+        $status = $probe->probe($this->characterOf(), self::KEEPSTAR_STRUCTURE_ID);
+
+        self::assertSame(StructureAccessStatus::Unknown, $status);
+        self::assertSame([], $this->requestedUrls);
+    }
+
+    public static function tokenFailuresThatProveNothing(): iterable
+    {
+        yield 'single sign-on refused the refresh' => [EsiApiException::forbidden('Single sign-on refused the refresh')];
+        yield 'token cannot be decrypted' => [new \RuntimeException('Cannot decrypt the refresh token')];
     }
 
     public function testCharacterWhoseAuthMustBeRedoneIsUnknown(): void

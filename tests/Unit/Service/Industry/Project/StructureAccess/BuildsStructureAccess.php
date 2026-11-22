@@ -104,10 +104,13 @@ trait BuildsStructureAccess
         return new CharacterStructureAccessReader($this->accessRepositoryHolding(...$rows), $this->jobRepositoryHolding($endDatesByProofKey));
     }
 
-    private function probeAnswering(\Closure $answer, bool $refusedToken = false): StructureAccessProbe
+    private function probeAnswering(\Closure $answer, bool $refusedToken = false, ?\Throwable $tokenFailure = null): StructureAccessProbe
     {
         $tokenManager = $this->createStub(TokenManager::class);
-        $tokenManager->method('getValidAccessToken')->willReturnCallback(static function () use ($refusedToken): string {
+        $tokenManager->method('getValidAccessToken')->willReturnCallback(static function () use ($refusedToken, $tokenFailure): string {
+            if (null !== $tokenFailure) {
+                throw $tokenFailure;
+            }
             if ($refusedToken) {
                 throw new EveAuthRequiredException('2112299001');
             }
