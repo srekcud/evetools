@@ -21,6 +21,7 @@ use App\Service\Industry\Project\OpenProjectStepsToLaunch;
 use App\Service\Industry\SlotTrackerService;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Industry\SlotTrackerProvider;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -34,6 +35,8 @@ use Symfony\Component\Lock\Store\InMemoryStore;
 #[AllowMockObjectsWithoutExpectations]
 final class SlotTrackerProviderTest extends TestCase
 {
+    use StubsPersonalStockReader;
+
     private const int AURORA_CHARACTER_ID = 3001;
     private const int BOREALIS_CHARACTER_ID = 3002;
 
@@ -71,7 +74,7 @@ final class SlotTrackerProviderTest extends TestCase
             $this->createMock(IndustryCalculationService::class),
             $typeNameResolver,
             $stockpileTargetRepository,
-            $this->createMock(CachedAssetRepository::class),
+            $this->personalStockReaderOn($this->createMock(CachedAssetRepository::class)),
             $this->createMock(IndustryProjectJobMatchRepository::class),
             $openProjectSteps,
         ), new ScheduledSyncReader([new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore()))]));

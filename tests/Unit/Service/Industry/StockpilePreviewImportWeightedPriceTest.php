@@ -14,6 +14,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\StockpileService;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -24,6 +25,7 @@ use PHPUnit\Framework\TestCase;
 final class StockpilePreviewImportWeightedPriceTest extends TestCase
 {
     use BuildsStockpileOnWidgetSde;
+    use StubsPersonalStockReader;
 
     private const int ORE_PER_WIDGET_RUN = 10;
     private const int ME_ZERO = 0;
@@ -72,7 +74,7 @@ final class StockpilePreviewImportWeightedPriceTest extends TestCase
         );
         $this->service = new StockpileService(
             $this->createStub(IndustryStockpileTargetRepository::class),
-            $this->createStub(CachedAssetRepository::class),
+            $this->personalStockReaderOn($this->createStub(CachedAssetRepository::class)),
             $jitaMarketService,
             $this->productionPlanningOnWidgetSde(),
             $this->userStructuresOfThePilot(),

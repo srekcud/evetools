@@ -22,6 +22,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -34,6 +35,7 @@ use Symfony\Component\Uid\Uuid;
 class PivotAdvisorServiceTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
+    use StubsPersonalStockReader;
 
     private IndustryActivityMaterialRepository&MockObject $materialRepository;
     private IndustryActivityProductRepository&MockObject $productRepository;
@@ -98,7 +100,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->service = new PivotAdvisorService(
             $this->materialRepository,
             $this->productRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->jitaMarketService,
             $this->esiCostIndexService,
             $this->typeNameResolver,
@@ -946,7 +948,7 @@ class PivotAdvisorServiceTest extends TestCase
         return new PivotAdvisorService(
             $this->materialRepository,
             $this->productRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->jitaMarketService,
             $this->esiCostIndexService,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),

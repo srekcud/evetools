@@ -21,6 +21,7 @@ use App\Service\Industry\Project\OpenProjectStepsToLaunch;
 use App\Service\Industry\Project\StepToLaunch;
 use App\Service\Industry\SlotTrackerService;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -33,6 +34,7 @@ use PHPUnit\Framework\TestCase;
 class SlotTrackerServiceTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
+    use StubsPersonalStockReader;
 
     private CharacterRepository&MockObject $characterRepository;
     private CachedIndustryJobRepository&MockObject $jobRepository;
@@ -76,7 +78,7 @@ class SlotTrackerServiceTest extends TestCase
             $this->calculationService,
             $this->typeNameResolver,
             $this->stockpileTargetRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->projectJobMatchRepository,
             $this->openProjectSteps,
         );
@@ -1351,7 +1353,7 @@ class SlotTrackerServiceTest extends TestCase
             $this->calculationService,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),
             $this->stockpileTargetRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->projectJobMatchRepository,
             $this->openProjectSteps,
         );
@@ -1366,7 +1368,7 @@ class SlotTrackerServiceTest extends TestCase
             $this->calculationService,
             new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock()),
             $this->stockpileTargetRepository,
-            $this->assetRepository,
+            $this->personalStockReaderOn($this->assetRepository),
             $this->projectJobMatchRepository,
             $this->openProjectSteps,
         );

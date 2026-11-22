@@ -22,12 +22,12 @@ class ProjectContainerService
     private const string STATUS_VERIFIED = 'verified';
     private const string STATUS_PARTIAL = 'partial';
     private const string STATUS_MISSING = 'missing';
-    private const string STATUS_CONTAINER_NOT_FOUND = 'container_not_found';
-    private const string STATUS_CONTAINER_IN_HIDDEN_DIVISION = 'container_in_hidden_division';
-    private const string STATUS_CORPORATION_ASSETS_STALE = 'corporation_assets_stale';
+    public const string STATUS_CONTAINER_NOT_FOUND = 'container_not_found';
+    public const string STATUS_CONTAINER_IN_HIDDEN_DIVISION = 'container_in_hidden_division';
+    public const string STATUS_CORPORATION_ASSETS_STALE = 'corporation_assets_stale';
     private const string STATUS_UNKNOWN = 'unknown';
 
-    private const string REASON_OWNER_WITHOUT_CORPORATION = 'owner_without_corporation';
+    public const string REASON_OWNER_WITHOUT_CORPORATION = 'owner_without_corporation';
     private const string REASON_CORPORATION_ASSETS_NOT_SYNCED = 'corporation_assets_not_synced';
     private const string REASON_NO_VISIBLE_DIVISION = 'no_visible_division';
     private const string REASON_NO_DIRECTOR = 'no_director';
@@ -198,6 +198,23 @@ class ProjectContainerService
         return $this->unavailabilityReason($corporationId, $owner);
     }
 
+    public function unavailabilityReasonOfUser(User $user): ?string
+    {
+        $corporationId = $user->getCorporationId();
+        if ($corporationId === null) {
+            return self::REASON_OWNER_WITHOUT_CORPORATION;
+        }
+
+        return $this->unavailabilityReason($corporationId, $user);
+    }
+
+    public function areCorporationAssetsStale(?\DateTimeImmutable $assetsSyncedAt): bool
+    {
+        $staleBefore = (new \DateTimeImmutable())->sub(new \DateInterval(self::CORPORATION_ASSETS_STALE_AFTER));
+
+        return $assetsSyncedAt !== null && $assetsSyncedAt < $staleBefore;
+    }
+
     public function notFoundReasonOf(IndustryProject $project, string $containerName): string
     {
         $owner = $project->getOwner();
@@ -259,8 +276,7 @@ class ProjectContainerService
             return self::STATUS_CONTAINER_IN_HIDDEN_DIVISION;
         }
 
-        $staleBefore = (new \DateTimeImmutable())->sub(new \DateInterval(self::CORPORATION_ASSETS_STALE_AFTER));
-        if ($assetsSyncedAt !== null && $assetsSyncedAt < $staleBefore) {
+        if ($this->areCorporationAssetsStale($assetsSyncedAt)) {
             return self::STATUS_CORPORATION_ASSETS_STALE;
         }
 

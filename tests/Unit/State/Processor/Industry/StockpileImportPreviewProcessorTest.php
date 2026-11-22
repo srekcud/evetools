@@ -34,6 +34,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -50,6 +51,8 @@ use App\Tests\Unit\Service\Industry\ProducerOfStub;
 #[CoversClass(StockpileImportPreviewProcessor::class)]
 final class StockpileImportPreviewProcessorTest extends TestCase
 {
+    use StubsPersonalStockReader;
+
     private const int WIDGET = 3001;
     private const int WIDGET_BLUEPRINT = 1_003_001;
     private const int TRITANIUM = 34;
@@ -113,7 +116,7 @@ final class StockpileImportPreviewProcessorTest extends TestCase
 
         $this->processor = new StockpileImportPreviewProcessor($security, new StockpileService(
             $this->createStub(IndustryStockpileTargetRepository::class),
-            $this->createStub(CachedAssetRepository::class),
+            $this->personalStockReaderOn($this->createStub(CachedAssetRepository::class)),
             $jitaMarketService,
             $productionPlanning,
             $userStructures,

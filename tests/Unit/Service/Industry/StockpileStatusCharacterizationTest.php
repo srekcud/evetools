@@ -20,6 +20,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -37,6 +38,8 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 final class StockpileStatusCharacterizationTest extends TestCase
 {
+    use StubsPersonalStockReader;
+
     private const array FULL_JITA_SELL_SOURCE = ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null];
     private const int WIDGET_SOURCE = 100;
     private const int MEXALLON = 36;
@@ -84,7 +87,7 @@ final class StockpileStatusCharacterizationTest extends TestCase
         ProducerOfStub::from($productRepository);
         $this->service = new StockpileService(
             $targetRepository,
-            $assetRepository,
+            $this->personalStockReaderOn($assetRepository),
             $jitaMarketService,
             $productionPlanning,
             $userStructures,

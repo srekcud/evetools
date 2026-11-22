@@ -7,9 +7,12 @@ namespace App\Tests\Unit\Service\Industry\Project;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectContainer;
 use App\Entity\IndustryStructureConfig;
+use App\Entity\PersonalStockContainer;
+use App\Entity\User;
 use App\Exception\ContainerNameTakenException;
 use App\Exception\LocationNotInPlanException;
 use App\Exception\StationAlreadyHasContainerException;
+use App\Repository\PersonalStockContainerRepository;
 use App\Service\Industry\Project\ProjectContainerPlacer;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -24,6 +27,7 @@ final class ProjectContainerPlacerTest extends TestCase
     private const int UNKNOWN_LOCATION_ID = 999;
 
     private IndustryProject $project;
+    private array $personalStockContainers = [];
     private IndustryStructureConfig $stationA;
     private IndustryStructureConfig $stationB;
 
@@ -105,6 +109,41 @@ final class ProjectContainerPlacerTest extends TestCase
         }
     }
 
+    public function testRefusesANameAlreadyTakenByAPersonalStockContainerOfTheOwner(): void
+    {
+        $this->personalStockContainers = [new PersonalStockContainer($this->project->getOwner(), 1_132_400_000_001, 'Mats', 'Division 2', self::STATION_A_LOCATION_ID, 'A')];
+
+        $this->expectException(ContainerNameTakenException::class);
+
+        try {
+            $this->placerWithStations([$this->stationA])->place($this->project, self::STATION_A_LOCATION_ID, ' MATS ');
+        } finally {
+            self::assertSame([], $this->containersOfProject());
+        }
+    }
+
+    public function testRefusesTheProposedNameWhenAPersonalStockContainerOfTheOwnerHasIt(): void
+    {
+        $this->personalStockContainers = [new PersonalStockContainer($this->project->getOwner(), 1_132_400_000_002, 'Ishtar A', 'Division 2', self::STATION_A_LOCATION_ID, 'A')];
+
+        $this->expectException(ContainerNameTakenException::class);
+
+        try {
+            $this->placerWithStations([$this->stationA])->place($this->project, self::STATION_A_LOCATION_ID, null);
+        } finally {
+            self::assertSame([], $this->containersOfProject());
+        }
+    }
+
+    public function testCreatesTheContainerWhenThePersonalStockContainersOfTheOwnerHaveOtherNames(): void
+    {
+        $this->personalStockContainers = [new PersonalStockContainer($this->project->getOwner(), 1_132_400_000_003, 'Perso A', 'Division 2', self::STATION_A_LOCATION_ID, 'A')];
+
+        $this->placerWithStations([$this->stationA])->place($this->project, self::STATION_A_LOCATION_ID, 'Mats');
+
+        self::assertSame([['Mats', self::STATION_A_LOCATION_ID]], $this->containersOfProject());
+    }
+
     public function testRefusesALocationThatIsNotAStationOfThePlan(): void
     {
         $this->expectException(LocationNotInPlanException::class);
@@ -125,7 +164,12 @@ final class ProjectContainerPlacerTest extends TestCase
 
     private function placerWithStations(array $ownerStructures): ProjectContainerPlacer
     {
-        return new ProjectContainerPlacer($this->stationsOf($ownerStructures));
+        $personalContainers = $this->createStub(PersonalStockContainerRepository::class);
+        $personalContainers->method('findByUser')->willReturnCallback(
+            fn (User $user): array => $user === $this->project->getOwner() ? $this->personalStockContainers : [],
+        );
+
+        return new ProjectContainerPlacer($this->stationsOf($ownerStructures), $personalContainers);
     }
 
     private function containersOfProject(): array

@@ -8,7 +8,6 @@ use App\Entity\CachedCharacterSkill;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\User;
-use App\Repository\CachedAssetRepository;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
@@ -16,6 +15,7 @@ use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\Project\OpenProjectStepsToLaunch;
 use App\Service\Industry\Project\StepToLaunch;
+use App\Service\Industry\Stock\PersonalStockReader;
 use App\Service\TypeNameResolver;
 
 class SlotTrackerService
@@ -60,7 +60,7 @@ class SlotTrackerService
         private readonly IndustryCalculationService $calculationService,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly IndustryStockpileTargetRepository $stockpileTargetRepository,
-        private readonly CachedAssetRepository $assetRepository,
+        private readonly PersonalStockReader $personalStock,
         private readonly IndustryProjectJobMatchRepository $projectJobMatchRepository,
         private readonly OpenProjectStepsToLaunch $openProjectSteps,
     ) {
@@ -94,7 +94,7 @@ class SlotTrackerService
         // Stockpile targets for suggestions
         $stockpileTargets = $this->stockpileTargetRepository->findByUser($user);
         $assetQuantities = !empty($stockpileTargets)
-            ? $this->assetRepository->getAggregatedQuantitiesByUser($user)
+            ? $this->personalStock->of($user)->quantitiesByTypeId
             : [];
 
         // Build per-character data

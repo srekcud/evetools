@@ -19,6 +19,7 @@ use App\Service\Industry\Project\IntermediateStockProposalLine;
 use App\Service\Industry\Project\IntermediateStockProposer;
 use App\Service\Industry\Project\ProjectContainerService;
 use App\Service\Industry\Project\ProjectContainerStock;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +29,7 @@ use PHPUnit\Framework\TestCase;
 final class IntermediateStockProposerTest extends TestCase
 {
     use BuildsChainBomLines;
+    use StubsPersonalStockReader;
 
     private const string CONTAINER_NAME = 'Build 708';
 
@@ -75,7 +77,7 @@ final class IntermediateStockProposerTest extends TestCase
             fn (array $productTypeIds): array => (new InMemoryChainRecipeIngredients($this->producedIngredientsByTypeId))->producedIngredientsOf($productTypeIds),
         );
 
-        $this->proposer = new IntermediateStockProposer($assetRepository, $containerService, $contributionRepository, $chainRecipeIngredients);
+        $this->proposer = new IntermediateStockProposer($assetRepository, $containerService, $contributionRepository, $chainRecipeIngredients, $this->personalStockReaderOn($assetRepository));
     }
 
     public function testPersonalStockAloneIsProposedForTheRemainingQuantityWithoutContainer(): void

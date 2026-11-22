@@ -32,13 +32,18 @@ final class AssetStations
 
     public function of(CachedAsset $asset): ?int
     {
+        return $this->locationOf($asset)?->locationId;
+    }
+
+    public function locationOf(CachedAsset $asset): ?AssetStation
+    {
         $top = $this->topOf($asset);
         if (null === $top) {
             return null;
         }
 
         if (self::ITEM_LOCATION_TYPE !== $top->getLocationType()) {
-            return $top->getLocationId();
+            return new AssetStation($top->getLocationId(), $top->getLocationName(), $top->getSolarSystemName());
         }
 
         $office = $this->offices()[$top->getLocationId()] ?? null;
@@ -46,7 +51,7 @@ final class AssetStations
             return null;
         }
 
-        return $office->getLocationId();
+        return new AssetStation($office->getLocationId(), $office->getLocationName(), $office->getSolarSystemName());
     }
 
     private function topOf(CachedAsset $asset): ?CachedAsset

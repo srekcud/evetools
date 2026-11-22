@@ -8,10 +8,10 @@ use App\Entity\User;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Domain\ActivityKind;
 use App\Enum\IndustryActivityType;
-use App\Repository\CachedAssetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\Stock\PersonalStockReader;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,7 +27,7 @@ class PivotAdvisorService
     public function __construct(
         private readonly IndustryActivityMaterialRepository $materialRepository,
         private readonly IndustryActivityProductRepository $productRepository,
-        private readonly CachedAssetRepository $assetRepository,
+        private readonly PersonalStockReader $personalStock,
         private readonly JitaMarketService $jitaMarketService,
         private readonly EsiCostIndexService $esiCostIndexService,
         private readonly TypeNameResolver $typeNameResolver,
@@ -102,7 +102,7 @@ class PivotAdvisorService
         $buildableMaterialTypeIds = array_map(fn (array $m) => $m['materialTypeId'], $buildableMaterials);
 
         // 4. Get user stock
-        $userStock = $this->assetRepository->getAggregatedQuantitiesByUser($user);
+        $userStock = $this->personalStock->of($user)->quantitiesByTypeId;
 
         // 5. Reverse lookup: find products using these buildable materials
         $candidateProducts = $this->materialRepository->findProductsUsingMaterials($buildableMaterialTypeIds, $activityIds);
@@ -721,7 +721,7 @@ class PivotAdvisorService
         $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes([$sourceTypeId]);
         $typeNames = $this->typeNameResolver->findNames($allTypeIds);
         $groupNames = $this->loadGroupNames([$sourceTypeId]);
-        $userStock = $this->assetRepository->getAggregatedQuantitiesByUser($user);
+        $userStock = $this->personalStock->of($user)->quantitiesByTypeId;
 
         $sourceProduct = $this->buildSourceProductSummary(
             $sourceTypeId,

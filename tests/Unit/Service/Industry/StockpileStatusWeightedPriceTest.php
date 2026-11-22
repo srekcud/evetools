@@ -12,6 +12,7 @@ use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\StockpileService;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -23,6 +24,7 @@ use PHPUnit\Framework\TestCase;
 final class StockpileStatusWeightedPriceTest extends TestCase
 {
     use BuildsStockpileOnWidgetSde;
+    use StubsPersonalStockReader;
 
     private const array SELL_BOOKS = [
         self::ORE => [[5.0, 100], [6.0, 100], [7.0, 100]],
@@ -72,7 +74,7 @@ final class StockpileStatusWeightedPriceTest extends TestCase
         );
         $this->service = new StockpileService(
             $targetRepository,
-            $assetRepository,
+            $this->personalStockReaderOn($assetRepository),
             $jitaMarketService,
             $this->productionPlanningOnWidgetSde(),
             $this->userStructuresOfThePilot(),

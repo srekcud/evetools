@@ -9,6 +9,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Enum\ProjectStatus;
 use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Service\Industry\Stock\PersonalStockReader;
 
 final readonly class IntermediateStockProposer
 {
@@ -20,6 +21,7 @@ final readonly class IntermediateStockProposer
         private ProjectContainerService $containerService,
         private IndustryProjectContributionRepository $contributionRepository,
         private ChainRecipeIngredients $recipeIngredients,
+        private PersonalStockReader $personalStock,
     ) {
     }
 
@@ -34,6 +36,11 @@ final readonly class IntermediateStockProposer
             return $this->unknown(self::REASON_PERSONAL_ASSETS_NOT_SYNCED);
         }
 
+        $personalStock = $this->personalStock->of($owner);
+        if (null !== $personalStock->unknownReason()) {
+            return $this->unknown($personalStock->unknownReason());
+        }
+
         $containerQuantities = null;
         if ([] !== $project->getContainerNames()) {
             $containerStock = $this->containerService->containerStockOf($project);
@@ -43,7 +50,7 @@ final readonly class IntermediateStockProposer
             $containerQuantities = $containerStock->quantitiesByTypeId;
         }
 
-        $personalQuantities = $this->assetRepository->getAggregatedQuantitiesByUser($owner);
+        $personalQuantities = $personalStock->quantitiesByTypeId;
         $approvedStock = $this->contributionRepository->findIntermediateStockByTypeId($project);
         $contributedBomItemIds = $this->contributionRepository->findBomItemIdsWithMaterialContributionOf($project, $owner);
 

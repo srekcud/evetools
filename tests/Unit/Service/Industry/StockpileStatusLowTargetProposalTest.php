@@ -12,6 +12,7 @@ use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\StockpileService;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
+use App\Tests\Unit\Support\StubsPersonalStockReader;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 final class StockpileStatusLowTargetProposalTest extends TestCase
 {
     use BuildsStockpileOnWidgetSde;
+    use StubsPersonalStockReader;
 
     private const int FRAME_TARGET = 10;
     private const int FRAME_TARGET_QUARTER_STOCKED = 8;
@@ -50,7 +52,7 @@ final class StockpileStatusLowTargetProposalTest extends TestCase
 
         $this->service = new StockpileService(
             $targetRepository,
-            $assetRepository,
+            $this->personalStockReaderOn($assetRepository),
             $jitaMarketService,
             $this->productionPlanningOnWidgetSde(),
             $this->userStructuresOfThePilot(),
