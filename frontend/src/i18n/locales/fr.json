@@ -5114,6 +5114,7 @@
         "accessUnknown": "accès inconnu",
         "declare": "Déclarer",
         "declared": "Déclarée",
+        "personalStockHint": "Depuis mon stock : déclarer le transfert ne valorise rien, ma contribution reste l'action \"Utiliser mon stock\"",
         "readyNow": "prêt",
         "states": {
           "ready": "prêt à porter",
