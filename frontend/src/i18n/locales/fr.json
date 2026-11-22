@@ -3044,6 +3044,10 @@
       }
     },
     "flow": {
+      "sectionTitle": "Flux",
+      "collapse": "Replier le flux",
+      "expand": "Déplier le flux",
+      "summaryLabel": "Cartes par état",
       "columns": {
         "toBring": "À apporter",
         "onSite": "Sur place",
