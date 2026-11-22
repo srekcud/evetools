@@ -339,7 +339,34 @@ final class ProjectStationMigrationTest extends IntegrationTestCase
         self::assertSame([[StationMigrationChangeKind::ContainerLocation, $containerId, StationMigrationReason::StationNotInPlan]], $this->unmigratedOf($report));
     }
 
-    public function testAContainerWhoseNamedAssetsAreInTwoStationsIsReportedAsInSeveralStations(): void
+    public function testAContainerNamedInTwoStationsOfThePlanGivesOneLocatedContainerPerStation(): void
+    {
+        $project = $this->newProject();
+        $this->addComponentLines($project, $this->azbelAId, $this->sotiyoBId);
+        $containerId = $this->addContainer($project, self::FIRST_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_A, self::FIRST_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_B, self::FIRST_CONTAINER_NAME);
+        $this->flushAndClear();
+
+        $report = $this->migration->migrate($this->reloadedProject($project));
+        $this->flushAndClear();
+
+        $containers = $this->reloadedProject($project)->getContainers()->toArray();
+        $locationsByName = array_map(static fn ($container): array => [$container->getName(), $container->getLocationId()], $containers);
+        usort($locationsByName, static fn (array $left, array $right): int => $left[1] <=> $right[1]);
+        self::assertSame([[self::FIRST_CONTAINER_NAME, self::STATION_A], [self::FIRST_CONTAINER_NAME, self::STATION_B]], $locationsByName);
+        self::assertSame(self::STATION_A, $this->reloadedContainer($containerId)->getLocationId());
+        $containerChanges = array_values(array_filter(
+            $report->changes,
+            static fn (StationMigrationChange $change): bool => StationMigrationChangeKind::ContainerLocation === $change->kind,
+        ));
+        self::assertSame([(string) self::STATION_A, (string) self::STATION_B], array_map(static fn (StationMigrationChange $change): string => $change->value, $containerChanges));
+        self::assertSame($containerId, $containerChanges[0]->subject);
+        self::assertNotSame($containerId, $containerChanges[1]->subject);
+        self::assertSame([StationMigrationReason::SeveralStations], array_map(static fn ($unmigrated): StationMigrationReason => $unmigrated->reason, $report->unmigrated));
+    }
+
+    public function testAContainerNamedInAStationOfThePlanAndInAStationOutsideItIsLocatedAndTheOtherStationReported(): void
     {
         $project = $this->newProject();
         $this->addComponentLines($project, $this->azbelAId);
@@ -350,8 +377,33 @@ final class ProjectStationMigrationTest extends IntegrationTestCase
 
         $report = $this->migration->migrate($this->reloadedProject($project));
 
+        self::assertSame(self::STATION_A, $this->reloadedContainer($containerId)->getLocationId());
+        self::assertSame([[StationMigrationChangeKind::ContainerLocation, $containerId, StationMigrationReason::StationNotInPlan]], $this->unmigratedOf($report));
+        self::assertSame((string) self::STATION_B, $report->unmigrated[0]->detail);
+    }
+
+    public function testAContainerNamedInTwoStationsOutsideThePlanStaysUnlocatedAndBothStationsAreReported(): void
+    {
+        $project = $this->newProject();
+        $this->addComponentLines($project, $this->athanorCId);
+        $containerId = $this->addContainer($project, self::FIRST_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_A, self::FIRST_CONTAINER_NAME);
+        $this->cacheContainerAt(self::STATION_B, self::FIRST_CONTAINER_NAME);
+        $this->flushAndClear();
+
+        $report = $this->migration->migrate($this->reloadedProject($project));
+
         self::assertNull($this->reloadedContainer($containerId)->getLocationId());
-        self::assertSame([[StationMigrationChangeKind::ContainerLocation, $containerId, StationMigrationReason::ContainerInSeveralStations]], $this->unmigratedOf($report));
+        self::assertSame(
+            [
+                [StationMigrationChangeKind::ContainerLocation, $containerId, StationMigrationReason::StationNotInPlan],
+                [StationMigrationChangeKind::ContainerLocation, $containerId, StationMigrationReason::StationNotInPlan],
+            ],
+            array_values(array_filter(
+                $this->unmigratedOf($report),
+                static fn (array $unmigrated): bool => StationMigrationChangeKind::ContainerLocation === $unmigrated[0],
+            )),
+        );
     }
 
     public function testAContainerWhoseNamedAssetHasNoResolvedStationIsReportedAsStationUnresolved(): void

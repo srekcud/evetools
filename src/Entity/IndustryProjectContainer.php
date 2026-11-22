@@ -11,7 +11,6 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Entity]
 #[ORM\Table(name: 'industry_project_containers')]
 #[ORM\Index(columns: ['project_id'])]
-#[ORM\UniqueConstraint(columns: ['project_id', 'name'])]
 #[ORM\UniqueConstraint(columns: ['project_id', 'location_id'])]
 class IndustryProjectContainer
 {

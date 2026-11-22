@@ -155,7 +155,7 @@ final readonly class ProjectStationMigration
         $stations = new AssetStations($visibleAssets, $this->cachedAssetRepository, $corporationId);
         $outcomes = [];
         foreach ($unlocatedContainers as $container) {
-            $outcomes[] = $this->locate($project, $container, array_map($stations->of(...), $assetsByNameKey[IndustryProjectContainer::keyOf($container->getName())] ?? []));
+            array_push($outcomes, ...$this->locate($project, $container, array_map($stations->of(...), $assetsByNameKey[IndustryProjectContainer::keyOf($container->getName())] ?? [])));
         }
 
         return $outcomes;
@@ -163,28 +163,42 @@ final readonly class ProjectStationMigration
 
     /**
      * @param list<int|null> $assetStationIds
+     *
+     * @return list<StationMigrationChange|StationMigrationUnmigrated>
      */
-    private function locate(IndustryProject $project, IndustryProjectContainer $container, array $assetStationIds): StationMigrationChange|StationMigrationUnmigrated
+    private function locate(IndustryProject $project, IndustryProjectContainer $container, array $assetStationIds): array
     {
         $projectId = $project->getId()->toRfc4122();
         $containerId = $container->getId()->toRfc4122();
-        $unmigrated = static fn (StationMigrationReason $reason): StationMigrationUnmigrated => new StationMigrationUnmigrated($projectId, StationMigrationChangeKind::ContainerLocation, $containerId, $reason);
+        $unmigrated = static fn (StationMigrationReason $reason, ?string $detail = null): StationMigrationUnmigrated => new StationMigrationUnmigrated($projectId, StationMigrationChangeKind::ContainerLocation, $containerId, $reason, $detail);
 
-        $locationId = $this->containerLocationInference->of($assetStationIds);
-        if ($locationId instanceof StationMigrationReason) {
-            return $unmigrated($locationId);
+        $locationIds = $this->containerLocationInference->of($assetStationIds);
+        if ($locationIds instanceof StationMigrationReason) {
+            return [$unmigrated($locationIds)];
         }
 
-        try {
-            $this->containerPlacer->place($project, $locationId, $container->getName());
-        } catch (LocationNotInPlanException) {
-            return $unmigrated(StationMigrationReason::StationNotInPlan);
-        } catch (StationAlreadyHasContainerException) {
-            return $unmigrated(StationMigrationReason::StationAlreadyHasContainer);
-        } catch (ContainerNameTakenException) {
-            return $unmigrated(StationMigrationReason::NamedLikePersonalStock);
+        $detailOf = static fn (int $locationId): ?string => 1 === \count($locationIds) ? null : (string) $locationId;
+        $outcomes = [];
+        foreach ($locationIds as $locationId) {
+            try {
+                $station = $this->containerPlacer->place($project, $locationId, $container->getName());
+            } catch (LocationNotInPlanException) {
+                $outcomes[] = $unmigrated(StationMigrationReason::StationNotInPlan, $detailOf($locationId));
+
+                continue;
+            } catch (StationAlreadyHasContainerException) {
+                $outcomes[] = $unmigrated(StationMigrationReason::StationAlreadyHasContainer, $detailOf($locationId));
+
+                continue;
+            } catch (ContainerNameTakenException) {
+                $outcomes[] = $unmigrated(StationMigrationReason::NamedLikePersonalStock, $detailOf($locationId));
+
+                continue;
+            }
+
+            $outcomes[] = new StationMigrationChange($projectId, StationMigrationChangeKind::ContainerLocation, $station->containerId ?? throw new \LogicException('A placed container has an id.'), (string) $locationId);
         }
 
-        return new StationMigrationChange($projectId, StationMigrationChangeKind::ContainerLocation, $containerId, (string) $locationId);
+        return $outcomes;
     }
 }

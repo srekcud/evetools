@@ -34,8 +34,9 @@ final readonly class ProjectContainerStations
         $containersByLocationId = [];
         $takenNameKeys = [];
         foreach ($project->getContainers() as $container) {
-            $takenNameKeys[IndustryProjectContainer::keyOf($container->getName())] = true;
-            if (null !== $container->getLocationId()) {
+            if (null === $container->getLocationId()) {
+                $takenNameKeys[IndustryProjectContainer::keyOf($container->getName())] = true;
+            } else {
                 $containersByLocationId[$container->getLocationId()] = $container;
             }
         }

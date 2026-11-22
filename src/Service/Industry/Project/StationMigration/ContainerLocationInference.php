@@ -9,9 +9,9 @@ final readonly class ContainerLocationInference
     /**
      * @param list<int|null> $assetStationIds station of each asset named like the container, null when unresolved
      *
-     * @return int|StationMigrationReason the location to store, or why none can be
+     * @return list<int>|StationMigrationReason the stations to store a container at, in ascending order, or why none can be
      */
-    public function of(array $assetStationIds): int|StationMigrationReason
+    public function of(array $assetStationIds): array|StationMigrationReason
     {
         if ([] === $assetStationIds) {
             return StationMigrationReason::ContainerNotFound;
@@ -22,7 +22,8 @@ final readonly class ContainerLocationInference
         }
 
         $distinctStationIds = array_values(array_unique($assetStationIds));
+        sort($distinctStationIds);
 
-        return 1 === \count($distinctStationIds) ? $distinctStationIds[0] : StationMigrationReason::ContainerInSeveralStations;
+        return $distinctStationIds;
     }
 }

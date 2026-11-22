@@ -138,6 +138,19 @@ final class ProjectContainerStationsTest extends TestCase
         self::assertSame([['A', self::STATION_A_LOCATION_ID, self::JITA_SOLAR_SYSTEM_ID, null, 'Ishtar A 2']], $this->summarised($stations));
     }
 
+    public function testProposedNameMayReuseTheNameOfAContainerLocatedAtAnotherStation(): void
+    {
+        $project = $this->ownerWithProject('Ishtar');
+        $stationA = $this->structure('A', self::STATION_A_LOCATION_ID, self::JITA_SOLAR_SYSTEM_ID);
+        $stationB = $this->structure('B', self::STATION_B_LOCATION_ID, self::AMARR_SOLAR_SYSTEM_ID);
+        $project->setWorkStations(['final_products' => $this->workStation($stationA), 'components' => $this->workStation($stationB)]);
+        $project->getContainers()->add((new IndustryProjectContainer($project, 'Ishtar B'))->locateAt(self::STATION_A_LOCATION_ID));
+
+        $stations = $this->stationsOf([$stationA, $stationB])->of($project);
+
+        self::assertSame([['A', self::STATION_A_LOCATION_ID, self::JITA_SOLAR_SYSTEM_ID, 'Ishtar B', null], ['B', self::STATION_B_LOCATION_ID, self::AMARR_SOLAR_SYSTEM_ID, null, 'Ishtar B']], $this->summarised($stations));
+    }
+
     public function testProposedNameSkipsEverySuffixAlreadyTakenIgnoringCase(): void
     {
         $project = $this->ownerWithProject('Ishtar');
