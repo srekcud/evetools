@@ -63,7 +63,10 @@ enableAutoUnmount(afterEach)
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockResolvedValue([])
+  vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    if (endpoint === '/industry/settings') return { exportCostPerM3: 800 }
+    return []
+  })
   vi.mocked(authFetch).mockReset()
   vi.mocked(authFetch).mockImplementation(async (input: RequestInfo | URL) => {
     if (String(input) === APPRAISE_ENDPOINT) return jsonResponse(APPRAISAL_RESPONSE)

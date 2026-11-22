@@ -8,6 +8,7 @@ import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import { JITA_PRICES_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
 import { useAppraisalHandoffStore } from '@/stores/appraisalHandoff'
+import { useStructuresStore } from '@/stores/industry/structures'
 import { useFormatters } from '@/composables/useFormatters'
 import AppraisalInputPanel from '@/components/appraisal/AppraisalInputPanel.vue'
 import AppraisalResultsTable from '@/components/appraisal/AppraisalResultsTable.vue'
@@ -94,9 +95,14 @@ const transportCostFieldId = useId()
 const { formatIsk, formatNumber, formatTimeSince } = useFormatters()
 const dataFreshnessStore = useDataFreshnessStore()
 const appraisalHandoff = useAppraisalHandoffStore()
+const structuresStore = useStructuresStore()
 
-onMounted(() => {
+onMounted(async () => {
   dataFreshnessStore.fetchDataFreshness()
+  await structuresStore.fetchUserSettings()
+  if (structuresStore.userSettings !== null) {
+    transportCostPerM3.value = structuresStore.userSettings.exportCostPerM3
+  }
   const handedOverText = appraisalHandoff.take()
   if (handedOverText !== null) {
     inputText.value = handedOverText
