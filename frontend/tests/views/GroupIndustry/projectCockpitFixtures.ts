@@ -21,11 +21,13 @@ import type {
   ProjectPhaseKey,
   ProjectPhaseState,
   ProjectPriceAlert,
+  ProjectPlanning,
   ProjectSellOrder,
   TypeStationQuantities,
 } from '@/stores/group-industry/types'
 import type { TestLocale } from '../../localeTexts'
 import { projectSettlement } from '../../components/group-industry/projectSettlementFixtures'
+import { projectPlanning } from '../../projectPlanningData'
 
 export const PROJECT_ID = 'project-nyx-batch'
 export const PROJECT_PATH = `/industry/projects/${PROJECT_ID}`
@@ -33,6 +35,7 @@ export const COCKPIT_PATH = `${PROJECT_PATH}/cockpit`
 export const STATION_QUANTITIES_PATH = `${PROJECT_PATH}/station-quantities`
 export const PLACE_ACTIONS_PATH = `${PROJECT_PATH}/place-actions`
 export const SALES_PATH = `${PROJECT_PATH}/sales`
+export const PLANNING_PATH = `${PROJECT_PATH}/planning`
 export const COCKPIT_RAIL = '[data-testid="cockpit-rail"]'
 export const NEXT_ACTION_CARD = '[data-testid="next-action-card"]'
 export const TAB_BAR_BUTTON = '[data-testid^="project-tab-"]'
@@ -166,6 +169,7 @@ export type CockpitAnswers = {
   stationQuantities?: TypeStationQuantities[]
   placeActions?: PlacedAction[]
   sales?: GroupSale[]
+  planning?: ProjectPlanning
 }
 
 export const NYX_INVENTION_PRODUCTS: ProjectInventionProduct[] = [{
@@ -199,7 +203,7 @@ export const NYX_DISTRIBUTION: Distribution = {
   members: [],
 }
 
-export function answerApi({ project, bom = [], cockpit, cockpitFailure, members = [], distribution = NYX_DISTRIBUTION, invention = NYX_INVENTION_PRODUCTS, stationQuantities = [], placeActions = [], sales = [] }: CockpitAnswers): void {
+export function answerApi({ project, bom = [], cockpit, cockpitFailure, members = [], distribution = NYX_DISTRIBUTION, invention = NYX_INVENTION_PRODUCTS, stationQuantities = [], placeActions = [], sales = [], planning = projectPlanning({ id: PROJECT_ID, lanesShown: false }) }: CockpitAnswers): void {
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
     if (options?.method === 'PATCH') return { ...project, ...JSON.parse(String(options.body)) }
     if (endpoint === PROJECT_PATH) return project
@@ -207,6 +211,7 @@ export function answerApi({ project, bom = [], cockpit, cockpitFailure, members 
     if (endpoint === STATION_QUANTITIES_PATH) return stationQuantities
     if (endpoint === PLACE_ACTIONS_PATH) return placeActions
     if (endpoint === SALES_PATH) return sales
+    if (endpoint === PLANNING_PATH) return planning
     if (endpoint === `${PROJECT_PATH}/settlement`) return projectSettlement()
     if (endpoint === `${PROJECT_PATH}/distribution`) {
       if (distribution instanceof Error) throw distribution

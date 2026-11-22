@@ -8,6 +8,7 @@ import MemberTable from '@/components/group-industry/MemberTable.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectFlowActions from '@/components/group-industry/ProjectFlowActions.vue'
 import ProjectFlowGrid from '@/components/group-industry/ProjectFlowGrid.vue'
+import ProjectFlowPlanning from '@/components/group-industry/ProjectFlowPlanning.vue'
 import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
@@ -29,6 +30,7 @@ import {
   nextAction,
   nyxProject,
   PLACE_ACTIONS_PATH,
+  PLANNING_PATH,
   PROJECT_ID,
   route,
   SALES_PATH,
@@ -329,5 +331,48 @@ describe('group project detail flow data refreshed by the realtime events', () =
 
     expect(wrapper.get(sectionToggleSelector('contributions')).text()).toContain('4')
     expect(wrapper.get(sectionToggleSelector('members')).text()).toContain('3')
+  })
+})
+
+describe('group project detail planning view of the flow', () => {
+  it('swaps the flow grid for the planning from the toggle, keeps the project to do column, and reads the planning only once it is shown', async () => {
+    route.query = {}
+    const wrapper = await mountCockpitDetail({
+      project: nyxProject('in_progress', 'owner', { membersCount: 3 }),
+      cockpit: cockpitOf('in_progress', nextAction({ code: 'launch_job', tab: 'materials', quantity: 3 })),
+    })
+    expect(wrapper.find('[data-testid="flow-view-planning"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="flow-view-flux"]').exists()).toBe(true)
+    const beforeToggle = {
+      grid: wrapper.find('[data-testid="project-flow-grid"]').exists(),
+      planning: wrapper.findComponent(ProjectFlowPlanning).exists(),
+      planningReads: callsTo(PLANNING_PATH),
+    }
+
+    await wrapper.find('[data-testid="flow-view-planning"]').trigger('click')
+    await flushPromises()
+    const planningView = {
+      grid: wrapper.find('[data-testid="project-flow-grid"]').exists(),
+      planning: wrapper.find('[data-testid="flow-planning"]').exists(),
+      actions: wrapper.findComponent(ProjectFlowActions).exists(),
+      planningReads: callsTo(PLANNING_PATH),
+    }
+
+    await wrapper.find('[data-testid="flow-view-flux"]').trigger('click')
+    await flushPromises()
+
+    expect({
+      beforeToggle,
+      planningView,
+      backToFlux: {
+        grid: wrapper.find('[data-testid="project-flow-grid"]').exists(),
+        planning: wrapper.find('[data-testid="flow-planning"]').exists(),
+        actions: wrapper.findComponent(ProjectFlowActions).exists(),
+      },
+    }).toEqual({
+      beforeToggle: { grid: true, planning: false, planningReads: 0 },
+      planningView: { grid: false, planning: true, actions: true, planningReads: 1 },
+      backToFlux: { grid: true, planning: false, actions: true },
+    })
   })
 })

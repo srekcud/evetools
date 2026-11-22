@@ -2990,6 +2990,27 @@
         "decryptor": "A decryptor changes the chance, the runs and the ME/TE of the BPC (table in the Invention section)."
       }
     },
+    "flowPlanning": {
+      "title": "Estimated planning",
+      "loading": "Computing the planning...",
+      "loadError": "The planning could not be read",
+      "expectedEnd": "End of the jobs",
+      "transfersNote": "Transfers between stations not included",
+      "empty": "Nothing to plan",
+      "undatedTitle": "Estimate unknown",
+      "dayOffset": "D+{days}",
+      "done": "Done",
+      "views": {
+        "flux": "Flow",
+        "planning": "Planning"
+      },
+      "states": {
+        "planned": "Planned",
+        "running": "In progress",
+        "waiting": "Waiting",
+        "done": "Done"
+      }
+    },
     "flow": {
       "columns": {
         "toBring": "To bring",

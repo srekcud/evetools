@@ -45,6 +45,7 @@ import PendingRequestsTable from '@/components/group-industry/PendingRequestsTab
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import ProjectFlowActions from '@/components/group-industry/ProjectFlowActions.vue'
 import ProjectFlowGrid from '@/components/group-industry/ProjectFlowGrid.vue'
+import ProjectFlowPlanning from '@/components/group-industry/ProjectFlowPlanning.vue'
 import ProjectSection from '@/components/group-industry/ProjectSection.vue'
 import { buildFlowGrid } from '@/components/group-industry/projectFlow'
 import ProjectPriceAlertBanner from '@/components/group-industry/ProjectPriceAlertBanner.vue'
@@ -281,6 +282,10 @@ function refreshFlow(id: string, salesAlreadyRefreshed = false): Promise<void>[]
     ...(salesAlreadyRefreshed ? [] : [distributionStore.fetchSales(id)]),
   ]
 }
+
+type FlowView = 'flux' | 'planning'
+const FLOW_VIEWS: FlowView[] = ['flux', 'planning']
+const flowView = ref<FlowView>('flux')
 
 const flowGrid = computed(() => {
   const current = project.value
@@ -788,7 +793,24 @@ function applyShareLinkShortcut(): void {
             <LoadingSpinner size="sm" />
             <span>{{ t('common.status.loading') }}</span>
           </div>
-          <ProjectFlowGrid v-else-if="flowGrid !== null" :grid="flowGrid" :personal-use="project.personalUse === true" />
+          <template v-else-if="flowGrid !== null">
+            <div class="mb-2 flex justify-end">
+              <div class="inline-flex border border-slate-700" role="group">
+                <button
+                  v-for="view in FLOW_VIEWS"
+                  :key="view"
+                  type="button"
+                  :data-testid="`flow-view-${view}`"
+                  :aria-pressed="flowView === view"
+                  class="px-3 py-1 font-display text-[11.5px] font-bold uppercase tracking-[0.1em] transition-colors"
+                  :class="flowView === view ? 'bg-cyan-400/15 text-cyan-300' : 'text-slate-500 hover:text-slate-300'"
+                  @click="flowView = view"
+                >{{ t(`groupIndustry.flowPlanning.views.${view}`) }}</button>
+              </div>
+            </div>
+            <ProjectFlowGrid v-if="flowView === 'flux'" :grid="flowGrid" :personal-use="project.personalUse === true" />
+            <ProjectFlowPlanning v-else :project-id="projectId" :grid="flowGrid" :bom-items="projectStore.bomItems" />
+          </template>
         </div>
         <ProjectFlowActions :actions="placeActionsStore.actions" :loading="placeActionsStore.loading" :error="placeActionsStore.error" />
       </div>

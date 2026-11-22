@@ -71,6 +71,7 @@ final readonly class ProjectPlanningProvider implements ProviderInterface
         $resource->delayCause = null === $planning->delayCause ? null : $this->waitOf($planning->delayCause);
         $resource->lanesShown = $project->isSoloProjectOf($project->getOwner());
         $resource->characters = $resource->lanesShown ? array_map(fn (PlanningCharacterLane $lane): array => $this->laneOf($lane, $blueprintNameByLineId), $planning->characters) : [];
+        $resource->jobs = array_map(fn (PlanningJob $job): array => $this->jobOf($job, $blueprintNameByLineId[$job->lineId] ?? null), $planning->jobs());
         $resource->unscheduled = array_map(
             static fn (PlanningUnscheduled $line): array => [
                 'lineId' => $line->lineId,

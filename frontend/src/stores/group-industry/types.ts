@@ -1054,6 +1054,7 @@ export type ProjectPlanning = {
   delayCause: PlanningWait | null
   lanesShown: boolean
   characters: PlanningCharacter[]
+  jobs: PlanningJob[]
   unscheduled: PlanningUnscheduled[]
 }
 

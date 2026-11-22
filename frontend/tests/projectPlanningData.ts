@@ -50,6 +50,7 @@ export function projectPlanning(overrides: Partial<ProjectPlanning> = {}): Proje
     delayCause: null,
     lanesShown: true,
     characters: [],
+    jobs: [],
     unscheduled: [],
     ...overrides,
   }

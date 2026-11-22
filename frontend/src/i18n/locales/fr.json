@@ -2990,6 +2990,27 @@
         "decryptor": "Un décrypteur change la chance, les runs et le ME/TE du BPC (tableau dans la section Invention)."
       }
     },
+    "flowPlanning": {
+      "title": "Planning estimé",
+      "loading": "Calcul du planning...",
+      "loadError": "Le planning n'a pas pu être lu",
+      "expectedEnd": "Fin des jobs",
+      "transfersNote": "Transferts entre stations non inclus",
+      "empty": "Rien à planifier",
+      "undatedTitle": "Estimation inconnue",
+      "dayOffset": "J+{days}",
+      "done": "Fait",
+      "views": {
+        "flux": "Flux",
+        "planning": "Planning"
+      },
+      "states": {
+        "planned": "Prévu",
+        "running": "En cours",
+        "waiting": "En attente",
+        "done": "Fait"
+      }
+    },
     "flow": {
       "columns": {
         "toBring": "À apporter",
