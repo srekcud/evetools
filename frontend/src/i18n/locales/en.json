@@ -2926,6 +2926,7 @@
       "stepSourcing": "Buy or build, where to buy",
       "next": "Next: buy or build ▶",
       "validate": "Validate and start",
+      "saveStations": "Save the stations",
       "saving": "Saving…",
       "skip": "Skip, keep the recommended",
       "saveFailed": "Not every choice was saved: {message}. Running « Validate and start » again rewrites the same values.",
@@ -3495,6 +3496,20 @@
       "save": "Save and recalculate",
       "cancel": "Cancel",
       "saveError": "The blacklist could not be saved"
+    },
+    "startupChoices": {
+      "title": "Startup choices",
+      "editStations": "Edit stations",
+      "unexpectedAnswer": "unexpected answer",
+      "loadFailed": "the read failed",
+      "stationsFailed": "The stations chosen at startup could not be read: {message}",
+      "sourcingFailed": "The buy or build choices could not be read: {message}",
+      "recommended": "recommended: {station}",
+      "gap": "gap {amount}",
+      "gapUnknown": "unknown",
+      "sourcingCounts": "Intermediates: {build} built, {jita} bought at Jita, {structure} bought at the capital.",
+      "sourcingOff": "{count} choice(s) off the recommended, gap {amount}.",
+      "sourcingOnRecommended": "Everything on the recommended."
     },
     "prepare": {
       "title": "Prepare",

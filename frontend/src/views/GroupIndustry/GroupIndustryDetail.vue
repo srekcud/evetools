@@ -51,6 +51,7 @@ import { useGroupT2BlueprintCopyProposalStore } from '@/stores/group-industry/t2
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import type { ChainFocusRequest } from '@/components/group-industry/chainView'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
+import ProjectStartupChoices from '@/components/group-industry/ProjectStartupChoices.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
 import ProjectPurchasesToDeliver from '@/components/group-industry/ProjectPurchasesToDeliver.vue'
@@ -514,7 +515,10 @@ function handleLeaveProject(): void {
   router.push(PROJECTS_HOME)
 }
 
+const startupChoicesRevision = ref(0)
+
 function onBlacklistSaved(): void {
+  startupChoicesRevision.value++
   projectStore.fetchBom(projectId.value)
   loadCockpit(projectId.value)
 }
@@ -787,6 +791,13 @@ function applyShareLinkShortcut(): void {
         </p>
 
         <ProjectPrepareBlock :status="project.status">
+          <ProjectStartupChoices
+            :key="startupChoicesRevision"
+            :project-id="projectId"
+            :status="project.status"
+            :can-edit="isOwnerOrAdmin"
+          />
+
           <ProjectBlacklistEditor
             :project-id="projectId"
             :status="project.status"

@@ -27,6 +27,7 @@ const projectStore = useGroupProjectStore()
 const setupStore = useProjectSetupStore()
 
 const projectId = computed(() => route.params.id as string)
+const stationsOnly = computed(() => route.query.edit === 'stations')
 const step = ref<2 | 3>(2)
 const isReady = ref(false)
 const stationPicks = ref<StationPicks>({})
@@ -51,7 +52,8 @@ function openProjectPage(): void {
 function canRunSetup(): boolean {
   const current = project.value
   if (current === null) return false
-  return (current.myRole === 'owner' || current.myRole === 'admin') && current.status === 'draft'
+  if (current.myRole !== 'owner' && current.myRole !== 'admin') return false
+  return current.status === 'draft' || (stationsOnly.value && current.status !== 'completed')
 }
 
 onMounted(async () => {
@@ -63,13 +65,24 @@ onMounted(async () => {
   isReady.value = true
   await Promise.all([
     setupStore.fetchWorkStations(projectId.value),
-    setupStore.fetchSourcingDecisions(projectId.value),
+    stationsOnly.value ? Promise.resolve() : setupStore.fetchSourcingDecisions(projectId.value),
   ])
 })
 
 async function updateSourcingPicks(picks: SourcingPicks): Promise<void> {
   sourcingPicks.value = picks
   await setupStore.fetchSourcingDecisions(projectId.value, sourcingQuery(setupStore.decisions?.rows ?? [], picks))
+}
+
+async function saveStations(): Promise<void> {
+  const workStations = setupStore.workStations
+  if (workStations === null) return
+  const saved = await setupStore.saveSetup(projectId.value, {
+    workStations: stationsPayload(workStations.workTypes, stationPicks.value),
+    blacklistTypeIds: null,
+    markets: [],
+  })
+  if (saved) openProjectPage()
 }
 
 async function validate(): Promise<void> {
@@ -102,7 +115,14 @@ async function validate(): Promise<void> {
         </button>
       </div>
 
-      <ProjectSetupStepBar :step="step" :busy="setupStore.saving" @next="step = 3" @validate="validate" @goto="step = $event" />
+      <ProjectSetupStepBar
+        :step="step"
+        :busy="setupStore.saving"
+        :stations-only="stationsOnly"
+        @next="step = 3"
+        @validate="stationsOnly ? saveStations() : validate()"
+        @goto="step = $event"
+      />
 
       <p v-if="setupStore.saveError" data-testid="setup-save-error" class="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
         {{ t('groupIndustry.setup.saveFailed', { message: setupStore.saveError }) }}
@@ -116,7 +136,8 @@ async function validate(): Promise<void> {
           v-else-if="setupStore.workStations"
           v-model:picks="stationPicks"
           :work-stations="setupStore.workStations"
-          @next="step = 3"
+          :stations-only="stationsOnly"
+          @next="stationsOnly ? saveStations() : (step = 3)"
         />
         <LoadingSpinner v-else />
       </template>

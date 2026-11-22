@@ -6,7 +6,7 @@ import { ACTIVITY_STYLES } from './companionActivityStyles'
 import { selectedStructureId, stationsSummary, type StationPicks } from './projectSetup'
 import type { ProjectWorkStations, WorkStationRow, WorkStationType } from '@/stores/group-industry/types'
 
-const props = defineProps<{ workStations: ProjectWorkStations; picks: StationPicks }>()
+const props = defineProps<{ workStations: ProjectWorkStations; picks: StationPicks; stationsOnly?: boolean }>()
 const emit = defineEmits<{ 'update:picks': [picks: StationPicks]; next: [] }>()
 
 const { t } = useI18n()
@@ -191,7 +191,7 @@ const gapLabel = computed(() => {
           class="rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white hover:bg-cyan-500"
           @click="emit('next')"
         >
-          {{ t('groupIndustry.setup.stations.next') }}
+          {{ stationsOnly ? t('groupIndustry.setup.saveStations') : t('groupIndustry.setup.stations.next') }}
         </button>
       </div>
     </section>

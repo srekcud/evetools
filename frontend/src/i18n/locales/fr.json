@@ -2926,6 +2926,7 @@
       "stepSourcing": "Acheter ou fabriquer, où acheter",
       "next": "Suivant : acheter ou fabriquer ▶",
       "validate": "Valider et démarrer",
+      "saveStations": "Enregistrer les stations",
       "saving": "Enregistrement…",
       "skip": "Passer, garder les conseillées",
       "saveFailed": "Les choix n'ont pas tous été enregistrés : {message}. Relancer « Valider et démarrer » réécrit les mêmes valeurs.",
@@ -3495,6 +3496,20 @@
       "save": "Enregistrer et recalculer",
       "cancel": "Annuler",
       "saveError": "La blacklist n'a pas pu être enregistrée"
+    },
+    "startupChoices": {
+      "title": "Choix du démarrage",
+      "editStations": "Modifier les stations",
+      "unexpectedAnswer": "réponse inattendue",
+      "loadFailed": "la lecture a échoué",
+      "stationsFailed": "Les stations choisies au démarrage n'ont pas pu être lues : {message}",
+      "sourcingFailed": "Les choix acheter ou fabriquer n'ont pas pu être lus : {message}",
+      "recommended": "conseillée : {station}",
+      "gap": "écart {amount}",
+      "gapUnknown": "inconnu",
+      "sourcingCounts": "Intermédiaires : {build} fabriqués, {jita} achetés à Jita, {structure} achetés à la capitale.",
+      "sourcingOff": "{count} choix hors conseillé, écart {amount}.",
+      "sourcingOnRecommended": "Tout sur les conseillés."
     },
     "prepare": {
       "title": "Préparer",

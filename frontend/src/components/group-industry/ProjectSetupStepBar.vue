@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-defineProps<{ step: 2 | 3; busy?: boolean }>()
+defineProps<{ step: 2 | 3; busy?: boolean; stationsOnly?: boolean }>()
 defineEmits<{ next: []; validate: []; goto: [step: 2] }>()
 
 const { t } = useI18n()
@@ -35,13 +35,13 @@ const STEP_TODO = 'border-slate-800 bg-slate-900/40 text-slate-500'
       <b>2</b>
       {{ t('groupIndustry.setup.stepStations') }}
     </span>
-    <span :class="[STEP_BASE, step === 3 ? STEP_ON : STEP_TODO]">
+    <span v-if="!stationsOnly" :class="[STEP_BASE, step === 3 ? STEP_ON : STEP_TODO]">
       <b>3</b>
       {{ t('groupIndustry.setup.stepSourcing') }}
     </span>
     <span class="flex-1" />
     <button
-      v-if="step === 2"
+      v-if="step === 2 && !stationsOnly"
       type="button"
       data-testid="setup-next"
       class="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-cyan-500 disabled:opacity-50"
@@ -58,7 +58,7 @@ const STEP_TODO = 'border-slate-800 bg-slate-900/40 text-slate-500'
       :disabled="busy"
       @click="$emit('validate')"
     >
-      {{ busy ? t('groupIndustry.setup.saving') : t('groupIndustry.setup.validate') }}
+      {{ busy ? t('groupIndustry.setup.saving') : stationsOnly ? t('groupIndustry.setup.saveStations') : t('groupIndustry.setup.validate') }}
     </button>
   </nav>
 </template>
