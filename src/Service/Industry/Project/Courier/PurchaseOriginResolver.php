@@ -27,6 +27,11 @@ final readonly class PurchaseOriginResolver
             return null;
         }
 
+        return $this->solarSystemIdOfLocation($locationId);
+    }
+
+    public function solarSystemIdOfLocation(int $locationId): ?int
+    {
         if ($locationId < self::FIRST_STRUCTURE_ID) {
             return $this->stationRepository->findByStationId($locationId)?->getSolarSystem()->getSolarSystemId();
         }

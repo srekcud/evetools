@@ -59,6 +59,7 @@ Plan : A (structure 1 035 000 000 001, système 30000001) puis B (structure 1 03
 - Quantité en partie en route : `toBring` de B l'exclut déjà (#1295) ; seule la part en route forme la ligne `in_transit`.
 - Un achat au hub dont le type n'a aucune station `toBring > 0` (besoin à une station non résolue, ou déjà couvert) : pas de course ; la station non résolue est dans `unreadable`.
 - Transfert déclaré pas encore parti : non déduit (`InTransitByStation` ne compte que le parti), la ligne reste `ready` ; le front (#1359) rapproche les tronçons déclarés.
+- Achat au hub dont `missingQuantity` est `null` (livraison illisible) : pas de départ, une entrée `unreadable {typeId, typeName, null, purchase_delivery_unknown}` quand le type a une demande.
 - Stock perso à la station d'arrivée : pas de course (apporter depuis son stock, #1318).
 - Quantités entières, jamais négatives ; aucun `?? 0` sur une lecture.
 
