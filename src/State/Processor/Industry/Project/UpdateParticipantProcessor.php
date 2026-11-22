@@ -14,6 +14,7 @@ use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\JoinRequestNotifier;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\PilotName;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
@@ -41,6 +42,7 @@ class UpdateParticipantProcessor implements ProcessorInterface
         private readonly ProjectResourceMapper $mapper,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly JoinRequestNotifier $joinRequestNotifier,
+        private readonly LineReservationService $lineReservations,
     ) {
     }
 
@@ -105,7 +107,11 @@ class UpdateParticipantProcessor implements ProcessorInterface
                 throw new BadRequestHttpException('Only pending members can be accepted');
             }
 
+            $wasSolo = $project->isSoloProjectOf($project->getOwner());
             $member->setStatus(ParticipantStatus::Accepted);
+            if ($wasSolo) {
+                $this->lineReservations->reserveAllLinesForOwner($project);
+            }
             $accepted = true;
         }
 

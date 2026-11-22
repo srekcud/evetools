@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\JoinRequestNotifier;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\State\Processor\Industry\Project\UpdateParticipantProcessor;
@@ -47,6 +48,9 @@ class UpdateParticipantProcessorTest extends TestCase
 
     /** @var list<User> */
     private array $notifiedUsers = [];
+
+    /** @var list<IndustryProject> */
+    private array $projectsWhoseLinesWentToTheOwner = [];
 
     private User $adminA;
     private IndustryProjectParticipant $ownerMembership;
@@ -85,6 +89,11 @@ class UpdateParticipantProcessorTest extends TestCase
             $this->notifiedUsers[] = $user;
         });
 
+        $lineReservations = $this->createStub(LineReservationService::class);
+        $lineReservations->method('reserveAllLinesForOwner')->willReturnCallback(function (IndustryProject $project): void {
+            $this->projectsWhoseLinesWentToTheOwner[] = $project;
+        });
+
         $this->processor = new UpdateParticipantProcessor(
             $this->security,
             $this->sabreBatchProjectRepository(),
@@ -94,7 +103,31 @@ class UpdateParticipantProcessorTest extends TestCase
             new ProjectResourceMapper(),
             new MercurePublisherService($hub, new NullLogger()),
             new JoinRequestNotifier($dispatcher),
+            $lineReservations,
         );
+    }
+
+    #[Group('issue-1357')]
+    public function testAcceptingTheFirstMemberOfASoloProjectTakesOverTheLinesOfTheOwner(): void
+    {
+        foreach ([$this->adminAMembership, $this->adminBMembership, $this->memberM] as $leftTheProject) {
+            $leftTheProject->setStatus(ParticipantStatus::Removed);
+        }
+        $this->actAs($this->sabreBatchOwner);
+
+        self::assertSame('granted member/accepted', $this->patch($this->pendingQ, status: 'accepted'));
+
+        self::assertSame([$this->sabreBatch], $this->projectsWhoseLinesWentToTheOwner);
+    }
+
+    #[Group('issue-1357')]
+    public function testAcceptingAMemberOfAProjectThatAlreadyHasOneDoesNotTouchTheReservationsOfTheOwner(): void
+    {
+        $this->actAs($this->sabreBatchOwner);
+
+        self::assertSame('granted member/accepted', $this->patch($this->pendingQ, status: 'accepted'));
+
+        self::assertSame([], $this->projectsWhoseLinesWentToTheOwner);
     }
 
     public function testAdminCannotDemoteAnotherAdmin(): void

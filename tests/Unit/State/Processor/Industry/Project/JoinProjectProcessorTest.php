@@ -16,6 +16,7 @@ use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\JoinRequestNotifier;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\State\Processor\Industry\Project\JoinProjectProcessor;
@@ -57,6 +58,9 @@ class JoinProjectProcessorTest extends TestCase
     /** @var list<User> */
     private array $notifiedUsers = [];
 
+    /** @var list<IndustryProject> */
+    private array $projectsWhoseLinesWentToTheOwner = [];
+
     protected function setUp(): void
     {
         $owner = $this->createStub(User::class);
@@ -94,6 +98,11 @@ class JoinProjectProcessorTest extends TestCase
             $this->notifiedUsers[] = $user;
         });
 
+        $lineReservations = $this->createStub(LineReservationService::class);
+        $lineReservations->method('reserveAllLinesForOwner')->willReturnCallback(function (IndustryProject $project): void {
+            $this->projectsWhoseLinesWentToTheOwner[] = $project;
+        });
+
         $this->processor = new JoinProjectProcessor(
             $this->security,
             $projectRepository,
@@ -102,6 +111,7 @@ class JoinProjectProcessorTest extends TestCase
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
             new JoinRequestNotifier($dispatcher),
+            $lineReservations,
         );
     }
 
@@ -119,6 +129,42 @@ class JoinProjectProcessorTest extends TestCase
         self::assertSame('accepted', $membership->getStatus()->value);
         self::assertSame('member', $membership->getRole()->value);
         self::assertSame('member', $resource->myRole);
+    }
+
+    #[Group('issue-1357')]
+    public function testFirstMemberAcceptedOnASoloProjectTakesOverTheLinesOfTheOwnerBeforeTheyFallIntoToAssign(): void
+    {
+        $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
+        $this->assignIdsOnFlush();
+
+        $this->join();
+
+        self::assertSame([$this->project], $this->projectsWhoseLinesWentToTheOwner);
+    }
+
+    #[Group('issue-1357')]
+    public function testPendingRequestOnASoloProjectLeavesTheLinesImplicit(): void
+    {
+        $this->actAs('Stranger', self::OTHER_CORPORATION_ID);
+        $this->assignIdsOnFlush();
+
+        $this->join();
+
+        self::assertSame([], $this->projectsWhoseLinesWentToTheOwner);
+    }
+
+    #[Group('issue-1357')]
+    public function testSecondAcceptedMemberDoesNotTouchTheReservationsOfTheOwner(): void
+    {
+        $firstMateUser = $this->createStub(User::class);
+        $firstMateUser->method('getCorporationId')->willReturn(self::OWNER_CORPORATION_ID);
+        $this->addMembership($firstMateUser, ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->actAs('Second Mate', self::OWNER_CORPORATION_ID);
+        $this->assignIdsOnFlush();
+
+        $this->join();
+
+        self::assertSame([], $this->projectsWhoseLinesWentToTheOwner);
     }
 
     #[Group('issue-362')]
