@@ -9,11 +9,14 @@ use App\Industry\Application\DeliveredSourcing;
 use App\Industry\Application\DeliveredSourcingLine;
 use App\Industry\Application\DeliveredSourcingOption;
 use App\Industry\Application\DeliveredSourcingPlanner;
+use App\Industry\Application\DeliveredSourcingTotals;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\PlannedProduction;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\SourcingChoice;
 use App\Industry\Application\SourcingSide;
+use App\Industry\Application\SourcingUniverse;
+use App\Industry\Application\SourcingValuation;
 use App\Industry\Application\StructureChoice;
 use App\Industry\Application\StructureChoiceStatus;
 use App\Industry\Application\WorkType;
@@ -45,6 +48,9 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(DeliveredSourcingPlanner::class)]
+#[CoversClass(SourcingValuation::class)]
+#[CoversClass(SourcingUniverse::class)]
+#[CoversClass(DeliveredSourcingTotals::class)]
 #[Group('issue-1288')]
 final class DeliveredSourcingPlannerTest extends TestCase
 {
