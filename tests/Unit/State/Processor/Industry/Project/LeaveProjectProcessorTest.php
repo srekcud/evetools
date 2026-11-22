@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Post;
+use App\Service\Industry\Project\CharacterActiveProject;
 use App\Service\Industry\Project\LineReservationService;
 use App\Entity\Character;
 use App\Entity\IndustryProjectContribution;
@@ -23,6 +24,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -43,6 +45,7 @@ class LeaveProjectProcessorTest extends TestCase
     private IndustryProjectRepository&Stub $projectRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
+    private CharacterActiveProject&MockObject $characterActiveProject;
     private IndustryProject $project;
     private LeaveProjectProcessor $processor;
 
@@ -75,6 +78,7 @@ class LeaveProjectProcessorTest extends TestCase
 
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
+        $this->characterActiveProject = $this->createMock(CharacterActiveProject::class);
 
         $this->processor = new LeaveProjectProcessor(
             $this->security,
@@ -83,6 +87,7 @@ class LeaveProjectProcessorTest extends TestCase
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->createStub(LineReservationService::class),
+            $this->characterActiveProject,
         );
     }
 
@@ -234,6 +239,32 @@ class LeaveProjectProcessorTest extends TestCase
 
         self::assertSame(ParticipantStatus::Removed, $membership->getStatus());
         self::assertContains($membership, $this->project->getMembers());
+    }
+
+    #[Group('issue-1249')]
+    public function testLeavingClearsTheActiveProjectOfTheCharactersOfTheUserWhoLeaves(): void
+    {
+        $user = $this->actAs('Test Pilot');
+        $this->addMembership($user, ParticipantRole::Member, ParticipantStatus::Accepted);
+
+        $this->characterActiveProject->expects($this->once())->method('clearForParticipant')->with($this->project, $user);
+
+        $this->leave();
+    }
+
+    #[Group('issue-1249')]
+    public function testARefusedLeaveClearsNoActiveProject(): void
+    {
+        $user = $this->actAs('Boss Pilot');
+        $this->addMembership($user, ParticipantRole::Owner, ParticipantStatus::Accepted);
+
+        $this->characterActiveProject->expects($this->never())->method('clearForParticipant');
+
+        try {
+            $this->leave();
+            self::fail('The owner must not be able to leave');
+        } catch (BadRequestHttpException) {
+        }
     }
 
     private function leave(): void

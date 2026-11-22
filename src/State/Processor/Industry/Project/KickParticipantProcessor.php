@@ -11,6 +11,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\CharacterActiveProject;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\PilotName;
 use App\Service\Mercure\MercurePublisherService;
@@ -36,6 +37,7 @@ class KickParticipantProcessor implements ProcessorInterface
         private readonly ProjectAccessChecker $accessChecker,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly LineReservationService $lineReservations,
+        private readonly CharacterActiveProject $characterActiveProject,
     ) {
     }
 
@@ -81,6 +83,10 @@ class KickParticipantProcessor implements ProcessorInterface
         // Soft removal: the row is kept so the member's contributions (CASCADE on member) survive
         $member->setStatus(ParticipantStatus::Removed);
         $this->lineReservations->releaseAllOf($member);
+        $kickedUser = $member->getUser();
+        if ($kickedUser !== null) {
+            $this->characterActiveProject->clearForParticipant($project, $kickedUser);
+        }
         $this->entityManager->flush();
 
         $this->mercurePublisher->publishGroupProjectEvent(

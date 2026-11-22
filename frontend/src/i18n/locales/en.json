@@ -709,6 +709,15 @@
     }
   },
   "industry": {
+      "activeProject": {
+        "column": "Active project",
+        "placeholder": "Active project of {character}",
+        "none": "No active project",
+        "panelTitle": "Dedicate a character to this project",
+        "hint": "Jobs started by a ticked character are matched to this project first. A character can be dedicated to one project at a time.",
+        "error": "Active project unavailable, try again.",
+        "currentlyDedicatedTo": "currently dedicated to {project}"
+      },
     "partialPrice": {
       "marker": "{percent}% covered",
       "noticeTitle": "Partial price: Jita order book too shallow",

@@ -67,6 +67,7 @@ import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
 import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
+import ProjectDedicatedCharacters from '@/components/group-industry/ProjectDedicatedCharacters.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit, ProjectPhaseKey } from '@/stores/group-industry/types'
 import { headerStatuses } from './nextProjectStatus'
@@ -751,6 +752,7 @@ function applyShareLinkShortcut(): void {
           class="mt-3 text-xs text-slate-500"
         >{{ t('groupIndustry.detail.publishHelp') }}</p>
         <p v-if="statusError && !showCompleteConfirm && !showSellingConfirm && !showStartConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
+        <ProjectDedicatedCharacters v-if="isAcceptedMember" :project="project" class="mt-4 pt-4 border-t border-slate-800" />
       </div>
 
       <template v-if="cockpit">

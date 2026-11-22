@@ -709,6 +709,15 @@
     }
   },
   "industry": {
+      "activeProject": {
+        "column": "Projet actif",
+        "placeholder": "Projet actif de {character}",
+        "none": "Aucun projet actif",
+        "panelTitle": "Dédier un personnage à ce projet",
+        "hint": "Les jobs lancés par un personnage coché sont rattachés en priorité à ce projet. Un personnage n'est dédié qu'à un seul projet à la fois.",
+        "error": "Projet actif indisponible, réessayez.",
+        "currentlyDedicatedTo": "actuellement dédié à {project}"
+      },
     "partialPrice": {
       "marker": "{percent} % couvert",
       "noticeTitle": "Prix partiel : carnet Jita trop court",

@@ -1080,6 +1080,62 @@ final class IndustryJobMatcherTest extends TestCase
         self::assertNotSame($participantOfOlder, $participantOfNewer);
     }
 
+    #[Group('issue-1249')]
+    public function testTwoProjectsOnTheSameBlueprintAreSeparatedOnlyByTheActiveProjectOfTheCharacterThatInstalledTheJob(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->altCharacter->setActiveProject($newer);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_249_011, 5, '2026-11-02 08:00:00', $this->altCharacter));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], [7_249_011]], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(['intent'], $lineOfNewer->getJobMatches()->first()->getMatchSignals());
+    }
+
+    #[Group('issue-1249')]
+    public function testTheActiveProjectOfACharacterOfAnAcceptedParticipantGivesTheIntentPointToThatProject(): void
+    {
+        $participantCharacter = $this->character('Sana Vel');
+        $participantUser = (new User())->addCharacter($participantCharacter);
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $this->givenParticipantUser($older, $participantUser);
+        $this->givenParticipantUser($newer, $participantUser);
+        $participantCharacter->setActiveProject($newer);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_249_021, 5, '2026-11-02 08:00:00', $participantCharacter));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], [7_249_021]], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(['intent'], $lineOfNewer->getJobMatches()->first()->getMatchSignals());
+    }
+
+    #[Group('issue-1249')]
+    public function testAnActiveProjectOutsideThePassGivesNoIntentPointAndTheJobStaysUnassigned(): void
+    {
+        $lineOfOlder = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $lineOfNewer = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 10, 'manufacturing');
+        $older = $this->projectCreatedAt(self::OLDER_PROJECT_CREATED_AT, $lineOfOlder);
+        $newer = $this->projectCreatedAt(self::NEWER_PROJECT_CREATED_AT, $lineOfNewer);
+        $completed = (new IndustryProject())->setOwner($this->owner)->setStatus(ProjectStatus::Completed);
+        $this->altCharacter->setActiveProject($completed);
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_249_031, 5, '2026-11-02 08:00:00', $this->altCharacter));
+
+        $this->matcher->matchOpenProjects([$older, $newer]);
+
+        self::assertSame([[], []], [$this->matchedJobIdsOf($lineOfOlder), $this->matchedJobIdsOf($lineOfNewer)]);
+        self::assertSame(
+            [7_249_031 => [$this->candidate($older, $lineOfOlder, 0), $this->candidate($newer, $lineOfNewer, 0)]],
+            $this->persistedCandidatesByJobId(),
+        );
+    }
+
     #[Group('issue-1246')]
     public function testALineReservedByAnotherUserThanTheInstallerGivesNoIntentPoint(): void
     {

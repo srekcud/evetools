@@ -190,6 +190,13 @@ final class JobMatchPlanner
             }
         }
 
+        $dedicatedProjectIdsByInstallerId = [];
+        foreach ($projectsById as $project) {
+            foreach ($project->dedicatedInstallerIds as $installerId) {
+                $dedicatedProjectIdsByInstallerId[$installerId][] = $project->id;
+            }
+        }
+
         $candidates = [];
         $seenPairs = [];
         foreach ($eligiblePairs as $pair) {
@@ -207,7 +214,7 @@ final class JobMatchPlanner
                 continue;
             }
 
-            $signals = self::staticSignalsOf($job, $line, $project, $containerItemSetsByProjectId[$project->id] ?? null);
+            $signals = self::staticSignalsOf($job, $line, $project, $containerItemSetsByProjectId[$project->id] ?? null, $dedicatedProjectIdsByInstallerId);
             $candidates[] = [
                 'job' => $job,
                 'line' => $line,
@@ -249,16 +256,22 @@ final class JobMatchPlanner
     }
 
     /**
-     * @param array<int, int>|null $containerItemSet
+     * @param array<int, int>|null                    $containerItemSet
+     * @param array<int|string, non-empty-list<string>> $dedicatedProjectIdsByInstallerId
      *
      * @return list<MatchSignal>
      */
-    private static function staticSignalsOf(CandidateJob $job, CandidateLine $line, CandidateProject $project, ?array $containerItemSet): array
+    private static function staticSignalsOf(CandidateJob $job, CandidateLine $line, CandidateProject $project, ?array $containerItemSet, array $dedicatedProjectIdsByInstallerId): array
     {
         $signals = [];
 
-        $chosenAsProducer = $project->producerInstallerIds !== null && \in_array($job->installerId, $project->producerInstallerIds, true);
-        if ($chosenAsProducer || \in_array($job->installerId, $line->reservingInstallerIds, true)) {
+        $dedicatedProjectIds = $dedicatedProjectIdsByInstallerId[$job->installerId] ?? [];
+        $dedicatedToThisProject = \in_array($project->id, $dedicatedProjectIds, true);
+        $dedicatedToAnotherProject = array_diff($dedicatedProjectIds, [$project->id]) !== [];
+        $chosenAsProducer = !$dedicatedToAnotherProject
+            && $project->producerInstallerIds !== null
+            && \in_array($job->installerId, $project->producerInstallerIds, true);
+        if ($dedicatedToThisProject || $chosenAsProducer || \in_array($job->installerId, $line->reservingInstallerIds, true)) {
             $signals[] = MatchSignal::Intent;
         }
 

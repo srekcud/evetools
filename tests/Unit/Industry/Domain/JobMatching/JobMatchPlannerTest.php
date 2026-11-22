@@ -772,14 +772,115 @@ final class JobMatchPlannerTest extends TestCase
         self::assertEquals($expected, $this->planAllPairs([$projects[1], $projects[0]], [$lines[1], $lines[2], $lines[0]], [$jobs[2], $jobs[0], $jobs[1]]));
     }
 
-    private function older(?array $producerInstallerIds = null, ?array $containerItemIds = null): CandidateProject
+    public function testAnInstallerDedicatedToAProjectGivesItTheIntentSignalAndTheJobGoesToIt(): void
     {
-        return new CandidateProject(self::OLDER_PROJECT, new \DateTimeImmutable('2026-01-10 09:00:00'), $producerInstallerIds, $containerItemIds);
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer(dedicatedInstallerIds: [self::INSTALLER])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 5)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
     }
 
-    private function newer(?array $producerInstallerIds = null, ?array $containerItemIds = null): CandidateProject
+    public function testAnInstallerDedicatedToAProjectWhoseLineIsTheOnlyEligibleOneIsLinkedWithTheIntentSignal(): void
     {
-        return new CandidateProject(self::NEWER_PROJECT, new \DateTimeImmutable('2026-02-20 17:30:00'), $producerInstallerIds, $containerItemIds);
+        $plan = JobMatchPlanner::plan(
+            [$this->older(), $this->newer(dedicatedInstallerIds: [self::INSTALLER])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 5)],
+            [new EligiblePair(self::JOB, self::LINE_OF_NEWER)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $plan->assignments);
+    }
+
+    public function testTheDedicationOfAnInstallerDoesNotCreateAPairWhenTheActiveProjectHasNoEligibleLine(): void
+    {
+        $plan = JobMatchPlanner::plan(
+            [$this->older(), $this->newer(dedicatedInstallerIds: [self::INSTALLER])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 5)],
+            [new EligiblePair(self::JOB, self::LINE_OF_OLDER)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testTheDedicationOutranksTheProducerListOfAnotherProject(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(producerInstallerIds: [self::INSTALLER]), $this->newer(dedicatedInstallerIds: [self::INSTALLER])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 5)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testTheProducerListStillGivesIntentWhenOnlyAnotherInstallerIsDedicated(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(producerInstallerIds: [self::INSTALLER]), $this->newer(dedicatedInstallerIds: [self::OTHER_INSTALLER])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 5)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [MatchSignal::Intent])], $plan->assignments);
+    }
+
+    public function testTheDedicationDoesNotBeatAReservationSoBothProjectsHoldTheIntentAndTheJobStaysUnassignedOldestFirst(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer(dedicatedInstallerIds: [self::INSTALLER])],
+            [$this->lineOfOlder(10, reservingInstallerIds: [self::INSTALLER]), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 5)],
+        );
+
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 8, [MatchSignal::Intent]),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 8, [MatchSignal::Intent]),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testADedicationForAnotherInstallerLeavesTheJobOfThisInstallerUnassignedAsWithoutDedication(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer(dedicatedInstallerIds: [self::OTHER_INSTALLER])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 5)],
+        );
+
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testTheIntentOfTheDedicationBeatsThePlaceSignalOfAnotherProject(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(containerItemIds: [self::CONTAINER_ITEM]), $this->newer(dedicatedInstallerIds: [self::INSTALLER])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 5, outputLocationId: self::CONTAINER_ITEM)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $plan->assignments);
+    }
+
+    private function older(?array $producerInstallerIds = null, ?array $containerItemIds = null, array $dedicatedInstallerIds = []): CandidateProject
+    {
+        return new CandidateProject(self::OLDER_PROJECT, new \DateTimeImmutable('2026-01-10 09:00:00'), $producerInstallerIds, $containerItemIds, $dedicatedInstallerIds);
+    }
+
+    private function newer(?array $producerInstallerIds = null, ?array $containerItemIds = null, array $dedicatedInstallerIds = []): CandidateProject
+    {
+        return new CandidateProject(self::NEWER_PROJECT, new \DateTimeImmutable('2026-02-20 17:30:00'), $producerInstallerIds, $containerItemIds, $dedicatedInstallerIds);
     }
 
     private function lineOfOlder(int $remainingRuns, ?int $plannedStructureId = null, array $reservingInstallerIds = []): CandidateLine

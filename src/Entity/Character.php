@@ -61,6 +61,10 @@ class Character
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $standingsSyncedAt = null;
 
+    #[ORM\ManyToOne(targetEntity: IndustryProject::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?IndustryProject $activeProject = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -247,6 +251,18 @@ class Character
     public function updateLastSync(): static
     {
         $this->lastSyncAt = new \DateTimeImmutable();
+
+        return $this;
+    }
+
+    public function getActiveProject(): ?IndustryProject
+    {
+        return $this->activeProject;
+    }
+
+    public function setActiveProject(?IndustryProject $activeProject): static
+    {
+        $this->activeProject = $activeProject;
 
         return $this;
     }

@@ -2,19 +2,30 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStructuresStore } from '@/stores/industry/structures'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useCharacterActiveProjects, type ActiveProjectCharacter } from '@/composables/useCharacterActiveProjects'
 import type { CharacterSkill, CharacterSyncFailure } from '@/stores/industry/types'
 import CharacterSyncFailuresAlert from './CharacterSyncFailuresAlert.vue'
+import CharacterActiveProjectSelect from './CharacterActiveProjectSelect.vue'
 
 const { t } = useI18n()
 
 const store = useStructuresStore()
+const projectStore = useGroupProjectStore()
+const { characters: dedicableCharacters, loadFailed: activeProjectsLoadFailed, load: loadActiveProjects, applyUpdate } = useCharacterActiveProjects()
 
 const syncing = ref(false)
 const syncFailures = ref<CharacterSyncFailure[]>([])
 
 onMounted(() => {
   store.fetchCharacterSkills()
+  projectStore.fetchMyProjects()
+  loadActiveProjects()
 })
+
+function dedicableCharacterOf(skill: CharacterSkill): ActiveProjectCharacter | undefined {
+  return dedicableCharacters.value.find(character => character.eveCharacterId === skill.characterId)
+}
 
 async function syncAll() {
   syncing.value = true
@@ -101,6 +112,8 @@ function formatRelativeTime(dateStr: string | null): string {
         @dismiss="syncFailures = []"
       />
 
+      <p v-if="activeProjectsLoadFailed" data-testid="skills-active-projects-load-failed" class="text-xs text-amber-400 mb-3">{{ t('industry.activeProject.error') }}</p>
+
       <div v-if="store.characterSkills.length === 0" class="text-slate-500 text-sm py-4">
         {{ t('industry.skills.noCharacters') }}
       </div>
@@ -113,6 +126,7 @@ function formatRelativeTime(dateStr: string | null): string {
               <th class="text-center py-3 px-3">Industry</th>
               <th class="text-center py-3 px-3">Adv. Industry</th>
               <th class="text-center py-3 px-3">Reactions</th>
+              <th class="text-center py-3 px-3">{{ t('industry.activeProject.column') }}</th>
               <th class="text-center py-3 px-3">{{ t('industry.skills.source') }}</th>
               <th class="text-center py-3 px-3">{{ t('industry.skills.lastSync') }}</th>
             </tr>
@@ -167,6 +181,16 @@ function formatRelativeTime(dateStr: string | null): string {
                 >
                   <option v-for="n in 6" :key="n-1" :value="n-1">{{ n-1 }}</option>
                 </select>
+              </td>
+
+              <!-- Active project -->
+              <td class="py-3 px-3 text-center">
+                <CharacterActiveProjectSelect
+                  v-if="dedicableCharacterOf(char) !== undefined"
+                  :character="dedicableCharacterOf(char)!"
+                  @updated="applyUpdate"
+                />
+                <span v-else class="text-slate-500">-</span>
               </td>
 
               <!-- Source -->

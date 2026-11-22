@@ -6,6 +6,7 @@ namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Validator\Exception\ValidationException;
+use App\Service\Industry\Project\CharacterActiveProject;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\ProjectLaunchPriceFreezer;
 use App\ApiResource\Industry\Project\IndustryProjectResource;
@@ -49,6 +50,7 @@ class UpdateProjectProcessorTest extends TestCase
     private HubInterface&MockObject $hub;
     private IndustryProjectService&MockObject $projectService;
     private ProjectLaunchPriceFreezer&MockObject $launchPrices;
+    private CharacterActiveProject&MockObject $characterActiveProject;
     private IndustryProject $project;
     private User&Stub $owner;
 
@@ -68,6 +70,7 @@ class UpdateProjectProcessorTest extends TestCase
         $this->hub = $this->createMock(HubInterface::class);
         $this->projectService = $this->createMock(IndustryProjectService::class);
         $this->launchPrices = $this->createMock(ProjectLaunchPriceFreezer::class);
+        $this->characterActiveProject = $this->createMock(CharacterActiveProject::class);
 
         $this->processor = $this->processorActingAs($this->owner, null);
     }
@@ -611,6 +614,38 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertInstanceOf(BadRequestHttpException::class, $refusal);
         self::assertSame('Cannot transition from "draft" to "selling"', $refusal->getMessage());
         self::assertSame(ProjectStatus::Draft, $this->project->getStatus());
+    }
+
+    #[Group('issue-1249')]
+    public function testCompletingAProjectClearsTheCharactersDedicatedToIt(): void
+    {
+        $this->project->setStatus(ProjectStatus::Selling);
+        $input = new UpdateProjectInput();
+        $input->status = 'completed';
+        $this->characterActiveProject->expects($this->once())->method('clearForProject')->with($this->project);
+
+        $this->update($input);
+    }
+
+    #[Group('issue-1249')]
+    public function testAnotherStatusChangeKeepsTheCharactersDedicatedToTheProject(): void
+    {
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->status = 'selling';
+        $this->characterActiveProject->expects($this->never())->method('clearForProject');
+
+        $this->update($input);
+    }
+
+    #[Group('issue-1249')]
+    public function testAnUpdateWithoutStatusKeepsTheCharactersDedicatedToTheProject(): void
+    {
+        $input = new UpdateProjectInput();
+        $input->name = 'Rorqual batch';
+        $this->characterActiveProject->expects($this->never())->method('clearForProject');
+
+        $this->update($input);
     }
 
     #[Group('issue-362')]
@@ -1177,6 +1212,7 @@ class UpdateProjectProcessorTest extends TestCase
             new ProjectSellStructures(),
             $this->createStub(LineReservationService::class),
             $this->launchPrices,
+            $this->characterActiveProject,
         );
     }
 

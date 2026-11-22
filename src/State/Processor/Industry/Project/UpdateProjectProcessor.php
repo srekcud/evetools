@@ -14,6 +14,7 @@ use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\CharacterActiveProject;
 use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\ProjectLaunchPriceFreezer;
 use App\Service\Industry\IndustryBlacklistService;
@@ -56,6 +57,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         private readonly ProjectSellStructures $sellStructures,
         private readonly LineReservationService $lineReservations,
         private readonly ProjectLaunchPriceFreezer $launchPrices,
+        private readonly CharacterActiveProject $characterActiveProject,
         private readonly ?ProjectWorkStationChoices $workStationChoices = null,
     ) {
     }
@@ -148,6 +150,7 @@ class UpdateProjectProcessor implements ProcessorInterface
             if ($newStatus === ProjectStatus::Completed) {
                 $project->setCompletedAt(new \DateTimeImmutable());
                 $this->lineReservations->releaseAllOfProject($project);
+                $this->characterActiveProject->clearForProject($project);
             }
         }
 

@@ -97,6 +97,7 @@ class IndustryJobMatcher
                 $project->getCreatedAt(),
                 $this->producerInstallerIdsOf($project),
                 $this->containerItemIdsOf($project),
+                $this->dedicatedInstallerIdsOf($project),
             );
             if ($characterIds === []) {
                 continue;
@@ -270,6 +271,23 @@ class IndustryJobMatcher
         foreach ($this->usersWhoseJobsAreMatched($project) as $user) {
             foreach ($user->getCharacters() as $character) {
                 if (\in_array($character->getEveCharacterId(), $producerEveCharacterIds, true)) {
+                    $installerIds[] = $this->installerIdOf($character);
+                }
+            }
+        }
+
+        return $installerIds;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function dedicatedInstallerIdsOf(IndustryProject $project): array
+    {
+        $installerIds = [];
+        foreach ($this->usersWhoseJobsAreMatched($project) as $user) {
+            foreach ($user->getCharacters() as $character) {
+                if ($character->getActiveProject() === $project) {
                     $installerIds[] = $this->installerIdOf($character);
                 }
             }

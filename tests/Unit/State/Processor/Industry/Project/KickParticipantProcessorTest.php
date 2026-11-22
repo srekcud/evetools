@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Delete;
+use App\Service\Industry\Project\CharacterActiveProject;
 use App\Service\Industry\Project\LineReservationService;
 use App\Entity\Character;
 use App\Entity\IndustryProjectContribution;
@@ -23,6 +24,7 @@ use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -45,6 +47,7 @@ class KickParticipantProcessorTest extends TestCase
     private IndustryProjectParticipantRepository&Stub $memberRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
+    private CharacterActiveProject&MockObject $characterActiveProject;
     private KickParticipantProcessor $processor;
 
     private User&Stub $owner;
@@ -58,6 +61,7 @@ class KickParticipantProcessorTest extends TestCase
         $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
+        $this->characterActiveProject = $this->createMock(CharacterActiveProject::class);
 
         $this->processor = new KickParticipantProcessor(
             $this->security,
@@ -67,6 +71,7 @@ class KickParticipantProcessorTest extends TestCase
             new ProjectAccessChecker($this->memberRepository),
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->createStub(LineReservationService::class),
+            $this->characterActiveProject,
         );
 
         $this->owner = $this->createStub(User::class);
@@ -402,6 +407,38 @@ class KickParticipantProcessorTest extends TestCase
         $this->kick($adminId);
 
         self::assertSame('removed', $admin->getStatus()->value);
+    }
+
+    #[Group('issue-1249')]
+    public function testKickingAParticipantClearsTheActiveProjectOfTheCharactersOfTheKickedUser(): void
+    {
+        $this->security->method('getUser')->willReturn($this->owner);
+        $this->projectRepository->method('find')->willReturn($this->project);
+        $memberId = Uuid::v4();
+        $member = $this->acceptedMember($memberId, 'Kicked Pilot');
+        $this->memberRepository->method('find')->willReturn($member);
+
+        $this->characterActiveProject->expects($this->once())->method('clearForParticipant')->with($this->project, $member->getUser());
+
+        $this->kick($memberId);
+    }
+
+    #[Group('issue-1249')]
+    public function testARefusedKickClearsNoActiveProject(): void
+    {
+        $this->security->method('getUser')->willReturn($this->owner);
+        $this->projectRepository->method('find')->willReturn($this->project);
+        $memberId = Uuid::v4();
+        $owner = $this->acceptedMember($memberId, 'Boss Pilot', ParticipantRole::Owner);
+        $this->memberRepository->method('find')->willReturn($owner);
+
+        $this->characterActiveProject->expects($this->never())->method('clearForParticipant');
+
+        try {
+            $this->kick($memberId);
+            self::fail('The owner must not be kickable');
+        } catch (BadRequestHttpException) {
+        }
     }
 
     private function actAsAdmin(): void
