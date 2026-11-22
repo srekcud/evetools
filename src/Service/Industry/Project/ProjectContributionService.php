@@ -215,10 +215,29 @@ class ProjectContributionService
 
         if ($bomItem !== null) {
             $this->incrementFulfillment($bomItem, $contribution->getQuantity());
-            $this->lineReservations->settleApproval($bomItem, $contribution->getMember(), $contribution->getQuantity());
+            $this->settleReservationOfApproved($contribution, $bomItem);
         }
 
         $this->entityManager->flush();
+    }
+
+    private function settleReservationOfApproved(IndustryProjectContribution $contribution, IndustryProjectBomLine $bomItem): void
+    {
+        $installer = $contribution->getMember();
+        if (ContributionType::JobInstall !== $contribution->getType()) {
+            $this->lineReservations->settleApproval($bomItem, $installer, $contribution->getQuantity());
+
+            return;
+        }
+
+        $declaredRunsBefore = $bomItem->getApprovedDeclaredRunsOf($installer, $contribution);
+        $derivedRuns = $bomItem->getDerivedRunsOf($installer);
+        $this->lineReservations->settleInstalledRuns(
+            $bomItem,
+            $installer,
+            max($declaredRunsBefore, $derivedRuns),
+            max($declaredRunsBefore + $contribution->getQuantity(), $derivedRuns),
+        );
     }
 
     /**
@@ -595,7 +614,7 @@ class ProjectContributionService
         $bomItem = $contribution->getBomItem();
         if ($bomItem !== null) {
             $this->incrementFulfillment($bomItem, $contribution->getQuantity());
-            $this->lineReservations->settleApproval($bomItem, $contribution->getMember(), $contribution->getQuantity());
+            $this->settleReservationOfApproved($contribution, $bomItem);
         }
     }
 

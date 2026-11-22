@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\BomLineMarkState;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
 use App\Repository\IndustryProjectBomLineRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -355,6 +357,36 @@ class IndustryProjectBomLine
         }
 
         return intdiv($this->requiredQuantity * $runs, $this->runs);
+    }
+
+    public function getApprovedDeclaredRunsOf(IndustryProjectParticipant $installer, ?IndustryProjectContribution $except = null): int
+    {
+        return $this->sumRunsOfInstallerContributions(
+            $installer,
+            static fn (IndustryProjectContribution $contribution): bool => !$contribution->isAutoDetected()
+                && ContributionStatus::Approved === $contribution->getStatus()
+                && $contribution !== $except,
+        );
+    }
+
+    public function getDerivedRunsOf(IndustryProjectParticipant $installer): int
+    {
+        return $this->sumRunsOfInstallerContributions(
+            $installer,
+            static fn (IndustryProjectContribution $contribution): bool => $contribution->isAutoDetected(),
+        );
+    }
+
+    private function sumRunsOfInstallerContributions(IndustryProjectParticipant $installer, \Closure $selection): int
+    {
+        $runs = 0;
+        foreach ($this->project->getContributions() as $contribution) {
+            if ($contribution->getBomItem() === $this && $contribution->getMember() === $installer && ContributionType::JobInstall === $contribution->getType() && $selection($contribution)) {
+                $runs += $contribution->getQuantity();
+            }
+        }
+
+        return $runs;
     }
 
     public function getMatchedRuns(): int

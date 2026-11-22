@@ -72,6 +72,15 @@ class LineReservationService
         $this->reservationRepository->deleteByProject($project);
     }
 
+    public function settleInstalledRuns(IndustryProjectBomLine $line, IndustryProjectParticipant $installer, int $previouslySettledRuns, int $settledRuns): void
+    {
+        if ($settledRuns <= $previouslySettledRuns || $line->isCoveredByStock()) {
+            return;
+        }
+
+        $this->settleApproval($line, $installer, $line->getQuantityOfRuns($settledRuns) - $line->getQuantityOfRuns($previouslySettledRuns));
+    }
+
     public function settleApproval(IndustryProjectBomLine $line, IndustryProjectParticipant $participant, int $quantity): void
     {
         if ($line->isFulfilled()) {

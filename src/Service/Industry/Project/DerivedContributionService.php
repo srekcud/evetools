@@ -144,11 +144,12 @@ class DerivedContributionService
         int $previousRuns,
         int $installedRuns,
     ): void {
-        if (ContributionType::JobInstall !== $type || $installedRuns <= $previousRuns || $line->isCoveredByStock()) {
+        if (ContributionType::JobInstall !== $type) {
             return;
         }
 
-        $this->lineReservations->settleApproval($line, $installer, $line->getQuantityOfRuns($installedRuns) - $line->getQuantityOfRuns($previousRuns));
+        $declaredRuns = $line->getApprovedDeclaredRunsOf($installer);
+        $this->lineReservations->settleInstalledRuns($line, $installer, max($declaredRuns, $previousRuns), max($declaredRuns, $installedRuns));
     }
 
     private function create(
