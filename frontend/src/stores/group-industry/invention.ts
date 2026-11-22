@@ -8,13 +8,18 @@ export const useGroupInventionStore = defineStore('group-invention', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const openedProjectId = ref<string | null>(null)
+  const applying = ref(false)
+  const applyError = ref<string | null>(null)
+  let inventorCharacterIdInView: string | null = null
   let latestRequest = 0
 
   async function fetchInvention(projectId: string, inventorCharacterId: string | null): Promise<void> {
     if (openedProjectId.value !== projectId) {
       openedProjectId.value = projectId
       products.value = null
+      applyError.value = null
     }
+    inventorCharacterIdInView = inventorCharacterId
     const request = ++latestRequest
     loading.value = true
     error.value = null
@@ -36,5 +41,23 @@ export const useGroupInventionStore = defineStore('group-invention', () => {
     }
   }
 
-  return { products, loading, error, fetchInvention }
+  async function applyDecryptor(projectId: string, productTypeId: number, decryptorTypeId: number | null): Promise<boolean> {
+    applying.value = true
+    applyError.value = null
+    try {
+      await apiRequest(`/industry/projects/${projectId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ inventionDecryptors: { [productTypeId]: decryptorTypeId } }),
+      })
+    } catch (e) {
+      applyError.value = e instanceof Error ? e.message : 'Failed to apply the decryptor'
+      return false
+    } finally {
+      applying.value = false
+    }
+    await fetchInvention(projectId, inventorCharacterIdInView)
+    return true
+  }
+
+  return { products, loading, error, applying, applyError, fetchInvention, applyDecryptor }
 })

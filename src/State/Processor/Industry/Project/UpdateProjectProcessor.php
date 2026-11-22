@@ -21,6 +21,7 @@ use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectProducerCharacters;
 use App\Service\Industry\Project\ProjectSellStructures;
+use App\Service\Industry\Project\ProjectInventionDecryptorChoices;
 use App\Service\Industry\Project\ProjectWorkStationChoices;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
@@ -59,6 +60,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         private readonly ProjectLaunchPriceFreezer $launchPrices,
         private readonly CharacterActiveProject $characterActiveProject,
         private readonly ?ProjectWorkStationChoices $workStationChoices = null,
+        private readonly ?ProjectInventionDecryptorChoices $inventionDecryptorChoices = null,
     ) {
     }
 
@@ -102,6 +104,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         $this->changeTheInventionExclusion($project, $data);
         $this->changeTheSelectionPolicy($project, $data);
         $this->changeTheWorkStations($project, $data);
+        $this->changeTheInventionDecryptors($project, $data);
         $this->changeTheSellStructure($user, $project, $data);
         $this->changeTheProducerCharacters($project, $data);
 
@@ -248,6 +251,25 @@ class UpdateProjectProcessor implements ProcessorInterface
             $project->setExcludesInvention($previousExcludesInvention);
 
             throw new BadRequestHttpException($e->getMessage());
+        }
+    }
+
+    private function changeTheInventionDecryptors(IndustryProject $project, UpdateProjectInput $data): void
+    {
+        if (null === $data->inventionDecryptors) {
+            return;
+        }
+
+        if ($project->isCompleted()) {
+            throw new BadRequestHttpException('The invention decryptor of a completed project cannot be changed');
+        }
+
+        $choices = $this->inventionDecryptorChoices ?? throw new \LogicException('Changing the invention decryptors needs the invention decryptor choices.');
+
+        try {
+            $choices->change($project, $data->inventionDecryptors);
+        } catch (\InvalidArgumentException $e) {
+            throw new UnprocessableEntityHttpException($e->getMessage(), $e);
         }
     }
 

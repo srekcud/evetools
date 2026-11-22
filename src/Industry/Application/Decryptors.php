@@ -12,4 +12,6 @@ interface Decryptors
      * @return list<Decryptor>
      */
     public function all(): array;
+
+    public function ofType(int $typeId): ?Decryptor;
 }

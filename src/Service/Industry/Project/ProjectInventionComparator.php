@@ -71,6 +71,7 @@ final readonly class ProjectInventionComparator
             'runs' => $product->getRuns(),
             'me' => $product->getMeLevel(),
             'te' => $product->getTeLevel(),
+            'selectedDecryptorTypeId' => $product->getInventionDecryptorTypeId(),
             'invention' => [
                 'baseProbability' => $invention['baseProbability'],
                 'unknownReason' => $invention['unknownReason'],

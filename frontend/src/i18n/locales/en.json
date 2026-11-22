@@ -3186,7 +3186,11 @@
       "loading": "Reading the invention data...",
       "loadError": "Could not read the decryptor comparison.",
       "empty": "No invented (T2) final product in this project: there is no decryptor to compare.",
-      "footnote": "Read only: nothing is saved and the project plan is unchanged. Probability, runs, ME and TE of the invented copy come from the SDE and the skills of the chosen inventor; the cost per unit covers the units of the project."
+      "useDecryptor": "Use this decryptor",
+      "useNoDecryptor": "Use no decryptor",
+      "usedInPlan": "Used in the plan",
+      "applyError": "Could not apply the decryptor to the project.",
+      "footnote": "The decryptor choice is saved on the project: the attempts and the materials of the invention line of the plan follow it. Probability, runs, ME and TE come from the SDE and the skills of the chosen inventor; the plan counts the attempts without skills. The cost per unit covers the units of the project."
     },
     "research": {
       "title": "Research worth launching",

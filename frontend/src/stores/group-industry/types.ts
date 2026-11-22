@@ -514,6 +514,7 @@ export type LineRentalSuggestion = {
 
 export type UpdateGroupProjectInput = Partial<GroupProject> & {
   blacklistCategoryKeys?: string[]
+  inventionDecryptors?: Record<number, number | null>
 }
 
 export type CreateGroupProjectInput = {
@@ -913,6 +914,7 @@ export interface ProjectInventionProduct {
   runs: number
   me: number
   te: number
+  selectedDecryptorTypeId: number | null
   invention: {
     baseProbability: number | null
     unknownReason: InventionUnknownReason | null

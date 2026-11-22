@@ -95,6 +95,7 @@ function product(overrides: Partial<ProjectInventionProduct> = {}): ProjectInven
     runs: 50,
     me: 2,
     te: 4,
+    selectedDecryptorTypeId: null,
     invention: {
       baseProbability: 0.34,
       unknownReason: null,
@@ -116,7 +117,7 @@ async function mountInvention(answer: unknown, characters: Character[] = [charac
   setActivePinia(createPinia())
   const authStore = useAuthStore()
   authStore.user = { id: 'user-1', authStatus: 'authenticated', mainCharacter: characters.find(entry => entry.isMain) ?? null, characters, corporationId: 98_000_007, corporationName: 'Sabre Doctrine Corp' }
-  const wrapper = mount(ProjectInvention, { props: { projectId: PROJECT_ID }, global: { plugins: [i18n] } })
+  const wrapper = mount(ProjectInvention, { props: { projectId: PROJECT_ID, canEdit: true }, global: { plugins: [i18n] } })
   await flushPromises()
   return wrapper
 }
@@ -244,7 +245,7 @@ describe('ProjectInvention', () => {
   it('shows the error of the request in an alert and no stale table', async () => {
     vi.mocked(apiRequest).mockRejectedValue(new Error('Project not found'))
     setActivePinia(createPinia())
-    const wrapper = mount(ProjectInvention, { props: { projectId: PROJECT_ID }, global: { plugins: [i18n] } })
+    const wrapper = mount(ProjectInvention, { props: { projectId: PROJECT_ID, canEdit: true }, global: { plugins: [i18n] } })
     await flushPromises()
 
     expect({
@@ -258,7 +259,7 @@ describe('ProjectInvention', () => {
     const pending = deferred<ProjectInventionPayload>()
     vi.mocked(apiRequest).mockReturnValue(pending.promise)
     setActivePinia(createPinia())
-    const wrapper = mount(ProjectInvention, { props: { projectId: PROJECT_ID }, global: { plugins: [i18n] } })
+    const wrapper = mount(ProjectInvention, { props: { projectId: PROJECT_ID, canEdit: true }, global: { plugins: [i18n] } })
     await flushPromises()
 
     expect({

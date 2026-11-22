@@ -3186,7 +3186,11 @@
       "loading": "Lecture des données d'invention...",
       "loadError": "Impossible de lire la comparaison des décrypteurs.",
       "empty": "Aucun produit final inventé (T2) dans ce projet : il n'y a pas de décrypteur à comparer.",
-      "footnote": "Lecture seule : rien n'est enregistré et le plan du projet ne change pas. La probabilité, les runs, le ME et le TE de la copie inventée viennent du SDE et des compétences de l'inventeur choisi ; le coût par unité porte sur les unités du projet."
+      "useDecryptor": "Utiliser ce décrypteur",
+      "useNoDecryptor": "Utiliser sans décrypteur",
+      "usedInPlan": "Utilisé dans le plan",
+      "applyError": "Impossible d'appliquer le décrypteur au projet.",
+      "footnote": "Le choix du décrypteur est enregistré sur le projet : les tentatives et les matériaux de la ligne d'invention du plan le suivent. La probabilité, les runs, le ME et le TE viennent du SDE et des compétences de l'inventeur choisi ; le plan, lui, compte les tentatives sans compétences. Le coût par unité porte sur les unités du projet."
     },
     "research": {
       "title": "Recherche à lancer ?",

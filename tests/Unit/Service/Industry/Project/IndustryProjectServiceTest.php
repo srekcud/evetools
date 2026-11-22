@@ -45,6 +45,7 @@ use App\Service\Industry\Project\SellStructure;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryDecryptors;
 use App\Tests\Unit\Industry\Application\Double\InMemoryItemVolumes;
 use App\Tests\Unit\Industry\Application\Double\InMemoryJumpDistances;
 use App\Tests\Unit\Industry\Application\Double\InMemoryMarketPrices;
@@ -137,6 +138,7 @@ final class IndustryProjectServiceTest extends TestCase
     private EntityManagerInterface&MockObject $entityManager;
     private Connection&Stub $connection;
     private InventionService&Stub $inventionService;
+    private InMemoryDecryptors $decryptors;
 
     protected function setUp(): void
     {
@@ -144,6 +146,7 @@ final class IndustryProjectServiceTest extends TestCase
         $this->costIndices = InMemorySystemCostIndices::none();
         $this->connection = $this->createStub(Connection::class);
         $this->inventionService = $this->createStub(InventionService::class);
+        $this->decryptors = InMemoryDecryptors::none();
 
         $typeRepository = $this->createStub(InvTypeRepository::class);
         $typeRepository->method('findBy')->willReturnCallback(fn (array $criteria): array => array_values(array_map(
@@ -1263,6 +1266,167 @@ final class IndustryProjectServiceTest extends TestCase
         $this->assertEquals(new FavoriteSystems(null, null, new CourierHub(30_000_772, 800.0, 0.0)), $favoriteSystems);
     }
 
+    #[Group('issue-1205')]
+    public function testWithoutInventionDecryptorChoiceHailLPlansFiftyNineAttemptsAndNoDecryptorLine(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors();
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithInventionDecryptors([[self::HAIL_L, 'Hail L', 200]], []);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $materialQuantities = $this->materialQuantities($project);
+        $this->assertSame([59], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([59], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
+        $this->assertSame(118, $materialQuantities[self::DATACORE_NUCLEAR_PHYSICS]);
+        $this->assertArrayNotHasKey(InMemoryDecryptors::ATTAINMENT, $materialQuantities);
+    }
+
+    #[Group('issue-1205')]
+    public function testAttainmentDecryptorChosenOnHailLPlansTwentyFourAttemptsAndTwentyFourDecryptors(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors();
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithInventionDecryptors([[self::HAIL_L, 'Hail L', 200]], [self::HAIL_L => InMemoryDecryptors::ATTAINMENT]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $materialQuantities = $this->materialQuantities($project);
+        $decryptorLines = array_values(array_filter($this->getMaterialBomItems($project), static fn (IndustryProjectBomLine $line): bool => InMemoryDecryptors::ATTAINMENT === $line->getTypeId()));
+        $this->assertSame([24], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([24], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
+        $this->assertSame(48, $materialQuantities[self::DATACORE_NUCLEAR_PHYSICS]);
+        $this->assertSame(24, $materialQuantities[InMemoryDecryptors::ATTAINMENT] ?? null);
+        $this->assertCount(1, $decryptorLines);
+        $this->assertSame('Attainment Decryptor', $decryptorLines[0]->getTypeName());
+    }
+
+    #[Group('issue-1205')]
+    public function testRemovingTheInventionDecryptorChoiceGoesBackToFiftyNineAttemptsAndDropsTheDecryptorLine(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors();
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithInventionDecryptors([[self::HAIL_L, 'Hail L', 200]], [self::HAIL_L => InMemoryDecryptors::ATTAINMENT]);
+
+        $this->service()->buildBom($project, $this->createUser());
+        $attemptsWhileChosen = $this->runsOf($project, self::HAIL_L, 'invention');
+        $project->getItems()->first()->setInventionDecryptorTypeId(null);
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([24], $attemptsWhileChosen);
+        $this->assertSame([59], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertArrayNotHasKey(InMemoryDecryptors::ATTAINMENT, $this->materialQuantities($project));
+    }
+
+    #[Group('issue-1205')]
+    public function testTwoInventedProductsWithTheSameDecryptorShareOneDecryptorLineWithTheAttemptsAdded(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors();
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenRecipe(self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', [self::MORPHITE => 7], outputPerRun: 100, maxProductionLimit: 40);
+        $project = $this->projectWithInventionDecryptors(
+            [[self::HAIL_L, 'Hail L', 200], [self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', 50]],
+            [self::HAIL_L => InMemoryDecryptors::ATTAINMENT, self::PROTOTYPE_AMMUNITION_L => InMemoryDecryptors::ATTAINMENT],
+        );
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $decryptorLines = array_filter($this->getMaterialBomItems($project), static fn (IndustryProjectBomLine $line): bool => InMemoryDecryptors::ATTAINMENT === $line->getTypeId());
+        $this->assertSame([24], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([10], $this->runsOf($project, self::PROTOTYPE_AMMUNITION_L, 'invention'));
+        $this->assertCount(1, $decryptorLines);
+        $this->assertSame(34, $this->materialQuantities($project)[InMemoryDecryptors::ATTAINMENT] ?? null);
+        $this->assertSame(50, $this->materialQuantities($project)[self::DATACORE_MECHANICAL_ENGINEERING]);
+    }
+
+    #[Group('issue-1205')]
+    public function testDecryptorAlreadyAMaterialOfTheRecipeHasTheAttemptsAddedToItsQuantity(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors();
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15, InMemoryDecryptors::ATTAINMENT => 3], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithInventionDecryptors([[self::HAIL_L, 'Hail L', 200]], []);
+        $this->service()->buildBom($project, $this->createUser());
+        $quantityAsAManufacturingMaterial = $this->materialQuantities($project)[InMemoryDecryptors::ATTAINMENT];
+
+        $project->getItems()->first()->setInventionDecryptorTypeId(InMemoryDecryptors::ATTAINMENT);
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame($quantityAsAManufacturingMaterial + 24, $this->materialQuantities($project)[InMemoryDecryptors::ATTAINMENT]);
+    }
+
+    #[Group('issue-1205')]
+    public function testDecryptorChoiceHasNoEffectWhileTheInventionIsExcluded(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors();
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithInventionDecryptors([[self::HAIL_L, 'Hail L', 200]], [self::HAIL_L => InMemoryDecryptors::ATTAINMENT])->setExcludesInvention(true);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([self::HAIL_L], array_values(array_unique(array_map(static fn (IndustryProjectBomLine $job): int => $job->getTypeId(), $this->getJobBomItems($project)))));
+        $this->assertArrayNotHasKey(InMemoryDecryptors::ATTAINMENT, $this->materialQuantities($project));
+        $this->assertSame(InMemoryDecryptors::ATTAINMENT, $project->getItems()->first()->getInventionDecryptorTypeId());
+    }
+
+    #[Group('issue-1205')]
+    public function testDecryptorChoiceHasNoEffectWhenDeclaredBlueprintCopiesCoverEveryRun(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors();
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithInventionDecryptors([[self::HAIL_L, 'Hail L', 200]], [self::HAIL_L => InMemoryDecryptors::ATTAINMENT]);
+        $project->replaceDeclaredBlueprintCopies([new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 200)]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertArrayNotHasKey(InMemoryDecryptors::ATTAINMENT, $this->materialQuantities($project));
+    }
+
+    #[Group('issue-1205')]
+    public function testDecryptorChoiceOnAProductWithoutInventionAddsNoDecryptorLine(): void
+    {
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRifter();
+        $project = $this->projectWithInventionDecryptors([[self::RIFTER, 'Rifter', 10]], [self::RIFTER => InMemoryDecryptors::ATTAINMENT]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertArrayNotHasKey(InMemoryDecryptors::ATTAINMENT, $this->materialQuantities($project));
+    }
+
+    #[Group('issue-1205')]
+    public function testDecryptorChosenButGoneFromTheSdeRefusesTheBomInsteadOfPlanningWithoutIt(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithInventionDecryptors([[self::HAIL_L, 'Hail L', 200]], [self::HAIL_L => InMemoryDecryptors::ATTAINMENT]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('is not in the SDE');
+
+        $this->service()->buildBom($project, $this->createUser());
+    }
+
+    #[Group('issue-1205')]
+    public function testDecryptorChoiceDoesNotLiftTheMissingInventionProbability(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors(probability: null);
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithInventionDecryptors([[self::HAIL_L, 'Hail L', 200]], [self::HAIL_L => InMemoryDecryptors::ATTAINMENT]);
+
+        $this->expectException(InventionProbabilityMissingException::class);
+
+        $this->service()->buildBom($project, $this->createUser());
+    }
+
     private function copyLineOf(IndustryProject $project): IndustryProjectBomLine
     {
         $copyLines = array_values(array_filter($this->getJobBomItems($project), static fn (IndustryProjectBomLine $job): bool => 'copy' === $job->getActivityType()));
@@ -1305,6 +1469,7 @@ final class IndustryProjectServiceTest extends TestCase
             $this->createStub(IndustryProjectContributionRepository::class),
             $this->settingsRepository(),
             $this->createStub(OriginalBlueprintFinder::class),
+            $this->decryptors,
         );
     }
 
@@ -1510,6 +1675,52 @@ final class IndustryProjectServiceTest extends TestCase
             default => null,
         });
         $this->t1ProductByBlueprint = [self::HAIL_L_T1_BLUEPRINT => self::DEPLETED_URANIUM_L];
+    }
+
+    private function givenDecryptorsOfTheSde(): void
+    {
+        $this->decryptors = InMemoryDecryptors::ofTheSde();
+        $this->typeNames[InMemoryDecryptors::ATTAINMENT] = 'Attainment Decryptor';
+        $this->typeNames[InMemoryDecryptors::AUGMENTATION] = 'Augmentation Decryptor';
+    }
+
+    private function givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors(?float $probability = 0.34): void
+    {
+        $this->inventionService->method('getInventionData')->willReturnCallback(static fn (int $t2TypeId): ?array => match ($t2TypeId) {
+            self::HAIL_L => [
+                't1BlueprintTypeId' => self::HAIL_L_T1_BLUEPRINT,
+                't2BlueprintTypeId' => self::HAIL_L + self::BLUEPRINT_TYPE_ID_OFFSET,
+                'probability' => $probability,
+                'baseRuns' => 10,
+                'materials' => [
+                    ['typeId' => self::DATACORE_NUCLEAR_PHYSICS, 'typeName' => 'Datacore - Nuclear Physics', 'quantity' => 2],
+                ],
+            ],
+            self::PROTOTYPE_AMMUNITION_L => [
+                't1BlueprintTypeId' => self::PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT,
+                't2BlueprintTypeId' => self::PROTOTYPE_AMMUNITION_L + self::BLUEPRINT_TYPE_ID_OFFSET,
+                'probability' => 0.5,
+                'baseRuns' => 2,
+                'materials' => [
+                    ['typeId' => self::DATACORE_MECHANICAL_ENGINEERING, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 5],
+                ],
+            ],
+            default => null,
+        });
+        $this->t1ProductByBlueprint = [
+            self::HAIL_L_T1_BLUEPRINT => self::DEPLETED_URANIUM_L,
+            self::PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT => self::PROTOTYPE_T1_AMMUNITION_L,
+        ];
+    }
+
+    private function projectWithInventionDecryptors(array $items, array $decryptorTypeIdByProductTypeId): IndustryProject
+    {
+        $project = $this->projectWithItems($items);
+        foreach ($project->getItems() as $item) {
+            $item->setInventionDecryptorTypeId($decryptorTypeIdByProductTypeId[$item->getTypeId()] ?? null);
+        }
+
+        return $project;
     }
 
     private function createUser(): User&Stub

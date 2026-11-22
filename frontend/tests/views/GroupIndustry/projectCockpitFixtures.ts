@@ -163,6 +163,7 @@ export const NYX_INVENTION_PRODUCTS: ProjectInventionProduct[] = [{
   runs: 2,
   me: 2,
   te: 4,
+  selectedDecryptorTypeId: null,
   invention: {
     baseProbability: 0.34,
     unknownReason: null,

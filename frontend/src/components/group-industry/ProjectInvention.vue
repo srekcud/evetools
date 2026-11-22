@@ -9,6 +9,11 @@ import type { ProjectInventionOption, ProjectInventionProduct } from '@/stores/g
 
 const props = defineProps<{
   projectId: string
+  canEdit: boolean
+}>()
+
+const emit = defineEmits<{
+  applied: []
 }>()
 
 const { t } = useI18n()
@@ -59,6 +64,15 @@ function optionKey(option: ProjectInventionOption): number | 'none' {
   return option.decryptorTypeId ?? 'none'
 }
 
+function isUsedInPlan(product: ProjectInventionProduct, option: ProjectInventionOption): boolean {
+  return option.decryptorTypeId === product.selectedDecryptorTypeId
+}
+
+async function applyDecryptor(product: ProjectInventionProduct, option: ProjectInventionOption): Promise<void> {
+  const applied = await inventionStore.applyDecryptor(props.projectId, product.typeId, option.decryptorTypeId)
+  if (applied) emit('applied')
+}
+
 function onInventorChange(event: Event) {
   const characterId = (event.target as HTMLSelectElement).value
   selectedInventorId.value = characterId === '' ? null : characterId
@@ -69,6 +83,16 @@ watch([() => props.projectId, selectedInventorId], () => inventionStore.fetchInv
 
 <template>
   <section data-testid="invention" class="space-y-6">
+    <div
+      v-if="inventionStore.applyError !== null"
+      data-testid="invention-apply-error"
+      role="alert"
+      class="p-3 rounded border border-red-500/30 bg-red-500/10 text-sm text-red-300"
+    >
+      <p class="font-semibold">{{ t('groupIndustry.invention.applyError') }}</p>
+      <p class="mt-1 break-words">{{ inventionStore.applyError }}</p>
+    </div>
+
     <p
       v-if="inventionStore.loading && inventionStore.products === null"
       data-testid="invention-loading"
@@ -151,6 +175,7 @@ watch([() => props.projectId, selectedInventorId], () => inventionStore.fetchInv
                 <th class="text-right py-2.5 px-3">{{ t('industry.margins.totalProdCost') }}</th>
                 <th class="text-right py-2.5 px-3">{{ t('industry.margins.costPerUnitCol') }}</th>
                 <th class="text-right py-2.5 px-3">{{ t('industry.margins.deltaPerUnitCol') }}</th>
+                <th class="py-2.5 px-3"></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800">
@@ -170,6 +195,11 @@ watch([() => props.projectId, selectedInventorId], () => inventionStore.fetchInv
                     data-testid="invention-cheapest"
                     class="ml-2 text-xs uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm font-semibold"
                   >{{ t('groupIndustry.invention.cheapest') }}</span>
+                  <span
+                    v-if="isUsedInPlan(product, option)"
+                    :data-testid="`invention-used-${product.typeId}-${optionKey(option)}`"
+                    class="ml-2 text-xs uppercase tracking-wider px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-sm font-semibold"
+                  >{{ t('groupIndustry.invention.usedInPlan') }}</span>
                   <span v-if="option.decryptorTypeId !== null" class="block text-xs text-slate-500 font-mono">{{ formatCost(option.decryptorCost) }} / {{ t('groupIndustry.invention.attempt') }}</span>
                 </td>
                 <td class="py-2.5 px-3 text-right font-mono text-slate-300">{{ formatProbability(option.probability) }}</td>
@@ -181,6 +211,16 @@ watch([() => props.projectId, selectedInventorId], () => inventionStore.fetchInv
                 <td class="py-2.5 px-3 text-right font-mono text-slate-300">{{ formatCost(option.totalProductionCost) }}</td>
                 <td class="py-2.5 px-3 text-right font-mono text-slate-100 font-semibold">{{ formatCost(option.costPerUnit) }}</td>
                 <td class="py-2.5 px-3 text-right font-mono" :class="deltaColor(option.costPerUnitDelta)">{{ formatDelta(option.costPerUnitDelta) }}</td>
+                <td class="py-2.5 px-3 text-right">
+                  <button
+                    v-if="props.canEdit && !isUsedInPlan(product, option)"
+                    type="button"
+                    :data-testid="`invention-use-${product.typeId}-${optionKey(option)}`"
+                    :disabled="inventionStore.applying"
+                    class="px-2 py-1 text-xs uppercase tracking-wider rounded-sm border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                    @click="applyDecryptor(product, option)"
+                  >{{ option.decryptorTypeId === null ? t('groupIndustry.invention.useNoDecryptor') : t('groupIndustry.invention.useDecryptor') }}</button>
+                </td>
               </tr>
             </tbody>
           </table>

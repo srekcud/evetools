@@ -42,6 +42,9 @@ class IndustryProjectProduct
     #[ORM\Column(type: 'integer')]
     private int $sortOrder = 0;
 
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $inventionDecryptorTypeId = null;
+
     public function getId(): ?Uuid
     {
         return $this->id;
@@ -121,6 +124,17 @@ class IndustryProjectProduct
     public function setSortOrder(int $sortOrder): static
     {
         $this->sortOrder = $sortOrder;
+        return $this;
+    }
+
+    public function getInventionDecryptorTypeId(): ?int
+    {
+        return $this->inventionDecryptorTypeId;
+    }
+
+    public function setInventionDecryptorTypeId(?int $inventionDecryptorTypeId): static
+    {
+        $this->inventionDecryptorTypeId = $inventionDecryptorTypeId;
         return $this;
     }
 }

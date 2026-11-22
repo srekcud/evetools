@@ -32,6 +32,7 @@ use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryDecryptors;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryItemVolumes;
@@ -176,6 +177,7 @@ final class IndustryProjectServiceOwnedEfficiencyTest extends TestCase
             $this->createStub(IndustryProjectContributionRepository::class),
             $settingsRepository,
             $originalBlueprintFinder,
+            InMemoryDecryptors::none(),
         );
     }
 

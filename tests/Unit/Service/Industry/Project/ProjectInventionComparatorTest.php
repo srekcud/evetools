@@ -130,6 +130,7 @@ final class ProjectInventionComparatorTest extends TestCase
                     'runs' => 50,
                     'me' => 2,
                     'te' => 4,
+                    'selectedDecryptorTypeId' => null,
                     'invention' => [
                         'baseProbability' => 0.34,
                         'unknownReason' => null,
@@ -179,6 +180,24 @@ final class ProjectInventionComparatorTest extends TestCase
         $entries = $this->comparator([self::ISHTAR, self::HAMMERHEAD_II])->compare($project, null);
 
         self::assertSame([self::ISHTAR, self::HAMMERHEAD_II], array_column($entries, 'typeId'));
+    }
+
+    #[Group('issue-1205')]
+    public function testEntryReportsTheInventionDecryptorChosenOnTheProductAndNullForTheOthers(): void
+    {
+        $project = $this->projectOf([
+            [self::ISHTAR, 'Ishtar', 2, 4, 8],
+            [self::HAMMERHEAD_II, 'Hammerhead II', 50, 2, 4],
+        ]);
+        $project->getItems()->last()->setInventionDecryptorTypeId(34_202);
+        $this->settings->method('findOneBy')->willReturn(null);
+        $this->profitMargin->method('analyze')->willReturnCallback(
+            fn (int $typeId): array => $this->analysisOf($typeId, []),
+        );
+
+        $entries = $this->comparator([self::ISHTAR, self::HAMMERHEAD_II])->compare($project, null);
+
+        self::assertSame([null, 34_202], array_column($entries, 'selectedDecryptorTypeId'));
     }
 
     /**

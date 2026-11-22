@@ -26,6 +26,7 @@ use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryDecryptors;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Tests\Integration\IntegrationTestCase;
@@ -95,6 +96,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             self::getContainer()->get(IndustryProjectContributionRepository::class),
             self::getContainer()->get(IndustryUserSettingsRepository::class),
             $this->createStub(OriginalBlueprintFinder::class),
+            InMemoryDecryptors::none(),
         );
     }
 

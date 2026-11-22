@@ -32,6 +32,13 @@ final readonly class SdeDecryptors implements Decryptors
         );
     }
 
+    public function ofType(int $typeId): ?Decryptor
+    {
+        $type = $this->invTypeRepository->findOneBy(['typeId' => $typeId, 'group' => self::DECRYPTOR_GROUP_ID]);
+
+        return null === $type ? null : $this->decryptorOf($typeId);
+    }
+
     private function decryptorOf(int $typeId): Decryptor
     {
         $values = $this->dogmaAttributeValues->of($typeId, [

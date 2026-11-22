@@ -938,7 +938,11 @@ function applyShareLinkShortcut(): void {
       </div>
 
       <div v-else-if="activeTab === 'invention'" class="relative rounded-xl">
-        <ProjectInvention :project-id="projectId" />
+        <ProjectInvention
+          :project-id="projectId"
+          :can-edit="isOwnerOrAdmin && !isCompleted"
+          @applied="onBlacklistSaved"
+        />
       </div>
 
       <div v-else-if="activeTab === 'journal'" class="relative rounded-xl">

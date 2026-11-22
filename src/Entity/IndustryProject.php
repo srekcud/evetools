@@ -673,6 +673,20 @@ class IndustryProject
         return $runsByProductTypeId;
     }
 
+    /** @return array<int, int> */
+    public function inventionDecryptorsByProductTypeId(): array
+    {
+        $decryptorByProductTypeId = [];
+        foreach ($this->items as $item) {
+            $decryptorTypeId = $item->getInventionDecryptorTypeId();
+            if (null !== $decryptorTypeId) {
+                $decryptorByProductTypeId[$item->getTypeId()] = $decryptorTypeId;
+            }
+        }
+
+        return $decryptorByProductTypeId;
+    }
+
     /** @return Collection<int, IndustryProjectContribution> */
     public function getContributions(): Collection
     {
