@@ -55,7 +55,9 @@ final class LinkJobProcessorTest extends TestCase
         $this->givenJob(self::ADMIN_ISHTAR_JOB_ID, $this->adminCharacter, self::ISHTAR_BLUEPRINT_TYPE_ID, 2);
         $this->givenJob(self::ISHTAR_JOB_LINKED_ELSEWHERE_ID, $this->ownerMainCharacter, self::ISHTAR_BLUEPRINT_TYPE_ID, 1);
         $this->givenJob(self::OWNER_ISHTAR_INVENTION_JOB_ID, $this->ownerMainCharacter, self::ISHTAR_BLUEPRINT_TYPE_ID, 1, IndustryActivityType::Invention->value);
-        $this->storedJobMatches[] = (new IndustryProjectJobMatch())->setEsiJobId(self::ISHTAR_JOB_LINKED_ELSEWHERE_ID)->setRuns(1);
+        $linkedElsewhere = (new IndustryProjectJobMatch())->setEsiJobId(self::ISHTAR_JOB_LINKED_ELSEWHERE_ID)->setRuns(1);
+        $this->ramLine->addJobMatch($linkedElsewhere);
+        $this->storedJobMatches[] = $linkedElsewhere;
     }
 
     public function testOwnerLinksTheJobOfHisAltToTheIshtarLineAsAManualLink(): void
@@ -71,6 +73,17 @@ final class LinkJobProcessorTest extends TestCase
         );
         self::assertSame([3, 0], [$this->ishtarLine->getMatchedRuns(), $this->ishtarLine->getFulfilledQuantity()]);
         self::assertSame([[$this->ishtarLine->getId()->toRfc4122(), 0, 3]], $this->refreshedLines);
+    }
+
+    #[Group('issue-1250')]
+    public function testOwnerLinksOnlyTheRequestedRunsOfTheJobAndTheLineKeepsOnlyThatShare(): void
+    {
+        $resource = $this->link($this->owner, $this->ishtarProject, $this->ishtarLine, self::ADMIN_ISHTAR_JOB_ID, 1);
+
+        self::assertSame([self::ADMIN_ISHTAR_JOB_ID, 1], [$resource->esiJobId, $resource->runs]);
+        $match = $this->ishtarLine->getJobMatches()->first();
+        self::assertSame([1, 625_000.25], [$match->getRuns(), $match->getCost()]);
+        self::assertSame([[$this->ishtarLine->getId()->toRfc4122(), 0, 1]], $this->refreshedLines);
     }
 
     public function testJobOfAnotherBlueprintIsRefusedWithoutLink(): void
@@ -174,10 +187,11 @@ final class LinkJobProcessorTest extends TestCase
         );
     }
 
-    private function link(User $user, IndustryProject $project, IndustryProjectBomLine $line, int $esiJobId): mixed
+    private function link(User $user, IndustryProject $project, IndustryProjectBomLine $line, int $esiJobId, ?int $runs = null): mixed
     {
         $input = new LinkJobInput();
         $input->esiJobId = $esiJobId;
+        $input->runs = $runs;
 
         return $this->processor($user)->process($input, new Post(), $this->lineUriVariables($project, $line));
     }

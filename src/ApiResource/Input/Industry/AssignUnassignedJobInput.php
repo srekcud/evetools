@@ -11,4 +11,7 @@ class AssignUnassignedJobInput
     #[Assert\NotBlank]
     #[Assert\Uuid]
     public ?string $lineId = null;
+
+    #[Assert\Positive]
+    public ?int $runs = null;
 }

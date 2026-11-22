@@ -194,10 +194,10 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     return apiRequest<AvailableJob[]>(`/industry/projects/${projectId}/available-jobs`)
   }
 
-  async function linkJob(projectId: string, lineId: string, esiJobId: number): Promise<void> {
+  async function linkJob(projectId: string, lineId: string, esiJobId: number, runs?: number): Promise<void> {
     await apiRequest(`/industry/projects/${projectId}/bom/${lineId}/link-job`, {
       method: 'POST',
-      body: JSON.stringify({ esiJobId }),
+      body: JSON.stringify(runs === undefined ? { esiJobId } : { esiJobId, runs }),
     })
     await fetchBom(projectId)
   }

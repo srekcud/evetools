@@ -65,6 +65,9 @@ function availableJob(status: string): AvailableJob {
     cost: 1_250_000,
     linkedToBomLineId: null,
     linkedToBomLineName: null,
+    matchId: null,
+    linkedRuns: 0,
+    remainingRuns: 4,
   } as AvailableJob
 }
 

@@ -57,7 +57,7 @@ class AssignUnassignedJobProcessor implements ProcessorInterface
             throw new BadRequestHttpException('The line is not a candidate of this job');
         }
 
-        $match = $this->manualJobLinker->link($unassignedJob->getJob(), $chosen->line);
+        $match = $this->manualJobLinker->link($unassignedJob->getJob(), $chosen->line, $data->runs);
         $this->activityRecorder->recordJobsOf($chosen->project);
 
         return ProjectJobMatchResource::fromEntity($match);

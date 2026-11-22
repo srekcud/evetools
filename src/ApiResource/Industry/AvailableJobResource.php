@@ -53,4 +53,8 @@ class AvailableJobResource
     public ?string $linkedToBomLineName = null;
 
     public ?string $matchId = null;
+
+    public int $linkedRuns = 0;
+
+    public int $remainingRuns = 0;
 }

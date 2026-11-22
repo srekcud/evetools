@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEsiJobStatusLabel } from '@/composables/useEsiJobStatusLabel'
 import { useFormatters } from '@/composables/useFormatters'
@@ -18,12 +19,31 @@ defineProps<{
 
 const emit = defineEmits<{
   close: []
-  link: [esiJobId: number]
+  link: [esiJobId: number, runs: number | undefined]
 }>()
 
 const { t } = useI18n()
+
 const { esiJobStatusLabel } = useEsiJobStatusLabel()
 const { formatDateTime, formatNumber } = useFormatters()
+
+const typedRunsByJobId = reactive<Record<number, number>>({})
+
+function runsToAssignOf(job: AvailableJob): number {
+  return typedRunsByJobId[job.esiJobId] ?? job.remainingRuns
+}
+
+function setRunsToAssign(job: AvailableJob, event: Event): void {
+  const typed = Number((event.target as HTMLInputElement).value)
+  if (Number.isInteger(typed) && typed >= 1 && typed <= job.remainingRuns) {
+    typedRunsByJobId[job.esiJobId] = typed
+  }
+}
+
+function link(job: AvailableJob): void {
+  const runs = runsToAssignOf(job)
+  emit('link', job.esiJobId, runs === job.remainingRuns ? undefined : runs)
+}
 </script>
 
 <template>
@@ -95,13 +115,29 @@ const { formatDateTime, formatNumber } = useFormatters()
                   data-testid="available-job-linked"
                   class="px-2 py-0.5 rounded-sm text-xs bg-emerald-500/10 text-emerald-400"
                 >{{ t('groupIndustry.jobs.alreadyLinkedTo', { name: job.linkedToBomLineName ?? job.linkedToBomLineId }) }}</span>
-                <button
-                  v-else
-                  data-testid="available-job-link"
-                  class="px-2 py-0.5 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 disabled:opacity-50"
-                  :disabled="linkingEsiJobId !== null"
-                  @click="emit('link', job.esiJobId)"
-                >{{ t('groupIndustry.jobs.link') }}</button>
+                <span
+                  v-if="job.linkedRuns > 0"
+                  data-testid="available-job-shared"
+                  class="ml-1 px-2 py-0.5 rounded-sm text-xs bg-amber-500/10 text-amber-400"
+                >{{ t('groupIndustry.jobs.sharedRuns', { linkedRuns: job.linkedRuns, runs: job.runs }) }}</span>
+                <template v-if="job.remainingRuns > 0">
+                  <input
+                    data-testid="available-job-runs"
+                    type="number"
+                    min="1"
+                    :max="job.remainingRuns"
+                    :value="runsToAssignOf(job)"
+                    :aria-label="t('groupIndustry.jobs.runsToAssign')"
+                    class="ml-2 w-16 px-1 py-0.5 rounded-sm text-xs text-right font-mono bg-slate-900 border border-slate-700 text-slate-200"
+                    @input="setRunsToAssign(job, $event)"
+                  />
+                  <button
+                    data-testid="available-job-link"
+                    class="ml-1 px-2 py-0.5 rounded-sm text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 disabled:opacity-50"
+                    :disabled="linkingEsiJobId !== null"
+                    @click="link(job)"
+                  >{{ t('groupIndustry.jobs.link') }}</button>
+                </template>
               </td>
             </tr>
           </tbody>

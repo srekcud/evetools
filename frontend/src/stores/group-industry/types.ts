@@ -551,6 +551,8 @@ export type AvailableJob = {
   linkedToBomLineId: string | null
   linkedToBomLineName: string | null
   matchId: string | null
+  linkedRuns: number
+  remainingRuns: number
 }
 
 export type PurchaseSuggestion = {

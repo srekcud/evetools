@@ -63,13 +63,13 @@ export function useProjectJobActions() {
     linkScreenLine.value = null
   }
 
-  async function linkJob(projectId: string, esiJobId: number): Promise<void> {
+  async function linkJob(projectId: string, esiJobId: number, runs?: number): Promise<void> {
     const line = linkScreenLine.value
     if (line === null) return
     linkingEsiJobId.value = esiJobId
     jobLinkError.value = null
     try {
-      await projectStore.linkJob(projectId, line.id, esiJobId)
+      await projectStore.linkJob(projectId, line.id, esiJobId, runs)
       closeLinkScreen()
     } catch (e) {
       jobLinkError.value = failureMessage(e, 'groupIndustry.jobs.linkError')

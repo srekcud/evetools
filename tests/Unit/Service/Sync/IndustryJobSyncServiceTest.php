@@ -1473,7 +1473,8 @@ class IndustryJobSyncServiceTest extends TestCase
     }
 
     #[Group('issue-208')]
-    public function testJobMatchTakesCostAndRunsOfCachedJobWhenTheyDiverge(): void
+    #[Group('issue-1250')]
+    public function testJobMatchKeepsItsShareOfTheRunsAndTakesTheProRataCostOfCachedJobWhenTheyDiverge(): void
     {
         $character = $this->createCharacterWithUser(12345);
         $cachedJob = $this->givenMatchedCachedJob($character);
@@ -1483,8 +1484,8 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->service->syncCharacterJobs($character);
 
-        $this->assertSame(1_500_000.50, $jobMatch->getCost());
-        $this->assertSame(10, $jobMatch->getRuns());
+        $this->assertSame(750_000.25, $jobMatch->getCost());
+        $this->assertSame(5, $jobMatch->getRuns());
     }
 
     #[Group('issue-208')]
@@ -1531,7 +1532,7 @@ class IndustryJobSyncServiceTest extends TestCase
         [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
         $altCachedJob = $this->makeCachedJob(400, $characterB, 'active', '2026-10-23T06:15:00Z');
         $altCachedJob->setCost(640_000.25)->setRuns(3);
-        $jobMatch = $this->givenJobMatchOnBomLine(400, $this->makeBomLine());
+        $jobMatch = $this->givenJobMatchOnBomLine(400, $this->makeBomLine())->setRuns(3);
         $this->esiClient->method('get')->willReturn([]);
         $altEsiJob = $this->makeEsiJobOfMatch(400, 67890, 'ready', '2026-10-23T06:15:00Z');
         $altEsiJob['cost'] = 640_000.25;

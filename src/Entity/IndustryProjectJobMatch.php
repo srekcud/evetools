@@ -244,8 +244,16 @@ class IndustryProjectJobMatch
         $this->status = $job->getStatus();
         $this->startDate = $job->getStartDate();
         $this->endDate = $job->getEndDate();
-        $this->cost = $job->getCost();
-        $this->runs = $job->getRuns();
+        $jobRuns = $job->getRuns();
+        if (!isset($this->runs)) {
+            $this->runs = $jobRuns;
+        }
+        $jobCost = $job->getCost();
+        $this->cost = match (true) {
+            $jobCost === null => null,
+            $this->runs === $jobRuns => $jobCost,
+            default => $jobCost * $this->runs / $jobRuns,
+        };
 
         return $this;
     }

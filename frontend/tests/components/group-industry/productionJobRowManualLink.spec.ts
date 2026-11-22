@@ -96,6 +96,8 @@ const AVAILABLE_JOBS = [
     linkedToBomLineId: null,
     linkedToBomLineName: null,
     matchId: null,
+    linkedRuns: 0,
+    remainingRuns: 4,
   },
   {
     esiJobId: 9002,
@@ -111,6 +113,8 @@ const AVAILABLE_JOBS = [
     linkedToBomLineId: 'job-vexor',
     linkedToBomLineName: 'Vexor',
     matchId: 'match-dax',
+    linkedRuns: 6,
+    remainingRuns: 0,
   },
 ]
 

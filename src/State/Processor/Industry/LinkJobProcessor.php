@@ -63,7 +63,7 @@ class LinkJobProcessor implements ProcessorInterface
             throw new BadRequestHttpException("ESI job {$esiJobId} not found");
         }
 
-        $match = $this->manualJobLinker->link($job, $line);
+        $match = $this->manualJobLinker->link($job, $line, $data->runs);
 
         return ProjectJobMatchResource::fromEntity($match);
     }

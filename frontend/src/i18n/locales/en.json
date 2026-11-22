@@ -3655,6 +3655,8 @@
       "availableJobsLoading": "Loading jobs...",
       "availableJobsEmpty": "No job available to link",
       "alreadyLinkedTo": "Already linked to {name}",
+      "sharedRuns": "{linkedRuns} / {runs} runs already assigned",
+      "runsToAssign": "Runs to assign",
       "availableJobsError": "Failed to load the available jobs",
       "linkError": "Failed to link the job",
       "unlinkError": "Failed to unlink the job"

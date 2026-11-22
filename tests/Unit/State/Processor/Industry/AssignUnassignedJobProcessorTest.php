@@ -61,6 +61,27 @@ final class AssignUnassignedJobProcessorTest extends TestCase
         self::assertSame([$row], $this->removedEntities);
     }
 
+    #[Group('issue-1250')]
+    public function testAssigningOnlyTheRequestedRunsLinksThatShareAndStillTakesTheJobOutOfTheList(): void
+    {
+        $row = $this->givenUnassignedJob(
+            self::ISHTAR_JOB_ID,
+            $this->ownerAltCharacter,
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            self::ISHTAR_TYPE_ID,
+            4,
+            '2026-11-02T08:00:00+00:00',
+            [$this->candidateOf($this->ishtarProject, $this->ishtarLine, 4)],
+        );
+
+        $resource = $this->assign($this->owner, self::ISHTAR_JOB_ID, $this->ishtarLine, 3);
+
+        self::assertSame([self::ISHTAR_JOB_ID, 3], [$resource->esiJobId, $resource->runs]);
+        self::assertSame([3], array_map(static fn (IndustryProjectJobMatch $match): int => $match->getRuns(), $this->ishtarLine->getJobMatches()->toArray()));
+        self::assertSame([[$this->ishtarLine->getId()->toRfc4122(), 0, 3]], $this->refreshedLines);
+        self::assertSame([$row], $this->removedEntities);
+    }
+
     public function testAssigningToTheLineOfAProjectOfSomeoneElseRecordsTheActivityOfThatProject(): void
     {
         $this->givenUnassignedJob(
@@ -155,7 +176,9 @@ final class AssignUnassignedJobProcessorTest extends TestCase
             '2026-11-02T08:00:00+00:00',
             [$this->candidateOf($this->ishtarProject, $this->ishtarLine, 4)],
         );
-        $this->storedJobMatches[] = (new IndustryProjectJobMatch())->setEsiJobId(self::ISHTAR_JOB_ID)->setRuns(3);
+        $taken = (new IndustryProjectJobMatch())->setEsiJobId(self::ISHTAR_JOB_ID)->setRuns(3);
+        (new IndustryProjectBomLine())->addJobMatch($taken);
+        $this->storedJobMatches[] = $taken;
 
         self::assertSame(
             '400 ESI job 7248201 is already linked to a BOM line',
@@ -174,10 +197,11 @@ final class AssignUnassignedJobProcessorTest extends TestCase
         self::assertSame([[], [], []], [$this->refreshedLines, $this->recordedProjects, $this->removedEntities]);
     }
 
-    private function assign(User $user, int $esiJobId, IndustryProjectBomLine $line): mixed
+    private function assign(User $user, int $esiJobId, IndustryProjectBomLine $line, ?int $runs = null): mixed
     {
         $input = new AssignUnassignedJobInput();
         $input->lineId = $line->getId()->toRfc4122();
+        $input->runs = $runs;
 
         return $this->processor($user)->process($input, new Post(), ['esiJobId' => $esiJobId]);
     }

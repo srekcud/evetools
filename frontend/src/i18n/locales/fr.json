@@ -3655,6 +3655,8 @@
       "availableJobsLoading": "Chargement des jobs...",
       "availableJobsEmpty": "Aucun job à lier",
       "alreadyLinkedTo": "Déjà lié à {name}",
+      "sharedRuns": "{linkedRuns} / {runs} runs déjà attribuées",
+      "runsToAssign": "Runs à attribuer",
       "availableJobsError": "Échec du chargement des jobs disponibles",
       "linkError": "Échec du lien du job",
       "unlinkError": "Échec de la suppression du lien"

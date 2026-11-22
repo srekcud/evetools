@@ -12,6 +12,7 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
+use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
@@ -33,6 +34,7 @@ class AvailableJobsProvider implements ProviderInterface
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly IndustryCalculationService $calculationService,
         private readonly ProjectAccessChecker $accessChecker,
+        private readonly IndustryProjectJobMatchRepository $jobMatchRepository,
     ) {
     }
 
@@ -80,9 +82,16 @@ class AvailableJobsProvider implements ProviderInterface
             $project->getCreatedAt(),
         );
 
+        $jobsWithOutput = array_filter($jobs, static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput());
+
+        $linkedRunsByJobId = array_fill_keys(array_map(static fn (CachedIndustryJob $job): int => $job->getJobId(), $jobsWithOutput), 0);
+        foreach ($this->jobMatchRepository->findByEsiJobIds(array_map(static fn (CachedIndustryJob $job): int => $job->getJobId(), $jobsWithOutput)) as $match) {
+            $linkedRunsByJobId[$match->getEsiJobId()] += $match->getRuns();
+        }
+
         $resources = array_map(
-            fn (CachedIndustryJob $job): AvailableJobResource => $this->toResource($job, $project),
-            array_filter($jobs, static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput()),
+            fn (CachedIndustryJob $job): AvailableJobResource => $this->toResource($job, $project, $linkedRunsByJobId[$job->getJobId()]),
+            $jobsWithOutput,
         );
 
         usort($resources, static fn (AvailableJobResource $a, AvailableJobResource $b): int => strcmp($b->startDate, $a->startDate));
@@ -90,7 +99,7 @@ class AvailableJobsProvider implements ProviderInterface
         return $resources;
     }
 
-    private function toResource(CachedIndustryJob $job, IndustryProject $project): AvailableJobResource
+    private function toResource(CachedIndustryJob $job, IndustryProject $project, int $linkedRuns): AvailableJobResource
     {
         $resource = new AvailableJobResource();
         $resource->esiJobId = $job->getJobId();
@@ -103,6 +112,8 @@ class AvailableJobsProvider implements ProviderInterface
         $resource->startDate = $job->getStartDate()->format('c');
         $resource->endDate = $job->getEndDate()->format('c');
         $resource->characterName = $job->getCharacter()->getName();
+        $resource->linkedRuns = $linkedRuns;
+        $resource->remainingRuns = $job->getRuns() - $linkedRuns;
 
         foreach ($project->getBomItems() as $line) {
             foreach ($line->getJobMatches() as $match) {

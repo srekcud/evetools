@@ -178,9 +178,9 @@ class IndustryJobMatcher
             && \in_array($job->getActivityId(), self::JOB_ACTIVITY_IDS_BY_LINE_ACTIVITY_TYPE[$lineActivityType], true);
     }
 
-    public function linkJobToBomLine(CachedIndustryJob $job, IndustryProjectBomLine $line): IndustryProjectJobMatch
+    public function linkJobToBomLine(CachedIndustryJob $job, IndustryProjectBomLine $line, ?int $runs = null): IndustryProjectJobMatch
     {
-        $match = $this->createJobMatch($job, $line, true, null);
+        $match = $this->createJobMatch($job, $line, true, null, $runs);
         $line->addJobMatch($match);
         $this->forgetUnassignedJobs([$job->getJobId()]);
         $this->entityManager->flush();
@@ -484,9 +484,13 @@ class IndustryJobMatcher
     /**
      * @param list<string>|null $matchSignals
      */
-    private function createJobMatch(CachedIndustryJob $job, IndustryProjectBomLine $line, bool $manual, ?array $matchSignals): IndustryProjectJobMatch
+    private function createJobMatch(CachedIndustryJob $job, IndustryProjectBomLine $line, bool $manual, ?array $matchSignals, ?int $runs = null): IndustryProjectJobMatch
     {
-        $match = (new IndustryProjectJobMatch())
+        $match = new IndustryProjectJobMatch();
+        if ($runs !== null) {
+            $match->setRuns($runs);
+        }
+        $match
             ->setEsiJobId($job->getJobId())
             ->copyJobState($job)
             ->setCharacterName($job->getCharacter()->getName())

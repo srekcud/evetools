@@ -27,14 +27,14 @@ const UNLINK_JOB_URL = `/industry/projects/${PROJECT_ID}/job-matches/match-aria`
 const PURCHASE_SUGGESTIONS_URL = `/industry/projects/${PROJECT_ID}/purchase-suggestions`
 const PLATES_PURCHASES_URL = `/industry/projects/${PROJECT_ID}/bom/${PLATES_LINE_ID}/purchases`
 const DELETE_PURCHASE_URL = `/industry/projects/${PROJECT_ID}/purchases/purchase-manual`
-const AVAILABLE_JOB = { esiJobId: 9001, characterName: 'Cyra Lune', linkedToBomLineId: null, matchId: null }
+const AVAILABLE_JOB = { esiJobId: 9001, characterName: 'Cyra Lune', linkedToBomLineId: null, matchId: null, linkedRuns: 0, remainingRuns: 4 }
 const PURCHASE_SUGGESTIONS = { suggestions: [{ transactionId: 6_400_000_201, transactionUuid: TRANSACTION_UUID, typeId: 21010, alreadyLinked: false }], totalCount: 1, walletReadings: [{ characterName: 'Cyra Lune', status: 'read', readAt: '2026-11-13T20:04:10+00:00', nextReadAt: '2026-11-13T21:04:00+00:00' }] }
 
 type PurchaseInput = { transactionId: string } | { typeId: number; quantity: number; unitPrice: number }
 
 type JobLinksAndPurchases = {
   fetchAvailableJobs(projectId: string): Promise<unknown>
-  linkJob(projectId: string, lineId: string, esiJobId: number): Promise<void>
+  linkJob(projectId: string, lineId: string, esiJobId: number, runs?: number): Promise<void>
   unlinkJob(projectId: string, matchId: string): Promise<void>
   fetchPurchaseSuggestions(projectId: string): Promise<unknown>
   createPurchase(projectId: string, lineId: string, input: PurchaseInput): Promise<void>
@@ -101,6 +101,21 @@ describe('group project store API paths', () => {
       [LINK_JOB_URL, { method: 'POST', body: JSON.stringify({ esiJobId: 9001 }) }],
       [BOM_URL],
       [UNLINK_JOB_URL, { method: 'DELETE' }],
+      [BOM_URL],
+    ])
+  })
+
+  it('links a job to a line with the number of runs assigned only when it is given', async () => {
+    vi.mocked(apiRequest).mockImplementation((async (url: string) => (url === BOM_URL ? [TRITANIUM_LINE] : {})) as never)
+    const store = jobLinksAndPurchases()
+
+    await store.linkJob(PROJECT_ID, ISHTAR_LINE_ID, 9001, undefined)
+    await store.linkJob(PROJECT_ID, ISHTAR_LINE_ID, 9002, 3)
+
+    expect(vi.mocked(apiRequest).mock.calls).toEqual([
+      [LINK_JOB_URL, { method: 'POST', body: JSON.stringify({ esiJobId: 9001 }) }],
+      [BOM_URL],
+      [LINK_JOB_URL, { method: 'POST', body: JSON.stringify({ esiJobId: 9002, runs: 3 }) }],
       [BOM_URL],
     ])
   })

@@ -273,6 +273,33 @@ final class DerivedContributionServiceTest extends TestCase
         $this->assertSame(0, $this->ishtarLine->getFulfilledQuantity());
     }
 
+    #[Group('issue-1250')]
+    public function testTwoLinesCarryingEachHalfOfASharedJobGetHalfOfItsInstallCostEach(): void
+    {
+        $secondIshtarLine = (new IndustryProjectBomLine())
+            ->setTypeId(self::ISHTAR_TYPE_ID)
+            ->setTypeName('Ishtar')
+            ->setRequiredQuantity(10)
+            ->setIsJob(true)
+            ->setJobGroup('final')
+            ->setActivityType('manufacturing')
+            ->setRuns(10);
+        $this->project->addBomItem($secondIshtarLine);
+        $this->linkJob($this->ishtarLine, 7_250_300_001, 10, 500_000.0);
+        $this->linkJob($secondIshtarLine, 7_250_300_001, 10, 500_000.0);
+
+        $this->service->refreshLine($this->ishtarLine);
+        $this->service->refreshLine($secondIshtarLine);
+
+        $this->assertSame(
+            [[ContributionType::JobInstall, 10, 500_000.0], [ContributionType::JobInstall, 10, 500_000.0]],
+            array_map(
+                static fn (IndustryProjectContribution $contribution): array => [$contribution->getType(), $contribution->getQuantity(), $contribution->getEstimatedValue()],
+                [$this->singleDerivedContributionOf($this->ishtarLine), $this->singleDerivedContributionOf($secondIshtarLine)],
+            ),
+        );
+    }
+
     public function testLinkedJobWithoutACostMakesTheDerivedValueUnknownNotZero(): void
     {
         $this->linkJob($this->ishtarLine, 6_363_000_001, 3, 214_000.0);

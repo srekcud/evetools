@@ -17,6 +17,7 @@ use App\Enum\IndustryActivityType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\CachedIndustryJobRepository;
+use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\State\Provider\Industry\AvailableJobsProvider;
@@ -42,6 +43,8 @@ final class AvailableJobsProviderTest extends TestCase
     private array $cachedJobs = [];
 
     private array $jobLookups = [];
+
+    private array $matchesOfOtherProjects = [];
 
     protected function setUp(): void
     {
@@ -81,6 +84,39 @@ final class AvailableJobsProviderTest extends TestCase
         self::assertSame(
             [[self::RAM_BLUEPRINT_TYPE_ID, self::ISHTAR_BLUEPRINT_TYPE_ID], [$this->ownerMainCharacter->getId(), $this->ownerAltCharacter->getId(), $this->adminCharacter->getId()], '2026-11-01T10:00:00+00:00'],
             [$blueprintTypeIds, $this->jobLookups[0][1], $this->jobLookups[0][2]?->format('c')],
+        );
+    }
+
+    #[Group('issue-1250')]
+    public function testASharedJobExposesTheRunsAttributedInAllProjectsAndTheRunsStillFree(): void
+    {
+        $this->job($this->ownerMainCharacter, self::ISHTAR_JOB_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 20, 1_000_000.0, '2026-11-02T08:00:00+00:00');
+        $ownShare = (new IndustryProjectJobMatch())->setEsiJobId(self::ISHTAR_JOB_ID)->setRuns(5)->setStatus('active');
+        (new \ReflectionProperty(IndustryProjectJobMatch::class, 'id'))->setValue($ownShare, Uuid::v4());
+        $this->ishtarLine->addJobMatch($ownShare);
+        $this->matchesOfOtherProjects[] = (new IndustryProjectJobMatch())->setEsiJobId(self::ISHTAR_JOB_ID)->setRuns(7)->setStatus('active');
+
+        $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame(
+            [[self::ISHTAR_JOB_ID, 20, 12, 8, $this->ishtarLine->getId()->toRfc4122(), $ownShare->getId()->toRfc4122()]],
+            array_map(static fn (AvailableJobResource $job): array => [$job->esiJobId, $job->runs, $job->linkedRuns, $job->remainingRuns, $job->linkedToBomLineId, $job->matchId], $jobs),
+        );
+    }
+
+    #[Group('issue-1250')]
+    public function testAJobWithoutShareHasAllItsRunsRemainingAndAJobSharedEntirelyElsewhereHasNone(): void
+    {
+        $this->job($this->ownerMainCharacter, self::ISHTAR_JOB_ID, self::ISHTAR_BLUEPRINT_TYPE_ID, self::ISHTAR_TYPE_ID, 6, 300_000.0, '2026-11-02T08:00:00+00:00');
+        $this->job($this->ownerAltCharacter, self::RAM_JOB_ID, self::RAM_BLUEPRINT_TYPE_ID, self::RAM_TYPE_ID, 4, 86_250.5, '2026-11-03T08:00:00+00:00');
+        $this->matchesOfOtherProjects[] = (new IndustryProjectJobMatch())->setEsiJobId(self::RAM_JOB_ID)->setRuns(3)->setStatus('active');
+        $this->matchesOfOtherProjects[] = (new IndustryProjectJobMatch())->setEsiJobId(self::RAM_JOB_ID)->setRuns(1)->setStatus('active');
+
+        $jobs = $this->availableJobsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame(
+            [[self::RAM_JOB_ID, 4, 4, 0, null], [self::ISHTAR_JOB_ID, 6, 0, 6, null]],
+            array_map(static fn (AvailableJobResource $job): array => [$job->esiJobId, $job->runs, $job->linkedRuns, $job->remainingRuns, $job->linkedToBomLineId], $jobs),
         );
     }
 
@@ -175,7 +211,28 @@ final class AvailableJobsProviderTest extends TestCase
             $productRepository,
             $calculationService,
             $this->accessChecker(),
+            $this->jobMatchRepository(),
         ))->provide(new GetCollection(), ['projectId' => $project->getId()->toRfc4122()]);
+    }
+
+    private function jobMatchRepository(): IndustryProjectJobMatchRepository
+    {
+        $repository = $this->createStub(IndustryProjectJobMatchRepository::class);
+        $repository->method('findByEsiJobIds')->willReturnCallback(function (array $esiJobIds): array {
+            $matches = $this->matchesOfOtherProjects;
+            foreach ($this->ishtarProject->getBomItems() as $line) {
+                foreach ($line->getJobMatches() as $match) {
+                    $matches[] = $match;
+                }
+            }
+
+            return array_values(array_filter(
+                $matches,
+                static fn (IndustryProjectJobMatch $match): bool => \in_array($match->getEsiJobId(), $esiJobIds, true),
+            ));
+        });
+
+        return $repository;
     }
 
     private function job(Character $installer, int $jobId, int $blueprintTypeId, int $productTypeId, int $runs, float $cost, string $startDate, string $status = 'active'): void

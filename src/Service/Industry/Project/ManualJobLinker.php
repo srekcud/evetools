@@ -22,7 +22,7 @@ class ManualJobLinker
     ) {
     }
 
-    public function link(CachedIndustryJob $job, IndustryProjectBomLine $line): IndustryProjectJobMatch
+    public function link(CachedIndustryJob $job, IndustryProjectBomLine $line, ?int $runs = null): IndustryProjectJobMatch
     {
         $esiJobId = $job->getJobId();
 
@@ -38,11 +38,22 @@ class ManualJobLinker
             throw new BadRequestHttpException("ESI job {$esiJobId} has no output");
         }
 
-        if ($this->jobMatchRepository->findOneBy(['esiJobId' => $esiJobId]) !== null) {
+        $shares = $this->jobMatchRepository->findByEsiJobIds([$esiJobId]);
+        $freeRuns = $job->getRuns() - array_sum(array_map(static fn (IndustryProjectJobMatch $share): int => $share->getRuns(), $shares));
+
+        if ($freeRuns <= 0) {
             throw new BadRequestHttpException("ESI job {$esiJobId} is already linked to a BOM line");
         }
 
-        $match = $this->jobMatcher->linkJobToBomLine($job, $line);
+        if (array_any($shares, static fn (IndustryProjectJobMatch $share): bool => $share->getBomLine() === $line)) {
+            throw new BadRequestHttpException("ESI job {$esiJobId} already has a share on this BOM line");
+        }
+
+        if ($runs !== null && $runs > $freeRuns) {
+            throw new BadRequestHttpException("ESI job {$esiJobId} has only {$freeRuns} runs left to share");
+        }
+
+        $match = $this->jobMatcher->linkJobToBomLine($job, $line, $runs ?? $freeRuns);
         $this->derivedContributionService->refreshLine($line);
 
         return $match;

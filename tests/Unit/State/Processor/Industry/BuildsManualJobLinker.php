@@ -36,6 +36,13 @@ trait BuildsManualJobLinker
             ),
         );
 
+        $jobMatchRepository->method('findByEsiJobIds')->willReturnCallback(
+            fn (array $esiJobIds): array => array_values(array_filter(
+                $this->storedJobMatches,
+                static fn (IndustryProjectJobMatch $match): bool => \in_array($match->getEsiJobId(), $esiJobIds, true),
+            )),
+        );
+
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
         $productRepository->method('producerOf')->willReturnCallback(
             static fn (int $productTypeId): IndustryActivityProduct => (new IndustryActivityProduct())

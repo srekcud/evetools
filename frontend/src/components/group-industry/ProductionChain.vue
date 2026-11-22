@@ -228,7 +228,7 @@ watch(
       :error="jobLinkError"
       :linking-esi-job-id="linkingEsiJobId"
       @close="jobActions.closeLinkScreen"
-      @link="jobActions.linkJob(projectId, $event)"
+      @link="(esiJobId, runs) => jobActions.linkJob(projectId, esiJobId, runs)"
     />
 
     <p
