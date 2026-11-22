@@ -983,6 +983,10 @@
         "notRequired": "Not required",
         "component": "Component",
         "inStock": "In Stock",
+        "stockByStation": {
+          "heading": "Stock by station",
+          "toggle": "{quantity} in stock of {name}: show the stock by station"
+        },
         "pivotCandidates": "Pivot Candidates",
         "sortBy": "Sort by",
         "coverageMargin": "Coverage x Margin",

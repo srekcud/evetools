@@ -317,7 +317,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             'marginPercent' => null,
             'sellPrice' => 4000.0,
             'dailyVolume' => 25.0,
-            'keyComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'inStock' => 1]],
+            'keyComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'inStock' => 1, 'stockByStation' => []]],
             'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX,
             'missingPriceTypeIds' => [],
         ], $this->withoutPriceSources($result['sourceProduct']));

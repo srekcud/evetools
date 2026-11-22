@@ -18,6 +18,14 @@ final readonly class PersonalStock
     ) {
     }
 
+    /**
+     * @return list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>
+     */
+    public function stationsOf(int $typeId): array
+    {
+        return $this->locationsByTypeId[$typeId]['locations'] ?? [];
+    }
+
     public function unknownReason(): ?string
     {
         foreach ($this->containers as $container) {

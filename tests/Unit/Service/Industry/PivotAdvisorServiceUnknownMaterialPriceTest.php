@@ -202,8 +202,8 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             'sellPrice' => self::SOURCE_SELL_PRICE,
             'dailyVolume' => 25.0,
             'keyComponents' => [
-                ['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'inStock' => 1],
-                ['typeId' => self::COMPONENT_FOUR, 'typeName' => 'Component Four', 'inStock' => 2],
+                ['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'inStock' => 1, 'stockByStation' => []],
+                ['typeId' => self::COMPONENT_FOUR, 'typeName' => 'Component Four', 'inStock' => 2, 'stockByStation' => []],
             ],
             'unknownReason' => BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
             'missingPriceTypeIds' => [self::COMPONENT_FOUR],

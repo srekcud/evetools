@@ -26,7 +26,7 @@ const PIVOT_RESULT_WITH_UNKNOWN_JOB_INSTALL_COSTS = {
     marginPercent: null,
     sellPrice: 4000,
     dailyVolume: 25,
-    keyComponents: [{ typeId: COMPONENT_TWO_TYPE_ID, typeName: 'Component Two', inStock: 1 }],
+    keyComponents: [{ typeId: COMPONENT_TWO_TYPE_ID, typeName: 'Component Two', inStock: 1, stockByStation: [] }],
     unknownReason: 'missing_cost_index',
     missingPriceTypeIds: [],
   },
@@ -35,6 +35,7 @@ const PIVOT_RESULT_WITH_UNKNOWN_JOB_INSTALL_COSTS = {
       typeId: COMPONENT_TWO_TYPE_ID,
       typeName: 'Component Two',
       inStock: 1,
+      stockByStation: [],
       candidates: {
         [SOURCE_PRODUCT_TYPE_ID]: { needed: 6, status: 'partial' },
         [CANDIDATE_W_TYPE_ID]: { needed: 3, status: 'partial' },

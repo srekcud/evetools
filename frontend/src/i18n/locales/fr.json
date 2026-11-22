@@ -983,6 +983,10 @@
         "notRequired": "Non requis",
         "component": "Composant",
         "inStock": "En Stock",
+        "stockByStation": {
+          "heading": "Stock par station",
+          "toggle": "{quantity} en stock de {name} : afficher le stock par station"
+        },
         "pivotCandidates": "Candidats Pivot",
         "sortBy": "Trier par",
         "coverageMargin": "Couverture x Marge",

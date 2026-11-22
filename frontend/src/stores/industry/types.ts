@@ -374,10 +374,18 @@ export type PivotMissingComponent = {
   cost: number | null
 }
 
+export type PivotStockStation = {
+  locationId: number
+  locationName: string
+  systemName: string | null
+  quantity: number
+}
+
 export type PivotComponentCoverage = {
   typeId: number
   typeName: string | null
   inStock: number
+  stockByStation: PivotStockStation[]
   candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
 }
 
@@ -407,7 +415,7 @@ export type PivotSourceProduct = {
   marginPercent: number | null
   sellPrice: number
   dailyVolume: number | null
-  keyComponents: { typeId: number; typeName: string | null; inStock: number }[]
+  keyComponents: { typeId: number; typeName: string | null; inStock: number; stockByStation: PivotStockStation[] }[]
   unknownReason?: PivotUnknownReason | null
   missingPriceTypeIds?: number[]
   priceSources?: MaterialsAndSalePriceSources

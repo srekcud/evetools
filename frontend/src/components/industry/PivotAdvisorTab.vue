@@ -9,6 +9,7 @@ import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useTypeNames } from '@/composables/useTypeNames'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
+import PivotStockStations from '@/components/industry/PivotStockStations.vue'
 import type { PivotCandidate, PivotMissingComponent } from '@/stores/industry/types'
 
 const props = defineProps<{
@@ -35,6 +36,29 @@ industryStore.fetchUserSettings()
 const result = computed(() => scannerStore.pivotResult)
 const loading = computed(() => scannerStore.pivotLoading)
 const error = computed(() => scannerStore.pivotError)
+
+const expandedMatrixTypeIds = ref<Set<number>>(new Set())
+const expandedKeyComponentTypeIds = ref<Set<number>>(new Set())
+
+watch(result, () => {
+  expandedMatrixTypeIds.value = new Set()
+  expandedKeyComponentTypeIds.value = new Set()
+})
+
+function toggledSet(current: Set<number>, typeId: number): Set<number> {
+  const next = new Set(current)
+  if (next.has(typeId)) next.delete(typeId)
+  else next.add(typeId)
+  return next
+}
+
+function toggleMatrixStations(typeId: number): void {
+  expandedMatrixTypeIds.value = toggledSet(expandedMatrixTypeIds.value, typeId)
+}
+
+function toggleKeyComponentStations(typeId: number): void {
+  expandedKeyComponentTypeIds.value = toggledSet(expandedKeyComponentTypeIds.value, typeId)
+}
 
 const sortedCandidates = computed((): PivotCandidate[] => {
   if (!result.value) return []
@@ -279,13 +303,26 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
           <div v-if="result.sourceProduct.keyComponents.length > 0" class="flex-shrink-0 w-72">
             <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.scanner.pivotAdvisor.keyComponents') }}</div>
             <div class="bg-slate-800 rounded-lg p-3 space-y-1.5">
-              <div
-                v-for="comp in result.sourceProduct.keyComponents"
-                :key="comp.typeId"
-                class="flex items-center justify-between text-sm"
-              >
-                <span class="text-slate-300 truncate mr-2">{{ typeNameLabel(comp.typeName, comp.typeId) }}</span>
-                <span class="font-mono text-cyan-400 shrink-0">{{ formatNumber(comp.inStock, 0) }}</span>
+              <div v-for="comp in result.sourceProduct.keyComponents" :key="comp.typeId">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-slate-300 truncate mr-2">{{ typeNameLabel(comp.typeName, comp.typeId) }}</span>
+                  <button
+                    v-if="comp.stockByStation.length > 0"
+                    type="button"
+                    :data-testid="`pivot-stock-toggle-key-${comp.typeId}`"
+                    :aria-expanded="expandedKeyComponentTypeIds.has(comp.typeId)"
+                    :aria-label="t('industry.scanner.pivotAdvisor.stockByStation.toggle', { name: typeNameLabel(comp.typeName, comp.typeId), quantity: formatNumber(comp.inStock, 0) })"
+                    class="font-mono text-cyan-400 shrink-0 underline decoration-dotted underline-offset-2 hover:text-cyan-300"
+                    @click="toggleKeyComponentStations(comp.typeId)"
+                  >{{ formatNumber(comp.inStock, 0) }}</button>
+                  <span v-else class="font-mono text-cyan-400 shrink-0">{{ formatNumber(comp.inStock, 0) }}</span>
+                </div>
+                <PivotStockStations
+                  v-if="expandedKeyComponentTypeIds.has(comp.typeId)"
+                  :data-testid="`pivot-stock-stations-key-${comp.typeId}`"
+                  :stations="comp.stockByStation"
+                  class="mt-1.5"
+                />
               </div>
             </div>
           </div>
@@ -366,14 +403,24 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
               </tr>
             </thead>
             <tbody>
+              <template v-for="(row, rowIdx) in result.matrix" :key="row.typeId">
               <tr
-                v-for="(row, rowIdx) in result.matrix"
-                :key="row.typeId"
                 class="border-b border-slate-800/50"
                 :class="rowIdx % 2 === 1 ? 'bg-slate-800/30' : ''"
               >
                 <td class="px-4 py-2.5 text-slate-300 font-medium">{{ typeNameLabel(row.typeName, row.typeId) }}</td>
-                <td class="px-3 py-2.5 text-center font-mono text-cyan-400">{{ formatNumber(row.inStock, 0) }}</td>
+                <td class="px-3 py-2.5 text-center font-mono text-cyan-400">
+                  <button
+                    v-if="row.stockByStation.length > 0"
+                    type="button"
+                    :data-testid="`pivot-stock-toggle-matrix-${row.typeId}`"
+                    :aria-expanded="expandedMatrixTypeIds.has(row.typeId)"
+                    :aria-label="t('industry.scanner.pivotAdvisor.stockByStation.toggle', { name: typeNameLabel(row.typeName, row.typeId), quantity: formatNumber(row.inStock, 0) })"
+                    class="underline decoration-dotted underline-offset-2 hover:text-cyan-300"
+                    @click="toggleMatrixStations(row.typeId)"
+                  >{{ formatNumber(row.inStock, 0) }}</button>
+                  <span v-else>{{ formatNumber(row.inStock, 0) }}</span>
+                </td>
                 <td
                   v-for="productId in result.matrixProductIds"
                   :key="productId"
@@ -407,6 +454,15 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                   <span v-else class="text-slate-500">&mdash;</span>
                 </td>
               </tr>
+              <tr v-if="expandedMatrixTypeIds.has(row.typeId)" class="border-b border-slate-800/50">
+                <td :colspan="2 + result.matrixProductIds.length" class="px-4 py-2.5">
+                  <PivotStockStations
+                    :data-testid="`pivot-stock-stations-matrix-${row.typeId}`"
+                    :stations="row.stockByStation"
+                  />
+                </td>
+              </tr>
+              </template>
             </tbody>
           </table>
         </div>

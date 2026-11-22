@@ -49,7 +49,7 @@ const PIVOT_RESULT = {
     marginPercent: 823.38,
     sellPrice: 4000,
     dailyVolume: 25,
-    keyComponents: [{ typeId: COMPONENT_TWO_TYPE_ID, typeName: 'Component Two', inStock: 1 }],
+    keyComponents: [{ typeId: COMPONENT_TWO_TYPE_ID, typeName: 'Component Two', inStock: 1, stockByStation: [] }],
     unknownReason: null,
     missingPriceTypeIds: [],
   },
