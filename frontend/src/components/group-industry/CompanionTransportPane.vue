@@ -8,6 +8,8 @@ import type { CompanionCarry, CompanionLeg, CompanionTasks } from './companionTa
 
 const NUMBER_DECIMALS = 0
 const VOLUME_DECIMALS = 2
+const READY_LINE_STATE = 'ready'
+const PERSONAL_STOCK_SOURCE = 'personal_stock'
 
 const props = defineProps<{
   tasks: CompanionTasks
@@ -25,6 +27,10 @@ const { formatNumber } = useFormatters()
 function systemsText(leg: CompanionLeg): string | null {
   const systems = [leg.fromSystem, leg.toSystem].filter((system): system is string => system !== null)
   return systems.length > 0 && (leg.fromSystem !== leg.from || leg.toSystem !== leg.to) ? systems.join(' \u2192 ') : null
+}
+
+function leavesPersonalStock(leg: CompanionLeg): boolean {
+  return leg.lines.some(line => line.state === READY_LINE_STATE && line.source === PERSONAL_STOCK_SOURCE)
 }
 
 function productionRemainingMs(line: ProjectTransportLegLine): number | null {
@@ -110,6 +116,11 @@ function carryEtaText(carry: CompanionCarry): string | null {
               @click="emit('declare-leg', leg.key)"
             >{{ t('groupIndustry.companion.transport.declare') }}</button>
           </div>
+          <p
+            v-if="leavesPersonalStock(leg)"
+            data-testid="companion-leg-personal-stock-hint"
+            class="text-xs italic text-slate-400"
+          >{{ t('groupIndustry.companion.transport.personalStockHint') }}</p>
           <ul class="flex flex-col gap-0.5">
             <li
               v-for="(line, index) in leg.lines"
