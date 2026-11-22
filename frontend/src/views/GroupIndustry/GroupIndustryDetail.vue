@@ -1026,7 +1026,7 @@ function applyShareLinkShortcut(): void {
               />
             </CollapsibleSourcing>
 
-            <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
+            <ProjectSurplus v-if="isCompleted && !showSettlementBlock" :project-id="projectId" class="mt-6" />
           </div>
         </ProjectSection>
 
@@ -1071,12 +1071,12 @@ function applyShareLinkShortcut(): void {
               <span>{{ t('common.status.loading') }}</span>
             </div>
             <template v-else>
-              <FinancialCascade />
+              <FinancialCascade v-if="!showSettlementBlock" />
               <FinancialSummary v-if="!project?.personalUse" />
               <SellForecastCard v-if="!project?.personalUse" :project-id="projectId" />
-              <DistributionTable v-if="!isWorkedOnAlone && !project?.personalUse" />
-              <ProjectTransfers v-if="!isWorkedOnAlone && !project?.personalUse" :project-id="projectId" />
-              <ProjectDiscordRecap class="mt-8" />
+              <DistributionTable v-if="!showSettlementBlock && !isWorkedOnAlone && !project?.personalUse" />
+              <ProjectTransfers v-if="!showSettlementBlock && !isWorkedOnAlone && !project?.personalUse" :project-id="projectId" />
+              <ProjectDiscordRecap v-if="!showSettlementBlock" class="mt-8" />
             </template>
           </div>
         </ProjectSection>

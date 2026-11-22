@@ -48,8 +48,8 @@ const OWNER = pilot('owner-1', 'accepted')
 async function mountFinances(answers: Partial<CockpitAnswers>): Promise<VueWrapper> {
   route.query = { tab: 'distribution' }
   return mountCockpitDetail({
-    project: nyxProject('selling', 'owner', { membersCount: 1, pendingContributionCount: 0 }),
-    cockpit: cockpitOf('selling', nextAction({ code: 'nothing_to_do' })),
+    project: nyxProject('in_progress', 'owner', { membersCount: 1, pendingContributionCount: 0 }),
+    cockpit: cockpitOf('in_progress', nextAction({ code: 'nothing_to_do' })),
     members: [OWNER],
     ...answers,
   })
@@ -92,7 +92,7 @@ describe('finances of a project worked on alone', () => {
 describe('finances once the project has a team', () => {
   it('shows the distribution and the transfers with two members', async () => {
     const wrapper = await mountFinances({
-      project: nyxProject('selling', 'owner', { membersCount: 2, pendingContributionCount: 0 }),
+      project: nyxProject('in_progress', 'owner', { membersCount: 2, pendingContributionCount: 0 }),
       members: [OWNER, pilot('pilot-3', 'accepted')],
     })
 
@@ -107,7 +107,7 @@ describe('finances once the project has a team', () => {
 
   it('shows the distribution and the transfers while a contribution waits for a review', async () => {
     const wrapper = await mountFinances({
-      project: nyxProject('selling', 'owner', { membersCount: 1, pendingContributionCount: 1 }),
+      project: nyxProject('in_progress', 'owner', { membersCount: 1, pendingContributionCount: 1 }),
     })
 
     expect(financePanels(wrapper)).toMatchObject({ distribution: true, transfers: true })

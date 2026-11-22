@@ -108,7 +108,7 @@ describe('project cockpit sections', () => {
     })
   })
 
-  it('shows the financial summary and the distribution on the distribution query and the sales with their suggestions on the sales query', async () => {
+  it('shows the financial summary without the distribution of the Settlement block on the distribution query and the sales with their suggestions on the sales query', async () => {
     const finances = await mountSellingNyxOn('distribution', 'fr', TEAM_OF_TWO)
     const financesPanels = {
       financialSummary: finances.findComponent(FinancialSummary).exists(),
@@ -127,7 +127,7 @@ describe('project cockpit sections', () => {
         distributionTable: sales.findComponent(DistributionTable).exists(),
       },
     }).toEqual({
-      finances: { financialSummary: true, distributionTable: true, salesTable: false, saleSuggestions: false },
+      finances: { financialSummary: true, distributionTable: false, salesTable: false, saleSuggestions: false },
       sales: { salesTable: true, saleSuggestions: true, financialSummary: false, distributionTable: false },
     })
   })
