@@ -106,6 +106,14 @@ final class ProjectContributionServiceJobReservationTest extends TestCase
                 return null;
             },
         );
+        $reservationRepository->method('deleteByLine')->willReturnCallback(
+            function (IndustryProjectBomLine $line): void {
+                $this->reservations = array_values(array_filter(
+                    $this->reservations,
+                    static fn (IndustryProjectLineReservation $reservation): bool => $reservation->getBomLine() !== $line,
+                ));
+            },
+        );
         $lineReservations = new LineReservationService($reservationRepository, $this->entityManager);
 
         $this->contributions = new ProjectContributionService(

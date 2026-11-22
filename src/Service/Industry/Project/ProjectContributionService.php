@@ -223,7 +223,7 @@ class ProjectContributionService
         $contribution->setReviewedAt(new \DateTimeImmutable());
 
         if ($bomItem !== null) {
-            $this->incrementFulfillment($bomItem, $contribution->getQuantity());
+            $this->incrementFulfillment($bomItem, $contribution);
             $this->settleReservationOfApproved($contribution, $bomItem);
         }
 
@@ -622,13 +622,17 @@ class ProjectContributionService
 
         $bomItem = $contribution->getBomItem();
         if ($bomItem !== null) {
-            $this->incrementFulfillment($bomItem, $contribution->getQuantity());
+            $this->incrementFulfillment($bomItem, $contribution);
             $this->settleReservationOfApproved($contribution, $bomItem);
         }
     }
 
-    private function incrementFulfillment(IndustryProjectBomLine $bomItem, int $quantity): void
+    private function incrementFulfillment(IndustryProjectBomLine $bomItem, IndustryProjectContribution $contribution): void
     {
-        $bomItem->setFulfilledQuantity($bomItem->getFulfilledQuantity() + $quantity);
+        $addedQuantity = ContributionType::JobInstall === $contribution->getType()
+            ? $bomItem->getQuantityOfRuns($contribution->getQuantity())
+            : $contribution->getQuantity();
+
+        $bomItem->setFulfilledQuantity($bomItem->getFulfilledQuantity() + $addedQuantity);
     }
 }
