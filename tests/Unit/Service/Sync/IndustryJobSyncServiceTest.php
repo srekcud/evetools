@@ -66,6 +66,7 @@ class IndustryJobSyncServiceTest extends TestCase
     private const string RIFTER_NAME = 'Rifter';
     private const int MANUFACTURING_JOB_ID = 500;
     private const int ME_RESEARCH_JOB_ID = 501;
+    private const int INVENTION_JOB_ID = 502;
     private const int ME_RESEARCH_ACTIVITY_ID = 4;
     private const int CORPORATION_ID = 98000001;
     private const int OTHER_CORPORATION_ID = 98000002;
@@ -2757,6 +2758,74 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($character);
 
         $this->assertSame([null], array_map(static fn (CachedIndustryJob $job): ?int => $job->getBlueprintId(), $this->persistedJobs));
+    }
+
+    #[Group('issue-1316')]
+    public function testNewInventionJobKeepsTheSuccessfulRunsReadFromEsi(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->givenNoCachedJobAndRecordedPersists();
+        $this->esiClient->method('get')->willReturn([$this->esiInventionJob502('delivered', 21)]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([21], array_map(static fn (CachedIndustryJob $job): ?int => $job->getSuccessfulRuns(), $this->persistedJobs));
+    }
+
+    #[Group('issue-1316')]
+    public function testCachedInventionJobTakesTheSuccessfulRunsReadFromEsiAtItsDelivery(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $cachedJob = $this->cachedRifterJob(self::INVENTION_JOB_ID, $character, 8, self::RIFTER_TYPE_ID, 59, 480_000.5);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->esiClient->method('get')->willReturn([$this->esiInventionJob502('delivered', 21)]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(21, $cachedJob->getSuccessfulRuns());
+    }
+
+    #[Group('issue-1316')]
+    public function testJobReadWithoutSuccessfulRunsFromEsiKeepsThemUnknown(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->givenNoCachedJobAndRecordedPersists();
+        $this->esiClient->method('get')->willReturn([$this->esiManufacturingJob500('active')]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([null], array_map(static fn (CachedIndustryJob $job): ?int => $job->getSuccessfulRuns(), $this->persistedJobs));
+    }
+
+    #[Group('issue-1316')]
+    public function testCachedJobWhoseEsiReadNoLongerHasSuccessfulRunsGoesBackToUnknown(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $cachedJob = $this->cachedRifterJob(self::INVENTION_JOB_ID, $character, 8, self::RIFTER_TYPE_ID, 59, 480_000.5)->setSuccessfulRuns(4);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $jobData = $this->esiInventionJob502('delivered', 4);
+        unset($jobData['successful_runs']);
+        $this->esiClient->method('get')->willReturn([$jobData]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertNull($cachedJob->getSuccessfulRuns());
+    }
+
+    private function esiInventionJob502(string $status, int $successfulRuns): array
+    {
+        $jobData = $this->makeJobData(self::INVENTION_JOB_ID, self::CHARACTER_A_ID, $status, self::RIFTER_TYPE_ID);
+        $jobData['activity_id'] = 8;
+        $jobData['blueprint_type_id'] = self::RIFTER_BLUEPRINT_TYPE_ID;
+        $jobData['runs'] = 59;
+        $jobData['cost'] = 480_000.5;
+        $jobData['successful_runs'] = $successfulRuns;
+
+        return $jobData;
     }
 
     private function esiManufacturingJob500(string $status): array

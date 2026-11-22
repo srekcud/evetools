@@ -260,6 +260,11 @@ function plansStructure(node: ChainNode): boolean {
                 data-testid="job-container-remaining"
                 class="mt-1 text-xs text-sky-400"
               >{{ t('groupIndustry.jobs.containerRemaining', { covered: formatNumber(bomItemOf(item.node)!.containerQuantity ?? 0, 0), required: formatNumber(bomItemOf(item.node)!.requiredQuantity, 0), remaining: formatNumber(bomItemOf(item.node)!.remainingQuantity, 0) }) }}</p>
+              <p
+                v-if="bomItemOf(item.node)!.expectedBlueprintCopies !== undefined && bomItemOf(item.node)!.expectedBlueprintCopies !== null"
+                data-testid="invention-expected-copies"
+                class="mt-1 text-xs text-sky-400"
+              >{{ t('groupIndustry.jobs.expectedBlueprintCopies', { count: formatNumber(bomItemOf(item.node)!.expectedBlueprintCopies, 1) }) }}</p>
               <UnclaimedStockBadge v-if="bomItemOf(item.node)!.jobGroup === 'component'" :item="bomItemOf(item.node)!" />
               <ul v-if="bomItemOf(item.node)!.jobMatches !== undefined && bomItemOf(item.node)!.jobMatches.length > 0" class="mt-1 space-y-0.5">
                 <li
@@ -273,6 +278,9 @@ function plansStructure(node: ChainNode): boolean {
                   &middot; <span data-testid="job-match-state" :data-state="displayOf(jobMatch).state">{{ jobDisplayLabel(displayOf(jobMatch).state) }}</span>
                   <template v-if="countdownOf(jobMatch) !== null">
                     &middot; <span data-testid="job-match-countdown" class="font-mono tabular-nums">{{ countdownOf(jobMatch) }}</span>
+                  </template>
+                  <template v-if="jobMatch.successfulRuns !== undefined && jobMatch.successfulRuns !== null">
+                    &middot; <span data-testid="job-match-obtained-copies" class="text-sky-400">{{ t('groupIndustry.jobs.obtainedBlueprintCopies', { count: formatNumber(jobMatch.successfulRuns, 0) }) }}</span>
                   </template>
                   <button
                     v-if="canUnlinkJobs === true"

@@ -123,6 +123,7 @@ export type JobMatch = {
   status: string
   endDate: string | null
   runs: number
+  successfulRuns?: number | null
   characterName: string | null
   matchedAt: string
   facilityId: number | null
@@ -205,6 +206,7 @@ export type BomItem = {
   meLevel: number | null
   teLevel: number | null
   runs: number | null
+  expectedBlueprintCopies?: number | null
   isFulfilled: boolean
   jobMatches: JobMatch[]
   matchedRuns: number

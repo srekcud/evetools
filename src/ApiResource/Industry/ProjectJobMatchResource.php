@@ -73,6 +73,8 @@ class ProjectJobMatchResource
 
     public int $runs;
 
+    public ?int $successfulRuns = null;
+
     public ?string $characterName = null;
 
     public string $matchedAt;
@@ -99,6 +101,7 @@ class ProjectJobMatchResource
         $resource->status = $match->getStatus();
         $resource->endDate = $match->getEndDate()?->format('c');
         $resource->runs = $match->getRuns();
+        $resource->successfulRuns = $match->getSuccessfulRuns();
         $resource->characterName = $match->getCharacterName();
         $resource->matchedAt = $match->getMatchedAt()->format('c');
         $resource->facilityId = $match->getFacilityId();

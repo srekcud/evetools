@@ -3751,6 +3751,8 @@
       "finalProducts": "Produits finaux",
       "coveredByContainer": "Couvert par le container",
       "containerRemaining": "Container {covered} / {required}, reste {remaining} à lancer",
+      "expectedBlueprintCopies": "≈ {count} BPC attendus",
+      "obtainedBlueprintCopies": "{count} BPC obtenus",
       "coveredCount": "{count} couvert(s) par le container",
       "matchJobs": "Associer les jobs",
       "matchError": "Échec de l'association des jobs",

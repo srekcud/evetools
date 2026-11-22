@@ -39,6 +39,25 @@ final class ProjectJobMatchResourceTest extends TestCase
         self::assertNull($resource->matchSignals);
     }
 
+    #[Group('issue-1316')]
+    public function testTheSuccessfulRunsOfTheMatchAreExposedAsTheyAre(): void
+    {
+        $withResult = ProjectJobMatchResource::fromEntity($this->matchOnALine()->setSuccessfulRuns(21));
+        $withZeroResult = ProjectJobMatchResource::fromEntity($this->matchOnALine()->setSuccessfulRuns(0));
+
+        self::assertSame(21, $withResult->successfulRuns);
+        self::assertSame(0, $withZeroResult->successfulRuns);
+    }
+
+    #[Group('issue-1316')]
+    public function testTheSuccessfulRunsOfAMatchWithoutResultAreExposedAsNull(): void
+    {
+        $resource = ProjectJobMatchResource::fromEntity($this->matchOnALine());
+
+        self::assertArrayHasKey('successfulRuns', get_object_vars($resource));
+        self::assertNull($resource->successfulRuns);
+    }
+
     private function matchOnALine(): IndustryProjectJobMatch
     {
         $line = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);

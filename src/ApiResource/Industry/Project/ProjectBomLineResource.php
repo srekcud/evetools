@@ -81,6 +81,8 @@ class ProjectBomLineResource
 
     public ?int $runs = null;
 
+    public ?float $expectedBlueprintCopies = null;
+
     public bool $isFulfilled;
 
     /** @var list<array<string, mixed>> */

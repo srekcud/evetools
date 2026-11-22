@@ -43,6 +43,9 @@ class IndustryProjectJobMatch
     #[ORM\Column(type: 'integer')]
     private int $runs;
 
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $successfulRuns = null;
+
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $characterName = null;
 
@@ -156,6 +159,18 @@ class IndustryProjectJobMatch
         return $this;
     }
 
+    public function getSuccessfulRuns(): ?int
+    {
+        return $this->successfulRuns;
+    }
+
+    public function setSuccessfulRuns(?int $successfulRuns): static
+    {
+        $this->successfulRuns = $successfulRuns;
+
+        return $this;
+    }
+
     public function getCharacterName(): ?string
     {
         return $this->characterName;
@@ -248,6 +263,7 @@ class IndustryProjectJobMatch
         if (!isset($this->runs)) {
             $this->runs = $jobRuns;
         }
+        $this->successfulRuns = $this->runs === $jobRuns ? $job->getSuccessfulRuns() : null;
         $jobCost = $job->getCost();
         $this->cost = match (true) {
             $jobCost === null => null,

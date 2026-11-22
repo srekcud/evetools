@@ -54,6 +54,27 @@ final class InventionAttemptsTest extends TestCase
         $this->assertSame(17, $attempts);
     }
 
+    #[Group('issue-1316')]
+    public function testExpectedBlueprintCopiesAreTheAttemptsTimesTheProbabilityWithoutRounding(): void
+    {
+        $expectedCopies = InventionAttempts::expectedBlueprintCopies(59, self::BASE_PROBABILITY, null);
+
+        $this->assertEqualsWithDelta(20.06, $expectedCopies, 0.000_000_001);
+    }
+
+    #[Group('issue-1316')]
+    public function testExpectedBlueprintCopiesUseTheProbabilityOfTheDecryptor(): void
+    {
+        $expectedCopies = InventionAttempts::expectedBlueprintCopies(10, self::BASE_PROBABILITY, self::slightlyImprovingDecryptor());
+
+        $this->assertEqualsWithDelta(3.74, $expectedCopies, 0.000_000_001);
+    }
+
+    private static function slightlyImprovingDecryptor(): Decryptor
+    {
+        return new Decryptor(34204, new Multiplier(1.1), 1, 2, 3);
+    }
+
     private static function attainment(): Decryptor
     {
         return new Decryptor(34202, new Multiplier(1.8), 4, -1, 4);
