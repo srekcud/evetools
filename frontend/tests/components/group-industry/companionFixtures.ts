@@ -110,6 +110,7 @@ export function companionTasksOf(overrides: Partial<CompanionTasks> = {}): Compa
     awaitingApproval: [],
     toReview: null,
     joinRequests: null,
+    unassignedJobCount: null,
     jobs: [],
     bomPercent: 0,
     finalJobsRunning: 0,

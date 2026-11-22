@@ -21,8 +21,10 @@ import { activityGroupOf, countdownPartsOf, groupByActivity, jobTimingOf, type A
 
 type CopyState = 'idle' | 'copied' | 'failed'
 
+type AlertAction = 'deliver' | 'copy' | 'open'
+
 const FREE_LINES_SHOWN = 6
-const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'move_products', 'price_below_break_even', 'undercut_sell_order', 'join_request', 'bom_complete']
+const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'move_products', 'price_below_break_even', 'undercut_sell_order', 'join_request', 'bom_complete', 'jobs_to_assign']
 const GREEN_ALERT_KINDS: CompanionAlert['kind'][] = ['job_ready', 'bom_complete']
 const VALUE_DECIMALS = 1
 const NUMBER_DECIMALS = 0
@@ -44,6 +46,7 @@ const emit = defineEmits<{
   release: [lineId: string]
   deliver: [lineId: string]
   'open-bom': []
+  'open-unassigned-jobs': []
   'toggle-size': []
 }>()
 
@@ -149,10 +152,12 @@ function alertText(alert: CompanionAlert): string {
     })
   }
   if (alert.kind === 'join_request') return t('groupIndustry.companion.alerts.joinRequest', { count: props.tasks.joinRequests })
+  if (alert.kind === 'jobs_to_assign') return t('groupIndustry.companion.alerts.jobsToAssign', { count: props.tasks.unassignedJobCount })
   return t('groupIndustry.companion.alerts.bomComplete')
 }
 
-function actionOf(alert: CompanionAlert): 'deliver' | 'copy' | null {
+function actionOf(alert: CompanionAlert): AlertAction | null {
+  if (alert.kind === 'jobs_to_assign') return 'open'
   if (alert.kind === 'job_ready') return jobOfAlert(alert) === undefined ? null : 'deliver'
   if (alert.kind !== 'undercut_sell_order') return null
   const order = props.tasks.undercutOrders.at(0)
@@ -168,8 +173,15 @@ function alertClasses(kind: CompanionAlert['kind']): string {
     : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
 }
 
-function actionLabel(action: 'deliver' | 'copy'): string {
+function alertActionClasses(action: AlertAction): string {
+  return action === 'deliver'
+    ? 'border-emerald-400 bg-emerald-400 text-emerald-950'
+    : 'border-amber-500/50 text-amber-300 hover:bg-amber-500/10'
+}
+
+function actionLabel(action: AlertAction): string {
   if (action === 'deliver') return t('groupIndustry.companion.deliver')
+  if (action === 'open') return t('groupIndustry.companion.alerts.actionOpen')
   if (copyState.value === 'copied') return t('groupIndustry.companion.alerts.priceCopied')
   if (copyState.value === 'failed') return t('groupIndustry.companion.alerts.priceCopyFailed')
   return t('groupIndustry.companion.alerts.actionCopyPrice')
@@ -196,7 +208,11 @@ async function copySuggestedPrice(event: MouseEvent): Promise<void> {
   }, COPY_FEEDBACK_MS)
 }
 
-function runAlertAction(alert: { action: 'deliver' | 'copy' | null } & CompanionAlert, event: MouseEvent): void {
+function runAlertAction(alert: { action: AlertAction | null } & CompanionAlert, event: MouseEvent): void {
+  if (alert.action === 'open') {
+    emit('open-unassigned-jobs')
+    return
+  }
   if (alert.action === 'deliver') {
     const job = jobOfAlert(alert)
     if (job !== undefined) emit('deliver', job.item.id)
@@ -401,7 +417,7 @@ function unknownReasonText(output: JobLocation): string | null {
           data-testid="companion-alert-action"
           :data-state="topAlert.action === 'copy' ? copyState : undefined"
           class="flex-shrink-0 border px-2 py-0.5 text-xs font-bold uppercase tracking-wider"
-          :class="topAlert.action === 'deliver' ? 'border-emerald-400 bg-emerald-400 text-emerald-950' : 'border-amber-500/50 text-amber-300 hover:bg-amber-500/10'"
+          :class="alertActionClasses(topAlert.action)"
           @click="runAlertAction(topAlert, $event)"
         >{{ actionLabel(topAlert.action) }}</button>
       </div>
@@ -461,7 +477,7 @@ function unknownReasonText(output: JobLocation): string | null {
             data-testid="companion-alert-action"
             :data-state="alert.action === 'copy' ? copyState : undefined"
             class="flex-shrink-0 border px-2 py-1 text-xs font-bold uppercase tracking-wider"
-            :class="alert.action === 'deliver' ? 'border-emerald-400 bg-emerald-400 text-emerald-950' : 'border-amber-500/50 text-amber-300 hover:bg-amber-500/10'"
+            :class="alertActionClasses(alert.action)"
             @click="runAlertAction(alert, $event)"
           >{{ actionLabel(alert.action) }}</button>
         </div>

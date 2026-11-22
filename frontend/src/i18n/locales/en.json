@@ -2919,6 +2919,21 @@
       "blacklistDraftOnly": "Blacklisted categories can only change while the project is a draft."
     },
     "title": "Projects",
+    "unassignedJobs": {
+      "title": "Jobs to assign ({count})",
+      "loading": "Loading the jobs to assign",
+      "assign": "Assign",
+      "dismiss": "Not for a project",
+      "oversized": "Oversized",
+      "runs": "{count} run | {count} runs",
+      "remainingRuns": "{count} run left | {count} runs left",
+      "signals": {
+        "intent": "Intended",
+        "place": "Project container",
+        "structure": "Planned structure",
+        "exact_fit": "Exact fit"
+      }
+    },
     "available": {
       "loadError": "Failed to load projects",
       "runs": "Runs",
@@ -4597,6 +4612,8 @@
         "bomComplete": "BOM complete",
         "moveProducts": "Move {quantity} products into the project container ({count} jobs)",
         "joinRequest": "{count} join requests",
+        "jobsToAssign": "{count} job to assign | {count} jobs to assign",
+        "actionOpen": "Open",
         "priceBelowBreakEven": "Jita {jitaPrice} < break-even {breakEven} · do not sell on the market for now",
         "undercutSellOrder": "Undercut: {typeName} ×{quantity} at {market}, best price {best} against your {mine}"
       },

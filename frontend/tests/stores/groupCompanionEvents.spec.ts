@@ -10,6 +10,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 
 const PROJECT_PATH = `/industry/projects/${COMPANION_PROJECT_ID}`
 const MEMBERS_PATH = `${PROJECT_PATH}/members`
+const UNASSIGNED_JOBS_PATH = '/industry/unassigned-jobs'
 
 function callsTo(endpoint: string): number {
   return vi.mocked(apiRequest).mock.calls.filter(([calledEndpoint]) => calledEndpoint === endpoint).length
@@ -51,5 +52,15 @@ describe('useGroupCompanionStore.handleEvents', () => {
     await store.handleEvents(['sale_recorded', 'line_reserved'])
 
     expect(callsTo(MEMBERS_PATH)).toBe(membersAtOpen)
+  })
+
+  it('reloads the unassigned jobs once for a batch of events, so an assignment made from the page updates the companion', async () => {
+    const store = useGroupCompanionStore()
+    await store.open(COMPANION_PROJECT_ID)
+    const loadsAtOpen = callsTo(UNASSIGNED_JOBS_PATH)
+
+    await store.handleEvents(['sale_recorded', 'line_reserved', 'sale_updated'])
+
+    expect(callsTo(UNASSIGNED_JOBS_PATH) - loadsAtOpen).toBe(1)
   })
 })

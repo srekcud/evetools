@@ -10,7 +10,7 @@ const ONE_HOUR = 3_600_000
 
 function tasksOf(
   bomItems: BomItem[],
-  options: { project?: GroupProject; members?: GroupMember[]; priceAlert?: ProjectPriceAlert | null; undercutOrders?: ProjectSellOrder[]; chainNodes?: ChainNode[] | null } = {},
+  options: { project?: GroupProject; members?: GroupMember[]; priceAlert?: ProjectPriceAlert | null; undercutOrders?: ProjectSellOrder[]; chainNodes?: ChainNode[] | null; unassignedJobCount?: number | null } = {},
 ): CompanionTasks {
   return buildCompanionTasks({
     bomItems,
@@ -19,6 +19,7 @@ function tasksOf(
     priceAlert: options.priceAlert ?? null,
     undercutOrders: options.undercutOrders ?? [],
     chainNodes: options.chainNodes ?? null,
+    unassignedJobCount: options.unassignedJobCount ?? null,
     myCharacterNames: ['Alpha'],
     now: NOW,
   })
@@ -181,6 +182,28 @@ describe('buildCompanionTasks', () => {
     }).toEqual({
       admin: { toReview: 3, joinRequests: 2, alerts: [{ key: 'join_request', kind: 'join_request' }] },
       plainMember: { toReview: null, joinRequests: null, alerts: [] },
+    })
+  })
+
+  it('raises the jobs to assign alert after the join request one when the count is above zero, and none for zero or an unknown count', () => {
+    const pendingMember = [member({ id: 'member-1', status: 'pending', characterName: 'Brann Holt' })]
+    const admin = companionProject({ myRole: 'admin' })
+
+    const three = tasksOf([], { unassignedJobCount: 3 })
+    const zero = tasksOf([], { unassignedJobCount: 0 })
+    const unknown = tasksOf([], { unassignedJobCount: null })
+    const withJoinRequest = tasksOf([], { project: admin, members: pendingMember, unassignedJobCount: 2 })
+
+    expect({
+      three: { count: three.unassignedJobCount, alerts: three.alerts },
+      zero: { count: zero.unassignedJobCount, alerts: zero.alerts },
+      unknown: { count: unknown.unassignedJobCount, alerts: unknown.alerts },
+      withJoinRequest: withJoinRequest.alerts,
+    }).toEqual({
+      three: { count: 3, alerts: [{ key: 'jobs_to_assign', kind: 'jobs_to_assign' }] },
+      zero: { count: 0, alerts: [] },
+      unknown: { count: null, alerts: [] },
+      withJoinRequest: [{ key: 'join_request', kind: 'join_request' }, { key: 'jobs_to_assign', kind: 'jobs_to_assign' }],
     })
   })
 

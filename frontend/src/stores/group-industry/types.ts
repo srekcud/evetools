@@ -1362,3 +1362,30 @@ export interface ProjectJobsSync {
   intervalSeconds: number
   installers: JobsSyncInstaller[]
 }
+
+export interface UnassignedJobCandidate {
+  projectId: string
+  projectName: string | null
+  lineId: string
+  lineName: string
+  remainingRuns: number
+  score: number
+  signals: string[]
+  oversized: boolean
+}
+
+export interface UnassignedJob {
+  esiJobId: number
+  characterName: string
+  blueprintTypeId: number
+  productTypeId: number
+  productTypeName: string | null
+  runs: number
+  activityId: number
+  stationId: number | null
+  stationName: string | null
+  startDate: string
+  endDate: string
+  status: string
+  candidates: UnassignedJobCandidate[]
+}

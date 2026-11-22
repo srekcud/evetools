@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useSyncStore } from '@/stores/sync'
+import { useUnassignedJobsStore } from './unassignedJobs'
 import type { BomItem, ChainNode, GroupMember, GroupProject, ProjectChain, ProjectCockpit, ProjectPriceAlert, ProjectSellOrder } from './types'
 
 const MEMBER_EVENT_PREFIX = 'member_'
@@ -18,6 +19,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   const priceAlert = ref<ProjectPriceAlert | null>(null)
   const undercutOrders = ref<ProjectSellOrder[]>([])
   const error = ref<string | null>(null)
+  const unassignedJobs = useUnassignedJobsStore()
 
   const isAdmin = computed(() => project.value?.myRole === 'owner' || project.value?.myRole === 'admin')
 
@@ -91,7 +93,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     priceAlert.value = null
     undercutOrders.value = []
     error.value = null
-    await Promise.all([loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id)])
+    await Promise.all([loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id), unassignedJobs.load()])
     if (isStillOpen(id) && isAdmin.value) await loadMembers(id)
   }
 
@@ -138,7 +140,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   async function handleEvents(actions: string[]): Promise<void> {
     const id = projectId.value
     if (id === null) return
-    const loads = [loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id)]
+    const loads = [loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id), unassignedJobs.load()]
     if (actions.some(action => action.startsWith(MEMBER_EVENT_PREFIX)) && isAdmin.value) loads.push(loadMembers(id))
     await Promise.all(loads)
   }

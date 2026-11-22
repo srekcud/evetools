@@ -2,7 +2,7 @@ import { jobDisplayOf, type JobDisplay, type JobDisplayState } from './jobDispla
 import { pendingQuantityOf } from './pendingContributions'
 import type { BomItem, ChainNode, GroupMember, GroupProject, JobMatch, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
 
-export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'move_products' | 'price_below_break_even' | 'undercut_sell_order'
+export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'jobs_to_assign' | 'move_products' | 'price_below_break_even' | 'undercut_sell_order'
 
 export type CompanionAlert = { key: string; kind: CompanionAlertKind }
 
@@ -31,6 +31,7 @@ export type CompanionTasks = {
   awaitingApproval: { item: BomItem; quantity: number }[]
   toReview: number | null
   joinRequests: number | null
+  unassignedJobCount: number | null
   jobs: { match: JobMatch; item: BomItem }[]
   bomPercent: number
   finalJobsRunning: number
@@ -49,6 +50,7 @@ export type CompanionTasksInput = {
   myCharacterNames: string[]
   priceAlert: ProjectPriceAlert | null
   undercutOrders: ProjectSellOrder[]
+  unassignedJobCount: number | null
   now: number
 }
 
@@ -61,6 +63,7 @@ const PRODUCT_ACTIVITIES = ['manufacturing', 'reaction']
 const OUTPUT_OUTSIDE = 'outside'
 const OUTPUT_UNKNOWN = 'unknown'
 const MOVE_PRODUCTS_ALERT_KEY = 'move_products'
+const JOBS_TO_ASSIGN_ALERT_KEY = 'jobs_to_assign'
 const PRICE_ALERT_KEY = 'price_below_break_even'
 const UNDERCUT_ORDER_ALERT_KEY = 'undercut_sell_order'
 const BLOCKED_CHAIN_STATUS = 'blocked'
@@ -166,7 +169,7 @@ function productOf(project: GroupProject): CompanionProduct | null {
 }
 
 export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks {
-  const { bomItems, chainNodes, project, members, myCharacterNames, priceAlert, undercutOrders, now } = input
+  const { bomItems, chainNodes, project, members, myCharacterNames, priceAlert, undercutOrders, unassignedJobCount, now } = input
 
   const free = inChainOrder(bomItems.filter(isFree), item => item, chainNodes)
 
@@ -215,6 +218,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
   if (materials.length > 0 && materials.every(material => material.isFulfilled)) {
     alerts.push({ key: 'bom_complete', kind: 'bom_complete' })
   }
+  if (unassignedJobCount !== null && unassignedJobCount > 0) alerts.push({ key: JOBS_TO_ASSIGN_ALERT_KEY, kind: 'jobs_to_assign' })
 
   const waitingForComponents = (chainNodes ?? [])
     .filter(node => node.status === BLOCKED_CHAIN_STATUS)
@@ -234,6 +238,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     awaitingApproval,
     toReview,
     joinRequests,
+    unassignedJobCount,
     jobs,
     bomPercent: project.fulfillmentPercent,
     finalJobsRunning,

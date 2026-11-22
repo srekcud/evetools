@@ -2919,6 +2919,21 @@
       "blacklistDraftOnly": "Les catégories en blacklist ne peuvent changer que tant que le projet est en brouillon."
     },
     "title": "Projets",
+    "unassignedJobs": {
+      "title": "Jobs à attribuer ({count})",
+      "loading": "Chargement des jobs à attribuer",
+      "assign": "Attribuer",
+      "dismiss": "Pas pour un projet",
+      "oversized": "Trop gros",
+      "runs": "{count} run | {count} runs",
+      "remainingRuns": "{count} run restant | {count} runs restants",
+      "signals": {
+        "intent": "Prévu",
+        "place": "Container du projet",
+        "structure": "Structure prévue",
+        "exact_fit": "Runs exacts"
+      }
+    },
     "available": {
       "loadError": "Échec du chargement des projets",
       "runs": "Runs",
@@ -4597,6 +4612,8 @@
         "bomComplete": "BOM complète",
         "moveProducts": "Déplacer {quantity} produits dans le container du projet ({count} jobs)",
         "joinRequest": "{count} demandes d'adhésion",
+        "jobsToAssign": "{count} job à attribuer | {count} jobs à attribuer",
+        "actionOpen": "Ouvrir",
         "priceBelowBreakEven": "Jita {jitaPrice} < seuil {breakEven} · ne pas vendre au marché pour l'instant",
         "undercutSellOrder": "Sous-coté : {typeName} ×{quantity} à {market}, meilleur prix {best} contre {mine}"
       },

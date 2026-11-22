@@ -83,6 +83,7 @@ class IndustryJobMatcher
         $jobsByQuery = [];
         $unavailableJobIds = [];
         $retiredJobIds = [];
+        $dismissedJobIds = array_flip($this->unassignedJobRepository->findDismissedEsiJobIds());
 
         foreach ($released as $project) {
             $unavailableJobIds += $this->unavailableJobIdsOf($project);
@@ -121,6 +122,10 @@ class IndustryJobMatcher
                 $queryKey = $blueprintTypeId.'|'.implode(',', array_map(static fn (Uuid|int|null $id): string => (string) $id, $characterIds)).'|'.$project->getCreatedAt()->format('U.u');
                 $jobsByQuery[$queryKey] ??= $this->jobRepository->findManufacturingJobsByBlueprint($blueprintTypeId, $characterIds, null, $project->getCreatedAt());
                 foreach ($jobsByQuery[$queryKey] as $job) {
+                    if (isset($dismissedJobIds[$job->getJobId()])) {
+                        continue;
+                    }
+
                     if ($job->hasNoOutput() || isset($unavailableJobIds[$job->getJobId()])) {
                         $retiredJobIds[$job->getJobId()] = true;
 

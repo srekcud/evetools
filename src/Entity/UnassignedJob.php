@@ -30,6 +30,9 @@ class UnassignedJob
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $detectedAt;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $dismissedAt = null;
+
     public function __construct()
     {
         $this->detectedAt = new \DateTimeImmutable();
@@ -73,5 +76,17 @@ class UnassignedJob
     public function getDetectedAt(): \DateTimeImmutable
     {
         return $this->detectedAt;
+    }
+
+    public function getDismissedAt(): ?\DateTimeImmutable
+    {
+        return $this->dismissedAt;
+    }
+
+    public function setDismissedAt(?\DateTimeImmutable $dismissedAt): static
+    {
+        $this->dismissedAt = $dismissedAt;
+
+        return $this;
     }
 }

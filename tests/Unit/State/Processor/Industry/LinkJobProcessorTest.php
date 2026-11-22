@@ -13,29 +13,21 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectParticipant;
-use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\CachedIndustryJobRepository;
-use App\Repository\IndustryProjectJobMatchRepository;
-use App\Repository\IndustryProjectLineReservationRepository;
-use App\Repository\IndustryStructureConfigRepository;
-use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\UnassignedJobRepository;
-use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
-use App\Service\Industry\Project\ProjectContainerService;
+use App\Service\Industry\Project\ManualJobLinker;
 use App\State\Processor\Industry\LinkJobProcessor;
-use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 
 #[CoversClass(LinkJobProcessor::class)]
+#[CoversClass(ManualJobLinker::class)]
 #[CoversClass(IndustryJobMatcher::class)]
 #[Group('issue-362')]
 #[Group('issue-363')]
@@ -43,6 +35,7 @@ use Psr\Log\NullLogger;
 final class LinkJobProcessorTest extends TestCase
 {
     use TracksJobsAndPurchasesOnIshtarBom;
+    use BuildsManualJobLinker;
 
     private const int OWNER_ISHTAR_JOB_ID = 7_362_101;
     private const int OWNER_RAM_JOB_ID = 7_362_102;
@@ -53,8 +46,6 @@ final class LinkJobProcessorTest extends TestCase
     private const int PENDING_ISHTAR_JOB_ID = 7_362_107;
 
     private array $jobs = [];
-
-    private array $storedJobMatches = [];
 
     protected function setUp(): void
     {
@@ -196,46 +187,13 @@ final class LinkJobProcessorTest extends TestCase
         $jobRepository = $this->createStub(CachedIndustryJobRepository::class);
         $jobRepository->method('findByJobId')->willReturnCallback(fn (int $jobId): ?CachedIndustryJob => $this->jobs[$jobId] ?? null);
 
-        $jobMatchRepository = $this->createStub(IndustryProjectJobMatchRepository::class);
-        $jobMatchRepository->method('findOneBy')->willReturnCallback(
-            fn (array $criteria): ?IndustryProjectJobMatch => array_find(
-                $this->storedJobMatches,
-                static fn (IndustryProjectJobMatch $match): bool => $match->getEsiJobId() === $criteria['esiJobId'],
-            ),
-        );
-
-        $productRepository = $this->createStub(IndustryActivityProductRepository::class);
-        $productRepository->method('producerOf')->willReturnCallback(
-            static fn (int $productTypeId): IndustryActivityProduct => (new IndustryActivityProduct())
-                ->setTypeId($productTypeId === self::ISHTAR_TYPE_ID ? self::ISHTAR_BLUEPRINT_TYPE_ID : self::RAM_BLUEPRINT_TYPE_ID)
-                ->setActivityId(IndustryActivityType::Manufacturing->value)
-                ->setProductTypeId($productTypeId)
-                ->setQuantity(1),
-        );
-
-        $matcher = new IndustryJobMatcher(
-            $this->createStub(IndustryCalculationService::class),
-            $jobRepository,
-            $productRepository,
-            $jobMatchRepository,
-            $this->createStub(EntityManagerInterface::class),
-            new NullLogger(),
-            $this->createStub(ProjectContainerService::class),
-            $this->createStub(IndustryProjectLineReservationRepository::class),
-            $this->createStub(IndustryStructureConfigRepository::class),
-            $this->createStub(UnassignedJobRepository::class),
-        );
-
         return new LinkJobProcessor(
             $this->securityOf($user),
             $this->projectRepository(),
             $this->bomLineRepository(),
             $jobRepository,
-            $jobMatchRepository,
-            $productRepository,
             $this->accessChecker(),
-            $matcher,
-            $this->derivedContributionService(),
+            $this->manualJobLinker(),
         );
     }
 

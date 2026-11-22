@@ -6,10 +6,12 @@ import { useAuthStore } from '@/stores/auth'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useUnassignedJobsStore } from '@/stores/group-industry/unassignedJobs'
 import { useIndustryStore } from '@/stores/industry'
 import MainLayout from '@/layouts/MainLayout.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import ProjectKpiCards from '@/components/group-industry/ProjectKpiCards.vue'
+import UnassignedJobsPanel from '@/components/group-industry/UnassignedJobsPanel.vue'
 import ProjectCard from '@/components/group-industry/ProjectCard.vue'
 import AvailableProjectCard from '@/components/group-industry/AvailableProjectCard.vue'
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
@@ -25,6 +27,7 @@ const authStore = useAuthStore()
 const { getCorporationLogoUrl, onImageError } = useEveImages()
 const groupProjectStore = useGroupProjectStore()
 const industryStore = useIndustryStore()
+const unassignedJobsStore = useUnassignedJobsStore()
 
 // --- Data ---
 
@@ -164,6 +167,7 @@ function consumeNavigationIntent() {
 onMounted(() => {
   consumeNavigationIntent()
   fetchProjects()
+  void unassignedJobsStore.load()
 })
 </script>
 
@@ -286,6 +290,8 @@ onMounted(() => {
 
       <!-- My Projects Tab -->
       <div v-else-if="activeTab === 'my-projects'" class="screen-enter">
+        <UnassignedJobsPanel />
+
         <!-- KPI Cards -->
         <ProjectKpiCards :projects="myProjects" />
 

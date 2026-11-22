@@ -17,6 +17,7 @@ import { useDetachedWindow } from '@/composables/useDetachedWindow'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
+import { useUnassignedJobsStore } from '@/stores/group-industry/unassignedJobs'
 
 const CLOCK_TICK_MS = 30_000
 const BACKGROUND_RGB = '2 6 23'
@@ -24,6 +25,7 @@ const BACKGROUND_RGB = '2 6 23'
 const { t } = useI18n()
 const router = useRouter()
 const companion = useGroupCompanionStore()
+const unassignedJobs = useUnassignedJobsStore()
 const authStore = useAuthStore()
 const { showToast } = useToast()
 const detached = useDetachedWindow('group')
@@ -50,6 +52,7 @@ const tasks = computed(() => {
     myCharacterNames: authStore.user === null ? [] : authStore.user.characters.map(character => character.name),
     priceAlert: companion.priceAlert,
     undercutOrders: companion.undercutOrders,
+    unassignedJobCount: unassignedJobs.count,
     now: now.value,
   })
 })
@@ -130,6 +133,11 @@ function openBom(): Promise<void> {
   return goToProject({})
 }
 
+function openUnassignedJobs(): Promise<unknown> {
+  window.focus()
+  return router.push({ name: 'industry-projects', query: { tab: 'my-projects' } })
+}
+
 watch(
   () => companion.projectId,
   (projectId) => {
@@ -176,6 +184,7 @@ onBeforeUnmount(() => {
       @release="companion.release"
       @deliver="deliver"
       @open-bom="openBom"
+      @open-unassigned-jobs="openUnassignedJobs"
       @toggle-size="toggleSize"
     />
     <p v-else class="p-3 font-mono text-sm text-slate-300" role="status">{{ shownMessage ?? t('groupIndustry.companion.loading') }}</p>

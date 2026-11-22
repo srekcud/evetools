@@ -13,6 +13,7 @@ const TODO_SECTION = '[data-testid="companion-todo"]'
 const UNKNOWN_VALUE = '[data-unknown="true"]'
 const JOB_LINE = '[data-testid="companion-job"]'
 const ALERT = '[data-testid="companion-alert"]'
+const ALERT_ACTION = '[data-testid="companion-alert-action"]'
 const STANDALONE_ZERO = /(^|\D)0(\D|$)/
 
 function mountCompanion(tasks: CompanionTasks, options: { size?: 'bar' | 'column'; locale?: 'en' | 'fr' } = {}): VueWrapper {
@@ -181,6 +182,28 @@ describe('GroupCompanion', () => {
       bar: ['undercut_sell_order'],
       barWithJoinRequest: ['undercut_sell_order'],
       audio: 0,
+    })
+  })
+
+  it('writes the number of jobs to assign with its plural and asks to open them from the alert button', async () => {
+    const alertOf = (count: number) => companionTasksOf({ alerts: [{ key: 'jobs_to_assign', kind: 'jobs_to_assign' }], unassignedJobCount: count })
+
+    const several = mountCompanion(alertOf(3))
+    const single = mountCompanion(alertOf(1))
+    const actions = several.findAll(ALERT_ACTION)
+    const labels = actions.map(action => action.text())
+    if (actions.length > 0) await actions[0].trigger('click')
+
+    expect({
+      several: several.findAll(ALERT).map(alert => alert.text()),
+      single: single.findAll(ALERT).map(alert => alert.text()),
+      labels,
+      opened: several.emitted('open-unassigned-jobs')?.length,
+    }).toEqual({
+      several: ['3 jobs to assign'],
+      single: ['1 job to assign'],
+      labels: ['Open'],
+      opened: 1,
     })
   })
 

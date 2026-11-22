@@ -6,7 +6,9 @@ import GroupCompanionHost from '@/components/group-industry/GroupCompanionHost.v
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
+import { useUnassignedJobsStore } from '@/stores/group-industry/unassignedJobs'
 import { COMPANION_PROJECT_ID, companionProject } from './companionFixtures'
+import { unassignedJob } from './unassignedJobFixtures'
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }))
 
@@ -80,5 +82,25 @@ describe('GroupCompanionHost navigation to the project', () => {
       params: { id: COMPANION_PROJECT_ID },
       query: { tab: 'chain' },
     }]])
+  })
+
+  it('opens the my projects tab of the projects page from the jobs to assign alert, fed with the count of the unassigned jobs', async () => {
+    const wrapper = await mountOpenCompanion()
+    useUnassignedJobsStore().jobs = [unassignedJob({ esiJobId: 9_101 }), unassignedJob({ esiJobId: 9_102 }), unassignedJob({ esiJobId: 9_103 })]
+    await flushPromises()
+    const tasks = wrapper.getComponent(GroupCompanion).props('tasks')
+
+    wrapper.getComponent(GroupCompanion).vm.$emit('open-unassigned-jobs')
+    await flushPromises()
+
+    expect({
+      count: tasks.unassignedJobCount,
+      alerts: tasks.alerts.filter(alert => alert.kind === 'jobs_to_assign'),
+      navigation: router.push.mock.calls,
+    }).toEqual({
+      count: 3,
+      alerts: [{ key: 'jobs_to_assign', kind: 'jobs_to_assign' }],
+      navigation: [[{ name: 'industry-projects', query: { tab: 'my-projects' } }]],
+    })
   })
 })
