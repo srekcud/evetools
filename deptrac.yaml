@@ -163,6 +163,9 @@ deptrac:
     App\State\Processor\Industry\Project\DeclareStationTransferProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
       - App\State\Provider\Industry\Project\ProjectStationTransferResourceMapper
+    App\State\Processor\Industry\Project\StoreSurplusProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+      - App\State\Provider\Industry\Project\ProjectSurplusResourceMapper
     App\State\Processor\Industry\Project\ArriveStationTransferProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
       - App\State\Provider\Industry\Project\ProjectStationTransferResourceMapper
