@@ -83,6 +83,25 @@ describe('buildCompanionTasks', () => {
     })
   })
 
+  it('keeps a job line free when its only linked jobs were cancelled or reverted and hides it once a linked job is running, paused, ready or delivered', () => {
+    const lineLinkedTo = (id: string, statuses: string[]): BomItem => manufacturingJobLine(id, 2_185, {
+      freeQuantity: 4,
+      jobMatches: statuses.map((status, index) => jobMatch({ id: `${id}-match-${index}`, esiJobId: 960_000 + index, status, characterName: 'Zeta' })),
+    })
+
+    const tasks = tasksOf([
+      lineLinkedTo('bom-cancelled', ['cancelled']),
+      lineLinkedTo('bom-reverted', ['reverted']),
+      lineLinkedTo('bom-cancelled-then-active', ['cancelled', 'active']),
+      lineLinkedTo('bom-paused', ['paused']),
+      lineLinkedTo('bom-ready', ['ready']),
+      lineLinkedTo('bom-delivered', ['delivered']),
+      lineLinkedTo('bom-cancelled-then-delivered', ['cancelled', 'delivered']),
+    ])
+
+    expect(tasks.free.map(item => item.id)).toEqual(['bom-cancelled', 'bom-reverted'])
+  })
+
   it('keeps only the ready or running jobs of my characters and raises one job ready alert per ready job of mine', () => {
     const alphaLine = manufacturingJobLine('bom-ferox', 16_227, {
       jobMatches: [

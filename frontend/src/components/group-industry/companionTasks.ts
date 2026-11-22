@@ -53,6 +53,7 @@ export type CompanionTasksInput = {
 }
 
 const MY_JOB_STATUSES = ['active', 'paused', 'ready']
+const WORKED_JOB_STATUSES = ['active', 'paused', 'ready', 'delivered']
 const RUNNING_STATE: JobDisplayState = 'running'
 const FINAL_JOB_GROUP = 'final'
 const PENDING_MEMBER_STATUS = 'pending'
@@ -73,8 +74,8 @@ const KNOWN_JOB_ACTIVITIES: ActivityGroup[] = ['copy', 'invention', 'reaction', 
 export const ACTIVITY_GROUP_ORDER: ActivityGroup[] = ['copy', 'invention', 'reaction', 'manufacturing', 'material', 'unknown']
 
 function isFree(item: BomItem): boolean {
-  const alreadyHasLinkedJob = item.isJob && item.jobMatches.length > 0
-  return !item.isFulfilled && item.freeQuantity > 0 && !alreadyHasLinkedJob
+  const alreadyWorked = item.isJob && item.jobMatches.some(match => WORKED_JOB_STATUSES.includes(match.status))
+  return !item.isFulfilled && item.freeQuantity > 0 && !alreadyWorked
 }
 
 function isReadyToDeliver(match: JobMatch, now: number): boolean {
