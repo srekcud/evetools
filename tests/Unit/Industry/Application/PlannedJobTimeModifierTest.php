@@ -85,6 +85,15 @@ final class PlannedJobTimeModifierTest extends TestCase
     }
 
     #[Group('issue-1204')]
+    public function testCopyWithoutPlannedStructureHasNoStructureTimeBonus(): void
+    {
+        $modifier = $this->modifier()->ofCopy(null, $this->structures());
+
+        $this->assertNotNull($modifier);
+        $this->assertSame(1.0, $modifier->value);
+    }
+
+    #[Group('issue-1204')]
     public function testCopyTakesTheCopyTimeOfItsPlannedStructureFromItsRoleBonusAndItsCopyRigsOnly(): void
     {
         $modifier = $this->modifier()->ofCopy(self::AZBEL_ID, $this->structures());
