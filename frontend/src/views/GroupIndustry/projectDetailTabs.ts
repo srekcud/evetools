@@ -1,10 +1,10 @@
 import type { ProjectNextActionTab } from '@/stores/group-industry/types'
 
-export type ProjectDetailTab = 'bom' | 'contributions' | 'distribution' | 'sales' | 'members' | 'chain' | 'planning' | 'journal' | 'invention'
+export type ProjectDetailTab = 'bom' | 'contributions' | 'distribution' | 'sales' | 'members' | 'chain' | 'journal' | 'invention'
 
 export type ProjectComingSoonTab = 'invention'
 
-export const DETAIL_TABS: ProjectDetailTab[] = ['members', 'bom', 'contributions', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
+export const DETAIL_TABS: ProjectDetailTab[] = ['members', 'bom', 'contributions', 'invention', 'chain', 'sales', 'distribution', 'journal']
 
 export const COMING_SOON_TABS: ProjectComingSoonTab[] = []
 

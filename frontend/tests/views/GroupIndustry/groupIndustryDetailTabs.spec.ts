@@ -4,7 +4,6 @@ import BomTable from '@/components/group-industry/BomTable.vue'
 import DistributionTable from '@/components/group-industry/DistributionTable.vue'
 import FinancialSummary from '@/components/group-industry/FinancialSummary.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
-import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
@@ -32,7 +31,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-const ACTIVE_TABS = ['bom', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
+const ACTIVE_TABS = ['bom', 'invention', 'chain', 'sales', 'distribution', 'journal']
 const COMING_SOON_TABS: string[] = []
 
 async function mountSellingNyxOn(tab: string | undefined, locale: TestLocale = 'fr', teamSize = 1) {
@@ -78,7 +77,7 @@ describe('project cockpit sections', () => {
       materialsPanel,
       chainQueryOpensTheProductionChain: chainPanels.chain,
       chainQueryKeepsTheMaterialsClosed: chainPanels.materialsClosed,
-      planningQueryOpensThePlanning: planningQuery.findComponent(ProjectPlanning).exists(),
+      planningQueryOpensNoSection: ACTIVE_TABS.filter(tab => isSectionOpen(planningQuery, tab)),
       planningQueryKeepsTheMaterialsClosed: !planningQuery.findComponent(BomTable).exists(),
     }).toEqual({
       ids: [...ACTIVE_TABS, ...COMING_SOON_TABS].sort(),
@@ -86,7 +85,7 @@ describe('project cockpit sections', () => {
       materialsPanel: false,
       chainQueryOpensTheProductionChain: true,
       chainQueryKeepsTheMaterialsClosed: true,
-      planningQueryOpensThePlanning: true,
+      planningQueryOpensNoSection: [],
       planningQueryKeepsTheMaterialsClosed: true,
     })
   })

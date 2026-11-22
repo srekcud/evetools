@@ -62,7 +62,6 @@ async function mountProjectWithoutContainer(myRole: GroupMemberRole): Promise<Vu
         SaleSuggestionsPanel: true,
         ContractSaleSuggestions: true,
         ProjectSurplus: true,
-        ProjectPlanning: true,
         ProjectBuyOrBuild: true,
         ProjectResearch: true,
         ProjectStructures: true,

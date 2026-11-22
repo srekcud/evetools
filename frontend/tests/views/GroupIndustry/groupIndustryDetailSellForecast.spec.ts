@@ -24,7 +24,7 @@ const SETTINGS_ENDPOINT = '/me/settings'
 const SELL_FORECAST_CARD = '[data-testid="sell-forecast-card"]'
 const FINANCIAL_SUMMARY_STUB = 'financial-summary-stub'
 const FINANCES_TAB = 'distribution'
-const OTHER_TABS = ['bom', 'contributions', 'sales', 'members', 'chain', 'planning']
+const OTHER_TABS = ['bom', 'contributions', 'sales', 'members', 'chain']
 
 const NYX_FORECAST: SellForecast = {
   projectId: PROJECT_ID,
@@ -77,7 +77,6 @@ async function mountSellingNyxOn(tab: string): Promise<VueWrapper> {
         ProjectStructureHealth: true,
         MaterialSourcing: true,
         ProjectSurplus: true,
-        ProjectPlanning: true,
         MemberTable: true,
         PendingRequestsTable: true,
         ShareLinkCard: true,

@@ -11,7 +11,6 @@ import ProjectFlowGrid from '@/components/group-industry/ProjectFlowGrid.vue'
 import ProjectFlowPlanning from '@/components/group-industry/ProjectFlowPlanning.vue'
 import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
-import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import { GROUP_PROJECT_EVENT_COALESCE_MS } from '@/composables/useCoalescedGroupProjectEvents'
 import { apiRequest } from '@/services/api'
@@ -53,7 +52,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-const SECTION_KEYS = ['bom', 'contributions', 'distribution', 'sales', 'chain', 'planning', 'invention', 'journal', 'members']
+const SECTION_KEYS = ['bom', 'contributions', 'distribution', 'sales', 'chain', 'invention', 'journal', 'members']
 
 const SECTION_COMPONENTS = [
   { key: 'bom', component: BomTable },
@@ -61,7 +60,6 @@ const SECTION_COMPONENTS = [
   { key: 'distribution', component: DistributionTable },
   { key: 'sales', component: SalesTable },
   { key: 'chain', component: ProductionChain },
-  { key: 'planning', component: ProjectPlanning },
   { key: 'invention', component: ProjectInvention },
   { key: 'journal', component: ProjectJournal },
   { key: 'members', component: MemberTable },
@@ -225,10 +223,10 @@ describe('group project detail sections of the former tabs', () => {
   })
 
   it('scrolls the section requested by the URL into view', async () => {
-    const wrapper = await mountTeamNyx('planning')
+    const wrapper = await mountTeamNyx('chain')
 
-    expect(wrapper.find(sectionSelector('planning')).exists()).toBe(true)
-    expect(scrollIntoView.mock.contexts).toContain(wrapper.get(sectionSelector('planning')).element)
+    expect(wrapper.find(sectionSelector('chain')).exists()).toBe(true)
+    expect(scrollIntoView.mock.contexts).toContain(wrapper.get(sectionSelector('chain')).element)
   })
 
   it('opens a section from its summary, puts its tab in the URL and shows its content', async () => {

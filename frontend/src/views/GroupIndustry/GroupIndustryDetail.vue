@@ -76,7 +76,6 @@ import ProjectStructures from '@/components/group-industry/ProjectStructures.vue
 import ProjectPrepareBlock from '@/components/group-industry/ProjectPrepareBlock.vue'
 import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import ProjectInventionView from '@/components/group-industry/ProjectInventionView.vue'
-import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
 import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
@@ -1102,18 +1101,6 @@ function applyShareLinkShortcut(): void {
               @switched="onBuyOrBuildSwitched"
             />
             <ProjectStructureHealth :project-id="projectId" />
-          </div>
-        </ProjectSection>
-
-        <ProjectSection
-          v-if="!hiddenTabs.includes('planning')"
-          section-key="planning"
-          :open="activeTab === 'planning'"
-          @toggle="toggleSection('planning')"
-        >
-          <template #title>{{ t('groupIndustry.tabs.planning') }}</template>
-          <div class="relative rounded-xl">
-            <ProjectPlanning :project-id="projectId" />
           </div>
         </ProjectSection>
 

@@ -269,7 +269,6 @@ export async function mountCockpitDetail(answers: CockpitAnswers, locale: TestLo
         SaleSuggestionsPanel: true,
         ContractSaleSuggestions: true,
         ProjectSurplus: true,
-        ProjectPlanning: true,
         ProjectBuyOrBuild: true,
         ProjectResearch: true,
         ProjectStructures: true,

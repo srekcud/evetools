@@ -25,9 +25,9 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-const SOLO_TABS = ['bom', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
-const SOLO_TABS_WITHOUT_INVENTION = ['bom', 'chain', 'planning', 'sales', 'distribution', 'journal']
-const TEAM_TABS = ['members', 'bom', 'contributions', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
+const SOLO_TABS = ['bom', 'invention', 'chain', 'sales', 'distribution', 'journal']
+const SOLO_TABS_WITHOUT_INVENTION = ['bom', 'chain', 'sales', 'distribution', 'journal']
+const TEAM_TABS = ['members', 'bom', 'contributions', 'invention', 'chain', 'sales', 'distribution', 'journal']
 
 const OWNER: GroupMember = {
   id: 'owner-1',
