@@ -17,6 +17,7 @@ use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\UnassignedJobRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Industry\LineMatchFailure;
@@ -91,6 +92,7 @@ final class IndustryJobMatcherFailedLinesTest extends TestCase
             $containerService,
             $reservationRepository,
             $this->createStub(IndustryStructureConfigRepository::class),
+            $this->createStub(UnassignedJobRepository::class),
         );
     }
 

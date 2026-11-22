@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Industry\Domain\JobMatching;
 
+use App\Industry\Domain\JobMatching\AssignmentCandidate;
 use App\Industry\Domain\JobMatching\CandidateJob;
 use App\Industry\Domain\JobMatching\CandidateLine;
 use App\Industry\Domain\JobMatching\CandidateProject;
 use App\Industry\Domain\JobMatching\EligiblePair;
 use App\Industry\Domain\JobMatching\JobAssignment;
+use App\Industry\Domain\JobMatching\JobMatchPlan;
 use App\Industry\Domain\JobMatching\JobMatchPlanner;
+use App\Industry\Domain\JobMatching\JobToAssign;
 use App\Industry\Domain\JobMatching\MatchSignal;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -35,95 +38,115 @@ final class JobMatchPlannerTest extends TestCase
 
     public function testTheProducerCharactersOfAProjectGiveItTheIntentSignal(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(), $this->newer(producerInstallerIds: [self::INSTALLER, self::OTHER_INSTALLER])],
             [$this->lineOfOlder(10), $this->lineOfNewer(10)],
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $plan->assignments);
     }
 
     public function testAProducerListWithoutTheInstallerGivesNoPointAndDoesNotExcludeTheProject(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(producerInstallerIds: [self::OTHER_INSTALLER])],
             [$this->lineOfOlder(10)],
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $plan->assignments);
     }
 
     public function testALineReservedByTheInstallerGivesItTheIntentSignal(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(), $this->newer()],
             [$this->lineOfOlder(10), $this->lineOfNewer(10, reservingInstallerIds: [self::OTHER_INSTALLER, self::INSTALLER])],
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $plan->assignments);
     }
 
-    public function testAReservationByAnotherInstallerGivesNoPoint(): void
+    public function testAReservationByAnotherInstallerGivesNoPointSoTheJobStaysUnassigned(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(), $this->newer()],
             [$this->lineOfOlder(10), $this->lineOfNewer(10, reservingInstallerIds: [self::OTHER_INSTALLER])],
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0),
+        ])], $plan->unassignedJobs);
     }
 
     public function testTheContainerHoldingTheOutputOfTheJobGivesItsProjectThePlaceSignal(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(containerItemIds: [self::OTHER_CONTAINER_ITEM]), $this->newer(containerItemIds: [self::CONTAINER_ITEM])],
             [$this->lineOfOlder(10), $this->lineOfNewer(10)],
             [$this->job(self::JOB, 5, outputLocationId: self::CONTAINER_ITEM)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Place])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Place])], $plan->assignments);
     }
 
     public function testTheContainerHoldingTheBlueprintOfTheJobGivesItsProjectThePlaceSignal(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->newer(containerItemIds: [self::OTHER_CONTAINER_ITEM, self::CONTAINER_ITEM])],
             [$this->lineOfNewer(10)],
             [$this->job(self::JOB, 5, blueprintLocationId: self::CONTAINER_ITEM)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Place])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Place])], $plan->assignments);
     }
 
     public function testThePlannedStructureOfALineEqualToTheStationOfTheJobGivesItTheStructureSignal(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(), $this->newer()],
             [$this->lineOfOlder(10, plannedStructureId: self::OTHER_STRUCTURE), $this->lineOfNewer(10, plannedStructureId: self::PLANNED_STRUCTURE)],
             [$this->job(self::JOB, 5, stationId: self::PLANNED_STRUCTURE)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Structure])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Structure])], $plan->assignments);
     }
 
-    public function testRunsEqualToTheRemainderOfALineGiveItTheExactFitSignal(): void
+    public function testRunsEqualToTheRemainderOfALineGiveItTheExactFitSignalButNeverDecideBetweenProjects(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(), $this->newer()],
-            [$this->lineOfOlder(10), $this->lineOfNewer(5)],
+            [$this->lineOfOlder(8), $this->lineOfNewer(5)],
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::ExactFit])], $assignments);
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 1, [MatchSignal::ExactFit]),
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testExactFitOnTheOnlyProjectHoldingAFittingLineLinksTheJob(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older()],
+            [$this->lineOfOlder(5)],
+            [$this->job(self::JOB, 5)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [MatchSignal::ExactFit])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
     }
 
     public function testASignalPairKeepsEverySignalInTheEnumOrder(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(), $this->newer(producerInstallerIds: [self::INSTALLER], containerItemIds: [self::CONTAINER_ITEM])],
             [$this->lineOfOlder(7), $this->lineOfNewer(7, plannedStructureId: self::PLANNED_STRUCTURE)],
             [$this->job(self::JOB, 7, outputLocationId: self::CONTAINER_ITEM, stationId: self::PLANNED_STRUCTURE)],
@@ -133,12 +156,12 @@ final class JobMatchPlannerTest extends TestCase
             self::JOB,
             self::LINE_OF_NEWER,
             [MatchSignal::Intent, MatchSignal::Place, MatchSignal::Structure, MatchSignal::ExactFit],
-        )], $assignments);
+        )], $plan->assignments);
     }
 
     public function testTheIntentOfAReservationBeatsPlaceStructureAndExactFitTogether(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [
                 $this->older(containerItemIds: [self::CONTAINER_ITEM]),
                 $this->newer(containerItemIds: [self::OTHER_CONTAINER_ITEM]),
@@ -150,12 +173,12 @@ final class JobMatchPlannerTest extends TestCase
             [$this->job(self::JOB, 5, outputLocationId: self::CONTAINER_ITEM, stationId: self::PLANNED_STRUCTURE)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $plan->assignments);
     }
 
     public function testThePlaceSignalBeatsStructureAndExactFitTogether(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [
                 $this->older(containerItemIds: [self::OTHER_CONTAINER_ITEM]),
                 $this->newer(containerItemIds: [self::CONTAINER_ITEM]),
@@ -167,18 +190,18 @@ final class JobMatchPlannerTest extends TestCase
             [$this->job(self::JOB, 5, outputLocationId: self::CONTAINER_ITEM, stationId: self::PLANNED_STRUCTURE)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Place])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Place])], $plan->assignments);
     }
 
     public function testTheStructureSignalBeatsExactFit(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(), $this->newer()],
             [$this->lineOfOlder(5), $this->lineOfNewer(10, plannedStructureId: self::PLANNED_STRUCTURE)],
             [$this->job(self::JOB, 5, stationId: self::PLANNED_STRUCTURE)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Structure])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Structure])], $plan->assignments);
     }
 
     public function testTheWeightsOfTheSignalsAreEightFourTwoOne(): void
@@ -193,22 +216,26 @@ final class JobMatchPlannerTest extends TestCase
         );
     }
 
-    public function testTheOldestProjectTakesAJobNothingDistinguishes(): void
+    public function testAJobNothingDistinguishesIsUnassignedWithTheOldestProjectFirstWhateverTheInputOrder(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->newer(), $this->older()],
             [$this->lineOfNewer(10), $this->lineOfOlder(10)],
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0),
+        ])], $plan->unassignedJobs);
     }
 
-    public function testProjectsCreatedAtTheSameTimeAreOrderedByTheirId(): void
+    public function testCandidatesOfProjectsCreatedAtTheSameTimeAreOrderedByTheirProjectId(): void
     {
         $createdAt = new \DateTimeImmutable('2026-03-01 08:00:00');
 
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [
                 new CandidateProject(self::NEWER_PROJECT, $createdAt),
                 new CandidateProject(self::OLDER_PROJECT, $createdAt),
@@ -217,93 +244,109 @@ final class JobMatchPlannerTest extends TestCase
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0),
+        ])], $plan->unassignedJobs);
     }
 
-    public function testProjectsCreatedAtTheSameTimeAreOrderedByProjectIdNotByLineId(): void
+    public function testCandidatesOfProjectsCreatedAtTheSameTimeAreOrderedByProjectIdNotByLineId(): void
     {
         $createdAt = new \DateTimeImmutable('2026-03-01 08:00:00');
         $lineOfFirstProject = new CandidateLine('01900000-0000-7000-8000-0000000000b9', self::OLDER_PROJECT, 10);
         $lineOfSecondProject = new CandidateLine('01900000-0000-7000-8000-0000000000b1', self::NEWER_PROJECT, 10);
 
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [new CandidateProject(self::NEWER_PROJECT, $createdAt), new CandidateProject(self::OLDER_PROJECT, $createdAt)],
             [$lineOfSecondProject, $lineOfFirstProject],
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, $lineOfFirstProject->id, [])], $assignments);
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, $lineOfFirstProject->id, 0),
+            $this->candidate(self::NEWER_PROJECT, $lineOfSecondProject->id, 0),
+        ])], $plan->unassignedJobs);
     }
 
-    public function testAJobWhoseBlueprintIsInTheContainerOfTwoProjectsGoesToTheOldestOne(): void
+    public function testAJobWhoseBlueprintIsInTheContainerOfTwoProjectsIsUnassignedBecauseThePlacePointIsTied(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(null, [self::CONTAINER_ITEM]), $this->newer(null, [self::CONTAINER_ITEM])],
             [$this->lineOfOlder(10), $this->lineOfNewer(10)],
             [$this->job(self::JOB, 5, blueprintLocationId: self::CONTAINER_ITEM)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [MatchSignal::Place])], $assignments);
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 4, [MatchSignal::Place]),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 4, [MatchSignal::Place]),
+        ])], $plan->unassignedJobs);
     }
 
     public function testTheLineWithTheLowestIdOfAProjectTakesAJobNothingDistinguishes(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older()],
             [$this->secondLineOfOlder(10), $this->lineOfOlder(10)],
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $plan->assignments);
     }
 
     public function testTheJobWithTheLowestIdIsLinkedFirstWhenTheRemainderFitsOnlyOne(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older()],
             [$this->lineOfOlder(10)],
             [$this->job(self::OTHER_JOB, 9), $this->job(self::JOB, 8)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $plan->assignments);
     }
 
     public function testEveryUnknownDataGivesNoPointAndExcludesNoPair(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [new CandidateProject(self::OLDER_PROJECT, new \DateTimeImmutable('2026-01-10'), null, null)],
             [new CandidateLine(self::LINE_OF_OLDER, self::OLDER_PROJECT, 10, null, [])],
             [new CandidateJob(self::JOB, 5, self::INSTALLER, null, null, null)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $plan->assignments);
     }
 
     public function testAJobWithoutLocationsGetsNoPlaceNorStructurePointFromAKnownContainerAndAPlannedStructure(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(containerItemIds: [self::CONTAINER_ITEM]), $this->newer(containerItemIds: [self::OTHER_CONTAINER_ITEM])],
             [$this->lineOfOlder(10, plannedStructureId: self::PLANNED_STRUCTURE), $this->lineOfNewer(10, plannedStructureId: self::OTHER_STRUCTURE)],
             [$this->job(self::JOB, 5)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0),
+        ])], $plan->unassignedJobs);
     }
 
     public function testAContainerThatHoldsNeitherLocationOfTheJobGivesNoPointAndExcludesNoPair(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->newer(containerItemIds: [self::OTHER_CONTAINER_ITEM])],
             [$this->lineOfNewer(10)],
             [$this->job(self::JOB, 5, blueprintLocationId: self::CONTAINER_ITEM, outputLocationId: 60_003_760)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [])], $plan->assignments);
     }
 
-    public function testAJobWhoseBlueprintIsInTheContainerOfAnotherProjectIsNotEligibleForThisOne(): void
+    public function testAJobWhoseBlueprintIsInTheContainerOfAnotherProjectIsNotACandidateForThisOne(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(containerItemIds: [self::CONTAINER_ITEM]), $this->newer()],
             [$this->lineOfOlder(3), $this->lineOfNewer(5)],
             [
@@ -312,12 +355,15 @@ final class JobMatchPlannerTest extends TestCase
             ],
         );
 
-        self::assertEquals([new JobAssignment(self::OTHER_JOB, self::LINE_OF_NEWER, [MatchSignal::ExactFit])], $assignments);
+        self::assertEquals([new JobAssignment(self::OTHER_JOB, self::LINE_OF_NEWER, [MatchSignal::ExactFit])], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 4, [MatchSignal::Place], true),
+        ])], $plan->unassignedJobs);
     }
 
     public function testAJobWhoseBlueprintIsInTheContainerOfAProjectStaysWithItEvenWhenAnotherProjectHasAStrongerSignal(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [
                 $this->older(containerItemIds: [self::CONTAINER_ITEM]),
                 $this->newer(producerInstallerIds: [self::INSTALLER], containerItemIds: [self::OTHER_CONTAINER_ITEM]),
@@ -326,48 +372,62 @@ final class JobMatchPlannerTest extends TestCase
             [$this->job(self::JOB, 5, blueprintLocationId: self::CONTAINER_ITEM, outputLocationId: self::OTHER_CONTAINER_ITEM)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [MatchSignal::Place])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [MatchSignal::Place])], $plan->assignments);
     }
 
     public function testAProjectWithAnUnknownScopeDoesNotExcludeTheJobFromOtherProjects(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(containerItemIds: null), $this->newer(containerItemIds: [self::CONTAINER_ITEM])],
             [$this->lineOfOlder(10), $this->lineOfNewer(10)],
             [$this->job(self::JOB, 5, blueprintLocationId: 60_008_494)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0),
+        ])], $plan->unassignedJobs);
     }
 
-    public function testAJobWithMoreRunsThanTheRemainderOfEveryLineIsLeftOut(): void
+    public function testAJobWithMoreRunsThanTheRemainderOfEveryLineIsNeverLinkedAndBecomesAnOversizedCandidate(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older()],
             [$this->lineOfOlder(5)],
             [$this->job(self::JOB, 6), $this->job(self::OTHER_JOB, 3)],
         );
 
-        self::assertEquals([new JobAssignment(self::OTHER_JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertEquals([new JobAssignment(self::OTHER_JOB, self::LINE_OF_OLDER, [])], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0, [], true),
+        ])], $plan->unassignedJobs);
     }
 
-    public function testAJobOfSixRunsAndAJobOfFourRunsFillTheExactLineThenTheLargerLine(): void
+    public function testAJobOfSixRunsAndAJobOfFourRunsFittingTwoProjectsAreBothUnassignedWhenNothingDecides(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older(), $this->newer()],
             [$this->lineOfOlder(10), $this->lineOfNewer(6)],
             [$this->job(self::JOB, 6), $this->job(self::OTHER_JOB, 4)],
         );
 
+        self::assertSame([], $plan->assignments);
         self::assertEquals([
-            new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::ExactFit]),
-            new JobAssignment(self::OTHER_JOB, self::LINE_OF_OLDER, []),
-        ], $assignments);
+            self::JOB => [
+                $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 1, [MatchSignal::ExactFit]),
+                $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            ],
+            self::OTHER_JOB => [
+                $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+                $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0),
+            ],
+        ], $this->candidatesByJobId($plan));
     }
 
     public function testSeveralJobsFillALineAndTheRemainderIsCountedForEachNextScore(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
             [$this->older()],
             [$this->lineOfOlder(10)],
             [$this->job(self::JOB, 6), $this->job(self::OTHER_JOB, 4), $this->job(self::THIRD_JOB, 4)],
@@ -376,30 +436,47 @@ final class JobMatchPlannerTest extends TestCase
         self::assertEquals([
             new JobAssignment(self::JOB, self::LINE_OF_OLDER, []),
             new JobAssignment(self::OTHER_JOB, self::LINE_OF_OLDER, [MatchSignal::ExactFit]),
-        ], $assignments);
+        ], $plan->assignments);
     }
 
-    public function testAJobIsLinkedOnceEvenWhenItIsEligibleForSeveralLines(): void
+    public function testAJobIsLinkedOnceToTheBestLineOfTheOnlyProjectHoldingFittingLines(): void
     {
-        $assignments = $this->planAllPairs(
+        $plan = $this->planAllPairs(
+            [$this->older()],
+            [$this->lineOfOlder(10), $this->secondLineOfOlder(10, plannedStructureId: self::PLANNED_STRUCTURE)],
+            [$this->job(self::JOB, 4, stationId: self::PLANNED_STRUCTURE)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::SECOND_LINE_OF_OLDER, [MatchSignal::Structure])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testEveryFittingLineOfEveryProjectIsACandidateOfAnAmbiguousJob(): void
+    {
+        $plan = $this->planAllPairs(
             [$this->older(), $this->newer()],
             [$this->lineOfOlder(10), $this->secondLineOfOlder(10), $this->lineOfNewer(10)],
             [$this->job(self::JOB, 4)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $assignments);
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            $this->candidate(self::OLDER_PROJECT, self::SECOND_LINE_OF_OLDER, 0),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0),
+        ])], $plan->unassignedJobs);
     }
 
     public function testOnlyTheEligiblePairsAreConsidered(): void
     {
-        $assignments = JobMatchPlanner::plan(
+        $plan = JobMatchPlanner::plan(
             [$this->older(), $this->newer()],
             [$this->lineOfOlder(10), $this->lineOfNewer(10)],
             [$this->job(self::JOB, 5)],
             [new EligiblePair(self::JOB, self::LINE_OF_NEWER)],
         );
 
-        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [])], $assignments);
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [])], $plan->assignments);
     }
 
     public function testTheResultDoesNotDependOnTheOrderOfTheInputs(): void
@@ -424,13 +501,13 @@ final class JobMatchPlannerTest extends TestCase
             new JobAssignment(self::JOB, self::SECOND_LINE_OF_OLDER, [MatchSignal::Structure, MatchSignal::ExactFit]),
         ];
 
-        self::assertEquals($expected, $this->planAllPairs($projects, $lines, $jobs));
-        self::assertEquals($expected, $this->planAllPairs(array_reverse($projects), array_reverse($lines), array_reverse($jobs)));
+        self::assertEquals($expected, $this->planAllPairs($projects, $lines, $jobs)->assignments);
+        self::assertEquals($expected, $this->planAllPairs(array_reverse($projects), array_reverse($lines), array_reverse($jobs))->assignments);
         self::assertEquals($expected, $this->planAllPairs(
             [$projects[1], $projects[0]],
             [$lines[1], $lines[2], $lines[0]],
             [$jobs[2], $jobs[0], $jobs[1]],
-        ));
+        )->assignments);
     }
 
     public function testTheResultDoesNotDependOnTheOrderOfTheEligiblePairs(): void
@@ -444,13 +521,255 @@ final class JobMatchPlannerTest extends TestCase
             new EligiblePair(self::OTHER_JOB, self::LINE_OF_OLDER),
             new EligiblePair(self::OTHER_JOB, self::LINE_OF_NEWER),
         ];
-        $expected = [
-            new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::ExactFit]),
-            new JobAssignment(self::OTHER_JOB, self::LINE_OF_OLDER, []),
-        ];
+        $expected = JobMatchPlanner::plan($projects, $lines, $jobs, $pairs);
 
-        self::assertEquals($expected, JobMatchPlanner::plan($projects, $lines, $jobs, $pairs));
+        self::assertSame([], $expected->assignments);
+        self::assertCount(2, $expected->unassignedJobs);
         self::assertEquals($expected, JobMatchPlanner::plan($projects, $lines, $jobs, array_reverse($pairs)));
+        self::assertEquals($expected, JobMatchPlanner::plan(array_reverse($projects), array_reverse($lines), array_reverse($jobs), $pairs));
+    }
+
+    public function testAJobWithFittingLinesInOneProjectOnlyIsLinkedEvenWhenAnotherProjectLineIsTooSmall(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer()],
+            [$this->lineOfOlder(10), $this->lineOfNewer(3)],
+            [$this->job(self::JOB, 5)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testAProjectHoldingTheContainerOfTheOutputBeatsAProjectWithoutIt(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer(containerItemIds: [self::CONTAINER_ITEM])],
+            [$this->lineOfOlder(5), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 5, outputLocationId: self::CONTAINER_ITEM)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Place])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testPlaceAndStructureOnOneProjectBeatPlaceAloneOnTheOther(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(containerItemIds: [self::CONTAINER_ITEM]), $this->newer(containerItemIds: [self::CONTAINER_ITEM])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(10, plannedStructureId: self::PLANNED_STRUCTURE)],
+            [$this->job(self::JOB, 5, outputLocationId: self::CONTAINER_ITEM, stationId: self::PLANNED_STRUCTURE)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_NEWER, [MatchSignal::Place, MatchSignal::Structure])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testPlaceAndStructureOnBothProjectsLeaveTheJobUnassigned(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(containerItemIds: [self::CONTAINER_ITEM]), $this->newer(containerItemIds: [self::CONTAINER_ITEM])],
+            [$this->lineOfOlder(10, plannedStructureId: self::PLANNED_STRUCTURE), $this->lineOfNewer(10, plannedStructureId: self::PLANNED_STRUCTURE)],
+            [$this->job(self::JOB, 5, outputLocationId: self::CONTAINER_ITEM, stationId: self::PLANNED_STRUCTURE)],
+        );
+
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 6, [MatchSignal::Place, MatchSignal::Structure]),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 6, [MatchSignal::Place, MatchSignal::Structure]),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testIntentOnBothProjectsLeavesTheJobUnassignedAndTheExactFitLineFirst(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(producerInstallerIds: [self::INSTALLER]), $this->newer(producerInstallerIds: [self::INSTALLER])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(5)],
+            [$this->job(self::JOB, 5)],
+        );
+
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 9, [MatchSignal::Intent, MatchSignal::ExactFit]),
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 8, [MatchSignal::Intent]),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testTwoLinesOfTheSameProjectAreNotAmbiguousAndTheJobGoesToTheBestOne(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer()],
+            [$this->lineOfOlder(10), $this->secondLineOfOlder(4), $this->lineOfNewer(2)],
+            [$this->job(self::JOB, 4)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::SECOND_LINE_OF_OLDER, [MatchSignal::ExactFit])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testAnAmbiguousJobTakesNoRemainderSoAnotherJobFillsTheLine(): void
+    {
+        $plan = JobMatchPlanner::plan(
+            [$this->older(), $this->newer()],
+            [$this->lineOfOlder(5), $this->lineOfNewer(5)],
+            [$this->job(self::JOB, 5), $this->job(self::OTHER_JOB, 5)],
+            [
+                new EligiblePair(self::JOB, self::LINE_OF_OLDER),
+                new EligiblePair(self::JOB, self::LINE_OF_NEWER),
+                new EligiblePair(self::OTHER_JOB, self::LINE_OF_OLDER),
+            ],
+        );
+
+        self::assertEquals([new JobAssignment(self::OTHER_JOB, self::LINE_OF_OLDER, [MatchSignal::ExactFit])], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 1, [MatchSignal::ExactFit]),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 1, [MatchSignal::ExactFit]),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testAnAmbiguousJobBecomesLinkedWhenAnEarlierLinkOfThePassFillsTheLineOfTheOtherProject(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer(producerInstallerIds: [self::OTHER_INSTALLER])],
+            [$this->lineOfOlder(5), $this->lineOfNewer(5)],
+            [$this->job(self::JOB, 5), $this->job(self::OTHER_JOB, 5, installerId: self::OTHER_INSTALLER)],
+        );
+
+        self::assertEquals([
+            new JobAssignment(self::OTHER_JOB, self::LINE_OF_NEWER, [MatchSignal::Intent, MatchSignal::ExactFit]),
+            new JobAssignment(self::JOB, self::LINE_OF_OLDER, [MatchSignal::ExactFit]),
+        ], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testCandidatesAreSortedBestScoreFirstWhateverTheProjectAge(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(containerItemIds: [self::CONTAINER_ITEM]), $this->newer(containerItemIds: [self::CONTAINER_ITEM])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(5)],
+            [$this->job(self::JOB, 5, outputLocationId: self::CONTAINER_ITEM)],
+        );
+
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 5, [MatchSignal::Place, MatchSignal::ExactFit]),
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 4, [MatchSignal::Place]),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testAJobTooLargeForTheLinesOfTwoProjectsGetsOneOversizedCandidatePerLine(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer()],
+            [$this->lineOfOlder(10), $this->lineOfNewer(6)],
+            [$this->job(self::JOB, 12)],
+        );
+
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0, [], true),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0, [], true),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testAJobTooLargeForTheOnlyLineOfASingleProjectIsNeverLinkedWhateverItsSignals(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(producerInstallerIds: [self::INSTALLER])],
+            [$this->lineOfOlder(10)],
+            [$this->job(self::JOB, 12)],
+        );
+
+        self::assertSame([], $plan->assignments);
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 8, [MatchSignal::Intent], true),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testOversizedCandidatesAreSortedWithTheStaticSignalsOfEachLine(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer(containerItemIds: [self::CONTAINER_ITEM])],
+            [$this->lineOfOlder(10), $this->lineOfNewer(6)],
+            [$this->job(self::JOB, 12, outputLocationId: self::CONTAINER_ITEM)],
+        );
+
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 4, [MatchSignal::Place], true),
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0, [], true),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testAJobTooLargeForOneLineButFittingAnotherIsLinkedWithoutAnyOversizedCandidate(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer()],
+            [$this->lineOfOlder(20), $this->lineOfNewer(6)],
+            [$this->job(self::JOB, 12)],
+        );
+
+        self::assertEquals([new JobAssignment(self::JOB, self::LINE_OF_OLDER, [])], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testAnAmbiguousJobListsOnlyTheFittingPairsNotTheOversizedOnes(): void
+    {
+        $plan = $this->planAllPairs(
+            [$this->older(), $this->newer()],
+            [$this->lineOfOlder(10), $this->secondLineOfOlder(6), $this->lineOfNewer(10)],
+            [$this->job(self::JOB, 8)],
+        );
+
+        self::assertEquals([new JobToAssign(self::JOB, [
+            $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0),
+        ])], $plan->unassignedJobs);
+    }
+
+    public function testAJobWithoutAnyEligiblePairProducesNothing(): void
+    {
+        $plan = JobMatchPlanner::plan([$this->older()], [$this->lineOfOlder(10)], [$this->job(self::JOB, 5)], []);
+
+        self::assertSame([], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testAJobTooLargeForALineWithoutRemainderProducesNothing(): void
+    {
+        $plan = $this->planAllPairs([$this->older()], [$this->lineOfOlder(0)], [$this->job(self::JOB, 5)]);
+
+        self::assertSame([], $plan->assignments);
+        self::assertSame([], $plan->unassignedJobs);
+    }
+
+    public function testTheUnassignedJobsDoNotDependOnTheOrderOfTheInputs(): void
+    {
+        $projects = [
+            $this->older(),
+            $this->newer(producerInstallerIds: [self::OTHER_INSTALLER]),
+        ];
+        $lines = [$this->lineOfOlder(10), $this->secondLineOfOlder(3), $this->lineOfNewer(10)];
+        $jobs = [
+            $this->job(self::JOB, 5),
+            $this->job(self::OTHER_JOB, 5, installerId: self::OTHER_INSTALLER),
+            $this->job(self::THIRD_JOB, 12),
+        ];
+        $expected = $this->planAllPairs($projects, $lines, $jobs);
+
+        self::assertEquals([new JobAssignment(self::OTHER_JOB, self::LINE_OF_NEWER, [MatchSignal::Intent])], $expected->assignments);
+        self::assertEquals([
+            self::JOB => [
+                $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 1, [MatchSignal::ExactFit]),
+                $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0),
+            ],
+            self::THIRD_JOB => [
+                $this->candidate(self::OLDER_PROJECT, self::LINE_OF_OLDER, 0, [], true),
+                $this->candidate(self::OLDER_PROJECT, self::SECOND_LINE_OF_OLDER, 0, [], true),
+                $this->candidate(self::NEWER_PROJECT, self::LINE_OF_NEWER, 0, [], true),
+            ],
+        ], $this->candidatesByJobId($expected));
+        self::assertEquals($expected, $this->planAllPairs(array_reverse($projects), array_reverse($lines), array_reverse($jobs)));
+        self::assertEquals($expected, $this->planAllPairs([$projects[1], $projects[0]], [$lines[1], $lines[2], $lines[0]], [$jobs[2], $jobs[0], $jobs[1]]));
     }
 
     private function older(?array $producerInstallerIds = null, ?array $containerItemIds = null): CandidateProject
@@ -489,7 +808,23 @@ final class JobMatchPlannerTest extends TestCase
         return new CandidateJob($jobId, $runs, $installerId, $blueprintLocationId, $outputLocationId, $stationId);
     }
 
-    private function planAllPairs(array $projects, array $lines, array $jobs): array
+    private function candidate(string $projectId, string $lineId, int $score, array $signals = [], bool $oversized = false): AssignmentCandidate
+    {
+        return new AssignmentCandidate($projectId, $lineId, $score, $signals, $oversized);
+    }
+
+    private function candidatesByJobId(JobMatchPlan $plan): array
+    {
+        $byJobId = [];
+        foreach ($plan->unassignedJobs as $unassignedJob) {
+            $byJobId[$unassignedJob->jobId] = $unassignedJob->candidates;
+        }
+        ksort($byJobId);
+
+        return $byJobId;
+    }
+
+    private function planAllPairs(array $projects, array $lines, array $jobs): JobMatchPlan
     {
         $pairs = [];
         foreach ($jobs as $job) {

@@ -9,21 +9,25 @@ use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\UnassignedJob;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ParticipantStatus;
 use App\Exception\ProducerMissingFromSdeException;
+use App\Industry\Domain\JobMatching\AssignmentCandidate;
 use App\Industry\Domain\JobMatching\CandidateJob;
 use App\Industry\Domain\JobMatching\CandidateLine;
 use App\Industry\Domain\JobMatching\CandidateProject;
 use App\Industry\Domain\JobMatching\EligiblePair;
 use App\Industry\Domain\JobMatching\JobMatchPlanner;
+use App\Industry\Domain\JobMatching\JobToAssign;
 use App\Industry\Domain\JobMatching\MatchSignal;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\UnassignedJobRepository;
 use App\Service\Industry\Project\ProjectContainerService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -50,6 +54,7 @@ class IndustryJobMatcher
         private readonly ProjectContainerService $containerService,
         private readonly IndustryProjectLineReservationRepository $reservationRepository,
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
+        private readonly UnassignedJobRepository $unassignedJobRepository,
     ) {
     }
 
@@ -77,6 +82,7 @@ class IndustryJobMatcher
         $jobsById = [];
         $jobsByQuery = [];
         $unavailableJobIds = [];
+        $retiredJobIds = [];
 
         foreach ($released as $project) {
             $unavailableJobIds += $this->unavailableJobIdsOf($project);
@@ -116,6 +122,8 @@ class IndustryJobMatcher
                 $jobsByQuery[$queryKey] ??= $this->jobRepository->findManufacturingJobsByBlueprint($blueprintTypeId, $characterIds, null, $project->getCreatedAt());
                 foreach ($jobsByQuery[$queryKey] as $job) {
                     if ($job->hasNoOutput() || isset($unavailableJobIds[$job->getJobId()])) {
+                        $retiredJobIds[$job->getJobId()] = true;
+
                         continue;
                     }
 
@@ -136,7 +144,8 @@ class IndustryJobMatcher
             }
         }
 
-        foreach (JobMatchPlanner::plan($candidateProjects, $candidateLines, $candidateJobs, $eligiblePairs) as $assignment) {
+        $plan = JobMatchPlanner::plan($candidateProjects, $candidateLines, $candidateJobs, $eligiblePairs);
+        foreach ($plan->assignments as $assignment) {
             $line = $linesById[$assignment->lineId];
             $line->addJobMatch($this->createJobMatch(
                 $jobsById[$assignment->jobId],
@@ -145,6 +154,8 @@ class IndustryJobMatcher
                 array_map(static fn (MatchSignal $signal): string => $signal->value, $assignment->signals),
             ));
         }
+
+        $this->recordUnassignedJobs($plan->unassignedJobs, $jobsById, [...array_keys($retiredJobIds), ...array_keys($unavailableJobIds)]);
 
         $this->entityManager->flush();
 
@@ -165,9 +176,49 @@ class IndustryJobMatcher
     {
         $match = $this->createJobMatch($job, $line, true, null);
         $line->addJobMatch($match);
+        $this->forgetUnassignedJobs([$job->getJobId()]);
         $this->entityManager->flush();
 
         return $match;
+    }
+
+    /**
+     * @param list<JobToAssign>         $unassignedJobs
+     * @param array<int, CachedIndustryJob> $jobsById
+     * @param list<int>                 $retiredJobIds
+     */
+    private function recordUnassignedJobs(array $unassignedJobs, array $jobsById, array $retiredJobIds): void
+    {
+        $unassignedIds = array_map(static fn (JobToAssign $unassigned): int => $unassigned->jobId, $unassignedJobs);
+        $stored = $this->unassignedJobRepository->findByEsiJobIds([...array_keys($jobsById), ...$retiredJobIds]);
+
+        foreach ($unassignedJobs as $unassigned) {
+            $row = $stored[$unassigned->jobId] ?? (new UnassignedJob())->setJob($jobsById[$unassigned->jobId]);
+            $row->setCandidates(array_map(static fn (AssignmentCandidate $candidate): array => [
+                'projectId' => $candidate->projectId,
+                'lineId' => $candidate->lineId,
+                'score' => $candidate->score,
+                'signals' => array_map(static fn (MatchSignal $signal): string => $signal->value, $candidate->signals),
+                'oversized' => $candidate->oversized,
+            ], $unassigned->candidates));
+            $this->entityManager->persist($row);
+        }
+
+        foreach ($stored as $jobId => $row) {
+            if (!\in_array($jobId, $unassignedIds, true)) {
+                $this->entityManager->remove($row);
+            }
+        }
+    }
+
+    /**
+     * @param list<int> $esiJobIds
+     */
+    private function forgetUnassignedJobs(array $esiJobIds): void
+    {
+        foreach ($this->unassignedJobRepository->findByEsiJobIds($esiJobIds) as $row) {
+            $this->entityManager->remove($row);
+        }
     }
 
     private function reported(IndustryProject $project, LineMatchFailure $failure): LineMatchFailure

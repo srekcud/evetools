@@ -11,10 +11,8 @@ final class JobMatchPlanner
      * @param list<CandidateLine>    $lines
      * @param list<CandidateJob>     $jobs
      * @param list<EligiblePair>     $eligiblePairs
-     *
-     * @return list<JobAssignment>
      */
-    public static function plan(array $projects, array $lines, array $jobs, array $eligiblePairs): array
+    public static function plan(array $projects, array $lines, array $jobs, array $eligiblePairs): JobMatchPlan
     {
         $projectsById = [];
         foreach ($projects as $project) {
@@ -36,39 +34,143 @@ final class JobMatchPlanner
         $candidates = self::candidatesOf($projectsById, $linesById, $jobsById, $eligiblePairs);
 
         $assignments = [];
-        $assignedJobIds = [];
+        $unassignedJobs = [];
+        $handledJobIds = [];
         while (true) {
-            $best = null;
-            foreach ($candidates as $candidate) {
-                if (isset($assignedJobIds[$candidate['job']->jobId])) {
-                    continue;
-                }
-
-                $remainingRuns = $remainingRunsByLineId[$candidate['line']->id];
-                if ($candidate['job']->runs > $remainingRuns) {
-                    continue;
-                }
-
-                $candidate['exactFit'] = $candidate['job']->runs === $remainingRuns;
-                $candidate['score'] = $candidate['staticScore'] + ($candidate['exactFit'] ? MatchSignal::ExactFit->weight() : 0);
-
-                if ($best === null || self::isBetter($candidate, $best)) {
-                    $best = $candidate;
-                }
+            $fitting = self::fittingCandidates($candidates, $handledJobIds, $remainingRunsByLineId);
+            if ($fitting === []) {
+                break;
             }
 
-            if ($best === null) {
-                return $assignments;
+            $best = self::bestOf($fitting);
+            $jobId = $best['job']->jobId;
+            $handledJobIds[$jobId] = true;
+            $ofJob = array_values(array_filter($fitting, static fn (array $candidate): bool => $candidate['job']->jobId === $jobId));
+
+            if (!self::oneProjectClearlyWins($ofJob)) {
+                $unassignedJobs[] = new JobToAssign($jobId, self::candidatesToAssign($ofJob, false));
+                continue;
             }
 
-            $assignedJobIds[$best['job']->jobId] = true;
             $remainingRunsByLineId[$best['line']->id] -= $best['job']->runs;
             $assignments[] = new JobAssignment(
-                $best['job']->jobId,
+                $jobId,
                 $best['line']->id,
                 self::signalsOf($best['staticSignals'], $best['exactFit']),
             );
         }
+
+        $oversizedByJobId = [];
+        foreach ($candidates as $candidate) {
+            if (isset($handledJobIds[$candidate['job']->jobId]) || $remainingRunsByLineId[$candidate['line']->id] <= 0) {
+                continue;
+            }
+
+            $oversizedByJobId[$candidate['job']->jobId][] = $candidate;
+        }
+        foreach ($oversizedByJobId as $jobId => $ofJob) {
+            $unassignedJobs[] = new JobToAssign($jobId, self::candidatesToAssign($ofJob, true));
+        }
+
+        usort($unassignedJobs, static fn (JobToAssign $left, JobToAssign $right): int => $left->jobId <=> $right->jobId);
+
+        return new JobMatchPlan($assignments, $unassignedJobs);
+    }
+
+    /**
+     * @param list<array{job: CandidateJob, line: CandidateLine, project: CandidateProject, staticSignals: list<MatchSignal>, staticScore: int, exactFit: bool, score: int}> $candidates
+     * @param array<int, true>                                                                                                                                              $handledJobIds
+     * @param array<string, int>                                                                                                                                            $remainingRunsByLineId
+     *
+     * @return list<array{job: CandidateJob, line: CandidateLine, project: CandidateProject, staticSignals: list<MatchSignal>, staticScore: int, exactFit: bool, score: int}>
+     */
+    private static function fittingCandidates(array $candidates, array $handledJobIds, array $remainingRunsByLineId): array
+    {
+        $fitting = [];
+        foreach ($candidates as $candidate) {
+            if (isset($handledJobIds[$candidate['job']->jobId])) {
+                continue;
+            }
+
+            $remainingRuns = $remainingRunsByLineId[$candidate['line']->id];
+            if ($candidate['job']->runs > $remainingRuns) {
+                continue;
+            }
+
+            $candidate['exactFit'] = $candidate['job']->runs === $remainingRuns;
+            $candidate['score'] = $candidate['staticScore'] + ($candidate['exactFit'] ? MatchSignal::ExactFit->weight() : 0);
+            $fitting[] = $candidate;
+        }
+
+        return $fitting;
+    }
+
+    /**
+     * @param non-empty-list<array{job: CandidateJob, line: CandidateLine, project: CandidateProject, staticSignals: list<MatchSignal>, staticScore: int, exactFit: bool, score: int}> $candidates
+     *
+     * @return array{job: CandidateJob, line: CandidateLine, project: CandidateProject, staticSignals: list<MatchSignal>, staticScore: int, exactFit: bool, score: int}
+     */
+    private static function bestOf(array $candidates): array
+    {
+        $best = null;
+        foreach ($candidates as $candidate) {
+            if ($best === null || self::isBetter($candidate, $best)) {
+                $best = $candidate;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * @param list<array{project: CandidateProject, staticScore: int}> $candidatesOfJob
+     */
+    private static function oneProjectClearlyWins(array $candidatesOfJob): bool
+    {
+        $decisiveScoreByProjectId = [];
+        foreach ($candidatesOfJob as $candidate) {
+            $projectId = $candidate['project']->id;
+            $decisiveScoreByProjectId[$projectId] = max($decisiveScoreByProjectId[$projectId] ?? $candidate['staticScore'], $candidate['staticScore']);
+        }
+
+        if (\count($decisiveScoreByProjectId) === 1) {
+            return true;
+        }
+
+        rsort($decisiveScoreByProjectId);
+
+        return $decisiveScoreByProjectId[0] > $decisiveScoreByProjectId[1];
+    }
+
+    /**
+     * @param list<array{job: CandidateJob, line: CandidateLine, project: CandidateProject, staticSignals: list<MatchSignal>, staticScore: int, exactFit: bool, score: int}> $candidatesOfJob
+     *
+     * @return list<AssignmentCandidate>
+     */
+    private static function candidatesToAssign(array $candidatesOfJob, bool $oversized): array
+    {
+        if ($oversized) {
+            $candidatesOfJob = array_map(static function (array $candidate): array {
+                $candidate['exactFit'] = false;
+                $candidate['score'] = $candidate['staticScore'];
+
+                return $candidate;
+            }, $candidatesOfJob);
+        }
+
+        usort($candidatesOfJob, static fn (array $left, array $right): int => match (true) {
+            self::isBetter($left, $right) => -1,
+            self::isBetter($right, $left) => 1,
+            default => 0,
+        });
+
+        return array_map(static fn (array $candidate): AssignmentCandidate => new AssignmentCandidate(
+            $candidate['project']->id,
+            $candidate['line']->id,
+            $candidate['score'],
+            self::signalsOf($candidate['staticSignals'], $candidate['exactFit']),
+            $oversized,
+        ), $candidatesOfJob);
     }
 
     /**

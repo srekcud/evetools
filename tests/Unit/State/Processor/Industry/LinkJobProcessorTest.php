@@ -23,6 +23,7 @@ use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\UnassignedJobRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Industry\Project\ProjectContainerService;
@@ -222,6 +223,7 @@ final class LinkJobProcessorTest extends TestCase
             $this->createStub(ProjectContainerService::class),
             $this->createStub(IndustryProjectLineReservationRepository::class),
             $this->createStub(IndustryStructureConfigRepository::class),
+            $this->createStub(UnassignedJobRepository::class),
         );
 
         return new LinkJobProcessor(
