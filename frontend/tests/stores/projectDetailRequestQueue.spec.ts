@@ -36,7 +36,7 @@ describe('project detail request queue', () => {
       return first.promise
     })
     const secondRead = runAfterPreviousReadsOf(PROJECT_ID, () => {
-      started.push('buy-or-build')
+      started.push('sourcing-decisions')
       return Promise.resolve('rows')
     })
     await flushPromises()
@@ -45,7 +45,7 @@ describe('project detail request queue', () => {
     await flushPromises()
 
     expect(startedWhileFirstIsPending).toEqual(['chain'])
-    expect(started).toEqual(['chain', 'buy-or-build'])
+    expect(started).toEqual(['chain', 'sourcing-decisions'])
     expect(await firstRead).toBe('nodes')
     expect(await secondRead).toBe('rows')
   })

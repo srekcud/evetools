@@ -793,7 +793,7 @@ export type ChainPlannedStructure = {
 
 export type ChainPlannedCopyDuration = {
   seconds: number | null
-  missingData: BuyOrBuildMissingData[]
+  missingData: ProjectMissingData[]
   characterName: string | null
 }
 
@@ -836,12 +836,12 @@ export type ProjectChain = {
   nodes: ChainNode[]
 }
 
-export interface BuyOrBuildMissingData {
+export interface ProjectMissingData {
   reason: string
   typeId: number | null
 }
 
-export interface BuyOrBuildWarning {
+export interface ProjectPartialPriceWarning {
   reason: string
   typeId: number
   coveragePercent: number
@@ -852,12 +852,12 @@ export type ResearchVerdict = 'worth' | 'not_worth' | 'unknown'
 export interface ResearchDuration {
   targetLevel: number
   seconds: number | null
-  missingData: BuyOrBuildMissingData[]
+  missingData: ProjectMissingData[]
 }
 
 export interface ResearchCost {
   amount: number | null
-  missingData: BuyOrBuildMissingData[]
+  missingData: ProjectMissingData[]
 }
 
 export interface ResearchRow {
@@ -870,7 +870,7 @@ export interface ResearchRow {
   researchCost: number | null
   net: number | null
   verdict: ResearchVerdict
-  missingData: BuyOrBuildMissingData[]
+  missingData: ProjectMissingData[]
   meResearchDuration: ResearchDuration
   teResearchDuration: ResearchDuration | null
   teResearchCost: ResearchCost | null
@@ -921,8 +921,8 @@ export interface MaterialSourcingRow {
   side: MaterialSourcingSide
   structureFallback: boolean
   saving: number | null
-  missingData: BuyOrBuildMissingData[]
-  warnings: BuyOrBuildWarning[]
+  missingData: ProjectMissingData[]
+  warnings: ProjectPartialPriceWarning[]
 }
 
 export interface MaterialSourcingTotals {
@@ -1378,7 +1378,7 @@ export type WorkStationRow = {
   transportLegs: WorkTransportLeg[]
   totalCost: number | null
   delta: number | null
-  missingData: BuyOrBuildMissingData[]
+  missingData: ProjectMissingData[]
 }
 
 export type WorkStationType = {
@@ -1424,7 +1424,7 @@ export type SourcingOption = {
   eligible: boolean
   availableQuantity: number | null
   structureId: string | null
-  missingData: BuyOrBuildMissingData[]
+  missingData: ProjectMissingData[]
   perUnitIfSurplusReused: number | null
   coveragePercent: number | null
 }
@@ -1455,7 +1455,7 @@ export type SourcingDecisions = {
     installation: number | null
     transport: number | null
     total: number | null
-    missingData: BuyOrBuildMissingData[]
+    missingData: ProjectMissingData[]
   }
   boughtTypeIds: number[]
 }
