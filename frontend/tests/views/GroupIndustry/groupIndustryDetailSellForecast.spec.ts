@@ -103,7 +103,7 @@ beforeEach(() => {
 })
 
 describe('group project detail sell forecast', () => {
-  it('mounts the sell forecast card of the project in the finances tab, after the financial summary, and loads its forecast', async () => {
+  it('mounts the sell forecast card of the project in the finances section, after the financial summary, and loads its forecast', async () => {
     const wrapper = await mountSellingNyxOn(FINANCES_TAB)
 
     const card = wrapper.find(SELL_FORECAST_CARD)
@@ -114,10 +114,10 @@ describe('group project detail sell forecast', () => {
     expect(sellForecastCalls()).toBe(1)
   })
 
-  it.each(OTHER_TABS)('does not mount the sell forecast card nor load its forecast in the %s tab', async (tab) => {
+  it.each(OTHER_TABS)('does not mount the sell forecast card nor load its forecast in the %s section', async (tab) => {
     const wrapper = await mountSellingNyxOn(tab)
 
-    expect(wrapper.find(`[data-testid="project-tab-${tab}"]`).exists()).toBe(true)
+    expect(wrapper.find(`[data-testid="project-section-${tab}"]`).exists()).toBe(true)
     expect(wrapper.find(SELL_FORECAST_CARD).exists()).toBe(false)
     expect(sellForecastCalls()).toBe(0)
   })

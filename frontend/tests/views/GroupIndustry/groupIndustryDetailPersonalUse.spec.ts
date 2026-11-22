@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import DistributionTable from '@/components/group-industry/DistributionTable.vue'
 import FinancialCascade from '@/components/group-industry/FinancialCascade.vue'
 import ProjectTransfers from '@/components/group-industry/ProjectTransfers.vue'
+import SalesTable from '@/components/group-industry/SalesTable.vue'
 import en from '@/i18n/locales/en.json'
 import { apiRequest } from '@/services/api'
 import type { GroupMember } from '@/stores/group-industry/types'
@@ -12,7 +13,7 @@ import {
   nextAction,
   nyxProject,
   route,
-  tabSelector,
+  sectionSelector,
 } from './projectCockpitFixtures'
 
 vi.mock(import('vue-router'), async importOriginal => ({
@@ -71,28 +72,28 @@ beforeEach(() => {
 })
 
 describe('detail page of a personal use project in progress', () => {
-  it('hides the sales tab from the tab bar', async () => {
+  it('has no sales section', async () => {
     const personal = await mountInProgressTeamProject(true)
 
-    expect(personal.find(tabSelector('sales')).exists()).toBe(false)
+    expect(personal.find(sectionSelector('sales')).exists()).toBe(false)
   })
 
-  it('keeps the sales tab in the tab bar of the same team project without personal use', async () => {
+  it('keeps the sales section of the same team project without personal use', async () => {
     const sold = await mountInProgressTeamProject(false)
 
-    expect(sold.find(tabSelector('sales')).exists()).toBe(true)
+    expect(sold.find(sectionSelector('sales')).exists()).toBe(true)
   })
 
-  it('falls back to the bom tab when the sales tab is requested', async () => {
+  it('shows no sales section and no sales table when the sales tab is requested', async () => {
     const wrapper = await mountInProgressTeamProject(true, { tab: 'sales' })
 
     expect({
-      bom: wrapper.get(tabSelector('bom')).attributes('aria-selected'),
-      sales: wrapper.find(tabSelector('sales')).exists(),
-    }).toEqual({ bom: 'true', sales: false })
+      sales: wrapper.find(sectionSelector('sales')).exists(),
+      salesTable: wrapper.findComponent(SalesTable).exists(),
+    }).toEqual({ sales: false, salesTable: false })
   })
 
-  it('shows no distribution table nor transfers on the finances tab and keeps the cascade', async () => {
+  it('shows no distribution table nor transfers in the finances section and keeps the cascade', async () => {
     const wrapper = await mountInProgressTeamProject(true, { tab: 'distribution' })
 
     expect({

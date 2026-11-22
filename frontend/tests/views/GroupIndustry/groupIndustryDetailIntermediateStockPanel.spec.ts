@@ -17,7 +17,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 async function showsTheStockProposalTo(status: GroupProjectStatus, myRole: GroupMemberRole, myStatus: 'pending' | 'accepted'): Promise<boolean> {
-  route.query = {}
+  route.query = { tab: 'bom' }
   const wrapper = await mountCockpitDetail({
     project: nyxProject(status, myRole, { myStatus, membersCount: 2 }),
     cockpit: cockpitOf(status, nextAction({ code: 'nothing_to_do' })),

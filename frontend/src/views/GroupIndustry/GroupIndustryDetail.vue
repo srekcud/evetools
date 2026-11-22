@@ -13,11 +13,13 @@ import { useGroupContractSalesStore } from '@/stores/group-industry/contractSale
 import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
 import { useGroupActivityStore } from '@/stores/group-industry/activity'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
+import { useGroupPlaceActionsStore } from '@/stores/group-industry/placeActions'
+import { useGroupStationQuantitiesStore } from '@/stores/group-industry/stationQuantities'
 import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
 import { useFormatters } from '@/composables/useFormatters'
-import { useTabQuery } from '@/composables/useTabQuery'
+import { useOptionalTabQuery } from '@/composables/useOptionalTabQuery'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
 import CollapsibleSourcing from '@/components/group-industry/CollapsibleSourcing.vue'
@@ -40,16 +42,16 @@ import ClosingChecksList from '@/components/group-industry/ClosingChecksList.vue
 import MemberTable from '@/components/group-industry/MemberTable.vue'
 import PendingRequestsTable from '@/components/group-industry/PendingRequestsTable.vue'
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
-import ProjectPhaseRail from '@/components/group-industry/ProjectPhaseRail.vue'
-import ProjectNextActionCard from '@/components/group-industry/ProjectNextActionCard.vue'
+import ProjectFlowActions from '@/components/group-industry/ProjectFlowActions.vue'
+import ProjectFlowGrid from '@/components/group-industry/ProjectFlowGrid.vue'
+import ProjectSection from '@/components/group-industry/ProjectSection.vue'
+import { buildFlowGrid } from '@/components/group-industry/projectFlow'
 import ProjectPriceAlertBanner from '@/components/group-industry/ProjectPriceAlertBanner.vue'
-import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { reservedLineIdsOfMine } from '@/components/group-industry/reservedLineIds'
 import { useGroupT2BlueprintCopyProposalStore } from '@/stores/group-industry/t2BlueprintCopyProposal'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
-import type { ChainFocusRequest } from '@/components/group-industry/chainView'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectStartupChoices from '@/components/group-industry/ProjectStartupChoices.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
@@ -70,11 +72,11 @@ import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTem
 import ProducerCharactersSelect from '@/components/group-industry/ProducerCharactersSelect.vue'
 import ProjectDedicatedCharacters from '@/components/group-industry/ProjectDedicatedCharacters.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
-import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit, ProjectPhaseKey } from '@/stores/group-industry/types'
+import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
 import { headerStatuses } from './nextProjectStatus'
 import { unfinishedLinesOf } from './sellingConfirmation'
 import { groupJoinUrl } from './groupJoinUrl'
-import { DETAIL_TABS, detailTabOfNextAction, detailTabOfPhase, openingTabOf, type ProjectDetailTab } from './projectDetailTabs'
+import { DETAIL_TABS, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
 import { isSourcingCollapsed, isSourcingComplete, readSourcingOverride, writeSourcingOverride, type SourcingOverride } from './sourcingCollapse'
 import { refreshesVisibleOn, type GroupProjectRefresh } from './groupProjectRefreshes'
@@ -99,6 +101,8 @@ const distributionStore = useGroupDistributionStore()
 const inventionStore = useGroupInventionStore()
 const contractSalesStore = useGroupContractSalesStore()
 const settlementStore = useGroupSettlementStore()
+const stationQuantitiesStore = useGroupStationQuantitiesStore()
+const placeActionsStore = useGroupPlaceActionsStore()
 
 type SalesTabSection = 'sellOrders' | 'sales' | 'transactionsToLink' | 'contractsToLink'
 
@@ -125,7 +129,7 @@ const TEAM_ONLY_TABS: readonly ProjectDetailTab[] = ['contributions', 'members']
 const INVENTION_TABS: readonly ProjectDetailTab[] = ['invention']
 const PERSONAL_USE_HIDDEN_TABS: readonly ProjectDetailTab[] = ['sales']
 
-const requestedTab = useTabQuery<ProjectDetailTab>(DETAIL_TABS, 'bom')
+const openTab = useOptionalTabQuery<ProjectDetailTab>(DETAIL_TABS)
 const membersLoaded = ref(false)
 
 async function loadMembers(id: string): Promise<void> {
@@ -209,18 +213,26 @@ const hiddenTabs = computed<ProjectDetailTab[]>(() => [
   ...(hasNoInventedProduct.value || isInventedProductUnknown.value ? INVENTION_TABS : []),
   ...(project.value?.personalUse ? PERSONAL_USE_HIDDEN_TABS : []),
 ])
-const activeTab = computed<ProjectDetailTab>({
-  get: () => {
-    const requested = requestedTab.value
-    const isTeamTabOfSoloProject = isWorkedOnAlone.value && TEAM_ONLY_TABS.includes(requested)
-    const isInventionTabWithoutProduct = hasNoInventedProduct.value && INVENTION_TABS.includes(requested)
-    const isSalesTabOfPersonalUse = project.value?.personalUse === true && PERSONAL_USE_HIDDEN_TABS.includes(requested)
-    return isTeamTabOfSoloProject || isInventionTabWithoutProduct || isSalesTabOfPersonalUse ? 'bom' : requested
-  },
-  set: (tab) => { requestedTab.value = tab },
+const activeTab = computed<ProjectDetailTab | null>({
+  get: () => (openTab.value !== null && !hiddenTabs.value.includes(openTab.value) ? openTab.value : null),
+  set: (tab) => { openTab.value = tab },
 })
+const sectionsRoot = ref<HTMLElement | null>(null)
+let sectionToggledByUser = false
+
+function toggleSection(tab: ProjectDetailTab): void {
+  sectionToggledByUser = true
+  activeTab.value = activeTab.value === tab ? null : tab
+}
+
+watch([activeTab, sectionsRoot], ([tab]) => {
+  const toggledByUser = sectionToggledByUser
+  sectionToggledByUser = false
+  if (tab === null || toggledByUser) return
+  sectionsRoot.value?.querySelector(`[data-section="${tab}"]`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+}, { flush: 'post', immediate: true })
 const nextStatuses = computed(() => (project.value
-  ? headerStatuses(project.value.status, project.value.private, cockpit.value?.nextAction.targetStatus ?? null, project.value.personalUse)
+  ? headerStatuses(project.value.status, project.value.private, null, project.value.personalUse)
   : []))
 const pendingStatus = ref<GroupProjectStatus | null>(null)
 
@@ -251,12 +263,35 @@ function loadFinances(id: string): Promise<void> {
   ]).then(() => undefined)
 }
 
-if (requestedTab.value === 'distribution') {
+if (openTab.value === 'distribution') {
   void loadFinances(projectId.value)
 }
 
+const flowLoaded = ref(false)
+
+function refreshFlow(id: string, salesAlreadyRefreshed = false): Promise<void>[] {
+  return [
+    stationQuantitiesStore.fetchStationQuantities(id),
+    placeActionsStore.fetchOfProject(id),
+    ...(salesAlreadyRefreshed ? [] : [distributionStore.fetchSales(id)]),
+  ]
+}
+
+const flowGrid = computed(() => {
+  const current = project.value
+  if (current === null) return null
+  return buildFlowGrid({
+    quantities: stationQuantitiesStore.quantities,
+    actions: placeActionsStore.actions,
+    sales: distributionStore.sales,
+    project: current,
+    bomItems: projectStore.bomItems,
+  })
+})
+
 onMounted(async () => {
   void syncStore.ensureGroupProjectSubscribed(projectId.value)
+  void Promise.all(refreshFlow(projectId.value)).then(() => { flowLoaded.value = true })
   await Promise.all([
     projectStore.fetchProjectDetail(projectId.value),
     projectStore.fetchBom(projectId.value),
@@ -264,9 +299,6 @@ onMounted(async () => {
     loadMembers(projectId.value),
     inventionStore.fetchInvention(projectId.value, null),
   ])
-  if (cockpit.value !== null && route.query.tab === undefined) {
-    activeTab.value = openingTabOf(cockpit.value.phases)
-  }
   if (projectStore.currentProject && projectStore.currentProject.containerNames.length > 0) {
     await projectStore.fetchContainerVerification(projectId.value)
   }
@@ -294,8 +326,9 @@ const { isFlashing: projectUpdated, flash: flashProject } = useFlash()
 useCoalescedGroupProjectEvents(
   () => projectId.value,
   (actions) => {
-    const refreshes = refreshesVisibleOn(actions, activeTab.value).map(refresh => refreshGroupProject[refresh](projectId.value))
-    return Promise.all(refreshes).then(flashProject)
+    const refreshes = refreshesVisibleOn(actions, activeTab.value)
+    const reads = refreshes.map(refresh => refreshGroupProject[refresh](projectId.value))
+    return Promise.all([...reads, ...refreshFlow(projectId.value, refreshes.includes('sales'))]).then(flashProject)
   },
 )
 
@@ -307,6 +340,7 @@ watch(
       refreshGroupProject.bom(projectId.value),
       refreshGroupProject.projectDetail(projectId.value),
       refreshGroupProject.cockpit(projectId.value),
+      ...refreshFlow(projectId.value),
     ]).then(flashProject)
   },
 )
@@ -315,6 +349,7 @@ useRefetchOnReconnect(() => Promise.all([
   refreshGroupProject.bom(projectId.value),
   refreshGroupProject.projectDetail(projectId.value),
   refreshGroupProject.cockpit(projectId.value),
+  ...refreshFlow(projectId.value),
 ]).then(flashProject))
 
 // Tab switching triggers lazy data loading
@@ -329,11 +364,6 @@ watch(activeTab, (tab) => {
     activityStore.fetchActivity(projectId.value)
   }
 })
-
-function openPhaseTab(key: ProjectPhaseKey): void {
-  const tab = detailTabOfPhase(key)
-  if (tab !== null) activeTab.value = tab
-}
 
 function goBack(): void {
   router.push(PROJECTS_HOME)
@@ -430,37 +460,6 @@ async function handleEditSave(): Promise<void> {
   } catch (e) {
     editError.value = e instanceof Error ? e.message : t('groupIndustry.detail.editError')
     isEditSaving.value = false
-  }
-}
-
-const jobsSection = ref<HTMLElement | null>(null)
-const chainFocusRequest = ref<ChainFocusRequest | null>(null)
-
-function actOnNextAction(): void {
-  const action = cockpit.value?.nextAction
-  if (!action) return
-  if (action.targetStatus !== null) {
-    requestNextStatus(action.targetStatus)
-    return
-  }
-  const bomLine = action.code === 'source_material' && action.bomLineId !== null
-    ? projectStore.bomItems.find(item => item.id === action.bomLineId)
-    : undefined
-  if (bomLine) {
-    openContributeModal(bomLine)
-    return
-  }
-  if (action.code === 'launch_job' || action.code === 'await_jobs') {
-    chainFocusRequest.value = { nodeId: action.bomLineId }
-    activeTab.value = 'chain'
-    void nextTick(() => {
-      chainFocusRequest.value = null
-      jobsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-    return
-  }
-  if (action.tab !== null) {
-    activeTab.value = detailTabOfNextAction(action.tab)
   }
 }
 
@@ -767,232 +766,312 @@ function applyShareLinkShortcut(): void {
         <ProjectDedicatedCharacters v-if="isAcceptedMember" :project="project" class="mt-4 pt-4 border-t border-slate-800" />
       </div>
 
-      <template v-if="cockpit">
-        <ProjectPhaseRail :phases="cockpit.phases" @select="openPhaseTab" />
-        <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" :locks-on-start="project.status === 'draft'" @act="actOnNextAction" />
-        <ProjectPriceAlertBanner v-if="cockpit.priceAlert !== null" :price-alert="cockpit.priceAlert" @view-sales="activeTab = 'sales'" />
-      </template>
-      <p v-else-if="projectStore.cockpitError" class="mb-6 text-xs text-slate-500">
+      <ProjectPriceAlertBanner v-if="cockpit !== null && cockpit.priceAlert !== null" :price-alert="cockpit.priceAlert" @view-sales="activeTab = 'sales'" />
+      <p v-if="cockpit === null && projectStore.cockpitError" class="mb-6 text-xs text-slate-500">
         {{ t('groupIndustry.cockpit.unavailable') }}
       </p>
 
-      <ProjectTabBar
-        v-model="activeTab"
-        :materials-count="materialsCount"
-        :pending-contribution-count="pendingContributionCount"
-        :member-count="memberCount"
-        :hidden-tabs="hiddenTabs"
-      />
-
-      <!-- Tab Content: Materials & Jobs -->
-      <div v-if="activeTab === 'bom'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <!-- BOM description -->
-        <p class="text-xs text-slate-500 mb-4">
-          {{ t('groupIndustry.detail.leafMaterials', { count: project.items.length }) }}
-          (<template v-for="(item, idx) in project.items" :key="item.typeId">
-            <span class="text-slate-400">{{ item.typeName }}</span> x{{ item.runs }}<template v-if="idx < project.items.length - 1">, </template>
-          </template>)
-          <template v-if="project.blacklistGroupIds.length > 0">
-            &middot; <span class="text-amber-400/60">{{ t('groupIndustry.detail.blacklistedCategories', project.blacklistGroupIds.length) }}</span>
-          </template>
-          &middot; <span class="text-slate-400">{{ t('groupIndustry.bom.jobsOnProduction') }}</span>
-        </p>
-
-        <ProjectPrepareBlock :status="project.status">
-          <ProjectStartupChoices
-            :key="startupChoicesRevision"
-            :project-id="projectId"
-            :status="project.status"
-            :can-edit="isOwnerOrAdmin"
-          />
-
-          <ProjectBlacklistEditor
-            :project-id="projectId"
-            :status="project.status"
-            :can-edit="isOwnerOrAdmin"
-            :blacklist-group-ids="project.blacklistGroupIds"
-            :blacklist-type-ids="project.blacklistTypeIds"
-            @saved="onBlacklistSaved"
-          />
-
-          <ProjectInventionExclusionToggle
-            :project-id="projectId"
-            :status="project.status"
-            :can-edit="isOwnerOrAdmin"
-            :excludes-invention="project.excludesInvention"
-            @saved="onInventionExclusionSaved"
-          />
-
-          <ProjectBuyOrBuild
-            :project-id="projectId"
-            :can-switch="isOwnerOrAdmin && !isCompleted"
-            :blacklist-type-ids="project.blacklistTypeIds"
-            @switched="onBuyOrBuildSwitched"
-          />
-
-          <ProjectStructures
-            v-if="project.status === 'draft'"
-            :project-id="projectId"
-            :can-switch="isOwnerOrAdmin && !isCompleted"
-            class="mt-4"
-            @switched="onBuyOrBuildSwitched"
-          />
-        </ProjectPrepareBlock>
-
-        <IntermediateStockProposal
-          v-if="(isOwner || isAcceptedMember) && !isCompleted"
-          :project-id="projectId"
-          :project-status="project.status"
-          @validated="onContributionSubmitted"
-        />
-
-        <T2BlueprintCopyProposal
-          v-if="isOwner && !isCompleted"
-          :project-id="projectId"
-          :project-status="project.status"
-          @declared="onContributionSubmitted"
-        />
-
-        <!-- Materials Table -->
-        <BomTable @contribute="openContributeModal" />
-
-        <CollapsibleSourcing
-          :complete="sourcingComplete"
-          :collapsed="sourcingCollapsed"
-          :material-count="projectStore.materials.length"
-          @toggle="toggleSourcing"
-          @open-chain="activeTab = 'chain'"
-        >
-          <MaterialSourcing :project-id="projectId" />
-
-          <ProjectPurchasesToDeliver
-            :project-id="projectId"
-            :can-edit="isOwnerOrAdmin"
-            @edit-containers="openEditModalOnContainers"
-          />
-
-          <ProjectCourier :project-id="projectId" />
-
-          <ContainerBanner
-            v-if="project.containerNames.length > 0"
-            :container-names="project.containerNames"
-            :project-id="projectId"
-            :can-verify="isOwnerOrAdmin"
-          />
-        </CollapsibleSourcing>
-
-        <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
+      <div class="mb-6 grid gap-4 xl:grid-cols-[1fr_320px]">
+        <div class="min-w-0">
+          <p v-if="stationQuantitiesStore.error !== null" data-testid="flow-quantities-error" role="alert" class="mb-3 border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {{ t('groupIndustry.flow.quantitiesError') }} {{ stationQuantitiesStore.error }}
+          </p>
+          <div v-if="!flowLoaded" data-testid="flow-loading" class="flex items-center gap-3 text-sm text-slate-400">
+            <LoadingSpinner size="sm" />
+            <span>{{ t('common.status.loading') }}</span>
+          </div>
+          <ProjectFlowGrid v-else-if="flowGrid !== null" :grid="flowGrid" :personal-use="project.personalUse === true" />
+        </div>
+        <ProjectFlowActions :actions="placeActionsStore.actions" :loading="placeActionsStore.loading" :error="placeActionsStore.error" />
       </div>
 
-      <!-- Tab Content: Contributions -->
-      <div v-else-if="activeTab === 'contributions'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <ContributionTable :project-id="projectId" :is-admin="isOwnerOrAdmin">
-          <template #actions>
-            <button
-              v-if="!isCompleted"
-              @click="openContributeModal()"
-              class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all hover:-translate-y-px"
+      <div ref="sectionsRoot" class="space-y-2">
+        <ProjectSection
+          v-if="!hiddenTabs.includes('bom')"
+          section-key="bom"
+          :open="activeTab === 'bom'"
+          @toggle="toggleSection('bom')"
+        >
+          <template #title>{{ t('groupIndustry.tabs.sourcing') }}</template>
+          <template #badge>
+            <span class="ml-1.5 rounded px-1.5 py-0.5 text-xs font-medium normal-case tracking-normal bg-slate-700 text-slate-400">{{ materialsCount }}</span>
+          </template>
+          <div class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
+            <!-- BOM description -->
+            <p class="text-xs text-slate-500 mb-4">
+              {{ t('groupIndustry.detail.leafMaterials', { count: project.items.length }) }}
+              (<template v-for="(item, idx) in project.items" :key="item.typeId">
+                <span class="text-slate-400">{{ item.typeName }}</span> x{{ item.runs }}<template v-if="idx < project.items.length - 1">, </template>
+              </template>)
+              <template v-if="project.blacklistGroupIds.length > 0">
+                &middot; <span class="text-amber-400/60">{{ t('groupIndustry.detail.blacklistedCategories', project.blacklistGroupIds.length) }}</span>
+              </template>
+              &middot; <span class="text-slate-400">{{ t('groupIndustry.bom.jobsOnProduction') }}</span>
+            </p>
+
+            <ProjectPrepareBlock :status="project.status">
+              <ProjectStartupChoices
+                :key="startupChoicesRevision"
+                :project-id="projectId"
+                :status="project.status"
+                :can-edit="isOwnerOrAdmin"
+              />
+
+              <ProjectBlacklistEditor
+                :project-id="projectId"
+                :status="project.status"
+                :can-edit="isOwnerOrAdmin"
+                :blacklist-group-ids="project.blacklistGroupIds"
+                :blacklist-type-ids="project.blacklistTypeIds"
+                @saved="onBlacklistSaved"
+              />
+
+              <ProjectInventionExclusionToggle
+                :project-id="projectId"
+                :status="project.status"
+                :can-edit="isOwnerOrAdmin"
+                :excludes-invention="project.excludesInvention"
+                @saved="onInventionExclusionSaved"
+              />
+
+              <ProjectBuyOrBuild
+                :project-id="projectId"
+                :can-switch="isOwnerOrAdmin && !isCompleted"
+                :blacklist-type-ids="project.blacklistTypeIds"
+                @switched="onBuyOrBuildSwitched"
+              />
+
+              <ProjectStructures
+                v-if="project.status === 'draft'"
+                :project-id="projectId"
+                :can-switch="isOwnerOrAdmin && !isCompleted"
+                class="mt-4"
+                @switched="onBuyOrBuildSwitched"
+              />
+            </ProjectPrepareBlock>
+
+            <IntermediateStockProposal
+              v-if="(isOwner || isAcceptedMember) && !isCompleted"
+              :project-id="projectId"
+              :project-status="project.status"
+              @validated="onContributionSubmitted"
+            />
+
+            <T2BlueprintCopyProposal
+              v-if="isOwner && !isCompleted"
+              :project-id="projectId"
+              :project-status="project.status"
+              @declared="onContributionSubmitted"
+            />
+
+            <!-- Materials Table -->
+            <BomTable @contribute="openContributeModal" />
+
+            <CollapsibleSourcing
+              :complete="sourcingComplete"
+              :collapsed="sourcingCollapsed"
+              :material-count="projectStore.materials.length"
+              @toggle="toggleSourcing"
+              @open-chain="activeTab = 'chain'"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-              {{ t('groupIndustry.detail.addContribution') }}
-            </button>
-          </template>
-        </ContributionTable>
-      </div>
+              <MaterialSourcing :project-id="projectId" />
 
-      <!-- Tab Content: Distribution -->
-      <div v-else-if="activeTab === 'distribution'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <div v-if="distributionStore.loadingDistribution && !distributionStore.distribution" data-testid="distribution-loading" class="flex items-center gap-3 text-sm text-slate-400 mb-8">
-          <LoadingSpinner size="sm" />
-          <span>{{ t('common.status.loading') }}</span>
-        </div>
-        <template v-else>
-          <FinancialCascade />
-          <FinancialSummary v-if="!project?.personalUse" />
-          <SellForecastCard v-if="!project?.personalUse" :project-id="projectId" />
-          <DistributionTable v-if="!isWorkedOnAlone && !project?.personalUse" />
-          <ProjectTransfers v-if="!isWorkedOnAlone && !project?.personalUse" :project-id="projectId" />
-          <ProjectDiscordRecap class="mt-8" />
-        </template>
-      </div>
+              <ProjectPurchasesToDeliver
+                :project-id="projectId"
+                :can-edit="isOwnerOrAdmin"
+                @edit-containers="openEditModalOnContainers"
+              />
 
-      <div v-else-if="activeTab === 'sales'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <template v-for="section in salesTabSections" :key="section">
-          <ProjectSellOrdersSection v-if="section === 'sellOrders'" :project-id="projectId" />
-          <SalesTable v-else-if="section === 'sales'" :project-id="projectId" :is-admin="isOwnerOrAdmin" :can-record="canRecordSales" :is-completed="isCompleted" />
-          <SaleSuggestionsPanel v-else-if="section === 'transactionsToLink' && canRecordSales && !isCompleted" :project-id="projectId" />
-          <ContractSaleSuggestions v-else-if="section === 'contractsToLink' && canRecordSales && !isCompleted" :project-id="projectId" />
-        </template>
-      </div>
+              <ProjectCourier :project-id="projectId" />
 
-      <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
-        <div ref="jobsSection" data-testid="project-jobs-section">
-          <ProductionChain
-            :project-id="projectId"
-            :excludes-invention="project.excludesInvention"
-            :can-mark="isOwnerOrAdmin && !isCompleted"
-            :markable-node-ids="markableNodeIds"
-            :can-match-jobs="isOwner"
-            :focus-request="chainFocusRequest"
-            :can-link-jobs="isAcceptedMember"
-            @marked="refreshGroupProject.cockpit(projectId)"
-            @contribute="openContributeModal"
-            @open-sourcing="activeTab = 'bom'"
-          />
-        </div>
-        <ProjectResearch :project-id="projectId" />
-        <ProjectStructures
-          v-if="project.status !== 'draft'"
-          :project-id="projectId"
-          :can-switch="isOwnerOrAdmin && !isCompleted"
-          @switched="onBuyOrBuildSwitched"
-        />
-        <ProjectStructureHealth :project-id="projectId" />
-      </div>
+              <ContainerBanner
+                v-if="project.containerNames.length > 0"
+                :container-names="project.containerNames"
+                :project-id="projectId"
+                :can-verify="isOwnerOrAdmin"
+              />
+            </CollapsibleSourcing>
 
-      <div v-else-if="activeTab === 'planning'" class="relative rounded-xl">
-        <ProjectPlanning :project-id="projectId" />
-      </div>
+            <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
+          </div>
+        </ProjectSection>
 
-      <div v-else-if="activeTab === 'invention'" class="relative rounded-xl">
-        <ProjectInvention
-          :project-id="projectId"
-          :can-edit="isOwnerOrAdmin && !isCompleted"
-          @applied="onBlacklistSaved"
-        />
-      </div>
-
-      <div v-else-if="activeTab === 'journal'" class="relative rounded-xl">
-        <div
-          v-if="activityStore.error !== null"
-          data-testid="project-journal-error"
-          role="alert"
-          class="mb-4 p-3 rounded border border-red-500/30 bg-red-500/10 text-sm text-red-300"
+        <ProjectSection
+          v-if="!hiddenTabs.includes('contributions')"
+          section-key="contributions"
+          :open="activeTab === 'contributions'"
+          @toggle="toggleSection('contributions')"
         >
-          <p class="font-semibold">{{ t('groupIndustry.journal.loadError') }}</p>
-          <p class="mt-1 break-words">{{ activityStore.error }}</p>
-        </div>
-        <ProjectJournal
-          :events="activityStore.events"
-          :running-jobs="activityStore.runningJobs"
-          :live="syncStore.isConnected"
-        />
-      </div>
-
-      <!-- Tab Content: Members -->
-      <div v-else-if="activeTab === 'members'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <p class="mb-6 text-sm text-slate-400">
-          {{ t('groupIndustry.detail.activeMembers', distributionStore.members.filter(m => m.status === 'accepted').length) }}
-          <template v-if="distributionStore.members.filter(m => m.status === 'pending').length > 0">
-            &middot; {{ t('groupIndustry.detail.pendingMembers', { count: distributionStore.members.filter(m => m.status === 'pending').length }) }}
+          <template #title>{{ t('groupIndustry.tabs.contributions') }}</template>
+          <template v-if="pendingContributionCount !== null && pendingContributionCount > 0" #badge>
+            <span class="ml-1.5 rounded px-1.5 py-0.5 text-xs font-medium normal-case tracking-normal bg-amber-500/15 text-amber-400">{{ pendingContributionCount }}</span>
           </template>
-        </p>
+          <div class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
+            <ContributionTable :project-id="projectId" :is-admin="isOwnerOrAdmin">
+              <template #actions>
+                <button
+                  v-if="!isCompleted"
+                  @click="openContributeModal()"
+                  class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all hover:-translate-y-px"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  {{ t('groupIndustry.detail.addContribution') }}
+                </button>
+              </template>
+            </ContributionTable>
+          </div>
+        </ProjectSection>
 
-        <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" :is-owner="isOwner" :owner-corporation-id="project.ownerCorporationId" @left="handleLeaveProject" />
-        <PendingRequestsTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
-        <ShareLinkCard v-if="project.shortLinkCode" :short-link-code="project.shortLinkCode" />
+        <ProjectSection
+          v-if="!hiddenTabs.includes('distribution')"
+          section-key="distribution"
+          :open="activeTab === 'distribution'"
+          @toggle="toggleSection('distribution')"
+        >
+          <template #title>{{ t('groupIndustry.tabs.finances') }}</template>
+          <div class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
+            <div v-if="distributionStore.loadingDistribution && !distributionStore.distribution" data-testid="distribution-loading" class="flex items-center gap-3 text-sm text-slate-400 mb-8">
+              <LoadingSpinner size="sm" />
+              <span>{{ t('common.status.loading') }}</span>
+            </div>
+            <template v-else>
+              <FinancialCascade />
+              <FinancialSummary v-if="!project?.personalUse" />
+              <SellForecastCard v-if="!project?.personalUse" :project-id="projectId" />
+              <DistributionTable v-if="!isWorkedOnAlone && !project?.personalUse" />
+              <ProjectTransfers v-if="!isWorkedOnAlone && !project?.personalUse" :project-id="projectId" />
+              <ProjectDiscordRecap class="mt-8" />
+            </template>
+          </div>
+        </ProjectSection>
+
+        <ProjectSection
+          v-if="!hiddenTabs.includes('sales')"
+          section-key="sales"
+          :open="activeTab === 'sales'"
+          @toggle="toggleSection('sales')"
+        >
+          <template #title>{{ t('groupIndustry.tabs.sales') }}</template>
+          <div class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
+            <template v-for="section in salesTabSections" :key="section">
+              <ProjectSellOrdersSection v-if="section === 'sellOrders'" :project-id="projectId" />
+              <SalesTable v-else-if="section === 'sales'" :project-id="projectId" :is-admin="isOwnerOrAdmin" :can-record="canRecordSales" :is-completed="isCompleted" />
+              <SaleSuggestionsPanel v-else-if="section === 'transactionsToLink' && canRecordSales && !isCompleted" :project-id="projectId" />
+              <ContractSaleSuggestions v-else-if="section === 'contractsToLink' && canRecordSales && !isCompleted" :project-id="projectId" />
+            </template>
+          </div>
+        </ProjectSection>
+
+        <ProjectSection
+          v-if="!hiddenTabs.includes('chain')"
+          section-key="chain"
+          :open="activeTab === 'chain'"
+          @toggle="toggleSection('chain')"
+        >
+          <template #title>{{ t('groupIndustry.tabs.chain') }}</template>
+          <div class="relative rounded-xl space-y-6">
+            <div data-testid="project-jobs-section">
+              <ProductionChain
+                :project-id="projectId"
+                :excludes-invention="project.excludesInvention"
+                :can-mark="isOwnerOrAdmin && !isCompleted"
+                :markable-node-ids="markableNodeIds"
+                :can-match-jobs="isOwner"
+                    :can-link-jobs="isAcceptedMember"
+                @marked="refreshGroupProject.cockpit(projectId)"
+                @contribute="openContributeModal"
+                @open-sourcing="activeTab = 'bom'"
+              />
+            </div>
+            <ProjectResearch :project-id="projectId" />
+            <ProjectStructures
+              v-if="project.status !== 'draft'"
+              :project-id="projectId"
+              :can-switch="isOwnerOrAdmin && !isCompleted"
+              @switched="onBuyOrBuildSwitched"
+            />
+            <ProjectStructureHealth :project-id="projectId" />
+          </div>
+        </ProjectSection>
+
+        <ProjectSection
+          v-if="!hiddenTabs.includes('planning')"
+          section-key="planning"
+          :open="activeTab === 'planning'"
+          @toggle="toggleSection('planning')"
+        >
+          <template #title>{{ t('groupIndustry.tabs.planning') }}</template>
+          <div class="relative rounded-xl">
+            <ProjectPlanning :project-id="projectId" />
+          </div>
+        </ProjectSection>
+
+        <ProjectSection
+          v-if="!hiddenTabs.includes('invention')"
+          section-key="invention"
+          :open="activeTab === 'invention'"
+          @toggle="toggleSection('invention')"
+        >
+          <template #title>{{ t('groupIndustry.tabs.invention') }}</template>
+          <div class="relative rounded-xl">
+            <ProjectInvention
+              :project-id="projectId"
+              :can-edit="isOwnerOrAdmin && !isCompleted"
+              @applied="onBlacklistSaved"
+            />
+          </div>
+        </ProjectSection>
+
+        <ProjectSection
+          v-if="!hiddenTabs.includes('journal')"
+          section-key="journal"
+          :open="activeTab === 'journal'"
+          @toggle="toggleSection('journal')"
+        >
+          <template #title>{{ t('groupIndustry.tabs.journal') }}</template>
+          <div class="relative rounded-xl">
+            <div
+              v-if="activityStore.error !== null"
+              data-testid="project-journal-error"
+              role="alert"
+              class="mb-4 p-3 rounded border border-red-500/30 bg-red-500/10 text-sm text-red-300"
+            >
+              <p class="font-semibold">{{ t('groupIndustry.journal.loadError') }}</p>
+              <p class="mt-1 break-words">{{ activityStore.error }}</p>
+            </div>
+            <ProjectJournal
+              :events="activityStore.events"
+              :running-jobs="activityStore.runningJobs"
+              :live="syncStore.isConnected"
+            />
+          </div>
+        </ProjectSection>
+
+        <ProjectSection
+          v-if="!hiddenTabs.includes('members')"
+          section-key="members"
+          :open="activeTab === 'members'"
+          @toggle="toggleSection('members')"
+        >
+          <template #title>{{ t('groupIndustry.tabs.team') }}</template>
+          <template #badge>
+            <span class="ml-1.5 rounded px-1.5 py-0.5 text-xs font-medium normal-case tracking-normal bg-slate-700 text-slate-400">{{ memberCount }}</span>
+          </template>
+          <div class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
+            <p class="mb-6 text-sm text-slate-400">
+              {{ t('groupIndustry.detail.activeMembers', distributionStore.members.filter(m => m.status === 'accepted').length) }}
+              <template v-if="distributionStore.members.filter(m => m.status === 'pending').length > 0">
+                &middot; {{ t('groupIndustry.detail.pendingMembers', { count: distributionStore.members.filter(m => m.status === 'pending').length }) }}
+              </template>
+            </p>
+
+            <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" :is-owner="isOwner" :owner-corporation-id="project.ownerCorporationId" @left="handleLeaveProject" />
+            <PendingRequestsTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
+            <ShareLinkCard v-if="project.shortLinkCode" :short-link-code="project.shortLinkCode" />
+          </div>
+        </ProjectSection>
       </div>
     </div>
 

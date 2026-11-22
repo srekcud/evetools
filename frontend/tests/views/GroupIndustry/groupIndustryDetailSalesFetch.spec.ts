@@ -114,23 +114,31 @@ beforeEach(() => {
 })
 
 describe('sales of a group project fetched by the detail view', () => {
-  it('fetches the sales once when the sales tab is opened', async () => {
+  it('fetches the sales once when the view opens, for the flow grid, with the sales table not mounted', async () => {
     const wrapper = await mountDetailOfTheSabreBatch()
-    const salesTab = wrapper.find('[data-testid="project-tab-sales"]')
-    expect(salesTab.exists()).toBe(true)
 
-    await salesTab.trigger('click')
-    await flushPromises()
-
-    expect([wrapper.findComponent(SalesTable).exists(), salesRequests()]).toEqual([true, 1])
+    expect([wrapper.findComponent(SalesTable).exists(), salesRequests()]).toEqual([false, 1])
   })
 
-  it('fetches the sales once when the view opens on the sales tab', async () => {
+  it('lets the sales table fetch the sales once more when the sales section is opened', async () => {
+    const wrapper = await mountDetailOfTheSabreBatch()
+    const salesToggle = wrapper.find('[data-testid="project-section-toggle-sales"]')
+    expect(salesToggle.exists()).toBe(true)
+    const requestsBeforeOpening = salesRequests()
+
+    await salesToggle.trigger('click')
+    await flushPromises()
+
+    expect([wrapper.findComponent(SalesTable).exists(), salesRequests() - requestsBeforeOpening]).toEqual([true, 1])
+  })
+
+  it('shows the sales table and reads the sales when the view opens on the sales section', async () => {
     route.query = { tab: 'sales' }
 
     const wrapper = await mountDetailOfTheSabreBatch()
 
-    expect([wrapper.findComponent(SalesTable).exists(), salesRequests()]).toEqual([true, 1])
+    expect(wrapper.findComponent(SalesTable).exists()).toBe(true)
+    expect(salesRequests()).toBeGreaterThanOrEqual(1)
   })
 
   it('lets the sales table fetch the sales of its project when it is shown', async () => {

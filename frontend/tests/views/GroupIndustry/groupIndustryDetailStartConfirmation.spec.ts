@@ -7,8 +7,6 @@ import {
   cockpitOf,
   mountCockpitDetail,
   nextAction,
-  NEXT_ACTION_BUTTON,
-  NEXT_ACTION_CARD,
   nyxProject,
   route,
   sentPatchBodies,
@@ -48,8 +46,8 @@ function mountStartableWithoutCockpit(overrides: Partial<GroupProject> = {}): Pr
   })
 }
 
-function startButtonOfHeader(wrapper: VueWrapper) {
-  return wrapper.get(HEADER).findAll('button').find(button => button.text() === messageOf('en', 'groupIndustry.detail.statusActions.in_progress'))
+function startButtonOfHeader(wrapper: VueWrapper, locale: TestLocale = 'en') {
+  return wrapper.get(HEADER).findAll('button').find(button => button.text() === messageOf(locale, 'groupIndustry.detail.statusActions.in_progress'))
 }
 
 enableAutoUnmount(afterEach)
@@ -61,11 +59,12 @@ beforeEach(() => {
 })
 
 describe('group project detail start confirmation', () => {
-  it('asks before starting a draft from the next action card and lists the blacklist and the invention it locks, in both languages', async () => {
+  it('asks before starting a draft from the header button and lists the blacklist and the invention it locks, in both languages', async () => {
     for (const locale of TEST_LOCALES) {
       const wrapper = await mountStartable('draft', { blacklistGroupIds: [25, 26, 27], blacklistTypeIds: [11_399], excludesInvention: true }, locale)
 
-      await wrapper.get(NEXT_ACTION_BUTTON).trigger('click')
+      expect(startButtonOfHeader(wrapper, locale)).toBeDefined()
+      await startButtonOfHeader(wrapper, locale)?.trigger('click')
       await flushPromises()
 
       expect({
@@ -85,7 +84,8 @@ describe('group project detail start confirmation', () => {
   it('says nothing is excluded and the invention is included when the project has neither', async () => {
     const wrapper = await mountStartable('draft')
 
-    await wrapper.get(NEXT_ACTION_BUTTON).trigger('click')
+    expect(startButtonOfHeader(wrapper)).toBeDefined()
+    await startButtonOfHeader(wrapper)?.trigger('click')
     await flushPromises()
 
     expect({ patches: sentPatchBodies(), asked: wrapper.find(CONFIRMATION).exists() }).toEqual({ patches: [], asked: true })
@@ -93,7 +93,7 @@ describe('group project detail start confirmation', () => {
     expectOnlyLocaleTexts(textOf(wrapper, LOCKS), 'en', ['groupIndustry.detail.startConfirm.blacklistNone'])
   })
 
-  it('asks the same confirmation from the header button when the cockpit is unavailable', async () => {
+  it('asks the same confirmation when the cockpit is unavailable', async () => {
     const wrapper = await mountStartableWithoutCockpit({ excludesInvention: true })
 
     await startButtonOfHeader(wrapper)?.trigger('click')
@@ -106,7 +106,8 @@ describe('group project detail start confirmation', () => {
   it('starts the project only once the confirmation is accepted', async () => {
     const wrapper = await mountStartable('draft')
 
-    await wrapper.get(NEXT_ACTION_BUTTON).trigger('click')
+    expect(startButtonOfHeader(wrapper)).toBeDefined()
+    await startButtonOfHeader(wrapper)?.trigger('click')
     await flushPromises()
     await wrapper.get(CONFIRM_BUTTON).trigger('click')
     await flushPromises()
@@ -120,7 +121,8 @@ describe('group project detail start confirmation', () => {
   it('keeps the project in draft when the confirmation is cancelled', async () => {
     const wrapper = await mountStartable('draft')
 
-    await wrapper.get(NEXT_ACTION_BUTTON).trigger('click')
+    expect(startButtonOfHeader(wrapper)).toBeDefined()
+    await startButtonOfHeader(wrapper)?.trigger('click')
     await flushPromises()
     await wrapper.get(CANCEL_BUTTON).trigger('click')
     await flushPromises()
@@ -128,28 +130,16 @@ describe('group project detail start confirmation', () => {
     expect({ patches: sentPatchBodies(), asked: wrapper.find(CONFIRMATION).exists() }).toEqual({ patches: [], asked: false })
   })
 
-  it('names the Prepare block and what starting locks in the card description of a draft, in both languages', async () => {
-    for (const locale of TEST_LOCALES) {
-      const wrapper = await mountStartable('draft', {}, locale)
-
-      expectOnlyLocaleTexts(textOf(wrapper, NEXT_ACTION_CARD), locale, ['groupIndustry.cockpit.nextAction.start_project.descriptionLocks'])
-      wrapper.unmount()
-      setActivePinia(createPinia())
-    }
-  })
-
-  it('keeps the plain card description and starts at once when the project is already published', async () => {
+  it('starts at once, without confirmation, when the project is already published', async () => {
     const wrapper = await mountStartable('published')
 
-    expectOnlyLocaleTexts(textOf(wrapper, NEXT_ACTION_CARD), 'en', ['groupIndustry.cockpit.nextAction.start_project.description'])
-
-    await wrapper.get(NEXT_ACTION_BUTTON).trigger('click')
+    expect(startButtonOfHeader(wrapper)).toBeDefined()
+    await startButtonOfHeader(wrapper)?.trigger('click')
     await flushPromises()
 
     expect({ patches: sentPatchBodies(), asked: wrapper.find(CONFIRMATION).exists() }).toEqual({
       patches: [{ status: 'in_progress' }],
       asked: false,
     })
-    expect(textOf(wrapper, NEXT_ACTION_CARD)).not.toContain('lock')
   })
 })

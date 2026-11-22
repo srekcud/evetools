@@ -2927,6 +2927,67 @@
     }
   },
   "groupIndustry": {
+    "flow": {
+      "columns": {
+        "toBring": "To bring",
+        "onSite": "On site",
+        "inProduction": "In production",
+        "out": "Out",
+        "done": "Sold",
+        "doneHandedOver": "Handed over"
+      },
+      "states": {
+        "toBring": "To bring",
+        "inTransit": "In transit",
+        "onSite": "On site",
+        "consumed": "Consumed",
+        "inProduction": "In production",
+        "out": "Out",
+        "toBuy": "To buy",
+        "toLaunch": "To launch",
+        "sold": "Sold",
+        "unknown": "Unknown"
+      },
+      "fold": {
+        "onSite": "+ {count} on site: {names}",
+        "consumed": "+ {count} consumed: {names}",
+        "collapse": "\u2212 collapse"
+      },
+      "here": "here",
+      "unnamedType": "Unnamed type",
+      "unnamedStation": "Unnamed station",
+      "unresolvedRow": "Place to choose",
+      "empty": "Nothing to show yet",
+      "unavailable": "Quantities unavailable: {reason}",
+      "quantitiesError": "Could not read the quantities by station:",
+      "unknownReasons": {
+        "market_not_chosen": "Market not chosen",
+        "market_structure_unset": "Market structure not set",
+        "station_unresolved": "Step station not resolved",
+        "location_unresolved": "Location not resolved",
+        "plan_unavailable": "Plan unavailable",
+        "consumption_unknown": "Consumption unknown",
+        "job_consumption_unknown": "Job consumption unknown",
+        "no_container_at_station": "No container at this station",
+        "transfer_unreadable": "Transfers unreadable",
+        "corporation_assets_not_synced": "Corporation assets not synced",
+        "personal_assets_not_synced": "Personal assets not synced"
+      },
+      "actions": {
+        "title": "Project to do",
+        "loading": "Loading the actions…",
+        "empty": "Nothing to do for this project",
+        "error": "Could not read the actions:",
+        "anywhere": "Anywhere",
+        "unknownPlace": "Unknown place",
+        "verbs": {
+          "launch_job": "Launch",
+          "source_material": "Buy",
+          "review_contributions": "Review the deposits",
+          "review_join_requests": "Accept the requests"
+        }
+      }
+    },
     "setup": {
       "crumbProjects": "Projects",
       "stepProducts": "Products and BPCs",
@@ -4519,8 +4580,7 @@
       "saveButton": "Save template"
     },
     "cockpit": {
-      "railLabel": "Project phases",
-      "unavailable": "Phases and next action are unavailable for now.",
+      "unavailable": "The price alert is unavailable for now.",
       "phases": {
         "prepare": "Prepare",
         "supply": "Supply",
@@ -4528,86 +4588,9 @@
         "sell": "Sell",
         "close": "Close"
       },
-      "states": {
-        "done": "Done",
-        "current": "In progress",
-        "blocked": "Blocked",
-        "upcoming": "Upcoming"
-      },
       "blockedReasons": {
         "materials_missing": "{count} materials to cover",
         "jobs_unfinished": "{count} jobs to finish"
-      },
-      "nextAction": {
-        "label": "Next action",
-        "project_completed": {
-          "title": "Project completed",
-          "description": "The accounts are frozen: there is nothing left to do on this project."
-        },
-        "settle_transfers": {
-          "title": "Settle the transfers",
-          "description": "{quantity} transfers are still waiting to be received: the recipients tick them in the Finances tab.",
-          "button": "Open the transfers"
-        },
-        "copy_recap": {
-          "title": "Copy the recap",
-          "description": "The accounts are frozen: copy the Discord recap from the Finances tab to share the result.",
-          "button": "Open the recap"
-        },
-        "review_join_requests": {
-          "title": "Join requests to handle",
-          "description": "{quantity} pilots are waiting for you to accept or decline their request to join the project.",
-          "button": "Handle the requests"
-        },
-        "review_contributions": {
-          "title": "Contributions to review",
-          "description": "{quantity} contributions are waiting for your decision before they count in the BOM.",
-          "button": "Review contributions"
-        },
-        "start_project": {
-          "title": "Start the project",
-          "description": "Materials are ready to be contributed: move the project to in progress.",
-          "descriptionLocks": "Check the Prepare block first: starting locks the blacklist and the invention exclusion, and nothing can be changed there afterwards."
-        },
-        "deliver_purchases": {
-          "title": "Bring the purchases to the container",
-          "description": "Purchased lines still to bring to the project container: {quantity}. Ship and deposit them before launching the jobs.",
-          "button": "See the purchases"
-        },
-        "source_material": {
-          "title": "Source a material",
-          "description": "{quantity} {typeName} are still missing to cover the BOM.",
-          "button": "Contribute"
-        },
-        "await_jobs": {
-          "title": "Jobs running",
-          "description": "Every run is launched: the last job ends on {endsAt}.",
-          "descriptionUnknownEnd": "Every run is launched, the end date of the last job is unknown.",
-          "button": "See the jobs"
-        },
-        "launch_job": {
-          "title": "Launch a job",
-          "description": "{quantity} runs of {typeName} are left to launch.",
-          "descriptionUnknownRuns": "{typeName} has jobs left to launch, the remaining runs are unknown.",
-          "button": "See the jobs"
-        },
-        "start_selling": {
-          "title": "Move to selling",
-          "description": "Production is finished: open the sale of the products."
-        },
-        "record_sale": {
-          "title": "Record the sales",
-          "description": "{quantity} units are left to sell or to record.",
-          "button": "Open the sales"
-        },
-        "complete_project": {
-          "title": "Close the project",
-          "description": "Close the project to freeze the accounts."
-        },
-        "nothing_to_do": {
-          "title": "Nothing to do for you",
-          "description": "The project is moving along without you for now."
-        }
       },
       "priceAlert": {
         "title": "Jita ({jitaPrice}) is below your break-even price ({breakEven}).",

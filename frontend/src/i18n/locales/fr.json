@@ -2927,6 +2927,67 @@
     }
   },
   "groupIndustry": {
+    "flow": {
+      "columns": {
+        "toBring": "À apporter",
+        "onSite": "Sur place",
+        "inProduction": "En fabrication",
+        "out": "Sorti",
+        "done": "Vendu",
+        "doneHandedOver": "Remis"
+      },
+      "states": {
+        "toBring": "À apporter",
+        "inTransit": "En transit",
+        "onSite": "Sur place",
+        "consumed": "Consommé",
+        "inProduction": "En fabrication",
+        "out": "Sorti",
+        "toBuy": "À acheter",
+        "toLaunch": "À lancer",
+        "sold": "Vendu",
+        "unknown": "Inconnu"
+      },
+      "fold": {
+        "onSite": "+ {count} sur place : {names}",
+        "consumed": "+ {count} consommés : {names}",
+        "collapse": "\u2212 replier"
+      },
+      "here": "ici",
+      "unnamedType": "Type sans nom",
+      "unnamedStation": "Station sans nom",
+      "unresolvedRow": "Lieu à choisir",
+      "empty": "Rien à afficher pour l'instant",
+      "unavailable": "Quantités indisponibles : {reason}",
+      "quantitiesError": "Lecture des quantités par station impossible :",
+      "unknownReasons": {
+        "market_not_chosen": "Marché non choisi",
+        "market_structure_unset": "Structure de marché non définie",
+        "station_unresolved": "Station de l'étape non résolue",
+        "location_unresolved": "Lieu non résolu",
+        "plan_unavailable": "Plan indisponible",
+        "consumption_unknown": "Consommation inconnue",
+        "job_consumption_unknown": "Consommation des jobs inconnue",
+        "no_container_at_station": "Aucun conteneur à cette station",
+        "transfer_unreadable": "Transferts illisibles",
+        "corporation_assets_not_synced": "Assets de la corporation non synchronisés",
+        "personal_assets_not_synced": "Assets personnels non synchronisés"
+      },
+      "actions": {
+        "title": "À faire du projet",
+        "loading": "Chargement des actions…",
+        "empty": "Rien à faire pour ce projet",
+        "error": "Lecture des actions impossible :",
+        "anywhere": "N'importe où",
+        "unknownPlace": "Lieu inconnu",
+        "verbs": {
+          "launch_job": "Lancer",
+          "source_material": "Acheter",
+          "review_contributions": "Relire les dépôts",
+          "review_join_requests": "Accepter les demandes"
+        }
+      }
+    },
     "setup": {
       "crumbProjects": "Projets",
       "stepProducts": "Produits et BPC",
@@ -4519,8 +4580,7 @@
       "saveButton": "Enregistrer le modèle"
     },
     "cockpit": {
-      "railLabel": "Phases du projet",
-      "unavailable": "Phases et prochaine action indisponibles pour le moment.",
+      "unavailable": "L'alerte de prix est indisponible pour le moment.",
       "phases": {
         "prepare": "Préparer",
         "supply": "Approvisionner",
@@ -4528,86 +4588,9 @@
         "sell": "Vendre",
         "close": "Clôturer"
       },
-      "states": {
-        "done": "Terminée",
-        "current": "En cours",
-        "blocked": "Bloquée",
-        "upcoming": "À venir"
-      },
       "blockedReasons": {
         "materials_missing": "{count} matériaux à couvrir",
         "jobs_unfinished": "{count} jobs à terminer"
-      },
-      "nextAction": {
-        "label": "Prochaine action",
-        "project_completed": {
-          "title": "Projet terminé",
-          "description": "Les comptes sont figés : il n'y a plus rien à faire sur ce projet."
-        },
-        "settle_transfers": {
-          "title": "Régler les virements",
-          "description": "{quantity} virements attendent encore d'être reçus : les destinataires les cochent dans l'onglet Finances.",
-          "button": "Ouvrir les virements"
-        },
-        "copy_recap": {
-          "title": "Copier le récapitulatif",
-          "description": "Les comptes sont figés : copiez le récapitulatif Discord depuis l'onglet Finances pour partager le résultat.",
-          "button": "Ouvrir le récapitulatif"
-        },
-        "review_join_requests": {
-          "title": "Demandes d'adhésion à traiter",
-          "description": "{quantity} pilotes attendent que vous acceptiez ou refusiez leur demande de rejoindre le projet.",
-          "button": "Traiter les demandes"
-        },
-        "review_contributions": {
-          "title": "Contributions à relire",
-          "description": "{quantity} contributions attendent votre décision avant d'être comptées dans la BOM.",
-          "button": "Relire les contributions"
-        },
-        "start_project": {
-          "title": "Démarrer le projet",
-          "description": "Les matériaux sont prêts à être apportés : passez le projet en cours.",
-          "descriptionLocks": "Vérifiez d'abord le bloc Préparer : le démarrage verrouille la blacklist et l'exclusion de l'invention, plus rien n'y sera modifiable ensuite."
-        },
-        "deliver_purchases": {
-          "title": "Amener les achats au container",
-          "description": "Lignes achetées encore à amener dans le container du projet : {quantity}. Expédiez-les et déposez-les avant de lancer les jobs.",
-          "button": "Voir les achats"
-        },
-        "source_material": {
-          "title": "Approvisionner un matériau",
-          "description": "Il manque {quantity} {typeName} pour couvrir la BOM.",
-          "button": "Contribuer"
-        },
-        "await_jobs": {
-          "title": "Jobs en cours",
-          "description": "Tous les runs sont lancés : fin du dernier job le {endsAt}.",
-          "descriptionUnknownEnd": "Tous les runs sont lancés, la date de fin du dernier job est inconnue.",
-          "button": "Voir les jobs"
-        },
-        "launch_job": {
-          "title": "Lancer un job",
-          "description": "{quantity} runs de {typeName} restent à lancer.",
-          "descriptionUnknownRuns": "Des jobs de {typeName} restent à lancer, le nombre de runs restants est inconnu.",
-          "button": "Voir les jobs"
-        },
-        "start_selling": {
-          "title": "Passer à la vente",
-          "description": "La production est terminée : ouvrez la vente des produits."
-        },
-        "record_sale": {
-          "title": "Enregistrer les ventes",
-          "description": "{quantity} unités restent à vendre ou à enregistrer.",
-          "button": "Ouvrir les ventes"
-        },
-        "complete_project": {
-          "title": "Clôturer le projet",
-          "description": "Clôturez le projet pour figer les comptes."
-        },
-        "nothing_to_do": {
-          "title": "Rien à faire pour vous",
-          "description": "Le projet avance sans vous pour le moment."
-        }
       },
       "priceAlert": {
         "title": "Jita ({jitaPrice}) est sous votre seuil de rentabilité ({breakEven}).",

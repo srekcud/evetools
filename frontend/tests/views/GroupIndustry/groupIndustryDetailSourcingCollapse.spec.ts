@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { apiRequest } from '@/services/api'
 import type { BomItem } from '@/stores/group-industry/types'
 import { writeSourcingOverride } from '@/views/GroupIndustry/sourcingCollapse'
-import { bomLine, cockpitOf, mountCockpitDetail, nextAction, nyxProject, route, tabSelector } from './projectCockpitFixtures'
+import { bomLine, cockpitOf, isSectionOpen, mountCockpitDetail, nextAction, nyxProject, route, sectionToggleSelector } from './projectCockpitFixtures'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -31,6 +31,7 @@ const OPEN_MATERIALS: BomItem[] = [
 ]
 
 async function mountWith(bom: BomItem[], purchasesToDeliverCount = 0) {
+  route.query = { tab: 'bom' }
   return mountCockpitDetail({
     project: nyxProject('in_progress'),
     bom,
@@ -47,7 +48,7 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
 })
 
-describe('project materials tab sourcing blocks', () => {
+describe('project materials section sourcing blocks', () => {
   it('collapses the sourcing blocks behind a summary once every material is covered', async () => {
     const wrapper = await mountWith(COVERED_MATERIALS)
 
@@ -103,24 +104,26 @@ describe('project materials tab sourcing blocks', () => {
     expect(wrapper.find(SOURCING_SECTION).exists()).toBe(false)
   })
 
-  it('points to the production tab from the summary', async () => {
+  it('points to the production section from the summary', async () => {
     const wrapper = await mountWith(COVERED_MATERIALS)
 
     await wrapper.get(SOURCING_OPEN_CHAIN).trigger('click')
     await flushPromises()
 
     expect({
-      chainTabSelected: wrapper.get(tabSelector('chain')).attributes('aria-selected'),
+      chainSectionOpen: isSectionOpen(wrapper, 'chain'),
       summaryGone: wrapper.find(SOURCING_SUMMARY).exists(),
-    }).toEqual({ chainTabSelected: 'true', summaryGone: false })
+    }).toEqual({ chainSectionOpen: true, summaryGone: false })
   })
 
-  it('names the tab where production is followed', async () => {
+  it('names the section where production is followed', async () => {
     const wrapper = await mountWith(COVERED_MATERIALS)
 
+    expect(wrapper.find(sectionToggleSelector('bom')).exists()).toBe(true)
+    expect(wrapper.find(sectionToggleSelector('chain')).exists()).toBe(true)
     expect({
-      materials: wrapper.get(tabSelector('bom')).text(),
-      chain: wrapper.get(tabSelector('chain')).text(),
+      materials: wrapper.get(sectionToggleSelector('bom')).text(),
+      chain: wrapper.get(sectionToggleSelector('chain')).text(),
     }).toEqual({
       materials: expect.stringMatching(/^Sourcing(?! & jobs)/),
       chain: 'Production',

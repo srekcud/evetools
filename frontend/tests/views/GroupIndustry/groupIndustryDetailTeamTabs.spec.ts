@@ -61,8 +61,11 @@ async function mountOn(tab: string | undefined, answers: Partial<CockpitAnswers>
   }, locale)
 }
 
-function tabIds(wrapper: VueWrapper): string[] {
-  return wrapper.findAll('[data-testid^="project-tab-"]').map(tab => (tab.attributes('data-testid') ?? '').replace('project-tab-', ''))
+function sectionIds(wrapper: VueWrapper): string[] {
+  return wrapper.findAll('[data-testid^="project-section-"]')
+    .map(section => (section.attributes('data-testid') ?? '').replace('project-section-', ''))
+    .filter(id => !id.startsWith('toggle-'))
+    .sort()
 }
 
 function buttonLabels(wrapper: VueWrapper): string[] {
@@ -77,11 +80,11 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
 })
 
-describe('project detail team tabs for a project worked on alone', () => {
-  it('hides the contributions and team tabs and offers Invite instead of Share Link', async () => {
+describe('project detail team sections for a project worked on alone', () => {
+  it('hides the contributions and team sections and offers Invite instead of Share Link', async () => {
     const wrapper = await mountOn(undefined, { project: nyxProject('in_progress', 'owner', { membersCount: 1, pendingContributionCount: 0 }) })
 
-    expect(tabIds(wrapper)).toEqual(SOLO_TABS)
+    expect(sectionIds(wrapper)).toEqual([...SOLO_TABS].sort())
     expect(buttonLabels(wrapper)).toContain(ENGLISH_INVITE_LABEL)
     expect(buttonLabels(wrapper)).not.toContain(ENGLISH_SHARE_LABEL)
   })
@@ -96,43 +99,43 @@ describe('project detail team tabs for a project worked on alone', () => {
   it.each([
     ['members', MemberTable],
     ['contributions', ContributionTable],
-  ] as const)('falls back to the materials when the query asks for the %s tab', async (tab, hiddenPanel) => {
+  ] as const)('shows neither the section nor the panel when the query asks for the %s tab', async (tab, hiddenPanel) => {
     const wrapper = await mountOn(tab, { project: nyxProject('in_progress', 'owner', { membersCount: 1, pendingContributionCount: 0 }) })
 
-    expect(wrapper.findComponent(BomTable).exists()).toBe(true)
+    expect(wrapper.find(`[data-testid="project-section-${tab}"]`).exists()).toBe(false)
     expect(wrapper.findComponent(hiddenPanel).exists()).toBe(false)
   })
 })
 
-describe('project detail team tabs once the team exists', () => {
-  it('shows the contributions and team tabs and keeps Share Link when a member is pending', async () => {
+describe('project detail team sections once the team exists', () => {
+  it('shows the contributions and team sections and keeps Share Link when a member is pending', async () => {
     const wrapper = await mountOn(undefined, {
       project: nyxProject('in_progress', 'owner', { membersCount: 1, pendingContributionCount: 0 }),
       members: [OWNER, WAITING_PILOT],
     })
 
-    expect(tabIds(wrapper)).toEqual(TEAM_TABS)
+    expect(sectionIds(wrapper)).toEqual([...TEAM_TABS].sort())
     expect(buttonLabels(wrapper)).toContain(ENGLISH_SHARE_LABEL)
     expect(buttonLabels(wrapper)).not.toContain(ENGLISH_INVITE_LABEL)
   })
 
-  it('shows the tabs as soon as the project has two members, even with no pending member', async () => {
+  it('shows the sections as soon as the project has two members, even with no pending member', async () => {
     const wrapper = await mountOn(undefined, {
       project: nyxProject('in_progress', 'owner', { membersCount: 2, pendingContributionCount: 0 }),
       members: [OWNER, teamMember('pilot-3', 'accepted')],
     })
 
-    expect(tabIds(wrapper)).toEqual(TEAM_TABS)
+    expect(sectionIds(wrapper)).toEqual([...TEAM_TABS].sort())
     expect(buttonLabels(wrapper)).toContain(ENGLISH_SHARE_LABEL)
   })
 
-  it('shows the tabs for a lone pilot while a contribution waits for a review', async () => {
+  it('shows the sections for a lone pilot while a contribution waits for a review', async () => {
     const wrapper = await mountOn(undefined, { project: nyxProject('in_progress', 'owner', { membersCount: 1, pendingContributionCount: 1 }) })
 
-    expect(tabIds(wrapper)).toEqual(TEAM_TABS)
+    expect(sectionIds(wrapper)).toEqual([...TEAM_TABS].sort())
   })
 
-  it('opens the team tab named in the query', async () => {
+  it('opens the team section named in the query', async () => {
     const wrapper = await mountOn('members', {
       project: nyxProject('in_progress', 'owner', { membersCount: 2, pendingContributionCount: 0 }),
       members: [OWNER, teamMember('pilot-3', 'accepted')],
@@ -143,22 +146,22 @@ describe('project detail team tabs once the team exists', () => {
   })
 })
 
-describe('project detail team tabs while the member list is not known', () => {
-  it('shows the tabs when the member list fails to load', async () => {
+describe('project detail team sections while the member list is not known', () => {
+  it('shows the sections when the member list fails to load', async () => {
     const wrapper = await mountOn(undefined, {
       project: nyxProject('in_progress', 'owner', { membersCount: 1, pendingContributionCount: 0 }),
       members: new Error('Members unavailable'),
     })
 
-    expect(tabIds(wrapper)).toEqual(TEAM_TABS)
+    expect(sectionIds(wrapper)).toEqual([...TEAM_TABS].sort())
   })
 
-  it('shows the tabs while the member list is loading', async () => {
+  it('shows the sections while the member list is loading', async () => {
     const wrapper = await mountOn(undefined, {
       project: nyxProject('in_progress', 'owner', { membersCount: 1, pendingContributionCount: 0 }),
       members: deferred<GroupMember[]>().promise,
     })
 
-    expect(tabIds(wrapper)).toEqual(TEAM_TABS)
+    expect(sectionIds(wrapper)).toEqual([...TEAM_TABS].sort())
   })
 })

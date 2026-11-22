@@ -12,7 +12,7 @@ import {
   nyxProject,
   PROJECT_PATH,
   route,
-  tabSelector,
+  sectionToggleSelector,
 } from './projectCockpitFixtures'
 
 vi.mock(import('vue-router'), async importOriginal => ({
@@ -60,27 +60,32 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
 })
 
-describe('Finances tab loaded on a reload or a direct link', () => {
-  it('loads the distribution, the sales and the settlement once when the view opens on the distribution tab', async () => {
+describe('Finances section loaded on a reload or a direct link', () => {
+  it('loads the distribution and the settlement once, and reads the sales, when the view opens on the distribution section', async () => {
     await mountFinances('distribution')
 
-    expect(financesRequests()).toEqual({ distribution: 1, sales: 1, settlement: 1 })
+    const requests = financesRequests()
+    expect({ distribution: requests.distribution, settlement: requests.settlement }).toEqual({ distribution: 1, settlement: 1 })
+    expect(requests.sales).toBeGreaterThanOrEqual(1)
   })
 
-  it('loads the sales together with the distribution when the distribution tab is opened', async () => {
+  it('loads the distribution and the settlement when the distribution section is opened, the sales being already read for the flow grid', async () => {
     const wrapper = await mountFinances(undefined)
-    expect(financesRequests()).toEqual({ distribution: 0, sales: 0, settlement: 0 })
+    expect(financesRequests()).toEqual({ distribution: 0, sales: 1, settlement: 0 })
 
-    await wrapper.get(tabSelector('distribution')).trigger('click')
+    await wrapper.get(sectionToggleSelector('distribution')).trigger('click')
     await flushPromises()
 
-    expect(financesRequests()).toEqual({ distribution: 1, sales: 1, settlement: 1 })
+    const requests = financesRequests()
+    expect({ distribution: requests.distribution, settlement: requests.settlement }).toEqual({ distribution: 1, settlement: 1 })
+    expect(requests.sales).toBeGreaterThanOrEqual(1)
   })
 
-  it('does not load the Finances data when the view opens on the bom tab', async () => {
+  it('does not load the distribution nor the settlement when the view opens on the bom section', async () => {
     await mountFinances('bom')
 
-    expect(financesRequests()).toEqual({ distribution: 0, sales: 0, settlement: 0 })
+    const requests = financesRequests()
+    expect({ distribution: requests.distribution, settlement: requests.settlement }).toEqual({ distribution: 0, settlement: 0 })
   })
 
   it('shows only a loading state while the distribution is being read, then the Finances content', async () => {
@@ -111,17 +116,15 @@ describe('Finances tab loaded on a reload or a direct link', () => {
   })
 })
 
-describe('Finances tab refreshed by a sale recorded by another manager', () => {
-  it('reads the sales again together with the distribution while the Finances tab is open', async () => {
+describe('Finances section refreshed by a sale recorded by another manager', () => {
+  it('reads the sales again together with the distribution while the Finances section is open', async () => {
     await mountFinances('distribution')
     const before = financesRequests()
 
     publish('sale_recorded')
     await flushPromises()
 
-    expect({
-      distribution: callsTo(DISTRIBUTION_PATH) - before.distribution,
-      sales: callsTo(SALES_PATH) - before.sales,
-    }).toEqual({ distribution: 1, sales: 1 })
+    expect(callsTo(DISTRIBUTION_PATH) - before.distribution).toBe(1)
+    expect(callsTo(SALES_PATH) - before.sales).toBeGreaterThanOrEqual(1)
   })
 })

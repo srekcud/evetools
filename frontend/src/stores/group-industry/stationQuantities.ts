@@ -24,6 +24,9 @@ export const useGroupStationQuantitiesStore = defineStore('group-station-quantit
     error.value = null
     try {
       const read = await apiRequest<TypeStationQuantities[]>(stationQuantitiesPath(projectId))
+      if (!Array.isArray(read)) {
+        throw new Error('Unexpected station quantities response')
+      }
       if (request === latestRequest) {
         quantities.value = read
       }

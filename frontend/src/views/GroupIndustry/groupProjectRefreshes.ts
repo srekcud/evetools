@@ -57,7 +57,7 @@ const TABS_SHOWING_REFRESH: Partial<Record<GroupProjectRefresh, ProjectDetailTab
   activity: ['journal'],
 }
 
-export function refreshesVisibleOn(actions: string[], activeTab: ProjectDetailTab): GroupProjectRefresh[] {
+export function refreshesVisibleOn(actions: string[], openSection: ProjectDetailTab | null): GroupProjectRefresh[] {
   const wanted = new Set<GroupProjectRefresh>()
   for (const action of actions) {
     for (const refresh of groupProjectRefreshes(action)) wanted.add(refresh)
@@ -65,6 +65,6 @@ export function refreshesVisibleOn(actions: string[], activeTab: ProjectDetailTa
   }
   return [...wanted].filter((refresh) => {
     const tabsShowingIt = TABS_SHOWING_REFRESH[refresh]
-    return tabsShowingIt === undefined || tabsShowingIt.includes(activeTab)
+    return tabsShowingIt === undefined || (openSection !== null && tabsShowingIt.includes(openSection))
   })
 }

@@ -114,7 +114,7 @@ enableAutoUnmount(afterEach)
 
 beforeEach(() => {
   setActivePinia(createPinia())
-  route.query = {}
+  route.query = { tab: 'bom' }
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
     if (endpoint === VERIFICATION_PATH) return [TRITANIUM_VERIFICATION]

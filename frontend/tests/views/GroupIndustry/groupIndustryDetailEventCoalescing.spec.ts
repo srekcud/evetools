@@ -13,7 +13,7 @@ import {
   nyxProject,
   PROJECT_PATH,
   route,
-  tabSelector,
+  sectionToggleSelector,
 } from './projectCockpitFixtures'
 
 vi.mock(import('vue-router'), async importOriginal => ({
@@ -29,7 +29,6 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 
 const CONTRIBUTIONS_PATH = `${PROJECT_PATH}/contributions`
 const DISTRIBUTION_PATH = `${PROJECT_PATH}/distribution`
-const SALES_PATH = `${PROJECT_PATH}/sales`
 const BOM_PATH = `${PROJECT_PATH}/bom`
 
 const syncEvent = ref<GroupProjectEvent | null>(null)
@@ -61,7 +60,7 @@ afterEach(() => {
 })
 
 describe('group project detail refreshed by the realtime events', () => {
-  it('refreshes the cockpit and the BOM on the bom tab but not the contributions nor the distribution, which load when their tab opens', async () => {
+  it('refreshes the cockpit and the BOM with no section open but not the contributions nor the distribution, which load when their section opens', async () => {
     const wrapper = await mountTeamProject()
     const before = { cockpit: callsTo(COCKPIT_PATH), bom: callsTo(BOM_PATH) }
 
@@ -73,7 +72,8 @@ describe('group project detail refreshed by the realtime events', () => {
       contributions: callsTo(CONTRIBUTIONS_PATH),
       distribution: callsTo(DISTRIBUTION_PATH),
     }
-    await wrapper.get(tabSelector('contributions')).trigger('click')
+    expect(wrapper.find(sectionToggleSelector('contributions')).exists()).toBe(true)
+    await wrapper.get(sectionToggleSelector('contributions')).trigger('click')
     await flushPromises()
 
     expect({ afterEvent, contributionsOnceOpened: callsTo(CONTRIBUTIONS_PATH) }).toEqual({
@@ -82,7 +82,7 @@ describe('group project detail refreshed by the realtime events', () => {
     })
   })
 
-  it('refreshes the contributions of the open contributions tab but not the distribution nor the sales, which load when their tab opens', async () => {
+  it('refreshes the contributions of the open contributions section but not the distribution, which loads when its section opens', async () => {
     await mountTeamProject('contributions')
     const contributionsAtMount = callsTo(CONTRIBUTIONS_PATH)
 
@@ -92,8 +92,7 @@ describe('group project detail refreshed by the realtime events', () => {
     expect({
       contributions: callsTo(CONTRIBUTIONS_PATH) - contributionsAtMount,
       distribution: callsTo(DISTRIBUTION_PATH),
-      sales: callsTo(SALES_PATH),
-    }).toEqual({ contributions: 1, distribution: 0, sales: 0 })
+    }).toEqual({ contributions: 1, distribution: 0 })
   })
 
   it('reads the cockpit once at the first event of a burst and once at the end of the window, however many events follow', async () => {

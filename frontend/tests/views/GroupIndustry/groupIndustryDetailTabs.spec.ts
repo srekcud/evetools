@@ -12,7 +12,8 @@ import { apiRequest } from '@/services/api'
 import { TEST_LOCALES, type TestLocale } from '../../localeTexts'
 import {
   cockpitOf,
-  tabSelector,
+  isSectionOpen,
+  sectionToggleSelector,
   mountCockpitDetail,
   nextAction,
   nyxProject,
@@ -31,7 +32,6 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-const COMING_SOON_FRENCH = 'À venir'
 const ACTIVE_TABS = ['bom', 'invention', 'chain', 'planning', 'sales', 'distribution', 'journal']
 const COMING_SOON_TABS: string[] = []
 
@@ -57,13 +57,13 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
 })
 
-describe('project cockpit tabs', () => {
-  it('shows the seven working tabs of a solo project, with no contributions and no team tab and no coming soon tab, and opens on the materials', async () => {
+describe('project cockpit sections', () => {
+  it('shows the seven working sections of a solo project, all closed, and opens the one a query names and no other', async () => {
     const wrapper = await mountSellingNyxOn(undefined)
 
-    const tabs = wrapper.findAll('[data-testid^="project-tab-"]')
-    const disabled = tabs.map(tab => (tab.element as HTMLButtonElement).disabled)
-    const comingSoonMentions = tabs.map(tab => tab.text().includes(COMING_SOON_FRENCH))
+    const ids = wrapper.findAll('[data-testid^="project-section-"]')
+      .map(section => (section.attributes('data-testid') ?? '').replace('project-section-', ''))
+      .filter(id => !id.startsWith('toggle-'))
     const materialsPanel = wrapper.findComponent(BomTable).exists()
     const chainQuery = await mountSellingNyxOn('chain')
     const chainPanels = {
@@ -73,19 +73,17 @@ describe('project cockpit tabs', () => {
     const planningQuery = await mountSellingNyxOn('planning')
 
     expect({
-      ids: tabs.map(tab => tab.attributes('data-testid')),
-      disabled,
-      comingSoonMentions,
+      ids: [...ids].sort(),
+      open: ACTIVE_TABS.filter(tab => isSectionOpen(wrapper, tab)),
       materialsPanel,
       chainQueryOpensTheProductionChain: chainPanels.chain,
       chainQueryKeepsTheMaterialsClosed: chainPanels.materialsClosed,
       planningQueryOpensThePlanning: planningQuery.findComponent(ProjectPlanning).exists(),
       planningQueryKeepsTheMaterialsClosed: !planningQuery.findComponent(BomTable).exists(),
     }).toEqual({
-      ids: [...ACTIVE_TABS, ...COMING_SOON_TABS].map(tab => `project-tab-${tab}`),
-      disabled: [false, false, false, false, false, false, false],
-      comingSoonMentions: [false, false, false, false, false, false, false],
-      materialsPanel: true,
+      ids: [...ACTIVE_TABS, ...COMING_SOON_TABS].sort(),
+      open: [],
+      materialsPanel: false,
       chainQueryOpensTheProductionChain: true,
       chainQueryKeepsTheMaterialsClosed: true,
       planningQueryOpensThePlanning: true,
@@ -136,20 +134,22 @@ describe('project cockpit tabs', () => {
   })
 })
 
-describe('project cockpit sourcing and production tabs', () => {
-  it.each(TEST_LOCALES)('names the first tab Sourcing without jobs and keeps Production on the chain tab in %s', async (locale) => {
+describe('project cockpit sourcing and production sections', () => {
+  it.each(TEST_LOCALES)('names the first section Sourcing without jobs and keeps Production on the chain section in %s', async (locale) => {
     const wrapper = await mountSellingNyxOn(undefined, locale)
 
-    const sourcingLabel = wrapper.get(tabSelector('bom')).text()
+    expect(wrapper.find(sectionToggleSelector('bom')).exists()).toBe(true)
+    expect(wrapper.find(sectionToggleSelector('chain')).exists()).toBe(true)
+    const sourcingLabel = wrapper.get(sectionToggleSelector('bom')).text()
     expect({
       sourcing: sourcingLabel.includes(SOURCING_TAB_LABELS[locale]),
       mentionsJobs: /jobs/i.test(sourcingLabel),
       rawKey: sourcingLabel.includes('groupIndustry.tabs'),
-      production: wrapper.get(tabSelector('chain')).text().includes(PRODUCTION_TAB_LABELS[locale]),
+      production: wrapper.get(sectionToggleSelector('chain')).text().includes(PRODUCTION_TAB_LABELS[locale]),
     }).toEqual({ sourcing: true, mentionsJobs: false, rawKey: false, production: true })
   })
 
-  it('renders no jobs section and no old jobs wording on the sourcing tab', async () => {
+  it('renders no jobs section and no old jobs wording on the sourcing section', async () => {
     const wrapper = await mountSellingNyxOn('bom', 'en')
 
     expect({
@@ -160,7 +160,7 @@ describe('project cockpit sourcing and production tabs', () => {
     }).toEqual({ materialsTable: true, productionChain: false, jobsSection: false, oldHint: false })
   })
 
-  it('wraps the production chain in the jobs section on the production tab and shows no materials table there', async () => {
+  it('wraps the production chain in the jobs section on the production section and shows no materials table there', async () => {
     const wrapper = await mountSellingNyxOn('chain', 'en')
 
     const section = wrapper.find(JOBS_SECTION)
@@ -171,16 +171,16 @@ describe('project cockpit sourcing and production tabs', () => {
     }).toEqual({ jobsSection: true, sectionHoldsTheChain: true, materialsTable: false })
   })
 
-  it('opens the sourcing tab when the materials card of the production chain asks for it', async () => {
+  it('opens the sourcing section when the materials card of the production chain asks for it', async () => {
     const wrapper = await mountSellingNyxOn('chain', 'en')
 
     wrapper.getComponent(ProductionChain).vm.$emit('open-sourcing')
     await flushPromises()
 
     expect({
-      sourcingTabSelected: wrapper.get(tabSelector('bom')).attributes('aria-selected'),
+      sourcingSectionOpen: isSectionOpen(wrapper, 'bom'),
       materialsTable: wrapper.findComponent(BomTable).exists(),
       jobsSection: wrapper.find(JOBS_SECTION).exists(),
-    }).toEqual({ sourcingTabSelected: 'true', materialsTable: true, jobsSection: false })
+    }).toEqual({ sourcingSectionOpen: true, materialsTable: true, jobsSection: false })
   })
 })

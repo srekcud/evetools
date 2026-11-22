@@ -21,6 +21,9 @@ export const useGroupPlaceActionsStore = defineStore('group-place-actions', () =
     error.value = null
     try {
       const read = await apiRequest<PlacedAction[]>(path)
+      if (!Array.isArray(read)) {
+        throw new Error('Unexpected place actions response')
+      }
       if (request === latestRequest) {
         actions.value = read
       }
