@@ -38,7 +38,7 @@ class DerivedContributionService
     public function refreshLine(IndustryProjectBomLine $line): void
     {
         $project = $line->getProject();
-        if ($project->isCompleted()) {
+        if ($project->isCompleted() || self::isBlueprintJobLine($line)) {
             return;
         }
 
@@ -81,6 +81,11 @@ class DerivedContributionService
                 ['contributionId' => $contributionId, 'bomItemId' => $line->getId()->toRfc4122()],
             );
         }
+    }
+
+    private static function isBlueprintJobLine(IndustryProjectBomLine $line): bool
+    {
+        return $line->isMatchableJob() && !$line->isManufacturingOrReactionJob();
     }
 
     public function syncCourier(IndustryProject $project, ?CourierLinkedContract $contract): void
