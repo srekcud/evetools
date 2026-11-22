@@ -1237,6 +1237,7 @@
       "allOccupied": "All {type} slots occupied",
       "buildSuggestion": "Build",
       "inventSuggestion": "Invent",
+      "stepRuns": "{runs} runs · {project}",
       "timeline": {
         "title": "Job Completion Timeline",
         "hoverHint": "Hover bars for details. Bars sorted by completion time.",

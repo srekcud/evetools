@@ -550,8 +550,21 @@ onMounted(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
               <span class="text-slate-400">{{ freeSlotSuggestionLabel(entry) }}</span>
-              <span class="text-cyan-400 font-semibold hover:underline cursor-pointer">{{ entry.suggestion.typeName }}</span>
-              <span class="text-slate-500 text-xs">({{ entry.suggestion.reason }})</span>
+              <template v-if="entry.suggestion.project != null">
+                <RouterLink
+                  data-testid="free-slot-suggestion-link"
+                  :to="{ name: 'industry-project', params: { id: entry.suggestion.project.id }, query: { tab: 'chain' } }"
+                  class="text-cyan-400 font-semibold hover:underline"
+                >{{ entry.suggestion.typeName }}</RouterLink>
+                <span
+                  class="text-slate-500 text-xs truncate max-w-xs"
+                  :title="projectLabel(entry.suggestion.project)"
+                >{{ t('industry.slots.stepRuns', { runs: entry.suggestion.runs, project: projectLabel(entry.suggestion.project) }) }}</span>
+              </template>
+              <template v-else>
+                <span class="text-cyan-400 font-semibold">{{ entry.suggestion.typeName }}</span>
+                <span class="text-slate-500 text-xs">({{ entry.suggestion.reason }})</span>
+              </template>
             </div>
           </template>
         </div>

@@ -17,6 +17,7 @@ use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Scheduler\SyncScheduler;
 use App\Service\Help\ScheduledSyncReader;
+use App\Service\Industry\Project\OpenProjectStepsToLaunch;
 use App\Service\Industry\SlotTrackerService;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Industry\SlotTrackerProvider;
@@ -59,6 +60,8 @@ final class SlotTrackerProviderTest extends TestCase
         $typeNameResolver->method('findNames')->willReturn([]);
         $stockpileTargetRepository = $this->createMock(IndustryStockpileTargetRepository::class);
         $stockpileTargetRepository->method('findByUser')->willReturn([]);
+        $openProjectSteps = $this->createMock(OpenProjectStepsToLaunch::class);
+        $openProjectSteps->method('forUser')->willReturn([]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->createStub(User::class));
         $provider = new SlotTrackerProvider($security, new SlotTrackerService(
@@ -70,6 +73,7 @@ final class SlotTrackerProviderTest extends TestCase
             $stockpileTargetRepository,
             $this->createMock(CachedAssetRepository::class),
             $this->createMock(IndustryProjectJobMatchRepository::class),
+            $openProjectSteps,
         ), new ScheduledSyncReader([new SyncScheduler(new ArrayAdapter(), new LockFactory(new InMemoryStore()))]));
 
         $resource = $provider->provide(new Get());

@@ -592,7 +592,10 @@ export type SlotTrackerJob = {
 
 export type FreeSlotEntry = {
   activityType: string; count: number
-  suggestion: { typeId: number; typeName: string; reason: string } | null
+  suggestion: {
+    typeId: number; typeName: string; reason: string | null
+    project: { id: string; name: string | null } | null; runs: number | null
+  } | null
 }
 
 export type SlotTrackerCharacter = {

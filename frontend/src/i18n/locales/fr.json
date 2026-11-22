@@ -1237,6 +1237,7 @@
       "allOccupied": "Tous les slots {type} occupes",
       "buildSuggestion": "Construire",
       "inventSuggestion": "Inventer",
+      "stepRuns": "{runs} runs · {project}",
       "timeline": {
         "title": "Chronologie des Jobs",
         "hoverHint": "Survolez les barres pour les details. Barres triees par fin.",
