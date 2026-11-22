@@ -7,6 +7,8 @@ namespace App\Tests\Functional\Api\Industry\Project;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryStructureConfig;
+use App\Constant\EveConstants;
 use App\Entity\Sde\InvCategory;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
@@ -29,6 +31,13 @@ final class ProjectPlanningApiTest extends WebTestCase
     private const int HULL_RUNS = 3;
     private const int HULL_TE_LEVEL = 10;
     private const int HULL_DURATION_SECONDS = 11_016;
+    private const int ACTIVITY_COPYING = 5;
+    private const int COPIED_BLUEPRINT_TYPE_ID = 990_204_001;
+    private const int COPIED_PRODUCT_TYPE_ID = 990_204_002;
+    private const int INVENTED_PRODUCT_TYPE_ID = 990_204_003;
+    private const int COPY_BASE_TIME_PER_RUN_SECONDS = 480;
+    private const int COPY_RUNS = 10;
+    private const int INVENTION_ATTEMPTS = 3;
     private const int BLUEPRINT_CATEGORY_ID = 990_747_001;
     private const int BLUEPRINT_GROUP_ID = 990_747_002;
 
@@ -84,7 +93,7 @@ final class ProjectPlanningApiTest extends WebTestCase
                 [],
                 [self::CHARACTER_KEYS, self::CHARACTER_KEYS],
                 [
-                    ['Aria Solberg', false, ['manufacturing' => 4, 'reaction' => 2], ['industry' => 4, 'advancedIndustry' => 3, 'reactions' => 2], null, []],
+                    ['Aria Solberg', false, ['manufacturing' => 4, 'reaction' => 2, 'science' => 1], ['industry' => 4, 'advancedIndustry' => 3, 'reactions' => 2], null, []],
                     ['Brin Solberg', true, null, null, null, []],
                 ],
             ],
@@ -268,6 +277,72 @@ final class ProjectPlanningApiTest extends WebTestCase
         self::assertArrayHasKey('blueprintName', $jobs[0]);
 
         return $jobs[0]['blueprintName'];
+    }
+
+    #[Group('issue-1204')]
+    public function testCopyIsPlannedInTheLaneOfTheCharacterAndTheInventionIsListedAsNotPlanned(): void
+    {
+        $connection = $this->em->getConnection();
+        $connection->insert('sde_industry_blueprints', ['type_id' => self::COPIED_BLUEPRINT_TYPE_ID, 'max_production_limit' => 300]);
+        $connection->insert('sde_industry_activities', [
+            'type_id' => self::COPIED_BLUEPRINT_TYPE_ID,
+            'activity_id' => self::ACTIVITY_COPYING,
+            'time' => self::COPY_BASE_TIME_PER_RUN_SECONDS,
+        ]);
+        $connection->insert('sde_industry_activity_products', [
+            'type_id' => self::COPIED_BLUEPRINT_TYPE_ID,
+            'activity_id' => self::ACTIVITY_MANUFACTURING,
+            'product_type_id' => self::COPIED_PRODUCT_TYPE_ID,
+            'quantity' => 1,
+        ]);
+        $workshop = (new IndustryStructureConfig())
+            ->setUser($this->owner)
+            ->setName('Copy workshop')
+            ->setStructureType('raitaru')
+            ->setSecurityType('highsec')
+            ->setSolarSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID)
+            ->setLocationId(990_204_100)
+            ->setCorporationId(self::OWNER_CORPORATION_ID)
+            ->setFacilityTaxPercent(1.0)
+            ->setRigs([]);
+        $this->em->persist($workshop);
+        $this->cacheSkills($this->owner->getMainCharacter(), [
+            CachedCharacterSkill::SKILL_SCIENCE => 5,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+            CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 1,
+            CachedCharacterSkill::SKILL_ADVANCED_LABORATORY_OPERATION => 2,
+        ]);
+        $copyBatch = $this->persistProject('Copy batch');
+        $this->addMembership($copyBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addJobLine($copyBatch, self::COPIED_PRODUCT_TYPE_ID, 'Synthetic Frigate', 'blueprint', self::COPY_RUNS, self::COPY_RUNS, 0, 0, null)
+            ->setActivityType('copy')
+            ->setPlannedStructureId($workshop->getId()->toRfc4122());
+        $inventionLine = $this->addJobLine($copyBatch, self::INVENTED_PRODUCT_TYPE_ID, 'Synthetic Frigate II', 'blueprint', self::INVENTION_ATTEMPTS, self::INVENTION_ATTEMPTS, 0, 0, null)
+            ->setActivityType('invention');
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->planningUri($copyBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        $planning = $this->responseJson();
+        self::assertCount(1, $planning['characters']);
+        $lane = $planning['characters'][0];
+        self::assertSame(['manufacturing' => 1, 'reaction' => 1, 'science' => 4], $lane['slots']);
+        self::assertSame(
+            [['copy', self::COPIED_PRODUCT_TYPE_ID, 'Synthetic Frigate', self::COPY_RUNS]],
+            array_map(static fn (array $job): array => [$job['activity'], $job['typeId'], $job['typeName'], $job['runs']], $lane['jobs']),
+        );
+        self::assertNotNull($lane['jobs'][0]['planned']);
+        self::assertNotNull($planning['plannedEnd']);
+        self::assertCount(1, $planning['unscheduled']);
+        $unscheduled = $planning['unscheduled'][0];
+        self::assertArrayHasKey('blueprintName', $unscheduled);
+        self::assertNull($unscheduled['blueprintName']);
+        self::assertSame(
+            [$inventionLine->getId()->toRfc4122(), 'Synthetic Frigate II', 'invention_not_planned'],
+            [$unscheduled['lineId'], $unscheduled['typeName'], $unscheduled['reason']],
+        );
     }
 
     public function testPilotOfAnotherCorporationIsRefusedThePlanning(): void

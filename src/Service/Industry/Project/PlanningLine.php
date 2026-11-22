@@ -9,7 +9,7 @@ use App\Industry\Domain\Multiplier;
 final readonly class PlanningLine
 {
     /**
-     * @param 'manufacturing'|'reaction' $activity
+     * @param 'manufacturing'|'reaction'|'copy' $activity
      * @param list<int>                  $scienceSkillIds skills the producer blueprint requires for the activity, Industry and Advanced Industry excluded
      * @param list<PlanningLinkedJob>    $linkedJobs      linked ESI jobs, cancelled and reverted ones included
      */

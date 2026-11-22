@@ -2963,7 +2963,8 @@
       "unscheduledReason": {
         "no_eligible_worker": "Aucun personnage ne peut lancer ce job",
         "dependency_unscheduled": "Un job dont il dépend ne peut pas être planifié",
-        "duration_unknown": "Durée inconnue"
+        "duration_unknown": "Durée inconnue",
+        "invention_not_planned": "Invention non planifiée : la fin planifiée ne la compte pas"
       },
       "noCharacters": "Aucun personnage ne participe encore à ce projet.",
       "ganttCharacter": "Personnage",
@@ -2976,7 +2977,8 @@
       "blueprintNameCopyFailed": "Copie impossible : le navigateur a refusé l'accès au presse-papier",
       "activity": {
         "manufacturing": "Fabrication",
-        "reaction": "Réaction"
+        "reaction": "Réaction",
+        "copy": "Copie"
       },
       "wait": {
         "waitingJob": "Attend {names}",

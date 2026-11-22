@@ -313,3 +313,63 @@ describe('ProjectPlanning long names', () => {
     expect(rowName.classes()).toContain('truncate')
   })
 })
+
+describe('ProjectPlanning copy and invention', () => {
+  const COPY_LINE_ID = 'line-copy-hornet'
+  const INVENTION_LINE_ID = 'line-invention-hornet-ii'
+
+  const COPY_JOB = planningJob({
+    lineId: COPY_LINE_ID,
+    typeId: 2048,
+    typeName: 'Hornet',
+    activity: 'copy',
+    runs: 10,
+    planned: { start: '2026-11-08T06:00:00+00:00', end: '2026-11-08T06:51:00+00:00' },
+  })
+
+  it('names the copy activity of a job in the gantt in the language of the player', async () => {
+    const planning = projectPlanning({
+      plannedEnd: '2026-11-08T06:51:00+00:00',
+      characters: [planningCharacter({ characterName: ARIA_SOLBERG, jobs: [COPY_JOB] })],
+    })
+
+    const english = await mountPlanning(planning, 'en')
+    const englishJob = byTestId(laneOf(english, ARIA_SOLBERG), `planning-job-${COPY_LINE_ID}`)
+    const french = await mountPlanning(planning, 'fr')
+    const frenchJob = byTestId(laneOf(french, ARIA_SOLBERG), `planning-job-${COPY_LINE_ID}`)
+
+    expect([englishJob.attributes('data-activity'), englishJob.text()]).toEqual(['copy', expect.stringContaining('Copy · 10')])
+    expect([frenchJob.attributes('data-activity'), frenchJob.text()]).toEqual(['copy', expect.stringContaining('Copie · 10')])
+  })
+
+  it('lists an invention left out of the plan with its reason in the language of the player', async () => {
+    const planning = projectPlanning({
+      plannedEnd: '2026-11-08T06:51:00+00:00',
+      characters: [planningCharacter({ characterName: ARIA_SOLBERG, jobs: [COPY_JOB] })],
+      unscheduled: [{ lineId: INVENTION_LINE_ID, typeName: 'Hornet II', blueprintName: null, reason: 'invention_not_planned' }],
+    })
+
+    const english = await mountPlanning(planning, 'en')
+    const french = await mountPlanning(planning, 'fr')
+    const englishRow = byTestId(byTestId(english, 'planning-unscheduled'), `planning-unscheduled-${INVENTION_LINE_ID}`)
+    const frenchRow = byTestId(byTestId(french, 'planning-unscheduled'), `planning-unscheduled-${INVENTION_LINE_ID}`)
+
+    expect(englishRow.attributes('data-reason')).toBe('invention_not_planned')
+    expect(englishRow.text()).toContain('Hornet II')
+    expect(englishRow.text()).toContain('Invention not planned: the planned end leaves it out')
+    expect(frenchRow.text()).toContain('Invention non planifiée : la fin planifiée ne la compte pas')
+  })
+
+  it('still shows the planned end as a date when an invention is listed as not planned', async () => {
+    const wrapper = await mountPlanning(projectPlanning({
+      plannedEnd: '2026-11-08T06:51:00+00:00',
+      characters: [planningCharacter({ characterName: ARIA_SOLBERG, jobs: [COPY_JOB] })],
+      unscheduled: [{ lineId: INVENTION_LINE_ID, typeName: 'Hornet II', blueprintName: null, reason: 'invention_not_planned' }],
+    }))
+
+    const plannedEnd = byTestId(wrapper, 'planning-planned-end')
+
+    expect(plannedEnd.attributes('data-value')).toBe('2026-11-08T06:51:00+00:00')
+    expect(plannedEnd.find('[data-testid="planning-unknown"]').exists()).toBe(false)
+  })
+})

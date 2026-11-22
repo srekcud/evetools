@@ -2963,7 +2963,8 @@
       "unscheduledReason": {
         "no_eligible_worker": "No character can launch this job",
         "dependency_unscheduled": "A job it depends on cannot be planned",
-        "duration_unknown": "Duration unknown"
+        "duration_unknown": "Duration unknown",
+        "invention_not_planned": "Invention not planned: the planned end leaves it out"
       },
       "noCharacters": "No character takes part in this project yet.",
       "ganttCharacter": "Character",
@@ -2976,7 +2977,8 @@
       "blueprintNameCopyFailed": "Copy failed: the browser refused access to the clipboard",
       "activity": {
         "manufacturing": "Manufacturing",
-        "reaction": "Reaction"
+        "reaction": "Reaction",
+        "copy": "Copy"
       },
       "wait": {
         "waitingJob": "Waits for {names}",

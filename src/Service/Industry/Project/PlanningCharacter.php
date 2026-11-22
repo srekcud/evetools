@@ -14,6 +14,7 @@ final readonly class PlanningCharacter
         public ?array $skillLevels,
         public ?int $manufacturingSlots,
         public ?int $reactionSlots,
+        public ?int $scienceSlots,
     ) {
     }
 }

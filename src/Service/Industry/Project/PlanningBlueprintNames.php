@@ -32,7 +32,7 @@ final readonly class PlanningBlueprintNames
     }
 
     /**
-     * @param array<string, array{typeId: int, activity: 'manufacturing'|'reaction'}> $products
+     * @param array<string, array{typeId: int, activity: 'manufacturing'|'reaction'|'copy'}> $products
      *
      * @return array<string, string> key => name of the blueprint or formula that builds the product, absent when unknown
      */

@@ -995,11 +995,11 @@ export type ProjectReactionSteps = {
   steps: ReactionStep[]
 }
 
-export type PlanningActivity = 'manufacturing' | 'reaction'
+export type PlanningActivity = 'manufacturing' | 'reaction' | 'copy'
 
 export type PlanningWaitKind = 'waiting_job' | 'waiting_materials' | 'unknown'
 
-export type PlanningUnscheduledReason = 'no_eligible_worker' | 'dependency_unscheduled' | 'duration_unknown'
+export type PlanningUnscheduledReason = 'no_eligible_worker' | 'dependency_unscheduled' | 'duration_unknown' | 'invention_not_planned'
 
 export type PlanningWait = {
   kind: PlanningWaitKind
@@ -1022,7 +1022,7 @@ export type PlanningJob = {
 export type PlanningCharacter = {
   characterName: string
   skillsUnknown: boolean
-  slots: { manufacturing: number; reaction: number } | null
+  slots: { manufacturing: number; reaction: number; science: number } | null
   skills: { industry: number; advancedIndustry: number; reactions: number } | null
   endsAt: string | null
   jobs: PlanningJob[]

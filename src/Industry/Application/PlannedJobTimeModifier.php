@@ -29,4 +29,18 @@ final readonly class PlannedJobTimeModifier
 
         return $plannedStructure->jobTimeMultiplierFor($activity, $this->rigCategories->categoryOf($productTypeId, $activity));
     }
+
+    /**
+     * @param list<ProductionStructure> $structures
+     */
+    public function ofCopy(?string $plannedStructureId, array $structures): ?Multiplier
+    {
+        if (null === $plannedStructureId) {
+            return Multiplier::one();
+        }
+
+        $plannedStructure = array_find($structures, static fn (ProductionStructure $structure): bool => $structure->id === $plannedStructureId);
+
+        return $plannedStructure?->timeMultiplierFor(ActivityKind::Copying);
+    }
 }
