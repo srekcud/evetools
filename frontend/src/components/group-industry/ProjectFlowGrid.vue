@@ -92,7 +92,16 @@ function foldLabel(row: FlowRow, column: FlowColumn): string {
           >{{ columnLabel(column) }}</div>
           <div v-for="row in grid.rows" :key="row.key" data-testid="flow-row" class="contents">
             <div class="flex min-w-0 flex-col gap-1 border border-slate-800 bg-slate-900 p-2">
-              <span data-testid="flow-row-label" class="break-words font-display text-[15px] font-bold tracking-wide text-cyan-400">{{ rowLabel(row) }}</span>
+              <router-link
+                v-if="row.locationId !== null"
+                :to="{ name: 'industry-station', params: { locationId: String(row.locationId) } }"
+                data-testid="flow-row-link"
+                class="min-w-0 hover:underline"
+                :title="t('groupIndustry.flow.openStation')"
+              >
+                <span data-testid="flow-row-label" class="break-words font-display text-[15px] font-bold tracking-wide text-cyan-400">{{ rowLabel(row) }}</span>
+              </router-link>
+              <span v-else data-testid="flow-row-label" class="break-words font-display text-[15px] font-bold tracking-wide text-cyan-400">{{ rowLabel(row) }}</span>
               <span
                 v-if="row.here === true"
                 data-testid="flow-row-here"

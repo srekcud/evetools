@@ -309,6 +309,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/industry/stations/:locationId(\\d+)',
+      name: 'industry-station',
+      component: () => import('@/views/GroupIndustry/StationView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/industry/projects/:id/setup',
       name: 'industry-project-setup',
       component: () => import('@/views/GroupIndustry/ProjectSetup.vue'),

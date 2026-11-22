@@ -2927,6 +2927,33 @@
     }
   },
   "groupIndustry": {
+    "station": {
+      "back": "Projects",
+      "unnamed": "Unnamed station",
+      "unnamedProject": "Unnamed project",
+      "tiles": {
+        "occupied": "Lines in use",
+        "expected": "Expected here",
+        "carryAway": "To carry away",
+        "access": "Access"
+      },
+      "tileDetails": {
+        "occupied": "jobs of your projects",
+        "expected": "lots on their way",
+        "carryAway": "lots ready to leave",
+        "access": "jobs to launch here"
+      },
+      "accessValue": "{granted} confirmed, {unknown} unknown",
+      "byProject": "By project",
+      "youOwn": "you are the owner",
+      "ownedBy": "project of {name}",
+      "todoHere": "To do here",
+      "empty": "None of your projects does anything at this station.",
+      "loadError": "Could not read the station:",
+      "unavailable": "{project}: quantities unavailable ({reason})",
+      "unreadable": "Could not read these projects: {projects}",
+      "note": "A station seen from the inside: what your projects do here, what is arriving, what has to leave. Only your projects appear."
+    },
     "flow": {
       "columns": {
         "toBring": "To bring",
@@ -2954,6 +2981,7 @@
         "collapse": "\u2212 collapse"
       },
       "here": "here",
+      "openStation": "Open the station view",
       "sources": {
         "stock": "stock",
         "blueprint": "blueprint",

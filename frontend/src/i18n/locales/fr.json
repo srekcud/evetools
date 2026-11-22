@@ -2927,6 +2927,33 @@
     }
   },
   "groupIndustry": {
+    "station": {
+      "back": "Projets",
+      "unnamed": "Station sans nom",
+      "unnamedProject": "Projet sans nom",
+      "tiles": {
+        "occupied": "Lignes occupées",
+        "expected": "Attendu ici",
+        "carryAway": "À emporter d'ici",
+        "access": "Accès"
+      },
+      "tileDetails": {
+        "occupied": "jobs de vos projets",
+        "expected": "lots en route",
+        "carryAway": "lots prêts à partir",
+        "access": "jobs à lancer ici"
+      },
+      "accessValue": "{granted} confirmés, {unknown} inconnus",
+      "byProject": "Par projet",
+      "youOwn": "vous êtes propriétaire",
+      "ownedBy": "projet de {name}",
+      "todoHere": "À faire ici",
+      "empty": "Aucun de vos projets ne fait quoi que ce soit à cette station.",
+      "loadError": "Lecture de la station impossible :",
+      "unavailable": "{project} : quantités indisponibles ({reason})",
+      "unreadable": "Lecture impossible de ces projets : {projects}",
+      "note": "Une station vue de l'intérieur : ce que vos projets y font, ce qui arrive, ce qui doit partir. Seuls vos projets apparaissent."
+    },
     "flow": {
       "columns": {
         "toBring": "À apporter",
@@ -2954,6 +2981,7 @@
         "collapse": "\u2212 replier"
       },
       "here": "ici",
+      "openStation": "Ouvrir la vue de la station",
       "sources": {
         "stock": "stock",
         "blueprint": "blueprint",
