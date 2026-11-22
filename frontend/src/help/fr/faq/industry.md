@@ -21,11 +21,12 @@ Le détail, les cas particuliers et la taxe d'installation sont dans le guide [C
 
 ## Acheter ou produire : comment la décision est-elle calculée ?
 
-Pour chaque intermédiaire du plan d'un projet qui a un job, EVE Tools compare deux coûts pour la quantité demandée :
+Pour chaque intermédiaire du plan d'un projet qui a un job, EVE Tools compare les options pour la quantité demandée, chacune livrée à la station qui l'utilise :
 
 - **produire** : le coût de fabrication, avec tous les runs entiers (le surplus produit est compris dans le coût) ;
-- **acheter** : le prix Jita pondéré, plus le coût d'**import**.
+- **acheter à Jita** : le prix Jita pondéré, plus le coût d'**import** ;
+- **acheter au marché de la capitale** : le prix du marché de la capitale, quand il est lu.
 
-L'import est le coût de transport de Jita jusqu'à votre atelier : volume × quantité × nombre de sauts entre Jita et le système favori de l'activité × 150 ISK par m³ et par saut. Il est inconnu sans volume, sans système favori ou sans route.
+L'import passe par votre **hub de courier**, le système où les couriers de la corporation livrent toujours les achats de Jita (la capitale, C-J6MT par défaut). Il vaut le volume en m³ × la quantité × le tarif Jita → hub de courier (800 ISK par m³ par défaut), puis, quand l'atelier n'est pas dans le système du hub, × votre tarif de **pont** (0 par défaut). Un atelier à Jita ne paie aucun import. Le hub de courier se règle dans « Systèmes favoris », les deux tarifs (« Coût d'export » et « Tarif du pont ») dans la configuration de l'Industrie. L'import est inconnu sans volume, sans atelier ou sans hub de courier, jamais 0.
 
-Le choix est **produire** (en cas d'égalité aussi), **acheter**, ou **inconnu** dès que l'un des deux coûts est inconnu. L'économie affichée est l'écart entre les deux coûts pour la quantité demandée. Rien n'est enregistré : le calcul est refait à chaque lecture.
+Le choix recommandé est l'option la moins chère, avec à égalité produire d'abord, puis Jita, puis le marché de la capitale. Il est **inconnu** dès qu'un coût dont il dépend l'est. Rien n'est enregistré : le calcul est refait à chaque lecture.

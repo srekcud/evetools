@@ -7,7 +7,7 @@ This page explains how EVE Tools computes the install cost of a job (manufacturi
 - **"Industry" menu, "Analysis" tab, "Margins" sub-tab.** The "Job Install Cost" table gives one row per job ("Install Cost" column) and the "Total Job Install Cost". The "Job Install" box of the "Cost Summary" repeats that total.
 - **"Buy vs Build" sub-tab.** Same calculation as "Margins".
 - **"Batch Scan" sub-tab.** The install cost of a single run goes into each row's margin. It is computed separately, with the assumptions described below.
-- **Project, "Production" tab, "Structures" card.** Each structure's total includes the installation (cost index, role bonus, tax).
+- **Project startup, "Stations" step.** Each candidate station's total includes the installation (cost index, role bonus, tax).
 
 The cost of a job already started, read from the ESI and recorded as a "Job Install" contribution of a project, does not go through this calculation: it is the amount the game charged.
 
@@ -139,10 +139,10 @@ Screens do not start from the same values. Check ME and TE before comparing two 
 - **ME does not lower the install cost.** The EIV starts from base quantities, before ME and before bonuses.
 - **An empty tax makes the cost unknown.** It does not count as 0%.
 - **"Batch Scan" simplifies.** One run, fixed ME, and material quantities without structure or rig bonus. The cost index is the analysis system's, even for a structure imported in another system. For a T2, the calculation assumes no decryptor, while the screen's help text announces an Attainment decryptor.
-- **A project's "Structures" card.** A structure created by hand (not imported) has no known system: its installation is unknown there, while "Margins" uses your favorite system for the same structure.
+- **A project's "Stations" step.** A structure created by hand (not imported) has no known system: its installation is unknown there, while "Margins" uses your favorite system for the same structure.
 - **The "Calculated bonus" preview of the structure configuration** is an overall indication. The calculation applies each rig only to products of the category it targets, with the SDE values.
 - **The note under the "Job Install Cost" table** says actual costs may vary with facility bonuses and structure rigs. The calculation already includes them (cost role bonus, science rigs); the remaining gap comes from the cost index and adjusted prices, which change between the sync and the moment you start the job.
 
 ## Technical note
 
-Cost: `InstallCost::forJob()` (`src/Industry/Domain/InstallCost.php`), EIV: `EstimatedItemValue::of()`, called by `ProductionCostCalculator::installCost()` for "Margins", "Buy vs Build" and a project's buy or build card, by `StructureTotalCostComparator::breakdownOf()` for a project's "Structures" card, and by `JobInstallCostEstimator::estimate()` for "Batch Scan" and "Pivot". Quantities: `MaterialQuantity::forManufacturingJob()`. Multipliers: `ProductionStructure::installCostMultiplierFor()` and `materialMultiplierFor()`.
+Cost: `InstallCost::forJob()` (`src/Industry/Domain/InstallCost.php`), EIV: `EstimatedItemValue::of()`, called by `ProductionCostCalculator::installCost()` for "Margins" and "Buy vs Build", by `StructureTotalCostComparator::breakdownOf()` for a project's "Stations" step, by `StructureTotalCostComparator::totalCostOf()` for its buy or build step, and by `JobInstallCostEstimator::estimate()` for "Batch Scan" and "Pivot". Quantities: `MaterialQuantity::forManufacturingJob()`. Multipliers: `ProductionStructure::installCostMultiplierFor()` and `materialMultiplierFor()`.

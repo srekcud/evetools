@@ -7,7 +7,7 @@ Cette page explique comment EVE Tools calcule le coût d'installation d'un job (
 - **Menu « Industrie », onglet « Analyse », sous-onglet « Marges ».** Le tableau « Cout d'installation » donne une ligne par job (colonne « Cout install. ») et le « Cout total installation ». La case « Installation » de « Resume des couts » reprend ce total.
 - **Sous-onglet « Achat vs Prod ».** Même calcul que « Marges ».
 - **Sous-onglet « Scan ».** Le coût d'installation d'un seul run entre dans la marge de chaque ligne. Il est calculé à part, avec les hypothèses décrites plus bas.
-- **Projet, onglet « Production », carte « Structures ».** Le total de chaque structure comprend l'installation (indice de coût, bonus de rôle, taxe).
+- **Démarrage d'un projet, étape « Stations ».** Le total de chaque station candidate comprend l'installation (indice de coût, bonus de rôle, taxe).
 
 Le coût d'un job déjà lancé, lu dans l'ESI et enregistré comme apport « Job Install » d'un projet, ne passe pas par ce calcul : c'est le montant facturé par le jeu.
 
@@ -139,10 +139,10 @@ Les écrans ne partent pas des mêmes valeurs. Vérifiez le ME et le TE avant de
 - **Le ME ne réduit pas le coût d'installation.** L'EIV part des quantités de base, avant ME et avant bonus.
 - **Une taxe laissée vide rend le coût inconnu.** Elle ne compte pas pour 0 %.
 - **« Scan » simplifie.** Un seul run, ME fixe, et les quantités de matériaux sans bonus de structure ni de rig. Le cost index est celui du système de l'analyse, même pour une structure importée dans un autre système. Pour un T2, le calcul ne suppose aucun décrypteur, alors que l'aide de l'écran annonce un décrypteur Attainment.
-- **Carte « Structures » d'un projet.** Une structure créée à la main (non importée) n'a pas de système connu : son installation y est inconnue, alors que « Marges » utilise votre système favori pour la même structure.
+- **Étape « Stations » d'un projet.** Une structure créée à la main (non importée) n'a pas de système connu : son installation y est inconnue, alors que « Marges » utilise votre système favori pour la même structure.
 - **L'aperçu « Bonus calculé » de la configuration des structures** est une indication globale. Le calcul applique chaque rig seulement aux produits de la catégorie qu'il vise, avec les valeurs du SDE.
 - **La note sous le tableau « Cout d'installation »** dit que les coûts réels peuvent varier selon les bonus de la structure et ses rigs. Le calcul les inclut déjà (bonus de rôle de coût, rigs de science) ; l'écart restant tient au cost index et aux prix ajustés, qui changent entre la synchronisation et le lancement du job.
 
 ## Note technique
 
-Calcul du coût : `InstallCost::forJob()` (`src/Industry/Domain/InstallCost.php`), EIV : `EstimatedItemValue::of()`, appelés par `ProductionCostCalculator::installCost()` pour « Marges », « Achat vs Prod » et la carte acheter ou fabriquer d'un projet, par `StructureTotalCostComparator::breakdownOf()` pour la carte « Structures » d'un projet, et par `JobInstallCostEstimator::estimate()` pour « Scan » et « Pivot ». Quantités : `MaterialQuantity::forManufacturingJob()`. Multiplicateurs : `ProductionStructure::installCostMultiplierFor()` et `materialMultiplierFor()`.
+Calcul du coût : `InstallCost::forJob()` (`src/Industry/Domain/InstallCost.php`), EIV : `EstimatedItemValue::of()`, appelés par `ProductionCostCalculator::installCost()` pour « Marges » et « Achat vs Prod », par `StructureTotalCostComparator::breakdownOf()` pour l'étape « Stations » d'un projet, par `StructureTotalCostComparator::totalCostOf()` pour son étape acheter ou fabriquer, et par `JobInstallCostEstimator::estimate()` pour « Scan » et « Pivot ». Quantités : `MaterialQuantity::forManufacturingJob()`. Multiplicateurs : `ProductionStructure::installCostMultiplierFor()` et `materialMultiplierFor()`.

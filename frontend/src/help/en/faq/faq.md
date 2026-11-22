@@ -117,7 +117,7 @@ For manufacturing or a reaction:
 
 For copying and invention, it is the structure with the lowest install rate.
 
-In the project's "Production" tab, the "Structures" card compares the total cost: materials, installation, transport. The "Allow for this project" button lets the plan leave the favorite system when the saving reaches the project's threshold (500,000 ISK by default).
+In the project startup, the "Stations" step proposes one station per type of work of the plan and compares the total cost of each candidate: materials, installation, transport. The project policy ("Accept a station outside the favorite system", with a "Minimum saving", 500,000 ISK by default) lets the plan leave the favorite system when the saving reaches that threshold.
 
 Bonuses come from the structure type and the rigs you declared (3 at most). The facility tax of a player structure must be entered, otherwise the install cost is unknown. In an NPC station it is fixed at 0.25 %.
 
@@ -133,14 +133,15 @@ See [T2 project](/help?page=playbooks/t2-project).
 
 ### Buy or build?
 
-The "Buy or build" card of the "Sourcing" tab compares each intermediate of the plan:
+The last step of the project startup ("Buy or build, where to buy") compares each intermediate of the plan, every option delivered to the station that uses it:
 
 - **build**: the total cost of its jobs, direct materials bought included;
-- **buy**: the weighted Jita price of the requested quantity, plus the import to the workshop: volume in m³ × jumps from Jita to the favorite system × 150 ISK per m³ and per jump.
+- **Jita + import**: the weighted Jita price of the requested quantity, plus the import through the courier hub: volume in m³ × the Jita to hub rate, then × the jump bridge rate when the workshop is not in the hub system (none at all for a workshop in Jita);
+- **capital market**: the market price of the capital.
 
-The choice is "build" on a tie, "unknown" as soon as one of the two costs is. The surplus of whole runs is not credited; the card shows it separately ("with the surplus reused").
+The recommendation is the cheapest option, "unknown" as soon as a cost it needs is. The surplus of whole runs is not credited; the card detail shows it separately ("with the surplus reused"). Once the project is started, the "Buy or build" block of the card detail shows the same comparison.
 
-"Switch to buy" and "Switch to build" change the project's blacklist and recompute the BOM. Once the project is out of draft, the switch is refused if it would remove a line that already has work on it (linked job, purchase or contribution).
+"Switch to buy" and "Switch to build" in that block change the project's blacklist and recompute the BOM. Once the project is out of draft, the switch is refused if it would remove a line that already has work on it (linked job, purchase or contribution).
 
 See [weighted price](/help?page=calculations/weighted-price-appraisal).
 

@@ -6,7 +6,7 @@ It applies to **manufacturing** and **reaction** jobs. Copying, invention and re
 
 ## Where these calculations are used
 
-- The **Margins**, **Batch Scan**, **Buy vs Build** and **Pivot** analyses, as well as the buy-or-build comparison of a project, **estimate** the install cost with the formula below.
+- The **Margins**, **Batch Scan**, **Buy vs Build** and **Pivot** analyses, as well as the stations and buy-or-build steps of a project, **estimate** the install cost with the formula below.
 - In a project, once an ESI job is linked to a line, the install cost counted in the distribution is the **real cost read from the ESI job**, not this estimate. If the job has no cost, the amount is unknown.
 - Material quantities and durations in a project follow the ME, TE and bonus rules in the "Materials: ME, structure and rigs" and "Duration" sections.
 
