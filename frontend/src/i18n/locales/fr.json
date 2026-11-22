@@ -2973,12 +2973,20 @@
         "toBuy": "À acheter",
         "toLaunch": "À lancer",
         "sold": "Vendu",
+        "expected": "attendu",
         "unknown": "Inconnu"
       },
       "fold": {
         "onSite": "+ {count} sur place : {names}",
         "consumed": "+ {count} consommés : {names}",
+        "expected": "+ {count} attendus : {names}",
         "collapse": "\u2212 replier"
+      },
+      "expected": {
+        "out": "sorti à {from} · à emporter",
+        "inProduction": "en fabrication à {from}",
+        "toLaunch": "à lancer à {from}",
+        "toBuy": "à acheter à {from}"
       },
       "here": "ici",
       "openStation": "Ouvrir la vue de la station",

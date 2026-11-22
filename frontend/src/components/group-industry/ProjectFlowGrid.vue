@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ACTIVITY_STYLES } from './companionActivityStyles'
 import { ACTIVITY_GROUP_ORDER, type ActivityGroup } from './companionTasks'
 import ProjectFlowCard from './ProjectFlowCard.vue'
-import { FLOW_COLUMNS, foldCell, type FlowColumn, type FlowGrid, type FlowRow } from './projectFlow'
+import { FLOW_COLUMNS, foldCell, type FlowCard, type FlowColumn, type FlowGrid, type FlowRow } from './projectFlow'
 import { useFlowReasonLabel } from './useFlowReasonLabel'
 
 const props = defineProps<{
@@ -17,6 +17,19 @@ const LEGEND_ACTIVITIES: ActivityGroup[] = ACTIVITY_GROUP_ORDER.filter(activity 
 const { t } = useI18n()
 const reasonLabel = useFlowReasonLabel()
 const openCells = ref(new Set<string>())
+const hoveredLinkKey = ref<string | null>(null)
+
+const linkedKeys = computed(() => new Set(
+  props.grid.rows.flatMap(row => FLOW_COLUMNS.flatMap(column => row.cells[column])).flatMap(card => (card.expected === null ? [] : [card.expected.cardKey])),
+))
+
+function linkKeyOf(card: FlowCard): string {
+  return card.expected?.cardKey ?? card.key
+}
+
+function hoverCard(card: FlowCard, entered: boolean): void {
+  hoveredLinkKey.value = entered && linkedKeys.value.has(linkKeyOf(card)) ? linkKeyOf(card) : null
+}
 
 function columnLabel(column: FlowColumn): string {
   const key = column === 'done' && props.personalUse ? 'doneHandedOver' : column
@@ -48,7 +61,7 @@ function foldLabel(row: FlowRow, column: FlowColumn): string {
   if (openCells.value.has(cellKey(row, column))) return t('groupIndustry.flow.fold.collapse')
   const names = folded.foldLabelNames.map(name => name ?? t('groupIndustry.flow.unnamedType')).join(', ')
   const suffix = folded.hasMoreNames ? '…' : ''
-  return t(`groupIndustry.flow.fold.${folded.foldedKind === 'consumed' ? 'consumed' : 'onSite'}`, { count: folded.folded.length, names: `${names}${suffix}` })
+  return t(`groupIndustry.flow.fold.${folded.foldedKind ?? 'onSite'}`, { count: folded.folded.length, names: `${names}${suffix}` })
 }
 </script>
 
@@ -114,7 +127,13 @@ function foldLabel(row: FlowRow, column: FlowColumn): string {
               :data-testid="`flow-cell-${column}`"
               class="flex min-h-[70px] min-w-0 flex-col gap-1.5 border border-slate-800 bg-slate-950 p-1.5"
             >
-              <ProjectFlowCard v-for="card in foldedCell(row, column).shown" :key="card.key" :card="card" />
+              <ProjectFlowCard
+                v-for="card in foldedCell(row, column).shown"
+                :key="card.key"
+                :card="card"
+                :highlighted="hoveredLinkKey !== null && hoveredLinkKey === linkKeyOf(card)"
+                @highlight="hoverCard(card, $event)"
+              />
               <button
                 v-if="foldedCell(row, column).foldedKind !== null"
                 type="button"

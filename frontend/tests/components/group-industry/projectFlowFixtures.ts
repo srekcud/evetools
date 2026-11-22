@@ -69,6 +69,7 @@ export function flowCard(state: FlowCardState, fields: Partial<FlowCard> & Pick<
     progress: null,
     ready: false,
     remainingMs: null,
+    expected: null,
     ...fields,
   }
 }

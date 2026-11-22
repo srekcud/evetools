@@ -7,7 +7,16 @@ export type FlowColumn = 'toBring' | 'onSite' | 'inProduction' | 'out' | 'done'
 
 export const FLOW_COLUMNS: FlowColumn[] = ['toBring', 'onSite', 'inProduction', 'out', 'done']
 
-export type FlowCardState = 'toBring' | 'inTransit' | 'onSite' | 'consumed' | 'inProduction' | 'out' | 'toBuy' | 'toLaunch' | 'sold' | 'unknown'
+export type FlowCardState = 'toBring' | 'inTransit' | 'onSite' | 'consumed' | 'inProduction' | 'out' | 'toBuy' | 'toLaunch' | 'sold' | 'expected' | 'unknown'
+
+export type FlowExpectedOrigin = 'out' | 'inProduction' | 'toLaunch' | 'toBuy'
+
+export interface FlowCardExpected {
+  origin: FlowExpectedOrigin
+  fromKind: FlowRowKind
+  fromName: string | null
+  cardKey: string
+}
 
 export type FlowCardSource = 'stock' | 'blueprint' | 'invention'
 
@@ -18,6 +27,7 @@ export interface FlowCardDetails {
   progress: number | null
   ready: boolean
   remainingMs: number | null
+  expected: FlowCardExpected | null
 }
 
 export interface FlowCard extends FlowCardDetails {
@@ -59,23 +69,26 @@ export interface FlowGridInput {
 export interface FoldedCell {
   shown: FlowCard[]
   folded: FlowCard[]
-  foldedKind: 'onSite' | 'consumed' | null
+  foldedKind: 'onSite' | 'consumed' | 'expected' | null
   foldLabelNames: (string | null)[]
   hasMoreNames: boolean
 }
 
 const MAX_CARDS_BEFORE_FOLD = 3
-const MIN_CALM_CARDS_TO_FOLD = 2
+const MIN_FOLDED_CARDS = 2
 const MAX_FOLD_LABEL_NAMES = 3
 const STATIONS_UNAVAILABLE_REASON = 'plan_unavailable'
 const CALM_STATES: FlowCardState[] = ['onSite', 'consumed']
 const FULL_PROGRESS = 100
 const BLUEPRINT_ACTIVITIES: ActivityGroup[] = ['copy', 'invention']
+const EXPECTED_ORIGINS: FlowExpectedOrigin[] = ['out', 'inProduction', 'toLaunch', 'toBuy']
+const EXPECTED_ORIGIN_OF_STATE: Partial<Record<FlowCardState, FlowExpectedOrigin>> = { out: 'out', inProduction: 'inProduction', toLaunch: 'toLaunch', toBuy: 'toBuy' }
+const EXPECTED_SOURCE_COLUMNS: FlowColumn[] = ['onSite', 'inProduction', 'out']
 const STOCK_SOURCE_STATES: FlowCardState[] = ['onSite', 'consumed']
 const FINISHED_JOB_STATES: JobDisplayState[] = ['ready', 'delivered']
 const RUNNING_JOB_STATES: JobDisplayState[] = ['running', 'paused']
 const NO_PROGRESS = { progress: null, ready: false, remainingMs: null }
-const UNKNOWN_DETAILS: FlowCardDetails = { activity: 'unknown', source: null, bpc: false, ...NO_PROGRESS }
+const UNKNOWN_DETAILS: FlowCardDetails = { activity: 'unknown', source: null, bpc: false, ...NO_PROGRESS, expected: null }
 
 function emptyCells(): Record<FlowColumn, FlowCard[]> {
   return { toBring: [], onSite: [], inProduction: [], out: [], done: [] }
@@ -133,6 +146,37 @@ function detailsOf(state: FlowCardState, line: BomItem | undefined, now: number)
     source: sourceOf(state, line, activity),
     bpc: BLUEPRINT_ACTIVITIES.includes(activity),
     ...progressOf(state, line, now),
+    expected: null,
+  }
+}
+
+function stillLacks(station: StationQuantity): boolean {
+  const remaining = station.needed - station.consumed
+  if (remaining <= 0) return false
+  if (station.toBring !== null) return station.toBring > 0
+  return station.onSite === null || station.onSite < remaining
+}
+
+function lackingStationsOf(quantities: TypeStationQuantities[]): Map<number, StationQuantity[]> {
+  const lacking = new Map<number, StationQuantity[]>()
+  for (const type of quantities) {
+    const stations = (type.stations ?? []).filter(stillLacks)
+    if (stations.length > 0) lacking.set(type.typeId, stations)
+  }
+  return lacking
+}
+
+function expectedOf(card: FlowCard, destination: FlowRow, source: FlowRow, origin: FlowExpectedOrigin, destinationCount: number): FlowCard {
+  return {
+    ...card,
+    key: `expected:${card.key}:${destination.key}`,
+    state: 'expected',
+    quantity: destinationCount === 1 ? card.quantity : null,
+    unknownReason: null,
+    source: null,
+    progress: null,
+    ready: false,
+    expected: { origin, fromKind: source.kind, fromName: source.name, cardKey: card.key },
   }
 }
 
@@ -236,21 +280,49 @@ export function buildFlowGrid({ quantities, actions, sales, project, bomItems, n
     }
   }
 
+  const lacking = lackingStationsOf(quantities)
+  const sourceRows = [...marketRows, ...stationRows, ...(unresolvedRow === null ? [] : [unresolvedRow])]
+  const expectedPlacements: { rank: number; row: FlowRow; card: FlowCard }[] = []
+  for (const source of sourceRows) {
+    for (const column of EXPECTED_SOURCE_COLUMNS) {
+      for (const card of source.cells[column]) {
+        const origin = EXPECTED_ORIGIN_OF_STATE[card.state]
+        if (origin === undefined || card.typeId === null) continue
+        const destinations = (lacking.get(card.typeId) ?? []).filter(station => station.locationId !== source.locationId)
+        for (const station of destinations) {
+          const row = station.locationId === null ? rowOfUnresolved() : rowOfLocation(station.locationId, station.stationName, 'station')
+          expectedPlacements.push({ rank: EXPECTED_ORIGINS.indexOf(origin), row, card: expectedOf(card, row, source, origin, destinations.length) })
+        }
+      }
+    }
+  }
+  expectedPlacements.sort((left, right) => left.rank - right.rank)
+  for (const { row, card } of expectedPlacements) row.cells.toBring.push(card)
+
   const rows = [...marketRows.sort(compareNames), ...stationRows]
   if (unresolvedRow !== null) rows.push(unresolvedRow)
   return { unavailableReason, rows }
 }
 
-export function foldCell(cards: FlowCard[], open: boolean): FoldedCell {
-  const calmCards = cards.filter(card => CALM_STATES.includes(card.state))
-  if (cards.length <= MAX_CARDS_BEFORE_FOLD || calmCards.length < MIN_CALM_CARDS_TO_FOLD) {
-    return { shown: cards, folded: [], foldedKind: null, foldLabelNames: [], hasMoreNames: false }
+function foldableOf(cards: FlowCard[]): { cards: FlowCard[]; kind: 'onSite' | 'consumed' | 'expected' } | null {
+  const expectedCards = cards.filter(card => card.state === 'expected')
+  if (expectedCards.length > MAX_CARDS_BEFORE_FOLD) {
+    const notOutYet = expectedCards.filter(card => card.expected?.origin !== 'out')
+    return notOutYet.length >= MIN_FOLDED_CARDS ? { cards: notOutYet, kind: 'expected' } : null
   }
+  const calmCards = cards.filter(card => CALM_STATES.includes(card.state))
+  if (cards.length <= MAX_CARDS_BEFORE_FOLD || calmCards.length < MIN_FOLDED_CARDS) return null
+  return { cards: calmCards, kind: calmCards.every(card => card.state === 'consumed') ? 'consumed' : 'onSite' }
+}
+
+export function foldCell(cards: FlowCard[], open: boolean): FoldedCell {
+  const foldable = foldableOf(cards)
+  if (foldable === null) return { shown: cards, folded: [], foldedKind: null, foldLabelNames: [], hasMoreNames: false }
   return {
-    shown: open ? cards : cards.filter(card => !calmCards.includes(card)),
-    folded: calmCards,
-    foldedKind: calmCards.every(card => card.state === 'consumed') ? 'consumed' : 'onSite',
-    foldLabelNames: calmCards.slice(0, MAX_FOLD_LABEL_NAMES).map(card => card.typeName),
-    hasMoreNames: calmCards.length > MAX_FOLD_LABEL_NAMES,
+    shown: open ? cards : cards.filter(card => !foldable.cards.includes(card)),
+    folded: foldable.cards,
+    foldedKind: foldable.kind,
+    foldLabelNames: foldable.cards.slice(0, MAX_FOLD_LABEL_NAMES).map(card => card.typeName),
+    hasMoreNames: foldable.cards.length > MAX_FOLD_LABEL_NAMES,
   }
 }
