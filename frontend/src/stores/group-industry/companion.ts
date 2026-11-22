@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useSyncStore } from '@/stores/sync'
+import { useAuthStore } from '@/stores/auth'
+import { legsViewOf } from '@/components/group-industry/companionLegs'
 import { projectDisplayNameOf } from '@/components/group-industry/projectDisplayName'
 import { useUnassignedJobsStore } from './unassignedJobs'
 import type { BomItem, CharacterLocationRead, ChainNode, GroupMember, GroupProject, IntermediateStockProposal, PlacedAction, ProjectChain, ProjectCockpit, ProjectPriceAlert, ProjectSellOrder, ProjectStationTransfer, ProjectTransportLegs } from './types'
@@ -35,6 +37,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     .map(candidate => ({ id: candidate.id, name: projectDisplayNameOf(candidate) })))
   const error = ref<string | null>(null)
   const unassignedJobs = useUnassignedJobsStore()
+  const authStore = useAuthStore()
 
   const isAdmin = computed(() => project.value?.myRole === 'owner' || project.value?.myRole === 'admin')
 
@@ -114,6 +117,10 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     return readFlow<ProjectStationTransfer[]>(id, `/industry/projects/${id}/station-transfers`, (value) => { transfers.value = value }, 'Failed to fetch the station transfers')
   }
 
+  function loadTransportLegs(id: string): Promise<void> {
+    return readFlow<ProjectTransportLegs>(id, `/industry/projects/${id}/transport-legs`, (value) => { transportLegs.value = value }, 'Failed to fetch the transport legs')
+  }
+
   function loadStockProposal(id: string): Promise<void> {
     if (project.value?.myStatus !== 'accepted') return Promise.resolve()
     return readFlow<IntermediateStockProposal>(id, `/industry/projects/${id}/intermediate-stock-proposal`, (value) => { stockProposal.value = value }, 'Failed to fetch the stock proposal')
@@ -128,6 +135,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     positions.value = null
     transfers.value = null
     stockProposal.value = null
+    transportLegs.value = null
   }
 
   async function loadMembers(id: string): Promise<void> {
@@ -160,6 +168,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
       loadPlacedActions(id),
       loadPositions(id),
       loadTransfers(id),
+      loadTransportLegs(id),
       loadMyProjects(id),
     ])
     if (isStillOpen(id) && isAdmin.value) await loadMembers(id)
@@ -226,7 +235,33 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     await loadTransfers(id)
   }
 
-  async function declareLeg(_key: string): Promise<void> {}
+  async function declareLeg(key: string): Promise<void> {
+    const id = projectId.value
+    if (id === null) return
+    const leg = legsViewOf({
+      placedActions: placedActions.value,
+      positions: positions.value,
+      transfers: transfers.value,
+      transportLegs: transportLegs.value,
+      stockProposal: stockProposal.value,
+      myEveCharacterIds: authStore.user === null ? [] : authStore.user.characters.map(character => character.eveCharacterId),
+    }).legs.find(candidate => candidate.key === key)
+    if (leg === undefined) {
+      error.value = 'Unknown transport leg'
+      return
+    }
+    if (leg.declaration === null) {
+      error.value = 'This transport leg cannot be declared'
+      return
+    }
+    error.value = null
+    try {
+      await apiRequest(`/industry/projects/${id}/station-transfers`, { method: 'POST', body: JSON.stringify(leg.declaration) })
+    } catch (failure) {
+      reportFailure(failure, 'Failed to declare the transport leg')
+    }
+    await Promise.all([loadTransfers(id), loadTransportLegs(id)])
+  }
 
   async function supply(lineId: string): Promise<void> {
     const id = projectId.value
@@ -256,7 +291,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   async function handleEvents(actions: string[]): Promise<void> {
     const id = projectId.value
     if (id === null) return
-    const loads = [loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id), unassignedJobs.load(), loadPlacedActions(id), loadStockProposal(id)]
+    const loads = [loadProject(id), loadBom(id), loadChain(id), loadCockpitAlerts(id), unassignedJobs.load(), loadPlacedActions(id), loadStockProposal(id), loadTransportLegs(id)]
     if (actions.some(action => action === TRANSFER_EVENT || action === RECONNECTION_REFRESH)) loads.push(loadTransfers(id))
     if (actions.includes(RECONNECTION_REFRESH)) loads.push(loadPositions(id), loadMyProjects(id))
     if (actions.some(action => action.startsWith(MEMBER_EVENT_PREFIX)) && isAdmin.value) loads.push(loadMembers(id))

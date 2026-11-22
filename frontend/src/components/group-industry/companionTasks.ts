@@ -1,3 +1,5 @@
+import { legsViewOf } from './companionLegs'
+import { isAtStationOf } from './companionPositions'
 import { jobDisplayOf, type JobDisplay, type JobDisplayState } from './jobDisplayState'
 import { pendingQuantityOf } from './pendingContributions'
 import type {
@@ -288,11 +290,6 @@ function linePlacesOf(placedActions: PlacedAction[] | null): Record<string, Comp
   return places
 }
 
-function isAtStationOf(positions: CharacterLocationRead[] | null, locationId: number | null): boolean | null {
-  if (positions === null || locationId === null) return null
-  return positions.some(position => (position.stationId ?? position.structureId) === locationId)
-}
-
 function carriesOf(flow: CompanionFlowInput): CompanionCarry[] {
   const carries = (flow.transfers ?? [])
     .filter(transfer => transfer.state !== ARRIVED_TRANSFER_STATE
@@ -432,10 +429,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     linePlaces,
     carries: flow === undefined ? [] : carriesOf(flow),
     carriesUnknown: flow !== undefined && flow.transfers === null,
-    legs: [],
-    legsUnknown: false,
-    legsUnreadableCount: 0,
-    readyLegCount: 0,
+    ...legsViewOf(flow),
     supplies: suppliesOf(flow?.stockProposal ?? null, bomItems),
     reservationExpiries: solo ? {} : reservationExpiriesOf(mine),
     joinRequestNames: isAdmin(project)

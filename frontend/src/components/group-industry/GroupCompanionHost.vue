@@ -212,6 +212,7 @@ onBeforeUnmount(() => {
       @open-unassigned-jobs="openUnassignedJobs"
       @open-members="openMembers"
       @arrive="companion.arriveTransfer"
+      @declare-leg="companion.declareLeg"
       @supply="companion.supply"
       @switch-project="companion.switchProject"
       @toggle-size="toggleSize"

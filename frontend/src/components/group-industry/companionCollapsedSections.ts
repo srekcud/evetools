@@ -6,7 +6,7 @@ export type CompanionPane = 'free' | 'mine' | 'transport' | 'jobs'
 
 export type CompanionSectionKey = `${CompanionPane}:${ActivityGroup}`
 
-export const COMPANION_PANES: CompanionPane[] = ['free', 'mine', 'jobs']
+export const COMPANION_PANES: CompanionPane[] = ['free', 'mine', 'transport', 'jobs']
 
 const SECTION_KEYS: CompanionSectionKey[] = COMPANION_PANES.flatMap(pane => ACTIVITY_GROUP_ORDER.map((group): CompanionSectionKey => `${pane}:${group}`))
 
