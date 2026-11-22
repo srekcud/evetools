@@ -4669,7 +4669,12 @@
       "finalMargin": "Final margin: {margin}%",
       "marginUnknown": "Final margin unknown: a cost or a fee is missing",
       "transfers": "Transfers ticked as received: {received} / {total}",
-      "transfersUnavailable": "Transfers cannot be computed yet"
+      "transfersUnavailable": "Transfers cannot be computed yet",
+      "open": {
+        "contributions": "Open the contributions",
+        "sales": "Open the sales",
+        "distribution": "Open the finances"
+      }
     },
     "transfers": {
       "title": "Transfers between members",

@@ -487,6 +487,11 @@ function requestNextStatus(target: GroupProjectStatus): void {
   advanceStatus()
 }
 
+function openTabFromClosingChecks(tab: ProjectDetailTab): void {
+  showCompleteConfirm.value = false
+  activeTab.value = tab
+}
+
 async function advanceStatus(): Promise<void> {
   if (!pendingStatus.value) return
   isAdvancingStatus.value = true
@@ -916,9 +921,9 @@ function applyShareLinkShortcut(): void {
       <div v-else-if="activeTab === 'sales'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <template v-for="section in salesTabSections" :key="section">
           <ProjectSellOrdersSection v-if="section === 'sellOrders'" :project-id="projectId" />
-          <SalesTable v-else-if="section === 'sales'" :project-id="projectId" :is-admin="isOwnerOrAdmin" :can-record="canRecordSales" />
-          <SaleSuggestionsPanel v-else-if="section === 'transactionsToLink' && canRecordSales" :project-id="projectId" :recording-disabled="isCompleted" />
-          <ContractSaleSuggestions v-else-if="section === 'contractsToLink' && canRecordSales" :project-id="projectId" :recording-disabled="isCompleted" />
+          <SalesTable v-else-if="section === 'sales'" :project-id="projectId" :is-admin="isOwnerOrAdmin" :can-record="canRecordSales" :is-completed="isCompleted" />
+          <SaleSuggestionsPanel v-else-if="section === 'transactionsToLink' && canRecordSales && !isCompleted" :project-id="projectId" />
+          <ContractSaleSuggestions v-else-if="section === 'contractsToLink' && canRecordSales && !isCompleted" :project-id="projectId" />
         </template>
       </div>
 
@@ -1192,7 +1197,7 @@ function applyShareLinkShortcut(): void {
         <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.completeConfirm.message') }}</p>
         <template v-if="settlementStore.settlement">
           <h3 class="mt-4 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{{ t('groupIndustry.detail.completeConfirm.checksTitle') }}</h3>
-          <ClosingChecksList :checks="settlementStore.settlement.checks" :personal-use="project?.personalUse" />
+          <ClosingChecksList :checks="settlementStore.settlement.checks" :personal-use="project?.personalUse" @open-tab="openTabFromClosingChecks" />
         </template>
         <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>

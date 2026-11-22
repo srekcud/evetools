@@ -213,13 +213,13 @@ describe('sale suggestions refreshed by the sale events', () => {
 })
 
 describe('sale suggestions of a completed project', () => {
-  it('shows the suggestions to the owner of a completed project with recording disabled', async () => {
+  it('hides the suggestions from the owner of a completed project', async () => {
     const wrapper = await mountSalesTabOf(sabreProject('completed', 'owner'))
 
     expect([
       wrapper.findComponent(SaleSuggestionsPanel).exists(),
-      recordAsSaleButtons(wrapper).map(button => button.element.disabled),
-    ]).toEqual([true, [true]])
+      recordAsSaleButtons(wrapper).length,
+    ]).toEqual([false, 0])
   })
 
   it('lets the owner of a selling project record a suggestion', async () => {
@@ -228,12 +228,12 @@ describe('sale suggestions of a completed project', () => {
     expect(recordAsSaleButtons(wrapper).map(button => button.element.disabled)).toEqual([false])
   })
 
-  it('shows the suggestions to a plain member of a completed project with recording disabled', async () => {
+  it('hides the suggestions from a plain member of a completed project', async () => {
     const wrapper = await mountSalesTabOf(sabreProject('completed', 'member'))
 
     expect([
       wrapper.findComponent(SaleSuggestionsPanel).exists(),
-      recordAsSaleButtons(wrapper).map(button => button.element.disabled).every(Boolean),
-    ]).toEqual([true, true])
+      recordAsSaleButtons(wrapper).length,
+    ]).toEqual([false, 0])
   })
 })

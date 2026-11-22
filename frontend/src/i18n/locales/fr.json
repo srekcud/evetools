@@ -4669,7 +4669,12 @@
       "finalMargin": "Marge finale : {margin} %",
       "marginUnknown": "Marge finale inconnue : un coût ou un frais manque",
       "transfers": "Virements cochés comme reçus : {received} / {total}",
-      "transfersUnavailable": "Les virements ne sont pas encore calculables"
+      "transfersUnavailable": "Les virements ne sont pas encore calculables",
+      "open": {
+        "contributions": "Ouvrir les contributions",
+        "sales": "Ouvrir les ventes",
+        "distribution": "Ouvrir les finances"
+      }
     },
     "transfers": {
       "title": "Virements entre membres",

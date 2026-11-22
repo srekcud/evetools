@@ -263,6 +263,7 @@ const waterfall = computed((): Waterfall | null => {
           <text :x="bar.x + bar.width / 2" :y="WATERFALL_HEIGHT - 8" text-anchor="middle" fill="#94a3b8" font-size="12">{{ bar.caption.toUpperCase() }}</text>
         </g>
       </svg>
+      <p v-else-if="dist.awaitingSales" data-testid="cascade-awaiting-sales" class="text-xs text-cyan-300/80">{{ t('groupIndustry.distribution.awaitingSales') }}</p>
       <p v-else class="text-xs text-amber-400">{{ t('groupIndustry.financialCascade.unavailable') }}</p>
 
       <div v-if="!isPersonalUse" data-testid="break-even" class="border-t border-slate-800 pt-4 space-y-3">

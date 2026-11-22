@@ -25,10 +25,11 @@ const props = defineProps<{
   projectId: string
   isAdmin: boolean
   canRecord?: boolean
+  isCompleted?: boolean
 }>()
 
 const store = useGroupDistributionStore()
-const mayRecord = computed(() => props.isAdmin || props.canRecord === true)
+const mayRecord = computed(() => props.isCompleted !== true && (props.isAdmin || props.canRecord === true))
 const projectStore = useGroupProjectStore()
 const authStore = useAuthStore()
 const { formatNumber, formatDate } = useFormatters()
