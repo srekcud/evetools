@@ -2,7 +2,7 @@ import { enableAutoUnmount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import { apiRequest } from '@/services/api'
-import type { GroupMemberRole, GroupMemberStatus } from '@/stores/group-industry/types'
+import type { GroupMemberRole, GroupProject } from '@/stores/group-industry/types'
 import { cockpitOf, mountCockpitDetail, nextAction, nyxProject, route } from './projectCockpitFixtures'
 
 vi.mock(import('vue-router'), async importOriginal => ({
@@ -18,7 +18,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 
 const RECORD_SALE = nextAction({ code: 'record_sale', tab: 'sales', quantity: 40 })
 
-async function jobRightsOf(myRole: GroupMemberRole, myStatus: GroupMemberStatus) {
+async function jobRightsOf(myRole: GroupMemberRole, myStatus: GroupProject['myStatus']) {
   route.query = { tab: 'chain' }
   const wrapper = await mountCockpitDetail({
     project: nyxProject('in_progress', myRole, { myStatus }),
