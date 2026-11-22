@@ -117,7 +117,7 @@ Pour une fabrication ou une réaction :
 
 Pour la copie et l'invention, c'est la structure au taux d'installation le plus bas.
 
-Dans l'onglet « Production » du projet, la carte « Structures » compare le coût total : matériaux, installation, transport. Le bouton « Autoriser pour ce projet » laisse le plan sortir du système favori quand l'économie atteint le seuil du projet (500 000 ISK par défaut).
+Au démarrage du projet, l'étape « Stations » propose une station par type de travail du plan et compare le coût total de chaque candidate : matériaux, installation, transport. La politique du projet (« Accepter une station hors du système favori », avec une « Économie minimale », 500 000 ISK par défaut) laisse le plan sortir du système favori quand l'économie atteint ce seuil.
 
 Les bonus viennent du type de structure et des rigs que vous avez déclarés (3 au plus). La taxe d'installation d'une structure de joueur doit être saisie, sinon le coût d'installation est inconnu. En station NPC, elle est fixée à 0,25 %.
 
@@ -133,14 +133,15 @@ Voir [projet T2](/help?page=playbooks/t2-project).
 
 ### Acheter ou fabriquer ?
 
-La carte « Acheter ou fabriquer » de l'onglet « Approvisionnement » compare chaque intermédiaire du plan :
+La dernière étape du démarrage du projet (« Acheter ou fabriquer, où acheter ») compare chaque intermédiaire du plan, chaque option livrée à la station qui l'utilise :
 
 - **fabriquer** : le coût total de ses jobs, matériaux directs achetés compris ;
-- **acheter** : le prix Jita pondéré de la quantité demandée, plus l'import jusqu'à l'atelier : volume en m³ × sauts depuis Jita jusqu'au système favori × 150 ISK par m³ et par saut.
+- **Jita + import** : le prix Jita pondéré de la quantité demandée, plus l'import par le hub de courier : volume en m³ × le tarif Jita → hub, puis × le tarif du pont quand l'atelier n'est pas dans le système du hub (aucun pour un atelier à Jita) ;
+- **marché de la capitale** : le prix du marché de la capitale.
 
-Le choix est « fabriquer » à égalité, « inconnu » dès qu'un des deux coûts l'est. Le surplus des runs entiers n'est pas crédité ; la carte le montre à part (« avec réemploi du surplus »).
+La recommandation est l'option la moins chère, « inconnu » dès qu'un coût dont elle dépend l'est. Le surplus des runs entiers n'est pas crédité ; le détail de carte le montre à part (« avec réemploi du surplus »). Une fois le projet démarré, le bloc « Acheter ou fabriquer » du détail de carte montre la même comparaison.
 
-« Passer en achat » et « Passer en fabrication » modifient la blacklist du projet et recalculent la BOM. Une fois le projet sorti du brouillon, la bascule est refusée si elle ferait disparaître une ligne déjà travaillée (job lié, achat ou contribution).
+« Passer en achat » et « Passer en fabrication » dans ce bloc modifient la blacklist du projet et recalculent la BOM. Une fois le projet sorti du brouillon, la bascule est refusée si elle ferait disparaître une ligne déjà travaillée (job lié, achat ou contribution).
 
 Voir [prix pondéré](/help?page=calculations/weighted-price-appraisal).
 

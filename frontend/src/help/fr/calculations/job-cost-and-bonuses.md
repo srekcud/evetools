@@ -6,7 +6,7 @@ Elle vaut pour les jobs de **fabrication** et de **réaction**. La copie, l'inve
 
 ## Où ces calculs servent
 
-- Les analyses **Marges**, **Scan**, **Achat vs Prod** et **Pivot**, ainsi que la comparaison acheter ou fabriquer d'un projet, **estiment** le coût d'installation avec la formule ci-dessous.
+- Les analyses **Marges**, **Scan**, **Achat vs Prod** et **Pivot**, ainsi que les étapes stations et acheter ou fabriquer d'un projet, **estiment** le coût d'installation avec la formule ci-dessous.
 - Dans un projet, une fois un job ESI lié à une ligne, le coût d'installation compté dans la répartition est le **coût réel lu dans le job ESI**, pas cette estimation. Si le job n'a pas de coût, le montant est inconnu.
 - Les quantités de matériaux et les durées d'un projet suivent les règles ME, TE et bonus des sections « Matériaux : ME, structure et rigs » et « Durée ».
 

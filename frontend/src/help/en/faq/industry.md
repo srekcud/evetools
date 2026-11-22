@@ -21,11 +21,12 @@ The details, the special cases and the installation tax are in the guide [Config
 
 ## Buy or build: how is the decision computed?
 
-For each intermediate of a project plan that has a job, EVE Tools compares two costs for the requested quantity:
+For each intermediate of a project plan that has a job, EVE Tools compares the options for the requested quantity, each delivered to the station that uses it:
 
 - **build**: the manufacturing cost, with all runs rounded up to whole runs (the surplus produced is included in the cost);
-- **buy**: the weighted Jita price, plus the **import** cost.
+- **buy at Jita**: the weighted Jita price, plus the **import** cost;
+- **buy on the capital market**: the market price of the capital, when it is read.
 
-Import is the cost of hauling from Jita to your workshop: volume × quantity × number of jumps between Jita and the favorite system of the activity × 150 ISK per m³ per jump. It is unknown with no volume, no favorite system or no route.
+Import goes through your **courier hub**, the system where the corporation's couriers always deliver the purchases of Jita (the capital, C-J6MT by default). It is the volume in m³ × the quantity × the Jita to courier hub rate (800 ISK per m³ by default), then, when the workshop is not in the hub system, × your **jump bridge** rate (0 by default). A workshop in Jita pays no import. The courier hub is set under "Favorite systems", the two rates ("Export cost" and "Jump bridge rate") in the Industry configuration. The import is unknown with no volume, no workshop or no courier hub, never 0.
 
-The choice is **build** (also on a tie), **buy**, or **unknown** as soon as one of the two costs is unknown. The saving shown is the gap between the two costs for the requested quantity. Nothing is stored: the calculation is redone on every read.
+The recommended choice is the cheapest option, with build first, then Jita, then the capital market on a tie. It is **unknown** as soon as a cost it needs is unknown. Nothing is stored: the calculation is redone on every read.
