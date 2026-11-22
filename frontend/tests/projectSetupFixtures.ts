@@ -34,6 +34,7 @@ export function stationRow(structureId: string, overrides: Partial<WorkStationRo
     solarSystemId: 30_000_001,
     solarSystemName: 'Isanamo',
     inFavoriteSystem: false,
+    jumps: null,
     materialBonusPercent: 2.4,
     facilityTaxPercent: 0.25,
     materialsCost: 800,

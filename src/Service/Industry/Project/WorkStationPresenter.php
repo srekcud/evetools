@@ -64,6 +64,7 @@ final class WorkStationPresenter
             'solarSystemId' => $solarSystemId,
             'solarSystemName' => null === $solarSystemId ? null : ($solarSystemNames[$solarSystemId] ?? null),
             'inFavoriteSystem' => $row->inFavoriteSystem,
+            'jumps' => $row->jumps,
             'materialBonusPercent' => round((1.0 - $row->materialMultiplier->value) * self::PERCENT, self::DISPLAYED_DECIMALS),
             'facilityTaxPercent' => null === $structure->facilityTaxRate ? null : round($structure->facilityTaxRate * self::PERCENT, self::DISPLAYED_TAX_DECIMALS),
             'materialsCost' => self::rounded($row->materialsCost),

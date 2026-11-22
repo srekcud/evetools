@@ -43,6 +43,34 @@ export function selectedStructureId(type: WorkStationType, picks: StationPicks):
   return picks[type.workType] ?? type.chosenStructureId ?? type.recommendedStructureId
 }
 
+export type StationPolicy = { acceptsOutsideFavoriteSystem: boolean; minimumOutsideSaving: number }
+
+export type StationBanner = {
+  kind: 'onlyFavoriteSystem' | 'belowThreshold' | 'notRetained'
+  structureId: string
+  saving: number
+}
+
+const SAVING_TOLERANCE_ISK = 0.01
+const CENTS_PER_ISK = 100
+
+export function stationBannerOf(type: WorkStationType, picks: StationPicks, policy: StationPolicy): StationBanner | null {
+  if (!type.costsCompared) return null
+  const cheapest = type.rows.find(row => row.structureId === type.recommendedStructureId)
+  const retainedId = selectedStructureId(type, picks)
+  const retained = type.rows.find(row => row.structureId === retainedId)
+  if (cheapest === undefined || retained === undefined || cheapest.structureId === retained.structureId) return null
+  if (cheapest.totalCost === null || retained.totalCost === null) return null
+
+  const saving = Math.round((retained.totalCost - cheapest.totalCost) * CENTS_PER_ISK) / CENTS_PER_ISK
+  if (saving <= SAVING_TOLERANCE_ISK) return null
+
+  const base = { structureId: cheapest.structureId, saving }
+  if (cheapest.inFavoriteSystem) return { kind: 'notRetained', ...base }
+  if (!policy.acceptsOutsideFavoriteSystem) return { kind: 'onlyFavoriteSystem', ...base }
+  return { kind: saving + SAVING_TOLERANCE_ISK < policy.minimumOutsideSaving ? 'belowThreshold' : 'notRetained', ...base }
+}
+
 export function stationsPayload(types: WorkStationType[], picks: StationPicks): Record<string, string> {
   const payload: Record<string, string> = {}
   for (const type of types) {

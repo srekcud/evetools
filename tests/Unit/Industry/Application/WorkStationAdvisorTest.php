@@ -344,6 +344,72 @@ final class WorkStationAdvisorTest extends TestCase
         $this->assertTrue($this->adviceFor(WorkType::FinalProducts, $advices)->costsCompared);
     }
 
+    #[Group('issue-1339')]
+    public function testStructureInTheFavoriteSystemOfTheActivityIsZeroJumpsAway(): void
+    {
+        $advice = $this->adviceFor(WorkType::FinalProducts, $this->adviseIshtar([Example::workshopStructureWithoutRig(), Example::structureC()]));
+
+        $row = $this->rowOf($advice, 'A');
+        $this->assertTrue($row->inFavoriteSystem);
+        $this->assertSame(0, $row->jumps);
+    }
+
+    #[Group('issue-1339')]
+    public function testStructureThreeGatesFromTheFavoriteSystemCarriesThreeJumps(): void
+    {
+        $advice = $this->adviceFor(WorkType::FinalProducts, $this->adviseIshtar([Example::workshopStructureWithoutRig(), Example::structureC(), Example::structureD()]));
+
+        $this->assertFalse($this->rowOf($advice, 'C')->inFavoriteSystem);
+        $this->assertSame(3, $this->rowOf($advice, 'C')->jumps);
+        $this->assertSame(8, $this->rowOf($advice, 'D')->jumps);
+    }
+
+    #[Group('issue-1339')]
+    public function testStructureWithoutSolarSystemHasNullJumpsNeverZero(): void
+    {
+        $advice = $this->adviceFor(WorkType::FinalProducts, $this->adviseIshtar([Example::riggedStructure('Z', null), Example::workshopStructureWithoutRig()]));
+
+        $this->assertNull($this->rowOf($advice, 'Z')->jumps);
+    }
+
+    #[Group('issue-1339')]
+    public function testStructureWithoutKnownRouteHasNullJumps(): void
+    {
+        $advice = $this->adviceFor(WorkType::FinalProducts, $this->adviseIshtar([Example::workshopStructureWithoutRig(), Example::riggedStructure('U', Example::UNREACHABLE_SYSTEM_ID)]));
+
+        $this->assertNull($this->rowOf($advice, 'U')->jumps);
+    }
+
+    #[Group('issue-1339')]
+    public function testWithoutFavoriteSystemEveryRowHasNullJumpsNeverZero(): void
+    {
+        $advice = $this->adviceFor(WorkType::FinalProducts, $this->adviseIshtar([Example::workshopStructureWithoutRig(), Example::structureC()], $this->favoriteSystemsWithoutFavorite()));
+
+        $this->assertNull($this->rowOf($advice, 'A')->jumps);
+        $this->assertNull($this->rowOf($advice, 'C')->jumps);
+    }
+
+    #[Group('issue-1339')]
+    public function testJumpsAreMeasuredFromTheFavoriteSystemOfTheActivityOfTheRow(): void
+    {
+        $advices = $this->adviseChain([], new FavoriteSystems(Example::THREE_JUMPS_SYSTEM_ID, Example::WORKSHOP_SYSTEM_ID, $this->courierHub()), [Example::riggedRefinery(), Example::workshopStructureWithoutRig(), Example::structureC()]);
+
+        $this->assertSame(3, $this->rowOf($this->adviceFor(WorkType::Reaction, $advices), 'C-refinery')->jumps);
+        $components = $this->adviceFor(WorkType::Components, $advices);
+        $this->assertNull($this->rowOf($components, 'A')->jumps);
+        $this->assertSame(0, $this->rowOf($components, 'C')->jumps);
+    }
+
+    #[Group('issue-1339')]
+    public function testBlueprintsRowsCarryTheJumpsFromTheFavoriteSystemOfManufacturing(): void
+    {
+        $advices = $this->adviseIshtar([Example::workshopStructureWithoutRig(), Example::structureC()], null, [], true);
+
+        $blueprints = $this->adviceFor(WorkType::Blueprints, $advices);
+        $this->assertSame(0, $this->rowOf($blueprints, 'A')->jumps);
+        $this->assertSame(3, $this->rowOf($blueprints, 'C')->jumps);
+    }
+
     public function testStoredBlueprintStructureIsChosenWithoutSaving(): void
     {
         $blueprints = $this->adviceFor(WorkType::Blueprints, $this->adviseIshtar([Example::workshopStructureWithoutRig(), Example::structureC()], null, ['blueprints' => 'A'], true));
@@ -388,7 +454,7 @@ final class WorkStationAdvisorTest extends TestCase
      *
      * @return list<WorkTypeAdvice>
      */
-    private function adviseChain(array $storedStructureIds = []): array
+    private function adviseChain(array $storedStructureIds = [], ?FavoriteSystems $favoriteSystems = null, ?array $structures = null): array
     {
         $plan = new Plan(
             [
@@ -403,8 +469,8 @@ final class WorkStationAdvisorTest extends TestCase
 
         return $this->advisor()->advise(
             new PlannedProduction($plan, []),
-            [Example::workshopRefinery(), Example::workshopStructureWithoutRig(), Example::structureC()],
-            $this->favoriteSystems(),
+            $structures ?? [Example::workshopRefinery(), Example::workshopStructureWithoutRig(), Example::structureC()],
+            $favoriteSystems ?? $this->favoriteSystems(),
             [self::ARBITRATOR],
             $storedStructureIds,
         );
@@ -458,6 +524,7 @@ final class WorkStationAdvisorTest extends TestCase
             Example::costIndices(),
             $volumes,
             new WorkTypeClassifier(new InMemoryShipProducts([self::HECATE, self::ISHTAR, self::ARBITRATOR])),
+            Example::jumpDistances(),
         );
     }
 

@@ -1457,6 +1457,7 @@ export type WorkStationRow = {
   solarSystemId: number | null
   solarSystemName: string | null
   inFavoriteSystem: boolean
+  jumps: number | null
   materialBonusPercent: number
   facilityTaxPercent: number | null
   materialsCost: number | null

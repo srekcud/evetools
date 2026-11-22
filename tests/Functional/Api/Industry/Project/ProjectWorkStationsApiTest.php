@@ -63,7 +63,7 @@ final class ProjectWorkStationsApiTest extends WebTestCase
     ];
 
     private const array ROW_KEYS = [
-        'delta', 'facilityTaxPercent', 'inFavoriteSystem', 'installationCost', 'kind', 'materialBonusPercent', 'materialsCost', 'missingData',
+        'delta', 'facilityTaxPercent', 'inFavoriteSystem', 'installationCost', 'jumps', 'kind', 'materialBonusPercent', 'materialsCost', 'missingData',
         'name', 'solarSystemId', 'solarSystemName', 'structureId', 'totalCost', 'transportCost', 'transportLegs',
     ];
 
@@ -149,6 +149,8 @@ final class ProjectWorkStationsApiTest extends WebTestCase
             [self::ANNEX_NAME, 'raitaru', EveConstants::JITA_SOLAR_SYSTEM_ID, true, 0.0, self::ANNEX_FACILITY_TAX_PERCENT, [], 360_000.0],
             $this->fieldsOf($annexRow, ['name', 'kind', 'solarSystemId', 'inFavoriteSystem', 'materialBonusPercent', 'facilityTaxPercent', 'missingData', 'materialsCost']),
         );
+        self::assertArrayHasKey('jumps', $annexRow);
+        self::assertSame(0, $annexRow['jumps']);
         self::assertEqualsWithDelta(30_305.0, $annexRow['installationCost'], self::CENTS);
         self::assertEqualsWithDelta(5_000_000.0, $annexRow['transportCost'], self::CENTS);
         self::assertEqualsWithDelta(5_390_305.0, $annexRow['totalCost'], self::CENTS);

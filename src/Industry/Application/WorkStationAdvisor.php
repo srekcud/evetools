@@ -23,6 +23,7 @@ final readonly class WorkStationAdvisor
         private SystemCostIndices $costIndices,
         private ItemVolumes $itemVolumes,
         private WorkTypeClassifier $classifier,
+        private JumpDistances $jumpDistances,
     ) {
     }
 
@@ -270,6 +271,7 @@ final readonly class WorkStationAdvisor
             $rows[] = new WorkStationRow(
                 $structure,
                 $favoriteSystems->contains($structure, $activity),
+                $this->jumpsFromFavoriteSystem($structure, $favoriteSystems->forActivity($activity)),
                 $structure->materialMultiplierFor($activity, $category),
                 self::amountOf($costs['materials']),
                 self::amountOf($costs['installation']),
@@ -282,6 +284,15 @@ final readonly class WorkStationAdvisor
         }
 
         return $this->rankedWithDelta($rows);
+    }
+
+    private function jumpsFromFavoriteSystem(ProductionStructure $structure, ?int $favoriteSolarSystemId): ?int
+    {
+        if (null === $favoriteSolarSystemId || null === $structure->solarSystemId) {
+            return null;
+        }
+
+        return $this->jumpDistances->jumpsBetween($favoriteSolarSystemId, $structure->solarSystemId);
     }
 
     /**
@@ -426,6 +437,7 @@ final readonly class WorkStationAdvisor
                 $rows[] = new WorkStationRow(
                     $structure,
                     $favoriteSystems->contains($structure, ActivityKind::Copying),
+                    $this->jumpsFromFavoriteSystem($structure, $favoriteSystems->forActivity(ActivityKind::Copying)),
                     $structure->materialMultiplierFor(ActivityKind::Copying, null),
                     null,
                     null,

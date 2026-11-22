@@ -19,6 +19,8 @@ import {
 } from '@/components/group-industry/projectSetup'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useProjectSetupStore } from '@/stores/group-industry/projectSetup'
+import type { UpdateGroupProjectInput } from '@/stores/group-industry/types'
+import { projectRefusalMessage } from '@/utils/projectRefusal'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -32,6 +34,8 @@ const step = ref<2 | 3>(2)
 const isReady = ref(false)
 const stationPicks = ref<StationPicks>({})
 const sourcingPicks = ref<SourcingPicks>({})
+const policyBusy = ref(false)
+const policyError = ref<string | null>(null)
 
 const project = computed(() => (projectStore.currentProject?.id === projectId.value ? projectStore.currentProject : null))
 
@@ -72,6 +76,19 @@ onMounted(async () => {
 async function updateSourcingPicks(picks: SourcingPicks): Promise<void> {
   sourcingPicks.value = picks
   await setupStore.fetchSourcingDecisions(projectId.value, sourcingQuery(setupStore.decisions?.rows ?? [], picks))
+}
+
+async function changePolicy(changes: UpdateGroupProjectInput): Promise<void> {
+  policyBusy.value = true
+  policyError.value = null
+  try {
+    await projectStore.updateProject(projectId.value, changes)
+    await setupStore.fetchWorkStations(projectId.value)
+  } catch (e) {
+    policyError.value = e instanceof Error ? projectRefusalMessage(e.message, t) : t('groupIndustry.setup.stations.policy.error')
+  } finally {
+    policyBusy.value = false
+  }
 }
 
 async function saveStations(): Promise<void> {
@@ -136,7 +153,12 @@ async function validate(): Promise<void> {
           v-else-if="setupStore.workStations"
           v-model:picks="stationPicks"
           :work-stations="setupStore.workStations"
+          :accepts-outside-favorite-system="project.acceptsOutsideFavoriteSystem"
+          :minimum-outside-saving="project.minimumOutsideSaving"
+          :policy-busy="policyBusy"
+          :policy-error="policyError"
           :stations-only="stationsOnly"
+          @update:policy="changePolicy"
           @next="stationsOnly ? saveStations() : (step = 3)"
         />
         <LoadingSpinner v-else />

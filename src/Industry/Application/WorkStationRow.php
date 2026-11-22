@@ -16,6 +16,7 @@ final readonly class WorkStationRow
     public function __construct(
         public ProductionStructure $structure,
         public bool $inFavoriteSystem,
+        public ?int $jumps,
         public Multiplier $materialMultiplier,
         public ?float $materialsCost,
         public ?float $installationCost,
@@ -32,6 +33,7 @@ final readonly class WorkStationRow
         return new self(
             $this->structure,
             $this->inFavoriteSystem,
+            $this->jumps,
             $this->materialMultiplier,
             $this->materialsCost,
             $this->installationCost,

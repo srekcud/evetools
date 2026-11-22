@@ -3280,6 +3280,27 @@
         "taxRate": "Installation tax {percent}",
         "taxNotSet": "Tax not set.",
         "taxNotSetLink": "Set it in the structure settings",
+        "policy": {
+          "title": "Project policy",
+          "outsideLabel": "Accept a station outside the favorite system",
+          "thresholdLabel": "Minimum saving (ISK)",
+          "save": "Save",
+          "hint": "A station outside the favorite system is retained only when it saves at least this amount. Saving recalculates the material list.",
+          "error": "The project policy could not be updated"
+        },
+        "position": {
+          "favorite": "Favorite system",
+          "outside": "Outside the favorite system",
+          "jumps": "{count} jump | {count} jumps",
+          "jumpsUnknown": "jumps unknown"
+        },
+        "banner": {
+          "onlyFavoriteSystem": "{structure} would cost {amount} less, transport included. Not retained: the project only accepts the favorite system.",
+          "belowThreshold": "{structure} would cost {amount} less, transport included. Saving under the project threshold ({threshold}): the plan stays on the retained station.",
+          "notRetained": "{structure} would cost {amount} less, transport included. Not retained.",
+          "allow": "Allow for this project",
+          "revert": "Back to the favorite system"
+        },
         "legs": {
           "courier": "courier",
           "jump_bridge": "bridge",
