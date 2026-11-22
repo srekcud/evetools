@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Entity\Character;
 use App\Entity\CharacterStructureAccess;
+use App\Entity\IndustryProjectLineReservation;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\MapConstellation;
 use App\Entity\Sde\MapRegion;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 #[Group('issue-1300')]
+#[Group('issue-1336')]
 final class PlacedActionsApiTest extends WebTestCase
 {
     use BuildsIshtarGroupProject;
@@ -93,7 +95,7 @@ final class PlacedActionsApiTest extends WebTestCase
             array_map(static fn (array $action): array => [$action['code'], $action['projectName'], $action['typeName'], $action['quantity'], $action['here']], $actions),
         );
         foreach ($actions as $action) {
-            self::assertSame(['access', 'bomLineId', 'code', 'here', 'id', 'place', 'projectId', 'projectName', 'quantity', 'typeId', 'typeName'], $this->sortedKeys($action));
+            self::assertSame(['access', 'bomLineId', 'code', 'here', 'id', 'place', 'projectId', 'projectName', 'quantity', 'reservedByOthers', 'typeId', 'typeName'], $this->sortedKeys($action));
             self::assertArrayHasKey('here', $action);
         }
         self::assertSame(
@@ -109,6 +111,7 @@ final class PlacedActionsApiTest extends WebTestCase
                 'place' => ['kind' => 'station', 'locationId' => self::AZBEL_LOCATION_ID, 'name' => 'Azbel', 'solarSystemId' => self::PERIMETER_SYSTEM_ID, 'solarSystemName' => 'Perimeter', 'unknownReason' => null],
                 'here' => true,
                 'access' => 'unknown',
+                'reservedByOthers' => [],
             ],
             $actions[0],
         );
@@ -243,6 +246,35 @@ final class PlacedActionsApiTest extends WebTestCase
         }
     }
 
+    public function testReservationOfAnotherMemberReducesThePurchaseAndHidesTheLaunchFromThePilotWhoDidNotReserve(): void
+    {
+        $this->em->persist(new IndustryProjectLineReservation($this->tritaniumLine, $this->memberMembership, 5_000));
+        $this->em->persist(new IndustryProjectLineReservation($this->ramJobLine, $this->memberMembership, self::RAM_RUNS));
+        $this->em->flush();
+
+        $this->actAs($this->owner);
+        $this->request('GET', $this->projectUri($this->ishtarBatch).'/place-actions');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(
+            [
+                'launch_job:Ishtar' => [self::ISHTAR_RUNS, []],
+                'source_material:Morphite' => [147, []],
+                'source_material:Nocxium' => [600, []],
+                'source_material:Tritanium' => [7_000, [['characterName' => 'Brann Holt', 'quantity' => 5_000]]],
+            ],
+            $this->quantitiesWithReservedByOthers($this->responseJson()),
+        );
+
+        $this->actAs($this->member);
+        $this->request('GET', self::PLACE_ACTIONS_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        $memberActions = $this->quantitiesWithReservedByOthers($this->responseJson());
+        self::assertSame([self::RAM_RUNS, []], $memberActions['launch_job:R.A.M.- Starship Tech']);
+        self::assertSame([12_000, []], $memberActions['source_material:Tritanium']);
+    }
+
     private function replaceLocationReader(): void
     {
         $reader = $this->createStub(CharacterLocationReader::class);
@@ -256,6 +288,21 @@ final class PlacedActionsApiTest extends WebTestCase
     {
         $this->em->persist(new CharacterStructureAccess($user->getMainCharacter(), $structureId, $status, StructureAccessSource::Esi, new \DateTimeImmutable()));
         $this->em->flush();
+    }
+
+    private function quantitiesWithReservedByOthers(array $actions): array
+    {
+        $rows = [];
+        foreach ($actions as $action) {
+            if (null === $action['typeName'] || 'Hecate batch' === $action['projectName']) {
+                continue;
+            }
+            self::assertArrayHasKey('reservedByOthers', $action);
+            $rows[$action['code'].':'.$action['typeName']] = [$action['quantity'], $action['reservedByOthers']];
+        }
+        ksort($rows);
+
+        return $rows;
     }
 
     private function sortedKeys(array $action): array

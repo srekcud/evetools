@@ -8,6 +8,7 @@ use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Enum\StructureAccessStatus;
+use App\Repository\IndustryProjectLineReservationRepository;
 use App\Service\Industry\Project\StructureAccess\MemberStructureAccess;
 use App\Service\Industry\Project\StructureAccess\StructureIds;
 
@@ -16,6 +17,7 @@ final readonly class LaunchJobActions implements ProjectActionSource
     public function __construct(
         private ActionPlaceResolver $placeResolver,
         private MemberStructureAccess $memberAccess,
+        private IndustryProjectLineReservationRepository $reservations,
     )
     {
     }
@@ -26,10 +28,16 @@ final readonly class LaunchJobActions implements ProjectActionSource
             return [];
         }
 
+        $reservations = ReservationsSeenByMember::of($this->reservations->findByProject($project), $user);
         $actions = [];
         foreach ($project->getBomItems() as $line) {
             $runs = $line->getRuns();
             if (!$line->isJob() || (null !== $runs && ($runs <= $line->getCountedRuns() || $line->getDeliveredRuns() >= $runs))) {
+                continue;
+            }
+
+            $heldByOthers = $reservations->heldByOthersOn($line);
+            if ([] !== $heldByOthers && !$reservations->isHeldByViewerOn($line)) {
                 continue;
             }
 
@@ -49,6 +57,7 @@ final readonly class LaunchJobActions implements ProjectActionSource
                 null === $runs ? null : $runs - $line->getCountedRuns(),
                 $place,
                 $access,
+                $heldByOthers,
             );
         }
 

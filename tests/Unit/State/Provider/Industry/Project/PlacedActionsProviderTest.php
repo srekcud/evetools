@@ -37,6 +37,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(PlacedActionsProvider::class)]
 #[CoversClass(PlacedActionResource::class)]
 #[Group('issue-1300')]
+#[Group('issue-1336')]
 final class PlacedActionsProviderTest extends TestCase
 {
     use BuildsWorkshopProjects;
@@ -54,6 +55,7 @@ final class PlacedActionsProviderTest extends TestCase
     private IndustryProjectRepository $projectRepository;
     private IndustryProjectParticipantRepository $memberRepository;
     private array $readProjectNames = [];
+    private array $reservedByOthers = [];
 
     protected function setUp(): void
     {
@@ -164,6 +166,17 @@ final class PlacedActionsProviderTest extends TestCase
         self::assertSame($this->ishtarBatch->getId()->toRfc4122(), $resources[0]->projectId);
     }
 
+    public function testReservedByOthersOfTheActionIsCopiedOnTheResource(): void
+    {
+        $this->reservedByOthers = [['characterName' => 'Mira Kessel', 'quantity' => 3], ['characterName' => null, 'quantity' => 2]];
+
+        $resources = $this->provider($this->reader)->provide(new GetCollection(uriTemplate: self::PROJECTS_URI));
+
+        self::assertSame([['characterName' => 'Mira Kessel', 'quantity' => 3], ['characterName' => null, 'quantity' => 2]], $resources[0]->reservedByOthers);
+        self::assertSame('launch_job', $resources[0]->code);
+        self::assertSame([], $resources[1]->reservedByOthers);
+    }
+
     private function provider(?User $user): PlacedActionsProvider
     {
         $security = $this->createStub(Security::class);
@@ -190,7 +203,7 @@ final class PlacedActionsProviderTest extends TestCase
         $this->readProjectNames[] = $project->getName();
         $projectId = $project->getId()->toRfc4122();
         if ($project === $this->hecateBatch) {
-            return [new PlacedAction($projectId, 'Hecate batch', PlacedActionCode::LaunchJob, 'line-ram', self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 5, ActionPlace::station(self::AZBEL_ID, 'Azbel', self::PERIMETER_SYSTEM_ID, 'Perimeter'))];
+            return [new PlacedAction($projectId, 'Hecate batch', PlacedActionCode::LaunchJob, 'line-ram', self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 5, ActionPlace::station(self::AZBEL_ID, 'Azbel', self::PERIMETER_SYSTEM_ID, 'Perimeter'), null, $this->reservedByOthers)];
         }
 
         return [new PlacedAction($projectId, 'Ishtar batch', PlacedActionCode::ReviewJoinRequests, null, null, null, 2, ActionPlace::anywhere())];

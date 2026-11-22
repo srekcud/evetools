@@ -143,6 +143,24 @@ describe.each(TEST_LOCALES)('ProjectFlowActions in %s', (locale) => {
     expect(wrapper.find('[data-testid="flow-actions-empty"]').exists()).toBe(false)
   })
 
+  it('tells under the row of an action who already took part of it and how much', () => {
+    const bought = placedAction({ ...BUY_TRITANIUM, quantity: 250, reservedByOthers: [{ characterName: 'Mira Kessel', quantity: 150 }, { characterName: 'Kaelen Dray', quantity: 100 }] })
+    const wrapper = mountActions([bought, BUY_ZYDRINE_NOWHERE], locale)
+
+    const lines = wrapper.findAll('[data-testid="flow-action-reserved-by-others"]')
+    expect(lines).toHaveLength(1)
+    const text = squashed(lines[0].text())
+    expect(text).toContain('Mira Kessel 150')
+    expect(text).toContain('Kaelen Dray 100')
+    expect(text.indexOf('Mira Kessel')).toBeLessThan(text.indexOf('Kaelen Dray'))
+  })
+
+  it('shows no already taken line when nobody else reserved anything', () => {
+    const wrapper = mountActions([LAUNCH_CAPITAL_PLATES, BUY_TRITANIUM], locale)
+
+    expect(wrapper.find('[data-testid="flow-action-reserved-by-others"]').exists()).toBe(false)
+  })
+
   it('has no action button, the action is done in the game', () => {
     const wrapper = mountActions([LAUNCH_CAPITAL_PLATES, BUY_TRITANIUM, REVIEW_DEPOSITS], locale)
 

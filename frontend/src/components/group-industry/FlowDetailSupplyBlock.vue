@@ -33,6 +33,7 @@ const sourcedVolume = computed(() => {
   const row = sourcingRow.value
   return row === undefined || row.volumePerUnit === null ? null : row.volumePerUnit * row.quantity
 })
+const reservationsOfOthers = computed(() => props.line.reservations.filter((reservation) => !reservation.isMine))
 const courier = computed(() => courierStore.courier)
 const stockQuantity = computed(() => {
   const { containerStockState, containerQuantity } = props.line
@@ -107,6 +108,15 @@ function purchaseSource(transactionId: string | null): string {
       <dt class="text-slate-500">{{ detailText('fields.free') }}</dt>
       <dd class="tabular-nums">{{ numberOrUnknown(line.freeQuantity) }}</dd>
     </dl>
+    <div v-if="reservationsOfOthers.length > 0" data-testid="flow-detail-reserved-by-others" class="mt-1">
+      <p class="text-slate-500">{{ detailText('phrases.reservedByOthers') }}</p>
+      <ul class="space-y-0.5">
+        <li v-for="reservation in reservationsOfOthers" :key="reservation.participantId" class="flex gap-x-2">
+          <span>{{ textOrUnknown(reservation.characterName) }}</span>{{ ' ' }}
+          <span class="tabular-nums">{{ formatNumber(reservation.quantity, 0) }}</span>
+        </li>
+      </ul>
+    </div>
   </div>
 
   <div v-else-if="kind === 'depositToCheck'">

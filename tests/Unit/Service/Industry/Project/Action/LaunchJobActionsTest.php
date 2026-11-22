@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Enum\StructureAccessSource;
 use App\Enum\StructureAccessStatus;
+use App\Repository\IndustryProjectLineReservationRepository;
 use App\Service\Industry\Project\Action\ActionPlace;
 use App\Service\Industry\Project\Action\LaunchJobActions;
 use App\Service\Industry\Project\Action\PlacedAction;
@@ -26,9 +27,11 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(LaunchJobActions::class)]
 #[Group('issue-1300')]
+#[Group('issue-1336')]
 final class LaunchJobActionsTest extends TestCase
 {
     use BuildsActionPlaces;
+    use BuildsLineReservations;
     use BuildsStructureAccess;
     use BuildsWorkshopProjects;
 
@@ -36,6 +39,8 @@ final class LaunchJobActionsTest extends TestCase
     private const int RAM_TYPE_ID = 11_478;
     private const int ISHTAR_TYPE_ID = 12_005;
     private const int TRITANIUM_TYPE_ID = 34;
+
+    private ?IndustryProjectLineReservationRepository $reservations = null;
 
     public function testJobLineWithRunsStillToLaunchIsAnActionWithTheRemainingRunsAtTheStationOfItsStep(): void
     {
@@ -204,9 +209,111 @@ final class LaunchJobActionsTest extends TestCase
         self::assertNull($actions[0]->access);
     }
 
+    public function testJobLineReservedByAnotherMemberIsNoActionForAViewerWithoutReservation(): void
+    {
+        $viewer = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $this->pilot());
+        $ram = $this->jobOf($project, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', 9, 9, 0);
+        $this->reservations = $this->reservationsHolding($this->reservationOf($ram, $this->reserverNamed('Mira Kessel'), 3));
+
+        self::assertSame([], $this->launchJobActions($viewer, [])->actionsOf($project, $viewer));
+    }
+
+    public function testViewerWhoReservedTheJobLineKeepsTheActionWithTheSameRemainingRuns(): void
+    {
+        $viewer = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $this->pilot());
+        $ram = $this->jobOf($project, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', 9, 9, 0);
+        $this->matchedRunsOn($ram, 4);
+        $this->reservations = $this->reservationsHolding($this->reservationOf($ram, $viewer, 3));
+
+        $actions = $this->launchJobActions($viewer, [])->actionsOf($project, $viewer);
+
+        self::assertSame([[PlacedActionCode::LaunchJob, self::RAM_TYPE_ID, 5]], $this->codesWithTypeIdsAndQuantities($actions));
+        self::assertSame([], $actions[0]->reservedByOthers);
+    }
+
+    public function testViewerWhoReservedTheJobLineKeepsTheActionAndSeesTheOtherReservationsInOrder(): void
+    {
+        $viewer = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $this->pilot());
+        $ram = $this->jobOf($project, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', 9, 9, 0);
+        $this->reservations = $this->reservationsHolding(
+            $this->reservationOf($ram, $this->reserverNamed('Mira Kessel'), 3),
+            $this->reservationOf($ram, $viewer, 2),
+            $this->reservationOf($ram, $this->reserverNamed('Torin Vael'), 4),
+        );
+
+        $actions = $this->launchJobActions($viewer, [])->actionsOf($project, $viewer);
+
+        self::assertSame([[PlacedActionCode::LaunchJob, self::RAM_TYPE_ID, 9]], $this->codesWithTypeIdsAndQuantities($actions));
+        self::assertSame([['characterName' => 'Mira Kessel', 'quantity' => 3], ['characterName' => 'Torin Vael', 'quantity' => 4]], $actions[0]->reservedByOthers);
+    }
+
+    public function testJobLineReservedByAMemberWithoutUserIsNoActionForAViewerWithoutReservation(): void
+    {
+        $viewer = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $this->pilot());
+        $ram = $this->jobOf($project, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', 9, 9, 0);
+        $this->reservations = $this->reservationsHolding($this->reservationOf($ram, null, 3));
+
+        self::assertSame([], $this->launchJobActions($viewer, [])->actionsOf($project, $viewer));
+    }
+
+    public function testReservationOfAnotherJobLineDoesNotHideTheOtherJobLines(): void
+    {
+        $viewer = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $this->pilot());
+        $ram = $this->jobOf($project, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', 9, 9, 0);
+        $this->jobOf($project, self::COMPONENT_TYPE_ID, 'Composant X', 'component', 6, 6, 0);
+        $this->reservations = $this->reservationsHolding($this->reservationOf($ram, $this->reserverNamed('Mira Kessel'), 3));
+
+        $actions = $this->launchJobActions($viewer, [])->actionsOf($project, $viewer);
+
+        self::assertSame([[PlacedActionCode::LaunchJob, self::COMPONENT_TYPE_ID, 6]], $this->codesWithTypeIdsAndQuantities($actions));
+        self::assertSame([], $actions[0]->reservedByOthers);
+    }
+
+    public function testJobLineWithoutRunCountFollowsTheSameReservationRules(): void
+    {
+        $reserver = $this->reserverNamed('Mira Kessel');
+        $viewer = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $this->pilot());
+        $ishtar = $this->jobOf($project, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', null, 2, 0);
+        $this->reservations = $this->reservationsHolding($this->reservationOf($ishtar, $reserver, 1));
+
+        self::assertSame([], $this->launchJobActions($viewer, [])->actionsOf($project, $viewer));
+        self::assertSame([[PlacedActionCode::LaunchJob, self::ISHTAR_TYPE_ID, null]], $this->codesWithTypeIdsAndQuantities($this->launchJobActions($reserver, [])->actionsOf($project, $reserver)));
+    }
+
+    public function testReservationsAreReadOnceForTheWholeProject(): void
+    {
+        $viewer = $this->pilot();
+        $project = $this->workshopProject('Ishtar batch', ProjectStatus::InProgress, $this->pilot());
+        $this->jobOf($project, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', 9, 9, 0);
+        $this->jobOf($project, self::COMPONENT_TYPE_ID, 'Composant X', 'component', 6, 6, 0);
+        $reservations = $this->createMock(IndustryProjectLineReservationRepository::class);
+        $reservations->expects(self::once())->method('findByProject')->with($project)->willReturn([]);
+        $this->reservations = $reservations;
+
+        self::assertCount(2, $this->launchJobActions($viewer, [])->actionsOf($project, $viewer));
+    }
+
+    public function testReservationsAreNotReadWhenTheProjectIsNotInProgress(): void
+    {
+        $viewer = $this->pilot();
+        $project = $this->workshopProject('Sabre batch', ProjectStatus::Published, $this->pilot());
+        $this->jobOf($project, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', 2, 2, 0);
+        $reservations = $this->createMock(IndustryProjectLineReservationRepository::class);
+        $reservations->expects(self::never())->method('findByProject');
+        $this->reservations = $reservations;
+
+        self::assertSame([], $this->launchJobActions($viewer, [])->actionsOf($project, $viewer));
+    }
+
     private function launchJobActions(User $owner, array $ownerConfigs, ?MemberStructureAccess $memberAccess = null): LaunchJobActions
     {
-        return new LaunchJobActions($this->placeResolver($ownerConfigs), $memberAccess ?? new MemberStructureAccess($this->readerHolding()));
+        return new LaunchJobActions($this->placeResolver($ownerConfigs), $memberAccess ?? new MemberStructureAccess($this->readerHolding()), $this->reservations ?? $this->noReservations());
     }
 
     private function codesWithTypeIdsAndQuantities(array $actions): array

@@ -1553,6 +1553,11 @@ export interface ActionPlace {
 
 export type PlacedActionAccess = 'granted' | 'unknown'
 
+export interface PlacedActionReservation {
+  characterName: string | null
+  quantity: number
+}
+
 export interface PlacedAction {
   id: string
   projectId: string
@@ -1565,6 +1570,7 @@ export interface PlacedAction {
   place: ActionPlace
   here: boolean | null
   access: PlacedActionAccess | null
+  reservedByOthers: PlacedActionReservation[]
 }
 
 export interface CharacterLocationRead {

@@ -1,4 +1,4 @@
-import type { ActionPlace, PlacedAction } from '@/stores/group-industry/types'
+import type { ActionPlace, PlacedAction, PlacedActionReservation } from '@/stores/group-industry/types'
 
 export interface PlaceGroup {
   key: string
@@ -91,4 +91,12 @@ export function placeMultibuy(group: PlaceGroup): PlaceMultibuy | null {
     projectCount: new Set(retained.map(action => action.projectId)).size,
     skippedCount: sourcingActions.length - retained.length,
   }
+}
+
+export function reservedHoldersText(
+  reservations: PlacedActionReservation[],
+  unknownMemberLabel: string,
+  formatQuantity: (quantity: number) => string,
+): string {
+  return reservations.map((reservation) => `${reservation.characterName ?? unknownMemberLabel} ${formatQuantity(reservation.quantity)}`).join(', ')
 }

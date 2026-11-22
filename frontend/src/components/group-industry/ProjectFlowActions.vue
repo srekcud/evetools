@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import type { PlacedAction, PlacedActionCode } from '@/stores/group-industry/types'
-import { groupActionsByPlace, type PlaceGroup } from '@/utils/todoPlaces'
+import { groupActionsByPlace, reservedHoldersText, type PlaceGroup } from '@/utils/todoPlaces'
 import { useFlowReasonLabel } from './useFlowReasonLabel'
 
 const TYPED_ACTION_CODES: PlacedActionCode[] = ['launch_job', 'source_material']
@@ -30,6 +30,12 @@ function placeTitle({ place }: PlaceGroup): string {
   return place.unknownReason === null ? t('groupIndustry.flow.actions.unknownPlace') : reasonLabel(place.unknownReason)
 }
 
+function reservedByOthersText(action: PlacedAction): string {
+  return t('groupIndustry.flow.actions.reservedByOthers', {
+    holders: reservedHoldersText(action.reservedByOthers, t('groupIndustry.flow.actions.unknownMember'), (quantity) => formatNumber(quantity, 0)),
+  })
+}
+
 function hasTypeName(action: PlacedAction): boolean {
   return TYPED_ACTION_CODES.includes(action.code)
 }
@@ -52,7 +58,8 @@ function hasTypeName(action: PlacedAction): boolean {
           class="shrink-0 whitespace-nowrap rounded-sm border border-emerald-400/30 px-1.5 text-[10.5px] text-emerald-400"
         >{{ t('groupIndustry.flow.here') }}</span>
       </header>
-      <div v-for="action in group.actions" :key="action.id" data-testid="flow-action-row" class="flex items-center gap-2 px-3 py-1.5">
+      <div v-for="action in group.actions" :key="action.id" class="px-3 py-1.5">
+      <div data-testid="flow-action-row" class="flex items-center gap-2">
         <span class="w-24 shrink-0 font-display text-xs font-semibold uppercase tracking-wider text-amber-400">{{ t(`groupIndustry.flow.actions.verbs.${action.code}`) }}</span>
         <img
           v-if="action.typeId !== null && hasTypeName(action)"
@@ -64,6 +71,8 @@ function hasTypeName(action: PlacedAction): boolean {
         <span v-if="hasTypeName(action)" class="min-w-0 flex-1 truncate text-sm text-slate-200">{{ action.typeName ?? t('groupIndustry.flow.unnamedType') }}</span>
         <span v-else class="flex-1" />
         <span v-if="action.quantity !== null" class="whitespace-nowrap text-xs tabular-nums text-slate-400">&times; {{ formatNumber(action.quantity, 0) }}</span>
+      </div>
+      <p v-if="action.reservedByOthers.length > 0" data-testid="flow-action-reserved-by-others" class="mt-0.5 text-xs text-cyan-400/80">{{ reservedByOthersText(action) }}</p>
       </div>
     </section>
   </aside>

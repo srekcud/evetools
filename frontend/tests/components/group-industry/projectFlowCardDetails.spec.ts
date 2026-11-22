@@ -348,6 +348,7 @@ describe('flow card progress', () => {
         place: { kind: 'station', locationId: STATION_A_ID, name: 'Azbel', solarSystemId: null, solarSystemName: null, unknownReason: null },
         here: null,
         access: null,
+        reservedByOthers: [],
       }],
       sales: [],
       project: projectOf(),

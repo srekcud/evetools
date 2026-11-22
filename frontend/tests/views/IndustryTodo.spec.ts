@@ -60,6 +60,19 @@ function groupTexts(wrapper: VueWrapper): string[] {
   return wrapper.findAll('[data-testid="todo-place-header"]').map(header => header.text())
 }
 
+function squashed(text: string): string {
+  return text.replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+const BUY_TRITANIUM_250_WITH_OTHERS = placedAction({
+  ...SOURCE_TRITANIUM_400_AT_JITA,
+  quantity: 250,
+  reservedByOthers: [
+    { characterName: 'Mira Kessel', quantity: 150 },
+    { characterName: 'Kaelen Dray', quantity: 100 },
+  ],
+})
+
 enableAutoUnmount(afterEach)
 
 beforeEach(() => {
@@ -232,6 +245,45 @@ describe('IndustryTodo view', () => {
     expect(writeText).toHaveBeenCalledExactlyOnceWith('Tritanium\t520\nZydrine\t50')
     expect(wrapper.get('[data-testid="todo-multibuy-feedback"]').text()).toBe('Copied. The wallet sync will link the transaction to the projects when it can')
     expect(wrapper.find('[data-testid="todo-copy-error"]').exists()).toBe(false)
+  })
+
+  it('tells under an action who already took part of it and how much, in the order of the server', async () => {
+    const wrapper = await mountWith([BUY_TRITANIUM_250_WITH_OTHERS, SOURCE_ZYDRINE_50_AT_JITA])
+
+    const lines = wrapper.findAll('[data-testid="todo-reserved-by-others"]')
+    expect(lines).toHaveLength(1)
+    const text = squashed(lines[0].text())
+    expect(text).toContain('Mira Kessel 150')
+    expect(text).toContain('Kaelen Dray 100')
+    expect(text.indexOf('Mira Kessel')).toBeLessThan(text.indexOf('Kaelen Dray'))
+  })
+
+  it('words the already taken line in French', async () => {
+    const wrapper = await mountWith([BUY_TRITANIUM_250_WITH_OTHERS], 'fr')
+
+    expect(squashed(wrapper.get('[data-testid="todo-reserved-by-others"]').text())).toBe('Déjà pris : Mira Kessel 150, Kaelen Dray 100')
+  })
+
+  it('writes a translated name, never null, for a member without character', async () => {
+    const wrapper = await mountWith([placedAction({ ...SOURCE_ZYDRINE_50_AT_JITA, quantity: 20, reservedByOthers: [{ characterName: null, quantity: 30 }] })])
+
+    const text = squashed(wrapper.get('[data-testid="todo-reserved-by-others"]').text())
+    expect(text).toBe('Already taken: Unknown member 30')
+  })
+
+  it('shows no already taken line when nobody else reserved anything', async () => {
+    const wrapper = await mountWith(EXAMPLE_ACTIONS)
+
+    expect(wrapper.find('[data-testid="todo-reserved-by-others"]').exists()).toBe(false)
+  })
+
+  it('copies in the multibuy the quantity left to buy once the others are subtracted', async () => {
+    const wrapper = await mountWith([BUY_TRITANIUM_250_WITH_OTHERS, SOURCE_ZYDRINE_50_AT_JITA])
+
+    await wrapper.get('[data-testid="todo-multibuy"]').trigger('click')
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledExactlyOnceWith('Tritanium\t250\nZydrine\t50')
   })
 
   it('shows an error and never Copied when the browser refuses the copy', async () => {

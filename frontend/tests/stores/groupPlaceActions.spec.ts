@@ -31,6 +31,7 @@ const LAUNCH_RAM_AT_AZBEL: PlacedAction = {
   },
   here: true,
   access: null,
+  reservedByOthers: [],
 }
 
 const SOURCE_ZYDRINE_UNKNOWN_PLACE: PlacedAction = {
@@ -52,6 +53,7 @@ const SOURCE_ZYDRINE_UNKNOWN_PLACE: PlacedAction = {
   },
   here: null,
   access: null,
+  reservedByOthers: [],
 }
 
 const SOURCE_TRITANIUM_AT_JITA_AWAY: PlacedAction = {
@@ -73,6 +75,7 @@ const SOURCE_TRITANIUM_AT_JITA_AWAY: PlacedAction = {
   },
   here: false,
   access: null,
+  reservedByOthers: [],
 }
 
 const REVIEW_JOIN_REQUESTS_ANYWHERE: PlacedAction = {
@@ -94,6 +97,7 @@ const REVIEW_JOIN_REQUESTS_ANYWHERE: PlacedAction = {
   },
   here: null,
   access: null,
+  reservedByOthers: [],
 }
 
 const PLACED_ACTIONS = [

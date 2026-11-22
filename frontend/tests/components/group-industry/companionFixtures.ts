@@ -197,6 +197,8 @@ export function placedAction(overrides: Partial<PlacedAction> = {}): PlacedActio
     quantity: 1000,
     place: stationPlace(),
     here: true,
+    access: null,
+    reservedByOthers: [],
     ...overrides,
   }
 }

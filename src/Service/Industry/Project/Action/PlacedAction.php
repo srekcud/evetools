@@ -10,6 +10,9 @@ final readonly class PlacedAction
 {
     private const string NO_LINE = '-';
 
+    /**
+     * @param list<array{characterName: ?string, quantity: int}> $reservedByOthers
+     */
     public function __construct(
         public string $projectId,
         public ?string $projectName,
@@ -20,6 +23,7 @@ final readonly class PlacedAction
         public ?int $quantity,
         public ActionPlace $place,
         public ?StructureAccessStatus $access = null,
+        public array $reservedByOthers = [],
     ) {
     }
 

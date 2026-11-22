@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import type { PlacedAction, PlacedActionCode } from '@/stores/group-industry/types'
 import { multibuyText } from '@/utils/multibuy'
-import { placeMultibuy, type PlaceGroup } from '@/utils/todoPlaces'
+import { placeMultibuy, reservedHoldersText, type PlaceGroup } from '@/utils/todoPlaces'
 
 const COPIED_FEEDBACK_MS = 2000
 const KNOWN_UNKNOWN_REASONS = ['market_not_chosen', 'market_structure_unset', 'station_unresolved']
@@ -66,6 +66,10 @@ function detailOf(action: PlacedAction): string {
   }
   const key = `industryTodo.details.${action.code}`
   return PLURAL_DETAIL_CODES.includes(action.code) ? t(key, { n: n(action.quantity) }, action.quantity) : t(key, { n: n(action.quantity) })
+}
+
+function reservedByOthersText(action: PlacedAction): string {
+  return t('industryTodo.reservedByOthers', { holders: reservedHoldersText(action.reservedByOthers, t('industryTodo.unknownMember'), n) })
 }
 
 function projectLabel(action: PlacedAction): string {
@@ -141,6 +145,11 @@ onBeforeUnmount(() => {
       <span class="min-w-0 flex-1">
         <span v-if="action.typeName" class="block truncate text-sm text-slate-200" :title="action.typeName">{{ action.typeName }}</span>{{ ' ' }}
         <small v-if="detailOf(action)" class="block text-xs text-slate-400">{{ detailOf(action) }}</small>{{ ' ' }}
+        <small
+          v-if="action.reservedByOthers.length > 0"
+          data-testid="todo-reserved-by-others"
+          class="block text-xs text-cyan-400/80"
+        >{{ reservedByOthersText(action) }}</small>{{ ' ' }}
         <span class="mt-0.5 inline-block rounded-sm border border-slate-700 px-1 text-[10.5px] text-slate-400">{{ projectLabel(action) }}</span>{{ ' ' }}
         <span
           v-if="action.access === 'unknown'"

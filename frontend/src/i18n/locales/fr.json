@@ -3105,6 +3105,8 @@
         "error": "Lecture des actions impossible :",
         "anywhere": "N'importe où",
         "unknownPlace": "Lieu inconnu",
+        "reservedByOthers": "Déjà pris : {holders}",
+        "unknownMember": "Membre inconnu",
         "verbs": {
           "launch_job": "Lancer",
           "source_material": "Acheter",
@@ -3213,6 +3215,7 @@
           "fulfilled": "{fulfilled} sur {required}",
           "noPurchase": "Pas encore d'achat pour cette ligne.",
           "awaitingCheck": "dépôt à vérifier",
+          "reservedByOthers": "Pris par d'autres",
           "depositToCheck": "Déposé, pas encore vu dans le container. Le propriétaire le confirme dans l'onglet Contributions.",
           "runs": "{runs} runs",
           "manualLink": "lien manuel",
@@ -5330,6 +5333,8 @@
     "anywhere": "Partout",
     "hereBadge": "vous y êtes",
     "accessUnknown": "Accès inconnu",
+    "reservedByOthers": "Déjà pris : {holders}",
+    "unknownMember": "Membre inconnu",
     "unknownPlace": "Lieu inconnu",
     "unknownReasons": {
       "market_not_chosen": "Marché non choisi",

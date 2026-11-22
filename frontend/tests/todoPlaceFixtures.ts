@@ -64,6 +64,7 @@ export function placedAction(
     quantity: null,
     here: null,
     access: null,
+    reservedByOthers: [],
     ...fields,
   }
 }

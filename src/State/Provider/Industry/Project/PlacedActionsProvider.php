@@ -69,6 +69,7 @@ class PlacedActionsProvider implements ProviderInterface
         $resource->typeId = $action->typeId;
         $resource->typeName = $action->typeName;
         $resource->quantity = $action->quantity;
+        $resource->reservedByOthers = $action->reservedByOthers;
         $resource->place = $action->place->toArray();
         $resource->here = $located->here;
         $resource->access = match ($action->access) {

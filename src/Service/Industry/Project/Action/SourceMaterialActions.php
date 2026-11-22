@@ -7,6 +7,7 @@ namespace App\Service\Industry\Project\Action;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\ProjectStatus;
+use App\Repository\IndustryProjectLineReservationRepository;
 use App\Service\Industry\Project\ProjectContainerFulfillment;
 
 final readonly class SourceMaterialActions implements ProjectActionSource
@@ -14,6 +15,7 @@ final readonly class SourceMaterialActions implements ProjectActionSource
     public function __construct(
         private ProjectContainerFulfillment $containerFulfillment,
         private ActionPlaceResolver $placeResolver,
+        private IndustryProjectLineReservationRepository $reservations,
     ) {
     }
 
@@ -26,10 +28,15 @@ final readonly class SourceMaterialActions implements ProjectActionSource
         }
 
         $fulfillments = $this->containerFulfillment->of($project);
+        $reservations = ReservationsSeenByMember::of($this->reservations->findByProject($project), $user);
         $actions = [];
         foreach ($project->getBomItems() as $line) {
-            $remaining = $fulfillments->remainingOf($line);
-            if ($line->isJob() || $remaining <= 0) {
+            if ($line->isJob()) {
+                continue;
+            }
+
+            $remaining = $fulfillments->remainingOf($line) - $reservations->quantityHeldByOthersOn($line);
+            if ($remaining <= 0) {
                 continue;
             }
 
@@ -42,6 +49,8 @@ final readonly class SourceMaterialActions implements ProjectActionSource
                 $line->getTypeName(),
                 $remaining,
                 $this->placeResolver->ofMarket($line->getSourcingMarket(), $user),
+                null,
+                $reservations->heldByOthersOn($line),
             );
         }
 

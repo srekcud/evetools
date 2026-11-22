@@ -3105,6 +3105,8 @@
         "error": "Could not read the actions:",
         "anywhere": "Anywhere",
         "unknownPlace": "Unknown place",
+        "reservedByOthers": "Already taken: {holders}",
+        "unknownMember": "Unknown member",
         "verbs": {
           "launch_job": "Launch",
           "source_material": "Buy",
@@ -3213,6 +3215,7 @@
           "fulfilled": "{fulfilled} of {required}",
           "noPurchase": "No purchase for this line yet.",
           "awaitingCheck": "deposit to check",
+          "reservedByOthers": "Taken by others",
           "depositToCheck": "Deposited, not seen in the container yet. The owner confirms it in the Contributions tab.",
           "runs": "{runs} runs",
           "manualLink": "manual link",
@@ -5330,6 +5333,8 @@
     "anywhere": "Anywhere",
     "hereBadge": "you are here",
     "accessUnknown": "Access unknown",
+    "reservedByOthers": "Already taken: {holders}",
+    "unknownMember": "Unknown member",
     "unknownPlace": "Unknown place",
     "unknownReasons": {
       "market_not_chosen": "Market not chosen",

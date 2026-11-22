@@ -71,4 +71,9 @@ class PlacedActionResource
      * @var 'granted'|'unknown'|null
      */
     public ?string $access = null;
+
+    /**
+     * @var list<array{characterName: ?string, quantity: int}>
+     */
+    public array $reservedByOthers = [];
 }
