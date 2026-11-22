@@ -26,6 +26,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ProjectContainerReadings::class)]
 #[Group('issue-1293')]
+#[Group('issue-1334')]
 final class ProjectContainerReadingsTest extends TestCase
 {
     use BuildsCorporationDirectorAccess;
@@ -49,6 +50,7 @@ final class ProjectContainerReadingsTest extends TestCase
     private bool $ownerHasCorporation = true;
     private int $officeAtStationA;
     private int $officeAtStationB;
+    private int $itemIdLookups = 0;
     private ProjectContainerReadings $readings;
 
     protected function setUp(): void
@@ -73,6 +75,7 @@ final class ProjectContainerReadingsTest extends TestCase
         );
         $cachedAssetRepository->method('findCorporationByItemIds')->willReturnCallback(
             function (int $corporationId, array $itemIds): array {
+                ++$this->itemIdLookups;
                 $found = [];
                 foreach ($this->cachedAssets as $asset) {
                     if (\in_array($asset->getItemId(), $itemIds, true)) {
@@ -211,6 +214,57 @@ final class ProjectContainerReadingsTest extends TestCase
         $reading = $this->soleReading($this->projectWithContainerAt(self::ISHTAR_A, self::STATION_A));
 
         self::assertSame([ProjectContainerReading::STATUS_UNKNOWN, 'station_unresolved'], [$reading->status, $reading->unknownReason]);
+    }
+
+    public function testContainerInAnOfficeOfACorporationStructureIsReadAtTheStructure(): void
+    {
+        $structure = $this->cacheStructure();
+        $office = $this->cacheOffice($structure, 'item');
+        $ishtarA = $this->cacheContainer(self::ISHTAR_A, $office);
+        $this->cacheItem(self::TRITANIUM, 50, $ishtarA, 'Tritanium');
+
+        $reading = $this->soleReading($this->projectWithContainerAt(self::ISHTAR_A, $structure));
+
+        self::assertSame(
+            [ProjectContainerReading::STATUS_KNOWN, null, [[self::TRITANIUM, 'Tritanium', 50]]],
+            [$reading->status, $reading->unknownReason, $this->articlesOf($reading)],
+        );
+    }
+
+    public function testContainerInAnOfficeOfACorporationStructureIsNotReadAtAnotherStation(): void
+    {
+        $structure = $this->cacheStructure();
+        $office = $this->cacheOffice($structure, 'item');
+        $this->cacheContainer(self::ISHTAR_A, $office);
+
+        $reading = $this->soleReading($this->projectWithContainerAt(self::ISHTAR_A, self::STATION_A));
+
+        self::assertSame([ProjectContainerReading::STATUS_UNKNOWN, 'container_at_another_station'], [$reading->status, $reading->unknownReason]);
+    }
+
+    public function testOfficeInAStructureAbsentFromTheCorporationAssetsLeavesTheStationUnresolved(): void
+    {
+        $office = $this->cacheOffice(1_129_399_999_998, 'item');
+        $this->cacheContainer(self::ISHTAR_A, $office);
+
+        $reading = $this->soleReading($this->projectWithContainerAt(self::ISHTAR_A, 1_129_399_999_998));
+
+        self::assertSame([ProjectContainerReading::STATUS_UNKNOWN, 'station_unresolved'], [$reading->status, $reading->unknownReason]);
+    }
+
+    public function testStructureParentsOfOfficesAreReadInOneLookup(): void
+    {
+        $structure = $this->cacheStructure();
+        $this->cacheContainer(self::ISHTAR_A, $this->cacheOffice($structure, 'item'));
+        $this->cacheContainer(self::ISHTAR_B, $this->cacheOffice($structure, 'item'));
+        $project = $this->project();
+        $project->addContainerAt(self::ISHTAR_A, $structure);
+        $project->addContainerAt(self::ISHTAR_B, $structure);
+        $this->itemIdLookups = 0;
+
+        $this->readings->of($project);
+
+        self::assertLessThanOrEqual(2, $this->itemIdLookups);
     }
 
     public function testCyclicStorageChainLeavesTheStationUnresolved(): void
@@ -428,6 +482,14 @@ final class ProjectContainerReadingsTest extends TestCase
     {
         $itemId = $this->nextItemId++;
         $this->cachedAssets[] = $this->asset($itemId, 27, 1, $locationId, $locationType, EveConstants::OFFICE_LOCATION_FLAG, null, null);
+
+        return $itemId;
+    }
+
+    private function cacheStructure(): int
+    {
+        $itemId = $this->nextItemId++;
+        $this->cachedAssets[] = $this->asset($itemId, 35_825, 1, 30_000_142, 'solar_system', 'AutoFit', null, null);
 
         return $itemId;
     }
