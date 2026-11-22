@@ -5110,6 +5110,7 @@
         "accessUnknown": "access unknown",
         "declare": "Declare",
         "declared": "Declared",
+        "personalStockHint": "From my stock: declaring the transfer values nothing, my contribution stays the \"Use my stock\" action",
         "readyNow": "ready",
         "states": {
           "ready": "ready to carry",
