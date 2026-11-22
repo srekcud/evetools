@@ -2954,6 +2954,42 @@
       "unreadable": "Lecture impossible de ces projets : {projects}",
       "note": "Une station vue de l'intérieur : ce que vos projets y font, ce qui arrive, ce qui doit partir. Seuls vos projets apparaissent."
     },
+    "inventionView": {
+      "title": "Comprendre l'invention",
+      "intro": "{product} : on ne peut pas fabriquer un T2 sans BPC T2, et un BPC T2 ne s'achète pas ici : on l'invente à partir d'un blueprint T1.",
+      "detailsError": "Détails de l'invention indisponibles :",
+      "bpo": { "title": "BPO T1", "subtitle": "reste en place, non consommé" },
+      "copyArrow": "copie",
+      "copies": { "title": "{count} copies", "subtitle": "1 run chacune" },
+      "datacores": { "title": "Datacores", "subtitle": "consommés à chaque tentative" },
+      "inventionArrow": "invention · {attempts} tentatives · {chance} %",
+      "successArrow": "chaque réussite = 1 BPC",
+      "bpcExpected": "≈ {count} BPC T2",
+      "bpcObtained": "{count} BPC T2",
+      "bpcUnknown": "BPC T2",
+      "bpcRuns": "{runs} runs",
+      "bpcEfficiency": "ME {me} / TE {te}",
+      "manufacturingArrow": "fabrication",
+      "caption": {
+        "idle": "1 point = 1 tentative · ≈ {count} réussies attendues",
+        "idleUnknown": "1 point = 1 tentative",
+        "running": "en cours : le résultat tombe à la fin du job",
+        "result": "{successes} réussies · {failures} ratées",
+        "unknownResult": "terminée : résultat non communiqué par l'ESI"
+      },
+      "dot": {
+        "empty": "Tentative {number} : pas encore lancée",
+        "busy": "Tentative {number} : en cours",
+        "win": "Réussie : 1 BPC obtenu (les points réussis passent en premier, leur place n'est pas l'ordre réel)",
+        "lose": "Ratée : copie et datacores perdus",
+        "unknown": "Tentative {number} : résultat inconnu"
+      },
+      "notes": {
+        "consumption": "Chaque tentative consomme une copie et ses datacores, réussie ou ratée.",
+        "randomness": "Le hasard est sur le nombre de BPC : le plan en attend en moyenne, jamais avec certitude.",
+        "decryptor": "Un décrypteur change la chance, les runs et le ME/TE du BPC (tableau dans la section Invention)."
+      }
+    },
     "flow": {
       "columns": {
         "toBring": "À apporter",

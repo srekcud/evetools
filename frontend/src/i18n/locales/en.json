@@ -2954,6 +2954,42 @@
       "unreadable": "Could not read these projects: {projects}",
       "note": "A station seen from the inside: what your projects do here, what is arriving, what has to leave. Only your projects appear."
     },
+    "inventionView": {
+      "title": "Understand invention",
+      "intro": "{product}: a T2 cannot be built without a T2 BPC, and a T2 BPC is not bought here: it is invented from a T1 blueprint.",
+      "detailsError": "Invention details unavailable:",
+      "bpo": { "title": "T1 BPO", "subtitle": "stays in place, not consumed" },
+      "copyArrow": "copy",
+      "copies": { "title": "{count} copies", "subtitle": "1 run each" },
+      "datacores": { "title": "Datacores", "subtitle": "consumed by each attempt" },
+      "inventionArrow": "invention · {attempts} attempts · {chance} %",
+      "successArrow": "each success = 1 BPC",
+      "bpcExpected": "≈ {count} T2 BPCs",
+      "bpcObtained": "{count} T2 BPCs",
+      "bpcUnknown": "T2 BPCs",
+      "bpcRuns": "{runs} runs",
+      "bpcEfficiency": "ME {me} / TE {te}",
+      "manufacturingArrow": "manufacturing",
+      "caption": {
+        "idle": "1 dot = 1 attempt · ≈ {count} successes expected",
+        "idleUnknown": "1 dot = 1 attempt",
+        "running": "running: the result comes when the job ends",
+        "result": "{successes} succeeded · {failures} failed",
+        "unknownResult": "finished: result not reported by ESI"
+      },
+      "dot": {
+        "empty": "Attempt {number}: not started yet",
+        "busy": "Attempt {number}: running",
+        "win": "Succeeded: 1 BPC obtained (successful dots come first, their place is not the real order)",
+        "lose": "Failed: copy and datacores lost",
+        "unknown": "Attempt {number}: result unknown"
+      },
+      "notes": {
+        "consumption": "Each attempt consumes a copy and its datacores, successful or not.",
+        "randomness": "The randomness is on the number of BPCs: the plan expects that many on average, never with certainty.",
+        "decryptor": "A decryptor changes the chance, the runs and the ME/TE of the BPC (table in the Invention section)."
+      }
+    },
     "flow": {
       "columns": {
         "toBring": "To bring",

@@ -67,6 +67,7 @@ import T2BlueprintCopyProposal from '@/components/group-industry/T2BlueprintCopy
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectPrepareBlock from '@/components/group-industry/ProjectPrepareBlock.vue'
 import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
+import ProjectInventionView from '@/components/group-industry/ProjectInventionView.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
@@ -775,6 +776,8 @@ function applyShareLinkShortcut(): void {
       <p v-if="cockpit === null && projectStore.cockpitError" class="mb-6 text-xs text-slate-500">
         {{ t('groupIndustry.cockpit.unavailable') }}
       </p>
+
+      <ProjectInventionView :project-id="projectId" :bom-items="projectStore.bomItems" :now="flowNow" />
 
       <div class="mb-6 grid gap-4 xl:grid-cols-[1fr_320px]">
         <div class="min-w-0">
