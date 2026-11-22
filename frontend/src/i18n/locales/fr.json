@@ -1239,6 +1239,10 @@
       },
       "freeSlots": "{count} slots {type} libres",
       "allOccupied": "Tous les slots {type} occupes",
+      "stockByStation": {
+        "inStock": "{quantity} en stock",
+        "toggle": "{name} : afficher le stock par station"
+      },
       "buildSuggestion": "Construire",
       "inventSuggestion": "Inventer",
       "stepRuns": "{runs} runs · {project}",

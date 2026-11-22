@@ -603,6 +603,7 @@ export type FreeSlotEntry = {
   suggestion: {
     typeId: number; typeName: string; reason: string | null
     project: { id: string; name: string | null } | null; runs: number | null
+    stockByStation?: PivotStockStation[]
   } | null
 }
 
