@@ -116,6 +116,7 @@ final readonly class DeliveredSourcingPlanner
         $bought = $decision->bought;
         $chosen = $bought ? $valuation->buySideOf($typeId, $options) : SourcingChoice::Build;
         $activity = $universe->activityByProduct[$typeId] ?? null;
+        $produced = $universe->producedOf($typeId);
 
         return new DeliveredSourcingLine(
             $typeId,
@@ -130,6 +131,8 @@ final readonly class DeliveredSourcingPlanner
             SourcingValuation::recommendedOf($options),
             $chosen,
             $bought,
+            null === $produced ? null : new Quantity($produced),
+            $valuation->volumeOf($typeId),
         );
     }
 

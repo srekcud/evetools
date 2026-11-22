@@ -3358,6 +3358,7 @@
         "allToRecommended": "Use every recommended station",
         "next": "Next: buy or build ▶",
         "footnote": "Courier rate {courier} ISK/m³, bridge rate {bridge} ISK/m³. Same calculation as the « Structures » comparison of the Production tab, done once for the whole plan, with the legs between stations. After validation a station can change as long as nothing was bought or launched there.",
+        "footnoteWithHub": "Courier Jita to {hub}: {courier} ISK/m³, bridge rate {bridge} ISK/m³. Same calculation as the « Structures » comparison of the Production tab, done once for the whole plan, with the legs between stations. After validation a station can change as long as nothing was bought or launched there.",
         "footnoteUnknownRates": "The transport rates are not read: the legs are priced as unknown.",
         "empty": "No work to place for this project: go to the next step.",
         "loadFailed": "The stations could not be compared: {message}"
@@ -3384,6 +3385,10 @@
         "recommended": "recommended",
         "buildDetail": "{total} · inputs {inputs} + installation {installation} + transport {transport} · {runs} runs",
         "jitaDetail": "{total} · of which import {transport}",
+        "reusedPerUnit": "{amount}/u if the surplus is reused",
+        "reusedSaving": "building saves {amount} if the surplus is reused",
+        "volumePerUnit": "{volume} m³/u",
+        "withoutImport": "Without the import the choice changes.",
         "onSaleOnly": "{quantity} on sale only",
         "stockUnknown": "stock unknown",
         "summaryDelivered": "Delivered project cost",

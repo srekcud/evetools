@@ -11,7 +11,9 @@ use App\Industry\Application\SourcingChoice;
 use App\Industry\Application\WorkType;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Cost;
+use App\Industry\Domain\Isk;
 use App\Service\Industry\MissingDataPresenter;
+use App\Service\Industry\PartialPricePresenter;
 
 final class DeliveredSourcingPresenter
 {
@@ -44,6 +46,9 @@ final class DeliveredSourcingPresenter
             'recommended' => $line->recommended?->value,
             'chosen' => $line->chosen?->value,
             'bought' => $line->bought,
+            'volumePerUnit' => $line->volumePerUnit,
+            'savingIfSurplusReused' => self::roundedIsk($line->savingIfSurplusReused(), $line->quantity->value / $line->universeDemand->value),
+            'choiceChangesWithoutImport' => $line->choiceChangesWithoutImport(),
         ];
     }
 
@@ -80,10 +85,13 @@ final class DeliveredSourcingPresenter
                 'availableQuantity' => null,
                 'structureId' => null,
                 'missingData' => [],
+                'perUnitIfSurplusReused' => null,
+                'coveragePercent' => null,
             ];
         }
 
         $share = $line->quantity->value / $line->universeDemand->value;
+        $perUnitIfSurplusReused = SourcingChoice::Build === $option->kind ? $line->perUnitIfSurplusReused() : null;
 
         return [
             'total' => self::rounded($option->total->times($share)),
@@ -95,6 +103,8 @@ final class DeliveredSourcingPresenter
             'availableQuantity' => $option->availableQuantity,
             'structureId' => $option->structureId,
             'missingData' => MissingDataPresenter::of($option->total),
+            'perUnitIfSurplusReused' => null === $perUnitIfSurplusReused ? null : self::rounded($perUnitIfSurplusReused),
+            'coveragePercent' => SourcingChoice::Jita === $option->kind ? PartialPricePresenter::coveragePercentOf($option->price, $line->typeId) : null,
         ];
     }
 
@@ -115,6 +125,11 @@ final class DeliveredSourcingPresenter
             WorkType::Hulls => 'hull',
             WorkType::Components, WorkType::FinalProducts, WorkType::Blueprints => 'component',
         };
+    }
+
+    private static function roundedIsk(?Isk $amount, float $share): ?float
+    {
+        return null === $amount ? null : round($amount->amount * $share, self::DISPLAYED_DECIMALS);
     }
 
     private static function rounded(Cost $cost): ?float

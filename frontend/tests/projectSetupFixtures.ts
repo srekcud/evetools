@@ -157,6 +157,7 @@ export function projectWorkStations(workTypes: WorkStationType[] = [reactionType
   return {
     id: 'project-nyx-batch',
     courierHubSolarSystemId: 30_000_142,
+    courierHubSolarSystemName: null,
     courierIskPerCubicMeter: 800,
     jumpBridgeIskPerCubicMeter: 150,
     workTypes,
@@ -175,6 +176,8 @@ export function sourcingOption(overrides: Partial<SourcingOption> = {}): Sourcin
     availableQuantity: null,
     structureId: null,
     missingData: [],
+    perUnitIfSurplusReused: null,
+    coveragePercent: null,
     ...overrides,
   }
 }
@@ -193,6 +196,9 @@ export function sourcingRow(typeId: number, overrides: Partial<SourcingRow> = {}
     recommended: 'build',
     chosen: 'build',
     bought: false,
+    volumePerUnit: null,
+    savingIfSurplusReused: null,
+    choiceChangesWithoutImport: false,
     ...overrides,
   }
 }

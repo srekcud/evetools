@@ -351,7 +351,7 @@ const gapLabel = computed(() => {
     </section>
 
     <p v-if="workStations.courierIskPerCubicMeter !== null && workStations.jumpBridgeIskPerCubicMeter !== null" class="mt-3 text-xs text-slate-500">
-      {{ t('groupIndustry.setup.stations.footnote', { courier: formatNumber(workStations.courierIskPerCubicMeter), bridge: formatNumber(workStations.jumpBridgeIskPerCubicMeter) }) }}
+      {{ t(workStations.courierHubSolarSystemName === null ? 'groupIndustry.setup.stations.footnote' : 'groupIndustry.setup.stations.footnoteWithHub', { hub: workStations.courierHubSolarSystemName, courier: formatNumber(workStations.courierIskPerCubicMeter), bridge: formatNumber(workStations.jumpBridgeIskPerCubicMeter) }) }}
     </p>
     <p v-else class="mt-3 text-xs text-amber-300">{{ t('groupIndustry.setup.stations.footnoteUnknownRates') }}</p>
   </section>

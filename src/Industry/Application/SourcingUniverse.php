@@ -19,6 +19,7 @@ final readonly class SourcingUniverse
      * @param list<int>                                 $builtTypeIds
      * @param list<int>                                 $leafTypeIds
      * @param array<int, ActivityKind>                  $activityByProduct
+     * @param array<int, int>                           $producedByProduct
      */
     public function __construct(
         public array $jobsByProduct,
@@ -28,6 +29,7 @@ final readonly class SourcingUniverse
         public array $builtTypeIds,
         public array $leafTypeIds,
         public array $activityByProduct,
+        public array $producedByProduct,
     ) {
     }
 
@@ -54,9 +56,11 @@ final readonly class SourcingUniverse
         }
 
         $builtTypeIds = [];
+        $producedByProduct = [];
         foreach ($planned->plan->intermediates as $typeId => $intermediate) {
             if ([] !== $intermediate->jobs && isset($consumption[$typeId])) {
                 $builtTypeIds[] = $typeId;
+                $producedByProduct[$typeId] = $intermediate->quantityProduced->value;
             }
         }
 
@@ -68,12 +72,18 @@ final readonly class SourcingUniverse
             $builtTypeIds,
             array_keys($planned->plan->leaves),
             $activityByProduct,
+            $producedByProduct,
         );
     }
 
     public function demandOf(int $typeId): int
     {
         return array_sum($this->consumption[$typeId] ?? []);
+    }
+
+    public function producedOf(int $typeId): ?int
+    {
+        return $this->producedByProduct[$typeId] ?? null;
     }
 
     public function isBuilt(int $typeId): bool

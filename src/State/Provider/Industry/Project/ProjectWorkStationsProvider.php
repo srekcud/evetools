@@ -10,6 +10,7 @@ use App\ApiResource\Industry\Project\ProjectWorkStationsResource;
 use App\Entity\User;
 use App\Industry\Application\WorkTypeAdvice;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\OwnerStructureLabels;
 use App\Service\Industry\Project\ProjectWorkStations;
@@ -32,6 +33,7 @@ final readonly class ProjectWorkStationsProvider implements ProviderInterface
         private IndustryProjectService $projectService,
         private ProjectWorkStations $workStations,
         private OwnerStructureLabels $structureLabels,
+        private MapSolarSystemRepository $solarSystemRepository,
     ) {
     }
 
@@ -71,6 +73,7 @@ final readonly class ProjectWorkStationsProvider implements ProviderInterface
         $resource = new ProjectWorkStationsResource();
         $resource->id = $projectId;
         $resource->courierHubSolarSystemId = $courierHub->solarSystemId;
+        $resource->courierHubSolarSystemName = $this->solarSystemRepository->findBySolarSystemId($courierHub->solarSystemId)?->getSolarSystemName();
         $resource->courierIskPerCubicMeter = $courierHub->iskPerCubicMeterFromJita;
         $resource->jumpBridgeIskPerCubicMeter = $courierHub->jumpBridgeIskPerCubicMeter;
         $resource->structuresToSpecify = $this->structureLabels->hullToSpecifyOf($owner);

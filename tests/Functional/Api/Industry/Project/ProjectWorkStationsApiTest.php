@@ -15,6 +15,9 @@ use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\InvCategory;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
+use App\Entity\Sde\MapConstellation;
+use App\Entity\Sde\MapRegion;
+use App\Entity\Sde\MapSolarSystem;
 use App\Enum\ProjectStatus;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Tests\Functional\Api\Industry\SeedsJitaOrderBooksAndCostIndices;
@@ -55,7 +58,7 @@ final class ProjectWorkStationsApiTest extends WebTestCase
     private const float CENTS = 0.01;
     private const int ISHTAR_JOB_ID = 128_500_001;
 
-    private const array RESOURCE_KEYS = ['courierHubSolarSystemId', 'courierIskPerCubicMeter', 'id', 'jumpBridgeIskPerCubicMeter', 'structuresToSpecify', 'workTypes'];
+    private const array RESOURCE_KEYS = ['courierHubSolarSystemId', 'courierHubSolarSystemName', 'courierIskPerCubicMeter', 'id', 'jumpBridgeIskPerCubicMeter', 'structuresToSpecify', 'workTypes'];
 
     private const array WORK_TYPE_KEYS = [
         'activity', 'choiceStale', 'chosenStructureId', 'costsCompared', 'jobs', 'lockReason', 'locked', 'recommendedStructureId', 'rows', 'runs',
@@ -173,6 +176,44 @@ final class ProjectWorkStationsApiTest extends WebTestCase
         $comparedNames = array_column($this->workTypeOf('final_products')['rows'], 'name');
         sort($comparedNames);
         self::assertSame([self::WORKSHOP_NAME, self::ANNEX_NAME], $comparedNames);
+    }
+
+    #[Group('issue-1340')]
+    public function testCourierHubSolarSystemNameIsReadFromTheSdeSolarSystemsOfTheHub(): void
+    {
+        $region = (new MapRegion())->setRegionId(10_000_058)->setRegionName('Fountain');
+        $constellation = (new MapConstellation())->setConstellationId(20_000_754)->setConstellationName('Kimotoro')->setRegion($region);
+        $hub = (new MapSolarSystem())
+            ->setSolarSystemId(EveConstants::DEFAULT_COURIER_HUB_SOLAR_SYSTEM_ID)
+            ->setSolarSystemName('C-J6MT')
+            ->setConstellation($constellation)
+            ->setRegionId(10_000_058);
+        foreach ([$region, $constellation, $hub] as $staticRow) {
+            $this->em->persist($staticRow);
+        }
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->workStationsUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame(EveConstants::DEFAULT_COURIER_HUB_SOLAR_SYSTEM_ID, $body['courierHubSolarSystemId']);
+        self::assertArrayHasKey('courierHubSolarSystemName', $body);
+        self::assertSame('C-J6MT', $body['courierHubSolarSystemName']);
+    }
+
+    #[Group('issue-1340')]
+    public function testCourierHubSolarSystemNameIsNullWhenTheSdeDoesNotKnowTheHubSystem(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->workStationsUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->responseJson();
+        self::assertSame(EveConstants::DEFAULT_COURIER_HUB_SOLAR_SYSTEM_ID, $body['courierHubSolarSystemId']);
+        self::assertArrayHasKey('courierHubSolarSystemName', $body);
+        self::assertNull($body['courierHubSolarSystemName']);
     }
 
     public function testFinalProductsAreComparedAmongTheStructuresOfTheOwnerWithTheirTravelsAndTheRecommendedOneIsTheCheapest(): void

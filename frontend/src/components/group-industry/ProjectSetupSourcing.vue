@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { effectiveChoice, sourcingSummary, type SourcingPicks } from './projectSetup'
@@ -82,6 +83,10 @@ function marketDetailOf(option: SourcingOption, kind: 'jita' | 'structure'): str
   return t('groupIndustry.setup.sourcing.jitaDetail', { total: amountOf(option.total), transport: amountOf(option.transport) })
 }
 
+function volumeLabelOf(row: SourcingRow): string | null {
+  return row.volumePerUnit === null ? null : t('groupIndustry.setup.sourcing.volumePerUnit', { volume: formatNumber(row.volumePerUnit, 2) })
+}
+
 function stockLabelOf(option: SourcingOption): string {
   return option.availableQuantity === null
     ? t('groupIndustry.setup.sourcing.stockUnknown')
@@ -147,6 +152,11 @@ const gapLabel = computed(() => {
                 <p class="mt-0.5 truncate text-xs text-slate-400">
                   {{ formatNumber(row.quantity, 0) }}<template v-if="stationsOf(row) !== ''"> · {{ t('groupIndustry.setup.sourcing.forStation', { station: stationsOf(row) }) }}</template>
                 </p>
+                <p
+                  v-if="row.choiceChangesWithoutImport"
+                  :data-testid="`sourcing-without-import-${row.typeId}`"
+                  class="mt-0.5 text-xs text-amber-300"
+                >{{ t('groupIndustry.setup.sourcing.withoutImport') }}</p>
               </td>
               <template v-for="option in OPTIONS" :key="option">
                 <td
@@ -172,12 +182,29 @@ const gapLabel = computed(() => {
                       tabindex="-1"
                       @click.stop="choose(row, option)"
                     >
-                    <b>{{ perUnitOf(row.options[option]!) }}</b>
+                    <b>{{ perUnitOf(row.options[option]!) }}</b><PartialPriceMarker v-if="option === 'jita'" :percent="row.options[option]!.coveragePercent" />
                     <span v-if="row.recommended === option" class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-xs text-emerald-300">{{ t('groupIndustry.setup.sourcing.recommended') }}</span>
                   </div>
                   <p class="mt-0.5 break-words text-xs text-slate-400">
                     {{ option === 'build' ? buildDetailOf(row, row.options[option]!) : marketDetailOf(row.options[option]!, option) }}
                   </p>
+                  <p
+                    v-if="option === 'jita' && volumeLabelOf(row) !== null"
+                    :data-testid="`sourcing-volume-${row.typeId}`"
+                    class="mt-0.5 text-xs text-slate-400"
+                  >{{ volumeLabelOf(row) }}</p>
+                  <template v-if="option === 'build'">
+                    <p
+                      v-if="row.options[option]!.perUnitIfSurplusReused !== null"
+                      :data-testid="`sourcing-reused-${row.typeId}`"
+                      class="mt-0.5 text-xs text-slate-400"
+                    >{{ t('groupIndustry.setup.sourcing.reusedPerUnit', { amount: formatNumber(row.options[option]!.perUnitIfSurplusReused!, 2) }) }}</p>
+                    <p
+                      v-if="row.savingIfSurplusReused !== null"
+                      :data-testid="`sourcing-reused-saving-${row.typeId}`"
+                      class="mt-0.5 text-xs text-slate-400"
+                    >{{ t('groupIndustry.setup.sourcing.reusedSaving', { amount: formatIsk(row.savingIfSurplusReused) }) }}</p>
+                  </template>
                   <p v-if="!row.options[option]!.eligible" class="mt-0.5 text-xs text-red-300">{{ stockLabelOf(row.options[option]!) }}</p>
                 </td>
                 <td v-else class="p-2 text-slate-600">—</td>

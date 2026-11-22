@@ -1488,6 +1488,7 @@ export type WorkStationType = {
 export type ProjectWorkStations = {
   id: string
   courierHubSolarSystemId: number | null
+  courierHubSolarSystemName: string | null
   courierIskPerCubicMeter: number | null
   jumpBridgeIskPerCubicMeter: number | null
   workTypes: WorkStationType[]
@@ -1512,6 +1513,8 @@ export type SourcingOption = {
   availableQuantity: number | null
   structureId: string | null
   missingData: BuyOrBuildMissingData[]
+  perUnitIfSurplusReused: number | null
+  coveragePercent: number | null
 }
 
 export type SourcingRow = {
@@ -1527,6 +1530,9 @@ export type SourcingRow = {
   recommended: SetupSourcingChoice | null
   chosen: SetupSourcingChoice | null
   bought: boolean
+  volumePerUnit: number | null
+  savingIfSurplusReused: number | null
+  choiceChangesWithoutImport: boolean
 }
 
 export type SourcingDecisions = {

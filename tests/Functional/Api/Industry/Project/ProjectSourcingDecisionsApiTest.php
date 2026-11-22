@@ -114,6 +114,37 @@ final class ProjectSourcingDecisionsApiTest extends WebTestCase
         );
     }
 
+    public function testRowsCarryTheVolumePerUnitTheReusedSurplusFieldsTheChoiceChangeFlagAndTheCoverageOfEveryOption(): void
+    {
+        $this->actAs($this->owner);
+        $this->request('GET', $this->sourcingDecisionsUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $component = $this->rowOf(self::RAM_STARSHIP_TECH_TYPE_ID);
+        self::assertArrayHasKey('volumePerUnit', $component);
+        self::assertEqualsWithDelta(self::RAM_CUBIC_METERS, $component['volumePerUnit'], 0.0001);
+        self::assertArrayHasKey('savingIfSurplusReused', $component);
+        self::assertNull($component['savingIfSurplusReused']);
+        self::assertArrayHasKey('choiceChangesWithoutImport', $component);
+        self::assertFalse($component['choiceChangesWithoutImport']);
+        self::assertArrayHasKey('perUnitIfSurplusReused', $component['options']['build']);
+        self::assertEqualsWithDelta(19.6, $component['options']['build']['perUnitIfSurplusReused'], self::CENTS);
+        foreach (['build', 'jita', 'structure'] as $optionKey) {
+            self::assertArrayHasKey('coveragePercent', $component['options'][$optionKey]);
+            self::assertNull($component['options'][$optionKey]['coveragePercent']);
+        }
+        foreach (['jita', 'structure'] as $optionKey) {
+            self::assertArrayHasKey('perUnitIfSurplusReused', $component['options'][$optionKey]);
+            self::assertNull($component['options'][$optionKey]['perUnitIfSurplusReused']);
+        }
+
+        $leaf = $this->rowOf(self::TRITANIUM_TYPE_ID);
+        self::assertArrayHasKey('volumePerUnit', $leaf);
+        self::assertEqualsWithDelta(self::TRITANIUM_CUBIC_METERS, $leaf['volumePerUnit'], 0.0001);
+        self::assertArrayHasKey('savingIfSurplusReused', $leaf);
+        self::assertNull($leaf['savingIfSurplusReused']);
+    }
+
     public function testPilotOfAnotherCorporationIsRefusedTheSourcingDecisions(): void
     {
         $this->actAs($this->outsider);

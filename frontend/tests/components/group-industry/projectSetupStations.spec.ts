@@ -459,4 +459,16 @@ describe('ProjectSetupStations', () => {
       emptyMessage: wrapper.text().includes(fr.groupIndustry.setup.stations.empty),
     }).toEqual({ notice: true, name: true, emptyMessage: true })
   })
+
+  it('names the courier hub in the footnote when its system is known and keeps the footnote without a name otherwise', () => {
+    const named = mountStations({ ...projectWorkStations(), courierHubSolarSystemName: 'Hub Probe System' }, {})
+    const unnamed = mountStations({ ...projectWorkStations(), courierHubSolarSystemName: null }, {})
+    const unknownRates = mountStations({ ...projectWorkStations(), courierHubSolarSystemName: 'Hub Probe System', courierIskPerCubicMeter: null }, {})
+
+    expect({
+      named: [named.text().includes('Courier Jita vers Hub Probe System : 800 ISK/m³, tarif du pont 150 ISK/m³'), named.text().includes('800'), RAW_TRANSLATION_KEY.test(named.text())],
+      unnamed: [unnamed.text().includes('Hub Probe System'), unnamed.text().includes('800')],
+      unknownRates: unknownRates.text().includes('Hub Probe System'),
+    }).toEqual({ named: [true, true, false], unnamed: [false, true], unknownRates: false })
+  })
 })

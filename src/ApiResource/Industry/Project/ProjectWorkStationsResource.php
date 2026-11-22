@@ -38,6 +38,8 @@ class ProjectWorkStationsResource
 
     public ?int $courierHubSolarSystemId = null;
 
+    public ?string $courierHubSolarSystemName = null;
+
     public float $courierIskPerCubicMeter = 0.0;
 
     public float $jumpBridgeIskPerCubicMeter = 0.0;

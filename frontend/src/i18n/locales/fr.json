@@ -3358,6 +3358,7 @@
         "allToRecommended": "Tout mettre sur les conseillées",
         "next": "Suivant : acheter ou fabriquer ▶",
         "footnote": "Tarif courier {courier} ISK/m³, tarif du pont {bridge} ISK/m³. Même calcul que la comparaison « Structures » de l'onglet Production, fait une fois pour tout le plan, avec les trajets entre stations. Après validation, une station se change tant que rien n'y a été acheté ni lancé.",
+        "footnoteWithHub": "Courier Jita vers {hub} : {courier} ISK/m³, tarif du pont {bridge} ISK/m³. Même calcul que la comparaison « Structures » de l'onglet Production, fait une fois pour tout le plan, avec les trajets entre stations. Après validation, une station se change tant que rien n'y a été acheté ni lancé.",
         "footnoteUnknownRates": "Les tarifs de transport ne sont pas lus : les trajets sont chiffrés inconnus.",
         "empty": "Aucun travail à placer pour ce projet : passez à l'étape suivante.",
         "loadFailed": "Les stations n'ont pas pu être comparées : {message}"
@@ -3384,6 +3385,10 @@
         "recommended": "conseillé",
         "buildDetail": "{total} · intrants {inputs} + installation {installation} + transport {transport} · {runs} runs",
         "jitaDetail": "{total} · dont import {transport}",
+        "reusedPerUnit": "{amount}/u si le surplus resert",
+        "reusedSaving": "avec réemploi du surplus, fabriquer économise {amount}",
+        "volumePerUnit": "{volume} m³/u",
+        "withoutImport": "Sans l'import, le choix change.",
         "onSaleOnly": "{quantity} en vente seulement",
         "stockUnknown": "stock inconnu",
         "summaryDelivered": "Coût livré du projet",
