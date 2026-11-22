@@ -7,6 +7,7 @@ import IndustryModuleTabs, { type IndustryModulePage } from '@/components/indust
 
 const PAGES: Array<[IndustryModulePage, string]> = [
   ['workshop', '/industry'],
+  ['todo', '/industry/todo'],
   ['projects', '/industry/projects'],
   ['analysis', '/industry/analysis'],
   ['production', '/industry/production'],
@@ -20,6 +21,7 @@ async function mountTabs(active: IndustryModulePage, locale: 'en' | 'fr' = 'en')
     history: createMemoryHistory(),
     routes: [
       { path: '/industry', name: 'industry', component: { template: '<div />' } },
+      { path: '/industry/todo', name: 'industry-todo', component: { template: '<div />' } },
       { path: '/industry/projects', name: 'industry-projects', component: { template: '<div />' } },
       { path: '/industry/analysis', name: 'industry-analysis', component: { template: '<div />' } },
       { path: '/industry/production', name: 'industry-production', component: { template: '<div />' } },
@@ -37,16 +39,16 @@ async function mountTabs(active: IndustryModulePage, locale: 'en' | 'fr' = 'en')
 }
 
 describe('IndustryModuleTabs', () => {
-  it('links the five pages of the module in order', async () => {
+  it('links the six pages of the module in order', async () => {
     const wrapper = await mountTabs('workshop')
 
     expect(wrapper.findAll('a[title]').map(link => link.attributes('href'))).toEqual(PAGES.map(([, path]) => path))
   })
 
   it.each([
-    ['en', ['Workshop', 'Projects', 'Analysis', 'Production', 'Revenue']],
-    ['fr', ['Atelier', 'Projets', 'Analyse', 'Production', 'Revenus']],
-  ] as const)('labels the five pages in %s', async (locale, labels) => {
+    ['en', ['Workshop', 'To do', 'Projects', 'Analysis', 'Production', 'Revenue']],
+    ['fr', ['Atelier', 'À faire', 'Projets', 'Analyse', 'Production', 'Revenus']],
+  ] as const)('labels the six pages in %s', async (locale, labels) => {
     const wrapper = await mountTabs('workshop', locale)
 
     expect(wrapper.findAll('a[title]').map(link => link.text().trim())).toEqual(labels)

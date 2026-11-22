@@ -193,6 +193,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/industry/todo',
+      name: 'industry-todo',
+      component: () => import('@/views/IndustryTodo.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/industry/projects',
       name: 'industry-projects',
       component: () => import('@/views/GroupIndustry/GroupIndustryList.vue'),

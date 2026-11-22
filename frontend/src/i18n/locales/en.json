@@ -4897,6 +4897,7 @@
   "industryModule": {
     "tabs": {
       "workshop": "Workshop",
+      "todo": "To do",
       "projects": "Projects",
       "analysis": "Analysis",
       "production": "Production",
@@ -4904,6 +4905,44 @@
     },
     "pages": {
       "revenue": "Revenue"
+    }
+  },
+  "industryTodo": {
+    "title": "To do",
+    "summary": "{actions} across {projects}, grouped by place",
+    "actionsCount": "{n} action | {n} actions",
+    "projectsCount": "{n} project | {n} projects",
+    "loading": "Loading the actions…",
+    "empty": "Nothing to do",
+    "unnamedProject": "Unnamed project",
+    "unnamedStation": "Unnamed station",
+    "anywhere": "Anywhere",
+    "hereBadge": "you are here",
+    "unknownPlace": "Unknown place",
+    "unknownReasons": {
+      "market_not_chosen": "Market not chosen",
+      "market_structure_unset": "Market structure not set",
+      "station_unresolved": "Step station not resolved"
+    },
+    "verbs": {
+      "launch_job": "Launch",
+      "source_material": "Buy",
+      "review_contributions": "Review",
+      "review_join_requests": "Accept"
+    },
+    "details": {
+      "launch_job": "{n} run to launch | {n} runs to launch",
+      "launchJobUnknownRuns": "runs to define",
+      "source_material": "{n} to buy",
+      "review_contributions": "{n} contribution to review | {n} contributions to review",
+      "review_join_requests": "{n} join request | {n} join requests"
+    },
+    "multibuy": {
+      "button": "Multibuy · {lines} lines, {projects}",
+      "projects": "{n} project | {n} projects",
+      "copied": "Copied. The wallet sync will link the transaction to the projects when it can",
+      "copyFailed": "The browser refused the copy",
+      "skipped": "{n} line without a name or quantity not included | {n} lines without a name or quantity not included"
     }
   },
   "pveModule": {

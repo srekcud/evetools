@@ -6,6 +6,7 @@ import en from '@/i18n/locales/en.json'
 
 const NAMED_ROUTES: Record<string, string> = {
   industry: '/industry',
+  'industry-todo': '/industry/todo',
   'industry-projects': '/industry/projects',
   'industry-analysis': '/industry/analysis',
   'industry-production': '/industry/production',

@@ -27,6 +27,7 @@ async function landingPathOf(oldUrl: string): Promise<string> {
 describe('industry module routes, query and memory', () => {
   it.each([
     ['analysis', 'industry-analysis', '/industry/analysis'],
+    ['to do', 'industry-todo', '/industry/todo'],
     ['projects', 'industry-projects', '/industry/projects'],
     ['production', 'industry-production', '/industry/production'],
     ['revenue', 'industry-revenue', '/industry/revenue'],

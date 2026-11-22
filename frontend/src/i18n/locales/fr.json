@@ -4897,6 +4897,7 @@
   "industryModule": {
     "tabs": {
       "workshop": "Atelier",
+      "todo": "À faire",
       "projects": "Projets",
       "analysis": "Analyse",
       "production": "Production",
@@ -4904,6 +4905,44 @@
     },
     "pages": {
       "revenue": "Revenus"
+    }
+  },
+  "industryTodo": {
+    "title": "À faire",
+    "summary": "{actions} sur {projects}, rangées par lieu",
+    "actionsCount": "{n} action | {n} actions",
+    "projectsCount": "{n} projet | {n} projets",
+    "loading": "Chargement des actions…",
+    "empty": "Rien à faire",
+    "unnamedProject": "Projet sans nom",
+    "unnamedStation": "Station sans nom",
+    "anywhere": "Partout",
+    "hereBadge": "vous y êtes",
+    "unknownPlace": "Lieu inconnu",
+    "unknownReasons": {
+      "market_not_chosen": "Marché non choisi",
+      "market_structure_unset": "Structure de marché non réglée",
+      "station_unresolved": "Station de l'étape non résolue"
+    },
+    "verbs": {
+      "launch_job": "Lancer",
+      "source_material": "Acheter",
+      "review_contributions": "Vérifier",
+      "review_join_requests": "Accepter"
+    },
+    "details": {
+      "launch_job": "{n} run à lancer | {n} runs à lancer",
+      "launchJobUnknownRuns": "runs à définir",
+      "source_material": "{n} à acheter",
+      "review_contributions": "{n} contribution à relire | {n} contributions à relire",
+      "review_join_requests": "{n} demande d'adhésion | {n} demandes d'adhésion"
+    },
+    "multibuy": {
+      "button": "Multibuy · {lines} lignes, {projects}",
+      "projects": "{n} projet | {n} projets",
+      "copied": "Copié. La synchro du wallet rattachera la transaction aux projets quand elle le pourra",
+      "copyFailed": "Le navigateur a refusé la copie",
+      "skipped": "{n} ligne sans nom ou sans quantité non incluse | {n} lignes sans nom ou sans quantité non incluses"
     }
   },
   "pveModule": {
