@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Industry\Application;
 
 use App\Constant\EveConstants;
+use App\Industry\Application\CourierHub;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\JitaPurchase;
 use App\Industry\Application\MaterialSourcing;
@@ -37,6 +38,8 @@ final class MaterialSourcingComparatorTest extends TestCase
     private const int STRUCTURE_ID = 1_035_466_543_993;
     private const int MANUFACTURING_SYSTEM_ID = 30_002_187;
     private const int REACTION_SYSTEM_ID = 30_002_659;
+    private const int HUB_SYSTEM_ID = 30_000_772;
+    private const int HUB_JUMPS = 4;
     private const int MANUFACTURING_JUMPS = 9;
     private const int REACTION_JUMPS = 2;
     private const float DELTA = 0.001;
@@ -51,7 +54,7 @@ final class MaterialSourcingComparatorTest extends TestCase
 
         self::assertCount(1, $sourcings);
         self::assertEqualsWithDelta(
-            [self::PYERITE, SourcingSide::Structure, 10_000.0, 13_500.0, 23_500.0, 20_000.0, 3_500.0, false, self::MANUFACTURING_JUMPS, 0.01],
+            [self::PYERITE, SourcingSide::Structure, 10_000.0, 12_500.0, 22_500.0, 20_000.0, 2_500.0, false, self::MANUFACTURING_JUMPS, 0.01],
             $this->rowOf($sourcings[0]),
             self::DELTA,
         );
@@ -67,24 +70,24 @@ final class MaterialSourcingComparatorTest extends TestCase
         )->compare([$this->material(self::TRITANIUM, 10_000)], self::STRUCTURE_ID, $this->favoriteSystems());
 
         self::assertEqualsWithDelta(
-            [self::TRITANIUM, SourcingSide::Jita, 50_000.0, 135_000.0, 185_000.0, 200_000.0, 15_000.0, false, self::MANUFACTURING_JUMPS, 0.01],
+            [self::TRITANIUM, SourcingSide::Jita, 50_000.0, 125_000.0, 175_000.0, 200_000.0, 25_000.0, false, self::MANUFACTURING_JUMPS, 0.01],
             $this->rowOf($sourcings[0]),
             self::DELTA,
         );
-        self::assertEqualsWithDelta(185_000.0, $sourcings[0]->bestCost()->amount()->amount, self::DELTA);
+        self::assertEqualsWithDelta(175_000.0, $sourcings[0]->bestCost()->amount()->amount, self::DELTA);
     }
 
     public function testExampleCTieBetweenJitaWithImportAndTheStructureGoesToJitaAndSavesNothing(): void
     {
         $sourcings = $this->comparator(
             jitaPrices: [self::MEXALLON => 100.0],
-            structurePrices: [self::MEXALLON => 400.0],
+            structurePrices: [self::MEXALLON => 1_350.0],
             volumes: [self::MEXALLON => 1.0],
             jumps: [self::REACTION_SYSTEM_ID => self::REACTION_JUMPS],
         )->compare([new MaterialToSource(self::MEXALLON, new Quantity(100), ActivityKind::Reaction)], self::STRUCTURE_ID, $this->favoriteSystems());
 
         self::assertEqualsWithDelta(
-            [self::MEXALLON, SourcingSide::Jita, 10_000.0, 30_000.0, 40_000.0, 40_000.0, 0.0, false, self::REACTION_JUMPS, 1.0],
+            [self::MEXALLON, SourcingSide::Jita, 10_000.0, 125_000.0, 135_000.0, 135_000.0, 0.0, false, self::REACTION_JUMPS, 1.0],
             $this->rowOf($sourcings[0]),
             self::DELTA,
         );
@@ -99,7 +102,7 @@ final class MaterialSourcingComparatorTest extends TestCase
         )->compare([$this->material(self::PYERITE, 1_000)], self::STRUCTURE_ID, $this->favoriteSystems());
 
         self::assertEqualsWithDelta(
-            [self::PYERITE, SourcingSide::Jita, 10_000.0, 13_500.0, 23_500.0, null, null, true, self::MANUFACTURING_JUMPS, 0.01],
+            [self::PYERITE, SourcingSide::Jita, 10_000.0, 12_500.0, 22_500.0, null, null, true, self::MANUFACTURING_JUMPS, 0.01],
             $this->rowOf($sourcings[0]),
             self::DELTA,
         );
@@ -115,7 +118,7 @@ final class MaterialSourcingComparatorTest extends TestCase
         )->compare([$this->material(self::PYERITE, 1_000)], self::STRUCTURE_ID, $this->favoriteSystems());
 
         self::assertEqualsWithDelta(
-            [self::PYERITE, SourcingSide::Structure, null, 13_500.0, null, 20_000.0, null, false, self::MANUFACTURING_JUMPS, 0.01],
+            [self::PYERITE, SourcingSide::Structure, null, 12_500.0, null, 20_000.0, null, false, self::MANUFACTURING_JUMPS, 0.01],
             $this->rowOf($sourcings[0]),
             self::DELTA,
         );
@@ -138,7 +141,7 @@ final class MaterialSourcingComparatorTest extends TestCase
         self::assertEquals([MissingData::itemVolume(self::PYERITE)], $sourcings[0]->importCost->missingData);
     }
 
-    public function testExampleGWorkshopSystemWithoutRouteFromJitaLeavesTheImportUnknown(): void
+    public function testExampleGWorkshopSystemWithoutRouteFromJitaKeepsTheImportKnownBecauseItNoLongerDependsOnJumps(): void
     {
         $sourcings = $this->comparator(
             jitaPrices: [self::PYERITE => 10.0],
@@ -148,11 +151,57 @@ final class MaterialSourcingComparatorTest extends TestCase
         )->compare([$this->material(self::PYERITE, 1_000)], self::STRUCTURE_ID, $this->favoriteSystems());
 
         self::assertEqualsWithDelta(
-            [self::PYERITE, SourcingSide::Structure, 10_000.0, null, null, 20_000.0, null, false, null, 0.01],
+            [self::PYERITE, SourcingSide::Structure, 10_000.0, 12_500.0, 22_500.0, 20_000.0, 2_500.0, false, null, 0.01],
             $this->rowOf($sourcings[0]),
             self::DELTA,
         );
-        self::assertEquals([MissingData::jumpRoute()], $sourcings[0]->importCost->missingData);
+        self::assertSame([], $sourcings[0]->importCost->missingData);
+    }
+
+    public function testWorkshopInTheHubSystemPaysTheRateFromJitaWithoutTheBridge(): void
+    {
+        $sourcings = $this->comparator(
+            jitaPrices: [self::PYERITE => 10.0],
+            structurePrices: [self::PYERITE => 20.0],
+            volumes: [self::PYERITE => 0.01],
+            jumps: [self::HUB_SYSTEM_ID => self::HUB_JUMPS],
+        )->compare([$this->material(self::PYERITE, 1_000)], self::STRUCTURE_ID, new FavoriteSystems(self::HUB_SYSTEM_ID, self::REACTION_SYSTEM_ID, $this->hub()));
+
+        self::assertEqualsWithDelta(
+            [self::PYERITE, SourcingSide::Structure, 10_000.0, 12_000.0, 22_000.0, 20_000.0, 2_000.0, false, self::HUB_JUMPS, 0.01],
+            $this->rowOf($sourcings[0]),
+            self::DELTA,
+        );
+    }
+
+    public function testWithoutCourierHubTheImportIsUnknownBecauseOfTheCourierHubAndTheMaterialIsBoughtAtTheStructure(): void
+    {
+        $sourcings = $this->comparator(
+            jitaPrices: [self::PYERITE => 10.0],
+            structurePrices: [self::PYERITE => 20.0],
+            volumes: [self::PYERITE => 0.01],
+        )->compare([$this->material(self::PYERITE, 1_000)], self::STRUCTURE_ID, new FavoriteSystems(self::MANUFACTURING_SYSTEM_ID, self::REACTION_SYSTEM_ID));
+
+        self::assertEqualsWithDelta(
+            [self::PYERITE, SourcingSide::Structure, 10_000.0, null, null, 20_000.0, null, false, self::MANUFACTURING_JUMPS, 0.01],
+            $this->rowOf($sourcings[0]),
+            self::DELTA,
+        );
+        self::assertEquals([MissingData::courierHub()], $sourcings[0]->importCost->missingData);
+    }
+
+    public function testWithoutCourierHubNorVolumeTheImportListsBothCauses(): void
+    {
+        $sourcings = $this->comparator(
+            jitaPrices: [self::PYERITE => 10.0],
+            structurePrices: [self::PYERITE => 20.0],
+            volumes: [],
+        )->compare([$this->material(self::PYERITE, 1_000)], self::STRUCTURE_ID, new FavoriteSystems(self::MANUFACTURING_SYSTEM_ID, self::REACTION_SYSTEM_ID));
+
+        self::assertEqualsCanonicalizing(
+            [MissingData::courierHub(), MissingData::itemVolume(self::PYERITE)],
+            $sourcings[0]->importCost->missingData,
+        );
     }
 
     public function testExampleHNeitherSidePricedLeavesTheSideUnknown(): void
@@ -180,7 +229,7 @@ final class MaterialSourcingComparatorTest extends TestCase
         )->compare([$this->material(self::PYERITE, 1_000)], null, $this->favoriteSystems());
 
         self::assertEqualsWithDelta(
-            [self::PYERITE, SourcingSide::Jita, 10_000.0, 13_500.0, 23_500.0, null, null, false, self::MANUFACTURING_JUMPS, 0.01],
+            [self::PYERITE, SourcingSide::Jita, 10_000.0, 12_500.0, 22_500.0, null, null, false, self::MANUFACTURING_JUMPS, 0.01],
             $this->rowOf($sourcings[0]),
             self::DELTA,
         );
@@ -260,7 +309,12 @@ final class MaterialSourcingComparatorTest extends TestCase
 
     private function favoriteSystems(): FavoriteSystems
     {
-        return new FavoriteSystems(self::MANUFACTURING_SYSTEM_ID, self::REACTION_SYSTEM_ID);
+        return new FavoriteSystems(self::MANUFACTURING_SYSTEM_ID, self::REACTION_SYSTEM_ID, $this->hub());
+    }
+
+    private function hub(): CourierHub
+    {
+        return new CourierHub(self::HUB_SYSTEM_ID, 1_200.0, 50.0);
     }
 
     private function material(int $typeId, int $quantity): MaterialToSource

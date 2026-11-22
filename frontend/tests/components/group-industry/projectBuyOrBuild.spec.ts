@@ -119,7 +119,10 @@ describe('ProjectBuyOrBuild', () => {
     expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'without-import').exists()).toBe(true)
     expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'build-reused').exists()).toBe(false)
     expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'saving-reused').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="buy-or-build-rate"]').text()).toContain('150')
+    const rate = wrapper.get('[data-testid="buy-or-build-rate"]').text().replace(BLANK, ' ')
+    expect(rate).toContain('1,200')
+    expect(rate).toContain('50')
+    expect(rate).not.toContain('150')
   })
 
   it('shows a bought intermediate with the cost if the surplus is reused and the saving it would bring, without the without-import note', async () => {
@@ -129,12 +132,20 @@ describe('ProjectBuyOrBuild', () => {
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'build-reused')).toContain('31.40 K')
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'jita')).toContain('30.90 K')
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'import')).toContain('1.35 K')
-    expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'import')).toMatch(/1\s*m³\s*×\s*9/)
+    expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'import')).toMatch(/1\s*m³/)
+    expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'import')).not.toContain('×')
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'buy')).toContain('32.25 K')
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'choice')).toContain(text('groupIndustry.buyOrBuild.choice.buy'))
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'saving')).toContain('14.09 M')
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'saving-reused')).toContain('42.50 K')
     expect(part(wrapper, FERNITE_COMPOSITE_TYPE_ID, 'without-import').exists()).toBe(false)
+  })
+
+  it('shows the volume of a known import even when the jumps from Jita are unknown, as the import no longer depends on them', async () => {
+    const wrapper = await mountBuyOrBuild([{ ...HOBGOBLIN_II_BUILT, jumps: null }])
+
+    expect(partText(wrapper, HOBGOBLIN_II_TYPE_ID, 'import')).toContain('13.50 K')
+    expect(partText(wrapper, HOBGOBLIN_II_TYPE_ID, 'import')).toMatch(/10\s*m³/)
   })
 
   it('shows an unknown import and buy cost as a dash with the unknown marker, never 0, and an unknown choice without saving', async () => {

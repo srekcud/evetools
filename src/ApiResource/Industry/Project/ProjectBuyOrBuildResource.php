@@ -38,6 +38,12 @@ class ProjectBuyOrBuildResource
 
     public float $importIskPerCubicMeterJump;
 
+    public ?float $courierIskPerCubicMeter = null;
+
+    public ?float $jumpBridgeIskPerCubicMeter = null;
+
+    public ?string $courierHubSolarSystemName = null;
+
     /**
      * @var list<array<string, mixed>>
      */

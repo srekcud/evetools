@@ -158,6 +158,9 @@ export interface UserSettings {
   favoriteReactionSystemId: number | null
   favoriteReactionSystemName: string | null
   exportCostPerM3: number
+  courierHubSolarSystemId: number
+  courierHubSolarSystemName: string | null
+  jumpBridgeCostPerM3: number
 }
 
 // Profit Margin types

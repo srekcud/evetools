@@ -41,6 +41,9 @@ final class ProjectBuyOrBuildApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->responseJson();
         self::assertSame([$this->ishtarBatch->getId()->toRfc4122(), 150.0, 1], [$body['id'], $body['importIskPerCubicMeterJump'], \count($body['rows'])]);
+        self::assertSame([800.0, 0.0], [$body['courierIskPerCubicMeter'], $body['jumpBridgeIskPerCubicMeter']]);
+        self::assertArrayHasKey('courierHubSolarSystemName', $body);
+        self::assertNull($body['courierHubSolarSystemName']);
         $row = $body['rows'][0];
         $keys = array_keys($row);
         sort($keys);

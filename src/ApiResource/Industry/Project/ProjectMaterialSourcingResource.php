@@ -38,6 +38,12 @@ class ProjectMaterialSourcingResource
 
     public float $importIskPerCubicMeterJump;
 
+    public ?float $courierIskPerCubicMeter = null;
+
+    public ?float $jumpBridgeIskPerCubicMeter = null;
+
+    public ?string $courierHubSolarSystemName = null;
+
     public ?int $structureId = null;
 
     public ?string $structureName = null;

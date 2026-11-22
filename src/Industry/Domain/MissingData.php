@@ -14,6 +14,7 @@ final readonly class MissingData
     private const string COPY_SKILLS = 'copy_skills';
     private const string COPY_STRUCTURE_NOT_PLANNED = 'copy_structure_not_planned';
     private const string COST_INDEX = 'cost_index';
+    private const string COURIER_HUB = 'courier_hub';
     private const string FACILITY_TAX = 'facility_tax';
     private const string INVENTION_PROBABILITY = 'invention_probability';
     private const string ITEM_VOLUME = 'item_volume';
@@ -44,6 +45,11 @@ final readonly class MissingData
     public static function structurePrice(int $typeId): self
     {
         return new self(self::STRUCTURE_PRICE, $typeId);
+    }
+
+    public static function courierHub(): self
+    {
+        return new self(self::COURIER_HUB, null);
     }
 
     public static function costIndex(): self

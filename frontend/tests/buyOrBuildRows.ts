@@ -109,5 +109,12 @@ export const WARRIOR_II_PARTIAL_PRICE = buyOrBuildRow({
 })
 
 export function projectBuyOrBuild(projectId: string, rows: BuyOrBuildRow[]): ProjectBuyOrBuild {
-  return { id: projectId, importIskPerCubicMeterJump: 150, rows }
+  return {
+    id: projectId,
+    importIskPerCubicMeterJump: 150,
+    courierIskPerCubicMeter: 1200,
+    jumpBridgeIskPerCubicMeter: 50,
+    courierHubSolarSystemName: 'C-J6MT',
+    rows,
+  }
 }

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Industry\Application;
 
+use App\Industry\Application\CourierHub;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\SecurityClass;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(FavoriteSystems::class)]
@@ -125,5 +127,32 @@ final class FavoriteSystemsTest extends TestCase
         yield 'reaction' => [ActivityKind::Reaction];
         yield 'copying' => [ActivityKind::Copying];
         yield 'invention' => [ActivityKind::Invention];
+    }
+
+    #[Group('issue-1286')]
+    public function testTheTwoArgumentFormHasNoCourierHub(): void
+    {
+        $favoriteSystems = new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, self::FAVORITE_REACTION_SYSTEM_ID);
+
+        $this->assertNull($favoriteSystems->courierHub);
+    }
+
+    #[Group('issue-1286')]
+    public function testThirdArgumentIsTheCourierHubAndLeavesTheFavoriteSystemsUntouched(): void
+    {
+        $courierHub = new CourierHub(self::OTHER_SYSTEM_ID, 1_200.0, 50.0);
+
+        $favoriteSystems = new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, self::FAVORITE_REACTION_SYSTEM_ID, $courierHub);
+
+        $this->assertSame(
+            [$courierHub, self::FAVORITE_MANUFACTURING_SYSTEM_ID, self::FAVORITE_REACTION_SYSTEM_ID],
+            [$favoriteSystems->courierHub, $favoriteSystems->forActivity(ActivityKind::Manufacturing), $favoriteSystems->forActivity(ActivityKind::Reaction)],
+        );
+    }
+
+    #[Group('issue-1286')]
+    public function testNoneHasNoCourierHub(): void
+    {
+        $this->assertNull(FavoriteSystems::none()->courierHub);
     }
 }

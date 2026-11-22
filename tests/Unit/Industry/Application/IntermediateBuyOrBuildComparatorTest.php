@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Industry\Application;
 
 use App\Constant\EveConstants;
 use App\Industry\Application\BuyOrBuildChoice;
+use App\Industry\Application\CourierHub;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\IntermediateBuyOrBuildComparator;
 use App\Industry\Application\IntermediateComparison;
@@ -48,6 +49,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
     private const int MANUFACTURING_SYSTEM_ID = 30_002_187;
     private const int REACTION_SYSTEM_ID = 30_002_659;
     private const int SYSTEM_AWAY_FROM_JITA = 30_001_000;
+    private const int HUB_SYSTEM_ID = 30_000_772;
 
     public function testExampleAManufacturedDroneIsBuiltWhenBuildingCostsLessThanBuyingWithTheImport(): void
     {
@@ -64,8 +66,8 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         self::assertSame(
             [
                 self::HOBGOBLIN_II, ActivityKind::Manufacturing, 5, 50, 50, 0,
-                1_687_000.0, 1_595_000.0, 675_000.0, 2_270_000.0, 10.0, 9,
-                BuyOrBuildChoice::Build, BuyOrBuildChoice::Buy, 583_000.0, null,
+                1_687_000.0, 1_595_000.0, 625_000.0, 2_220_000.0, 10.0, 9,
+                BuyOrBuildChoice::Build, BuyOrBuildChoice::Buy, 533_000.0, null,
             ],
             $this->rowOf($comparisons[0]),
         );
@@ -86,8 +88,8 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         self::assertSame(
             [
                 self::FERNITE_COMPOSITE, ActivityKind::Reaction, 5, 50, 500, 450,
-                15_700_000.0, 1_545_000.0, 67_500.0, 1_612_500.0, 1.0, 9,
-                BuyOrBuildChoice::Buy, BuyOrBuildChoice::Buy, 14_087_500.0, 42_500.0,
+                15_700_000.0, 1_545_000.0, 62_500.0, 1_607_500.0, 1.0, 9,
+                BuyOrBuildChoice::Buy, BuyOrBuildChoice::Buy, 14_092_500.0, 37_500.0,
             ],
             $this->rowOf($comparisons[0]),
         );
@@ -98,7 +100,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         $plan = $this->planOf([self::CAPACITOR_BATTERY => $this->intermediate(demand: 10, produced: 10, jobs: [$this->manufacturingJob(self::CAPACITOR_BATTERY, runs: 1)])]);
 
         $comparisons = $this->comparator(
-            [self::CAPACITOR_BATTERY => Cost::known(new Isk(1_000.0))],
+            [self::CAPACITOR_BATTERY => Cost::known(new Isk(5_400.0))],
             [self::CAPACITOR_BATTERY => 40.0],
             [self::CAPACITOR_BATTERY => 0.4],
             [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 1]],
@@ -108,7 +110,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         self::assertSame(
             [
                 self::CAPACITOR_BATTERY, ActivityKind::Manufacturing, 1, 10, 10, 0,
-                1_000.0, 400.0, 600.0, 1_000.0, 0.4, 1,
+                5_400.0, 400.0, 5_000.0, 5_400.0, 0.4, 1,
                 BuyOrBuildChoice::Build, BuyOrBuildChoice::Buy, 0.0, null,
             ],
             $this->rowOf($comparisons[0]),
@@ -130,7 +132,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         self::assertSame(
             [
                 self::WARRIOR_II, ActivityKind::Manufacturing, 5, 50, 50, 0,
-                1_687_000.0, null, 675_000.0, null, 10.0, 9,
+                1_687_000.0, null, 625_000.0, null, 10.0, 9,
                 BuyOrBuildChoice::Unknown, BuyOrBuildChoice::Unknown, null, null,
             ],
             $this->rowOf($comparisons[0]),
@@ -148,7 +150,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
             [self::OGRE_II => 31_900.0],
             [self::OGRE_II => 10.0],
             [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 9]],
-        )->compare($plan, [], FavoriteSystems::none());
+        )->compare($plan, [], new FavoriteSystems(null, null, $this->hub()));
 
         self::assertCount(1, $comparisons);
         self::assertSame(
@@ -162,7 +164,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         self::assertEquals([MissingData::jumpRoute()], $comparisons[0]->importCost->missingData);
     }
 
-    public function testExampleEUnreachableFavoriteSystemMakesTheImportUnknownBecauseOfTheJumpRoute(): void
+    public function testExampleEUnreachableFavoriteSystemKeepsTheImportKnownBecauseItNoLongerDependsOnJumps(): void
     {
         $plan = $this->planOf([self::OGRE_II => $this->intermediate(demand: 50, produced: 50, jobs: [$this->manufacturingJob(self::OGRE_II, runs: 5)])]);
 
@@ -174,8 +176,63 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         )->compare($plan, [], $this->favoriteSystems());
 
         self::assertCount(1, $comparisons);
-        self::assertEquals([MissingData::jumpRoute()], $comparisons[0]->importCost->missingData);
-        self::assertSame([BuyOrBuildChoice::Unknown, BuyOrBuildChoice::Buy, null], [$comparisons[0]->choice, $comparisons[0]->choiceWithoutImport, $comparisons[0]->jumps]);
+        self::assertSame([], $comparisons[0]->importCost->missingData);
+        self::assertSame(
+            [625_000.0, BuyOrBuildChoice::Build, BuyOrBuildChoice::Buy, null],
+            [$this->amountOf($comparisons[0]->importCost), $comparisons[0]->choice, $comparisons[0]->choiceWithoutImport, $comparisons[0]->jumps],
+        );
+    }
+
+    public function testWorkshopInTheHubSystemPaysTheRateFromJitaWithoutTheBridge(): void
+    {
+        $plan = $this->planOf([self::OGRE_II => $this->intermediate(demand: 50, produced: 50, jobs: [$this->manufacturingJob(self::OGRE_II, runs: 5)])]);
+
+        $comparisons = $this->comparator(
+            [self::OGRE_II => Cost::known(new Isk(1_687_000.0))],
+            [self::OGRE_II => 31_900.0],
+            [self::OGRE_II => 10.0],
+            [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::HUB_SYSTEM_ID => 4]],
+        )->compare($plan, [], new FavoriteSystems(self::HUB_SYSTEM_ID, null, $this->hub()));
+
+        self::assertSame(
+            [600_000.0, 2_195_000.0, 4],
+            [$this->amountOf($comparisons[0]->importCost), $this->amountOf($comparisons[0]->buyCost()), $comparisons[0]->jumps],
+        );
+    }
+
+    public function testWithoutCourierHubTheImportIsUnknownBecauseOfTheCourierHubWhateverTheWorkshop(): void
+    {
+        $plan = $this->planOf([self::OGRE_II => $this->intermediate(demand: 50, produced: 50, jobs: [$this->manufacturingJob(self::OGRE_II, runs: 5)])]);
+
+        $comparisons = $this->comparator(
+            [self::OGRE_II => Cost::known(new Isk(1_687_000.0))],
+            [self::OGRE_II => 31_900.0],
+            [self::OGRE_II => 10.0],
+            [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 9]],
+        )->compare($plan, [], new FavoriteSystems(self::MANUFACTURING_SYSTEM_ID, self::REACTION_SYSTEM_ID));
+
+        self::assertEquals([MissingData::courierHub()], $comparisons[0]->importCost->missingData);
+        self::assertSame(
+            [null, BuyOrBuildChoice::Unknown, BuyOrBuildChoice::Buy, 9],
+            [$this->amountOf($comparisons[0]->importCost), $comparisons[0]->choice, $comparisons[0]->choiceWithoutImport, $comparisons[0]->jumps],
+        );
+    }
+
+    public function testWithoutCourierHubNorVolumeTheImportListsBothCauses(): void
+    {
+        $plan = $this->planOf([self::CAPACITOR_BATTERY => $this->intermediate(demand: 50, produced: 50, jobs: [$this->manufacturingJob(self::CAPACITOR_BATTERY, runs: 5)])]);
+
+        $comparisons = $this->comparator(
+            [self::CAPACITOR_BATTERY => Cost::known(new Isk(1_687_000.0))],
+            [self::CAPACITOR_BATTERY => 31_900.0],
+            [],
+            [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 9]],
+        )->compare($plan, [], new FavoriteSystems(self::MANUFACTURING_SYSTEM_ID, self::REACTION_SYSTEM_ID));
+
+        self::assertEqualsCanonicalizing(
+            [MissingData::courierHub(), MissingData::itemVolume(self::CAPACITOR_BATTERY)],
+            $comparisons[0]->importCost->missingData,
+        );
     }
 
     public function testExampleFMissingVolumeMakesTheImportUnknownButKeepsTheJitaPrice(): void
@@ -221,7 +278,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
 
         self::assertCount(1, $comparisons);
         self::assertSame(
-            [null, 1_595_000.0, 675_000.0, 2_270_000.0, BuyOrBuildChoice::Unknown, BuyOrBuildChoice::Unknown, null, null],
+            [null, 1_595_000.0, 625_000.0, 2_220_000.0, BuyOrBuildChoice::Unknown, BuyOrBuildChoice::Unknown, null, null],
             [
                 $this->amountOf($comparisons[0]->buildCost),
                 $this->amountOf($comparisons[0]->jitaCost),
@@ -395,7 +452,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         $plan = $this->planOf([self::HOBGOBLIN_II => $this->intermediate(demand: 10, produced: 10, jobs: [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 1)])]);
 
         $comparisons = $this->comparator(
-            [self::HOBGOBLIN_II => Cost::known(new Isk(2_500.5))],
+            [self::HOBGOBLIN_II => Cost::known(new Isk(13_500.5))],
             [self::HOBGOBLIN_II => 100.0],
             [self::HOBGOBLIN_II => 1.0],
             [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 1]],
@@ -409,7 +466,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         $plan = $this->planOf([self::HOBGOBLIN_II => $this->intermediate(demand: 10, produced: 10, jobs: [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 1)])]);
 
         $comparisons = $this->comparator(
-            [self::HOBGOBLIN_II => Cost::known(new Isk(2_501.5))],
+            [self::HOBGOBLIN_II => Cost::known(new Isk(13_501.5))],
             [self::HOBGOBLIN_II => 100.0],
             [self::HOBGOBLIN_II => 1.0],
             [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 1]],
@@ -454,7 +511,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
 
         self::assertCount(1, $comparisons);
         self::assertSame(
-            [BuyOrBuildChoice::Build, 2_500.0, null],
+            [BuyOrBuildChoice::Build, 13_500.0, null],
             [$comparisons[0]->choice, $this->amountOf($comparisons[0]->buyCost()), $comparisons[0]->savingIfSurplusReused],
         );
     }
@@ -479,7 +536,7 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         $plan = $this->planOf([self::HOBGOBLIN_II => $this->intermediate(demand: 10, produced: 20, jobs: [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 2)])]);
 
         $comparisons = $this->comparator(
-            [self::HOBGOBLIN_II => Cost::known(new Isk(5_000.0))],
+            [self::HOBGOBLIN_II => Cost::known(new Isk(27_000.0))],
             [self::HOBGOBLIN_II => 100.0],
             [self::HOBGOBLIN_II => 1.0],
             [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 1]],
@@ -487,14 +544,19 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
 
         self::assertCount(1, $comparisons);
         self::assertSame(
-            [BuyOrBuildChoice::Buy, 2_500.0, 2_500.0, null],
+            [BuyOrBuildChoice::Buy, 13_500.0, 13_500.0, null],
             [$comparisons[0]->choice, $this->amountOf($comparisons[0]->buyCost()), $comparisons[0]->saving?->amount, $comparisons[0]->savingIfSurplusReused],
         );
     }
 
     private function favoriteSystems(): FavoriteSystems
     {
-        return new FavoriteSystems(self::MANUFACTURING_SYSTEM_ID, self::REACTION_SYSTEM_ID);
+        return new FavoriteSystems(self::MANUFACTURING_SYSTEM_ID, self::REACTION_SYSTEM_ID, $this->hub());
+    }
+
+    private function hub(): CourierHub
+    {
+        return new CourierHub(self::HUB_SYSTEM_ID, 1_200.0, 50.0);
     }
 
     /**

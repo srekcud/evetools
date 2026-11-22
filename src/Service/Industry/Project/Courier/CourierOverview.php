@@ -16,6 +16,8 @@ final readonly class CourierOverview
         public CourierQuote $quote,
         public ?int $originSolarSystemId,
         public ?string $originSolarSystemName,
+        public ?int $courierHubSolarSystemId,
+        public ?string $courierHubSolarSystemName,
         public ?int $workshopSolarSystemId,
         public ?string $workshopSolarSystemName,
         public bool $canLink,

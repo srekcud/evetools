@@ -14,6 +14,7 @@ use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\IntermediateBuyOrBuildComparator;
 use App\Industry\Application\IntermediateComparison;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\Project\BuyOrBuildRowPresenter;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\TypeNameResolver;
@@ -35,6 +36,7 @@ final readonly class ProjectBuyOrBuildProvider implements ProviderInterface
         private IndustryProjectService $projectService,
         private IntermediateBuyOrBuildComparator $comparator,
         private TypeNameResolver $typeNameResolver,
+        private MapSolarSystemRepository $solarSystemRepository,
     ) {
     }
 
@@ -76,6 +78,10 @@ final readonly class ProjectBuyOrBuildProvider implements ProviderInterface
         $resource = new ProjectBuyOrBuildResource();
         $resource->id = $projectId;
         $resource->importIskPerCubicMeterJump = IntermediateBuyOrBuildComparator::IMPORT_ISK_PER_CUBIC_METER_JUMP;
+        $courierHub = $favoriteSystems->courierHub;
+        $resource->courierIskPerCubicMeter = $courierHub?->iskPerCubicMeterFromJita;
+        $resource->jumpBridgeIskPerCubicMeter = $courierHub?->jumpBridgeIskPerCubicMeter;
+        $resource->courierHubSolarSystemName = null === $courierHub ? null : $this->solarSystemRepository->findBySolarSystemId($courierHub->solarSystemId)?->getSolarSystemName();
         $resource->rows = [
             ...array_map(
                 static fn (IntermediateComparison $comparison): array => [...BuyOrBuildRowPresenter::of($comparison, $typeNames[$comparison->typeId] ?? null), 'blacklisted' => false],

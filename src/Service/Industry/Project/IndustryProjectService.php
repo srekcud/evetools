@@ -42,6 +42,7 @@ use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
+use App\Service\Industry\CourierHubSettings;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PriceSource;
 use App\Service\JitaMarketService;
@@ -424,9 +425,11 @@ class IndustryProjectService
     {
         $settings = $this->settingsRepository->findOneBy(['user' => $owner]);
 
-        return null === $settings
-            ? FavoriteSystems::none()
-            : new FavoriteSystems($settings->getFavoriteManufacturingSystemId(), $settings->getFavoriteReactionSystemId());
+        return new FavoriteSystems(
+            $settings?->getFavoriteManufacturingSystemId(),
+            $settings?->getFavoriteReactionSystemId(),
+            CourierHubSettings::resolve($settings),
+        );
     }
 
     /**

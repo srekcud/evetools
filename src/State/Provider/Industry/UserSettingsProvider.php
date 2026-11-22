@@ -41,6 +41,8 @@ class UserSettingsProvider implements ProviderInterface
             $resource->favoriteManufacturingSystemId = $settings->getFavoriteManufacturingSystemId();
             $resource->favoriteReactionSystemId = $settings->getFavoriteReactionSystemId();
             $resource->exportCostPerM3 = $settings->getExportCostPerM3();
+            $resource->courierHubSolarSystemId = $settings->getCourierHubSolarSystemId();
+            $resource->jumpBridgeCostPerM3 = $settings->getJumpBridgeCostPerM3();
 
             if ($resource->favoriteManufacturingSystemId !== null) {
                 $system = $this->solarSystemRepository->find($resource->favoriteManufacturingSystemId);
@@ -52,6 +54,8 @@ class UserSettingsProvider implements ProviderInterface
                 $resource->favoriteReactionSystemName = $system?->getSolarSystemName();
             }
         }
+
+        $resource->courierHubSolarSystemName = $this->solarSystemRepository->find($resource->courierHubSolarSystemId)?->getSolarSystemName();
 
         return $resource;
     }

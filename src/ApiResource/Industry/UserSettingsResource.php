@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Industry\UpdateUserSettingsInput;
+use App\Constant\EveConstants;
 use App\State\Processor\Industry\UpdateUserSettingsProcessor;
 use App\State\Provider\Industry\UserSettingsProvider;
 
@@ -41,5 +42,11 @@ class UserSettingsResource
 
     public ?string $favoriteReactionSystemName = null;
 
-    public float $exportCostPerM3 = 1200.0;
+    public float $exportCostPerM3 = EveConstants::DEFAULT_EXPORT_COST_PER_M3;
+
+    public int $courierHubSolarSystemId = EveConstants::DEFAULT_COURIER_HUB_SOLAR_SYSTEM_ID;
+
+    public ?string $courierHubSolarSystemName = null;
+
+    public float $jumpBridgeCostPerM3 = EveConstants::DEFAULT_JUMP_BRIDGE_COST_PER_M3;
 }

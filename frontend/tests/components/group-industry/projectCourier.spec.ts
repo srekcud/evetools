@@ -67,16 +67,17 @@ afterEach(() => {
 })
 
 describe('ProjectCourier', () => {
-  it('shows the prefilled contract from Jita to the workshop with its volume, collateral, reward, jumps and durations', async () => {
+  it('shows the prefilled contract from Jita to the courier hub with its volume, collateral, reward, jumps and durations', async () => {
     const wrapper = await mountCourier(readyCourier(PROJECT_ID))
 
     expect(apiRequest).toHaveBeenCalledWith(COURIER_PATH)
     expect(shown(wrapper, 'courier-route')).toContain('Jita')
-    expect(shown(wrapper, 'courier-route')).toContain('Perimeter')
+    expect(shown(wrapper, 'courier-route')).toContain('C-J6MT')
+    expect(shown(wrapper, 'courier-route')).not.toContain('Perimeter')
     expect(shown(wrapper, 'courier-volume')).toContain('953.5')
     expect(digitsOf(wrapper, 'courier-collateral')).toContain('22632500')
-    expect(digitsOf(wrapper, 'courier-reward')).toContain('1287225')
-    expect(digitsOf(wrapper, 'courier-jumps')).toContain('9')
+    expect(digitsOf(wrapper, 'courier-reward')).toContain('1144200')
+    expect(digitsOf(wrapper, 'courier-jumps')).toContain('4')
     expect(digitsOf(wrapper, 'courier-days-to-complete')).toContain('3')
     expect(digitsOf(wrapper, 'courier-expiration')).toContain('7')
   })
@@ -221,7 +222,8 @@ describe('ProjectCourier', () => {
     await flushPromises()
 
     expect(shownContract).toContain('Jita')
-    expect(shownContract).toContain('Perimeter')
+    expect(shownContract).toContain('C-J6MT')
+    expect(shownContract).not.toContain('Perimeter')
     expect(clipboard.writeText.mock.calls).toEqual([[shownContract]])
   })
 

@@ -1261,6 +1261,7 @@
       "maxJobDurationHint": "Jobs exceeding this duration will be split automatically",
       "feesTitle": "Export cost",
       "exportCost": "Export cost (ISK/m³)",
+      "jumpBridgeCost": "Jump bridge rate (ISK/m³)",
       "feesErrors": {
         "invalid": "Each rate must be between 0 and 100 % and the export cost 0 or more. Nothing was saved.",
         "failed": "Failed to save the fees."
@@ -1326,7 +1327,8 @@
       "description": "Set your preferred systems for manufacturing and reactions.",
       "manufacturing": "Manufacturing",
       "reactions": "Reactions",
-      "searchSystem": "Search a system..."
+      "searchSystem": "Search a system...",
+      "courierHub": "Courier hub"
     },
     "syncFailures": {
       "jobsTitle": "Jobs not synced for {count} character, matching used the last known jobs: | Jobs not synced for {count} characters, matching used the last known jobs:",
@@ -3116,7 +3118,7 @@
       "loading": "Comparing buying and building...",
       "loadError": "The buy or build comparison could not be read",
       "empty": "No intermediate to compare: the plan builds nothing between the materials and the product.",
-      "importRate": "Jita import: {rate} ISK / m³ / jump",
+      "importRate": "Jita to {hub}: {rate} ISK / m³ + bridge {bridgeRate} ISK / m³",
       "columns": {
         "intermediate": "Intermediate",
         "quantity": "Qty",
@@ -3132,11 +3134,11 @@
         "unknown": "unknown"
       },
       "ifSurplusReused": "{amount} if the surplus is reused",
-      "importDetail": "{volume} m³ × {jumps} jumps",
+      "importDetail": "{volume} m³",
       "saving": "saving {amount}",
       "savingIfSurplusReused": "with the surplus reused, building saves {amount}",
       "withoutImport": "without the import: buy",
-      "hint": "Build = materials and job, per unit. Buy = Jita price plus import to the workshop (m³ × jumps × the rate). The surplus of a run is not credited to the project.",
+      "hint": "Build = materials and job, per unit. Buy = Jita price plus import to the workshop (m³ × the Jita to hub rate, plus the jump bridge rate unless the workshop is in the hub system). The surplus of a run is not credited to the project.",
       "switch": {
         "toBuy": "Switch to buy",
         "toBuild": "Switch to build",
@@ -3206,7 +3208,7 @@
       "loadError": "The material sourcing could not be read",
       "empty": "No material left to source.",
       "noReservation": "You have not taken any material yet. Use \"I'll handle it\" in Materials to Source to list here what you buy.",
-      "importRate": "Jita import: {rate} ISK / m³ / jump",
+      "importRate": "Jita to {hub}: {rate} ISK / m³ + bridge {bridgeRate} ISK / m³",
       "columns": {
         "material": "Material",
         "quantity": "Remaining",
@@ -3228,7 +3230,7 @@
         "structure": "Structure",
         "best": "Best"
       },
-      "hint": "Jita = weighted sell price of the remaining quantity plus the import to the workshop (m³ × jumps × the rate). Structure = lowest sell price of your preferred market structure."
+      "hint": "Jita = weighted sell price of the remaining quantity plus the import to the workshop (m³ × the Jita to hub rate, plus the jump bridge rate unless the workshop is in the hub system). Structure = lowest sell price of your preferred market structure."
     },
     "purchasesToDeliver": {
       "title": "Purchases to bring to the container",

@@ -39,6 +39,9 @@ const USER_SETTINGS: UserSettings = {
   favoriteReactionSystemId: null,
   favoriteReactionSystemName: null,
   exportCostPerM3: 1200,
+  courierHubSolarSystemId: 30_000_772,
+  courierHubSolarSystemName: 'C-J6MT',
+  jumpBridgeCostPerM3: 50,
 }
 
 const FEROX_MARGIN: ProfitMarginResult = {

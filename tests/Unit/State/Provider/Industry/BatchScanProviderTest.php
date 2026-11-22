@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\GetCollection;
 use App\Constant\EveConstants;
 use App\Entity\IndustryUserSettings;
 use App\Entity\User;
+use App\Industry\Application\CourierHub;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\SalesFees\SalesFees;
@@ -413,17 +414,25 @@ class BatchScanProviderTest extends TestCase
     }
 
     #[Group('issue-194')]
-    public function testScannerReceivesTheTransportCostPerM3OfTheIndustrySettings(): void
+    #[Group('issue-1286')]
+    public function testScannerReceivesTheCourierHubBuiltFromTheTransportRatesAndTheHubOfTheIndustrySettings(): void
     {
-        $settings = (new IndustryUserSettings())->setExportCostPerM3(800.0);
+        $settings = (new IndustryUserSettings())
+            ->setExportCostPerM3(800.0)
+            ->setCourierHubSolarSystemId(30002187)
+            ->setJumpBridgeCostPerM3(35.0);
 
-        $this->assertSame(800.0, $this->argumentsReceivedByTheScanner(new Request(), $settings)[7]);
+        $this->assertEquals(new CourierHub(30002187, 800.0, 35.0), $this->argumentsReceivedByTheScanner(new Request(), $settings)[7]);
     }
 
     #[Group('issue-194')]
-    public function testScannerReceivesTheDefaultTransportCostPerM3WithoutIndustrySettings(): void
+    #[Group('issue-1286')]
+    public function testScannerReceivesTheDefaultCourierHubWithoutIndustrySettings(): void
     {
-        $this->assertSame(EveConstants::DEFAULT_EXPORT_COST_PER_M3, $this->argumentsReceivedByTheScanner(new Request(), null)[7]);
+        $this->assertEquals(
+            new CourierHub(30000772, EveConstants::DEFAULT_EXPORT_COST_PER_M3, 0.0),
+            $this->argumentsReceivedByTheScanner(new Request(), null)[7],
+        );
     }
 
     #[Group('issue-347')]

@@ -865,6 +865,9 @@ export interface BuyOrBuildRow {
 export interface ProjectBuyOrBuild {
   id: string
   importIskPerCubicMeterJump: number
+  courierIskPerCubicMeter: number | null
+  jumpBridgeIskPerCubicMeter: number | null
+  courierHubSolarSystemName: string | null
   rows: BuyOrBuildRow[]
 }
 
@@ -954,6 +957,9 @@ export interface MaterialSourcingTotals {
 export interface ProjectMaterialSourcing {
   id: string
   importIskPerCubicMeterJump: number
+  courierIskPerCubicMeter: number | null
+  jumpBridgeIskPerCubicMeter: number | null
+  courierHubSolarSystemName: string | null
   structureId: number | null
   structureName: string | null
   structureSynced: boolean
@@ -1157,6 +1163,8 @@ export interface ProjectCourier {
   expirationDays: number
   originSolarSystemId: number | null
   originSolarSystemName: string | null
+  courierHubSolarSystemId: number | null
+  courierHubSolarSystemName: string | null
   workshopSolarSystemId: number | null
   workshopSolarSystemName: string | null
   canLink: boolean

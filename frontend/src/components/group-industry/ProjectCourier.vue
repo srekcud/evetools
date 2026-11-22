@@ -73,7 +73,7 @@ const contractText = computed(() => {
   if (read === null) return ''
   return [
     `${t('groupIndustry.courier.contract.from')}: ${textOrDash(read.originSolarSystemName)}`,
-    `${t('groupIndustry.courier.contract.to')}: ${textOrDash(read.workshopSolarSystemName)}`,
+    `${t('groupIndustry.courier.contract.to')}: ${textOrDash(read.courierHubSolarSystemName)}`,
     `${t('groupIndustry.courier.contract.volume')}: ${volumeText(read.volumeCubicMeters)}`,
     `${t('groupIndustry.courier.contract.collateral')}: ${iskText(read.collateral)}`,
     `${t('groupIndustry.courier.contract.reward')}: ${iskText(read.reward)}`,
@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
             <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <dt class="text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.contract.route') }}</dt>
               <dd data-testid="courier-route" class="min-w-0 text-right text-slate-100 break-words">
-                {{ textOrDash(courier.originSolarSystemName) }} → {{ textOrDash(courier.workshopSolarSystemName) }}
+                {{ textOrDash(courier.originSolarSystemName) }} → {{ textOrDash(courier.courierHubSolarSystemName) }}
               </dd>
 
               <dt class="text-xs uppercase tracking-wider text-slate-500">{{ t('groupIndustry.courier.contract.volume') }}</dt>

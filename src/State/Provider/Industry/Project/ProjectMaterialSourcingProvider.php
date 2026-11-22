@@ -19,6 +19,7 @@ use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\JobMaterialNeedsMapper;
 use App\Service\Industry\Project\MaterialSourcingPresenter;
@@ -47,6 +48,7 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         private IndustryProjectParticipantRepository $participantRepository,
         private IndustryProjectLineReservationRepository $reservationRepository,
         private IndustryProjectContributionRepository $contributionRepository,
+        private ?MapSolarSystemRepository $solarSystemRepository = null,
     ) {
     }
 
@@ -81,12 +83,13 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         $reservedQuantityByLineId = $isSolo ? [] : $this->reservedQuantityByLineIdOf($project, $user);
         $fulfillments = $this->containerFulfillment->ofWithJobMaterialNeeds($project, $bomLines, JobMaterialNeedsMapper::map($bomLines, $planned->plan));
         $structureId = $user->getEffectiveMarketStructureId();
+        $favoriteSystems = $this->projectService->favoriteSystemsOf($owner);
         $sourcings = $this->comparator->compare(
             $isSolo
                 ? MaterialsToSourceFactory::of($bomLines, $planned->plan, $fulfillments)
                 : MaterialsToSourceFactory::reservedOf($bomLines, $planned->plan, $reservedQuantityByLineId, $fulfillments),
             $structureId,
-            $this->projectService->favoriteSystemsOf($owner),
+            $favoriteSystems,
         );
         $typeNames = [];
         foreach ($bomLines as $line) {
@@ -96,6 +99,10 @@ final readonly class ProjectMaterialSourcingProvider implements ProviderInterfac
         $resource = new ProjectMaterialSourcingResource();
         $resource->id = $projectId;
         $resource->importIskPerCubicMeterJump = JitaPurchase::IMPORT_ISK_PER_CUBIC_METER_JUMP;
+        $courierHub = $favoriteSystems->courierHub;
+        $resource->courierIskPerCubicMeter = $courierHub?->iskPerCubicMeterFromJita;
+        $resource->jumpBridgeIskPerCubicMeter = $courierHub?->jumpBridgeIskPerCubicMeter;
+        $resource->courierHubSolarSystemName = null === $courierHub ? null : $this->solarSystemRepository?->findBySolarSystemId($courierHub->solarSystemId)?->getSolarSystemName();
         $resource->structureId = $structureId;
         $resource->structureName = null === $structureId ? null : $user->getEffectiveMarketStructureName();
         $resource->structureSynced = null !== $structureId && $this->structureMarketPrices->isSynced($structureId);

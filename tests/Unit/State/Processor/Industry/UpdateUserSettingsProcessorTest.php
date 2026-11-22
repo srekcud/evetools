@@ -29,6 +29,7 @@ final class UpdateUserSettingsProcessorTest extends TestCase
     private const int RENS_SYSTEM_ID = 30002510;
     private const int AMARR_SYSTEM_ID = 30002187;
     private const int PERIMETER_SYSTEM_ID = 30000144;
+    private const int DEFAULT_HUB_SYSTEM_ID = 30000772;
     private const int SYSTEM_ID_ABSENT_FROM_THE_SDE = 30099999;
     private const int OTHER_SYSTEM_ID_ABSENT_FROM_THE_SDE = 30088888;
 
@@ -81,13 +82,16 @@ final class UpdateUserSettingsProcessorTest extends TestCase
 
         $resource = $this->patch($input);
 
-        self::assertSame(
+        self::assertEquals(
             [
                 'favoriteManufacturingSystemId' => self::JITA_SYSTEM_ID,
                 'favoriteManufacturingSystemName' => 'Jita',
                 'favoriteReactionSystemId' => self::RENS_SYSTEM_ID,
                 'favoriteReactionSystemName' => 'Rens',
                 'exportCostPerM3' => 850.0,
+                'courierHubSolarSystemId' => self::DEFAULT_HUB_SYSTEM_ID,
+                'courierHubSolarSystemName' => 'C-J6MT',
+                'jumpBridgeCostPerM3' => 0.0,
             ],
             get_object_vars($resource),
         );
@@ -216,6 +220,101 @@ final class UpdateUserSettingsProcessorTest extends TestCase
         );
     }
 
+    #[Group('issue-1286')]
+    public function testCourierHubAndBridgeRateAreStoredAsSentAndReturnedWithTheNameOfTheHubSystem(): void
+    {
+        $input = new UpdateUserSettingsInput();
+        $input->courierHubSolarSystemId = self::RENS_SYSTEM_ID;
+        $input->jumpBridgeCostPerM3 = 75.5;
+
+        $resource = $this->patch($input);
+
+        self::assertSame(
+            [self::RENS_SYSTEM_ID, 75.5, self::RENS_SYSTEM_ID, 'Rens', 75.5],
+            [
+                $this->settings->getCourierHubSolarSystemId(),
+                $this->settings->getJumpBridgeCostPerM3(),
+                $resource->courierHubSolarSystemId,
+                $resource->courierHubSolarSystemName,
+                $resource->jumpBridgeCostPerM3,
+            ],
+        );
+    }
+
+    #[Group('issue-1286')]
+    public function testZeroBridgeRateIsStoredAsSent(): void
+    {
+        $input = new UpdateUserSettingsInput();
+        $input->jumpBridgeCostPerM3 = 0.0;
+
+        $resource = $this->patch($input);
+
+        self::assertSame([0.0, 0.0], [$this->settings->getJumpBridgeCostPerM3(), $resource->jumpBridgeCostPerM3]);
+    }
+
+    #[Group('issue-1286')]
+    public function testCourierHubAndBridgeRateAbsentFromThePatchAreUnchanged(): void
+    {
+        $this->settings->setCourierHubSolarSystemId(self::AMARR_SYSTEM_ID)->setJumpBridgeCostPerM3(35.0);
+        $input = new UpdateUserSettingsInput();
+        $input->exportCostPerM3 = 640.0;
+
+        $resource = $this->patch($input);
+
+        self::assertSame(
+            [self::AMARR_SYSTEM_ID, 35.0, self::AMARR_SYSTEM_ID, 'Amarr', 35.0],
+            [
+                $this->settings->getCourierHubSolarSystemId(),
+                $this->settings->getJumpBridgeCostPerM3(),
+                $resource->courierHubSolarSystemId,
+                $resource->courierHubSolarSystemName,
+                $resource->jumpBridgeCostPerM3,
+            ],
+        );
+    }
+
+    #[Group('issue-1286')]
+    public function testCourierHubAbsentFromTheSdeIsRefusedAndNothingIsStored(): void
+    {
+        $input = new UpdateUserSettingsInput();
+        $input->courierHubSolarSystemId = self::SYSTEM_ID_ABSENT_FROM_THE_SDE;
+        $input->jumpBridgeCostPerM3 = 80.0;
+        $input->exportCostPerM3 = 975.0;
+
+        $refusal = $this->patchExpectingRefusal($input, $this->settings);
+
+        self::assertSame(
+            [422, ['courierHubSolarSystemId' => self::SYSTEM_ID_ABSENT_FROM_THE_SDE]],
+            [$refusal->getStatusCode(), $this->refusedValuesByPropertyPath($refusal)],
+        );
+        self::assertSame(
+            [self::DEFAULT_HUB_SYSTEM_ID, 0.0, 1200.0],
+            [$this->settings->getCourierHubSolarSystemId(), $this->settings->getJumpBridgeCostPerM3(), $this->settings->getExportCostPerM3()],
+        );
+    }
+
+    #[Group('issue-1286')]
+    public function testUserWithoutSettingsRowGetsTheDefaultCourierHubAndBridgeRateAfterAPatchOfAnotherSetting(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->user);
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn(null);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('persist')->with($this->isInstanceOf(IndustryUserSettings::class));
+        $entityManager->expects($this->once())->method('flush');
+        $input = new UpdateUserSettingsInput();
+        $input->exportCostPerM3 = 700.0;
+
+        $resource = (new UpdateUserSettingsProcessor($security, $settingsRepository, $this->solarSystemRepository(), $entityManager))
+            ->process($input, new Patch());
+
+        self::assertSame(
+            [700.0, self::DEFAULT_HUB_SYSTEM_ID, 'C-J6MT', 0.0],
+            [$resource->exportCostPerM3, $resource->courierHubSolarSystemId, $resource->courierHubSolarSystemName, $resource->jumpBridgeCostPerM3],
+        );
+    }
+
     #[Group('issue-347')]
     public function testSalesFeeRatesAreNoLongerPartOfTheUserSettings(): void
     {
@@ -293,6 +392,7 @@ final class UpdateUserSettingsProcessorTest extends TestCase
             self::RENS_SYSTEM_ID => (new MapSolarSystem())->setSolarSystemId(self::RENS_SYSTEM_ID)->setSolarSystemName('Rens'),
             self::AMARR_SYSTEM_ID => (new MapSolarSystem())->setSolarSystemId(self::AMARR_SYSTEM_ID)->setSolarSystemName('Amarr'),
             self::PERIMETER_SYSTEM_ID => (new MapSolarSystem())->setSolarSystemId(self::PERIMETER_SYSTEM_ID)->setSolarSystemName('Perimeter'),
+            self::DEFAULT_HUB_SYSTEM_ID => (new MapSolarSystem())->setSolarSystemId(self::DEFAULT_HUB_SYSTEM_ID)->setSolarSystemName('C-J6MT'),
         ];
         $solarSystemRepository = $this->createStub(MapSolarSystemRepository::class);
         $solarSystemRepository->method('find')

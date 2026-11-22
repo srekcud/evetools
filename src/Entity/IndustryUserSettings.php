@@ -34,8 +34,14 @@ class IndustryUserSettings
     private ?int $favoriteReactionSystemId = null;
 
     /** Export cost per m3 for transporting finished products to sell venue (ISK/m3) */
-    #[ORM\Column(type: 'float', options: ['default' => 1200.0])]
+    #[ORM\Column(type: 'float', options: ['default' => EveConstants::DEFAULT_EXPORT_COST_PER_M3])]
     private float $exportCostPerM3 = EveConstants::DEFAULT_EXPORT_COST_PER_M3;
+
+    #[ORM\Column(type: 'integer', options: ['default' => EveConstants::DEFAULT_COURIER_HUB_SOLAR_SYSTEM_ID])]
+    private int $courierHubSolarSystemId = EveConstants::DEFAULT_COURIER_HUB_SOLAR_SYSTEM_ID;
+
+    #[ORM\Column(type: 'float', options: ['default' => EveConstants::DEFAULT_JUMP_BRIDGE_COST_PER_M3])]
+    private float $jumpBridgeCostPerM3 = EveConstants::DEFAULT_JUMP_BRIDGE_COST_PER_M3;
 
     public function getId(): ?Uuid
     {
@@ -83,6 +89,28 @@ class IndustryUserSettings
     public function setExportCostPerM3(float $exportCostPerM3): static
     {
         $this->exportCostPerM3 = $exportCostPerM3;
+        return $this;
+    }
+
+    public function getCourierHubSolarSystemId(): int
+    {
+        return $this->courierHubSolarSystemId;
+    }
+
+    public function setCourierHubSolarSystemId(int $courierHubSolarSystemId): static
+    {
+        $this->courierHubSolarSystemId = $courierHubSolarSystemId;
+        return $this;
+    }
+
+    public function getJumpBridgeCostPerM3(): float
+    {
+        return $this->jumpBridgeCostPerM3;
+    }
+
+    public function setJumpBridgeCostPerM3(float $jumpBridgeCostPerM3): static
+    {
+        $this->jumpBridgeCostPerM3 = $jumpBridgeCostPerM3;
         return $this;
     }
 }

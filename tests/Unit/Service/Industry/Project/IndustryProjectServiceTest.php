@@ -19,6 +19,8 @@ use App\Exception\InventionProbabilityMissingException;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Enum\IndustryActivityType;
+use App\Industry\Application\CourierHub;
+use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\StructureType;
@@ -1232,6 +1234,33 @@ final class IndustryProjectServiceTest extends TestCase
 
         $this->assertTrue($project->isExcludesInvention());
         $this->assertSame([[self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null]], $this->jobLines($project));
+    }
+
+    #[Group('issue-1286')]
+    public function testFavoriteSystemsCarryTheCourierHubBuiltFromTheSettingsOfTheOwner(): void
+    {
+        $this->ownerSettings = (new IndustryUserSettings())
+            ->setFavoriteManufacturingSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID)
+            ->setExportCostPerM3(950.0)
+            ->setCourierHubSolarSystemId(self::REFINERY_SYSTEM_ID)
+            ->setJumpBridgeCostPerM3(35.5);
+
+        $favoriteSystems = $this->service()->favoriteSystemsOf($this->createUser());
+
+        $this->assertEquals(
+            new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null, new CourierHub(self::REFINERY_SYSTEM_ID, 950.0, 35.5)),
+            $favoriteSystems,
+        );
+    }
+
+    #[Group('issue-1286')]
+    public function testFavoriteSystemsOfAnOwnerWithoutSettingsRowCarryTheDefaultCourierHub(): void
+    {
+        $this->ownerSettings = null;
+
+        $favoriteSystems = $this->service()->favoriteSystemsOf($this->createUser());
+
+        $this->assertEquals(new FavoriteSystems(null, null, new CourierHub(30_000_772, 800.0, 0.0)), $favoriteSystems);
     }
 
     private function copyLineOf(IndustryProject $project): IndustryProjectBomLine

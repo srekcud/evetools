@@ -13,6 +13,8 @@ import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupP
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
+const DASH = '—'
+
 const CHOICE_CHIP_CLASSES: Record<BuyOrBuildChoice, string> = {
   build: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
   buy: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
@@ -110,10 +112,14 @@ watch(
         {{ t('groupIndustry.buyOrBuild.title') }}
       </h2>
       <span
-        v-if="buyOrBuildStore.importIskPerCubicMeterJump !== null"
+        v-if="buyOrBuildStore.importRates !== null"
         data-testid="buy-or-build-rate"
         class="px-2 py-1 rounded border border-slate-700 text-xs text-slate-300"
-      >{{ t('groupIndustry.buyOrBuild.importRate', { rate: formatNumber(buyOrBuildStore.importIskPerCubicMeterJump) }) }}</span>
+      >{{ t('groupIndustry.buyOrBuild.importRate', {
+        hub: buyOrBuildStore.importRates.courierHubSolarSystemName ?? DASH,
+        rate: formatNumber(buyOrBuildStore.importRates.courierIskPerCubicMeter),
+        bridgeRate: formatNumber(buyOrBuildStore.importRates.jumpBridgeIskPerCubicMeter),
+      }) }}</span>
     </header>
 
     <p
@@ -206,9 +212,9 @@ watch(
                 <template v-else>
                   +{{ formatIsk(row.importPerUnit) }}
                   <div
-                    v-if="row.volumePerUnit !== null && row.jumps !== null"
+                    v-if="row.volumePerUnit !== null"
                     class="mt-0.5 text-xs font-sans text-slate-500"
-                  >{{ t('groupIndustry.buyOrBuild.importDetail', { volume: formatNumber(row.volumePerUnit), jumps: row.jumps }) }}</div>
+                  >{{ t('groupIndustry.buyOrBuild.importDetail', { volume: formatNumber(row.volumePerUnit) }) }}</div>
                 </template>
               </td>
 

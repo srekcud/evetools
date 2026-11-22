@@ -23,6 +23,9 @@ const USER_SETTINGS: UserSettings = {
   favoriteReactionSystemId: null,
   favoriteReactionSystemName: null,
   exportCostPerM3: 850,
+  courierHubSolarSystemId: 30_000_772,
+  courierHubSolarSystemName: 'C-J6MT',
+  jumpBridgeCostPerM3: 50,
 }
 
 const HERON_MARGIN: ProfitMarginResult = {

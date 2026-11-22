@@ -40,6 +40,7 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
     private const int CONSTELLATION_ID = 999_466_006;
     private const int URLEN_SYSTEM_ID = 999_466_007;
     private const int WORKSHOP_SYSTEM_ID = 999_466_008;
+    private const int HUB_SYSTEM_ID = 999_466_009;
     private const int STRUCTURE_ID = 1_035_466_543_993;
     private const string STRUCTURE_NAME = 'Perimeter - Tranquility Trading Tower';
     private const string STRUCTURE_SYNCED_AT = '2026-11-08T10:00:00+00:00';
@@ -52,6 +53,9 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
     private const float MORPHITE_STRUCTURE_PRICE = 17_000.0;
     private const int WORKSHOP_JUMPS = 2;
     private const float IMPORT_ISK_PER_CUBIC_METER_JUMP = 150.0;
+    private const float COURIER_ISK_PER_CUBIC_METER = 800.0;
+    private const float JUMP_BRIDGE_ISK_PER_CUBIC_METER = 0.0;
+    private const string HUB_NAME = 'C-J6MT';
     private const int MORPHITE_REMAINING = 147;
     private const int NOCXIUM_REMAINING = 600;
     private const int TRITANIUM_REQUIRED = 12_000;
@@ -91,17 +95,21 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
             [$this->ishtarBatch->getId()->toRfc4122(), self::IMPORT_ISK_PER_CUBIC_METER_JUMP, self::STRUCTURE_ID, self::STRUCTURE_NAME, true, self::STRUCTURE_SYNCED_AT, 3],
             [$body['id'], $body['importIskPerCubicMeterJump'], $body['structureId'], $body['structureName'], $body['structureSynced'], $body['structureLastSync'], \count($body['rows'])],
         );
+        self::assertSame(
+            [self::COURIER_ISK_PER_CUBIC_METER, self::JUMP_BRIDGE_ISK_PER_CUBIC_METER, self::HUB_NAME],
+            [$body['courierIskPerCubicMeter'], $body['jumpBridgeIskPerCubicMeter'], $body['courierHubSolarSystemName']],
+        );
         [$tritanium, $nocxium, $morphite] = $this->rowsSortedBy('typeId', $body['rows']);
         $keys = array_keys($tritanium);
         sort($keys);
         self::assertSame(self::ROW_KEYS, $keys);
         self::assertEqualsWithDelta(
-            [self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_REQUIRED, 'jita', false, 60_000.0, 36_000.0, 96_000.0, 120_000.0, 96_000.0, 24_000.0, self::WORKSHOP_JUMPS],
+            [self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_REQUIRED, 'structure', false, 60_000.0, 96_000.0, 156_000.0, 120_000.0, 120_000.0, 36_000.0, self::WORKSHOP_JUMPS],
             $this->sourcingFieldsOf($tritanium),
             0.01,
         );
         self::assertEqualsWithDelta(
-            [self::MORPHITE_TYPE_ID, 'Morphite', self::MORPHITE_REMAINING, 'structure', false, 2_646_000.0, 4_410.0, 2_650_410.0, 2_499_000.0, 2_499_000.0, 151_410.0, self::WORKSHOP_JUMPS],
+            [self::MORPHITE_TYPE_ID, 'Morphite', self::MORPHITE_REMAINING, 'structure', false, 2_646_000.0, 11_760.0, 2_657_760.0, 2_499_000.0, 2_499_000.0, 158_760.0, self::WORKSHOP_JUMPS],
             $this->sourcingFieldsOf($morphite),
             0.01,
         );
@@ -221,7 +229,7 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->responseJson();
         self::assertSame([self::TRITANIUM_TYPE_ID], array_column($body['rows'], 'typeId'));
-        self::assertEqualsWithDelta([96_000.0, 120_000.0, 96_000.0], [$body['totals']['jitaWithImport'], $body['totals']['structure'], $body['totals']['best']], 0.01);
+        self::assertEqualsWithDelta([156_000.0, 120_000.0, 120_000.0], [$body['totals']['jitaWithImport'], $body['totals']['structure'], $body['totals']['best']], 0.01);
     }
 
     #[Group('issue-1011')]
@@ -370,7 +378,7 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
         $this->em->persist((new InvType())->setTypeId(self::MORPHITE_TYPE_ID)->setTypeName('Morphite')->setGroup($group)->setVolume(self::MORPHITE_VOLUME));
         $tritanium = $this->em->find(InvType::class, self::TRITANIUM_TYPE_ID);
         $tritanium->setVolume(self::TRITANIUM_VOLUME);
-        foreach ([EveConstants::JITA_SOLAR_SYSTEM_ID => 'Jita', self::URLEN_SYSTEM_ID => 'Urlen', self::WORKSHOP_SYSTEM_ID => 'Perimeter'] as $solarSystemId => $name) {
+        foreach ([EveConstants::JITA_SOLAR_SYSTEM_ID => 'Jita', self::URLEN_SYSTEM_ID => 'Urlen', self::WORKSHOP_SYSTEM_ID => 'Perimeter', self::HUB_SYSTEM_ID => self::HUB_NAME] as $solarSystemId => $name) {
             $this->em->persist((new MapSolarSystem())->setSolarSystemId($solarSystemId)->setSolarSystemName($name)->setConstellation($constellation)->setRegionId(self::REGION_ID));
         }
         foreach ([[EveConstants::JITA_SOLAR_SYSTEM_ID, self::URLEN_SYSTEM_ID], [self::URLEN_SYSTEM_ID, self::WORKSHOP_SYSTEM_ID]] as [$from, $to]) {
@@ -382,7 +390,7 @@ final class ProjectMaterialSourcingApiTest extends WebTestCase
                 ->setToRegionId(self::REGION_ID)
                 ->setToConstellationId(self::CONSTELLATION_ID));
         }
-        $this->em->persist((new IndustryUserSettings())->setUser($this->owner)->setFavoriteManufacturingSystemId(self::WORKSHOP_SYSTEM_ID));
+        $this->em->persist((new IndustryUserSettings())->setUser($this->owner)->setFavoriteManufacturingSystemId(self::WORKSHOP_SYSTEM_ID)->setCourierHubSolarSystemId(self::HUB_SYSTEM_ID));
         $this->em->flush();
     }
 

@@ -61,7 +61,7 @@ final readonly class MaterialSourcingComparator
         $jumps = null === $workshopSystemId ? null : $this->jumpDistances->jumpsBetween(JitaPurchase::JITA_SOLAR_SYSTEM_ID, $workshopSystemId);
 
         $jitaCost = JitaPurchase::priceCostOf($typeId, $quantity, $jitaPrice);
-        $importCost = JitaPurchase::importCostOf($typeId, $quantity, $volumePerUnit, $jumps);
+        $importCost = JitaPurchase::importCostOf($typeId, $quantity, $volumePerUnit, $workshopSystemId, $favoriteSystems->courierHub);
         $jitaWithImportCost = $jitaCost->plus($importCost);
         $structureCost = self::structureCostOf($typeId, $quantity, $structurePrices);
         $side = self::sideOf($jitaWithImportCost, $structureCost);

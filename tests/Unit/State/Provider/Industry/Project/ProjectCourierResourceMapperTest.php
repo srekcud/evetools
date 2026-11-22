@@ -168,6 +168,24 @@ final class ProjectCourierResourceMapperTest extends TestCase
         );
     }
 
+    #[Group('issue-1286')]
+    public function testResourceCarriesTheCourierHubAsTheDestinationNextToTheWorkshop(): void
+    {
+        $resource = $this->mapper->toResource(new IndustryProject(), $this->overview(null, []));
+
+        self::assertSame(
+            [30_000_142, 'Jita', 30_000_772, 'C-J6MT', 30_000_144, 'Perimeter'],
+            [
+                $resource->originSolarSystemId,
+                $resource->originSolarSystemName,
+                $resource->courierHubSolarSystemId,
+                $resource->courierHubSolarSystemName,
+                $resource->workshopSolarSystemId,
+                $resource->workshopSolarSystemName,
+            ],
+        );
+    }
+
     #[Group('issue-1022')]
     public function testWithoutAnOriginTheResourceKeepsNullOriginAndEmptyLists(): void
     {
@@ -175,7 +193,7 @@ final class ProjectCourierResourceMapperTest extends TestCase
             new IndustryProject(),
             new CourierOverview(
                 new CourierQuote(null, null, null, null, 'no_purchases', []),
-                null, null, 30_000_144, 'Perimeter', true, null, [], [], [], [],
+                null, null, null, null, 30_000_144, 'Perimeter', true, null, [], [], [], [],
             ),
         );
 
@@ -209,7 +227,7 @@ final class ProjectCourierResourceMapperTest extends TestCase
     {
         return new CourierOverview(
             new CourierQuote(25.0, 376_550, 7_500, 2, 'ready', []),
-            30_000_142, 'Jita', 30_000_144, 'Perimeter', true, $contract, [], $candidates, $otherOriginLines, $unknownOriginLines,
+            30_000_142, 'Jita', 30_000_772, 'C-J6MT', 30_000_144, 'Perimeter', true, $contract, [], $candidates, $otherOriginLines, $unknownOriginLines,
         );
     }
 }

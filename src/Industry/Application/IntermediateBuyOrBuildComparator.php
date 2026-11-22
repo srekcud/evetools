@@ -70,8 +70,9 @@ final readonly class IntermediateBuyOrBuildComparator
         );
         $jitaCost = JitaPurchase::priceCostOf($typeId, $demand, $jitaPrice);
         $volumePerUnit = $this->itemVolumes->volumeOf($typeId);
-        $jumps = $this->jumpsToWorkshopOf($favoriteSystems->forActivity($activity));
-        $importCost = JitaPurchase::importCostOf($typeId, $demand, $volumePerUnit, $jumps);
+        $workshopSystemId = $favoriteSystems->forActivity($activity);
+        $jumps = $this->jumpsToWorkshopOf($workshopSystemId);
+        $importCost = JitaPurchase::importCostOf($typeId, $demand, $volumePerUnit, $workshopSystemId, $favoriteSystems->courierHub);
         $buyCost = $jitaCost->plus($importCost);
         $choice = self::choiceOf($buildCost, $buyCost);
 

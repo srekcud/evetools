@@ -1261,6 +1261,7 @@
       "maxJobDurationHint": "Les jobs dépassant cette durée seront découpés automatiquement",
       "feesTitle": "Coût d'export",
       "exportCost": "Coût d'export (ISK/m³)",
+      "jumpBridgeCost": "Tarif du pont (ISK/m³)",
       "feesErrors": {
         "invalid": "Chaque taux doit être compris entre 0 et 100 % et le coût d'export être positif ou nul. Rien n'a été enregistré.",
         "failed": "Échec de l'enregistrement des frais."
@@ -1326,7 +1327,8 @@
       "description": "Définissez vos systèmes préférés pour la fabrication et les réactions.",
       "manufacturing": "Fabrication",
       "reactions": "Réactions",
-      "searchSystem": "Rechercher un système..."
+      "searchSystem": "Rechercher un système...",
+      "courierHub": "Hub de courier"
     },
     "syncFailures": {
       "jobsTitle": "Jobs non synchronisés pour {count} personnage, le matching a utilisé les derniers jobs connus : | Jobs non synchronisés pour {count} personnages, le matching a utilisé les derniers jobs connus :",
@@ -3116,7 +3118,7 @@
       "loading": "Comparaison de l'achat et de la fabrication...",
       "loadError": "La comparaison acheter ou fabriquer n'a pas pu être lue",
       "empty": "Aucun intermédiaire à comparer : le plan ne fabrique rien entre les matériaux et le produit.",
-      "importRate": "import Jita : {rate} ISK / m³ / saut",
+      "importRate": "Jita vers {hub} : {rate} ISK / m³ + pont {bridgeRate} ISK / m³",
       "columns": {
         "intermediate": "Intermédiaire",
         "quantity": "Qté",
@@ -3132,11 +3134,11 @@
         "unknown": "inconnu"
       },
       "ifSurplusReused": "{amount} si le surplus resert",
-      "importDetail": "{volume} m³ × {jumps} sauts",
+      "importDetail": "{volume} m³",
       "saving": "économie {amount}",
       "savingIfSurplusReused": "avec réemploi du surplus, fabriquer économise {amount}",
       "withoutImport": "sans l'import : acheter",
-      "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × sauts × le tarif). Le surplus d'un run n'est pas crédité au projet.",
+      "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × le tarif Jita vers le hub, plus le tarif du pont sauf si l'atelier est dans le système du hub). Le surplus d'un run n'est pas crédité au projet.",
       "switch": {
         "toBuy": "Passer en achat",
         "toBuild": "Passer en fabrication",
@@ -3206,7 +3208,7 @@
       "loadError": "L'approvisionnement des matériaux n'a pas pu être lu",
       "empty": "Plus aucun matériau à sourcer.",
       "noReservation": "Vous n'avez pris aucun matériau. Utilisez « Je m'en charge » dans Matériaux à sourcer pour lister ici ce que vous achetez.",
-      "importRate": "Import depuis Jita : {rate} ISK / m³ / saut",
+      "importRate": "Jita vers {hub} : {rate} ISK / m³ + pont {bridgeRate} ISK / m³",
       "columns": {
         "material": "Matériau",
         "quantity": "Restant",
@@ -3228,7 +3230,7 @@
         "structure": "Structure",
         "best": "Meilleur"
       },
-      "hint": "Jita = prix de vente pondéré de la quantité restante plus l'import jusqu'à l'atelier (m³ × sauts × le tarif). Structure = prix de vente le plus bas de ta structure de marché préférée."
+      "hint": "Jita = prix de vente pondéré de la quantité restante plus l'import jusqu'à l'atelier (m³ × le tarif Jita vers le hub, plus le tarif du pont sauf si l'atelier est dans le système du hub). Structure = prix de vente le plus bas de ta structure de marché préférée."
     },
     "purchasesToDeliver": {
       "title": "Achats à amener au container",

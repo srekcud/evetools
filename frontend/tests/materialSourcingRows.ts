@@ -89,6 +89,9 @@ export function projectMaterialSourcing(
   return {
     id: projectId,
     importIskPerCubicMeterJump: 150,
+    courierIskPerCubicMeter: 1200,
+    jumpBridgeIskPerCubicMeter: 50,
+    courierHubSolarSystemName: 'C-J6MT',
     structureId: STRUCTURE_ID,
     structureName: STRUCTURE_NAME,
     structureSynced: true,

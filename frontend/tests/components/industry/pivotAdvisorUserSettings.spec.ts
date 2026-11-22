@@ -22,6 +22,9 @@ const USER_SETTINGS_WITH_FAVORITE_SYSTEMS: UserSettings = {
   favoriteReactionSystemId: 30_000_157,
   favoriteReactionSystemName: 'Ikuchi',
   exportCostPerM3: 980,
+  courierHubSolarSystemId: 30_000_772,
+  courierHubSolarSystemName: 'C-J6MT',
+  jumpBridgeCostPerM3: 50,
 }
 
 const outcomes = apiOutcomesByPath()
