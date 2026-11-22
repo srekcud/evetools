@@ -102,7 +102,7 @@ final class OwnContributionApiTest extends WebTestCase
         $this->request('PATCH', $this->contributionUri($this->memberRamJobInstall).'/details', ['quantity' => 10_000_000]);
 
         self::assertResponseStatusCodeSame(400);
-        self::assertSame(300, $this->storedContribution($this->memberRamJobInstall)?->getQuantity());
+        self::assertSame(self::RAM_RUNS, $this->storedContribution($this->memberRamJobInstall)?->getQuantity());
     }
 
     private function contributionsUri(): string

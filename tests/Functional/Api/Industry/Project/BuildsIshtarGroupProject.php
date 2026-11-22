@@ -94,7 +94,7 @@ trait BuildsIshtarGroupProject
 
         $this->memberMorphiteContribution = $this->addContribution($this->memberMembership, $this->morphiteLine, ContributionType::Material, 3, 55_500.0, ContributionStatus::Approved)->setValuedAtJitaPrice(true);
         $this->ownerIshtarJobInstall = $this->addContribution($this->ownerMembership, $this->ishtarJobLine, ContributionType::JobInstall, self::ISHTAR_RUNS, 499_500.0, ContributionStatus::Approved);
-        $this->memberRamJobInstall = $this->addContribution($this->memberMembership, $this->ramJobLine, ContributionType::JobInstall, self::RAM_RUNS * self::RAM_UNITS_PER_RUN, 180_000.0, ContributionStatus::Pending)
+        $this->memberRamJobInstall = $this->addContribution($this->memberMembership, $this->ramJobLine, ContributionType::JobInstall, self::RAM_RUNS, 180_000.0, ContributionStatus::Pending)
             ->setNote('Three runs in Jita IV');
 
         $this->ishtarSale = $this->addSale($this->ishtarBatch, self::ISHTAR_TYPE_ID, 'Ishtar', 2, 1_500_000.0, 'Jita IV - Moon 4', '2026-10-31T18:20:00+00:00');

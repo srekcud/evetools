@@ -36,7 +36,7 @@ final class GroupContributionApiTest extends WebTestCase
         self::assertSame(
             [
                 ['Brann Holt', 'Morphite', 'material', 3, 55_500.0, 'approved', 'Aria Solberg', self::REVIEWED_AT, null],
-                ['Brann Holt', 'R.A.M.- Starship Tech', 'job_install', 300, 180_000.0, 'pending', null, null, 'Three runs in Jita IV'],
+                ['Brann Holt', 'R.A.M.- Starship Tech', 'job_install', self::RAM_RUNS, 180_000.0, 'pending', null, null, 'Three runs in Jita IV'],
                 ['Aria Solberg', 'Ishtar', 'job_install', 2, 499_500.0, 'approved', 'Aria Solberg', self::REVIEWED_AT, null],
             ],
             $this->contributionRows($this->rowsSortedBy('estimatedValue', $this->responseJson())),
@@ -266,7 +266,7 @@ final class GroupContributionApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         $contribution = $this->responseJson();
-        self::assertSame(['approved', 'Aria Solberg', 300], [$contribution['status'], $contribution['reviewedByCharacterName'], $contribution['quantity']]);
+        self::assertSame(['approved', 'Aria Solberg', self::RAM_RUNS], [$contribution['status'], $contribution['reviewedByCharacterName'], $contribution['quantity']]);
         self::assertSame(300, $this->storedFulfilledQuantityOf($this->ramJobLine));
     }
 
