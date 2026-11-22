@@ -59,6 +59,15 @@ describe('old buy or build and stations screens', () => {
     }).toEqual({ buyOrBuild: false, structures: false })
   })
 
+  it('reads neither /buy-or-build nor /structures when the production tab opens', async () => {
+    await mountOwnerNyxOn('chain', 'in_progress')
+
+    const endpoints = vi.mocked(apiRequest).mock.calls.map(([endpoint]) => String(endpoint))
+
+    expect(endpoints.some(endpoint => endpoint.endsWith('/chain'))).toBe(true)
+    expect(endpoints.filter(endpoint => endpoint.endsWith('/buy-or-build') || endpoint.endsWith('/structures'))).toEqual([])
+  })
+
   it('keeps the chain, research and structure health cards on the production tab', async () => {
     const production = await mountOwnerNyxOn('chain', 'in_progress')
 

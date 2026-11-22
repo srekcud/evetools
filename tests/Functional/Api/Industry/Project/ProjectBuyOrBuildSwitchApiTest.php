@@ -50,6 +50,29 @@ final class ProjectBuyOrBuildSwitchApiTest extends WebTestCase
         self::assertSame([self::ISHTAR_TYPE_ID], $jobTypeIds);
     }
 
+    public function testOwnerSwitchesTheComponentBackToBuildAndItsLineReturnsToThePlan(): void
+    {
+        $this->em->remove($this->memberRamJobInstall);
+        $this->em->flush();
+        $this->actAs($this->owner);
+        $this->request('PATCH', $this->projectUri($this->ishtarBatch), ['blacklistTypeIds' => [self::RAM_STARSHIP_TECH_TYPE_ID]]);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->actAs($this->owner);
+        $this->request('PATCH', $this->projectUri($this->ishtarBatch), ['blacklistTypeIds' => []]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->responseJson()['blacklistTypeIds']);
+        $reloadedProject = $this->em->find(IndustryProject::class, $this->ishtarBatch->getId());
+        $jobTypeIds = [];
+        foreach ($reloadedProject?->getBomItems() ?? [] as $line) {
+            if ($line->isJob()) {
+                $jobTypeIds[] = $line->getTypeId();
+            }
+        }
+        self::assertEqualsCanonicalizing([self::ISHTAR_TYPE_ID, self::RAM_STARSHIP_TECH_TYPE_ID], $jobTypeIds);
+    }
+
     public function testSwitchIsRefusedWhenTheLineToRemoveCarriesAContributionOrALinkedJobAndTheBlacklistIsUnchanged(): void
     {
         $this->actAs($this->owner);

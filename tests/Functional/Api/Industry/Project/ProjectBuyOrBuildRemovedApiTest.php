@@ -25,11 +25,11 @@ final class ProjectBuyOrBuildRemovedApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    public function testSourcingDecisionsRouteReplacingItIsStillServed(): void
+    public function testSourcingDecisionsRouteReplacingItIsStillServedToAnAcceptedMember(): void
     {
         $this->client->loginUser($this->member, 'api');
         $this->request('GET', '/api/industry/projects/'.$this->ishtarBatch->getId()->toRfc4122().'/sourcing-decisions');
 
-        self::assertNotSame(404, $this->client->getResponse()->getStatusCode());
+        self::assertResponseStatusCodeSame(200);
     }
 }

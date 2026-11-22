@@ -3860,7 +3860,7 @@
     },
     "prepare": {
       "title": "Préparer",
-      "help": "Réglez la blacklist, l'exclusion de l'invention, acheter ou fabriquer et les structures avant de démarrer. Le démarrage verrouille la blacklist et l'exclusion de l'invention ; acheter ou fabriquer et les structures restent modifiables."
+      "help": "Réglez la blacklist et l'exclusion de l'invention avant de démarrer. Le démarrage les verrouille."
     },
     "inventionExclusion": {
       "label": "Exclure l'invention",

@@ -82,6 +82,20 @@ describe('group project detail prepare block', () => {
     }
   })
 
+  it('names only the blacklist and the invention exclusion in the help of the block, in both languages', async () => {
+    const mentionsRemovedCards = { en: /buy or build|structures/i, fr: /acheter ou fabriquer|structures/i }
+
+    for (const locale of TEST_LOCALES) {
+      const wrapper = await mountOn('bom', 'draft', 'owner', locale)
+
+      const help = textOf(wrapper, `${PREPARE_BLOCK} > p`)
+
+      expect({ shown: help !== '', mentionsRemovedCards: mentionsRemovedCards[locale].test(help) }).toEqual({ shown: true, mentionsRemovedCards: false })
+      wrapper.unmount()
+      setActivePinia(createPinia())
+    }
+  })
+
   it('keeps the structure health on the production tab in draft, without the block', async () => {
     const wrapper = await mountOn('chain', 'draft')
 

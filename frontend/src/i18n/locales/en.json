@@ -3860,7 +3860,7 @@
     },
     "prepare": {
       "title": "Prepare",
-      "help": "Set up the blacklist, the invention exclusion, buy or build and the structures before starting. Starting locks the blacklist and the invention exclusion; buy or build and the structures stay editable."
+      "help": "Set up the blacklist and the invention exclusion before starting. Starting locks them."
     },
     "inventionExclusion": {
       "label": "Exclude the invention",
