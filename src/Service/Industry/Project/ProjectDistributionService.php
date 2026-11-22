@@ -23,6 +23,7 @@ class ProjectDistributionService
         private readonly ?ContractSaleFees $contractSaleFees = null,
         private readonly ProjectBreakEven $projectBreakEven = new ProjectBreakEven(),
         private readonly ?UnclaimedStockLines $unclaimedStockLines = null,
+        private readonly ProjectSurplusBuilder $surplusBuilder = new ProjectSurplusBuilder(),
     ) {}
 
     public function calculateDistribution(IndustryProject $project): DistributionResult
@@ -80,6 +81,8 @@ class ProjectDistributionService
             costPerUnit: $costPerUnit->perUnit,
             costPerUnitUnknownReason: $this->unknownReasonWith($costPerUnit->unknownReason, $unclaimedStockLines),
             unclaimedStockLines: $unclaimedStockLines,
+            surplusStored: $project->getSurplusStoredAt() !== null,
+            storedSurplusValue: $project->getSurplusStoredAt() === null ? null : $this->surplusBuilder->build($project)->totalValue,
         );
     }
 

@@ -139,6 +139,30 @@ final class FactoryProjectStockTest extends TestCase
         self::assertSame([], $lines);
     }
 
+    #[Group('issue-1315')]
+    public function testSellingProjectWithItsSurplusStoredConsumesTheRequiredQuantityAndReturnsTheMaterialSurplus(): void
+    {
+        $project = $this->project('Ishtar batch', ProjectStatus::Selling);
+        $this->contribute($project, $this->materialLine($project, self::ISOGEN, 'Isogen', 70), 90);
+        $project->markSurplusStored($this->user, new \DateTimeImmutable('2026-11-22T09:30:00+00:00'));
+
+        $lines = $this->factoryProjectStock()->of($this->user);
+
+        self::assertSame(['Ishtar batch|37|consumed|70', 'Ishtar batch|37|returned|20'], $this->describe($lines));
+        self::assertSame('selling', $lines[0]->projectStatus);
+    }
+
+    #[Group('issue-1315')]
+    public function testSellingProjectWithoutStoredSurplusStillReservesTheContributions(): void
+    {
+        $project = $this->project('Ishtar batch', ProjectStatus::Selling);
+        $this->contribute($project, $this->materialLine($project, self::ISOGEN, 'Isogen', 70), 90);
+
+        $lines = $this->factoryProjectStock()->of($this->user);
+
+        self::assertSame(['Ishtar batch|37|reserved|90'], $this->describe($lines));
+    }
+
     public function testUserWithoutAcceptedProjectHasNoStock(): void
     {
         self::assertSame([], $this->factoryProjectStock()->of($this->user));

@@ -55,6 +55,9 @@ final class ProjectSurplusApiTest extends WebTestCase
                         'unitPrice' => self::TRITANIUM_UNIT_PRICE,
                     ],
                 ],
+                'stored' => false,
+                'storedAt' => null,
+                'storedBy' => null,
                 'totalValue' => self::TRITANIUM_SURPLUS_VALUE,
             ],
             $this->canonical($this->responseJson()),
@@ -109,7 +112,7 @@ final class ProjectSurplusApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame(
-            ['id' => $this->ishtarBatch->getId()->toRfc4122(), 'lines' => [], 'totalValue' => 0.0],
+            ['id' => $this->ishtarBatch->getId()->toRfc4122(), 'lines' => [], 'stored' => false, 'storedAt' => null, 'storedBy' => null, 'totalValue' => 0.0],
             $this->canonical($this->responseJson()),
         );
     }

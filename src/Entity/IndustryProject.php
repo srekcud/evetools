@@ -103,6 +103,13 @@ class IndustryProject
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $completedAt = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $surplusStoredAt = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $surplusStoredBy = null;
+
     /** @var Collection<int, IndustryProjectProduct> */
     #[ORM\OneToMany(targetEntity: IndustryProjectProduct::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $items;
@@ -592,6 +599,24 @@ class IndustryProject
     public function setCompletedAt(?\DateTimeImmutable $completedAt): static
     {
         $this->completedAt = $completedAt;
+        return $this;
+    }
+
+    public function getSurplusStoredAt(): ?\DateTimeImmutable
+    {
+        return $this->surplusStoredAt;
+    }
+
+    public function getSurplusStoredBy(): ?User
+    {
+        return $this->surplusStoredBy;
+    }
+
+    public function markSurplusStored(User $user, \DateTimeImmutable $storedAt): static
+    {
+        $this->surplusStoredBy = $user;
+        $this->surplusStoredAt = $storedAt;
+
         return $this;
     }
 

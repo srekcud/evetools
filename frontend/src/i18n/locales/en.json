@@ -4949,6 +4949,58 @@
         "distribution": "Open the finances"
       }
     },
+    "settlementBlock": {
+      "title": "Settlement",
+      "subtitle": "pro rata of the real contributions (purchases, stock, contributions, installations)",
+      "closedStamp": "Closed",
+      "close": "Close this project",
+      "columns": {
+        "participant": "Participant",
+        "share": "Share",
+        "receives": "Receives",
+        "transfer": "Transfer"
+      },
+      "holdsSales": "holds the sales",
+      "transferReceived": "received",
+      "transferAwaiting": "waiting for {name}",
+      "tickReceived": "Received",
+      "onlyRecipient": "Only the recipient can tick this transfer",
+      "cascade": {
+        "title": "Cascade",
+        "netRevenue": "Net sales",
+        "materials": "Materials (purchases and stock)",
+        "installations": "Installations",
+        "surplus": "Surplus returned to stock",
+        "surplusNotStored": "not stored yet",
+        "profit": "Profit"
+      },
+      "recap": {
+        "title": "Transfers and recap",
+        "reference": "Payment reference",
+        "hint": "Each transfer carries this reference: paste it in the game.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyDiscord": "Copy for Discord",
+        "discordHint": "one Markdown message, nothing is posted for you",
+        "discordUnavailable": "The recap is available once the transfers are known.",
+        "copyFailed": "The clipboard refused the copy: select the text and copy it by hand."
+      },
+      "surplus": {
+        "title": "Surplus",
+        "loading": "Loading the surplus",
+        "loadError": "The surplus could not be read.",
+        "type": "Type",
+        "quantity": "Surplus",
+        "value": "Value",
+        "total": "Total counted",
+        "notValued": "not valued",
+        "store": "Store in the corporation stock",
+        "storing": "Storing",
+        "stored": "Stored in the corporation stock by {name} on {date} · {value} counted to the project",
+        "storedWithoutName": "Stored in the corporation stock on {date} · {value} counted to the project",
+        "unknownValue": "value unknown"
+      }
+    },
     "transfers": {
       "title": "Transfers between members",
       "reference": "Payment reference",

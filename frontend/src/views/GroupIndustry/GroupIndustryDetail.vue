@@ -11,6 +11,7 @@ import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useGroupInventionStore } from '@/stores/group-industry/invention'
 import { useGroupContractSalesStore } from '@/stores/group-industry/contractSales'
 import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
+import { useGroupSurplusStore } from '@/stores/group-industry/surplus'
 import { useGroupActivityStore } from '@/stores/group-industry/activity'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
 import { useGroupPlaceActionsStore } from '@/stores/group-industry/placeActions'
@@ -46,6 +47,7 @@ import PendingRequestsTable from '@/components/group-industry/PendingRequestsTab
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import ProjectFlowActions from '@/components/group-industry/ProjectFlowActions.vue'
 import ProjectFlowCardDetail from '@/components/group-industry/ProjectFlowCardDetail.vue'
+import ProjectSettlementBlock from '@/components/group-industry/ProjectSettlementBlock.vue'
 import ProjectFlowGrid from '@/components/group-industry/ProjectFlowGrid.vue'
 import ProjectIskBand from '@/components/group-industry/ProjectIskBand.vue'
 import { buildIskBand } from '@/components/group-industry/projectIskBand'
@@ -87,7 +89,7 @@ import { groupJoinUrl } from './groupJoinUrl'
 import { DETAIL_TABS, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
 import { isSourcingCollapsed, isSourcingComplete, readSourcingOverride, writeSourcingOverride, type SourcingOverride } from './sourcingCollapse'
-import { refreshesVisibleOn, type GroupProjectRefresh } from './groupProjectRefreshes'
+import { refreshesWithSettlementBlock, type GroupProjectRefresh } from './groupProjectRefreshes'
 import { useFlash } from '@/composables/useUpdateFlash'
 import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
@@ -109,6 +111,7 @@ const distributionStore = useGroupDistributionStore()
 const inventionStore = useGroupInventionStore()
 const contractSalesStore = useGroupContractSalesStore()
 const settlementStore = useGroupSettlementStore()
+const surplusStore = useGroupSurplusStore()
 const stationQuantitiesStore = useGroupStationQuantitiesStore()
 const sellForecastStore = useGroupSellForecastStore()
 const placeActionsStore = useGroupPlaceActionsStore()
@@ -200,6 +203,9 @@ const isAcceptedMember = computed(() => project.value?.myStatus === 'accepted')
 const isCompleted = computed(() => project.value?.status === 'completed')
 const markableNodeIds = computed(() => (isCompleted.value ? [] : reservedLineIdsOfMine(projectStore.bomItems)))
 const canRecordSales = computed(() => isOwnerOrAdmin.value || isAcceptedMember.value)
+const showSettlementBlock = computed(() => (
+  (project.value?.status === 'selling' || project.value?.status === 'completed') && project.value?.personalUse !== true
+))
 const isWorkedOnAlone = computed(() => {
   const current = project.value
   if (!membersLoaded.value || !current) return false
@@ -368,6 +374,7 @@ const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<v
   saleSuggestions: id => (canRecordSales.value ? distributionStore.fetchSaleSuggestions(id) : Promise.resolve()),
   distribution: id => Promise.all([distributionStore.fetchDistribution(id), settlementStore.fetchForProject(id)]).then(() => undefined),
   settlement: settlementStore.fetchForProject,
+  surplus: surplusStore.fetchSurplus,
   cockpit: loadCockpit,
   activity: activityStore.fetchActivity,
 }
@@ -377,7 +384,7 @@ const { isFlashing: projectUpdated, flash: flashProject } = useFlash()
 useCoalescedGroupProjectEvents(
   () => projectId.value,
   (actions) => {
-    const refreshes = refreshesVisibleOn(actions, activeTab.value)
+    const refreshes = refreshesWithSettlementBlock(actions, activeTab.value, showSettlementBlock.value)
     const reads = refreshes.map(refresh => refreshGroupProject[refresh](projectId.value))
     return Promise.all([...reads, ...refreshFlow(projectId.value, { sales: refreshes.includes('sales'), distribution: refreshes.includes('distribution') })]).then(flashProject)
   },
@@ -876,6 +883,16 @@ function applyShareLinkShortcut(): void {
           <ProjectFlowActions :actions="placeActionsStore.actions" :loading="placeActionsStore.loading" :error="placeActionsStore.error" />
         </div>
       </div>
+
+      <ProjectSettlementBlock
+        v-if="showSettlementBlock"
+        :project-id="projectId"
+        :can-manage="isOwnerOrAdmin"
+        :can-close="isOwnerOrAdmin && project?.status === 'selling'"
+        :show-transfers="!isWorkedOnAlone"
+        class="mb-6"
+        @close="requestNextStatus('completed')"
+      />
 
       <div ref="sectionsRoot" class="space-y-2">
         <ProjectSection

@@ -57,7 +57,7 @@ final readonly class FactoryProjectStock
                 continue;
             }
             $typeNames[$line->getTypeId()] = $line->getTypeName();
-            if (!$project->isCompleted()) {
+            if (!$project->isCompleted() && null === $project->getSurplusStoredAt()) {
                 $this->add($quantities, $line->getTypeId(), FactoryProjectStockLine::RESERVED, $contributed);
                 continue;
             }

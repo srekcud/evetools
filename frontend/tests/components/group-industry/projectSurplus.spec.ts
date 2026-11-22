@@ -71,7 +71,7 @@ function text(key: string, params: Record<string, unknown> = {}): string {
 }
 
 function resource(lines: ProjectSurplusLine[], totalValue: number | null, projectId = PROJECT_ID): ProjectSurplusResource {
-  return { id: projectId, totalValue, lines }
+  return { id: projectId, totalValue, stored: false, storedAt: null, storedBy: null, lines }
 }
 
 async function mountSurplus(lines: ProjectSurplusLine[], totalValue: number | null): Promise<VueWrapper> {

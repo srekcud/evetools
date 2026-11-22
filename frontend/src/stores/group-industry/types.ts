@@ -410,6 +410,8 @@ export type Distribution = {
   marketRevenue?: number
   contractRevenue?: number
   contractFees?: number | null
+  surplusStored?: boolean
+  storedSurplusValue?: number | null
   members: MemberDistribution[]
 }
 
@@ -1277,6 +1279,9 @@ export interface ProjectSurplusLine {
 export interface ProjectSurplus {
   id: string
   totalValue: number | null
+  stored: boolean
+  storedAt: string | null
+  storedBy: string | null
   lines: ProjectSurplusLine[]
 }
 

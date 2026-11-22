@@ -262,6 +262,51 @@ final class ProjectSurplusBuilderTest extends TestCase
         self::assertSame([], $surplus->lines);
     }
 
+    #[Group('issue-1315')]
+    public function testSellingProjectComputesTheMaterialSurplusLikeACompletedOne(): void
+    {
+        $pyerite = $this->materialLine(self::PYERITE, 'Pyerite', 800);
+        $this->contribute($this->owner, $pyerite, ContributionType::Material, 950, 7_600.0);
+        $this->project->setStatus(ProjectStatus::Selling);
+
+        $surplus = $this->builder->build($this->project);
+
+        self::assertEquals(
+            [new ProjectSurplusLine($this->idOf($pyerite), self::PYERITE, 'Pyerite', 800, 950, 150, 8.0, 1_200.0)],
+            $surplus->lines,
+        );
+        self::assertSame(1_200.0, $surplus->totalValue);
+    }
+
+    #[Group('issue-1315')]
+    public function testSellingProjectListsTheIntermediateSurplusOfItsJobLines(): void
+    {
+        $ram = $this->jobLine(self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 300)->setSurplusQuantity(20);
+        $this->project->setStatus(ProjectStatus::Selling);
+
+        $surplus = $this->builder->build($this->project);
+
+        self::assertEquals(
+            [new ProjectSurplusLine($this->idOf($ram), self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 280, 300, 20, null, null, ProjectSurplusSource::Production)],
+            $surplus->lines,
+        );
+        self::assertSame(0.0, $surplus->totalValue);
+    }
+
+    #[Group('issue-1315')]
+    public function testPublishedProjectHasNoSurplus(): void
+    {
+        $isogen = $this->materialLine(self::ISOGEN, 'Isogen', 400);
+        $this->contribute($this->owner, $isogen, ContributionType::Material, 460, 9_200.0);
+        $this->jobLine(self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 300)->setSurplusQuantity(20);
+        $this->project->setStatus(ProjectStatus::Published);
+
+        $surplus = $this->builder->build($this->project);
+
+        self::assertSame([], $surplus->lines);
+        self::assertSame(0.0, $surplus->totalValue);
+    }
+
     private function participant(ParticipantRole $role): IndustryProjectParticipant
     {
         $participant = (new IndustryProjectParticipant())->setUser(new User())->setRole($role)->setStatus(ParticipantStatus::Accepted);

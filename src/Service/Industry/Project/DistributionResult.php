@@ -30,5 +30,7 @@ class DistributionResult
         public readonly ?float $costPerUnit = null,
         public readonly ?string $costPerUnitUnknownReason = null,
         public readonly array $unclaimedStockLines = [],
+        public readonly bool $surplusStored = false,
+        public readonly ?float $storedSurplusValue = null,
     ) {}
 }

@@ -40,8 +40,8 @@ function publish(action: string): void {
 async function mountTeamProject(tab?: string) {
   route.query = tab === undefined ? {} : { tab }
   return mountCockpitDetail({
-    project: nyxProject('selling', 'owner', { membersCount: 3 }),
-    cockpit: cockpitOf('selling', nextAction({ code: 'record_sale', tab: 'sales', quantity: 40 })),
+    project: nyxProject('in_progress', 'owner', { membersCount: 3 }),
+    cockpit: cockpitOf('in_progress', nextAction({ code: 'record_sale', tab: 'sales', quantity: 40 })),
   })
 }
 

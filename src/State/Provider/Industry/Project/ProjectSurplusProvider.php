@@ -9,8 +9,6 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\ProjectSurplusResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
-use App\Service\Industry\Project\ProjectSurplusBuilder;
-use App\Service\Industry\Project\ProjectSurplusLine;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -25,7 +23,7 @@ final readonly class ProjectSurplusProvider implements ProviderInterface
         private Security $security,
         private IndustryProjectRepository $projectRepository,
         private ProjectAccessChecker $accessChecker,
-        private ProjectSurplusBuilder $surplusBuilder,
+        private ProjectSurplusResourceMapper $mapper,
     ) {
     }
 
@@ -48,26 +46,6 @@ final readonly class ProjectSurplusProvider implements ProviderInterface
 
         $this->accessChecker->assertAcceptedMember($user, $project);
 
-        $surplus = $this->surplusBuilder->build($project);
-
-        $resource = new ProjectSurplusResource();
-        $resource->id = $projectId;
-        $resource->totalValue = $surplus->totalValue;
-        $resource->lines = array_map(
-            static fn (ProjectSurplusLine $line): array => [
-                'lineId' => $line->lineId,
-                'typeId' => $line->typeId,
-                'typeName' => $line->typeName,
-                'requiredQuantity' => $line->requiredQuantity,
-                'contributedQuantity' => $line->contributedQuantity,
-                'surplusQuantity' => $line->surplusQuantity,
-                'unitPrice' => $line->unitPrice,
-                'surplusValue' => $line->surplusValue,
-                'source' => $line->source->value,
-            ],
-            $surplus->lines,
-        );
-
-        return $resource;
+        return $this->mapper->toResource($project);
     }
 }

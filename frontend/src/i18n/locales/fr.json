@@ -4949,6 +4949,58 @@
         "distribution": "Ouvrir les finances"
       }
     },
+    "settlementBlock": {
+      "title": "Répartition",
+      "subtitle": "au prorata des apports réels (achats, stock, apports, installations)",
+      "closedStamp": "Clôturé",
+      "close": "Clôturer ce projet",
+      "columns": {
+        "participant": "Participant",
+        "share": "Part",
+        "receives": "Reçoit",
+        "transfer": "Virement"
+      },
+      "holdsSales": "détient les ventes",
+      "transferReceived": "reçu",
+      "transferAwaiting": "en attente de {name}",
+      "tickReceived": "Reçu",
+      "onlyRecipient": "Seul le destinataire peut cocher ce virement",
+      "cascade": {
+        "title": "Cascade",
+        "netRevenue": "Ventes nettes",
+        "materials": "Matières (achats et stock)",
+        "installations": "Installations",
+        "surplus": "Surplus rendu au stock",
+        "surplusNotStored": "pas encore rangé",
+        "profit": "Profit"
+      },
+      "recap": {
+        "title": "Virements et récap",
+        "reference": "Référence de paiement",
+        "hint": "Chaque virement porte cette référence : à coller dans le jeu.",
+        "copy": "Copier",
+        "copied": "Copié",
+        "copyDiscord": "Copier pour Discord",
+        "discordHint": "un message Markdown, rien n'est posté à ta place",
+        "discordUnavailable": "Le récap est disponible quand les virements sont connus.",
+        "copyFailed": "Le presse-papiers a refusé la copie : sélectionne le texte et copie-le à la main."
+      },
+      "surplus": {
+        "title": "Surplus",
+        "loading": "Lecture du surplus",
+        "loadError": "Le surplus n'a pas pu être lu.",
+        "type": "Type",
+        "quantity": "Surplus",
+        "value": "Valeur",
+        "total": "Total compté",
+        "notValued": "non valorisé",
+        "store": "Ranger au stock corpo",
+        "storing": "Rangement",
+        "stored": "Rangé au stock corpo par {name} le {date} · {value} comptée au projet",
+        "storedWithoutName": "Rangé au stock corpo le {date} · {value} comptée au projet",
+        "unknownValue": "valeur inconnue"
+      }
+    },
     "transfers": {
       "title": "Virements entre membres",
       "reference": "Référence de paiement",

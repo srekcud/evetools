@@ -1,3 +1,4 @@
+import { settlementProfitOf } from '@/components/group-industry/projectSettlementBlock'
 import type { Distribution, GroupProject, GroupProjectItem, ProjectSettlement } from '@/stores/group-industry/types'
 
 export type RecapTranslate = (key: string, named?: Record<string, unknown>, plural?: number) => string
@@ -38,11 +39,6 @@ function sumOrNull(values: (number | null)[]): number | null {
   return sum
 }
 
-function profitOf(distribution: Distribution): number | null {
-  if (distribution.netRevenue === null || distribution.totalProjectCost === null) return null
-  return distribution.netRevenue - distribution.totalProjectCost
-}
-
 function contractFeesSegment(distribution: Distribution, label: (key: string) => string, money: (value: number | null) => string): string[] {
   if (distribution.contractRevenue === undefined || distribution.contractRevenue <= 0) return []
   const fees = distribution.contractFees ?? null
@@ -71,7 +67,7 @@ export function buildProjectDiscordRecap({ project, distribution, settlement = n
   const unknown = label('unknown')
   const money = (value: number | null): string => (value === null ? unknown : formatIsk(value))
 
-  const profit = profitOf(distribution)
+  const profit = settlementProfitOf(distribution)
   const margin = distribution.marginPercent === null ? unknown : `${distribution.marginPercent.toFixed(MARGIN_DECIMALS)}%`
   const participantsCount = distribution.members.length
 
