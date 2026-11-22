@@ -2958,7 +2958,7 @@
       "title": "Comprendre l'invention",
       "intro": "{product} : on ne peut pas fabriquer un T2 sans BPC T2, et un BPC T2 ne s'achète pas ici : on l'invente à partir d'un blueprint T1.",
       "detailsError": "Détails de l'invention indisponibles :",
-      "bpo": { "title": "BPO T1", "subtitle": "reste en place, non consommé" },
+      "bpo": { "glyph": "BPO", "title": "BPO T1", "subtitle": "reste en place, non consommé" },
       "copyArrow": "copie",
       "copies": { "title": "{count} copies", "subtitle": "1 run chacune" },
       "datacores": { "title": "Datacores", "subtitle": "consommés à chaque tentative" },

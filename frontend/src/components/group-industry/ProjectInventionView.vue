@@ -117,7 +117,7 @@ watch(() => props.projectId, projectId => inventionStore.fetchInvention(projectI
 
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1.5">
         <div class="flex min-w-[92px] max-w-[110px] flex-col items-center gap-0.5 text-center" :class="STAGE_CLASSES.done" data-testid="invention-view-stage-bpo">
-          <span class="stage-icon flex h-10 w-10 items-center justify-center border border-violet-400 bg-black font-mono text-[10px] text-violet-300">BPO</span>
+          <span class="stage-icon flex h-10 w-10 items-center justify-center border border-violet-400 bg-black font-mono text-[10px] text-violet-300">{{ t('groupIndustry.inventionView.bpo.glyph') }}</span>
           <b class="font-display text-[12.5px] text-slate-100">{{ t('groupIndustry.inventionView.bpo.title') }}</b>
           <small class="text-[10.5px] text-slate-400">{{ t('groupIndustry.inventionView.bpo.subtitle') }}</small>
         </div>

@@ -2958,7 +2958,7 @@
       "title": "Understand invention",
       "intro": "{product}: a T2 cannot be built without a T2 BPC, and a T2 BPC is not bought here: it is invented from a T1 blueprint.",
       "detailsError": "Invention details unavailable:",
-      "bpo": { "title": "T1 BPO", "subtitle": "stays in place, not consumed" },
+      "bpo": { "glyph": "BPO", "title": "T1 BPO", "subtitle": "stays in place, not consumed" },
       "copyArrow": "copy",
       "copies": { "title": "{count} copies", "subtitle": "1 run each" },
       "datacores": { "title": "Datacores", "subtitle": "consumed by each attempt" },
