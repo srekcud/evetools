@@ -9,6 +9,7 @@ use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\PlannedProduction;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\StructureTotalCostComparator;
+use App\Industry\Application\WorkCargo;
 use App\Industry\Application\WorkStationAdvisor;
 use App\Industry\Application\WorkStationRow;
 use App\Industry\Application\WorkTransportKind;
@@ -39,6 +40,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(WorkStationAdvisor::class)]
+#[CoversClass(WorkCargo::class)]
 #[Group('issue-1285')]
 final class WorkStationAdvisorTest extends TestCase
 {
