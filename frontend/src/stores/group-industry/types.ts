@@ -1243,6 +1243,7 @@ export interface StructureHealthRow {
   state: StructureHealthState
   fuelDays: number | null
   offlineServices: string[]
+  facilityTaxPercent: number | null
 }
 
 export interface ProjectStructureHealth {

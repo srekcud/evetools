@@ -86,6 +86,7 @@ final readonly class ProjectStructureHealthProvider implements ProviderInterface
                     'state' => $health[$structureId]->state->value,
                     'fuelDays' => $health[$structureId]->fuelDays,
                     'offlineServices' => $health[$structureId]->offlineServices,
+                    'facilityTaxPercent' => $structure->getFacilityTaxPercent(),
                 ];
             },
             $plannedStructures,

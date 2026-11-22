@@ -21,6 +21,8 @@ const props = defineProps<{
   canLinkJobs: boolean
 }>()
 
+const STRUCTURE_SETTINGS_LOCATION = { name: 'settings', params: { section: 'industry' } }
+
 const HEALTH_STATE_LABEL_KEYS: Record<StructureHealthState, string> = {
   ok: 'ok',
   'low-fuel': 'lowFuel',
@@ -138,6 +140,11 @@ function fuelLabel(row: StructureHealthRow): string {
           <span>{{ healthLabel(facility.health) }}</span>
           <span class="tabular-nums text-slate-400">{{ fuelLabel(facility.health) }}</span>
           <span v-if="facility.health.offlineServices.length > 0" class="text-red-300">{{ t('groupIndustry.structureHealth.offlineServices', { services: facility.health.offlineServices.join(', ') }) }}</span>
+          <span v-if="facility.health.facilityTaxPercent === null" class="text-amber-300">
+            {{ t('groupIndustry.setup.stations.taxNotSet') }}
+            <router-link :to="STRUCTURE_SETTINGS_LOCATION" class="underline hover:text-amber-200">{{ t('groupIndustry.setup.stations.taxNotSetLink') }}</router-link>
+          </span>
+          <span v-else class="tabular-nums text-slate-400">{{ t('groupIndustry.setup.stations.taxRate', { percent: `${formatNumber(facility.health.facilityTaxPercent)} %` }) }}</span>
         </template>
         <span v-else class="text-slate-500">{{ detailText('unknown') }}</span>
       </li>

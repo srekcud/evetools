@@ -40,7 +40,8 @@ final class ProjectStructureHealthApiTest extends WebTestCase
     private const float LOW_FUEL_THRESHOLD_DAYS = 3.0;
 
     private const array RESOURCE_KEYS = ['id', 'lowFuelThresholdDays', 'rows'];
-    private const array ROW_KEYS = ['fuelDays', 'kind', 'name', 'offlineServices', 'state', 'structureId'];
+    private const array ROW_KEYS = ['facilityTaxPercent', 'fuelDays', 'kind', 'name', 'offlineServices', 'state', 'structureId'];
+    private const float WORKSHOP_TAX_PERCENT = 1.0;
 
     private IndustryStructureConfig $workshop;
 
@@ -68,9 +69,23 @@ final class ProjectStructureHealthApiTest extends WebTestCase
         sort($rowKeys);
         self::assertSame(self::ROW_KEYS, $rowKeys);
         self::assertSame(
-            [$this->workshop->getId()->toRfc4122(), self::WORKSHOP_NAME, 'raitaru', 'unknown', null, []],
-            array_map(static fn (string $key): mixed => $body['rows'][0][$key], ['structureId', 'name', 'kind', 'state', 'fuelDays', 'offlineServices']),
+            [$this->workshop->getId()->toRfc4122(), self::WORKSHOP_NAME, 'raitaru', 'unknown', null, [], self::WORKSHOP_TAX_PERCENT],
+            array_map(static fn (string $key): mixed => $body['rows'][0][$key], ['structureId', 'name', 'kind', 'state', 'fuelDays', 'offlineServices', 'facilityTaxPercent']),
         );
+    }
+
+    public function testStructureWithoutInstallationTaxExposesNullNeverZero(): void
+    {
+        $this->workshop->setFacilityTaxPercent(null);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->healthUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $row = $this->responseJson()['rows'][0];
+        self::assertArrayHasKey('facilityTaxPercent', $row);
+        self::assertNull($row['facilityTaxPercent']);
     }
 
     public function testNoCorporationStructuresAreReadWhenNoCharacterHoldsTheStationManagerRole(): void
@@ -115,7 +130,7 @@ final class ProjectStructureHealthApiTest extends WebTestCase
             ->setSolarSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID)
             ->setLocationId(self::WORKSHOP_STRUCTURE_ID)
             ->setCorporationId(self::OWNER_CORPORATION_ID)
-            ->setFacilityTaxPercent(1.0)
+            ->setFacilityTaxPercent(self::WORKSHOP_TAX_PERCENT)
             ->setRigs([]);
         $this->em->persist($this->workshop);
         $this->em->persist((new IndustryUserSettings())->setUser($this->owner)->setFavoriteManufacturingSystemId(EveConstants::JITA_SOLAR_SYSTEM_ID));
