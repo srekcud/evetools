@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { effectScope, ref, type EffectScope } from 'vue'
+import { effectScope, ref, shallowRef, type EffectScope } from 'vue'
 import { GROUP_PROJECT_EVENT_COALESCE_MS, useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useSyncStore, type GroupProjectEvent } from '@/stores/sync'
 
@@ -10,6 +10,9 @@ const projectEvents = ref<Record<string, GroupProjectEvent>>({})
 let scope: EffectScope
 let refetch: ReturnType<typeof vi.fn>
 let visibility: 'visible' | 'hidden'
+let companionVisibility: 'visible' | 'hidden'
+
+const useCoalescingWithDocument = useCoalescedGroupProjectEvents as unknown as (...args: unknown[]) => void
 
 function publish(action: string, projectId = PROJECT_ID): void {
   projectEvents.value = { ...projectEvents.value, [projectId]: { action, data: null, timestamp: '2026-11-21T10:00:00+00:00' } }
@@ -18,6 +21,17 @@ function publish(action: string, projectId = PROJECT_ID): void {
 function startCoalescing(): void {
   scope = effectScope()
   scope.run(() => useCoalescedGroupProjectEvents(() => PROJECT_ID, refetch as never))
+}
+
+function startCoalescingWatching(visibilityDocument: () => Document): void {
+  scope = effectScope()
+  scope.run(() => useCoalescingWithDocument(() => PROJECT_ID, refetch as never, GROUP_PROJECT_EVENT_COALESCE_MS, visibilityDocument))
+}
+
+function createCompanionDocument(): Document {
+  const companionDocument = document.implementation.createHTMLDocument('companion')
+  Object.defineProperty(companionDocument, 'visibilityState', { get: () => companionVisibility, configurable: true })
+  return companionDocument
 }
 
 function becomeVisible(): void {
@@ -30,6 +44,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   projectEvents.value = {}
   visibility = 'visible'
+  companionVisibility = 'visible'
   vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
   vi.spyOn(useSyncStore(), 'getGroupProjectEvent').mockImplementation(projectId => projectEvents.value[projectId] ?? null)
   refetch = vi.fn().mockResolvedValue(undefined)
@@ -138,5 +153,88 @@ describe('useCoalescedGroupProjectEvents', () => {
     await vi.advanceTimersByTimeAsync(0)
 
     expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('refetches at once, with the action received, when the main tab is hidden but the companion window is visible', async () => {
+    visibility = 'hidden'
+    const companionDocument = createCompanionDocument()
+    startCoalescingWatching(() => companionDocument)
+
+    publish('line_reserved')
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(refetch.mock.calls.map(([actions]) => actions)).toEqual([['line_reserved']])
+  })
+
+  it('does not refetch while the companion window is hidden even if the main tab is visible, and refetches once with every action when the window resumes', async () => {
+    companionVisibility = 'hidden'
+    const companionDocument = createCompanionDocument()
+    startCoalescingWatching(() => companionDocument)
+
+    publish('line_reserved')
+    publish('line_released')
+    await vi.advanceTimersByTimeAsync(GROUP_PROJECT_EVENT_COALESCE_MS * 2)
+    const callsWhileHidden = refetch.mock.calls.length
+    companionVisibility = 'visible'
+    companionDocument.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect({ callsWhileHidden, calls: refetch.mock.calls.map(([actions]) => actions) }).toEqual({
+      callsWhileHidden: 0,
+      calls: [['line_reserved', 'line_released']],
+    })
+  })
+
+  it('waits for the main tab without a companion window, then sends the waiting action as soon as a visible companion window opens', async () => {
+    visibility = 'hidden'
+    const companionWindowDocument = shallowRef<Document | null>(null)
+    startCoalescingWatching(() => companionWindowDocument.value ?? document)
+
+    publish('step_reset')
+    await vi.advanceTimersByTimeAsync(GROUP_PROJECT_EVENT_COALESCE_MS)
+    const callsWithoutWindow = refetch.mock.calls.length
+    companionWindowDocument.value = createCompanionDocument()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect({ callsWithoutWindow, calls: refetch.mock.calls.map(([actions]) => actions) }).toEqual({
+      callsWithoutWindow: 0,
+      calls: [['step_reset']],
+    })
+  })
+
+  it('ignores the visibilitychange of a companion window that was closed and replaced by the main tab', async () => {
+    visibility = 'hidden'
+    companionVisibility = 'hidden'
+    const closedWindowDocument = createCompanionDocument()
+    const companionWindowDocument = shallowRef<Document | null>(closedWindowDocument)
+    startCoalescingWatching(() => companionWindowDocument.value ?? document)
+    publish('line_reserved')
+    await vi.advanceTimersByTimeAsync(0)
+
+    companionWindowDocument.value = null
+    await vi.advanceTimersByTimeAsync(0)
+    visibility = 'visible'
+    companionVisibility = 'visible'
+    closedWindowDocument.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(GROUP_PROJECT_EVENT_COALESCE_MS)
+
+    expect(refetch).not.toHaveBeenCalled()
+  })
+
+  it('refetches nothing after its scope is stopped when the companion window becomes visible', async () => {
+    visibility = 'hidden'
+    companionVisibility = 'hidden'
+    const companionDocument = createCompanionDocument()
+    startCoalescingWatching(() => companionDocument)
+    publish('line_reserved')
+    await vi.advanceTimersByTimeAsync(0)
+
+    scope.stop()
+    companionVisibility = 'visible'
+    companionDocument.dispatchEvent(new Event('visibilitychange'))
+    publish('line_released')
+    await vi.advanceTimersByTimeAsync(GROUP_PROJECT_EVENT_COALESCE_MS)
+
+    expect(refetch).not.toHaveBeenCalled()
   })
 })

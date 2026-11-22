@@ -12,7 +12,7 @@ import {
   rememberCompanionWindowSize,
   type CompanionWindowSizeKey,
 } from '@/components/group-industry/companionWindowSize'
-import { useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
+import { GROUP_PROJECT_EVENT_COALESCE_MS, useCoalescedGroupProjectEvents } from '@/composables/useCoalescedGroupProjectEvents'
 import { useDetachedWindow } from '@/composables/useDetachedWindow'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
@@ -149,7 +149,12 @@ watch(detached.isOpen, (isOpen) => {
   companion.close()
 })
 
-useCoalescedGroupProjectEvents(() => companion.projectId, actions => companion.handleEvents(actions))
+useCoalescedGroupProjectEvents(
+  () => companion.projectId,
+  actions => companion.handleEvents(actions),
+  GROUP_PROJECT_EVENT_COALESCE_MS,
+  () => detached.currentWindow.value?.document ?? document,
+)
 
 useEventListener(window, 'pagehide', () => detached.close())
 
