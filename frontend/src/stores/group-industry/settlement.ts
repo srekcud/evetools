@@ -51,5 +51,5 @@ export const useGroupSettlementStore = defineStore('group-settlement', () => {
     }
   }
 
-  return { settlement, loading, error, fetchForProject, setReceived }
+  return { settlement, loading, error, openedProjectId, fetchForProject, setReceived }
 })

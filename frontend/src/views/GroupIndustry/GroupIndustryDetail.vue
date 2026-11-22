@@ -275,7 +275,7 @@ function loadFinances(id: string): Promise<void> {
   return Promise.all([
     distributionStore.fetchDistribution(id),
     distributionStore.fetchSales(id),
-    settlementStore.fetchForProject(id),
+    ...(showSettlementBlock.value ? [] : [settlementStore.fetchForProject(id)]),
   ]).then(() => undefined)
 }
 

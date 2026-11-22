@@ -69,9 +69,9 @@ describe('Finances section loaded on a reload or a direct link', () => {
     expect(requests.sales).toBeGreaterThanOrEqual(1)
   })
 
-  it('loads the settlement and reads the distribution again when the distribution section is opened, the distribution and the sales being already read for the ISK band and the flow grid', async () => {
+  it('reads the distribution again when the distribution section is opened, the distribution and the sales being already read for the ISK band and the flow grid and the settlement for the settlement block', async () => {
     const wrapper = await mountFinances(undefined)
-    expect(financesRequests()).toEqual({ distribution: 1, sales: 1, settlement: 0 })
+    expect(financesRequests()).toEqual({ distribution: 1, sales: 1, settlement: 1 })
 
     await wrapper.get(sectionToggleSelector('distribution')).trigger('click')
     await flushPromises()
@@ -81,11 +81,11 @@ describe('Finances section loaded on a reload or a direct link', () => {
     expect(requests.sales).toBeGreaterThanOrEqual(1)
   })
 
-  it('reads the distribution for the ISK band but not the settlement when the view opens on the bom section', async () => {
+  it('reads the distribution for the ISK band and the settlement for the settlement block when the view opens on the bom section', async () => {
     await mountFinances('bom')
 
     const requests = financesRequests()
-    expect({ distribution: requests.distribution, settlement: requests.settlement }).toEqual({ distribution: 1, settlement: 0 })
+    expect({ distribution: requests.distribution, settlement: requests.settlement }).toEqual({ distribution: 1, settlement: 1 })
   })
 
   it('shows only a loading state while the distribution is being read, then the Finances content', async () => {

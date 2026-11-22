@@ -33,7 +33,10 @@ const referenceCopy = useCopyFeedback()
 const recapCopy = useCopyFeedback()
 
 const project = computed(() => projectStore.currentProject)
-const distribution = computed(() => distributionStore.distribution)
+const distribution = computed(() => {
+  const read = distributionStore.distribution
+  return read !== null && Array.isArray(read.members) ? read : null
+})
 const settlement = computed(() => settlementStore.settlement)
 const isCompleted = computed(() => project.value?.status === 'completed')
 const cascade = computed(() => (distribution.value === null ? [] : settlementCascadeOf(distribution.value)))
@@ -89,11 +92,8 @@ async function storeSurplus(): Promise<void> {
 }
 
 function loadSettlementData(projectId: string): void {
-  void Promise.all([
-    surplusStore.fetchSurplus(projectId),
-    distributionStore.fetchDistribution(projectId),
-    settlementStore.fetchForProject(projectId),
-  ])
+  void surplusStore.fetchSurplus(projectId)
+  if (settlementStore.openedProjectId !== projectId) void settlementStore.fetchForProject(projectId)
 }
 
 watch(() => props.projectId, loadSettlementData, { immediate: true })
