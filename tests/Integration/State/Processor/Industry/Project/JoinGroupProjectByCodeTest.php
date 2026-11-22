@@ -7,6 +7,8 @@ namespace App\Tests\Integration\State\Processor\Industry\Project;
 use ApiPlatform\Metadata\Post;
 use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectLineReservation;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\Notification;
@@ -18,6 +20,7 @@ use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Industry\Project\JoinRequestNotifier;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Notification\NotificationDispatcher;
 use App\State\Processor\Industry\Project\JoinProjectProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
@@ -95,6 +98,28 @@ final class JoinGroupProjectByCodeTest extends IntegrationTestCase
         self::assertSame('Aria Solberg', $notifications[0]->getUser()->getMainCharacter()?->getName());
     }
 
+    #[Group('issue-1357')]
+    public function testCorpmateJoiningASoloProjectLeavesItsOpenLinesReservedForTheOwner(): void
+    {
+        $project = $this->em->getRepository(IndustryProject::class)->findOneBy(['name' => 'Open published']);
+        \assert($project instanceof IndustryProject);
+        $project->addBomItem((new IndustryProjectBomLine())->setTypeId(34)->setTypeName('Tritanium')->setRequiredQuantity(5_000)->setFulfilledQuantity(1_000));
+        $project->addBomItem((new IndustryProjectBomLine())->setTypeId(35)->setTypeName('Pyerite')->setRequiredQuantity(200)->setFulfilledQuantity(200));
+        $this->em->flush();
+        $this->em->clear();
+
+        $this->join($this->corpmateId, self::OPEN_PUBLISHED_CODE);
+        $this->em->clear();
+
+        $reservations = $this->em->getRepository(IndustryProjectLineReservation::class)->findAll();
+        self::assertCount(1, $reservations);
+        self::assertSame(['Tritanium', 4_000, 'Aria Solberg'], [
+            $reservations[0]->getBomLine()->getTypeName(),
+            $reservations[0]->getQuantity(),
+            $reservations[0]->getParticipant()->getUser()?->getMainCharacter()?->getName(),
+        ]);
+    }
+
     public function testOpenDraftProjectIsClosedToNewMembers(): void
     {
         $refusal = $this->refusalOfJoining($this->corpmateId, self::OPEN_DRAFT_CODE);
@@ -169,6 +194,7 @@ final class JoinGroupProjectByCodeTest extends IntegrationTestCase
             self::getContainer()->get(EntityManagerInterface::class),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             new JoinRequestNotifier(self::getContainer()->get(NotificationDispatcher::class)),
+            self::getContainer()->get(LineReservationService::class),
         );
     }
 

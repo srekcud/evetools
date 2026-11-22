@@ -115,6 +115,7 @@ export function member(overrides: Partial<GroupMember> & Pick<GroupMember, 'id' 
 export function companionTasksOf(overrides: Partial<CompanionTasks> = {}): CompanionTasks {
   return {
     now: Date.parse(COMPANION_NOW),
+    solo: false,
     product: null,
     activityProgress: [],
     deliveredLines: 0,

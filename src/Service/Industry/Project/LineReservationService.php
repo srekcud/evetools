@@ -56,6 +56,28 @@ class LineReservationService
         return $reservation;
     }
 
+    public function reserveAllLinesForOwner(IndustryProject $project): void
+    {
+        $owner = $project->getOwnerParticipant();
+
+        foreach ($project->getBomItems() as $line) {
+            $remainingQuantity = $line->getRemainingQuantity();
+            if ($line->isFulfilled() || $line->isCoveredByStock() || $remainingQuantity < 1) {
+                continue;
+            }
+
+            $reservation = $this->reservationRepository->findOneIncludingExpiredByLineAndParticipant($line, $owner);
+            if ($reservation === null) {
+                $this->entityManager->persist(new IndustryProjectLineReservation($line, $owner, $remainingQuantity));
+
+                continue;
+            }
+
+            $reservation->setQuantity($remainingQuantity);
+            $reservation->renew();
+        }
+    }
+
     public function release(IndustryProjectLineReservation $reservation): void
     {
         $this->entityManager->remove($reservation);

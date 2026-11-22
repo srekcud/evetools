@@ -64,6 +64,7 @@ export type CompanionFlowInput = {
 
 export type CompanionTasks = {
   now: number
+  solo: boolean
   product: CompanionProduct | null
   activityProgress: ActivityProgress[]
   deliveredLines: number
@@ -133,9 +134,16 @@ const STATION_PLACE_KIND = 'station'
 const KNOWN_JOB_ACTIVITIES: ActivityGroup[] = ['copy', 'invention', 'reaction', 'manufacturing']
 export const ACTIVITY_GROUP_ORDER: ActivityGroup[] = ['copy', 'invention', 'reaction', 'manufacturing', 'material', 'unknown']
 
+function isAlreadyWorked(item: BomItem): boolean {
+  return item.isJob && item.jobMatches.some(match => WORKED_JOB_STATUSES.includes(match.status))
+}
+
 function isFree(item: BomItem): boolean {
-  const alreadyWorked = item.isJob && item.jobMatches.some(match => WORKED_JOB_STATUSES.includes(match.status))
-  return !item.isFulfilled && item.freeQuantity > 0 && !alreadyWorked
+  return !item.isFulfilled && item.freeQuantity > 0 && !isAlreadyWorked(item)
+}
+
+function isOwnerLineOfSoloProject(item: BomItem): boolean {
+  return !item.isFulfilled && item.remainingQuantity > 0 && !isAlreadyWorked(item)
 }
 
 function isReadyToDeliver(match: JobMatch, now: number): boolean {
@@ -316,16 +324,20 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
   const linePlaces = linePlacesOf(flow?.placedActions ?? null)
   const isHereLine = (item: BomItem): boolean => linePlaces[item.id]?.here === true
 
-  const free = hereFirst(inChainOrder(bomItems.filter(isFree), item => item, chainNodes), isHereLine)
+  const solo = project.solo === true
+
+  const free = solo ? [] : hereFirst(inChainOrder(bomItems.filter(isFree), item => item, chainNodes), isHereLine)
 
   const myReservations = bomItems.flatMap((item) => {
     const reservation = item.reservations.find(candidate => candidate.isMine)
     return !item.isFulfilled && reservation !== undefined ? [{ item, reservation }] : []
   })
 
-  const reservationsToDeliver = myReservations
-    .map(({ item, reservation }) => ({ item, quantity: reservation.quantity - pendingQuantityOf(item, reservation.participantId) }))
-    .filter(entry => entry.quantity > 0)
+  const reservationsToDeliver = solo
+    ? bomItems.filter(isOwnerLineOfSoloProject).map(item => ({ item, quantity: item.remainingQuantity }))
+    : myReservations
+      .map(({ item, reservation }) => ({ item, quantity: reservation.quantity - pendingQuantityOf(item, reservation.participantId) }))
+      .filter(entry => entry.quantity > 0)
   const mine = hereFirst(inChainOrder(reservationsToDeliver, entry => entry.item, chainNodes), entry => isHereLine(entry.item))
 
   const awaitingApproval = bomItems.flatMap((item) => {
@@ -372,6 +384,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
 
   return {
     now,
+    solo,
     product: productOf(project),
     activityProgress: activityProgressOf(bomItems, now),
     deliveredLines: bomItems.filter(item => item.isFulfilled).length,
@@ -397,7 +410,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     carries: flow === undefined ? [] : carriesOf(flow),
     carriesUnknown: flow !== undefined && flow.transfers === null,
     supplies: suppliesOf(flow?.stockProposal ?? null, bomItems),
-    reservationExpiries: reservationExpiriesOf(mine),
+    reservationExpiries: solo ? {} : reservationExpiriesOf(mine),
     joinRequestNames: isAdmin(project)
       ? members.flatMap(member => (member.status === PENDING_MEMBER_STATUS && member.characterName !== null ? [member.characterName] : []))
       : [],

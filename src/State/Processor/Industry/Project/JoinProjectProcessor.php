@@ -15,6 +15,7 @@ use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\JoinRequestNotifier;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,6 +38,7 @@ class JoinProjectProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly JoinRequestNotifier $joinRequestNotifier,
+        private readonly LineReservationService $lineReservations,
     ) {
     }
 
@@ -78,9 +80,14 @@ class JoinProjectProcessor implements ProcessorInterface
             throw new ConflictHttpException('You are already a member of this project');
         }
 
+        $wasSolo = $project->isSoloProjectOf($project->getOwner());
         $member = $existingMembership === null
             ? $this->createMembership($project, $user)
             : $existingMembership->requestRejoin();
+
+        if ($wasSolo && $member->getStatus() === ParticipantStatus::Accepted) {
+            $this->lineReservations->reserveAllLinesForOwner($project);
+        }
 
         $this->entityManager->flush();
 

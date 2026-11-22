@@ -67,7 +67,7 @@ const { formatNumber, formatIsk } = useFormatters()
 const { getTypeIconUrl, getTypeRenderUrl, onImageError } = useEveImages()
 
 const collapsedSections = ref<CompanionSectionKey[]>(recallCollapsedSections())
-const activePane = ref<CompanionPane>('free')
+const activePane = ref<CompanionPane>(props.tasks.solo ? 'mine' : 'free')
 const copyState = ref<CopyState>('idle')
 let copyResetTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -120,7 +120,13 @@ const miniBarSegments = computed(() => groupByActivity(props.tasks.free, item =>
 
 const toDeliverCount = computed(() => props.tasks.mine.length + props.tasks.carries.length + props.tasks.supplies.length)
 
-const tabs = computed(() => COMPANION_PANES.map(pane => ({
+const panes = computed(() => (props.tasks.solo ? COMPANION_PANES.filter(pane => pane !== 'free') : COMPANION_PANES))
+
+watch(() => props.tasks.solo, (solo) => {
+  if (solo && activePane.value === 'free') activePane.value = 'mine'
+})
+
+const tabs = computed(() => panes.value.map(pane => ({
   pane,
   count: pane === 'free' ? props.tasks.free.length : pane === 'mine' ? toDeliverCount.value : props.tasks.jobs.length,
   hot: pane === 'mine' ? toDeliverCount.value > 0 : pane === 'jobs' ? props.tasks.readyJobCount > 0 : false,
@@ -424,6 +430,7 @@ function unknownReasonText(output: JobLocation): string | null {
 
     <template v-if="isBar">
       <div
+        v-if="!tasks.solo"
         data-testid="companion-count-free"
         class="flex flex-shrink-0 flex-col gap-0.5 border-l border-slate-800 px-2.5"
         :title="t('groupIndustry.companion.tabs.free')"
@@ -585,7 +592,7 @@ function unknownReasonText(output: JobLocation): string | null {
         class="mx-3 mt-2 flex-shrink-0 text-xs text-slate-500"
       >{{ t('groupIndustry.companion.moveProductsUnknown', { count: tasks.moveProducts.unknownJobCount }) }}</p>
 
-      <div role="tablist" class="mx-3 mt-3 grid flex-shrink-0 grid-cols-3 border-b border-slate-800">
+      <div role="tablist" class="mx-3 mt-3 grid flex-shrink-0 border-b border-slate-800" :class="panes.length === 2 ? 'grid-cols-2' : 'grid-cols-3'">
         <button
           v-for="tab in tabs"
           :key="tab.pane"
@@ -609,7 +616,7 @@ function unknownReasonText(output: JobLocation): string | null {
       </div>
 
       <div data-testid="companion-body" class="min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-2">
-        <div v-show="activePane === 'free'" data-testid="companion-pane-free" class="flex flex-col gap-2">
+        <div v-if="!tasks.solo" v-show="activePane === 'free'" data-testid="companion-pane-free" class="flex flex-col gap-2">
           <p v-if="tasks.free.length === 0" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyFree') }}</p>
           <div v-for="group in freeView.groups" :key="group.group" :data-testid="`companion-group-free-${group.group}`" class="flex flex-col gap-1">
             <CompanionGroupHeader pane="free" :group="group.group" :count="group.total" :open="isOpen('free', group.group)" @toggle="toggleSection('free', group.group)" />
@@ -801,6 +808,7 @@ function unknownReasonText(output: JobLocation): string | null {
                   @click="emit('deliver', entry.item.id)"
                 >{{ t('groupIndustry.companion.deliver') }}</button>
                 <button
+                  v-if="!tasks.solo"
                   type="button"
                   data-testid="companion-release"
                   class="flex-shrink-0 border border-slate-700 px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-800"
@@ -906,7 +914,7 @@ function unknownReasonText(output: JobLocation): string | null {
       </div>
 
       <footer data-testid="companion-footer" class="flex flex-shrink-0 flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-slate-800 bg-slate-950 px-3 py-1.5 text-xs text-slate-400">
-        <span>
+        <span v-if="!tasks.solo">
           {{ t('groupIndustry.companion.footer.freeValue') }}
           <b
             v-if="tasks.freeValue.total !== null"
