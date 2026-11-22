@@ -95,7 +95,7 @@ function foldLabel(row: FlowRow, column: FlowColumn): string {
     <template v-else-if="grid.rows.length > 0">
       <ul
         data-testid="flow-activity-legend"
-        class="mb-2 flex flex-wrap gap-x-3 gap-y-1 font-display text-[11px] font-semibold uppercase tracking-[0.08em]"
+        class="mb-2 flex flex-wrap gap-x-3 gap-y-1 font-display text-xs font-semibold uppercase tracking-[0.08em]"
       >
         <li
           v-for="activity in LEGEND_ACTIVITIES"
@@ -154,7 +154,7 @@ function foldLabel(row: FlowRow, column: FlowColumn): string {
                 v-if="foldedCell(row, column).foldedKind !== null"
                 type="button"
                 data-testid="flow-fold-toggle"
-                class="border border-dashed border-slate-700 p-1 text-left text-[11px] text-slate-500 transition-colors hover:text-slate-300"
+                class="border border-dashed border-slate-700 p-1 text-left text-xs text-slate-500 transition-colors hover:text-slate-300"
                 @click="toggleCell(row, column)"
               >{{ foldLabel(row, column) }}</button>
             </div>

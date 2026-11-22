@@ -78,7 +78,7 @@ defineExpose({ refresh })
       <span
         v-if="card.source !== null"
         data-testid="flow-detail-source"
-        class="whitespace-nowrap rounded-sm border px-1.5 text-[10px]"
+        class="whitespace-nowrap rounded-sm border px-1.5 text-xs"
         :class="SOURCE_CLASSES[card.source]"
       >{{ t(`groupIndustry.flow.sources.${card.source}`) }}</span>
       <span data-testid="flow-detail-state">{{ t(`groupIndustry.flow.states.${card.state}`) }}</span>

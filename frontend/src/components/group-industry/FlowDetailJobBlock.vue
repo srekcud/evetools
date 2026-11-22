@@ -70,7 +70,7 @@ function fuelLabel(row: StructureHealthRow): string {
       v-if="canLinkJobs"
       type="button"
       data-testid="flow-detail-link-job"
-      class="mt-1.5 border border-slate-600 px-2 py-0.5 text-[11px] text-slate-200 hover:border-cyan-400 hover:text-cyan-300"
+      class="mt-1.5 border border-slate-600 px-2 py-0.5 text-xs text-slate-200 hover:border-cyan-400 hover:text-cyan-300"
       @click="jobActions.openLinkScreen(projectId, line)"
     >{{ detailText('linkJob') }}</button>
     <p v-if="jobLinkError !== null && linkScreenLine === null" role="alert" class="mt-1 text-red-300">{{ jobLinkError }}</p>
