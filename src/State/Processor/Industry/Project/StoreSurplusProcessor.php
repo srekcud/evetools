@@ -15,6 +15,7 @@ use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSurplusResourceMapper;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -62,12 +63,14 @@ final readonly class StoreSurplusProcessor implements ProcessorInterface
             throw new ConflictHttpException('The project has no surplus to store');
         }
 
-        if (null !== $project->getSurplusStoredAt()) {
-            throw new ConflictHttpException('The surplus is already stored');
-        }
+        $this->entityManager->wrapInTransaction(function () use ($project, $user): void {
+            $this->entityManager->refresh($project, LockMode::PESSIMISTIC_WRITE);
+            if (null !== $project->getSurplusStoredAt()) {
+                throw new ConflictHttpException('The surplus is already stored');
+            }
 
-        $project->markSurplusStored($user, new \DateTimeImmutable());
-        $this->entityManager->flush();
+            $project->markSurplusStored($user, new \DateTimeImmutable());
+        });
 
         $this->mercurePublisher->publishGroupProjectEvent($project->getId()->toRfc4122(), 'surplus_stored', []);
 
