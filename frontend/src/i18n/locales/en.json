@@ -5070,6 +5070,7 @@
       "tabs": {
         "free": "To assign",
         "mine": "To deliver",
+        "transport": "Transport",
         "jobs": "My jobs"
       },
       "bar": {
@@ -5105,6 +5106,21 @@
       },
       "emptyFree": "Every line has an owner.",
       "emptyMine": "Nothing to deliver.",
+      "transport": {
+        "title": "Legs to run",
+        "empty": "No leg to run.",
+        "unknown": "Legs unknown: the transport legs could not be read",
+        "unreadable": "{count} reading missing, the legs may be incomplete | {count} readings missing, the legs may be incomplete",
+        "accessUnknown": "access unknown",
+        "declare": "Declare",
+        "declared": "Declared",
+        "readyNow": "ready",
+        "states": {
+          "ready": "ready to carry",
+          "in_production": "in production",
+          "in_transit": "in transit"
+        }
+      },
       "emptyJobs": "No job of yours on this project.",
       "more": {
         "free": "+ {count} more free lines · see the BOM"

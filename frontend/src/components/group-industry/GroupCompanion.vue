@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useCompanionCountdown } from '@/composables/useCompanionCountdown'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useJobDisplayLabel } from '@/composables/useJobDisplayLabel'
@@ -12,6 +13,7 @@ import CompanionGauge from './CompanionGauge.vue'
 import CompanionGroupHeader from './CompanionGroupHeader.vue'
 import CompanionHereBadge from './CompanionHereBadge.vue'
 import CompanionLinePlace from './CompanionLinePlace.vue'
+import CompanionTransportPane from './CompanionTransportPane.vue'
 import { ACTIVITY_STYLES } from './companionActivityStyles'
 import {
   COMPANION_PANES,
@@ -21,7 +23,7 @@ import {
   type CompanionSectionKey,
 } from './companionCollapsedSections'
 import { jobElapsedShareOf } from './jobDisplayState'
-import { activityGroupOf, countdownPartsOf, groupByActivity, jobTimingOf, type ActivityGroup, type CompanionAlert, type CompanionCarry, type CompanionLinePlace as CompanionLinePlaceData, type CompanionTasks } from './companionTasks'
+import { activityGroupOf, groupByActivity, jobTimingOf, type ActivityGroup, type CompanionAlert, type CompanionLinePlace as CompanionLinePlaceData, type CompanionTasks } from './companionTasks'
 
 type CopyState = 'idle' | 'copied' | 'failed'
 
@@ -36,8 +38,8 @@ const COPY_FEEDBACK_MS = 2000
 const COLUMN_GAUGE_DIAMETER = 54
 const BAR_GAUGE_DIAMETER = 46
 const PRODUCT_IMAGE_SIZE = 64
-const TIME_UNIT_DIGITS = 2
 const PERCENT_BASE = 100
+const TAB_COLUMNS_CLASS: Record<number, string> = { 3: 'grid-cols-3', 4: 'grid-cols-4' }
 
 const props = defineProps<{
   tasks: CompanionTasks
@@ -64,6 +66,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { jobDisplayLabel } = useJobDisplayLabel()
+const { countdownText } = useCompanionCountdown()
 const { formatNumber, formatIsk } = useFormatters()
 const { getTypeIconUrl, getTypeRenderUrl, onImageError } = useEveImages()
 
@@ -119,7 +122,7 @@ const jobGroups = computed(() => groupByActivity(
 ))
 const miniBarSegments = computed(() => groupByActivity(props.tasks.free, item => item).map(({ group, entries }) => ({ group, count: entries.length })))
 
-const toDeliverCount = computed(() => props.tasks.mine.length + props.tasks.carries.length + props.tasks.supplies.length)
+const toDeliverCount = computed(() => props.tasks.mine.length + props.tasks.supplies.length)
 
 const panes = computed(() => (props.tasks.solo ? COMPANION_PANES.filter(pane => pane !== 'free') : COMPANION_PANES))
 
@@ -127,11 +130,21 @@ watch(() => props.tasks.solo, (solo) => {
   if (solo && activePane.value === 'free') activePane.value = 'mine'
 })
 
-const tabs = computed(() => panes.value.map(pane => ({
-  pane,
-  count: pane === 'free' ? props.tasks.free.length : pane === 'mine' ? toDeliverCount.value : props.tasks.jobs.length,
-  hot: pane === 'mine' ? toDeliverCount.value > 0 : pane === 'jobs' ? props.tasks.readyJobCount > 0 : false,
-})))
+const paneCounts = computed<Record<CompanionPane, number>>(() => ({
+  free: props.tasks.free.length,
+  mine: toDeliverCount.value,
+  transport: props.tasks.readyLegCount,
+  jobs: props.tasks.jobs.length,
+}))
+
+const paneHotness = computed<Record<CompanionPane, boolean>>(() => ({
+  free: false,
+  mine: toDeliverCount.value > 0,
+  transport: props.tasks.readyLegCount > 0,
+  jobs: props.tasks.readyJobCount > 0,
+}))
+
+const tabs = computed(() => panes.value.map(pane => ({ pane, count: paneCounts.value[pane], hot: paneHotness.value[pane] })))
 
 const hasTodo = computed(() => props.tasks.toReview !== null || props.tasks.joinRequests !== null)
 const chainSegments = computed(() => props.tasks.activityProgress.map(progress => ({
@@ -298,20 +311,9 @@ function lineStyle(group: ActivityGroup): string {
   return `border-l-2 ${style.stripe} bg-gradient-to-r ${style.tint} to-white/[0.02]`
 }
 
-function padTimeUnit(value: number): string {
-  return String(value).padStart(TIME_UNIT_DIGITS, '0')
-}
-
 function jobBarWidth(match: JobMatch): string | null {
   const share = jobElapsedShareOf(match, props.tasks.now)
   return share === null ? null : `${Math.round(share * PERCENT_BASE)}%`
-}
-
-function countdownText(remainingMs: number): string {
-  const { days, hours, minutes } = countdownPartsOf(remainingMs)
-  return days > 0
-    ? t('groupIndustry.companion.countdown.days', { days, hours: padTimeUnit(hours) })
-    : t('groupIndustry.companion.countdown.clock', { hours: padTimeUnit(hours), minutes: padTimeUnit(minutes) })
 }
 
 function linePlaceOf(lineId: string): CompanionLinePlaceData | null {
@@ -328,18 +330,6 @@ function reservationExpiryText(lineId: string): string | null {
   const remainingMs = expiry - props.tasks.now
   if (remainingMs <= 0) return t('groupIndustry.companion.reservation.expired')
   return t('groupIndustry.companion.reservation.expiresIn', { time: countdownText(remainingMs) })
-}
-
-function carryName(carry: CompanionCarry): string {
-  return carry.lines.at(0)?.typeName ?? t('common.unknownName')
-}
-
-function carryEtaText(carry: CompanionCarry): string | null {
-  if (carry.state !== 'in_transit') return null
-  const arrival = Date.parse(carry.expectedArrivalAt)
-  if (Number.isNaN(arrival)) return null
-  const remainingMs = arrival - props.tasks.now
-  return remainingMs <= 0 ? t('groupIndustry.companion.carry.due') : countdownText(remainingMs)
 }
 
 function jobStateClasses(state: string): string {
@@ -593,7 +583,7 @@ function unknownReasonText(output: JobLocation): string | null {
         class="mx-3 mt-2 flex-shrink-0 text-xs text-slate-500"
       >{{ t('groupIndustry.companion.moveProductsUnknown', { count: tasks.moveProducts.unknownJobCount }) }}</p>
 
-      <div role="tablist" class="mx-3 mt-3 grid flex-shrink-0 border-b border-slate-800" :class="panes.length === 2 ? 'grid-cols-2' : 'grid-cols-3'">
+      <div role="tablist" class="mx-3 mt-3 grid flex-shrink-0 border-b border-slate-800" :class="TAB_COLUMNS_CLASS[panes.length]">
         <button
           v-for="tab in tabs"
           :key="tab.pane"
@@ -680,56 +670,7 @@ function unknownReasonText(output: JobLocation): string | null {
         </div>
 
         <div v-show="activePane === 'mine'" data-testid="companion-pane-mine" class="flex flex-col gap-2">
-          <p v-if="toDeliverCount === 0 && !tasks.carriesUnknown" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyMine') }}</p>
-          <p
-            v-if="tasks.carriesUnknown"
-            data-testid="companion-carries-unknown"
-            data-unknown="true"
-            class="text-xs italic text-slate-500"
-          >{{ t('groupIndustry.companion.carry.unknown') }}</p>
-          <section v-if="tasks.carries.length > 0" data-testid="companion-carries" class="flex flex-col gap-1">
-            <h2 class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-emerald-300">
-              {{ t('groupIndustry.companion.carry.title') }}
-              <span class="font-mono font-normal text-slate-400">{{ tasks.carries.length }}</span>
-            </h2>
-            <ul class="flex flex-col gap-1">
-              <li
-                v-for="carry in tasks.carries"
-                :key="carry.id"
-                data-testid="companion-carry"
-                :data-state="carry.state"
-                class="flex items-center gap-2 border-l-2 border-emerald-400 bg-gradient-to-r from-emerald-400/10 to-white/[0.02] py-1 pr-1.5 pl-2"
-              >
-                <div class="min-w-0 flex-1">
-                  <p class="flex items-center gap-1">
-                    <span class="min-w-0 truncate text-sm font-semibold text-slate-100" :title="carryName(carry)">{{ carryName(carry) }}</span>
-                    <span v-if="carry.lines.length > 1" class="flex-shrink-0 font-mono text-xs text-slate-400">+{{ carry.lines.length - 1 }}</span>
-                    <CompanionHereBadge v-if="carry.here === true" />
-                  </p>
-                  <p data-testid="companion-carry-route" class="truncate text-xs text-slate-400">
-                    <span v-if="carry.from !== null" :title="carry.from">{{ carry.from }}</span>
-                    <span v-else data-unknown="true" class="italic text-slate-500">{{ t('common.unknownValue') }}</span>
-                    &rarr;
-                    <span v-if="carry.to !== null" :title="carry.to">{{ carry.to }}</span>
-                    <span v-else data-unknown="true" class="italic text-slate-500">{{ t('common.unknownValue') }}</span>
-                  </p>
-                  <p class="truncate font-mono text-xs text-slate-400" style="font-variant-numeric: tabular-nums;">
-                    <span v-if="carry.volume !== null">{{ formatNumber(carry.volume, NUMBER_DECIMALS) }} m&sup3;</span>
-                    <span v-else data-unknown="true" class="font-sans italic text-slate-500">{{ t('common.unknownValue') }}</span>
-                    <span v-if="carryEtaText(carry) !== null"> &middot; {{ carryEtaText(carry) }}</span>
-                  </p>
-                </div>
-                <span class="flex-shrink-0 border border-slate-700 px-1.5 py-0.5 text-xs uppercase tracking-wider text-slate-300">{{ t(`groupIndustry.companion.carry.states.${carry.state}`) }}</span>
-                <button
-                  v-if="carry.state === 'in_transit'"
-                  type="button"
-                  data-testid="companion-carry-arrive"
-                  class="flex-shrink-0 border border-emerald-400 bg-emerald-400 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-950"
-                  @click="emit('arrive', carry.id)"
-                >{{ t('groupIndustry.companion.carry.arrived') }}</button>
-              </li>
-            </ul>
-          </section>
+          <p v-if="toDeliverCount === 0" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyMine') }}</p>
           <section v-if="tasks.supplies.length > 0" data-testid="companion-supplies" class="flex flex-col gap-1">
             <h2 class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-cyan-300">
               {{ t('groupIndustry.companion.supply.title') }}
@@ -845,6 +786,13 @@ function unknownReasonText(output: JobLocation): string | null {
             </ul>
           </section>
         </div>
+
+        <CompanionTransportPane
+          v-show="activePane === 'transport'"
+          :tasks="tasks"
+          @arrive="emit('arrive', $event)"
+          @declare-leg="emit('declare-leg', $event)"
+        />
 
         <div v-show="activePane === 'jobs'" data-testid="companion-pane-jobs" class="flex flex-col gap-2">
           <p v-if="tasks.jobs.length === 0" class="text-xs text-slate-500">{{ t('groupIndustry.companion.emptyJobs') }}</p>
