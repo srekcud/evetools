@@ -14,6 +14,7 @@ use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Service\Industry\SellOrders\ProjectProductTypes;
 use App\Service\Industry\SellOrders\UserSellableProductTypes;
+use App\Service\Planetary\PlanetaryProductTypes;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +29,8 @@ final class UserSellableProductTypesTest extends TestCase
     private const int SABRE_TYPE_ID = 22456;
     private const int TRITANIUM_TYPE_ID = 34;
     private const int GILA_TYPE_ID = 17715;
+    private const int COOLANT_TYPE_ID = 9832;
+    private const int ROBOTICS_TYPE_ID = 9848;
 
     public function testProductsOfSellableProjectsAreListedOnceWithoutMaterialsAndWithoutIntermediateJobs(): void
     {
@@ -63,6 +66,42 @@ final class UserSellableProductTypesTest extends TestCase
         self::assertSame([self::HAMMERHEAD_TYPE_ID => 'Hammerhead II'], (new ProjectProductTypes())->of($project));
     }
 
+    #[Group('issue-1401')]
+    public function testPlanetaryProductsAreAddedToTheProjectProductsEachTypeOnce(): void
+    {
+        $selling = $this->project(ProjectStatus::Selling, false);
+        $this->line($selling, self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 'final');
+        $this->line($selling, self::COOLANT_TYPE_ID, 'Coolant', 'final');
+
+        $types = $this->typesWithPlanetaryProducts([self::COOLANT_TYPE_ID => 'Coolant', self::ROBOTICS_TYPE_ID => 'Robotics'], $selling);
+
+        self::assertSame([self::HAMMERHEAD_TYPE_ID, self::COOLANT_TYPE_ID, self::ROBOTICS_TYPE_ID], $types);
+    }
+
+    #[Group('issue-1401')]
+    public function testPlanetaryProductsAloneAreSellableWithoutAnyProject(): void
+    {
+        self::assertSame([self::ROBOTICS_TYPE_ID], $this->typesWithPlanetaryProducts([self::ROBOTICS_TYPE_ID => 'Robotics']));
+    }
+
+    private function typesWithPlanetaryProducts(array $planetaryProducts, IndustryProject ...$projects): array
+    {
+        $user = new User();
+        $repository = $this->createStub(IndustryProjectParticipantRepository::class);
+        $repository->method('findAcceptedWithProjectsByUser')->willReturn(array_map(
+            fn (IndustryProject $project): IndustryProjectParticipant => (new IndustryProjectParticipant())
+                ->setProject($project)
+                ->setUser($user)
+                ->setRole(ParticipantRole::Owner)
+                ->setStatus(ParticipantStatus::Accepted),
+            $projects,
+        ));
+        $planetary = $this->createStub(PlanetaryProductTypes::class);
+        $planetary->method('of')->willReturn($planetaryProducts);
+
+        return (new UserSellableProductTypes($repository, new ProjectProductTypes(), $planetary))->of($user);
+    }
+
     private function typesOf(IndustryProject ...$projects): array
     {
         $user = new User();
@@ -76,7 +115,10 @@ final class UserSellableProductTypesTest extends TestCase
             $projects,
         ));
 
-        return (new UserSellableProductTypes($repository, new ProjectProductTypes()))->of($user);
+        $planetary = $this->createStub(PlanetaryProductTypes::class);
+        $planetary->method('of')->willReturn([]);
+
+        return (new UserSellableProductTypes($repository, new ProjectProductTypes(), $planetary))->of($user);
     }
 
     private function project(ProjectStatus $status, bool $personalUse): IndustryProject

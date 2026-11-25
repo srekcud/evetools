@@ -159,6 +159,34 @@ final class ProjectSellOrdersReaderTest extends TestCase
         self::assertSame([3], array_map(static fn (ProjectSellOrder $order): int => $order->orderId, $undercutOrders));
     }
 
+    #[Group('issue-1401')]
+    public function testForProductsReadsTheOrdersOfTheViewerCharactersForTheGivenTypesWithTheirNames(): void
+    {
+        $coolant = 9832;
+        $repository = $this->createMock(CachedCharacterOrderRepository::class);
+        $repository->expects(self::once())
+            ->method('findByCharactersAndTypes')
+            ->with([$this->main, $this->alt], [$coolant])
+            ->willReturn([$this->row(5, $this->main, $coolant, new OrderPosition(OrderPositionState::Undercut, 2, 900.0, null, 800.0), '2026-11-10 12:10:00')]);
+
+        $orders = $this->reader($repository)->forProducts($this->viewer, [$coolant => 'Coolant']);
+
+        self::assertSame([[5, 'Coolant', OrderPositionState::Undercut, 800.0], ['2026-11-10 12:15:00']], [
+            array_map(static fn (ProjectSellOrder $order): array => [$order->orderId, $order->typeName, $order->state, $order->suggestedPrice], $orders->orders)[0],
+            [$orders->syncedAt?->format('Y-m-d H:i:s')],
+        ]);
+    }
+
+    #[Group('issue-1401')]
+    public function testForProductsGivesTheCharactersToReconnectEvenWithoutOrder(): void
+    {
+        $this->alt->getEveToken()?->setScopes(['esi-assets.read_assets.v1']);
+
+        $orders = $this->reader($this->repositoryReturning([]))->forProducts($this->viewer, [9832 => 'Coolant']);
+
+        self::assertSame([[], ['Brann Holt'], null], [$orders->orders, $orders->charactersToReconnect, $orders->syncedAt]);
+    }
+
     private function reader(CachedCharacterOrderRepository $repository): ProjectSellOrdersReader
     {
         $names = $this->createStub(SellOrderMarketNames::class);
