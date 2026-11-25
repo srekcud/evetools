@@ -66,6 +66,33 @@ class ExtractorYieldCalculator
         return array_sum($yields) / ($durationSeconds / self::SECONDS_PER_DAY);
     }
 
+    public function yieldBetween(int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime, \DateTimeImmutable $from, \DateTimeImmutable $to): ?float
+    {
+        if ($installTime === null || $expiryTime === null || $cycleTime <= 0) {
+            return null;
+        }
+
+        $durationSeconds = $expiryTime->getTimestamp() - $installTime->getTimestamp();
+        if ($durationSeconds <= 0) {
+            return null;
+        }
+
+        $yields = $this->cycleYields($quantityPerCycle, $cycleTime, intdiv($durationSeconds, $cycleTime));
+        if ($yields === null) {
+            return null;
+        }
+
+        $total = 0.0;
+        foreach ($yields as $cycle => $cycleYield) {
+            $cycleEnd = $installTime->getTimestamp() + ($cycle + 1) * $cycleTime;
+            if ($cycleEnd > $from->getTimestamp() && $cycleEnd <= $to->getTimestamp()) {
+                $total += $cycleYield;
+            }
+        }
+
+        return $total;
+    }
+
     private function defaultValueOf(int $attributeId): ?float
     {
         return $this->attributeTypes->find($attributeId)?->getDefaultValue();

@@ -31,6 +31,7 @@ class PlanetaryInputNeedsCalculator
     private const SECONDS_PER_DAY = 86400;
     private const DAYS_PER_WEEK = 7;
     private const SPACEPORTS_GROUP_ID = 1030;
+    private const STALE_DATA_AFTER_SECONDS = 86400;
 
     public function __construct(
         private readonly PlanetSchematicRepository $schematicRepository,
@@ -44,15 +45,17 @@ class PlanetaryInputNeedsCalculator
 
     /**
      * @param PlanetaryColony[] $colonies
-     * @return array{colonies: list<array<string, mixed>>, launchpads: list<array<string, mixed>>, weekly: list<array<string, mixed>>, complete: bool}
+     * @return array{colonies: list<array<string, mixed>>, launchpads: list<array<string, mixed>>, extractions: list<array<string, mixed>>, weekly: list<array<string, mixed>>, complete: bool}
      */
     public function calculate(array $colonies): array
     {
         $schematicMap = $this->schematicTypeRepository->getSchematicMap();
         $sdeTypes = $this->loadSdeTypes($colonies, $schematicMap);
 
+        $now = $this->clock->now();
         $colonyRows = [];
         $launchpadRows = [];
+        $extractionRows = [];
         $consumption = [];
         $extraction = [];
         $unknownExtraction = [];
@@ -60,13 +63,17 @@ class PlanetaryInputNeedsCalculator
         $complete = true;
 
         foreach ($colonies as $colony) {
-            $flows = $this->analyseColony($colony, $schematicMap);
+            $flows = $this->analyseColony($colony, $schematicMap, $now);
 
             if ($flows['hasFactory']) {
-                $colonyRows[] = $this->colonyRow($colony, $flows, $sdeTypes);
+                $colonyRows[] = $this->colonyRow($colony, $flows, $sdeTypes, $now);
             }
-            foreach ($this->launchpadRows($colony, $flows, $sdeTypes) as $row) {
+            foreach ($this->launchpadRows($colony, $flows, $sdeTypes, $now) as $row) {
                 $launchpadRows[] = $row;
+            }
+            $extractionRow = $this->extractionRow($colony, $now);
+            if ($extractionRow !== null) {
+                $extractionRows[] = $extractionRow;
             }
 
             $complete = $complete && $flows['complete'];
@@ -79,6 +86,7 @@ class PlanetaryInputNeedsCalculator
         return [
             'colonies' => $colonyRows,
             'launchpads' => $launchpadRows,
+            'extractions' => $extractionRows,
             'weekly' => $this->weeklyRows($consumption, $extraction, $unknownExtraction, $factoryOutput),
             'complete' => $complete,
         ];
@@ -88,7 +96,7 @@ class PlanetaryInputNeedsCalculator
      * @param SchematicMap $schematicMap
      * @return ColonyFlows
      */
-    private function analyseColony(PlanetaryColony $colony, array $schematicMap): array
+    private function analyseColony(PlanetaryColony $colony, array $schematicMap, \DateTimeImmutable $now): array
     {
         $flows = [
             'factoryInputsByPin' => [],
@@ -99,7 +107,6 @@ class PlanetaryInputNeedsCalculator
             'hasFactory' => false,
             'complete' => true,
         ];
-        $now = $this->clock->now();
 
         foreach ($colony->getPins() as $pin) {
             if ($pin->isExtractor()) {
@@ -180,7 +187,7 @@ class PlanetaryInputNeedsCalculator
      * @param array<int, InvType> $sdeTypes
      * @return array<string, mixed>
      */
-    private function colonyRow(PlanetaryColony $colony, array $flows, array $sdeTypes): array
+    private function colonyRow(PlanetaryColony $colony, array $flows, array $sdeTypes, \DateTimeImmutable $now): array
     {
         $needs = [];
         $requiredTypeIds = array_keys($flows['required']);
@@ -215,7 +222,7 @@ class PlanetaryInputNeedsCalculator
             'characterName' => $colony->getCharacter()->getName(),
             'complete' => $flows['complete'],
             'needs' => $needs,
-        ];
+        ] + $this->dataAgeFields($colony, $now);
     }
 
     /**
@@ -223,7 +230,7 @@ class PlanetaryInputNeedsCalculator
      * @param array<int, InvType> $sdeTypes
      * @return list<array<string, mixed>>
      */
-    private function launchpadRows(PlanetaryColony $colony, array $flows, array $sdeTypes): array
+    private function launchpadRows(PlanetaryColony $colony, array $flows, array $sdeTypes, \DateTimeImmutable $now): array
     {
         $launchpads = [];
         foreach ($colony->getPins() as $pin) {
@@ -239,7 +246,7 @@ class PlanetaryInputNeedsCalculator
 
         $rows = [];
         foreach ($launchpads as $pinId => $pin) {
-            $rows[] = $this->launchpadRow($colony, $pin, $ratesByPin[$pinId], $sdeTypes);
+            $rows[] = $this->launchpadRow($colony, $pin, $ratesByPin[$pinId], $sdeTypes, $now);
         }
 
         return $rows;
@@ -282,7 +289,7 @@ class PlanetaryInputNeedsCalculator
      * @param array<int, InvType> $sdeTypes
      * @return array<string, mixed>
      */
-    private function launchpadRow(PlanetaryColony $colony, PlanetaryPin $pin, array $feedRates, array $sdeTypes): array
+    private function launchpadRow(PlanetaryColony $colony, PlanetaryPin $pin, array $feedRates, array $sdeTypes, \DateTimeImmutable $now): array
     {
         $stock = [];
         foreach ($pin->getContents() ?? [] as $content) {
@@ -291,15 +298,22 @@ class PlanetaryInputNeedsCalculator
             }
         }
 
+        $ageSeconds = $this->dataAgeSeconds($colony, $now);
         $feedTypeIds = array_keys($feedRates);
         sort($feedTypeIds);
         $feeds = [];
         foreach ($feedTypeIds as $typeId) {
+            $dailyRate = $feedRates[$typeId];
+            $currentStock = $this->sumOf($stock, $typeId);
             $feeds[] = [
                 'typeId' => $typeId,
                 'typeName' => $this->typeNameResolver->findName($typeId),
-                'dailyRate' => $feedRates[$typeId],
-                'stock' => $this->sumOf($stock, $typeId),
+                'dailyRate' => $dailyRate,
+                'stock' => $currentStock,
+                'projectedStock' => max(0.0, $currentStock - $dailyRate * $ageSeconds / self::SECONDS_PER_DAY),
+                'emptyAt' => $dailyRate > 0
+                    ? $colony->getLastUpdate()->modify(sprintf('+%d seconds', (int) round($currentStock / $dailyRate * self::SECONDS_PER_DAY)))->format('c')
+                    : null,
                 'volumePerUnit' => $this->volumeOf($sdeTypes, $typeId),
             ];
         }
@@ -315,6 +329,74 @@ class PlanetaryInputNeedsCalculator
             'usedVolumeM3' => $this->volumeOfQuantities($sdeTypes, $stock),
             'dailyVolumeM3' => $this->volumeOfQuantities($sdeTypes, $feedRates),
             'feeds' => $feeds,
+        ] + $this->dataAgeFields($colony, $now);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function extractionRow(PlanetaryColony $colony, \DateTimeImmutable $now): ?array
+    {
+        $extractors = [];
+        foreach ($colony->getPins() as $pin) {
+            if ($pin->isExtractor()) {
+                $extractors[$pin->getPinId()] = $this->extractorRow($colony, $pin, $now);
+            }
+        }
+        if ($extractors === []) {
+            return null;
+        }
+        ksort($extractors);
+
+        return [
+            'colonyId' => $colony->getId()?->toRfc4122(),
+            'planetId' => $colony->getPlanetId(),
+            'planetName' => $colony->getPlanetName(),
+            'extractors' => array_values($extractors),
+        ] + $this->dataAgeFields($colony, $now);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function extractorRow(PlanetaryColony $colony, PlanetaryPin $pin, \DateTimeImmutable $now): array
+    {
+        $productTypeId = $pin->getExtractorProductTypeId();
+        $expiry = $pin->getExpiryTime();
+        $cycleTime = $pin->getExtractorCycleTime();
+        $quantityPerCycle = $pin->getExtractorQtyPerCycle();
+        $extracted = null;
+        if ($cycleTime !== null && $quantityPerCycle !== null) {
+            $windowEnd = $expiry !== null && $expiry < $now ? $expiry : $now;
+            $extracted = $this->extractorYield->yieldBetween($quantityPerCycle, $cycleTime, $pin->getInstallTime(), $expiry, $colony->getLastUpdate(), $windowEnd);
+        }
+
+        return [
+            'pinId' => $pin->getPinId(),
+            'typeId' => $productTypeId,
+            'typeName' => $productTypeId === null ? null : $this->typeNameResolver->findName($productTypeId),
+            'expired' => $expiry !== null && $expiry < $now,
+            'programEndsAt' => $expiry?->format('c'),
+            'extractedSinceLastView' => $extracted,
+        ];
+    }
+
+    private function dataAgeSeconds(PlanetaryColony $colony, \DateTimeImmutable $now): int
+    {
+        return max(0, $now->getTimestamp() - $colony->getLastUpdate()->getTimestamp());
+    }
+
+    /**
+     * @return array{lastViewAt: string, dataAgeSeconds: int, dataStale: bool}
+     */
+    private function dataAgeFields(PlanetaryColony $colony, \DateTimeImmutable $now): array
+    {
+        $ageSeconds = $this->dataAgeSeconds($colony, $now);
+
+        return [
+            'lastViewAt' => $colony->getLastUpdate()->format('c'),
+            'dataAgeSeconds' => $ageSeconds,
+            'dataStale' => $ageSeconds > self::STALE_DATA_AFTER_SECONDS,
         ];
     }
 

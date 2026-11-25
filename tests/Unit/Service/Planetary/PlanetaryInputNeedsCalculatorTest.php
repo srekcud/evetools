@@ -83,6 +83,8 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
 
     private int $nextRouteId = 1;
 
+    private string $lastUpdate = self::NOW;
+
     protected function setUp(): void
     {
         $this->schematicRepository = $this->createStub(PlanetSchematicRepository::class);
@@ -504,6 +506,152 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
         $this->assertNullField($bacteria, 'weeklyNetNeed');
     }
 
+    public function testDataAgeIsMeasuredFromTheLastInGameView(): void
+    {
+        $this->lastUpdate = '2026-11-25 06:00:00';
+        $this->defineSchematic(65, [self::BACTERIA => 40], self::OXYGEN, 1, 3600);
+        $colony = $this->colony(self::PLANET_ALPHA, $this->factoryPin(self::FACTORY, 65), $this->launchpadPin(self::LAUNCHPAD_A, null));
+
+        $result = $this->calculator->calculate([$colony]);
+
+        $alpha = $this->colonyOf($result, self::PLANET_ALPHA);
+        self::assertSame('2026-11-25T06:00:00+00:00', $alpha['lastViewAt']);
+        self::assertSame(21600, $alpha['dataAgeSeconds']);
+        self::assertFalse($alpha['dataStale']);
+        $launchpad = $this->launchpadOf($result, self::LAUNCHPAD_A);
+        self::assertSame(21600, $launchpad['dataAgeSeconds']);
+        self::assertSame('2026-11-25T06:00:00+00:00', $launchpad['lastViewAt']);
+    }
+
+    public function testDataIsStaleOnlyBeyondTwentyFourHours(): void
+    {
+        $this->defineSchematic(65, [self::BACTERIA => 40], self::OXYGEN, 1, 3600);
+        $this->lastUpdate = '2026-11-24 12:00:00';
+        $exactlyOneDay = $this->colony(self::PLANET_ALPHA, $this->factoryPin(self::FACTORY, 65));
+        $this->lastUpdate = '2026-11-24 11:00:00';
+        $beyondOneDay = $this->colony(self::PLANET_BETA, $this->factoryPin(self::FACTORY_UPSTREAM, 65));
+
+        $result = $this->calculator->calculate([$exactlyOneDay, $beyondOneDay]);
+
+        self::assertFalse($this->colonyOf($result, self::PLANET_ALPHA)['dataStale']);
+        self::assertTrue($this->colonyOf($result, self::PLANET_BETA)['dataStale']);
+        self::assertSame(90000, $this->colonyOf($result, self::PLANET_BETA)['dataAgeSeconds']);
+    }
+
+    public function testViewInTheFutureGivesAnAgeOfZero(): void
+    {
+        $this->lastUpdate = '2026-11-25 12:05:00';
+        $this->defineSchematic(65, [self::BACTERIA => 40], self::OXYGEN, 1, 3600);
+        $colony = $this->colony(self::PLANET_ALPHA, $this->factoryPin(self::FACTORY, 65));
+
+        $result = $this->calculator->calculate([$colony]);
+
+        self::assertSame(0, $this->colonyOf($result, self::PLANET_ALPHA)['dataAgeSeconds']);
+    }
+
+    public function testLaunchpadStockIsProjectedByTheDailyRateSinceTheLastView(): void
+    {
+        $this->lastUpdate = '2026-11-25 06:00:00';
+        $this->defineSchematic(65, [self::BACTERIA => 40], self::OXYGEN, 1, 3600);
+        $colony = $this->colony(
+            self::PLANET_ALPHA,
+            $this->launchpadPin(self::LAUNCHPAD_A, [['type_id' => self::BACTERIA, 'amount' => 5000]]),
+            $this->factoryPin(self::FACTORY, 65),
+        );
+        $this->route($colony, self::LAUNCHPAD_A, self::FACTORY, self::BACTERIA, 1800.0);
+
+        $result = $this->calculator->calculate([$colony]);
+
+        $feed = $this->feedOf($this->launchpadOf($result, self::LAUNCHPAD_A), self::BACTERIA);
+        $this->assertQuantity(5000, $feed, 'stock');
+        $this->assertQuantity(4760, $feed, 'projectedStock');
+        self::assertSame('2026-11-30T11:00:00+00:00', $feed['emptyAt']);
+    }
+
+    public function testProjectedStockNeverGoesBelowZero(): void
+    {
+        $this->lastUpdate = '2026-11-25 06:00:00';
+        $this->defineSchematic(65, [self::BACTERIA => 40], self::OXYGEN, 1, 3600);
+        $colony = $this->colony(
+            self::PLANET_ALPHA,
+            $this->launchpadPin(self::LAUNCHPAD_A, [['type_id' => self::BACTERIA, 'amount' => 100]]),
+            $this->factoryPin(self::FACTORY, 65),
+        );
+        $this->route($colony, self::LAUNCHPAD_A, self::FACTORY, self::BACTERIA, 1800.0);
+
+        $result = $this->calculator->calculate([$colony]);
+
+        $feed = $this->feedOf($this->launchpadOf($result, self::LAUNCHPAD_A), self::BACTERIA);
+        $this->assertQuantity(0, $feed, 'projectedStock');
+        self::assertSame('2026-11-25T08:30:00+00:00', $feed['emptyAt']);
+    }
+
+    public function testExtractionSinceTheLastViewSumsTheCompletedCyclesOfTheProgram(): void
+    {
+        $this->lastUpdate = '2026-11-25 06:00:00';
+        $colony = $this->colony(
+            self::PLANET_ALPHA,
+            $this->extractorPin(self::EXTRACTOR, self::BACTERIA, 1800, 4400, '2026-11-26 12:00:00', '2026-11-24 12:00:00'),
+        );
+
+        $result = $this->extractionCalculator()->calculate([$colony]);
+
+        self::assertSame([], $result['colonies']);
+        self::assertCount(1, $result['extractions']);
+        $row = $result['extractions'][0];
+        self::assertSame(self::PLANET_ALPHA, $row['planetId']);
+        self::assertSame(21600, $row['dataAgeSeconds']);
+        self::assertCount(1, $row['extractors']);
+        $extractor = $row['extractors'][0];
+        self::assertSame(self::EXTRACTOR, $extractor['pinId']);
+        self::assertSame(self::BACTERIA, $extractor['typeId']);
+        self::assertSame('Bacteria', $extractor['typeName']);
+        self::assertFalse($extractor['expired']);
+        self::assertSame('2026-11-26T12:00:00+00:00', $extractor['programEndsAt']);
+        $this->assertQuantity(57035.5843, $extractor, 'extractedSinceLastView');
+    }
+
+    public function testExpiredExtractorIsListedWithItsProgramCappedAtTheExpiry(): void
+    {
+        $this->lastUpdate = '2026-11-24 06:00:00';
+        $colony = $this->colony(
+            self::PLANET_ALPHA,
+            $this->extractorPin(self::EXTRACTOR, self::BACTERIA, 1800, 4400, self::YESTERDAY),
+        );
+
+        $result = $this->extractionCalculator()->calculate([$colony]);
+
+        $extractor = $result['extractions'][0]['extractors'][0];
+        self::assertTrue($extractor['expired']);
+        $this->assertQuantity(57035.5843, $extractor, 'extractedSinceLastView');
+    }
+
+    public function testExtractionSinceTheLastViewIsUnknownWithoutInstallTime(): void
+    {
+        $colony = $this->colony(
+            self::PLANET_ALPHA,
+            $this->extractorPin(self::EXTRACTOR, self::BACTERIA, 1800, 4400, null),
+        );
+
+        $result = $this->extractionCalculator()->calculate([$colony]);
+
+        $extractor = $result['extractions'][0]['extractors'][0];
+        $this->assertNullField($extractor, 'extractedSinceLastView');
+        $this->assertNullField($extractor, 'programEndsAt');
+    }
+
+    private function extractionCalculator(): PlanetaryInputNeedsCalculator
+    {
+        return new PlanetaryInputNeedsCalculator(
+            $this->schematicRepository,
+            $this->schematicTypeRepository,
+            $this->invTypeRepository,
+            $this->typeNameResolver,
+            new MockClock(self::NOW),
+            new ExtractorYieldCalculator($this->defaultFactorsRepository()),
+        );
+    }
+
     private function constantRateExtractorYield(): ExtractorYieldCalculator
     {
         $yield = $this->createStub(ExtractorYieldCalculator::class);
@@ -583,7 +731,8 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
             ->setPlanetId($planetId)
             ->setPlanetName('Aldranette II')
             ->setPlanetType('temperate')
-            ->setSolarSystemName('Aldranette');
+            ->setSolarSystemName('Aldranette')
+            ->setLastUpdate(new \DateTimeImmutable($this->lastUpdate));
         (new \ReflectionProperty(PlanetaryColony::class, 'id'))->setValue($colony, Uuid::v4());
         foreach ($pins as $pin) {
             $colony->addPin($pin);
@@ -600,7 +749,7 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
             ->setSchematicId($schematicId);
     }
 
-    private function extractorPin(int $pinId, int $productTypeId, ?int $cycleTime, ?int $quantityPerCycle, ?string $expiryTime): PlanetaryPin
+    private function extractorPin(int $pinId, int $productTypeId, ?int $cycleTime, ?int $quantityPerCycle, ?string $expiryTime, ?string $installTime = null): PlanetaryPin
     {
         return (new PlanetaryPin())
             ->setPinId($pinId)
@@ -608,7 +757,7 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
             ->setExtractorProductTypeId($productTypeId)
             ->setExtractorCycleTime($cycleTime)
             ->setExtractorQtyPerCycle($quantityPerCycle)
-            ->setInstallTime($expiryTime === null ? null : (new \DateTimeImmutable($expiryTime))->modify('-24 hours'))
+            ->setInstallTime($installTime !== null ? new \DateTimeImmutable($installTime) : ($expiryTime === null ? null : (new \DateTimeImmutable($expiryTime))->modify('-24 hours')))
             ->setExpiryTime($expiryTime === null ? null : new \DateTimeImmutable($expiryTime));
     }
 
