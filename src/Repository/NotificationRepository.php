@@ -22,6 +22,14 @@ class NotificationRepository extends ServiceEntityRepository
     /**
      * @return Notification[]
      */
+    public function findByUserAndCategorySince(User $user, string $category, \DateTimeImmutable $since): array
+    {
+        return [];
+    }
+
+    /**
+     * @return Notification[]
+     */
     public function findPaginated(User $user, int $page, ?string $category = null, ?bool $isRead = null, int $perPage = 20): array
     {
         $qb = $this->createQueryBuilder('n')

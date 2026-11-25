@@ -6,6 +6,7 @@ namespace App\MessageHandler;
 
 use App\Message\SyncCharacterPlanetaryColonies;
 use App\Repository\CharacterRepository;
+use App\Service\Planetary\PlanetaryAlertEvaluator;
 use App\Service\Sync\PlanetarySyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -17,6 +18,7 @@ final readonly class SyncCharacterPlanetaryColoniesHandler
     public function __construct(
         private CharacterRepository $characterRepository,
         private PlanetarySyncService $planetarySyncService,
+        private PlanetaryAlertEvaluator $alertEvaluator,
         private LoggerInterface $logger,
     ) {
     }
@@ -32,5 +34,6 @@ final readonly class SyncCharacterPlanetaryColoniesHandler
         }
 
         $this->planetarySyncService->syncCharacterColonies($character);
+        $this->alertEvaluator->evaluate($character);
     }
 }
