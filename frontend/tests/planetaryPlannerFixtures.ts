@@ -1,4 +1,4 @@
-import type { PlannerCatalog, PlannerPrice } from '@/utils/planetaryPlanner'
+import type { PlannerCatalog, PlannerPrice, PlannerRecipe } from '@/utils/planetaryPlanner'
 
 export const AQUEOUS_LIQUIDS = 91_001
 export const BASE_METALS = 91_002
@@ -58,4 +58,8 @@ export function withSellPrices(catalog: PlannerCatalog, sellByTypeId: Record<num
 
 export function withTypeName(catalog: PlannerCatalog, typeId: number, name: string): PlannerCatalog {
   return { ...catalog, types: catalog.types.map(type => (type.typeId === typeId ? { ...type, name } : type)) }
+}
+
+export function withRecipe(catalog: PlannerCatalog, outputTypeId: number, changes: Partial<Omit<PlannerRecipe, 'outputTypeId'>>): PlannerCatalog {
+  return { ...catalog, recipes: catalog.recipes.map(recipe => (recipe.outputTypeId === outputTypeId ? { ...recipe, ...changes } : recipe)) }
 }
