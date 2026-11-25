@@ -20,6 +20,7 @@ use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
+use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Planetary\PlanetaryResourceMapper;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -69,6 +70,8 @@ final class PlanetaryResourceMapperTest extends TestCase
     private ?int $planetaryThresholdMinutes = null;
 
     private ?PlanetaryFactoryColonyTracker $factoryColonyTracker = null;
+
+    private ?float $factoryAutonomyDays = null;
 
     public function testRoutesToKnownTypesKeepTheirSdeContentTypeName(): void
     {
@@ -326,6 +329,68 @@ final class PlanetaryResourceMapperTest extends TestCase
         $this->assertNull($this->mapper()->toResource($this->colony())->factoryProgress);
     }
 
+    #[Group('issue-1379')]
+    public function testColonyWithFactoriesAndNoExtractorHasTheFactoryStatus(): void
+    {
+        $colony = $this->colony();
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $this->assertSame('factory', $this->mapper()->toResource($colony)->status);
+    }
+
+    #[Group('issue-1379')]
+    public function testFactoryColonyExposesItsAutonomyAndTheDateTheStockRunsOut(): void
+    {
+        $this->factoryAutonomyDays = 1.5;
+        $colony = $this->colony()->setCachedAt(new \DateTimeImmutable('2026-10-18T09:05:00+00:00'));
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $resource = $this->mapper()->toResource($colony);
+
+        $this->assertSame(1.5, $resource->factoryAutonomyDays);
+        $this->assertSame('2026-10-19T21:05:00+00:00', $resource->factoryRefillBy);
+    }
+
+    #[Group('issue-1379')]
+    public function testFactoryColonyWithoutBoundedAutonomyHasNoRefillDate(): void
+    {
+        $this->factoryAutonomyDays = null;
+        $colony = $this->colony();
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $resource = $this->mapper()->toResource($colony);
+
+        $this->assertSame('factory', $resource->status);
+        $this->assertNull($resource->factoryAutonomyDays);
+        $this->assertNull($resource->factoryRefillBy);
+    }
+
+    #[Group('issue-1379')]
+    public function testExtractionColonyKeepsItsStatusAndExposesNoAutonomy(): void
+    {
+        $this->factoryAutonomyDays = 2.0;
+        $colony = $this->colony();
+        $colony->addPin($this->extractorPin(self::BACTERIA)->setExpiryTime(new \DateTimeImmutable('+2 days')));
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $resource = $this->mapper()->toResource($colony);
+
+        $this->assertSame('active', $resource->status);
+        $this->assertNull($resource->factoryAutonomyDays);
+        $this->assertNull($resource->factoryRefillBy);
+    }
+
+    #[Group('issue-1379')]
+    public function testColonyWithoutAnyPinStaysIdle(): void
+    {
+        $this->factoryAutonomyDays = 2.0;
+
+        $resource = $this->mapper()->toResource($this->colony());
+
+        $this->assertSame('idle', $resource->status);
+        $this->assertNull($resource->factoryAutonomyDays);
+    }
+
     private function statusAndExpiringFlagOfAnExtractorExpiring(string $expiresIn): array
     {
         $colony = $this->colony();
@@ -392,6 +457,9 @@ final class PlanetaryResourceMapperTest extends TestCase
                 : (new UserNotificationPreference())->setCategory(Notification::CATEGORY_PLANETARY)->setThresholdMinutes($this->planetaryThresholdMinutes),
         );
 
+        $productionCalculator = $this->createStub(PlanetaryProductionCalculator::class);
+        $productionCalculator->method('calculateAutonomyDays')->willReturn($this->factoryAutonomyDays);
+
         return new PlanetaryResourceMapper(
             $invTypeRepository,
             new TypeNameResolver($invTypeRepository),
@@ -399,6 +467,7 @@ final class PlanetaryResourceMapperTest extends TestCase
             $solarSystemRepository,
             new PlanetaryExpiryThresholdResolver($preferenceRepository),
             $this->factoryColonyTracker ?? $this->createStub(PlanetaryFactoryColonyTracker::class),
+            $productionCalculator,
         );
     }
 
