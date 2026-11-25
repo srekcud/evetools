@@ -390,6 +390,8 @@
         "perDay": "par jour",
         "profitPerDay": "Bénéfice par jour",
         "select": "Afficher l'arbre de {name}",
+        "planetsAdded": "Planètes ajoutées",
+        "allocation": "{onFree} sur emplacements libres, {onNew} sur de nouvelles planètes, {remaining} emplacements restants",
         "remove": "Retirer {name}"
       },
       "tree": {
@@ -419,7 +421,7 @@
         "taxHint": "Appliquée au prix de chaque unité fabriquée",
         "taxInvalid": "Saisissez un pourcentage de 0 à 100",
         "daysBetweenRounds": "Jours entre deux passages",
-        "daysHint": "Conservé pour la comparaison aux emplacements, sans effet sur cette page pour l'instant",
+        "daysHint": "Jours pendant lesquels le stock doit tenir entre deux passages, pour dimensionner les planètes usines",
         "daysInvalid": "Saisissez au moins une demi-journée"
       },
       "summary": {
@@ -436,8 +438,64 @@
         "extraction": "Extraction brute par heure",
         "noExtraction": "Aucune extraction : tous les P1 sont achetés"
       },
+      "planets": {
+        "title": "Planètes nécessaires",
+        "subtitle": "Planètes dont le plan a besoin par rôle. Les installations et les types de planète viennent de la SDE ; chaque disposition retient le nombre de launchpads qui loge le plus d'usines.",
+        "columns": {
+          "role": "Rôle",
+          "types": "Types de planète",
+          "need": "Besoin",
+          "layout": "Disposition",
+          "planets": "Planètes"
+        },
+        "roles": {
+          "factory": "Usines"
+        },
+        "need": {
+          "factories": "{count} usine | {count} usines",
+          "perHour": "{count} par heure"
+        },
+        "typesUnknown": "inconnus",
+        "layout": {
+          "launchpads": "{count} launchpad | {count} launchpads",
+          "installations": "{count} installation | {count} installations",
+          "volume": "{volume} m³ stockés sur {capacity} m³ en {days} jours",
+          "doesNotFit": "Ne tient pas {days} jours : passer plus souvent",
+          "unknown": "Disposition inconnue : un volume ou les types de planète manquent dans la SDE"
+        },
+        "yield": {
+          "label": "Rendement par planète et par heure",
+          "unit": "par planète et par heure",
+          "account": "Moyenne de vos colonies",
+          "override": "Saisi par vous",
+          "unknown": "Aucune colonie n'extrait cette ressource : saisissez un rendement",
+          "invalid": "Saisissez un nombre supérieur à zéro"
+        },
+        "p1Factories": "{count} usine P1 tourne sur ces planètes | {count} usines P1 tournent sur ces planètes",
+        "total": {
+          "title": "Total du plan",
+          "planets": "{count} planète | {count} planètes",
+          "characters": "{count} personnage nécessaire ({perCharacter} planètes chacun) | {count} personnages nécessaires ({perCharacter} planètes chacun)",
+          "incomplete": "Incomplet : les lignes au rendement ou à la disposition inconnus sont écartées du total",
+          "account": "Compte",
+          "used": "Colonies utilisées",
+          "max": "Maximum de vos personnages",
+          "maxUnknown": "inconnu"
+        },
+        "shortfall": {
+          "title": "Emplacements de planète insuffisants",
+          "text": "Le plan demande {total} planètes et vos personnages en permettent {max} : il en manque {missing}."
+        },
+        "slots": {
+          "title": "Emplacements de planète",
+          "occupied": "{count} planète | {count} planètes",
+          "free": "Libres",
+          "freeUnknown": "Emplacements libres inconnus : le maximum d'un personnage n'est pas connu"
+        }
+      },
       "errors": {
         "emptyCatalog": "La SDE ne contient aucun schéma planétaire. Importez-la avant d'utiliser le planificateur.",
+        "account": "Impossible de charger vos colonies et vos emplacements de planète. Rendements et maximum sont affichés comme inconnus.",
         "load": "Impossible de charger les données du planificateur."
       }
     },

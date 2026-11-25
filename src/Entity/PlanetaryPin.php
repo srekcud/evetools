@@ -17,6 +17,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['expiry_time'])]
 class PlanetaryPin
 {
+    private const int SECONDS_PER_HOUR = 3600;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -272,7 +274,11 @@ class PlanetaryPin
 
     public function getExtractorYieldPerHour(): ?float
     {
-        return null;
+        if ($this->extractorProductTypeId === null || $this->extractorQtyPerCycle === null || $this->extractorCycleTime === null || $this->extractorCycleTime <= 0) {
+            return null;
+        }
+
+        return $this->extractorQtyPerCycle * self::SECONDS_PER_HOUR / $this->extractorCycleTime;
     }
 
     public function isExtractor(): bool

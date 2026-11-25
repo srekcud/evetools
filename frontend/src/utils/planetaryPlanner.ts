@@ -233,7 +233,7 @@ function walk(typeId: number, perDay: number, isTarget: boolean, active: boolean
   }
 }
 
-function activeNodes(tree: TreeNode): TreeNode[] {
+export function activeNodes(tree: TreeNode): TreeNode[] {
   if (!tree.active) return []
   return [tree, ...tree.children.flatMap(activeNodes)]
 }
@@ -269,9 +269,13 @@ function sum(amounts: number[]): number {
   return amounts.reduce((total, amount) => total + amount, 0)
 }
 
-function factoriesOfTier(nodes: TreeNode[], tier: PlanetaryTier): number {
+export function factoriesOfTier(nodes: TreeNode[], tier: PlanetaryTier): number {
   const fractional = sum(nodes.filter(node => node.tier === tier).flatMap(node => (node.factories === null ? [] : [node.factories])))
   return Math.max(0, Math.ceil(fractional - FACTORY_TOLERANCE))
+}
+
+export function extractionPerHourOf(nodes: TreeNode[]): ExtractionRate[] {
+  return [...sumByType(nodes.filter(node => node.tier === 'P0'), node => node.perDay)].map(([typeId, perDay]) => ({ typeId, perHour: perDay / HOURS_PER_DAY }))
 }
 
 function profitOf(production: PlannedProduction | undefined, tree: TreeNode): number | null {
@@ -297,7 +301,7 @@ function summarize(productions: PlannedProduction[], trees: TreeNode[], context:
     weeklyPurchasesIsk: sum(weeklyPurchases.flatMap(purchase => (purchase.isk === null ? [] : [purchase.isk]))),
     purchasesIncomplete: weeklyPurchases.some(purchase => purchase.isk === null),
     factoriesByTier: Object.fromEntries(FACTORY_TIERS.map(tier => [tier, factoriesOfTier(nodes, tier)])) as Record<(typeof FACTORY_TIERS)[number], number>,
-    extractionPerHour: [...sumByType(nodes.filter(node => node.tier === 'P0'), node => node.perDay)].map(([typeId, perDay]) => ({ typeId, perHour: perDay / HOURS_PER_DAY })),
+    extractionPerHour: extractionPerHourOf(nodes),
   }
 }
 

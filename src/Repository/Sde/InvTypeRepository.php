@@ -37,7 +37,18 @@ class InvTypeRepository extends ServiceEntityRepository
      */
     public function findByGroupIds(array $groupIds): array
     {
-        return [];
+        if ($groupIds === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('t')
+            ->join('t.group', 'g')
+            ->addSelect('g')
+            ->where('g.groupId IN (:groupIds)')
+            ->setParameter('groupIds', $groupIds)
+            ->orderBy('t.typeId', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**

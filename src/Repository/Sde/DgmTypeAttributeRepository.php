@@ -34,6 +34,23 @@ class DgmTypeAttributeRepository extends ServiceEntityRepository
      */
     public function findValuesByTypeIds(array $typeIds, array $attributeIds): array
     {
-        return [];
+        if ($typeIds === [] || $attributeIds === []) {
+            return [];
+        }
+
+        $attributes = $this->createQueryBuilder('a')
+            ->where('a.typeId IN (:typeIds)')
+            ->andWhere('a.attributeId IN (:attributeIds)')
+            ->setParameter('typeIds', $typeIds)
+            ->setParameter('attributeIds', $attributeIds)
+            ->getQuery()
+            ->getResult();
+
+        $values = [];
+        foreach ($attributes as $attribute) {
+            $values[$attribute->getTypeId()][$attribute->getAttributeId()] = $attribute->getValue();
+        }
+
+        return $values;
     }
 }

@@ -47,13 +47,23 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   )
 
   async function fetchAccount(): Promise<void> {
-    return
+    try {
+      const response = await apiRequest<PlannerAccount>('/planetary/planner/account')
+      account.value = {
+        usedPlanets: response.usedPlanets,
+        characters: response.characters,
+        extractionYields: response.extractionYields,
+      }
+    } catch {
+      account.value = null
+      if (error.value === null) error.value = i18n.global.t('pi.planner.errors.account')
+    }
   }
 
   function setExtractionYield(typeId: number, value: number): boolean {
-    void typeId
-    void value
-    void isValidExtractionYield
+    if (!isValidExtractionYield(value)) return false
+
+    extractionYieldOverrides.value = { ...extractionYieldOverrides.value, [typeId]: value }
     return true
   }
 

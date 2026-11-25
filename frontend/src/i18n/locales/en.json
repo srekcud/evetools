@@ -390,6 +390,8 @@
         "perDay": "per day",
         "profitPerDay": "Profit per day",
         "select": "Show the tree of {name}",
+        "planetsAdded": "Planets added",
+        "allocation": "{onFree} on free slots, {onNew} on new planets, {remaining} slots left",
         "remove": "Remove {name}"
       },
       "tree": {
@@ -419,7 +421,7 @@
         "taxHint": "Applied to the price of every unit made",
         "taxInvalid": "Enter a percentage from 0 to 100",
         "daysBetweenRounds": "Days between rounds",
-        "daysHint": "Kept for the layout comparison, no effect on this page yet",
+        "daysHint": "Days the stock must last between two rounds, used to size the factory planets",
         "daysInvalid": "Enter at least half a day"
       },
       "summary": {
@@ -436,8 +438,64 @@
         "extraction": "Raw extraction per hour",
         "noExtraction": "No raw extraction: every P1 is bought"
       },
+      "planets": {
+        "title": "Planets needed",
+        "subtitle": "Planets the plan needs per role. Installations and planet types come from the SDE; each layout keeps the number of launchpads that fits the most factories.",
+        "columns": {
+          "role": "Role",
+          "types": "Planet types",
+          "need": "Need",
+          "layout": "Layout",
+          "planets": "Planets"
+        },
+        "roles": {
+          "factory": "Factories"
+        },
+        "need": {
+          "factories": "{count} factory | {count} factories",
+          "perHour": "{count} per hour"
+        },
+        "typesUnknown": "unknown",
+        "layout": {
+          "launchpads": "{count} launchpad | {count} launchpads",
+          "installations": "{count} installation | {count} installations",
+          "volume": "{volume} m³ held on {capacity} m³ in {days} days",
+          "doesNotFit": "Does not fit {days} days: pass more often",
+          "unknown": "Layout unknown: a volume or the planet types are missing from the SDE"
+        },
+        "yield": {
+          "label": "Yield per planet per hour",
+          "unit": "per planet per hour",
+          "account": "Mean of your colonies",
+          "override": "Typed by you",
+          "unknown": "No colony extracts this yet: type a yield",
+          "invalid": "Enter a number greater than zero"
+        },
+        "p1Factories": "{count} P1 factory runs on these planets | {count} P1 factories run on these planets",
+        "total": {
+          "title": "Total of the plan",
+          "planets": "{count} planet | {count} planets",
+          "characters": "{count} character needed ({perCharacter} planets each) | {count} characters needed ({perCharacter} planets each)",
+          "incomplete": "Incomplete: rows with an unknown yield or layout are left out of the total",
+          "account": "Account",
+          "used": "Colonies in use",
+          "max": "Maximum of your characters",
+          "maxUnknown": "unknown"
+        },
+        "shortfall": {
+          "title": "Not enough planet slots",
+          "text": "The plan needs {total} planets and your characters allow {max}: {missing} missing."
+        },
+        "slots": {
+          "title": "Planet slots",
+          "occupied": "{count} planet | {count} planets",
+          "free": "Free",
+          "freeUnknown": "Free slots unknown: the maximum of a character is not known"
+        }
+      },
       "errors": {
         "emptyCatalog": "The SDE holds no planetary schematic. Import it before using the planner.",
+        "account": "Could not load your colonies and planet slots. Yields and maximum are shown as unknown.",
         "load": "Could not load the planner data."
       }
     },
