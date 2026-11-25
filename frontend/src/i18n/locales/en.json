@@ -449,6 +449,7 @@
       "unknown": "Unknown",
       "noExtractors": "No extractors",
       "factoryProgress": "{product}: {stocked} in stock, {max} left to make",
+      "factoryAutonomy": "Autonomy {days} d, refill by {date}",
       "stale": "STALE",
       "noDetail": "No details available for this colony. Sync to load installation data.",
       "extractors": "Extractors",

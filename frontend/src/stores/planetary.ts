@@ -98,6 +98,7 @@ export interface Route {
   destinationPinId: number
   contentTypeId: number
   contentTypeName: string | null
+  contentVolume: number | null
   quantity: number
   waypoints: number[]
 }
@@ -131,7 +132,9 @@ export interface Colony {
   activeExtractors: number
   nearestExpiry: string | null
   factoryProgress: FactoryProgress | null
-  status: 'active' | 'expiring' | 'expired' | 'idle'
+  factoryAutonomyDays?: number | null
+  factoryRefillBy?: string | null
+  status: 'active' | 'expiring' | 'expired' | 'idle' | 'factory'
   pins: Pin[]
   routes: Route[]
 }

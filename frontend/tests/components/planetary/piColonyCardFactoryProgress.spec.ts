@@ -8,6 +8,7 @@ import { present } from '../../present'
 
 const FACTORY_PROGRESS = '[data-testid="pi-factory-progress"]'
 const FACTORY_TIMER = '[data-testid="pi-factory-timer"]'
+const FACTORY_AUTONOMY = '[data-testid="pi-factory-autonomy"]'
 const COOLANT_TYPE_ID = 9_832
 const NOW = new Date('2026-11-12T10:00:00+00:00')
 
@@ -91,5 +92,25 @@ describe('PiColonyCard factory colony', () => {
     })
 
     expect(wrapper.find(FACTORY_TIMER).text()).toBe('EXPIRED')
+  })
+
+  it('shows the autonomy in days and the refill date of a factory colony', () => {
+    const wrapper = mountCard({ ...FACTORY_COLONY, factoryAutonomyDays: 1.5, factoryRefillBy: '2026-11-13T22:00:00+00:00' })
+
+    expect(wrapper.find(FACTORY_AUTONOMY).text()).toContain('Autonomy 1.5 d')
+    expect(wrapper.find(FACTORY_AUTONOMY).text()).toContain('refill by')
+  })
+
+  it('shows an empty stock as zero days of autonomy', () => {
+    const wrapper = mountCard({ ...FACTORY_COLONY, factoryAutonomyDays: 0, factoryRefillBy: '2026-11-12T09:05:00+00:00' })
+
+    expect(wrapper.find(FACTORY_AUTONOMY).text()).toContain('Autonomy 0 d')
+  })
+
+  it('shows no autonomy when the colony has none', () => {
+    const wrapper = mountCard({ ...FACTORY_COLONY, factoryAutonomyDays: null, factoryRefillBy: null })
+
+    expect(wrapper.find(FACTORY_AUTONOMY).exists()).toBe(false)
+    expect(wrapper.find(FACTORY_PROGRESS).exists()).toBe(true)
   })
 })

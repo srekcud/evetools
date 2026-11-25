@@ -127,7 +127,7 @@ defineEmits<{
               </div>
             </template>
             <template v-if="getExtractorPins(colony).length === 0">
-              <PiFactoryProgress v-if="colony.factoryProgress" :progress="colony.factoryProgress" :threshold-minutes="thresholdMinutes" />
+              <PiFactoryProgress v-if="colony.factoryProgress" :progress="colony.factoryProgress" :threshold-minutes="thresholdMinutes" :autonomy-days="colony.factoryAutonomyDays ?? null" :refill-by="colony.factoryRefillBy ?? null" />
               <span v-else class="text-slate-500 text-xs italic">
                 {{ t('pi.colony.noExtractors') }}
               </span>
@@ -146,7 +146,7 @@ defineEmits<{
             </span>
           </template>
           <!-- No extractors at all -->
-          <PiFactoryProgress v-else-if="colony.factoryProgress" :progress="colony.factoryProgress" :threshold-minutes="thresholdMinutes" />
+          <PiFactoryProgress v-else-if="colony.factoryProgress" :progress="colony.factoryProgress" :threshold-minutes="thresholdMinutes" :autonomy-days="colony.factoryAutonomyDays ?? null" :refill-by="colony.factoryRefillBy ?? null" />
           <span v-else class="text-slate-500 text-xs italic">
             {{ t('pi.colony.noExtractors') }}
           </span>

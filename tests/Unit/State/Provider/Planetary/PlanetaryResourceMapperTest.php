@@ -20,6 +20,7 @@ use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
+use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Planetary\PlanetaryResourceMapper;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -70,6 +71,8 @@ final class PlanetaryResourceMapperTest extends TestCase
 
     private ?PlanetaryFactoryColonyTracker $factoryColonyTracker = null;
 
+    private ?float $factoryAutonomyDays = null;
+
     public function testRoutesToKnownTypesKeepTheirSdeContentTypeName(): void
     {
         $colony = $this->colony();
@@ -84,10 +87,22 @@ final class PlanetaryResourceMapperTest extends TestCase
                 'destinationPinId' => 12,
                 'contentTypeId' => self::BACTERIA,
                 'contentTypeName' => 'Bacteria',
+                'contentVolume' => 0.38,
                 'quantity' => 1200.0,
                 'waypoints' => [],
             ],
         ], $routes);
+    }
+
+    public function testEachRouteCarriesTheSdeVolumeOfItsOwnContentType(): void
+    {
+        $colony = $this->colony();
+        $colony->addRoute($this->route(routeId: 503, contentTypeId: self::NANITES, quantity: 10.0));
+        $colony->addRoute($this->route(routeId: 504, contentTypeId: self::MICROORGANISMS, quantity: 3000.0));
+
+        $volumes = array_column($this->mapper()->toDetailResource($colony)->routes, 'contentVolume', 'routeId');
+
+        $this->assertSame([503 => 6.0, 504 => 0.01], $volumes);
     }
 
     public function testRouteToTypeAbsentFromTheSdeHasAnUnknownContentTypeName(): void
@@ -104,6 +119,7 @@ final class PlanetaryResourceMapperTest extends TestCase
                 'destinationPinId' => 12,
                 'contentTypeId' => self::ROBOTICS,
                 'contentTypeName' => null,
+                'contentVolume' => null,
                 'quantity' => 3000.0,
                 'waypoints' => [],
             ],
@@ -313,6 +329,68 @@ final class PlanetaryResourceMapperTest extends TestCase
         $this->assertNull($this->mapper()->toResource($this->colony())->factoryProgress);
     }
 
+    #[Group('issue-1379')]
+    public function testColonyWithFactoriesAndNoExtractorHasTheFactoryStatus(): void
+    {
+        $colony = $this->colony();
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $this->assertSame('factory', $this->mapper()->toResource($colony)->status);
+    }
+
+    #[Group('issue-1379')]
+    public function testFactoryColonyExposesItsAutonomyAndTheDateTheStockRunsOut(): void
+    {
+        $this->factoryAutonomyDays = 1.5;
+        $colony = $this->colony()->setCachedAt(new \DateTimeImmutable('2026-10-18T09:05:00+00:00'));
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $resource = $this->mapper()->toResource($colony);
+
+        $this->assertSame(1.5, $resource->factoryAutonomyDays);
+        $this->assertSame('2026-10-19T21:05:00+00:00', $resource->factoryRefillBy);
+    }
+
+    #[Group('issue-1379')]
+    public function testFactoryColonyWithoutBoundedAutonomyHasNoRefillDate(): void
+    {
+        $this->factoryAutonomyDays = null;
+        $colony = $this->colony();
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $resource = $this->mapper()->toResource($colony);
+
+        $this->assertSame('factory', $resource->status);
+        $this->assertNull($resource->factoryAutonomyDays);
+        $this->assertNull($resource->factoryRefillBy);
+    }
+
+    #[Group('issue-1379')]
+    public function testExtractionColonyKeepsItsStatusAndExposesNoAutonomy(): void
+    {
+        $this->factoryAutonomyDays = 2.0;
+        $colony = $this->colony();
+        $colony->addPin($this->extractorPin(self::BACTERIA)->setExpiryTime(new \DateTimeImmutable('+2 days')));
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_NANITES));
+
+        $resource = $this->mapper()->toResource($colony);
+
+        $this->assertSame('active', $resource->status);
+        $this->assertNull($resource->factoryAutonomyDays);
+        $this->assertNull($resource->factoryRefillBy);
+    }
+
+    #[Group('issue-1379')]
+    public function testColonyWithoutAnyPinStaysIdle(): void
+    {
+        $this->factoryAutonomyDays = 2.0;
+
+        $resource = $this->mapper()->toResource($this->colony());
+
+        $this->assertSame('idle', $resource->status);
+        $this->assertNull($resource->factoryAutonomyDays);
+    }
+
     private function statusAndExpiringFlagOfAnExtractorExpiring(string $expiresIn): array
     {
         $colony = $this->colony();
@@ -379,6 +457,9 @@ final class PlanetaryResourceMapperTest extends TestCase
                 : (new UserNotificationPreference())->setCategory(Notification::CATEGORY_PLANETARY)->setThresholdMinutes($this->planetaryThresholdMinutes),
         );
 
+        $productionCalculator = $this->createStub(PlanetaryProductionCalculator::class);
+        $productionCalculator->method('calculateAutonomyDays')->willReturn($this->factoryAutonomyDays);
+
         return new PlanetaryResourceMapper(
             $invTypeRepository,
             new TypeNameResolver($invTypeRepository),
@@ -386,6 +467,7 @@ final class PlanetaryResourceMapperTest extends TestCase
             $solarSystemRepository,
             new PlanetaryExpiryThresholdResolver($preferenceRepository),
             $this->factoryColonyTracker ?? $this->createStub(PlanetaryFactoryColonyTracker::class),
+            $productionCalculator,
         );
     }
 
