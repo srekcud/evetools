@@ -34,6 +34,9 @@ class PlanetaryInputNeedsResource
     public array $launchpads = [];
 
     /** @var list<array<string, mixed>> */
+    public array $extractions = [];
+
+    /** @var list<array<string, mixed>> */
     public array $weekly = [];
 
     public bool $complete = true;
