@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Sync;
 
 use App\Constant\EveConstants;
+use App\Dto\CharacterBuyOrder;
+use App\Dto\CharacterOrders;
 use App\Dto\CharacterSellOrder;
+use App\Entity\CachedCharacterBuyOrder;
 use App\Entity\CachedCharacterOrder;
 use App\Entity\Character;
 use App\Entity\User;
 use App\Enum\OrderPositionState;
 use App\Enum\OrderPositionUnknownReason;
 use App\Exception\EsiApiException;
+use App\Repository\CachedCharacterBuyOrderRepository;
 use App\Repository\CachedCharacterOrderRepository;
 use App\Service\ESI\CharacterOrdersService;
 use App\Service\Industry\SellOrders\SellOrderBooks;
@@ -31,6 +35,7 @@ use Symfony\Component\Mercure\Update;
 
 #[CoversClass(CharacterOrderSyncService::class)]
 #[CoversClass(CachedCharacterOrder::class)]
+#[CoversClass(CachedCharacterBuyOrder::class)]
 #[Group('issue-350')]
 final class CharacterOrderSyncServiceTest extends TestCase
 {
@@ -41,6 +46,7 @@ final class CharacterOrderSyncServiceTest extends TestCase
     private const int HAMMERHEAD_TYPE_ID = 2185;
     private const int SABRE_TYPE_ID = 22456;
     private const int RIFTER_TYPE_ID = 587;
+    private const int ROBOTICS_TYPE_ID = 9848;
     private const int AMARR_STATION_ID = 60_008_494;
     private const string NOW = '2026-11-10 12:15:00';
 
@@ -54,6 +60,8 @@ final class CharacterOrderSyncServiceTest extends TestCase
     private array $mercureCalls = [];
     private array $ordersByCharacter = [];
     private array $cachedByCharacter = [];
+    private array $buyOrdersByCharacter = [];
+    private array $cachedBuyByCharacter = [];
     private array $booksByLocationAndType = [];
     private array $productTypes = [self::HAMMERHEAD_TYPE_ID, self::SABRE_TYPE_ID];
     private array $jitaRefreshes = [];
@@ -175,17 +183,99 @@ final class CharacterOrderSyncServiceTest extends TestCase
         );
     }
 
-    public function testNoSellableProjectMeansNoEsiReadAndTheCachedOrdersAreRemoved(): void
+    public function testNoSellableProjectMeansTheCachedSellOrdersAreRemovedAndNoSellOrderIsStored(): void
     {
         $stale = $this->cachedRow($this->main, 1, self::HAMMERHEAD_TYPE_ID, 1000.0, null);
         $this->cachedByCharacter['Aria Solberg'] = [$stale];
+        $this->ordersByCharacter['Aria Solberg'] = [$this->order(2, self::HAMMERHEAD_TYPE_ID, 1000.0)];
         $this->productTypes = [];
 
         $this->service()->syncUserOrders($this->user);
 
-        self::assertSame([], array_values(array_filter($this->events, static fn (string $event): bool => str_starts_with($event, 'read:'))));
         self::assertSame([$stale], $this->removed);
+        self::assertSame([], $this->persisted);
+        self::assertSame([], $this->jitaRefreshes);
         self::assertContains('completed', array_column($this->mercureCalls, 0));
+    }
+
+    #[Group('issue-1393')]
+    public function testStoresTheBuyOrderOfAnyTypeWithItsQuantityPriceAndLocation(): void
+    {
+        $this->buyOrdersByCharacter['Aria Solberg'] = [$this->buyOrder(11, self::ROBOTICS_TYPE_ID, 4_800.0, 10_000, 12_000)];
+
+        $this->service()->syncUserOrders($this->user);
+
+        self::assertCount(1, $this->persisted);
+        $row = $this->persisted[0];
+        self::assertInstanceOf(CachedCharacterBuyOrder::class, $row);
+        self::assertSame(
+            [11, $this->main, self::ROBOTICS_TYPE_ID, EveConstants::JITA_STATION_ID, 4_800.0, 10_000, 12_000, '2026-11-10 08:00:00', self::NOW],
+            [$row->getOrderId(), $row->getCharacter(), $row->getTypeId(), $row->getLocationId(), $row->getPrice(), $row->getVolumeRemain(), $row->getVolumeTotal(), $row->getIssuedAt()->format('Y-m-d H:i:s'), $row->getSyncedAt()->format('Y-m-d H:i:s')],
+        );
+    }
+
+    #[Group('issue-1393')]
+    public function testStoresTheBuyOrdersOfEveryCharacterEvenWithoutSellableProject(): void
+    {
+        $this->productTypes = [];
+        $this->buyOrdersByCharacter['Aria Solberg'] = [$this->buyOrder(11, self::ROBOTICS_TYPE_ID, 4_800.0, 10_000, 12_000)];
+        $this->buyOrdersByCharacter['Brann Holt'] = [$this->buyOrder(12, self::ROBOTICS_TYPE_ID, 4_700.0, 500, 500)];
+
+        $this->service()->syncUserOrders($this->user);
+
+        self::assertSame([11, 12], array_map(static fn (CachedCharacterBuyOrder $row): int => $row->getOrderId(), $this->persisted));
+        self::assertSame(['read:Aria Solberg', 'read:Brann Holt'], array_values(array_filter($this->events, static fn (string $event): bool => str_starts_with($event, 'read:'))));
+    }
+
+    #[Group('issue-1393')]
+    public function testBuyOrderAlreadyStoredIsUpdatedNotDuplicated(): void
+    {
+        $existing = $this->cachedBuyRow($this->main, 11, self::ROBOTICS_TYPE_ID, 4_800.0, 12_000);
+        $this->cachedBuyByCharacter['Aria Solberg'] = [$existing];
+        $this->buyOrdersByCharacter['Aria Solberg'] = [$this->buyOrder(11, self::ROBOTICS_TYPE_ID, 4_850.0, 7_000, 12_000)];
+
+        $this->service()->syncUserOrders($this->user);
+
+        self::assertSame([], $this->persisted);
+        self::assertSame([], $this->removed);
+        self::assertSame([4_850.0, 7_000, self::NOW], [$existing->getPrice(), $existing->getVolumeRemain(), $existing->getSyncedAt()->format('Y-m-d H:i:s')]);
+    }
+
+    #[Group('issue-1393')]
+    public function testBuyOrderNoLongerReturnedByTheEsiIsRemoved(): void
+    {
+        $gone = $this->cachedBuyRow($this->main, 11, self::ROBOTICS_TYPE_ID, 4_800.0, 12_000);
+        $kept = $this->cachedBuyRow($this->main, 12, self::ROBOTICS_TYPE_ID, 4_700.0, 500);
+        $this->cachedBuyByCharacter['Aria Solberg'] = [$gone, $kept];
+        $this->buyOrdersByCharacter['Aria Solberg'] = [$this->buyOrder(12, self::ROBOTICS_TYPE_ID, 4_700.0, 500, 500)];
+
+        $this->service()->syncUserOrders($this->user);
+
+        self::assertSame([$gone], $this->removed);
+    }
+
+    #[Group('issue-1393')]
+    public function testFailedCharacterKeepsItsBuyOrdersToo(): void
+    {
+        $keptBuy = $this->cachedBuyRow($this->main, 11, self::ROBOTICS_TYPE_ID, 4_800.0, 12_000);
+        $this->cachedBuyByCharacter['Aria Solberg'] = [$keptBuy];
+        $this->ordersByCharacter['Aria Solberg'] = EsiApiException::fromResponse(500, 'ESI down', '/characters/1/orders/');
+        $this->buyOrdersByCharacter['Brann Holt'] = [$this->buyOrder(12, self::ROBOTICS_TYPE_ID, 4_700.0, 500, 500)];
+
+        $this->service()->syncUserOrders($this->user);
+
+        self::assertSame([], $this->removed);
+        self::assertSame([12], array_map(static fn (CachedCharacterBuyOrder $row): int => $row->getOrderId(), $this->persisted));
+    }
+
+    #[Group('issue-1393')]
+    public function testBuyOrdersNeverTriggerAJitaBookRefresh(): void
+    {
+        $this->buyOrdersByCharacter['Aria Solberg'] = [$this->buyOrder(11, self::HAMMERHEAD_TYPE_ID, 800.0, 3, 3)];
+
+        $this->service()->syncUserOrders($this->user);
+
+        self::assertSame([], $this->jitaRefreshes);
     }
 
     public function testEveryCharacterFailingPublishesASyncError(): void
@@ -215,6 +305,25 @@ final class CharacterOrderSyncServiceTest extends TestCase
         return new CharacterSellOrder($orderId, $typeId, $locationId, $price, 4, 10, new \DateTimeImmutable('2026-11-10 08:00:00'));
     }
 
+    private function buyOrder(int $orderId, int $typeId, float $price, int $volumeRemain, int $volumeTotal): CharacterBuyOrder
+    {
+        return new CharacterBuyOrder($orderId, $typeId, EveConstants::JITA_STATION_ID, $price, $volumeRemain, $volumeTotal, new \DateTimeImmutable('2026-11-10 08:00:00'));
+    }
+
+    private function cachedBuyRow(Character $character, int $orderId, int $typeId, float $price, int $volumeTotal): CachedCharacterBuyOrder
+    {
+        return (new CachedCharacterBuyOrder())
+            ->setCharacter($character)
+            ->setOrderId($orderId)
+            ->setTypeId($typeId)
+            ->setLocationId(EveConstants::JITA_STATION_ID)
+            ->setPrice($price)
+            ->setVolumeRemain($volumeTotal)
+            ->setVolumeTotal($volumeTotal)
+            ->setIssuedAt(new \DateTimeImmutable('2026-11-10 08:00:00'))
+            ->setSyncedAt(new \DateTimeImmutable('2026-11-10 12:00:00'));
+    }
+
     private function cachedRow(Character $character, int $orderId, int $typeId, float $price, ?string $undercutSince): CachedCharacterOrder
     {
         $row = (new CachedCharacterOrder())
@@ -242,21 +351,26 @@ final class CharacterOrderSyncServiceTest extends TestCase
     private function service(): CharacterOrderSyncService
     {
         $ordersService = $this->createStub(CharacterOrdersService::class);
-        $ordersService->method('getSellOrders')->willReturnCallback(
-            function (Character $character): array {
+        $ordersService->method('getOrders')->willReturnCallback(
+            function (Character $character): CharacterOrders {
                 $this->events[] = 'read:' . $character->getName();
                 $outcome = $this->ordersByCharacter[$character->getName()] ?? [];
                 if ($outcome instanceof \Throwable) {
                     throw $outcome;
                 }
 
-                return $outcome;
+                return new CharacterOrders($outcome, $this->buyOrdersByCharacter[$character->getName()] ?? []);
             },
         );
 
         $repository = $this->createStub(CachedCharacterOrderRepository::class);
         $repository->method('findByCharacter')->willReturnCallback(
             fn (Character $character): array => $this->cachedByCharacter[$character->getName()] ?? [],
+        );
+
+        $buyRepository = $this->createStub(CachedCharacterBuyOrderRepository::class);
+        $buyRepository->method('findByCharacter')->willReturnCallback(
+            fn (Character $character): array => $this->cachedBuyByCharacter[$character->getName()] ?? [],
         );
 
         $productTypes = $this->createStub(UserSellableProductTypes::class);
@@ -287,6 +401,7 @@ final class CharacterOrderSyncServiceTest extends TestCase
         return new CharacterOrderSyncService(
             $ordersService,
             $repository,
+            $buyRepository,
             $productTypes,
             $books,
             new UndercutAssessor(),
