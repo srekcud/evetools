@@ -178,13 +178,7 @@ class PlanetaryProductionCalculator
         $now = new \DateTimeImmutable();
 
         foreach ($colonies as $colony) {
-            $producers = [];
-            foreach ($colony->getPins() as $pin) {
-                $producer = $this->calculatePinDailyOutput($pin, $schematicMap, $now);
-                if ($producer !== null) {
-                    $producers[] = $producer;
-                }
-            }
+            $producers = $this->producersOf($colony, $schematicMap, $now);
 
             $runRates = $this->resolveRunRates($producers, $colony->getStockByType());
 
@@ -202,6 +196,56 @@ class PlanetaryProductionCalculator
         }
 
         return $outputsByType;
+    }
+
+    /**
+     * Days the stock of a colony keeps its factories running at full rate: the smallest ratio, over the
+     * inputs the colony does not produce enough of itself, between the stock and the daily shortfall.
+     * Null when the colony has no factory or produces every input itself.
+     */
+    public function calculateAutonomyDays(PlanetaryColony $colony): ?float
+    {
+        $producers = $this->producersOf($colony, $this->schematicTypeRepository->getSchematicMap(), new \DateTimeImmutable());
+        $stock = $colony->getStockByType();
+        $runRates = $this->resolveRunRates($producers, $stock);
+
+        $demand = [];
+        $supply = [];
+        foreach ($producers as $index => $producer) {
+            $supply[$producer['typeId']] = ($supply[$producer['typeId']] ?? 0.0) + $producer['quantity'] * $runRates[$index];
+            foreach ($producer['inputs'] as $inputTypeId => $fullRateConsumed) {
+                $demand[$inputTypeId] = ($demand[$inputTypeId] ?? 0.0) + $fullRateConsumed;
+            }
+        }
+
+        $autonomyDays = null;
+        foreach ($demand as $inputTypeId => $dailyDemand) {
+            $dailyShortfall = $dailyDemand - ($supply[$inputTypeId] ?? 0.0);
+            if ($dailyShortfall <= 0.0) {
+                continue;
+            }
+            $days = ($stock[$inputTypeId] ?? 0) / $dailyShortfall;
+            $autonomyDays = $autonomyDays === null ? $days : min($autonomyDays, $days);
+        }
+
+        return $autonomyDays === null ? null : round($autonomyDays, 2);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $schematicMap
+     * @return list<array{typeId: int, quantity: float, inputs: array<int, float>}>
+     */
+    private function producersOf(PlanetaryColony $colony, array $schematicMap, \DateTimeImmutable $now): array
+    {
+        $producers = [];
+        foreach ($colony->getPins() as $pin) {
+            $producer = $this->calculatePinDailyOutput($pin, $schematicMap, $now);
+            if ($producer !== null) {
+                $producers[] = $producer;
+            }
+        }
+
+        return $producers;
     }
 
     /**
