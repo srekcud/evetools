@@ -15,6 +15,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['character_id'])]
 class CachedCharacterSkill
 {
+    public const SKILL_INTERPLANETARY_CONSOLIDATION = 2495;
+
     /** Industry skill type IDs */
     public const SKILL_INTERPLANETARY_CONSOLIDATION = 2495;
     public const SKILL_INDUSTRY = 3380;
