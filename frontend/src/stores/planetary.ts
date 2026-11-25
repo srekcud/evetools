@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiRequest } from '@/services/api'
+import type { ProjectSellOrder } from '@/stores/group-industry/types'
 
 // ========== Types ==========
 
@@ -52,6 +53,12 @@ export interface PlanetaryRevenueUnsyncedWallet {
   status: PlanetaryWalletStatus
 }
 
+export interface PlanetarySellOrders {
+  orders: ProjectSellOrder[]
+  charactersToReconnect: string[]
+  syncedAt: string | null
+}
+
 export interface PlanetaryRevenue {
   periodEnd: string
   days: number
@@ -67,6 +74,7 @@ export interface PlanetaryRevenue {
   }
   toFix: PlanetaryRevenueToFix[]
   unsyncedWallets: PlanetaryRevenueUnsyncedWallet[]
+  sellOrders: PlanetarySellOrders
 }
 
 export interface Pin {

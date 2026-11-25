@@ -52,4 +52,13 @@ final class PlanetaryRevenueResource
 
     /** @var list<array{characterId: int, characterName: string, status: string}> */
     public array $unsyncedWallets = [];
+
+    /**
+     * @var array{
+     *     orders: list<array{orderId: int, characterName: string, typeId: int, typeName: string, volumeRemain: int, locationId: int, marketName: string|null, price: float, bestPrice: float|null, rank: int|null, state: string, unknownReason: string|null, undercutSince: string|null, suggestedPrice: float|null}>,
+     *     charactersToReconnect: list<string>,
+     *     syncedAt: string|null,
+     * }
+     */
+    public array $sellOrders = ['orders' => [], 'charactersToReconnect' => [], 'syncedAt' => null];
 }

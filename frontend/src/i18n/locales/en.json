@@ -518,6 +518,10 @@
         "P3": "P3 · Specialized",
         "P4": "P4 · Advanced"
       },
+      "sellOrders": {
+        "title": "My PI sell orders",
+        "empty": "No sell order for the PI products you produce."
+      },
       "walletTodo": {
         "text": "{character}: wallet not synced ({reason})",
         "effect": "Its PI sales are unknown, not zero: they stay out of the net and its colonies are not listed below as unsold",

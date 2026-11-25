@@ -3,7 +3,12 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { ProjectSellOrder, ProjectSellOrders } from '@/stores/group-industry/types'
 
-const props = defineProps<{ sellOrders: ProjectSellOrders; now: number }>()
+const props = defineProps<{
+  sellOrders: Pick<ProjectSellOrders, 'orders' | 'charactersToReconnect'>
+  now: number
+  title?: string
+  empty?: string
+}>()
 
 const MS_PER_MINUTE = 60_000
 const MINUTES_PER_HOUR = 60
@@ -44,7 +49,7 @@ async function copyPrice(order: ProjectSellOrder): Promise<void> {
 <template>
   <section class="mb-6 rounded-xl border border-slate-800 bg-slate-900/50" data-testid="sell-orders-card">
     <header class="border-b border-slate-800 px-4 py-3">
-      <h3 class="text-sm font-semibold text-slate-200">{{ t('groupIndustry.sellOrders.title') }}</h3>
+      <h3 class="text-sm font-semibold text-slate-200">{{ title ?? t('groupIndustry.sellOrders.title') }}</h3>
     </header>
 
     <p
@@ -56,7 +61,7 @@ async function copyPrice(order: ProjectSellOrder): Promise<void> {
     </p>
 
     <p v-if="sellOrders.orders.length === 0" data-testid="sell-orders-empty" class="px-4 py-4 text-sm text-slate-400">
-      {{ t('groupIndustry.sellOrders.empty') }}
+      {{ empty ?? t('groupIndustry.sellOrders.empty') }}
     </p>
     <div v-else class="overflow-x-auto">
       <table class="w-full text-sm">

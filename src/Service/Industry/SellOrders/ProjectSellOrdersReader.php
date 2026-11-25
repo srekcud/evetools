@@ -34,7 +34,14 @@ class ProjectSellOrdersReader
             return new ProjectSellOrders([], [], null);
         }
 
-        $productNames = $this->productTypes->of($project);
+        return $this->forProducts($viewer, $this->productTypes->of($project));
+    }
+
+    /**
+     * @param array<int, string> $productNames type name of each product, by type id
+     */
+    public function forProducts(User $viewer, array $productNames): ProjectSellOrders
+    {
         $rows = $this->orderRepository->findByCharactersAndTypes($viewer->getCharacters()->getValues(), array_keys($productNames));
         usort($rows, $this->byUrgency(...));
 
