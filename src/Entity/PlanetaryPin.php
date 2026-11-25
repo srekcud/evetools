@@ -272,15 +272,6 @@ class PlanetaryPin
         return $this;
     }
 
-    public function getExtractorYieldPerHour(): ?float
-    {
-        if ($this->extractorProductTypeId === null || $this->extractorQtyPerCycle === null || $this->extractorCycleTime === null || $this->extractorCycleTime <= 0) {
-            return null;
-        }
-
-        return $this->extractorQtyPerCycle * self::SECONDS_PER_HOUR / $this->extractorCycleTime;
-    }
-
     public function isExtractor(): bool
     {
         return $this->extractorProductTypeId !== null;

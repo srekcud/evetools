@@ -7,6 +7,7 @@ namespace App\Service\Planetary;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\PlanetaryColony;
+use App\Entity\PlanetaryPin;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\PlanetaryColonyRepository;
@@ -14,10 +15,12 @@ use App\Repository\PlanetaryColonyRepository;
 final readonly class PlanetaryPlannerAccountReader
 {
     private const int BASE_PLANETS = 1;
+    private const int HOURS_PER_DAY = 24;
 
     public function __construct(
         private PlanetaryColonyRepository $colonyRepository,
         private CachedCharacterSkillRepository $skillRepository,
+        private ExtractorYieldCalculator $extractorYield,
     ) {
     }
 
@@ -119,7 +122,7 @@ final readonly class PlanetaryPlannerAccountReader
             if ($resourceTypeId === null) {
                 continue;
             }
-            $pinYield = $pin->getExtractorYieldPerHour();
+            $pinYield = $this->yieldPerHourOf($pin);
             if ($pinYield === null) {
                 $incompleteResources[$resourceTypeId] = true;
                 continue;
@@ -128,5 +131,18 @@ final readonly class PlanetaryPlannerAccountReader
         }
 
         return array_diff_key($yields, $incompleteResources);
+    }
+
+    private function yieldPerHourOf(PlanetaryPin $pin): ?float
+    {
+        $quantityPerCycle = $pin->getExtractorQtyPerCycle();
+        $cycleTime = $pin->getExtractorCycleTime();
+        if ($quantityPerCycle === null || $cycleTime === null) {
+            return null;
+        }
+
+        $dailyAverage = $this->extractorYield->programDailyAverage($quantityPerCycle, $cycleTime, $pin->getInstallTime(), $pin->getExpiryTime());
+
+        return $dailyAverage === null ? null : $dailyAverage / self::HOURS_PER_DAY;
     }
 }
