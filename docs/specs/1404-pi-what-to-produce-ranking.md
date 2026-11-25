@@ -8,7 +8,7 @@ La décision d'installer est le point dur. Le classement donne, pour une base ch
 
 ## Backend
 
-1. Historique de The Forge pour les types de sortie P2 à P4 : `SyncRegionalMarketVolumesHandler` (déjà quotidienne, déjà suivie par `SyncTracker`) ajoute ces types à sa liste de volumes (`syncRegionalDailyVolumes`) et appelle `MarketHistoryService::syncHistory()` pour chacun sur The Forge, ce qui alimente `market_price_history`. Un échec compte comme un type en échec du résumé existant. Liste des types : nouveau service `PlanetaryProductTypeResolver` (sorties des schémas dont `PlanetaryProductionCalculator::findProductTier()` vaut P2, P3 ou P4). Aucune nouvelle tâche planifiée.
+1. Historique de The Forge pour les types de sortie P2 à P4 : `SyncRegionalMarketVolumesHandler` (déjà quotidienne, déjà suivie par `SyncTracker`) appelle `MarketHistoryService::syncHistory()` pour chacun de ces types sur The Forge uniquement, ce qui alimente `market_price_history` ; la liste de volumes des régions (`syncRegionalDailyVolumes`) ne change pas. Un échec ESI compte comme un type en échec du résumé existant, les autres types continuent. Liste des types : nouveau service `PlanetaryProductTypeResolver` (sorties des schémas dont `PlanetaryProductionCalculator::findProductTier()` vaut P2, P3 ou P4). Aucune nouvelle tâche planifiée ; le libellé de la synchro dans `HelpDescriptions` mentionne l'historique des produits PI et les tables d'aide sont régénérées (`app:help:generate-tables`).
 2. Ressource API Platform `PlanetaryPlannerMarket`, `GET /planetary/planner/market`, `ROLE_USER`, identifiant fixe `market`, sans paramètre ni donnée d'utilisateur. Contenu : `regionId` (The Forge) et `products: [{typeId, averageDailyVolume, averagePrice, priceChange, lastDate}]` pour chaque type P2 à P4 ayant au moins une entrée d'historique.
 3. Calcul par type, lu seulement dans `market_price_history` (aucun appel ESI à la requête) : les 30 dernières entrées (convention du dépôt : 30 entrées, pas 30 jours calendaires, voir `JitaMarketService::computeAverageDailyVolume`) donnent `averageDailyVolume` (moyenne de `volume`) et `averagePrice` (moyenne de `average`) ; `priceChange` = `(averagePrice − moyenne des 30 entrées précédentes) / moyenne précédente × 100`, arrondi à 0,1, `null` si moins d'une entrée précède ou si la moyenne précédente est nulle ; `lastDate` = date de la dernière entrée. Un type sans historique est absent (jamais un volume de 0).
 4. Le volume vient de l'historique stocké et non du cache de volumes (`getCachedDailyVolumes` rend `0.0` pour un type absent, valeur plausible interdite ici).
@@ -69,7 +69,7 @@ Valorisation de l'extraction (P1 toujours acheté ici) ; marchés de structure ;
 
 ## Décisions (mode nuit)
 
-- Volume et tendance lus dans l'historique stocké, alimenté par la synchro quotidienne existante (53 types, 53 appels ESI par jour) ; pas de nouvelle tâche planifiée ni de repli ESI à la requête.
+- Volume et tendance lus dans l'historique stocké, alimenté par la synchro quotidienne existante étendue à The Forge seule (53 appels ESI par jour) ; la liste de volumes des autres régions n'est pas agrandie ; pas de nouvelle tâche planifiée ni de repli ESI à la requête.
 - Calcul côté front sur le catalogue et le marché, indépendant des choix de l'utilisateur (le classement compare les produits à chaîne égale, la plus économique).
 - Pas de plafond de volume quand le volume est inconnu : le profit est alors inconnu plutôt que surestimé.
 - 15 lignes par défaut (comme la maquette), bouton pour tout voir.
