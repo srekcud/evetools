@@ -68,6 +68,20 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         ], $account['characters']);
     }
 
+    public function testTwoCharactersWithTheSameNameAreListedByEveCharacterId(): void
+    {
+        $secondAlma = $this->character('Alma Voss', self::CORA_EVE_ID);
+        $firstAlma = $this->character('Alma Voss', self::ALMA_EVE_ID);
+        $colonies = [$this->colony($firstAlma, []), $this->colony($secondAlma, []), $this->colony($secondAlma, [])];
+
+        $account = $this->readerOver($colonies, [])->read($this->userOf($secondAlma, $firstAlma));
+
+        $this->assertSame([
+            ['characterId' => self::ALMA_EVE_ID, 'characterName' => 'Alma Voss', 'usedPlanets' => 1, 'maxPlanets' => null],
+            ['characterId' => self::CORA_EVE_ID, 'characterName' => 'Alma Voss', 'usedPlanets' => 2, 'maxPlanets' => null],
+        ], $account['characters']);
+    }
+
     public function testTheYieldOfAResourceIsTheMeanOfTheHourlyOutputOfItsColonies(): void
     {
         $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
@@ -153,6 +167,58 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
 
         $this->assertSame([['typeId' => self::AQUEOUS_LIQUIDS, 'perHourPerPlanet' => 3_000.0, 'planets' => 1]], $account['extractionYields']);
         $this->assertSame(2, $account['usedPlanets']);
+    }
+
+    public static function nonPositiveHourlyYields(): iterable
+    {
+        yield 'zero when the program is shorter than one cycle' => [0.0];
+        yield 'negative' => [-250.0];
+    }
+
+    #[DataProvider('nonPositiveHourlyYields')]
+    public function testAColonyWhoseExtractorYieldPerHourIsNotPositiveIsLeftOutOfTheMean(float $hourlyYield): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [
+            $this->colony($zed, [$this->extractor(self::AQUEOUS_LIQUIDS, 1500, self::EXTRACTOR_CYCLE_SECONDS)]),
+            $this->colony($zed, [$this->extractor(self::AQUEOUS_LIQUIDS, 2500, self::EXTRACTOR_CYCLE_SECONDS)]),
+        ];
+
+        $account = $this->readerOver($colonies, [], [1500 => 3_000.0, 2500 => $hourlyYield])->read($this->userOf($zed));
+
+        $this->assertSame([['typeId' => self::AQUEOUS_LIQUIDS, 'perHourPerPlanet' => 3_000.0, 'planets' => 1]], $account['extractionYields']);
+        $this->assertSame(2, $account['usedPlanets']);
+    }
+
+    public function testAColonyWithOneProductiveAndOneZeroYieldExtractorOfTheSameResourceIsLeftOut(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [
+            $this->colony($zed, [$this->extractor(self::HEAVY_METALS, 900, 3600)]),
+            $this->colony($zed, [
+                $this->extractor(self::HEAVY_METALS, 1000, self::EXTRACTOR_CYCLE_SECONDS),
+                $this->extractor(self::HEAVY_METALS, 1100, self::EXTRACTOR_CYCLE_SECONDS),
+            ]),
+        ];
+
+        $account = $this->readerOver($colonies, [], [900 => 1_300.0, 1000 => 2_000.0, 1100 => 0.0])->read($this->userOf($zed));
+
+        $this->assertSame([['typeId' => self::HEAVY_METALS, 'perHourPerPlanet' => 1_300.0, 'planets' => 1]], $account['extractionYields']);
+    }
+
+    public function testAResourceWhoseEveryColonyYieldsZeroIsAbsentWhileAnotherResourceOfTheSameColonyStays(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [
+            $this->colony($zed, [
+                $this->extractor(self::BASE_METALS, 800, self::EXTRACTOR_CYCLE_SECONDS),
+                $this->extractor(self::HEAVY_METALS, 900, 3600),
+            ]),
+        ];
+
+        $account = $this->readerOver($colonies, [], [800 => 0.0, 900 => 1_300.0])->read($this->userOf($zed));
+
+        $this->assertSame([['typeId' => self::HEAVY_METALS, 'perHourPerPlanet' => 1_300.0, 'planets' => 1]], $account['extractionYields']);
     }
 
     public function testAColonyWithOneComputableAndOneNonComputableExtractorOfTheSameResourceIsLeftOut(): void

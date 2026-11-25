@@ -118,3 +118,27 @@ export function withMaxPlanets(account: PlannerAccount, maxPlanetsByCharacterId:
     characters: account.characters.map((character: AccountCharacter) => (character.characterId in maxPlanetsByCharacterId ? { ...character, maxPlanets: maxPlanetsByCharacterId[character.characterId] as number | null } : character)),
   }
 }
+
+export function withPlanetTypes(catalog: PlannerCatalog, planetTypes: PlannerPlanetType[]): PlannerCatalog {
+  return { ...catalog, planetTypes }
+}
+
+export function withExtractionYield(account: PlannerAccount, typeId: number, perHourPerPlanet: number): PlannerAccount {
+  return {
+    ...account,
+    extractionYields: account.extractionYields.map(accountYield => (accountYield.typeId === typeId ? { ...accountYield, perHourPerPlanet } : accountYield)),
+  }
+}
+
+const DISTINCT_INPUT_VOLUMES: Record<number, number> = { [WATER]: 0.5, [REACTIVE_METALS]: 0.2, [TOXIC_METALS]: 0.3, [COOLANT]: 2.5, [BROADCAST_NODE]: 85 }
+
+const DISTINCT_INPUT_RECIPES: Record<number, Partial<Omit<PlannerRecipe, 'outputTypeId'>>> = {
+  [COOLANT]: { outputQuantity: 4, inputs: [{ typeId: WATER, quantity: 30 }, { typeId: REACTIVE_METALS, quantity: 70 }] },
+  [MECHANICAL_PARTS]: { outputQuantity: 6, inputs: [{ typeId: WATER, quantity: 20 }, { typeId: TOXIC_METALS, quantity: 90 }] },
+  [ROBOTICS]: { inputs: [{ typeId: COOLANT, quantity: 10 }, { typeId: MECHANICAL_PARTS, quantity: 15 }] },
+}
+
+export const DISTINCT_INPUTS_CATALOG: PlannerCatalog = Object.entries(DISTINCT_INPUT_RECIPES).reduce(
+  (catalog, [outputTypeId, changes]) => withRecipe(catalog, Number(outputTypeId), changes),
+  Object.entries(DISTINCT_INPUT_VOLUMES).reduce((catalog, [typeId, volume]) => withTypeVolume(catalog, Number(typeId), volume), PLANNER_CATALOG),
+)

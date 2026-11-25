@@ -105,7 +105,7 @@ describe('PiPlannerPlanets table', () => {
     expect([p2.cell('planets-layout').attributes('data-launchpads'), p2.cell('planets-layout').attributes('data-factories'), p2.cell('planets-count').attributes('data-planets')]).toEqual(['4', '13', '4'])
   })
 
-  it('shows a tier that does not fit as a row without planet count and states the days between rounds', async () => {
+  it('shows a tier that does not fit as a row without planet count, states the days between rounds and marks the total incomplete', async () => {
     const wrapper = await mountTab(withTypeVolume(PLANNER_CATALOG, BROADCAST_NODE, 10_000))
 
     await addProduction(wrapper, BROADCAST_NODE, '144')
@@ -116,6 +116,7 @@ describe('PiPlannerPlanets table', () => {
     expect(p4.cell('planets-count').text()).not.toMatch(/\d/)
     expect(p4.cell('planets-layout').text()).toContain('4')
     expect(planetRow(wrapper, 'P2').cell('planets-count').attributes('data-planets')).toBe('4')
+    expect(dataOf(wrapper, 'planets-total')).toMatchObject({ 'data-planets': '5', 'data-incomplete': 'true' })
   })
 
   it('shows an extraction row per raw resource, with the yield of the account marked as such and the P1 factories it feeds', async () => {

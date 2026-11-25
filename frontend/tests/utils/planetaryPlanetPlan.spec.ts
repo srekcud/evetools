@@ -71,12 +71,13 @@ describe('buildPlanetPlan factory rows', () => {
     expect([result.totalPlanets, result.incomplete, result.charactersNeeded]).toEqual([7, false, 2])
   })
 
-  it('flags a tier that does not fit the days between rounds and counts no planet for it', () => {
+  it('flags a tier that does not fit the days between rounds, counts no planet for it and marks the total incomplete', () => {
     const result = plan(BROADCAST_144, { catalog: withTypeVolume(PLANNER_CATALOG, BROADCAST_NODE, 10_000) })
 
     expect([factoryRow(result, 'P4').status, factoryRow(result, 'P4').planets]).toEqual(['doesNotFit', null])
     expect([factoryRow(result, 'P3').planets, factoryRow(result, 'P2').planets]).toEqual([1, 4])
     expect(result.totalPlanets).toBe(5)
+    expect(result.incomplete).toBe(true)
   })
 
   it('leaves a tier unknown when a volume is missing from the SDE, counts nothing for it and marks the total incomplete', () => {
