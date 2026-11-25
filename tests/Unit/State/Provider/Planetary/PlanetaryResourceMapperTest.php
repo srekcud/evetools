@@ -84,10 +84,22 @@ final class PlanetaryResourceMapperTest extends TestCase
                 'destinationPinId' => 12,
                 'contentTypeId' => self::BACTERIA,
                 'contentTypeName' => 'Bacteria',
+                'contentVolume' => 0.38,
                 'quantity' => 1200.0,
                 'waypoints' => [],
             ],
         ], $routes);
+    }
+
+    public function testEachRouteCarriesTheSdeVolumeOfItsOwnContentType(): void
+    {
+        $colony = $this->colony();
+        $colony->addRoute($this->route(routeId: 503, contentTypeId: self::NANITES, quantity: 10.0));
+        $colony->addRoute($this->route(routeId: 504, contentTypeId: self::MICROORGANISMS, quantity: 3000.0));
+
+        $volumes = array_column($this->mapper()->toDetailResource($colony)->routes, 'contentVolume', 'routeId');
+
+        $this->assertSame([503 => 6.0, 504 => 0.01], $volumes);
     }
 
     public function testRouteToTypeAbsentFromTheSdeHasAnUnknownContentTypeName(): void
@@ -104,6 +116,7 @@ final class PlanetaryResourceMapperTest extends TestCase
                 'destinationPinId' => 12,
                 'contentTypeId' => self::ROBOTICS,
                 'contentTypeName' => null,
+                'contentVolume' => null,
                 'quantity' => 3000.0,
                 'waypoints' => [],
             ],
