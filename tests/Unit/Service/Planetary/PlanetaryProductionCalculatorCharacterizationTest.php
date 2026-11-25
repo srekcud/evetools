@@ -546,6 +546,77 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         $this->assertSame(0.0, $this->itemOf($result, self::WATER)['dailyQuantity']);
     }
 
+    public function testAutonomyIsTheDaysTheStockCoversTheInputsTheColonyDoesNotProduce(): void
+    {
+        $colony = $this->colony(
+            $this->storagePin([['type_id' => self::AQUEOUS_LIQUIDS, 'amount' => 288000]]),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+        );
+
+        $this->assertSame(2.0, $this->calculator()->calculateAutonomyDays($colony));
+    }
+
+    public function testAutonomyIsZeroWhenTheStockOfAnInputIsEmpty(): void
+    {
+        $colony = $this->colony(
+            $this->storagePin([['type_id' => self::AQUEOUS_LIQUIDS, 'amount' => 0]]),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+        );
+
+        $this->assertSame(0.0, $this->calculator()->calculateAutonomyDays($colony));
+    }
+
+    public function testAutonomyIsLimitedByTheInputThatRunsOutFirst(): void
+    {
+        $colony = $this->colony(
+            $this->storagePin([
+                ['type_id' => self::ELECTROLYTES, 'amount' => 1920],
+                ['type_id' => self::WATER, 'amount' => 960],
+            ]),
+            $this->factoryPin(self::SCHEMATIC_COOLANT),
+        );
+
+        $this->assertSame(1.0, $this->calculator()->calculateAutonomyDays($colony));
+    }
+
+    public function testAutonomyOnlyCountsWhatTheColonyExtractionDoesNotCover(): void
+    {
+        $colony = $this->colony(
+            $this->extractorPin(self::AQUEOUS_LIQUIDS, cycleTime: 3600, qtyPerCycle: 3000, expiryTime: new \DateTimeImmutable('+2 days')),
+            $this->storagePin([['type_id' => self::AQUEOUS_LIQUIDS, 'amount' => 144000]]),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+        );
+
+        $this->assertSame(2.0, $this->calculator()->calculateAutonomyDays($colony));
+    }
+
+    public function testAutonomyIsUnboundedWhenTheColonyProducesEveryInputItself(): void
+    {
+        $colony = $this->colony(
+            $this->extractorPin(self::AQUEOUS_LIQUIDS, cycleTime: 1800, qtyPerCycle: 3000, expiryTime: new \DateTimeImmutable('+2 days')),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+        );
+
+        $this->assertNull($this->calculator()->calculateAutonomyDays($colony));
+    }
+
+    public function testAutonomyIsUnknownForAColonyWithoutFactory(): void
+    {
+        $colony = $this->colony(
+            $this->storagePin([['type_id' => self::AQUEOUS_LIQUIDS, 'amount' => 288000]]),
+        );
+
+        $this->assertNull($this->calculator()->calculateAutonomyDays($colony));
+    }
+
+    public function testFactoryWithNoSourceForItsInputsStillCountsAsStoppedNotAsAutonomous(): void
+    {
+        $colony = $this->colony($this->factoryPin(self::SCHEMATIC_WATER));
+
+        $this->assertSame(0.0, $this->calculator()->calculateAutonomyDays($colony));
+        $this->assertSame(0.0, $this->itemOf($this->calculator()->calculateProduction([$colony]), self::WATER)['dailyQuantity']);
+    }
+
     #[Group('pi-audit-6')]
     public function testMissingJitaPriceCurrentlyCountsAsZeroIskInTheTotalPiAudit6(): void
     {
