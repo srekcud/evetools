@@ -365,8 +365,81 @@
     "lastSync": "Last sync:",
     "syncTooltip": "Updates the local cache from ESI. Data reflects your last in-game interaction.",
     "tabs": {
+      "planner": "Planner",
       "colonies": "Colonies",
       "revenue": "Revenue"
+    },
+    "planner": {
+      "title": "Production planner",
+      "subtitle": "Pick the products you want per day, read the whole tree down to the raw resources and decide for each step whether to make or buy it.",
+      "empty": "No production planned yet. Add a product to see its tree, its cost and the factories it needs.",
+      "tiers": {
+        "P0": "P0 · Raw",
+        "P1": "P1 · Processed",
+        "P2": "P2 · Refined",
+        "P3": "P3 · Specialized",
+        "P4": "P4 · Advanced"
+      },
+      "unknown": "unknown",
+      "productions": {
+        "title": "Productions",
+        "addLabel": "Add a production",
+        "addPlaceholder": "Choose a product",
+        "targetLabel": "Target per day",
+        "targetInvalid": "Enter a number greater than zero",
+        "perDay": "per day",
+        "profitPerDay": "Profit per day",
+        "select": "Show the tree of {name}",
+        "remove": "Remove {name}"
+      },
+      "tree": {
+        "title": "Production tree",
+        "product": "Product",
+        "perDay": "Per day",
+        "factories": "Factories",
+        "produceCost": "Make cost",
+        "price": "Price",
+        "choice": "Make or buy",
+        "produce": "Make",
+        "buy": "Buy",
+        "target": "Target",
+        "starProduce": "Making is the cheapest option",
+        "starBuy": "Buying is the cheapest option",
+        "applyCheapest": "Apply the cheapest everywhere",
+        "applyCheapestHint": "Switches every starred product to its cheapest option",
+        "inactive": "Not needed: a product above is bought",
+        "noSelection": "Select a production to see its tree."
+      },
+      "settings": {
+        "title": "Settings",
+        "priceSource": "Price source",
+        "jitaSell": "Jita sell",
+        "jitaBuy": "Jita buy",
+        "taxPercent": "POCO tax (%)",
+        "taxHint": "Applied to the price of every unit made",
+        "taxInvalid": "Enter a percentage from 0 to 100",
+        "daysBetweenRounds": "Days between rounds",
+        "daysHint": "Kept for the layout comparison, no effect on this page yet",
+        "daysInvalid": "Enter at least half a day"
+      },
+      "summary": {
+        "title": "Summary",
+        "unitCost": "Unit cost",
+        "unitCostOf": "Cost of one {name}",
+        "profit": "Profit per day",
+        "profitIncomplete": "Incomplete: the productions with an unknown price are left out",
+        "purchases": "Purchases per week",
+        "purchasesIncomplete": "Incomplete: products without a price are left out of the total",
+        "purchasesEstimate": "Estimate only, no multibuy",
+        "noPurchases": "Nothing to buy",
+        "factories": "Factories per tier",
+        "extraction": "Raw extraction per hour",
+        "noExtraction": "No raw extraction: every P1 is bought"
+      },
+      "errors": {
+        "emptyCatalog": "The SDE holds no planetary schematic. Import it before using the planner.",
+        "load": "Could not load the planner data."
+      }
     },
     "revenue": {
       "period": "Period",

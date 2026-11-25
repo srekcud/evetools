@@ -7,8 +7,10 @@ namespace App\State\Provider\Planetary;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Planetary\PlanetaryPlannerResource;
+use App\Entity\User;
 use App\Service\Planetary\PlanetaryPlannerCatalog;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
  * @implements ProviderInterface<PlanetaryPlannerResource>
@@ -23,6 +25,17 @@ final readonly class PlanetaryPlannerProvider implements ProviderInterface
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): PlanetaryPlannerResource
     {
-        return new PlanetaryPlannerResource();
+        if (!$this->security->getUser() instanceof User) {
+            throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
+        }
+
+        $catalog = $this->catalog->build();
+
+        $resource = new PlanetaryPlannerResource();
+        $resource->recipes = $catalog['recipes'];
+        $resource->types = $catalog['types'];
+        $resource->prices = $catalog['prices'];
+
+        return $resource;
     }
 }

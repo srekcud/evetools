@@ -365,8 +365,81 @@
     "lastSync": "Derniere sync :",
     "syncTooltip": "Met a jour le cache local depuis l'ESI. Les donnees refletent votre derniere interaction en jeu.",
     "tabs": {
+      "planner": "Planificateur",
       "colonies": "Colonies",
       "revenue": "Revenus"
+    },
+    "planner": {
+      "title": "Planificateur de production",
+      "subtitle": "Choisissez les produits à sortir par jour, lisez l'arbre complet jusqu'aux ressources brutes et décidez pour chaque étape de produire ou d'acheter.",
+      "empty": "Aucune production planifiée. Ajoutez un produit pour voir son arbre, son coût et les usines nécessaires.",
+      "tiers": {
+        "P0": "P0 · Brut",
+        "P1": "P1 · Basique",
+        "P2": "P2 · Raffiné",
+        "P3": "P3 · Spécialisé",
+        "P4": "P4 · Avancé"
+      },
+      "unknown": "inconnu",
+      "productions": {
+        "title": "Productions",
+        "addLabel": "Ajouter une production",
+        "addPlaceholder": "Choisir un produit",
+        "targetLabel": "Objectif par jour",
+        "targetInvalid": "Saisissez un nombre supérieur à zéro",
+        "perDay": "par jour",
+        "profitPerDay": "Bénéfice par jour",
+        "select": "Afficher l'arbre de {name}",
+        "remove": "Retirer {name}"
+      },
+      "tree": {
+        "title": "Arbre de production",
+        "product": "Produit",
+        "perDay": "Par jour",
+        "factories": "Usines",
+        "produceCost": "Coût produire",
+        "price": "Prix",
+        "choice": "Produire ou acheter",
+        "produce": "Produire",
+        "buy": "Acheter",
+        "target": "Objectif",
+        "starProduce": "Produire est l'option la moins chère",
+        "starBuy": "Acheter est l'option la moins chère",
+        "applyCheapest": "Tout au moins cher",
+        "applyCheapestHint": "Bascule chaque produit marqué sur son option la moins chère",
+        "inactive": "Inutile : un produit au-dessus est acheté",
+        "noSelection": "Sélectionnez une production pour voir son arbre."
+      },
+      "settings": {
+        "title": "Paramètres",
+        "priceSource": "Source de prix",
+        "jitaSell": "Jita vendeur",
+        "jitaBuy": "Jita acheteur",
+        "taxPercent": "Taxe POCO (%)",
+        "taxHint": "Appliquée au prix de chaque unité fabriquée",
+        "taxInvalid": "Saisissez un pourcentage de 0 à 100",
+        "daysBetweenRounds": "Jours entre deux passages",
+        "daysHint": "Conservé pour la comparaison aux emplacements, sans effet sur cette page pour l'instant",
+        "daysInvalid": "Saisissez au moins une demi-journée"
+      },
+      "summary": {
+        "title": "Synthèse",
+        "unitCost": "Coût unitaire",
+        "unitCostOf": "Coût d'un exemplaire de {name}",
+        "profit": "Bénéfice par jour",
+        "profitIncomplete": "Incomplet : les productions au prix inconnu sont écartées",
+        "purchases": "Achats par semaine",
+        "purchasesIncomplete": "Incomplet : les produits sans prix sont écartés du total",
+        "purchasesEstimate": "Estimation seulement, sans multibuy",
+        "noPurchases": "Rien à acheter",
+        "factories": "Usines par tier",
+        "extraction": "Extraction brute par heure",
+        "noExtraction": "Aucune extraction : tous les P1 sont achetés"
+      },
+      "errors": {
+        "emptyCatalog": "La SDE ne contient aucun schéma planétaire. Importez-la avant d'utiliser le planificateur.",
+        "load": "Impossible de charger les données du planificateur."
+      }
     },
     "revenue": {
       "period": "Période",

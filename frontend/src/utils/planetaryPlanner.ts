@@ -89,106 +89,233 @@ export interface PlannerPlan {
 export const DEFAULT_SETTINGS: PlannerSettings = { priceSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 }
 export const SECONDS_PER_DAY = 86400
 export const FACTORY_TOLERANCE = 1e-9
+export const MIN_DAYS_BETWEEN_ROUNDS = 0.5
+export const MAX_TAX_PERCENT = 100
+
+const DAYS_PER_WEEK = 7
+const HOURS_PER_DAY = 24
+const PERCENT = 100
+const FACTORY_TIERS = ['P1', 'P2', 'P3', 'P4'] as const
+
+export interface CatalogIndex {
+  recipeByOutput: Map<number, PlannerRecipe>
+  typeById: Map<number, PlannerType>
+  priceById: Map<number, PlannerPrice>
+}
+
+interface PlanContext {
+  index: CatalogIndex
+  catalog: PlannerCatalog
+  choices: Record<number, BuildChoice>
+  settings: PlannerSettings
+}
+
+const indexCache = new WeakMap<PlannerCatalog, CatalogIndex>()
+
+export function indexCatalog(catalog: PlannerCatalog): CatalogIndex {
+  const cached = indexCache.get(catalog)
+  if (cached) return cached
+
+  const index: CatalogIndex = {
+    recipeByOutput: new Map(catalog.recipes.map(recipe => [recipe.outputTypeId, recipe])),
+    typeById: new Map(catalog.types.map(type => [type.typeId, type])),
+    priceById: new Map(catalog.prices.map(price => [price.typeId, price])),
+  }
+  indexCache.set(catalog, index)
+  return index
+}
+
+function typeOf(typeId: number, index: CatalogIndex): PlannerType {
+  const type = index.typeById.get(typeId)
+  if (!type) throw new Error(`Type ${typeId} is missing from the planner catalog`)
+  return type
+}
+
+function outputPerDayOfOneFactory(recipe: PlannerRecipe): number {
+  return (recipe.outputQuantity * SECONDS_PER_DAY) / recipe.cycleSeconds
+}
 
 export function defaultChoice(tier: PlanetaryTier): BuildChoice {
-  void tier
-  return 'produce'
+  return tier === 'P1' ? 'buy' : 'produce'
 }
 
 export function defaultTargetPerDay(recipe: PlannerRecipe): number {
-  return recipe.outputQuantity
+  return outputPerDayOfOneFactory(recipe)
 }
 
 export function effectiveChoice(typeId: number, choices: Record<number, BuildChoice>, catalog: PlannerCatalog): BuildChoice {
-  return choices[typeId] ?? defaultChoice(catalog.types.find(type => type.typeId === typeId)?.tier ?? 'P0')
+  return choices[typeId] ?? defaultChoice(typeOf(typeId, indexCatalog(catalog)).tier)
 }
 
 export function unitPrice(typeId: number, catalog: PlannerCatalog, source: PriceSource): number | null {
-  void typeId
-  void catalog
-  void source
-  return null
+  const price = indexCatalog(catalog).priceById.get(typeId)
+  if (!price) return null
+  return source === 'jita-sell' ? price.sell : price.buy
+}
+
+function contextOf(catalog: PlannerCatalog, choices: Record<number, BuildChoice>, settings: PlannerSettings): PlanContext {
+  return { index: indexCatalog(catalog), catalog, choices, settings }
+}
+
+function priceIn(typeId: number, context: PlanContext): number | null {
+  return unitPrice(typeId, context.catalog, context.settings.priceSource)
+}
+
+function produceCostIn(typeId: number, context: PlanContext): number | null {
+  const recipe = context.index.recipeByOutput.get(typeId)
+  if (!recipe) return null
+
+  const ownPrice = priceIn(typeId, context)
+  if (ownPrice === null) return null
+  const tax = (ownPrice * context.settings.taxPercent) / PERCENT
+
+  if (typeOf(typeId, context.index).tier === 'P1') return tax
+
+  let inputsCost = 0
+  for (const input of recipe.inputs) {
+    const inputCost = unitCostIn(input.typeId, context)
+    if (inputCost === null) return null
+    inputsCost += input.quantity * inputCost
+  }
+  return inputsCost / recipe.outputQuantity + tax
+}
+
+function unitCostIn(typeId: number, context: PlanContext): number | null {
+  return effectiveChoice(typeId, context.choices, context.catalog) === 'buy' ? priceIn(typeId, context) : produceCostIn(typeId, context)
+}
+
+function starIn(typeId: number, isTarget: boolean, context: PlanContext): BuildChoice | null {
+  if (isTarget) return null
+  const tier = typeOf(typeId, context.index).tier
+  if (tier === 'P0' || tier === 'P1') return null
+
+  const cost = produceCostIn(typeId, context)
+  const price = priceIn(typeId, context)
+  if (cost === null || price === null) return null
+  return cost <= price ? 'produce' : 'buy'
 }
 
 export function unitCost(typeId: number, catalog: PlannerCatalog, choices: Record<number, BuildChoice>, settings: PlannerSettings): number | null {
-  void typeId
-  void catalog
-  void choices
-  void settings
-  return null
+  return unitCostIn(typeId, contextOf(catalog, choices, settings))
 }
 
 export function produceCost(typeId: number, catalog: PlannerCatalog, choices: Record<number, BuildChoice>, settings: PlannerSettings): number | null {
-  void typeId
-  void catalog
-  void choices
-  void settings
-  return null
+  return produceCostIn(typeId, contextOf(catalog, choices, settings))
 }
 
 export function starOf(typeId: number, isTarget: boolean, catalog: PlannerCatalog, choices: Record<number, BuildChoice>, settings: PlannerSettings): BuildChoice | null {
-  void typeId
-  void isTarget
-  void catalog
-  void choices
-  void settings
-  return null
+  return starIn(typeId, isTarget, contextOf(catalog, choices, settings))
 }
 
-export function cheapestChoices(productions: PlannedProduction[], catalog: PlannerCatalog, choices: Record<number, BuildChoice>, settings: PlannerSettings): Record<number, BuildChoice> {
-  void productions
-  void catalog
-  void settings
-  return choices
+function walk(typeId: number, perDay: number, isTarget: boolean, active: boolean, context: PlanContext): TreeNode {
+  const recipe = context.index.recipeByOutput.get(typeId)
+  const choice = isTarget ? 'produce' : effectiveChoice(typeId, context.choices, context.catalog)
+  const isMade = choice === 'produce'
+
+  return {
+    typeId,
+    tier: typeOf(typeId, context.index).tier,
+    perDay,
+    factories: active && isMade && recipe ? perDay / outputPerDayOfOneFactory(recipe) : null,
+    produceCost: produceCostIn(typeId, context),
+    price: priceIn(typeId, context),
+    choice,
+    isTarget,
+    active,
+    star: starIn(typeId, isTarget, context),
+    children: recipe
+      ? recipe.inputs.map(input => walk(input.typeId, (perDay * input.quantity) / recipe.outputQuantity, false, active && isMade, context))
+      : [],
+  }
+}
+
+function activeNodes(tree: TreeNode): TreeNode[] {
+  if (!tree.active) return []
+  return [tree, ...tree.children.flatMap(activeNodes)]
+}
+
+function treeIn(production: PlannedProduction, context: PlanContext): TreeNode {
+  return walk(production.typeId, production.targetPerDay, true, true, context)
 }
 
 export function buildTree(production: PlannedProduction, catalog: PlannerCatalog, choices: Record<number, BuildChoice>, settings: PlannerSettings): TreeNode {
-  void catalog
-  void choices
-  void settings
+  return treeIn(production, contextOf(catalog, choices, settings))
+}
+
+export function cheapestChoices(productions: PlannedProduction[], catalog: PlannerCatalog, choices: Record<number, BuildChoice>, settings: PlannerSettings): Record<number, BuildChoice> {
+  const starred: Record<number, BuildChoice> = {}
+  for (const production of productions) {
+    for (const node of activeNodes(buildTree(production, catalog, choices, settings))) {
+      if (node.star !== null) starred[node.typeId] = node.star
+    }
+  }
+  return { ...choices, ...starred }
+}
+
+function sumByType(nodes: TreeNode[], amountOf: (node: TreeNode) => number): Map<number, number> {
+  const totals = new Map<number, number>()
+  for (const node of nodes) {
+    const current = totals.get(node.typeId)
+    totals.set(node.typeId, current === undefined ? amountOf(node) : current + amountOf(node))
+  }
+  return totals
+}
+
+function sum(amounts: number[]): number {
+  return amounts.reduce((total, amount) => total + amount, 0)
+}
+
+function factoriesOfTier(nodes: TreeNode[], tier: PlanetaryTier): number {
+  const fractional = sum(nodes.filter(node => node.tier === tier).flatMap(node => (node.factories === null ? [] : [node.factories])))
+  return Math.max(0, Math.ceil(fractional - FACTORY_TOLERANCE))
+}
+
+function profitOf(production: PlannedProduction | undefined, tree: TreeNode): number | null {
+  if (!production || tree.produceCost === null || tree.price === null) return null
+  return production.targetPerDay * (tree.price - tree.produceCost)
+}
+
+function summarize(productions: PlannedProduction[], trees: TreeNode[], context: PlanContext): PlanSummary {
+  const nodes = trees.flatMap(activeNodes)
+  const profitPerDay = trees.map((tree, position) => profitOf(productions[position], tree))
+
+  const weeklyPurchases = [...sumByType(nodes.filter(node => node.tier !== 'P0' && node.choice === 'buy'), node => node.perDay * DAYS_PER_WEEK)].map(([typeId, quantity]) => {
+    const price = priceIn(typeId, context)
+    return { typeId, quantity, isk: price === null ? null : quantity * price }
+  })
+
   return {
-    typeId: production.typeId,
-    tier: 'P0',
-    perDay: 0,
-    factories: null,
-    produceCost: null,
-    price: null,
-    choice: 'produce',
-    isTarget: true,
-    active: true,
-    star: null,
-    children: [],
+    unitCost: trees.map(tree => tree.produceCost),
+    profitPerDay,
+    totalProfitPerDay: sum(profitPerDay.flatMap(profit => (profit === null ? [] : [profit]))),
+    profitIncomplete: profitPerDay.some(profit => profit === null),
+    weeklyPurchases,
+    weeklyPurchasesIsk: sum(weeklyPurchases.flatMap(purchase => (purchase.isk === null ? [] : [purchase.isk]))),
+    purchasesIncomplete: weeklyPurchases.some(purchase => purchase.isk === null),
+    factoriesByTier: Object.fromEntries(FACTORY_TIERS.map(tier => [tier, factoriesOfTier(nodes, tier)])) as Record<(typeof FACTORY_TIERS)[number], number>,
+    extractionPerHour: [...sumByType(nodes.filter(node => node.tier === 'P0'), node => node.perDay)].map(([typeId, perDay]) => ({ typeId, perHour: perDay / HOURS_PER_DAY })),
   }
 }
 
 export function buildPlan(productions: PlannedProduction[], catalog: PlannerCatalog, choices: Record<number, BuildChoice>, settings: PlannerSettings): PlannerPlan {
-  return {
-    trees: productions.map(production => buildTree(production, catalog, choices, settings)),
-    summary: {
-      unitCost: [],
-      profitPerDay: [],
-      totalProfitPerDay: 0,
-      profitIncomplete: false,
-      weeklyPurchases: [],
-      weeklyPurchasesIsk: 0,
-      purchasesIncomplete: false,
-      factoriesByTier: { P1: 0, P2: 0, P3: 0, P4: 0 },
-      extractionPerHour: [],
-    },
-  }
+  const context = contextOf(catalog, choices, settings)
+  const trees = productions.map(production => treeIn(production, context))
+  return { trees, summary: summarize(productions, trees, context) }
 }
 
 export function isValidTarget(value: number): boolean {
-  void value
-  return true
+  return Number.isFinite(value) && value > 0
 }
 
 export function isValidTaxPercent(value: number): boolean {
-  void value
-  return true
+  return Number.isFinite(value) && value >= 0 && value <= MAX_TAX_PERCENT
 }
 
 export function isValidDaysBetweenRounds(value: number): boolean {
-  void value
-  return true
+  return Number.isFinite(value) && value >= MIN_DAYS_BETWEEN_ROUNDS
+}
+
+export function parseDecimalInput(raw: string): number {
+  const trimmed = raw.trim().replace(',', '.')
+  return trimmed === '' ? Number.NaN : Number(trimmed)
 }

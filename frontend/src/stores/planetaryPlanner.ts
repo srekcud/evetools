@@ -1,8 +1,16 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { i18n } from '@/i18n'
+import { apiRequest } from '@/services/api'
 import {
   DEFAULT_SETTINGS,
   buildPlan,
+  cheapestChoices,
+  defaultTargetPerDay,
+  indexCatalog,
+  isValidDaysBetweenRounds,
+  isValidTarget,
+  isValidTaxPercent,
   type BuildChoice,
   type PlannedProduction,
   type PlannerCatalog,
@@ -25,47 +33,85 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   )
 
   async function fetchCatalog(): Promise<void> {
-    return
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await apiRequest<PlannerCatalog>('/planetary/planner')
+      if (response.recipes.length === 0) {
+        catalog.value = null
+        error.value = i18n.global.t('pi.planner.errors.emptyCatalog')
+        return
+      }
+      catalog.value = { recipes: response.recipes, types: response.types, prices: response.prices }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : i18n.global.t('pi.planner.errors.load')
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  function clearError(): void {
+    error.value = null
   }
 
   function addProduction(typeId: number): void {
-    void typeId
+    if (!catalog.value) return
+    const recipe = indexCatalog(catalog.value).recipeByOutput.get(typeId)
+    if (!recipe) return
+
+    productions.value.push({ typeId, targetPerDay: defaultTargetPerDay(recipe) })
+    selectedIndex.value = productions.value.length - 1
   }
 
   function setTarget(index: number, value: number): boolean {
-    void index
-    void value
+    const production = productions.value[index]
+    if (!production || !isValidTarget(value)) return false
+
+    production.targetPerDay = value
     return true
   }
 
   function removeProduction(index: number): void {
-    void index
+    if (index < 0 || index >= productions.value.length) return
+
+    productions.value.splice(index, 1)
+    const selected = selectedIndex.value
+    if (productions.value.length === 0) {
+      selectedIndex.value = null
+    } else if (selected !== null && selected > index) {
+      selectedIndex.value = selected - 1
+    } else if (selected === index) {
+      selectedIndex.value = Math.min(index, productions.value.length - 1)
+    }
   }
 
   function selectProduction(index: number): void {
-    void index
+    if (index >= 0 && index < productions.value.length) selectedIndex.value = index
   }
 
   function setChoice(typeId: number, choice: BuildChoice): void {
-    void typeId
-    void choice
+    choices.value = { ...choices.value, [typeId]: choice }
   }
 
   function applyCheapest(): void {
-    return
+    if (!catalog.value) return
+    choices.value = cheapestChoices(productions.value, catalog.value, choices.value, settings.value)
   }
 
   function setPriceSource(source: PriceSource): void {
-    void source
+    settings.value = { ...settings.value, priceSource: source }
   }
 
   function setTaxPercent(value: number): boolean {
-    void value
+    if (!isValidTaxPercent(value)) return false
+    settings.value = { ...settings.value, taxPercent: value }
     return true
   }
 
   function setDaysBetweenRounds(value: number): boolean {
-    void value
+    if (!isValidDaysBetweenRounds(value)) return false
+    settings.value = { ...settings.value, daysBetweenRounds: value }
     return true
   }
 
@@ -79,6 +125,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     selectedIndex,
     plan,
     fetchCatalog,
+    clearError,
     addProduction,
     setTarget,
     removeProduction,
