@@ -230,7 +230,8 @@ function extractionRowsOf(nodes: TreeNode[], context: PlanetContext): Extraction
     .sort((left, right) => left.typeId - right.typeId)
     .map(({ typeId, perHour }) => {
       const typed = context.overrides[typeId] as number | undefined
-      const known = context.account?.extractionYields.find(accountYield => accountYield.typeId === typeId)
+      const accountEntry = context.account?.extractionYields.find(accountYield => accountYield.typeId === typeId)
+      const known = accountEntry !== undefined && isValidExtractionYield(accountEntry.perHourPerPlanet) ? accountEntry : undefined
       const yieldPerHour = typed ?? known?.perHourPerPlanet ?? null
       const yieldSource = typed !== undefined ? 'override' : known ? 'account' : null
       const feedingFactories = p1Factories.get(typeId)
@@ -261,7 +262,7 @@ function totalPlanetsOf(rows: (FactoryPlanetRow | ExtractionPlanetRow)[]): numbe
 }
 
 function isIncomplete(rows: (FactoryPlanetRow | ExtractionPlanetRow)[]): boolean {
-  return rows.some(row => row.planets === null && !(row.role === 'factory' && row.status === 'doesNotFit'))
+  return rows.some(row => row.planets === null)
 }
 
 function openSlotsOf(row: FactoryPlanetRow | undefined): number {
