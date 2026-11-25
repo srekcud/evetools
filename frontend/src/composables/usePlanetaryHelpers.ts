@@ -23,14 +23,6 @@ export const TIER_CONFIG: Record<string, { labelKey: string; badgeBg: string; ba
   P4: { labelKey: 'pi.tiers.P4', badgeBg: 'bg-rose-500/15', badgeText: 'text-rose-400', badgeBorder: 'border-rose-500/20' },
 }
 
-export const VOLUME_BY_TIER: Record<string, number> = {
-  P0: 0.01,
-  P1: 0.38,
-  P2: 1.50,
-  P3: 6.00,
-  P4: 100.00,
-}
-
 // ========== Composable ==========
 
 export function usePlanetaryHelpers() {
@@ -135,6 +127,7 @@ export function usePlanetaryHelpers() {
   interface FlowLine {
     contentTypeName: string | null
     contentTypeId: number
+    contentVolume: number | null
     quantityPerCycle: number
     cycleTimeSeconds: number | null
     dailyQuantity: number | null
@@ -162,20 +155,11 @@ export function usePlanetaryHelpers() {
     return null
   }
 
-  function guessItemTier(contentTypeId: number): string {
-    const planetaryStore = usePlanetaryStore()
-    for (const tier of planetaryStore.production) {
-      if (tier.items.some(i => i.typeId === contentTypeId)) {
-        return tier.tier
-      }
-    }
-    return 'P0'
-  }
-
   function getStorageFlowData(colony: Colony, storagePin: Pin): StorageFlowData {
     interface RouteEntry { quantity: number; cycleTime: number | null }
-    const inMap = new Map<number, { name: string | null; routes: RouteEntry[] }>()
-    const outMap = new Map<number, { name: string | null; routes: RouteEntry[] }>()
+    interface FlowGroup { name: string | null; volume: number | null; routes: RouteEntry[] }
+    const inMap = new Map<number, FlowGroup>()
+    const outMap = new Map<number, FlowGroup>()
 
     for (const route of colony.routes) {
       if (route.destinationPinId === storagePin.pinId) {
@@ -184,7 +168,7 @@ export function usePlanetaryHelpers() {
         if (existing) {
           existing.routes.push(entry)
         } else {
-          inMap.set(route.contentTypeId, { name: route.contentTypeName, routes: [entry] })
+          inMap.set(route.contentTypeId, { name: route.contentTypeName, volume: route.contentVolume, routes: [entry] })
         }
       }
       if (route.sourcePinId === storagePin.pinId) {
@@ -193,12 +177,12 @@ export function usePlanetaryHelpers() {
         if (existing) {
           existing.routes.push(entry)
         } else {
-          outMap.set(route.contentTypeId, { name: route.contentTypeName, routes: [entry] })
+          outMap.set(route.contentTypeId, { name: route.contentTypeName, volume: route.contentVolume, routes: [entry] })
         }
       }
     }
 
-    function buildFlowLines(map: Map<number, { name: string | null; routes: RouteEntry[] }>): FlowLine[] {
+    function buildFlowLines(map: Map<number, FlowGroup>): FlowLine[] {
       const lines: FlowLine[] = []
       for (const [typeId, data] of map) {
         const totalQty = data.routes.reduce((sum, r) => sum + r.quantity, 0)
@@ -212,6 +196,7 @@ export function usePlanetaryHelpers() {
         lines.push({
           contentTypeName: data.name,
           contentTypeId: typeId,
+          contentVolume: data.volume,
           quantityPerCycle: totalQty,
           cycleTimeSeconds: firstCycle,
           dailyQuantity,
@@ -223,19 +208,20 @@ export function usePlanetaryHelpers() {
     const incoming = buildFlowLines(inMap)
     const outgoing = buildFlowLines(outMap)
 
-    let netDailyVolume: number | null = null
-    const allInKnown = incoming.every(f => f.dailyQuantity !== null)
-    const allOutKnown = outgoing.every(f => f.dailyQuantity !== null)
-
-    if (allInKnown && allOutKnown && (incoming.length > 0 || outgoing.length > 0)) {
-      const computeVolume = (flows: FlowLine[]) =>
-        flows.reduce((sum, f) => {
-          const vol = VOLUME_BY_TIER[guessItemTier(f.contentTypeId)] ?? 0.38
-          return sum + (f.dailyQuantity ?? 0) * vol
-        }, 0)
-
-      netDailyVolume = Math.round((computeVolume(incoming) - computeVolume(outgoing)) * 100) / 100
+    function dailyVolumeOf(flows: FlowLine[]): number | null {
+      let total = 0
+      for (const flow of flows) {
+        if (flow.dailyQuantity === null || flow.contentVolume === null) return null
+        total += flow.dailyQuantity * flow.contentVolume
+      }
+      return total
     }
+
+    const incomingVolume = dailyVolumeOf(incoming)
+    const outgoingVolume = dailyVolumeOf(outgoing)
+    const netDailyVolume = incomingVolume !== null && outgoingVolume !== null && (incoming.length > 0 || outgoing.length > 0)
+      ? Math.round((incomingVolume - outgoingVolume) * 100) / 100
+      : null
 
     let fillDays: number | null = null
     if (netDailyVolume !== null && netDailyVolume > 0 && storagePin.capacity && storagePin.capacity > 0) {

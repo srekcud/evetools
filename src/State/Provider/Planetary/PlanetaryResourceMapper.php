@@ -76,6 +76,7 @@ class PlanetaryResourceMapper
                 'destinationPinId' => $route->getDestinationPinId(),
                 'contentTypeId' => $route->getContentTypeId(),
                 'contentTypeName' => $this->typeNameResolver->findName($route->getContentTypeId()),
+                'contentVolume' => $this->invTypeRepository->find($route->getContentTypeId())?->getVolume(),
                 'quantity' => $route->getQuantity(),
                 'waypoints' => $route->getWaypoints() ?? [],
             ];
