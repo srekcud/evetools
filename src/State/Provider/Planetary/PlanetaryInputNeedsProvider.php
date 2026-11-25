@@ -38,6 +38,7 @@ class PlanetaryInputNeedsProvider implements ProviderInterface
         $resource = new PlanetaryInputNeedsResource();
         $resource->colonies = $needs['colonies'];
         $resource->launchpads = $needs['launchpads'];
+        $resource->extractions = $needs['extractions'];
         $resource->weekly = $needs['weekly'];
         $resource->complete = $needs['complete'];
 
