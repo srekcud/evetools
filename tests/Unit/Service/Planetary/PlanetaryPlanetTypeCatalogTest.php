@@ -43,6 +43,61 @@ final class PlanetaryPlanetTypeCatalogTest extends TestCase
         ], array_column($planetTypes, 'commandCenter'));
     }
 
+    public function testTheCommandCenterWithTheHighestCpuWinsEvenWhenAWeakerOneHasASmallerAndALargerTypeId(): void
+    {
+        $table = self::planetaryTypeTable();
+        $table['types'][91_600] = $table['types'][self::ELITE_GAS_COMMAND_CENTER];
+        $table['attributes'][91_600] = $table['attributes'][self::ELITE_GAS_COMMAND_CENTER];
+        unset($table['types'][self::ELITE_GAS_COMMAND_CENTER], $table['attributes'][self::ELITE_GAS_COMMAND_CENTER]);
+        $table['types'][91_700] = ['name' => 'Limited Gas Command Center', 'group' => self::COMMAND_CENTERS_GROUP_ID, 'capacity' => null];
+        $table['attributes'][91_700] = [self::CPU_OUTPUT => 6_000, self::POWER_OUTPUT => 7_000];
+
+        $planetTypes = $this->catalogOver($table)->build()['planetTypes'];
+
+        $this->assertSame(['cpu' => 22_750, 'pg' => 17_250], $planetTypes[1]['commandCenter']);
+    }
+
+    public function testACommandCenterWithMorePowerGridButLessCpuDoesNotWin(): void
+    {
+        $table = self::planetaryTypeTable();
+        $table['types'][91_800] = ['name' => 'Overcharged Gas Command Center', 'group' => self::COMMAND_CENTERS_GROUP_ID, 'capacity' => null];
+        $table['attributes'][91_800] = [self::CPU_OUTPUT => 10_000, self::POWER_OUTPUT => 30_000];
+
+        $planetTypes = $this->catalogOver($table)->build()['planetTypes'];
+
+        $this->assertSame(['cpu' => 22_750, 'pg' => 17_250], $planetTypes[1]['commandCenter']);
+    }
+
+    public function testPlanetsAreSortedByNameWhateverTheOrderOfTheLaunchpadsInTheSde(): void
+    {
+        $table = self::planetaryTypeTable();
+        $table['types'][91_999] = $table['types'][self::BARREN_LAUNCHPAD];
+        $table['attributes'][91_999] = $table['attributes'][self::BARREN_LAUNCHPAD];
+        unset($table['types'][self::BARREN_LAUNCHPAD], $table['attributes'][self::BARREN_LAUNCHPAD]);
+
+        $planetTypes = $this->catalogOver($table)->build()['planetTypes'];
+
+        $this->assertSame(['Barren', 'Gas', 'Ice'], array_column($planetTypes, 'name'));
+        $this->assertSame(['cpu' => 3_600, 'pg' => 700, 'capacity' => 10_000.0], $planetTypes[0]['launchpad']);
+    }
+
+    public function testExtractionPlanetTypesAreSortedByResourceAndPlanetWhateverTheOrderOfTheExtractorsInTheSde(): void
+    {
+        $table = self::planetaryTypeTable();
+        foreach ([91_542 => 91_499, 91_545 => 91_500] as $previousTypeId => $earlierTypeId) {
+            $table['types'][$earlierTypeId] = $table['types'][$previousTypeId];
+            $table['attributes'][$earlierTypeId] = $table['attributes'][$previousTypeId];
+            unset($table['types'][$previousTypeId], $table['attributes'][$previousTypeId]);
+        }
+
+        $extractionPlanetTypes = $this->catalogOver($table)->build()['extractionPlanetTypes'];
+
+        $this->assertSame([
+            ['typeId' => self::AQUEOUS_LIQUIDS_P0, 'planetTypes' => ['Barren', 'Gas']],
+            ['typeId' => self::BASE_METALS_P0, 'planetTypes' => ['Barren', 'Ice']],
+        ], $extractionPlanetTypes);
+    }
+
     public function testFacilitiesAreMatchedBySuffixAndAMissingOneStaysNull(): void
     {
         $planetTypes = $this->catalogOver(self::planetaryTypeTable())->build()['planetTypes'];
