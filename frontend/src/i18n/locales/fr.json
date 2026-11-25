@@ -518,6 +518,10 @@
         "P3": "P3 · Spécialisé",
         "P4": "P4 · Avancé"
       },
+      "sellOrders": {
+        "title": "Mes ordres de vente PI",
+        "empty": "Aucun ordre de vente pour les produits PI que tu fabriques."
+      },
       "walletTodo": {
         "text": "{character} : wallet non synchronisé ({reason})",
         "effect": "Ses ventes PI sont inconnues, pas nulles : elles restent hors du net et ses colonies ne sont pas listées plus bas comme invendues",

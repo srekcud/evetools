@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { usePlanetaryStore } from '@/stores/planetary'
 import RevenueLineGrid from '@/components/revenue/RevenueLineGrid.vue'
 import RevenueTodoPanel from '@/components/revenue/RevenueTodoPanel.vue'
+import ProjectSellOrdersCard from '@/components/group-industry/ProjectSellOrdersCard.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import type { RevenueTodoItem } from '@/types/revenueGrid'
@@ -24,6 +25,7 @@ const planetaryStore = usePlanetaryStore()
 
 const selectedDays = ref<number>(DEFAULT_PERIOD_DAYS)
 const revenue = computed(() => planetaryStore.revenue)
+const now = ref(Date.now())
 
 const labels = computed<PlanetaryRevenueLabels>(() => ({
   tier: tier => t(`pi.revenue.tiers.${tier}`),
@@ -64,6 +66,9 @@ function periodButtonClass(days: number): string[] {
   ]
 }
 
+watch(revenue, () => {
+  now.value = Date.now()
+})
 onMounted(() => planetaryStore.fetchRevenue(selectedDays.value))
 watch(selectedDays, days => planetaryStore.fetchRevenue(days))
 </script>
@@ -106,6 +111,13 @@ watch(selectedDays, days => planetaryStore.fetchRevenue(days))
         :columns="estimateColumns"
         :net="ESTIMATE_NET"
         :period="period"
+      />
+
+      <ProjectSellOrdersCard
+        :sell-orders="revenue.sellOrders"
+        :now="now"
+        :title="t('pi.revenue.sellOrders.title')"
+        :empty="t('pi.revenue.sellOrders.empty')"
       />
 
       <RevenueTodoPanel :items="todoItems" />

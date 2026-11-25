@@ -7,12 +7,14 @@ namespace App\Service\Industry\SellOrders;
 use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
+use App\Service\Planetary\PlanetaryProductTypes;
 
 class UserSellableProductTypes
 {
     public function __construct(
         private readonly IndustryProjectParticipantRepository $participantRepository,
         private readonly ProjectProductTypes $projectProductTypes,
+        private readonly PlanetaryProductTypes $planetaryProductTypes,
     ) {
     }
 
@@ -30,6 +32,10 @@ class UserSellableProductTypes
             foreach (array_keys($this->projectProductTypes->of($project)) as $typeId) {
                 $typeIds[$typeId] = $typeId;
             }
+        }
+
+        foreach (array_keys($this->planetaryProductTypes->of($user)) as $typeId) {
+            $typeIds[$typeId] = $typeId;
         }
 
         return array_values($typeIds);

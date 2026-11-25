@@ -8,6 +8,9 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Planetary\PlanetaryRevenueResource;
 use App\Entity\User;
+use App\Service\Industry\SellOrders\ProjectSellOrder;
+use App\Service\Industry\SellOrders\ProjectSellOrdersReader;
+use App\Service\Planetary\PlanetaryProductTypes;
 use App\Service\Planetary\PlanetaryRevenueCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -27,6 +30,8 @@ final readonly class PlanetaryRevenueProvider implements ProviderInterface
         private Security $security,
         private RequestStack $requestStack,
         private PlanetaryRevenueCalculator $calculator,
+        private PlanetaryProductTypes $productTypes,
+        private ProjectSellOrdersReader $sellOrdersReader,
     ) {
     }
 
@@ -52,8 +57,28 @@ final readonly class PlanetaryRevenueProvider implements ProviderInterface
         $resource->estimate = $report['estimate'];
         $resource->toFix = $report['toFix'];
         $resource->unsyncedWallets = $report['unsyncedWallets'];
+        $resource->sellOrders = $this->sellOrdersOf($user);
 
         return $resource;
+    }
+
+    /**
+     * @return array{orders: list<array{orderId: int, characterName: string, typeId: int, typeName: string, volumeRemain: int, locationId: int, marketName: string|null, price: float, bestPrice: float|null, rank: int|null, state: string, unknownReason: string|null, undercutSince: string|null, suggestedPrice: float|null}>, charactersToReconnect: list<string>, syncedAt: string|null}
+     */
+    private function sellOrdersOf(User $user): array
+    {
+        $products = $this->productTypes->of($user);
+        if ($products === []) {
+            return ['orders' => [], 'charactersToReconnect' => [], 'syncedAt' => null];
+        }
+
+        $sellOrders = $this->sellOrdersReader->forProducts($user, $products);
+
+        return [
+            'orders' => array_map(static fn (ProjectSellOrder $order): array => $order->toArray(), $sellOrders->orders),
+            'charactersToReconnect' => $sellOrders->charactersToReconnect,
+            'syncedAt' => $sellOrders->syncedAt?->format(\DATE_ATOM),
+        ];
     }
 
     private function requestedDays(): int
