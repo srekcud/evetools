@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\ESI;
 
+use App\Dto\CharacterBuyOrder;
+use App\Dto\CharacterOrders;
 use App\Dto\CharacterSellOrder;
 use App\Entity\Character;
 use App\Entity\EveToken;
@@ -18,6 +20,8 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(CharacterOrdersService::class)]
 #[CoversClass(CharacterSellOrder::class)]
+#[CoversClass(CharacterBuyOrder::class)]
+#[CoversClass(CharacterOrders::class)]
 #[Group('issue-350')]
 final class CharacterOrdersServiceTest extends TestCase
 {
@@ -48,24 +52,40 @@ final class CharacterOrdersServiceTest extends TestCase
             ->with('/characters/' . self::EVE_CHARACTER_ID . '/orders/', $character->getEveToken())
             ->willReturn([self::SELL_ROW]);
 
-        $orders = (new CharacterOrdersService($esiClient))->getSellOrders($character);
+        $orders = (new CharacterOrdersService($esiClient))->getOrders($character);
 
         self::assertEquals(
             [new CharacterSellOrder(6_350_000_001, 2_185, 60_003_760, 4_250_000.0, 4, 10, new \DateTimeImmutable('2026-11-10T08:30:00Z'))],
-            $orders,
+            $orders->sellOrders,
         );
+        self::assertSame([], $orders->buyOrders);
     }
 
-    public function testBuyOrdersAreIgnoredWhetherTheFlagIsTrueOrAbsent(): void
+    #[Group('issue-1393')]
+    public function testBuyOrderIsReturnedWithItsOpenQuantityPriceAndLocation(): void
+    {
+        $buyRow = [...self::SELL_ROW, 'order_id' => 6_350_000_002, 'is_buy_order' => true, 'type_id' => 2_321, 'price' => 4_800.0, 'location_id' => 60_003_760, 'volume_remain' => 10_000, 'volume_total' => 12_000];
+
+        $orders = (new CharacterOrdersService($this->clientReturning([self::SELL_ROW, $buyRow])))->getOrders($this->character());
+
+        self::assertEquals(
+            [new CharacterBuyOrder(6_350_000_002, 2_321, 60_003_760, 4_800.0, 10_000, 12_000, new \DateTimeImmutable('2026-11-10T08:30:00Z'))],
+            $orders->buyOrders,
+        );
+        self::assertSame([6_350_000_001], array_map(static fn (CharacterSellOrder $order): int => $order->orderId, $orders->sellOrders));
+    }
+
+    public function testOnlyAnExplicitTrueFlagMakesABuyOrder(): void
     {
         $buyOrder = [...self::SELL_ROW, 'order_id' => 6_350_000_002, 'is_buy_order' => true];
         $sellOrderWithoutFlag = self::SELL_ROW;
         unset($sellOrderWithoutFlag['is_buy_order']);
         $sellOrderWithoutFlag['order_id'] = 6_350_000_003;
 
-        $orders = (new CharacterOrdersService($this->clientReturning([$buyOrder, self::SELL_ROW, $sellOrderWithoutFlag])))->getSellOrders($this->character());
+        $orders = (new CharacterOrdersService($this->clientReturning([$buyOrder, self::SELL_ROW, $sellOrderWithoutFlag])))->getOrders($this->character());
 
-        self::assertSame([6_350_000_001, 6_350_000_003], array_map(static fn (CharacterSellOrder $order): int => $order->orderId, $orders));
+        self::assertSame([6_350_000_001, 6_350_000_003], array_map(static fn (CharacterSellOrder $order): int => $order->orderId, $orders->sellOrders));
+        self::assertSame([6_350_000_002], array_map(static fn (CharacterBuyOrder $order): int => $order->orderId, $orders->buyOrders));
     }
 
     public function testCharacterWithoutTokenRequiresAuthentication(): void
@@ -74,7 +94,7 @@ final class CharacterOrdersServiceTest extends TestCase
 
         $this->expectException(EveAuthRequiredException::class);
 
-        (new CharacterOrdersService($this->createStub(EsiClient::class)))->getSellOrders($character);
+        (new CharacterOrdersService($this->createStub(EsiClient::class)))->getOrders($character);
     }
 
     /**
@@ -96,7 +116,20 @@ final class CharacterOrdersServiceTest extends TestCase
         $this->expectException(EsiApiException::class);
         $this->expectExceptionMessage($field);
 
-        (new CharacterOrdersService($this->clientReturning([$row])))->getSellOrders($this->character());
+        (new CharacterOrdersService($this->clientReturning([$row])))->getOrders($this->character());
+    }
+
+    #[DataProvider('requiredFields')]
+    #[Group('issue-1393')]
+    public function testBuyRowWithoutARequiredFieldRaisesAnExplicitError(string $field): void
+    {
+        $row = [...self::SELL_ROW, 'is_buy_order' => true];
+        unset($row[$field]);
+
+        $this->expectException(EsiApiException::class);
+        $this->expectExceptionMessage($field);
+
+        (new CharacterOrdersService($this->clientReturning([$row])))->getOrders($this->character());
     }
 
     /**
