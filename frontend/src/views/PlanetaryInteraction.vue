@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { usePlanetaryStore } from '@/stores/planetary'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
@@ -16,12 +17,14 @@ import { useUpdateFlash } from '@/composables/useUpdateFlash'
 import { useTabQuery } from '@/composables/useTabQuery'
 import SubTabs from '@/components/common/SubTabs.vue'
 import PiRevenueTab from '@/components/planetary/PiRevenueTab.vue'
+import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
 
-type PlanetaryTab = 'colonies' | 'revenue'
+type PlanetaryTab = 'planner' | 'colonies' | 'revenue'
 
-const PLANETARY_TABS = ['colonies', 'revenue'] as const satisfies readonly PlanetaryTab[]
+const PLANETARY_TABS = ['planner', 'colonies', 'revenue'] as const satisfies readonly PlanetaryTab[]
 
 const { t } = useI18n()
+const route = useRoute()
 const planetaryStore = usePlanetaryStore()
 const coloniesUpdated = useUpdateFlash(() => planetaryStore.colonies)
 const syncStore = useSyncStore()
@@ -73,6 +76,11 @@ onMounted(async () => {
     planetaryStore.fetchStats(),
     planetaryStore.fetchProduction(),
   ])
+
+  const hasNoColony = planetaryStore.error === null && planetaryStore.colonies.length === 0
+  if (hasNoColony && route.query.tab === undefined) {
+    activeTab.value = 'planner'
+  }
 })
 
 onUnmounted(() => {
@@ -146,7 +154,9 @@ async function toggleColony(colonyId: string): Promise<void> {
 
       <SubTabs v-model="activeTab" :tabs="subTabs" />
 
-      <PiRevenueTab v-if="activeTab === 'revenue'" />
+      <PiPlannerTab v-if="activeTab === 'planner'" />
+
+      <PiRevenueTab v-else-if="activeTab === 'revenue'" />
 
       <template v-else>
 
