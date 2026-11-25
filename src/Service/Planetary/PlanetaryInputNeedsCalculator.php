@@ -38,6 +38,7 @@ class PlanetaryInputNeedsCalculator
         private readonly InvTypeRepository $invTypeRepository,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly ClockInterface $clock,
+        private readonly ExtractorYieldCalculator $extractorYield,
     ) {
     }
 
@@ -134,7 +135,14 @@ class PlanetaryInputNeedsCalculator
             return;
         }
 
-        $this->addTo($flows['extraction'], [$productTypeId => $quantityPerCycle * (self::SECONDS_PER_DAY / (float) $cycleTime)]);
+        $dailyQuantity = $this->extractorYield->programDailyAverage($quantityPerCycle, $cycleTime, $pin->getInstallTime(), $expiry);
+        if ($dailyQuantity === null) {
+            $flows['unknownExtraction'][$productTypeId] = true;
+
+            return;
+        }
+
+        $this->addTo($flows['extraction'], [$productTypeId => $dailyQuantity]);
     }
 
     /**

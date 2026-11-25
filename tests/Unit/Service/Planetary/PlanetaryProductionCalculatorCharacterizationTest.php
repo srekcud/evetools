@@ -13,6 +13,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\JitaMarketService;
+use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -576,8 +577,7 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         ], $result);
     }
 
-    #[Group('pi-audit-7')]
-    public function testExtractorWithoutExpiryTimeCurrentlyProducesAsIfActivePiAudit7(): void
+    public function testExtractorWithoutExpiryTimeProducesNothing(): void
     {
         $colony = $this->colony(
             $this->extractorPin(self::IONIC_SOLUTIONS, cycleTime: 3600, qtyPerCycle: 12513, expiryTime: null),
@@ -585,18 +585,8 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
 
         $result = $this->calculator()->calculateProduction([$colony]);
 
-        $this->assertSame([
-            [
-                'tier' => 'P0',
-                'label' => 'Raw Materials',
-                'items' => [
-                    $this->item(self::IONIC_SOLUTIONS, 300312.0, 9.4713, 2844345.05),
-                ],
-                'dailyIskValue' => 2844345.05,
-            ],
-        ], $result['tiers']);
-        $this->assertSame(2844345.05, $result['totalDailyIsk']);
-        $this->assertSame(85330351.37, $result['totalMonthlyIsk']);
+        $this->assertSame([], $result['tiers']);
+        $this->assertSame(0.0, $result['totalDailyIsk']);
     }
 
     #[Group('pi-audit-15')]
@@ -899,6 +889,7 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
             $invTypeRepository,
             new TypeNameResolver($invTypeRepository),
             $jitaMarketService,
+            $this->constantRateExtractorYield(),
         );
     }
 
@@ -910,6 +901,18 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         }
 
         return $colony;
+    }
+
+    private function constantRateExtractorYield(): ExtractorYieldCalculator
+    {
+        $yield = $this->createStub(ExtractorYieldCalculator::class);
+        $yield->method('programDailyAverage')->willReturnCallback(
+            static fn (int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime): ?float => $expiryTime === null
+                ? null
+                : $quantityPerCycle * (86400 / $cycleTime),
+        );
+
+        return $yield;
     }
 
     private function extractorPin(int $productTypeId, ?int $cycleTime, ?int $qtyPerCycle, ?\DateTimeImmutable $expiryTime): PlanetaryPin

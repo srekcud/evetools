@@ -8,12 +8,15 @@ use App\Entity\Character;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\PlanetaryRoute;
+use App\Entity\Sde\DgmAttributeType;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Entity\Sde\PlanetSchematic;
+use App\Repository\Sde\DgmAttributeTypeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
+use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryInputNeedsCalculator;
 use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -106,6 +109,7 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
             $this->invTypeRepository,
             $this->typeNameResolver,
             new MockClock(self::NOW),
+            $this->constantRateExtractorYield(),
         );
 
         $this->registerType(self::LAUNCHPAD_TYPE_ID, 'Launchpad', self::SPACEPORTS_GROUP_ID, null, 10000.0);
@@ -209,7 +213,7 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
         $this->assertQuantity(960, $bacteria, 'dailyNetImport');
     }
 
-    public function testExtractorWithoutExpiryTimeStillCounts(): void
+    public function testExtractorWithoutExpiryTimeLeavesProducedLocallyAndNetImportUnknown(): void
     {
         $this->defineSchematic(65, [self::BACTERIA => 40], self::OXYGEN, 1, 3600);
         $colony = $this->colony(
@@ -221,8 +225,33 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
         $result = $this->calculator->calculate([$colony]);
 
         $bacteria = $this->needOf($this->colonyOf($result, self::PLANET_ALPHA), self::BACTERIA);
-        $this->assertQuantity(211200, $bacteria, 'dailyProducedLocally');
+        $this->assertNullField($bacteria, 'dailyProducedLocally');
+        $this->assertNullField($bacteria, 'dailyNetImport');
+    }
+
+    public function testExtractorProducesTheDecayingProgramAverageOfTheCcpFormula(): void
+    {
+        $this->defineSchematic(65, [self::BACTERIA => 40], self::OXYGEN, 1, 3600);
+        $colony = $this->colony(
+            self::PLANET_ALPHA,
+            $this->factoryPin(self::FACTORY, 65),
+            $this->extractorPin(self::EXTRACTOR, self::BACTERIA, 1800, 4400, self::TOMORROW),
+        );
+        $calculator = new PlanetaryInputNeedsCalculator(
+            $this->schematicRepository,
+            $this->schematicTypeRepository,
+            $this->invTypeRepository,
+            $this->typeNameResolver,
+            new MockClock(self::NOW),
+            new ExtractorYieldCalculator($this->defaultFactorsRepository()),
+        );
+
+        $result = $calculator->calculate([$colony]);
+
+        $bacteria = $this->needOf($this->colonyOf($result, self::PLANET_ALPHA), self::BACTERIA);
+        $this->assertQuantity(313874.1190760704, $bacteria, 'dailyProducedLocally');
         $this->assertQuantity(0, $bacteria, 'dailyNetImport');
+        $this->assertQuantity(2197118.8335, $this->weeklyOf($result, self::BACTERIA), 'weeklyExtraction');
     }
 
     public function testFactoryOutputFeedingAnotherFactoryOfTheColonyIsProducedLocally(): void
@@ -475,6 +504,32 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
         $this->assertNullField($bacteria, 'weeklyNetNeed');
     }
 
+    private function constantRateExtractorYield(): ExtractorYieldCalculator
+    {
+        $yield = $this->createStub(ExtractorYieldCalculator::class);
+        $yield->method('programDailyAverage')->willReturnCallback(
+            static fn (int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime): ?float => $expiryTime === null
+                ? null
+                : $quantityPerCycle * (86400 / $cycleTime),
+        );
+
+        return $yield;
+    }
+
+    private function defaultFactorsRepository(): DgmAttributeTypeRepository
+    {
+        $repository = $this->createStub(DgmAttributeTypeRepository::class);
+        $repository->method('find')->willReturnCallback(
+            static fn (mixed $attributeId): ?DgmAttributeType => match ($attributeId) {
+                1683 => (new DgmAttributeType())->setAttributeId(1683)->setDefaultValue(0.012),
+                1687 => (new DgmAttributeType())->setAttributeId(1687)->setDefaultValue(0.8),
+                default => null,
+            },
+        );
+
+        return $repository;
+    }
+
     private function chainColony(): PlanetaryColony
     {
         $this->defineSchematic(81, [self::BACTERIA => 100], self::OXYGEN, 20, 3600);
@@ -553,6 +608,7 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
             ->setExtractorProductTypeId($productTypeId)
             ->setExtractorCycleTime($cycleTime)
             ->setExtractorQtyPerCycle($quantityPerCycle)
+            ->setInstallTime($expiryTime === null ? null : (new \DateTimeImmutable($expiryTime))->modify('-24 hours'))
             ->setExpiryTime($expiryTime === null ? null : new \DateTimeImmutable($expiryTime));
     }
 

@@ -13,6 +13,9 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\JitaMarketService;
+use App\Entity\Sde\DgmAttributeType;
+use App\Repository\Sde\DgmAttributeTypeRepository;
+use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -46,6 +49,7 @@ class PlanetaryProductionCalculatorTest extends TestCase
             $this->invTypeRepository,
             $this->typeNameResolver,
             $this->jitaMarketService,
+            $this->constantRateExtractorYield(),
         );
     }
 
@@ -104,6 +108,43 @@ class PlanetaryProductionCalculatorTest extends TestCase
         $this->assertSame(480000.0, $result['tiers'][0]['items'][0]['dailyIskValue']);
         $this->assertSame(480000.0, $result['totalDailyIsk']);
         $this->assertSame(14400000.0, $result['totalMonthlyIsk']);
+    }
+
+    public function testExtractorDailyOutputIsTheDecayingProgramAverageOfTheCcpFormula(): void
+    {
+        $this->schematicTypeRepository->method('getSchematicMap')->willReturn([]);
+        $this->stubRawMaterialTypes();
+        $this->jitaMarketService->method('getPrices')->willReturn([2073 => 1.0]);
+        $attributes = $this->createStub(DgmAttributeTypeRepository::class);
+        $attributes->method('find')->willReturnCallback(
+            static fn (mixed $attributeId): ?DgmAttributeType => match ($attributeId) {
+                1683 => (new DgmAttributeType())->setAttributeId(1683)->setDefaultValue(0.012),
+                1687 => (new DgmAttributeType())->setAttributeId(1687)->setDefaultValue(0.8),
+                default => null,
+            },
+        );
+        $calculator = new PlanetaryProductionCalculator(
+            $this->schematicRepository,
+            $this->schematicTypeRepository,
+            $this->invTypeRepository,
+            $this->typeNameResolver,
+            $this->jitaMarketService,
+            new ExtractorYieldCalculator($attributes),
+        );
+        $now = new \DateTimeImmutable();
+        $pin = $this->createExtractorPin(
+            productTypeId: 2073,
+            cycleTime: 1800,
+            qtyPerCycle: 1000,
+            expiryTime: $now->modify('+1 day'),
+        );
+        $pin->setInstallTime($now->modify('-1 day'));
+        $colony = new PlanetaryColony();
+        $colony->addPin($pin);
+
+        $result = $calculator->calculateProduction([$colony]);
+
+        $this->assertEqualsWithDelta(56079.6626, $result['tiers'][0]['items'][0]['dailyQuantity'], 1.0);
     }
 
     public function testExpiredExtractorIsExcluded(): void
@@ -408,6 +449,18 @@ class PlanetaryProductionCalculatorTest extends TestCase
             [2073 => 233520.0, 2074 => 12494.4],
             array_column($result['tiers'][0]['items'], 'dailyIskValue', 'typeId'),
         );
+    }
+
+    private function constantRateExtractorYield(): ExtractorYieldCalculator
+    {
+        $yield = $this->createStub(ExtractorYieldCalculator::class);
+        $yield->method('programDailyAverage')->willReturnCallback(
+            static fn (int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime): ?float => $expiryTime === null
+                ? null
+                : $quantityPerCycle * (86400 / $cycleTime),
+        );
+
+        return $yield;
     }
 
     private function createExtractorPin(
