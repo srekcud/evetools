@@ -109,6 +109,47 @@ final class ExtractorYieldCalculatorTest extends TestCase
         self::assertNull((new ExtractorYieldCalculator($repository))->cycleYields(6965, 1800, 95));
     }
 
+    public function testYieldBetweenSumsTheCyclesEndingInsideTheWindow(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+
+        $yield = $this->calculator(0.012, 0.8)->yieldBetween(4400, 1800, $install, $install->modify('+48 hours'), $install->modify('+1 hour'), $install->modify('+3 hours'));
+
+        self::assertEqualsWithDelta(32136.0578, $yield, self::DELTA);
+    }
+
+    public function testYieldBetweenIsCappedAtTheEndOfTheProgram(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+
+        $yield = $this->calculator(0.012, 0.8)->yieldBetween(4400, 1800, $install, $install->modify('+2 hours'), $install, $install->modify('+10 hours'));
+
+        self::assertEqualsWithDelta(33609.8286, $yield, self::DELTA);
+    }
+
+    public function testYieldBetweenOfAWindowWithoutAnyCycleEndIsZeroAndKnown(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+
+        $yield = $this->calculator(0.012, 0.8)->yieldBetween(4400, 1800, $install, $install->modify('+48 hours'), $install->modify('+31 minutes'), $install->modify('+59 minutes'));
+
+        self::assertSame(0.0, $yield);
+    }
+
+    public function testYieldBetweenIsUnknownWithoutInstallTimeExpiryTimeOrFactors(): void
+    {
+        $moment = new \DateTimeImmutable('2026-11-24 12:00:00');
+        $later = $moment->modify('+24 hours');
+        $calculator = $this->calculator(0.012, 0.8);
+
+        self::assertNull($calculator->yieldBetween(4400, 1800, null, $later, $moment, $later));
+        self::assertNull($calculator->yieldBetween(4400, 1800, $moment, null, $moment, $later));
+        self::assertNull($calculator->yieldBetween(4400, 1800, $moment, $moment, $moment, $later));
+
+        $withoutFactors = $this->createStub(DgmAttributeTypeRepository::class);
+        self::assertNull((new ExtractorYieldCalculator($withoutFactors))->yieldBetween(4400, 1800, $moment, $later, $moment, $later));
+    }
+
     private function calculator(float $decayFactor, float $noiseFactor): ExtractorYieldCalculator
     {
         $repository = $this->createStub(DgmAttributeTypeRepository::class);
