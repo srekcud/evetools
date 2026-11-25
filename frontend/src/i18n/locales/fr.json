@@ -367,6 +367,7 @@
     "tabs": {
       "planner": "Planificateur",
       "colonies": "Colonies",
+      "supply": "Approvisionnement",
       "revenue": "Revenus"
     },
     "planner": {
@@ -613,7 +614,30 @@
     "supply": {
       "inputs": "Entrees",
       "output": "Sortie",
-      "supply": "Appro."
+      "supply": "Appro.",
+      "title": "Remplissage des launchpads",
+      "help": "Quantités à apporter à chaque launchpad pour tenir le nombre de jours choisi, dans la limite de sa capacité. Les achats ne sont pas listés ici.",
+      "daysLabel": "Je repasse dans (jours)",
+      "daysInvalid": "Saisis un nombre de jours supérieur à 0 et au plus égal à {max}.",
+      "copy": "Copier le chargement",
+      "copied": "Copié",
+      "copyFailed": "La liste n'a pas pu être copiée, sélectionne le texte et copie-le à la main.",
+      "unnamed": "Exclus de la copie, nom inconnu : {types}",
+      "loading": "Lecture des besoins en entrées...",
+      "incomplete": "Certaines usines ont un schéma inconnu, des entrées peuvent manquer.",
+      "empty": "Aucun launchpad n'alimente une usine : rien à apporter.",
+      "excluded": "{count} launchpad exclu des totaux, sa capacité ou le volume d'une entrée est inconnu. | {count} launchpads exclus des totaux, leur capacité ou le volume d'une entrée est inconnu.",
+      "capacityWarning": "{planet} tient {capacityDays} jours au plus, {days} demandés.",
+      "launchpad": "Launchpad",
+      "bring": "À apporter",
+      "autonomy": "Autonomie après le plein",
+      "total": "Total",
+      "unknown": "inconnu",
+      "noConsumption": "aucune consommation",
+      "daysShort": "{value} j",
+      "errors": {
+        "load": "Les besoins en entrées n'ont pas pu être chargés."
+      }
     }
   },
   "pve": {
