@@ -10,4 +10,5 @@ enum ColonyStatus: string
     case Expiring = 'expiring';
     case Active = 'active';
     case Idle = 'idle';
+    case Factory = 'factory';
 }
