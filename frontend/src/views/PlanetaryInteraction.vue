@@ -206,6 +206,16 @@ async function toggleColony(colonyId: string): Promise<void> {
           :threshold-minutes="statsData?.expiryThresholdMinutes ?? null"
         />
 
+        <div class="flex justify-end px-2">
+          <RouterLink
+            :to="{ name: 'settings', params: { section: 'notifications' } }"
+            class="text-xs text-slate-400 hover:text-cyan-300 hover:underline"
+            data-testid="pi-alert-settings-link"
+          >
+            {{ t('pi.alerts.settingsLink') }}
+          </RouterLink>
+        </div>
+
         <PiProductionTable
           :production="planetaryStore.production"
           :total-daily-isk="planetaryStore.totalDailyIsk"

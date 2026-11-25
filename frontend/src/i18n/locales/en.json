@@ -557,7 +557,8 @@
     "alerts": {
       "extractorsExpired": "{count} extractor expired | {count} extractor expired | {count} extractors expired",
       "expireInWindow": "{count} expiring within {window}",
-      "expireSoon": "{count} expiring soon"
+      "expireSoon": "{count} expiring soon",
+      "settingsLink": "Alert settings"
     },
     "production": {
       "title": "Global production by tier",

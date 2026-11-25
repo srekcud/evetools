@@ -24,7 +24,16 @@ class NotificationRepository extends ServiceEntityRepository
      */
     public function findByUserAndCategorySince(User $user, string $category, \DateTimeImmutable $since): array
     {
-        return [];
+        return $this->createQueryBuilder('n')
+            ->where('n.user = :user')
+            ->andWhere('n.category = :category')
+            ->andWhere('n.createdAt >= :since')
+            ->setParameter('user', $user)
+            ->setParameter('category', $category)
+            ->setParameter('since', $since)
+            ->orderBy('n.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**
