@@ -17,6 +17,7 @@ use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\JitaMarketService;
 use App\Service\Planetary\PlanetaryPlanetTypeCatalog;
 use App\Service\Planetary\PlanetaryPlannerCatalog;
+use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Support\StubsPlanetaryTypes;
@@ -233,7 +234,7 @@ final class PlanetaryPlannerCatalogTest extends TestCase
             $schematicRepository,
             $schematicTypeRepository,
             $invTypeRepository,
-            new PlanetaryProductionCalculator($schematicRepository, $schematicTypeRepository, $invTypeRepository, $this->createStub(TypeNameResolver::class), $jitaMarketService),
+            new PlanetaryProductionCalculator($schematicRepository, $schematicTypeRepository, $invTypeRepository, $this->createStub(TypeNameResolver::class), $jitaMarketService, $this->createStub(ExtractorYieldCalculator::class)),
             $jitaMarketService,
             $planetTypeCatalog ?? new PlanetaryPlanetTypeCatalog($invTypeRepository, $this->createStub(DgmTypeAttributeRepository::class)),
         );
