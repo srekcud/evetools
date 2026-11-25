@@ -80,6 +80,7 @@ class WalletJournalSyncService
         return array_values(array_filter(
             $journal,
             fn (array $line): bool => \in_array($line['ref_type'] ?? null, CachedWalletJournalEntry::CONTRACT_FEE_REF_TYPES, true)
+                || \in_array($line['ref_type'] ?? null, CachedWalletJournalEntry::PLANETARY_TAX_REF_TYPES, true)
                 || $this->isIncomingPaymentWithProjectReference($line),
         ));
     }

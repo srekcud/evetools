@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Dto\PlanetaryTaxDay;
 use App\Entity\CachedWalletJournalEntry;
 use App\Entity\Character;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -87,5 +88,49 @@ class CachedWalletJournalEntryRepository extends ServiceEntityRepository
             ->setParameter('reference', '%'.strtoupper($reference).'%')
             ->getQuery()
             ->getResult());
+    }
+
+    /**
+     * @param list<Character> $characters
+     *
+     * @return list<PlanetaryTaxDay>
+     */
+    public function planetaryTaxesByColonyAndDay(array $characters, \DateTimeImmutable $since): array
+    {
+        if ($characters === []) {
+            return [];
+        }
+
+        $entries = $this->createQueryBuilder('entry')
+            ->addSelect('character')
+            ->join('entry.character', 'character')
+            ->andWhere('entry.character IN (:characters)')
+            ->andWhere('entry.refType IN (:refTypes)')
+            ->andWhere('entry.contextId IS NOT NULL')
+            ->andWhere('entry.date >= :since')
+            ->setParameter('characters', $characters)
+            ->setParameter('refTypes', CachedWalletJournalEntry::PLANETARY_TAX_REF_TYPES)
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getResult();
+
+        $sums = [];
+        foreach ($entries as $entry) {
+            $eveCharacterId = $entry->getCharacter()->getEveCharacterId();
+            $planetId = $entry->getContextId();
+            $day = $entry->getDate()->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d');
+            $key = $day.'|'.$planetId.'|'.$eveCharacterId;
+            $sums[$key] ??= ['eveCharacterId' => $eveCharacterId, 'planetId' => $planetId, 'day' => $day, 'import' => 0.0, 'export' => 0.0];
+            $kind = $entry->getRefType() === CachedWalletJournalEntry::PLANETARY_IMPORT_TAX ? 'import' : 'export';
+            $sums[$key][$kind] -= $entry->getAmount();
+        }
+
+        $rows = array_map(
+            static fn (array $sum): PlanetaryTaxDay => new PlanetaryTaxDay($sum['eveCharacterId'], $sum['planetId'], $sum['day'], $sum['import'], $sum['export']),
+            array_values($sums),
+        );
+        usort($rows, static fn (PlanetaryTaxDay $a, PlanetaryTaxDay $b): int => [$a->day, $a->planetId, $a->eveCharacterId] <=> [$b->day, $b->planetId, $b->eveCharacterId]);
+
+        return $rows;
     }
 }

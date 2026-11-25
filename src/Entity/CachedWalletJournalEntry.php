@@ -20,6 +20,9 @@ class CachedWalletJournalEntry
     public const array CONTRACT_FEE_REF_TYPES = [self::CONTRACT_BROKERS_FEE, self::CONTRACT_SALES_TAX];
     public const string CONTRACT_CONTEXT_TYPE = 'contract_id';
     public const string PLAYER_DONATION = 'player_donation';
+    public const string PLANETARY_IMPORT_TAX = 'planetary_import_tax';
+    public const string PLANETARY_EXPORT_TAX = 'planetary_export_tax';
+    public const array PLANETARY_TAX_REF_TYPES = [self::PLANETARY_IMPORT_TAX, self::PLANETARY_EXPORT_TAX];
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
