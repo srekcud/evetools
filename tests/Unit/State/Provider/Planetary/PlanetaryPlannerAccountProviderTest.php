@@ -13,6 +13,7 @@ use App\Entity\PlanetaryPin;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryPlannerAccountReader;
 use App\State\Provider\Planetary\PlanetaryPlannerAccountProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -75,7 +76,12 @@ final class PlanetaryPlannerAccountProviderTest extends TestCase
             static fn (int $eveCharacterId): array => $eveCharacterId === self::ALMA_EVE_ID ? [CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 2] : [],
         );
 
-        return (new PlanetaryPlannerAccountProvider($security, new PlanetaryPlannerAccountReader($colonyRepository, $skillRepository)))->provide(new Get());
+        $extractorYield = $this->createStub(ExtractorYieldCalculator::class);
+        $extractorYield->method('programDailyAverage')->willReturnCallback(
+            static fn (int $quantityPerCycle, int $cycleTime): float => $quantityPerCycle * 86400 / $cycleTime,
+        );
+
+        return (new PlanetaryPlannerAccountProvider($security, new PlanetaryPlannerAccountReader($colonyRepository, $skillRepository, $extractorYield)))->provide(new Get());
     }
 
     private function colonyWithExtractor(User $user, int $quantityPerCycle, int $cycleSeconds): PlanetaryColony
