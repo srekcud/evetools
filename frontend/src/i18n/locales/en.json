@@ -368,6 +368,7 @@
       "planner": "Planner",
       "colonies": "Colonies",
       "stock": "Stock",
+      "supply": "Supply",
       "revenue": "Revenue"
     },
     "stock": {
@@ -634,7 +635,30 @@
     "supply": {
       "inputs": "Inputs",
       "output": "Output",
-      "supply": "Supply"
+      "supply": "Supply",
+      "title": "Launchpad refill",
+      "help": "Quantities to bring to each launchpad to last the chosen number of days, within its capacity. Purchases are not listed here.",
+      "daysLabel": "I come back in (days)",
+      "daysInvalid": "Enter a number of days above 0 and up to {max}.",
+      "copy": "Copy the load",
+      "copied": "Copied",
+      "copyFailed": "The list could not be copied, select the text and copy it by hand.",
+      "unnamed": "Left out of the copy, name unknown: {types}",
+      "loading": "Reading the input needs...",
+      "incomplete": "Some factories have an unknown schema, inputs may be missing.",
+      "empty": "No launchpad feeds a factory: nothing to bring.",
+      "excluded": "{count} launchpad left out of the totals, its capacity or an input volume is unknown. | {count} launchpads left out of the totals, their capacity or an input volume is unknown.",
+      "capacityWarning": "{planet} holds {capacityDays} days at most, {days} requested.",
+      "launchpad": "Launchpad",
+      "bring": "To bring",
+      "autonomy": "Autonomy after refill",
+      "total": "Total",
+      "unknown": "unknown",
+      "noConsumption": "no consumption",
+      "daysShort": "{value} d",
+      "errors": {
+        "load": "The input needs could not be loaded."
+      }
     }
   },
   "pve": {
