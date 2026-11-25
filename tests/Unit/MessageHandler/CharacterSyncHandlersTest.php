@@ -6,7 +6,6 @@ namespace App\Tests\Unit\MessageHandler;
 
 use App\Entity\Character;
 use App\Repository\CharacterRepository;
-use App\Service\Sync\PlanetarySyncService;
 use App\Service\Sync\WalletTransactionSyncService;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -36,12 +35,6 @@ final class CharacterSyncHandlersTest extends TestCase
             'App\MessageHandler\SyncCharacterWalletTransactionsHandler',
             WalletTransactionSyncService::class,
             'syncCharacterTransactions',
-        ];
-        yield 'planetary colonies' => [
-            'App\Message\SyncCharacterPlanetaryColonies',
-            'App\MessageHandler\SyncCharacterPlanetaryColoniesHandler',
-            PlanetarySyncService::class,
-            'syncCharacterColonies',
         ];
     }
 
