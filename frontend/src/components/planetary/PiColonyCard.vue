@@ -14,8 +14,10 @@ const props = withDefaults(defineProps<{
   colony: Colony
   expanded: boolean
   thresholdMinutes?: number
+  showCharacterName?: boolean
 }>(), {
   thresholdMinutes: DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES,
+  showCharacterName: false,
 })
 
 const { t } = useI18n()
@@ -53,6 +55,7 @@ defineEmits<{
 
 <template>
   <div
+    data-testid="colony-card"
     class="relative colony-card bg-slate-900 rounded-xl overflow-hidden cursor-pointer"
     :class="[getColonyBorderClass(colony), expanded ? 'expanded' : '', { 'hud-updated': colonyUpdated }]"
     style="border-width: 1px;"
@@ -92,6 +95,10 @@ defineEmits<{
               <span>{{ colony.solarSystemName || t('pi.colony.unknown') }}</span>
               <span class="text-slate-500">|</span>
               <span :class="getSecurityColorClass(colony.solarSystemSecurity)" class="font-medium">{{ formatSecurity(colony.solarSystemSecurity) }}</span>
+              <template v-if="showCharacterName">
+                <span class="text-slate-500">|</span>
+                <span data-testid="colony-character-name" class="text-cyan-400 truncate max-w-[160px]" :title="colony.characterName">{{ colony.characterName }}</span>
+              </template>
             </div>
           </div>
         </div>
