@@ -385,6 +385,19 @@
         "loadError": "Could not load the stock settings."
       }
     },
+    "groupBy": {
+      "label": "Group by",
+      "account": "Account",
+      "character": "Character",
+      "accountTitle": "Account \"{name}\""
+    },
+    "slots": {
+      "badge": "{used} / {max} slots",
+      "unknownMax": "?",
+      "unknownTooltip": "Maximum unknown: the Interplanetary Consolidation skill is not synchronized yet. Run the skills sync in Industry.",
+      "overTooltip": "More colonies than the maximum allowed by Interplanetary Consolidation (skill lowered or stale data).",
+      "characters": "Colony slots by character"
+    },
     "planner": {
       "title": "Production planner",
       "subtitle": "Pick the products you want per day, read the whole tree down to the raw resources and decide for each step whether to make or buy it.",

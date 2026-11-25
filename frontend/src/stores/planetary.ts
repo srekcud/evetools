@@ -291,7 +291,16 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     }
   }
 
-  async function fetchSlots(): Promise<void> {}
+  async function fetchSlots(): Promise<void> {
+    error.value = null
+
+    try {
+      slots.value = await apiRequest<PlanetarySlots>('/planetary/slots')
+    } catch (e) {
+      slots.value = null
+      error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des emplacements'
+    }
+  }
 
   async function fetchRevenue(days: number): Promise<void> {
     error.value = null
@@ -332,7 +341,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
   async function finishSync(): Promise<void> {
     isSyncing.value = false
     lastSyncAt.value = new Date().toISOString()
-    await Promise.all([fetchColonies(), fetchStats(), fetchProduction()])
+    await Promise.all([fetchColonies(), fetchStats(), fetchSlots(), fetchProduction()])
   }
 
   function failSync(message?: string): void {
