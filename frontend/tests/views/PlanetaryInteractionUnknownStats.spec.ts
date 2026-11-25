@@ -72,6 +72,7 @@ function respondWith(stats: () => Promise<unknown>) {
     if (endpoint === '/planetary') return Promise.resolve([BARREN_COLONY, GAS_COLONY])
     if (endpoint === '/planetary/stats') return stats()
     if (endpoint === '/planetary/production') return Promise.resolve({ tiers: PRODUCTION_TIERS })
+    if (endpoint === '/planetary/slots') return Promise.resolve({ characters: [], totalUsed: 0, totalMax: 0 })
     return new Promise(() => {})
   })
 }
