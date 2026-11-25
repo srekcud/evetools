@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Service\Sync;
 
 use App\Constant\EveConstants;
+use App\Dto\CharacterBuyOrder;
+use App\Dto\CharacterOrders;
 use App\Dto\CharacterSellOrder;
+use App\Entity\CachedCharacterBuyOrder;
 use App\Entity\CachedCharacterOrder;
 use App\Entity\Character;
 use App\Entity\User;
+use App\Repository\CachedCharacterBuyOrderRepository;
 use App\Repository\CachedCharacterOrderRepository;
 use App\Service\ESI\CharacterOrdersService;
 use App\Service\Industry\SellOrders\SellOrderBooks;
@@ -27,6 +31,7 @@ class CharacterOrderSyncService
     public function __construct(
         private readonly CharacterOrdersService $ordersService,
         private readonly CachedCharacterOrderRepository $orderRepository,
+        private readonly CachedCharacterBuyOrderRepository $buyOrderRepository,
         private readonly UserSellableProductTypes $sellableProductTypes,
         private readonly SellOrderBooks $books,
         private readonly UndercutAssessor $assessor,
@@ -41,14 +46,14 @@ class CharacterOrderSyncService
     {
         $userId = $user->getId()?->toRfc4122() ?? throw new \LogicException('Cannot sync character orders of a user without id');
 
-        $this->mercurePublisher->syncStarted($userId, self::SYNC_TYPE, 'Fetching sell orders...');
+        $this->mercurePublisher->syncStarted($userId, self::SYNC_TYPE, 'Fetching orders...');
 
         try {
             $syncedCharacters = $this->syncCharacters($user);
             $failures = $syncedCharacters['failures'];
 
             if ($failures !== [] && $syncedCharacters['synced'] === 0) {
-                $this->mercurePublisher->syncError($userId, self::SYNC_TYPE, 'No sell orders could be synced', ['failedCharacters' => $failures]);
+                $this->mercurePublisher->syncError($userId, self::SYNC_TYPE, 'No orders could be synced', ['failedCharacters' => $failures]);
 
                 return;
             }
@@ -73,23 +78,15 @@ class CharacterOrderSyncService
         $characters = array_values(array_filter($user->getCharacters()->getValues(), $this->canReadOrders(...)));
         $productTypeIds = $this->sellableProductTypes->of($user);
 
-        if ($productTypeIds === []) {
-            foreach ($characters as $character) {
-                $this->removeOrdersOf($character, []);
-            }
-            $this->entityManager->flush();
-
-            return ['synced' => \count($characters), 'failures' => []];
-        }
-
         $ordersByCharacter = [];
         $failures = [];
         foreach ($characters as $character) {
             try {
-                $ordersByCharacter[$character->getName()] = [$character, $this->productOrdersOf($character, $productTypeIds)];
+                $orders = $this->ordersService->getOrders($character);
+                $ordersByCharacter[] = [$character, $this->productSellOrdersOf($orders, $productTypeIds), $orders->buyOrders];
             } catch (\Throwable $e) {
                 $failure = CharacterSyncFailure::fromThrowable($character, $e);
-                $this->logger->warning('Failed to read character sell orders', $failure->logContext($e->getMessage()));
+                $this->logger->warning('Failed to read character orders', $failure->logContext($e->getMessage()));
                 $failures[] = $failure->toArray();
             }
         }
@@ -100,8 +97,9 @@ class CharacterOrderSyncService
         }
 
         $now = $this->clock->now();
-        foreach ($ordersByCharacter as [$character, $orders]) {
-            $this->replaceOrdersOf($character, $orders, $now);
+        foreach ($ordersByCharacter as [$character, $sellOrders, $buyOrders]) {
+            $this->replaceOrdersOf($character, $sellOrders, $now);
+            $this->replaceBuyOrdersOf($character, $buyOrders, $now);
         }
         $this->entityManager->flush();
 
@@ -118,24 +116,24 @@ class CharacterOrderSyncService
      *
      * @return list<CharacterSellOrder>
      */
-    private function productOrdersOf(Character $character, array $productTypeIds): array
+    private function productSellOrdersOf(CharacterOrders $orders, array $productTypeIds): array
     {
         return array_values(array_filter(
-            $this->ordersService->getSellOrders($character),
+            $orders->sellOrders,
             static fn (CharacterSellOrder $order): bool => \in_array($order->typeId, $productTypeIds, true),
         ));
     }
 
     /**
-     * @param array<string, array{Character, list<CharacterSellOrder>}> $ordersByCharacter
+     * @param list<array{Character, list<CharacterSellOrder>, list<CharacterBuyOrder>}> $ordersByCharacter
      *
      * @return list<int>
      */
     private function jitaTypeIdsOf(array $ordersByCharacter): array
     {
         $typeIds = [];
-        foreach ($ordersByCharacter as [, $orders]) {
-            foreach ($orders as $order) {
+        foreach ($ordersByCharacter as [, $sellOrders]) {
+            foreach ($sellOrders as $order) {
                 if ($order->locationId === EveConstants::JITA_STATION_ID) {
                     $typeIds[$order->typeId] = $order->typeId;
                 }
@@ -192,5 +190,38 @@ class CharacterOrderSyncService
         }
 
         return $kept;
+    }
+
+    /**
+     * @param list<CharacterBuyOrder> $orders
+     */
+    private function replaceBuyOrdersOf(Character $character, array $orders, \DateTimeImmutable $now): void
+    {
+        $keptOrderIds = array_map(static fn (CharacterBuyOrder $order): int => $order->orderId, $orders);
+
+        $existingByOrderId = [];
+        foreach ($this->buyOrderRepository->findByCharacter($character) as $row) {
+            if (\in_array($row->getOrderId(), $keptOrderIds, true)) {
+                $existingByOrderId[$row->getOrderId()] = $row;
+            } else {
+                $this->entityManager->remove($row);
+            }
+        }
+
+        foreach ($orders as $order) {
+            $row = $existingByOrderId[$order->orderId] ?? null;
+            if ($row === null) {
+                $row = (new CachedCharacterBuyOrder())->setCharacter($character)->setOrderId($order->orderId);
+                $this->entityManager->persist($row);
+            }
+
+            $row->setTypeId($order->typeId)
+                ->setLocationId($order->locationId)
+                ->setPrice($order->price)
+                ->setVolumeRemain($order->volumeRemain)
+                ->setVolumeTotal($order->volumeTotal)
+                ->setIssuedAt($order->issuedAt)
+                ->setSyncedAt($now);
+        }
     }
 }
