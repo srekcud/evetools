@@ -7,11 +7,16 @@ namespace App\Tests\Unit\State\Provider\Planetary;
 use ApiPlatform\Metadata\Get;
 use App\ApiResource\Planetary\PlanetaryRevenueResource;
 use App\Entity\User;
+use App\Enum\OrderPositionState;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\CharacterWalletReadingRepository;
 use App\Repository\PlanetaryColonyRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
+use App\Service\Industry\SellOrders\ProjectSellOrder;
+use App\Service\Industry\SellOrders\ProjectSellOrders;
+use App\Service\Industry\SellOrders\ProjectSellOrdersReader;
 use App\Service\Planetary\PlanetaryProductionCalculator;
+use App\Service\Planetary\PlanetaryProductTypes;
 use App\Service\Planetary\PlanetaryRevenueCalculator;
 use App\Service\Sync\WalletReadingStateReader;
 use App\State\Provider\Planetary\PlanetaryRevenueProvider;
@@ -51,6 +56,36 @@ final class PlanetaryRevenueProviderTest extends TestCase
         $this->assertSame(['P1', 'P2', 'P3', 'P4'], array_column($resource->tiers, 'tier'));
     }
 
+    #[Group('issue-1401')]
+    public function testTheSellOrdersOfThePlanetaryProductsAreExposedWithTheirPositionAndTheCharactersToReconnect(): void
+    {
+        $user = new User();
+        $order = new ProjectSellOrder(5, 'Aria Solberg', 9832, 'Coolant', 4, 60_003_760, 'Jita IV - Moon 4', 1000.0, 900.0, 2, OrderPositionState::Undercut, null, new \DateTimeImmutable('2026-11-10 12:10:00'), 800.0);
+        $reader = $this->createMock(ProjectSellOrdersReader::class);
+        $reader->expects(self::once())
+            ->method('forProducts')
+            ->with($user, [9832 => 'Coolant'])
+            ->willReturn(new ProjectSellOrders([$order], ['Brann Holt'], new \DateTimeImmutable('2026-11-10 12:15:00')));
+
+        $resource = $this->provide($user, [], [9832 => 'Coolant'], $reader);
+
+        $this->assertSame(
+            ['orders' => [$order->toArray()], 'charactersToReconnect' => ['Brann Holt'], 'syncedAt' => '2026-11-10T12:15:00+00:00'],
+            $resource->sellOrders,
+        );
+    }
+
+    #[Group('issue-1401')]
+    public function testWithoutPlanetaryProductThereIsNoSellOrderAndNoRead(): void
+    {
+        $reader = $this->createMock(ProjectSellOrdersReader::class);
+        $reader->expects(self::never())->method('forProducts');
+
+        $resource = $this->provide(new User(), [], [], $reader);
+
+        $this->assertSame(['orders' => [], 'charactersToReconnect' => [], 'syncedAt' => null], $resource->sellOrders);
+    }
+
     /**
      * @return iterable<string, array{string}>
      */
@@ -79,9 +114,10 @@ final class PlanetaryRevenueProviderTest extends TestCase
     }
 
     /**
-     * @param array<string, string> $query
+     * @param array<string, string>  $query
+     * @param array<int, string>     $planetaryProducts
      */
-    private function provide(?User $user, array $query): PlanetaryRevenueResource
+    private function provide(?User $user, array $query, array $planetaryProducts = [], ?ProjectSellOrdersReader $sellOrdersReader = null): PlanetaryRevenueResource
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
@@ -103,6 +139,9 @@ final class PlanetaryRevenueProviderTest extends TestCase
             new WalletReadingStateReader($this->createStub(CharacterWalletReadingRepository::class)),
         );
 
-        return (new PlanetaryRevenueProvider($security, $requestStack, $calculator))->provide(new Get());
+        $productTypes = $this->createStub(PlanetaryProductTypes::class);
+        $productTypes->method('of')->willReturn($planetaryProducts);
+
+        return (new PlanetaryRevenueProvider($security, $requestStack, $calculator, $productTypes, $sellOrdersReader ?? $this->createStub(ProjectSellOrdersReader::class)))->provide(new Get());
     }
 }

@@ -31,6 +31,7 @@ const REVENUE: PlanetaryRevenue = {
     { characterId: 8, characterName: 'Doran Vex', planetId: 40009082, planetName: 'Perimeter III', solarSystemName: 'Perimeter' },
   ],
   unsyncedWallets: [],
+  sellOrders: { orders: [], charactersToReconnect: [], syncedAt: null },
 }
 
 async function mountTab(revenue: PlanetaryRevenue = REVENUE, locale: 'en' | 'fr' = 'en') {
@@ -48,6 +49,23 @@ async function mountTab(revenue: PlanetaryRevenue = REVENUE, locale: 'en' | 'fr'
 }
 
 enableAutoUnmount(afterEach)
+
+const UNDERCUT_ORDER = {
+  orderId: 5,
+  characterName: 'Ilyra Castell',
+  typeId: 9832,
+  typeName: 'Coolant',
+  volumeRemain: 4,
+  locationId: 60003760,
+  marketName: 'Jita IV - Moon 4',
+  price: 1000,
+  bestPrice: 900,
+  rank: 2,
+  state: 'undercut',
+  unknownReason: null,
+  undercutSince: '2026-11-17T08:00:00Z',
+  suggestedPrice: 899.9,
+} as const
 
 describe('PiRevenueTab', () => {
   it('requests the thirty day revenue when it opens and again for another period', async () => {
@@ -140,5 +158,39 @@ describe('PiRevenueTab', () => {
 
     expect(wrapper.text()).toContain('P2 · Raffiné')
     expect(wrapper.text()).toContain('Ventes hors marché (non suivies)')
+  })
+
+  it('shows the sell orders of the PI products with their position and the price to copy', async () => {
+    const wrapper = await mountTab({ ...REVENUE, sellOrders: { orders: [UNDERCUT_ORDER], charactersToReconnect: [], syncedAt: '2026-11-17T08:05:00Z' } })
+    const card = wrapper.get('[data-testid="sell-orders-card"]')
+
+    expect(card.text()).toContain('My PI sell orders')
+    expect(card.findAll('[data-testid="sell-order-row"]')).toHaveLength(1)
+    expect(card.get('[data-testid="sell-order-position"]').attributes('data-state')).toBe('undercut')
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    await card.get('[data-testid="sell-order-copy-price"]').trigger('click')
+    expect(writeText).toHaveBeenCalledWith('899.9')
+  })
+
+  it('says there is no PI sell order, not the project wording, when the user sells nothing', async () => {
+    const wrapper = await mountTab()
+    const card = wrapper.get('[data-testid="sell-orders-card"]')
+
+    expect(card.get('[data-testid="sell-orders-empty"]').text()).toBe('No sell order for the PI products you produce.')
+    expect(card.text()).not.toContain('project')
+  })
+
+  it('asks to log in again with the characters whose sell orders cannot be read', async () => {
+    const wrapper = await mountTab({ ...REVENUE, sellOrders: { orders: [], charactersToReconnect: ['Doran Vex'], syncedAt: null } })
+
+    expect(wrapper.get('[data-testid="sell-orders-reconnect"]').text()).toContain('Doran Vex')
+  })
+
+  it('words the PI sell orders card in French', async () => {
+    const wrapper = await mountTab(REVENUE, 'fr')
+
+    expect(wrapper.get('[data-testid="sell-orders-card"]').text()).toContain('Mes ordres de vente PI')
+    expect(wrapper.get('[data-testid="sell-orders-empty"]').text()).toBe('Aucun ordre de vente pour les produits PI que tu fabriques.')
   })
 })

@@ -26,6 +26,7 @@ const REVENUE: PlanetaryRevenue = {
   estimate: { dailyIsk: 500_000, periodIsk: 15_000_000, contributors: [{ characterId: 7, characterName: 'Ilyra Castell', value: 15_000_000 }] },
   toFix: [],
   unsyncedWallets: [],
+  sellOrders: { orders: [], charactersToReconnect: [], syncedAt: null },
 }
 
 const UNSYNCED_WALLETS: PlanetaryRevenue['unsyncedWallets'] = [

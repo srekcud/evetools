@@ -67,6 +67,7 @@ const PLANETARY: PlanetaryRevenue = {
   estimate: { dailyIsk: 10, periodIsk: 300, contributors: [{ characterId: 9, characterName: 'Hauler', value: 300 }] },
   toFix: [],
   unsyncedWallets: [],
+  sellOrders: { orders: [], charactersToReconnect: [], syncedAt: null },
 }
 
 function sources(overrides: Partial<BalanceSources> = {}): BalanceSources {
