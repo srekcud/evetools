@@ -12,7 +12,7 @@ Le Planificateur dit combien d'usines et d'extraction un plan demande. Il doit d
    - `planetTypes` : un élément par type de planète, `{name, commandCenter: {cpu, pg}, launchpad: {cpu, pg, capacity}, facilities: {basic, advanced, highTech}}` (chaque installation `{cpu, pg}` ou `null` si ce type de planète n'en a pas). Planète : nom lu sur les types du groupe « Spaceports » (`<Planète> Launchpad`). Command center : celui de plus haute production de CPU pour ce type (niveau 5). Installations : types du groupe « Processors » nommés `<Planète> Basic Industry Facility`, `... Advanced Industry Facility`, `... High-Tech Production Plant`. CPU et PG : attributs de dogma de sortie du command center, de charge des installations ; capacité du launchpad : `InvType::$capacity`. Une donnée absente lève une erreur explicite (jamais de valeur par défaut).
    - `extractionPlanetTypes` : `{typeId, planetTypes: list<string>}` par P0, lu sur les extracteurs du groupe « Extractors » (attribut `harvesterType` = typeId du P0, type de planète = préfixe du nom).
 2. Nouvelle ressource `PlanetaryPlannerAccount`, `GET /planetary/planner/account`, `ROLE_USER`, limitée aux personnages de l'utilisateur connecté (colonies via `PlanetaryColonyRepository::findByUser`). Contenu : `usedPlanets` (nombre de colonies), `characters: [{characterId, characterName, usedPlanets, maxPlanets}]` avec `maxPlanets = 1 + niveau d'Interplanetary Consolidation` lu dans `CachedCharacterSkill` (2495), `null` si ce skill n'est pas en base pour le personnage ; `extractionYields: [{typeId, perHourPerPlanet, planets}]`.
-3. Rendement d'extraction d'une ressource : pour chaque colonie ayant des extracteurs de ce P0, somme de `quantité par cycle × 3600 / durée du cycle` de ses extracteurs ; `perHourPerPlanet` = moyenne sur ces colonies, `planets` leur nombre. Une colonie dont un extracteur du P0 n'a pas sa quantité ou sa durée de cycle est exclue du calcul (pas de valeur par défaut). Théorique sans décroissance (comme « Production théorique PI »).
+3. Rendement d'extraction d'une ressource : pour chaque colonie ayant des extracteurs de ce P0, somme par heure de `ExtractorYieldCalculator::programDailyAverage()` (rendement décroissant de #1381, programme complet de l'extracteur, divisé par 24) de ses extracteurs ; `perHourPerPlanet` = moyenne sur ces colonies, `planets` leur nombre. Une colonie dont un extracteur du P0 n'a pas son rendement calculable (quantité, durée de cycle, installation ou échéance absentes, facteurs SDE absents) est exclue du calcul (pas de valeur par défaut). Mêmes extracteurs et même formule que « Production théorique PI » et « Besoin d'entrées PI », pas de second calcul.
 
 ## Frontend : calcul (`frontend/src/utils/planetaryPlanets.ts`, fonctions pures)
 
@@ -49,7 +49,7 @@ Command center 25 415 CPU / 19 000 PG ; launchpad 3 600 / 700, capacité 10 000 
 | Personnages | 13 planètes : 3 personnages |
 | Ajoutées | production 1 : 5 planètes ; production 1 + 2 : 7 ; la deuxième ajoute 2 |
 | Maximum du compte | 2 personnages avec `maxPlanets` 6 et 4 : maximum 10 ; un `null` : maximum inconnu |
-| Rendement du compte | deux colonies à 3 000 et 5 000 P0/h : `perHourPerPlanet` 4 000, `planets` 2 ; une colonie sans durée de cycle exclue |
+| Rendement du compte | deux colonies dont le rendement du calculateur vaut 3 000 et 5 000 P0/h : `perHourPerPlanet` 4 000, `planets` 2 ; une colonie sans installation, échéance ou durée de cycle exclue |
 
 ## Accès et fraîcheur
 
@@ -68,4 +68,5 @@ Maximum d'emplacements du compte persistant et son écran (#1384) ; rendement d�
 - Types d'installation et de planète lus par groupe et suffixe de nom SDE, sans migration ni table de pins : l'import de `pins` par schéma demanderait une migration et une réimportation de la SDE en production ; à reprendre si le nommage CCP change.
 - Maximum d'emplacements = 1 + niveau d'Interplanetary Consolidation, seulement quand le skill est en base ; sinon inconnu.
 - Planètes libres = maximum − total du plan ; les colonies existantes sont affichées sans être soustraites.
+- Après la fusion de #1381, le rendement du compte vient de `ExtractorYieldCalculator` (avec décroissance) et non d'une formule constante : un seul calcul d'extraction dans l'application.
 - Calcul côté front, comme #1402 ; le backend sert les constantes SDE et les données du compte.
