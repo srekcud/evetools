@@ -21,17 +21,31 @@ import {
 } from '@/utils/planetaryPlanner'
 import {
   AQUEOUS_LIQUIDS,
+  BASE_METALS,
   BROADCAST_NODE,
   COOLANT,
+  HEAVY_METALS,
   MECHANICAL_PARTS,
   PLANNER_CATALOG,
   REACTIVE_METALS,
   ROBOTICS,
+  TOXIC_METALS,
   WATER,
+  withRecipe,
   withSellPrices,
 } from '../planetaryPlannerFixtures'
 
 const NO_CHOICES: Record<number, BuildChoice> = {}
+
+const DISTINCT_YIELDS_CATALOG = withRecipe(
+  withRecipe(
+    withRecipe(PLANNER_CATALOG, REACTIVE_METALS, { outputQuantity: 40, cycleSeconds: 1800, inputs: [{ typeId: BASE_METALS, quantity: 1500 }] }),
+    TOXIC_METALS,
+    { outputQuantity: 10, cycleSeconds: 900, inputs: [{ typeId: HEAVY_METALS, quantity: 4000 }] },
+  ),
+  COOLANT,
+  { inputs: [{ typeId: WATER, quantity: 40 }, { typeId: REACTIVE_METALS, quantity: 25 }] },
+)
 
 function recipeOf(typeId: number) {
   const recipe = PLANNER_CATALOG.recipes.find(candidate => candidate.outputTypeId === typeId)
@@ -228,5 +242,71 @@ describe('planetaryPlanner cheapest choices and validation', () => {
     expect([0, -5, Number.NaN, Number.POSITIVE_INFINITY, 0.5, 120].map(isValidTarget)).toEqual([false, false, false, false, true, true])
     expect([-1, 100.1, Number.NaN, 0, 4.5, 100].map(isValidTaxPercent)).toEqual([false, false, false, true, true, true])
     expect([0.4, Number.NaN, 0.5, 4].map(isValidDaysBetweenRounds)).toEqual([false, false, true, true])
+  })
+})
+
+describe('planetaryPlanner a P4 production down to the P2', () => {
+  it('derives the P3 and P2 factories of a P4 planned at 24 per day from the quantities of each level', () => {
+    const result = plan([{ typeId: BROADCAST_NODE, targetPerDay: 24 }])
+    const broadcast = treeOf(result, 0)
+    const robotics = childOf(broadcast, ROBOTICS)
+
+    expect(result.summary.factoriesByTier).toEqual({ P1: 0, P2: 8, P3: 2, P4: 1 })
+    expect([broadcast.factories, robotics.perDay, robotics.factories]).toEqual([1, 144, 2])
+    expect([childOf(robotics, COOLANT).perDay, childOf(robotics, COOLANT).factories, childOf(robotics, MECHANICAL_PARTS).perDay, childOf(robotics, MECHANICAL_PARTS).factories]).toEqual([480, 4, 480, 4])
+  })
+
+  it('stars the P3 child as produce while making it costs less than its price and as buy once its price drops below that cost', () => {
+    const cheapRobotics = withSellPrices(PLANNER_CATALOG, { [ROBOTICS]: 9000 })
+    const atMarketPrice = buildTree({ typeId: BROADCAST_NODE, targetPerDay: 24 }, PLANNER_CATALOG, NO_CHOICES, DEFAULT_SETTINGS)
+    const underPriced = buildTree({ typeId: BROADCAST_NODE, targetPerDay: 24 }, cheapRobotics, NO_CHOICES, DEFAULT_SETTINGS)
+
+    expect(childOf(atMarketPrice, ROBOTICS).produceCost).toBeCloseTo(10_560, 6)
+    expect([atMarketPrice.star, childOf(atMarketPrice, ROBOTICS).star]).toEqual([null, 'produce'])
+    expect([underPriced.star, childOf(underPriced, ROBOTICS).star]).toEqual([null, 'buy'])
+  })
+})
+
+describe('planetaryPlanner totals across productions with different recipes', () => {
+  it('adds the raw extraction of each resource across productions with the yield of its own P1', () => {
+    const choices: Record<number, BuildChoice> = { [WATER]: 'produce', [REACTIVE_METALS]: 'produce', [TOXIC_METALS]: 'produce' }
+    const result = plan([{ typeId: COOLANT, targetPerDay: 120 }, { typeId: MECHANICAL_PARTS, targetPerDay: 60 }], choices, DISTINCT_YIELDS_CATALOG)
+
+    expect(byType(result.summary.extractionPerHour)).toEqual([
+      { typeId: AQUEOUS_LIQUIDS, perHour: 9000 },
+      { typeId: BASE_METALS, perHour: 937.5 },
+      { typeId: HEAVY_METALS, perHour: 8000 },
+    ])
+  })
+
+  it('adds the weekly purchases of P1 products that the P2 recipes consume in different quantities', () => {
+    const result = plan([{ typeId: COOLANT, targetPerDay: 120 }, { typeId: MECHANICAL_PARTS, targetPerDay: 60 }], NO_CHOICES, DISTINCT_YIELDS_CATALOG)
+
+    expect(byType(result.summary.weeklyPurchases)).toEqual([
+      { typeId: WATER, quantity: 10_080, isk: 604_800 },
+      { typeId: REACTIVE_METALS, quantity: 4200, isk: 588_000 },
+      { typeId: TOXIC_METALS, quantity: 3360, isk: 252_000 },
+    ])
+    expect(result.summary.weeklyPurchasesIsk).toBe(1_444_800)
+    expect(result.summary.purchasesIncomplete).toBe(false)
+  })
+})
+
+describe('planetaryPlanner Jita buy source', () => {
+  it('moves the profit and the star with the price source, not only the unit cost', () => {
+    const coolantAt1700 = withSellPrices(PLANNER_CATALOG, { [COOLANT]: 1700 })
+    const buySource: PlannerSettings = { ...DEFAULT_SETTINGS, priceSource: 'jita-buy' }
+    const sellSide = plan([{ typeId: COOLANT, targetPerDay: 120 }], NO_CHOICES, coolantAt1700)
+    const buySide = plan([{ typeId: COOLANT, targetPerDay: 120 }], NO_CHOICES, coolantAt1700, buySource)
+    const roboticsOnSell = buildTree({ typeId: ROBOTICS, targetPerDay: 18 }, coolantAt1700, NO_CHOICES, DEFAULT_SETTINGS)
+    const roboticsOnBuy = buildTree({ typeId: ROBOTICS, targetPerDay: 18 }, coolantAt1700, NO_CHOICES, buySource)
+
+    expect(sellSide.summary.unitCost[0]).toBeCloseTo(1668, 6)
+    expect(sellSide.summary.profitPerDay[0]).toBeCloseTo(3840, 6)
+    expect(buySide.summary.unitCost[0]).toBeCloseTo(1396, 6)
+    expect(buySide.summary.profitPerDay[0]).toBeCloseTo(-59_520, 6)
+    expect(buySide.summary.totalProfitPerDay).toBeCloseTo(-59_520, 6)
+    expect(childOf(roboticsOnSell, COOLANT).star).toBe('produce')
+    expect(childOf(roboticsOnBuy, COOLANT).star).toBe('buy')
   })
 })

@@ -3,7 +3,7 @@ import { i18n } from '@/i18n'
 import { apiRequest } from '@/services/api'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 import { deferred } from '../deferred'
-import { COOLANT, MECHANICAL_PARTS, PLANNER_CATALOG, ROBOTICS } from '../planetaryPlannerFixtures'
+import { COOLANT, MECHANICAL_PARTS, PLANNER_CATALOG, REACTIVE_METALS, ROBOTICS, WATER } from '../planetaryPlannerFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -115,5 +115,104 @@ describe('planetaryPlanner store actions', () => {
     expect(store.settings.priceSource).toBe('jita-buy')
     expect(store.choices).toEqual({ [MECHANICAL_PARTS]: 'buy' })
     expect(store.plan?.summary.unitCost[0]).toBeCloseTo(1396, 6)
+  })
+})
+
+describe('planetaryPlanner store removal and selection', () => {
+  it('keeps the selection on the same production when an earlier one is removed and leaves it when a later one is removed', async () => {
+    const store = await loadedStore()
+    store.addProduction(COOLANT)
+    store.addProduction(ROBOTICS)
+    store.addProduction(COOLANT)
+    store.setTarget(2, 77)
+
+    store.removeProduction(0)
+
+    expect(store.selectedIndex).toBe(1)
+    expect(store.productions[1]).toEqual({ typeId: COOLANT, targetPerDay: 77 })
+
+    store.selectProduction(0)
+    store.removeProduction(1)
+
+    expect(store.selectedIndex).toBe(0)
+    expect(store.productions).toEqual([{ typeId: ROBOTICS, targetPerDay: 72 }])
+  })
+
+  it('brings the selection back inside the bounds when the selected last production is removed and ignores an index out of range', async () => {
+    const store = await loadedStore()
+    store.addProduction(COOLANT)
+    store.addProduction(ROBOTICS)
+    store.addProduction(COOLANT)
+    store.setTarget(1, 33)
+
+    store.removeProduction(9)
+    store.removeProduction(-1)
+
+    expect([store.productions.length, store.selectedIndex]).toEqual([3, 2])
+
+    store.removeProduction(2)
+
+    expect(store.selectedIndex).toBe(1)
+
+    store.selectProduction(0)
+    store.removeProduction(0)
+
+    expect(store.selectedIndex).toBe(0)
+    expect(store.productions).toEqual([{ typeId: ROBOTICS, targetPerDay: 33 }])
+  })
+
+  it('clears the selection and the trees when the last production is removed', async () => {
+    const store = await loadedStore()
+    store.addProduction(COOLANT)
+
+    store.removeProduction(0)
+
+    expect([store.productions, store.selectedIndex]).toEqual([[], null])
+    expect(store.plan?.trees).toEqual([])
+  })
+})
+
+describe('planetaryPlanner store choices and settings', () => {
+  it('applies the stars to the products that have one and keeps the explicit choice of the others', async () => {
+    const store = await loadedStore()
+    store.addProduction(ROBOTICS)
+    store.setChoice(WATER, 'produce')
+
+    store.applyCheapest()
+
+    expect(store.choices).toEqual({ [WATER]: 'produce', [COOLANT]: 'buy', [MECHANICAL_PARTS]: 'produce' })
+    expect(store.plan?.summary.unitCost[0]).toBeCloseTo(6890.6667, 3)
+  })
+
+  it('refuses fewer than half a day between rounds, accepts exactly half a day and leaves the plan untouched', async () => {
+    const store = await loadedStore()
+    store.addProduction(COOLANT)
+    const planBefore = store.plan?.summary
+
+    const refused = [store.setDaysBetweenRounds(0.4), store.setDaysBetweenRounds(0), store.setDaysBetweenRounds(-1), store.setDaysBetweenRounds(Number.NaN)]
+    const kept = store.settings.daysBetweenRounds
+    const accepted = store.setDaysBetweenRounds(0.5)
+
+    expect(refused).toEqual([false, false, false, false])
+    expect(kept).toBe(4)
+    expect(accepted).toBe(true)
+    expect(store.settings).toEqual({ priceSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 0.5 })
+    expect(store.plan?.summary).toEqual(planBefore)
+  })
+
+  it('moves the plan with each explicit choice: unit cost and P1 factories follow the products made', async () => {
+    const store = await loadedStore()
+    store.addProduction(COOLANT)
+    expect([store.plan?.summary.unitCost[0], store.plan?.summary.factoriesByTier.P1]).toEqual([expect.closeTo(1640, 6), 0])
+
+    store.setChoice(WATER, 'produce')
+
+    expect(store.choices).toEqual({ [WATER]: 'produce' })
+    expect([store.plan?.summary.unitCost[0], store.plan?.summary.factoriesByTier.P1]).toEqual([expect.closeTo(1179.2, 6), 1])
+
+    store.setChoice(REACTIVE_METALS, 'produce')
+
+    expect(store.choices).toEqual({ [WATER]: 'produce', [REACTIVE_METALS]: 'produce' })
+    expect([store.plan?.summary.unitCost[0], store.plan?.summary.factoriesByTier.P1]).toEqual([expect.closeTo(104, 6), 2])
   })
 })
