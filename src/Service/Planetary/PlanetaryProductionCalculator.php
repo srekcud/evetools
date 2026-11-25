@@ -40,6 +40,7 @@ class PlanetaryProductionCalculator
         private readonly InvTypeRepository $invTypeRepository,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly JitaMarketService $jitaMarketService,
+        private readonly ExtractorYieldCalculator $extractorYield,
     ) {
     }
 
@@ -314,7 +315,10 @@ class PlanetaryProductionCalculator
                 return null;
             }
 
-            $dailyQty = $qtyPerCycle * (self::SECONDS_PER_DAY / $cycleTime);
+            $dailyQty = $this->extractorYield->programDailyAverage($qtyPerCycle, $cycleTime, $pin->getInstallTime(), $expiry);
+            if ($dailyQty === null) {
+                return null;
+            }
 
             return ['typeId' => $productTypeId, 'quantity' => $dailyQty, 'inputs' => []];
         }
