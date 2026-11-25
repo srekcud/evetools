@@ -6,9 +6,15 @@ namespace App\Service\Planetary;
 
 class PlanetarySlotCalculator
 {
+    private const int BASE_COLONIES = 1;
+
     public function maxColonies(?int $consolidationLevel): ?int
     {
-        return null;
+        if ($consolidationLevel === null) {
+            return null;
+        }
+
+        return self::BASE_COLONIES + $consolidationLevel;
     }
 
     /**
@@ -18,6 +24,32 @@ class PlanetarySlotCalculator
      */
     public function calculate(array $characters): array
     {
-        return ['characters' => [], 'totalUsed' => 0, 'totalMax' => null];
+        $rows = [];
+        $totalUsed = 0;
+        $totalMax = 0;
+        $totalMaxKnown = true;
+
+        foreach ($characters as $character) {
+            $maxColonies = $this->maxColonies($character['consolidationLevel']);
+            $rows[] = [
+                'characterId' => $character['characterId'],
+                'coloniesUsed' => $character['coloniesUsed'],
+                'consolidationLevel' => $character['consolidationLevel'],
+                'maxColonies' => $maxColonies,
+            ];
+            $totalUsed += $character['coloniesUsed'];
+
+            if ($maxColonies === null) {
+                $totalMaxKnown = false;
+            } else {
+                $totalMax += $maxColonies;
+            }
+        }
+
+        return [
+            'characters' => $rows,
+            'totalUsed' => $totalUsed,
+            'totalMax' => $totalMaxKnown ? $totalMax : null,
+        ];
     }
 }
