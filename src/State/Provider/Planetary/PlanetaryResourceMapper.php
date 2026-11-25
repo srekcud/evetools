@@ -13,10 +13,12 @@ use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
+use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
 
 class PlanetaryResourceMapper
 {
+    private const SECONDS_PER_DAY = 86400;
     private const MARKET_GROUP_P1 = 1334;
     private const MARKET_GROUP_P2 = 1335;
     private const MARKET_GROUP_P3 = 1336;
@@ -29,6 +31,7 @@ class PlanetaryResourceMapper
         private readonly MapSolarSystemRepository $solarSystemRepository,
         private readonly PlanetaryExpiryThresholdResolver $expiryThresholdResolver,
         private readonly PlanetaryFactoryColonyTracker $factoryColonyTracker,
+        private readonly PlanetaryProductionCalculator $productionCalculator,
     ) {
     }
 
@@ -106,7 +109,27 @@ class PlanetaryResourceMapper
 
         $resource->nearestExpiry = $nearestExpiry?->format('c');
         $resource->factoryProgress = $this->trackFactoryColony($colony, $resource);
+        if ($resource->extractorCount === 0 && $resource->factoryCount > 0) {
+            $resource->status = ColonyStatus::Factory->value;
+            $this->exposeFactoryAutonomy($colony, $resource);
+
+            return;
+        }
+
         $resource->status = $this->computeStatus($colony, $this->expiryThresholdMinutesOf($colony));
+    }
+
+    private function exposeFactoryAutonomy(PlanetaryColony $colony, ColonyResource $resource): void
+    {
+        $autonomyDays = $this->productionCalculator->calculateAutonomyDays($colony);
+        if ($autonomyDays === null) {
+            return;
+        }
+
+        $resource->factoryAutonomyDays = $autonomyDays;
+        $resource->factoryRefillBy = $colony->getCachedAt()
+            ->modify('+'.(int) round($autonomyDays * self::SECONDS_PER_DAY).' seconds')
+            ->format('c');
     }
 
     /**

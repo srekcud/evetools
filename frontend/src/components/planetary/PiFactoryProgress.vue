@@ -9,12 +9,16 @@ import type { FactoryProgress } from '@/stores/planetary'
 const props = withDefaults(defineProps<{
   progress: FactoryProgress
   thresholdMinutes?: number
+  autonomyDays?: number | null
+  refillBy?: string | null
 }>(), {
   thresholdMinutes: DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES,
+  autonomyDays: null,
+  refillBy: null,
 })
 
 const { t } = useI18n()
-const { formatNumber } = useFormatters()
+const { formatNumber, formatDateTime } = useFormatters()
 const { typeNameLabel } = useTypeNames()
 const { getTimerInfo, getTimerColorClasses } = usePlanetaryTimers(computed(() => props.thresholdMinutes))
 
@@ -39,6 +43,13 @@ const colors = computed(() => getTimerColorClasses(timer.value.status))
         stocked: formatNumber(progress.stockedFinalProduct, 0),
         max: formatNumber(progress.maxProducts, 0),
       }) }}
+    </span>
+    <span
+      v-if="autonomyDays !== null && refillBy !== null"
+      data-testid="pi-factory-autonomy"
+      class="font-mono-tech text-xs text-slate-300"
+    >
+      {{ t('pi.colony.factoryAutonomy', { days: formatNumber(autonomyDays, 1), date: formatDateTime(refillBy) }) }}
     </span>
   </div>
 </template>

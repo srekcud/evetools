@@ -78,8 +78,12 @@ class ColonyResource
 
     public ?string $nearestExpiry = null;
 
-    /** @var string active|expiring|expired|idle */
+    /** @var string active|expiring|expired|idle|factory */
     public string $status = 'idle';
+
+    public ?float $factoryAutonomyDays = null;
+
+    public ?string $factoryRefillBy = null;
 
     /** @var array{finalProductTypeId: int, finalProductName: ?string, factoryCount: int, stockedFinalProduct: int, maxProducts: int, remainingSeconds: int, endsAt: string}|null */
     public ?array $factoryProgress = null;
