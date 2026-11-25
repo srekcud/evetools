@@ -13,7 +13,7 @@ const ICON_SIZE = 32
 const { t } = useI18n()
 const store = usePlanetaryPlannerStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { typeOf, formatPlannerIsk } = usePlannerDisplay()
+const { typeOf, formatPlannerIsk, formatNumber } = usePlannerDisplay()
 
 const invalidTargets = ref<Record<number, boolean>>({})
 
@@ -33,6 +33,8 @@ const rows = computed(() =>
     production,
     type: typeOf(production.typeId),
     profit: store.plan ? store.plan.summary.profitPerDay[index] : null,
+    addedPlanets: store.planetPlan ? store.planetPlan.addedByProduction[index] : null,
+    allocations: store.planetPlan && store.selectedIndex === index ? store.planetPlan.allocations[index] : [],
   })),
 )
 
@@ -125,6 +127,11 @@ function rowClass(index: number): string[] {
               @input="onTargetInput(row.index, $event)"
             />
           </label>
+          <div class="text-right" data-testid="planner-production-planets" :data-added="row.addedPlanets === null ? undefined : row.addedPlanets">
+            <span class="block text-xs text-slate-500">{{ t('pi.planner.productions.planetsAdded') }}</span>
+            <span v-if="row.addedPlanets !== null" class="font-mono-tech text-sm text-slate-200">+{{ formatNumber(row.addedPlanets, 0) }}</span>
+            <span v-else class="font-mono-tech text-sm text-slate-500">{{ t('pi.planner.unknown') }}</span>
+          </div>
           <div class="text-right" data-testid="planner-production-profit">
             <span class="block text-xs text-slate-500">{{ t('pi.planner.productions.profitPerDay') }}</span>
             <span v-if="row.profit !== null" :class="['font-mono-tech text-sm', row.profit >= 0 ? 'text-emerald-400' : 'text-red-400']">{{ formatPlannerIsk(row.profit) }}</span>
@@ -132,6 +139,21 @@ function rowClass(index: number): string[] {
           </div>
         </div>
         <p v-if="invalidTargets[row.index] === true" class="mt-1 text-xs text-red-400">{{ t('pi.planner.productions.targetInvalid') }}</p>
+        <ul v-if="row.allocations.length > 0" class="mt-2 space-y-1 border-t border-slate-800 pt-2">
+          <li
+            v-for="allocation in row.allocations"
+            :key="allocation.tier"
+            class="flex items-center gap-2 text-xs text-slate-400"
+            data-testid="planner-production-allocation"
+            :data-tier="allocation.tier"
+            :data-on-free="allocation.onFreeSlots"
+            :data-on-new="allocation.onNewPlanets"
+            :data-free-remaining="allocation.freeRemaining"
+          >
+            <span :class="['shrink-0 rounded-sm border px-1.5 py-0.5', TIER_CONFIG[allocation.tier].badgeBg, TIER_CONFIG[allocation.tier].badgeText, TIER_CONFIG[allocation.tier].badgeBorder]">{{ allocation.tier }}</span>
+            <span class="min-w-0">{{ t('pi.planner.productions.allocation', { onFree: formatNumber(allocation.onFreeSlots, 0), onNew: formatNumber(allocation.onNewPlanets, 0), remaining: formatNumber(allocation.freeRemaining, 0) }) }}</span>
+          </li>
+        </ul>
       </li>
     </ul>
   </section>
