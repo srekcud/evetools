@@ -15,6 +15,7 @@ use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\WalletJournalSyncService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -98,6 +99,58 @@ final class WalletJournalSyncServiceTest extends TestCase
             ], $persisted),
         );
         self::assertSame($character, $persisted[0]->getCharacter());
+    }
+
+    #[Group('issue-1399')]
+    public function testTheImportAndExportTaxLinesOfAColonyAreKeptWithTheirPlanet(): void
+    {
+        $this->esiClient->method('getPaginated')->willReturn([
+            $this->taxLine(9_201, 'planetary_import_tax', -12_000.0, 40_000_001),
+            $this->line(9_202, 'player_trading', 5_000_000.0, null),
+            $this->taxLine(9_203, 'planetary_export_tax', -3_000.0, 40_000_001),
+            $this->line(9_204, 'market_transaction', -12.0, 77),
+        ]);
+        $this->journalRepository->method('findExistingEntryIds')->willReturn([]);
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entry) use (&$persisted): void {
+            $persisted[] = $entry;
+        });
+
+        $this->service->syncCharacterJournal($this->characterWithScopes([self::WALLET_SCOPE]));
+
+        self::assertSame(
+            [
+                [9_201, 'planetary_import_tax', -12_000.0, 40_000_001, 'planet_id', null, null],
+                [9_203, 'planetary_export_tax', -3_000.0, 40_000_001, 'planet_id', null, null],
+            ],
+            array_map(static fn (CachedWalletJournalEntry $entry): array => [
+                $entry->getJournalEntryId(),
+                $entry->getRefType(),
+                $entry->getAmount(),
+                $entry->getContextId(),
+                $entry->getContextIdType(),
+                $entry->getReason(),
+                $entry->getFirstPartyId(),
+            ], $persisted),
+        );
+    }
+
+    #[Group('issue-1399')]
+    public function testATaxLineAlreadyStoredIsNotStoredTwice(): void
+    {
+        $this->esiClient->method('getPaginated')->willReturn([
+            $this->taxLine(9_201, 'planetary_import_tax', -12_000.0, 40_000_001),
+            $this->taxLine(9_203, 'planetary_export_tax', -3_000.0, 40_000_001),
+        ]);
+        $this->journalRepository->method('findExistingEntryIds')->willReturn([9_201]);
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entry) use (&$persisted): void {
+            $persisted[] = $entry;
+        });
+
+        $this->service->syncCharacterJournal($this->characterWithScopes([self::WALLET_SCOPE]));
+
+        self::assertSame([9_203], array_map(static fn (CachedWalletJournalEntry $entry): int => $entry->getJournalEntryId(), $persisted));
     }
 
     public function testOnlyTheIncomingDonationsCarryingAProjectPaymentReferenceAreKept(): void
@@ -215,6 +268,11 @@ final class WalletJournalSyncServiceTest extends TestCase
     /**
      * @return array<string, mixed>
      */
+    private function taxLine(int $id, string $refType, float $amount, int $planetId): array
+    {
+        return [...$this->line($id, $refType, $amount, $planetId), 'context_id_type' => 'planet_id'];
+    }
+
     private function line(int $id, string $refType, float $amount, ?int $contextId): array
     {
         return [
