@@ -1,0 +1,116 @@
+import { reactive } from 'vue'
+import type { LocationQuery } from 'vue-router'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { createI18n } from 'vue-i18n'
+import en from '@/i18n/locales/en.json'
+import PlanetaryInteraction from '@/views/PlanetaryInteraction.vue'
+import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
+import type { Colony } from '@/stores/planetary'
+import { apiRequest } from '@/services/api'
+
+const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/planetary', params: {}, query: {} })
+
+vi.mock(import('vue-router'), async importOriginal => ({
+  ...(await importOriginal()),
+  useRoute: (() => route) as never,
+  useRouter: (() => ({ replace: vi.fn(), push: vi.fn() })) as never,
+}))
+
+vi.mock(import('@/services/api'), async importOriginal => ({
+  ...(await importOriginal()),
+  apiRequest: vi.fn(),
+}))
+
+const PLANNER_TAB_LABEL = (en.pi.tabs as Record<string, string>).planner
+
+const BARREN_COLONY: Colony = {
+  id: 'barren',
+  characterId: 2112000001,
+  characterName: 'Ilyra Castell',
+  planetId: 40009077,
+  planetName: 'Jita IV',
+  planetType: 'barren',
+  solarSystemId: 30000142,
+  solarSystemName: 'Jita',
+  solarSystemSecurity: 0.9,
+  upgradeLevel: 4,
+  numPins: 12,
+  lastUpdate: '2026-10-22T09:00:00+00:00',
+  cachedAt: '2026-10-22T09:05:00+00:00',
+  extractorCount: 2,
+  factoryCount: 6,
+  activeExtractors: 2,
+  nearestExpiry: '2026-10-24T09:00:00+00:00',
+  factoryProgress: null,
+  status: 'active',
+  pins: [],
+  routes: [],
+}
+
+async function mountView(colonies: Colony[], query: LocationQuery = {}) {
+  route.query = query
+  vi.mocked(apiRequest).mockReset()
+  vi.mocked(apiRequest).mockImplementation((endpoint: string) => {
+    if (endpoint === '/planetary') return Promise.resolve(colonies)
+    if (endpoint === '/planetary/stats') return Promise.resolve({})
+    if (endpoint === '/planetary/production') return Promise.resolve({ tiers: [] })
+    return new Promise(() => {})
+  })
+  setActivePinia(createPinia())
+  const wrapper = mount(PlanetaryInteraction, {
+    global: {
+      plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      stubs: {
+        MainLayout: { template: '<div><slot /></div>' },
+        ErrorBanner: true,
+        PiAlertsBanner: true,
+        PiProductionTable: true,
+        PiColonyCard: true,
+        PiTierLegend: true,
+        PiKpiCards: true,
+        PiPlannerTab: true,
+      },
+    },
+  })
+  await flushPromises()
+  return wrapper
+}
+
+type Wrapper = Awaited<ReturnType<typeof mountView>>
+
+function selectedTab(wrapper: Wrapper): string | undefined {
+  return wrapper.findAll('[role="tab"]').find(tab => tab.attributes('aria-selected') === 'true')?.text()
+}
+
+enableAutoUnmount(afterEach)
+
+describe('PlanetaryInteraction planner tab', () => {
+  it('lists the planner first, then the colonies and the revenue', async () => {
+    const wrapper = await mountView([BARREN_COLONY])
+
+    expect(wrapper.findAll('[role="tab"]').map(tab => tab.text())).toEqual([PLANNER_TAB_LABEL, en.pi.tabs.colonies, en.pi.tabs.revenue])
+  })
+
+  it('keeps the colonies tab open by default when the player has colonies', async () => {
+    const wrapper = await mountView([BARREN_COLONY])
+
+    expect(selectedTab(wrapper)).toBe(en.pi.tabs.colonies)
+    expect(wrapper.findComponent(PiPlannerTab).exists()).toBe(false)
+  })
+
+  it('opens the planner when the player has no colony and the address names no tab', async () => {
+    const wrapper = await mountView([])
+
+    expect(selectedTab(wrapper)).toBe(PLANNER_TAB_LABEL)
+    expect(wrapper.findComponent(PiPlannerTab).exists()).toBe(true)
+  })
+
+  it('keeps the colonies tab when the address names it, even without any colony', async () => {
+    const wrapper = await mountView([], { tab: 'colonies' })
+
+    expect(selectedTab(wrapper)).toBe(en.pi.tabs.colonies)
+    expect(wrapper.findComponent(PiPlannerTab).exists()).toBe(false)
+    expect(wrapper.text()).toContain(en.pi.noColonies)
+  })
+})
