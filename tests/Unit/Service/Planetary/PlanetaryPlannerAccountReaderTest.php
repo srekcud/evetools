@@ -11,6 +11,7 @@ use App\Entity\PlanetaryPin;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryPlannerAccountReader;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -75,7 +76,7 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
             $this->colony($zed, [$this->extractor(self::AQUEOUS_LIQUIDS, 2500, self::EXTRACTOR_CYCLE_SECONDS)]),
         ];
 
-        $account = $this->readerOver($colonies, [])->read($this->userOf($zed));
+        $account = $this->readerOver($colonies, [], [1500 => 3_000.0, 2500 => 5_000.0])->read($this->userOf($zed));
 
         $this->assertSame([['typeId' => self::AQUEOUS_LIQUIDS, 'perHourPerPlanet' => 4_000.0, 'planets' => 2]], $account['extractionYields']);
     }
@@ -85,15 +86,52 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
         $colonies = [
             $this->colony($zed, [
-                $this->extractor(self::BASE_METALS, 1500, self::EXTRACTOR_CYCLE_SECONDS),
-                $this->extractor(self::BASE_METALS, 900, 3600),
+                $this->extractor(self::BASE_METALS, 1200, self::EXTRACTOR_CYCLE_SECONDS),
+                $this->extractor(self::BASE_METALS, 700, 3600),
                 $this->launchpad(),
             ]),
         ];
 
-        $account = $this->readerOver($colonies, [])->read($this->userOf($zed));
+        $account = $this->readerOver($colonies, [], [1200 => 2_100.0, 700 => 1_300.0])->read($this->userOf($zed));
 
-        $this->assertSame([['typeId' => self::BASE_METALS, 'perHourPerPlanet' => 3_900.0, 'planets' => 1]], $account['extractionYields']);
+        $this->assertSame([['typeId' => self::BASE_METALS, 'perHourPerPlanet' => 3_400.0, 'planets' => 1]], $account['extractionYields']);
+    }
+
+    public function testEachExtractorIsHandedToTheCalculatorWithItsOwnQuantityCycleInstallAndExpiry(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $firstInstall = new \DateTimeImmutable('2026-11-24T12:00:00+00:00');
+        $firstExpiry = new \DateTimeImmutable('2026-11-27T12:00:00+00:00');
+        $secondInstall = new \DateTimeImmutable('2026-11-25T08:30:00+00:00');
+        $secondExpiry = new \DateTimeImmutable('2026-11-26T08:30:00+00:00');
+        $colonies = [
+            $this->colony($zed, [
+                $this->extractor(self::AQUEOUS_LIQUIDS, 1500, self::EXTRACTOR_CYCLE_SECONDS, $firstInstall, $firstExpiry),
+                $this->extractor(self::HEAVY_METALS, 700, 3600, $secondInstall, $secondExpiry),
+            ]),
+        ];
+        $calls = [];
+
+        $this->readerOver($colonies, [], [1500 => 3_000.0, 700 => 1_300.0], $calls)->read($this->userOf($zed));
+
+        $this->assertSame([
+            [1500, self::EXTRACTOR_CYCLE_SECONDS, '2026-11-24T12:00:00+00:00', '2026-11-27T12:00:00+00:00'],
+            [700, 3600, '2026-11-25T08:30:00+00:00', '2026-11-26T08:30:00+00:00'],
+        ], $calls);
+    }
+
+    public function testAColonyWhoseExtractorYieldIsNotComputableIsLeftOutOfTheMean(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [
+            $this->colony($zed, [$this->extractor(self::AQUEOUS_LIQUIDS, 1500, self::EXTRACTOR_CYCLE_SECONDS)]),
+            $this->colony($zed, [$this->extractor(self::AQUEOUS_LIQUIDS, 2500, self::EXTRACTOR_CYCLE_SECONDS)]),
+        ];
+
+        $account = $this->readerOver($colonies, [], [1500 => 3_000.0, 2500 => null])->read($this->userOf($zed));
+
+        $this->assertSame([['typeId' => self::AQUEOUS_LIQUIDS, 'perHourPerPlanet' => 3_000.0, 'planets' => 1]], $account['extractionYields']);
+        $this->assertSame(2, $account['usedPlanets']);
     }
 
     public static function incompleteExtractors(): iterable
@@ -111,54 +149,57 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
             $this->colony($zed, [$this->extractor(self::AQUEOUS_LIQUIDS, $quantity, $cycleSeconds)]),
         ];
 
-        $account = $this->readerOver($colonies, [])->read($this->userOf($zed));
+        $account = $this->readerOver($colonies, [], [1500 => 3_000.0, 2500 => 5_000.0])->read($this->userOf($zed));
 
         $this->assertSame([['typeId' => self::AQUEOUS_LIQUIDS, 'perHourPerPlanet' => 3_000.0, 'planets' => 1]], $account['extractionYields']);
         $this->assertSame(2, $account['usedPlanets']);
     }
 
-    public function testAColonyWithOneCompleteAndOneIncompleteExtractorOfTheSameResourceIsLeftOut(): void
+    public function testAColonyWithOneComputableAndOneNonComputableExtractorOfTheSameResourceIsLeftOut(): void
     {
         $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
         $colonies = [
             $this->colony($zed, [$this->extractor(self::HEAVY_METALS, 900, 3600)]),
             $this->colony($zed, [
                 $this->extractor(self::HEAVY_METALS, 1000, self::EXTRACTOR_CYCLE_SECONDS),
-                $this->extractor(self::HEAVY_METALS, null, self::EXTRACTOR_CYCLE_SECONDS),
+                $this->extractor(self::HEAVY_METALS, 1100, self::EXTRACTOR_CYCLE_SECONDS),
             ]),
         ];
 
-        $account = $this->readerOver($colonies, [])->read($this->userOf($zed));
+        $account = $this->readerOver($colonies, [], [900 => 1_300.0, 1000 => 2_000.0, 1100 => null])->read($this->userOf($zed));
 
-        $this->assertSame([['typeId' => self::HEAVY_METALS, 'perHourPerPlanet' => 900.0, 'planets' => 1]], $account['extractionYields']);
+        $this->assertSame([['typeId' => self::HEAVY_METALS, 'perHourPerPlanet' => 1_300.0, 'planets' => 1]], $account['extractionYields']);
     }
 
-    public function testAResourceWhoseColoniesAreAllLeftOutIsAbsentFromTheYields(): void
+    public function testAResourceWhoseColoniesAreAllLeftOutIsAbsentWhileAnotherResourceOfTheSameColonyStays(): void
     {
         $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
         $colonies = [
-            $this->colony($zed, [$this->extractor(self::BASE_METALS, 800, null)]),
-            $this->colony($zed, [$this->extractor(self::HEAVY_METALS, 900, 3600)]),
+            $this->colony($zed, [
+                $this->extractor(self::BASE_METALS, 800, self::EXTRACTOR_CYCLE_SECONDS),
+                $this->extractor(self::HEAVY_METALS, 900, 3600),
+            ]),
         ];
 
-        $account = $this->readerOver($colonies, [])->read($this->userOf($zed));
+        $account = $this->readerOver($colonies, [], [800 => null, 900 => 1_300.0])->read($this->userOf($zed));
 
-        $this->assertSame([['typeId' => self::HEAVY_METALS, 'perHourPerPlanet' => 900.0, 'planets' => 1]], $account['extractionYields']);
+        $this->assertSame([['typeId' => self::HEAVY_METALS, 'perHourPerPlanet' => 1_300.0, 'planets' => 1]], $account['extractionYields']);
     }
 
-    public function testAnExpiredExtractorStillCountsAndTheYieldsAreSortedByType(): void
+    public function testAnExpiredExtractorIsHandedToTheCalculatorAndTheYieldsAreSortedByType(): void
     {
         $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $expired = new \DateTimeImmutable('2020-01-01T00:00:00+00:00');
         $colonies = [
             $this->colony($zed, [$this->extractor(self::HEAVY_METALS, 900, 3600)]),
-            $this->colony($zed, [$this->extractor(self::AQUEOUS_LIQUIDS, 1500, self::EXTRACTOR_CYCLE_SECONDS, new \DateTimeImmutable('2020-01-01T00:00:00+00:00'))]),
+            $this->colony($zed, [$this->extractor(self::AQUEOUS_LIQUIDS, 1500, self::EXTRACTOR_CYCLE_SECONDS, new \DateTimeImmutable('2019-12-29T00:00:00+00:00'), $expired)]),
         ];
 
-        $account = $this->readerOver($colonies, [])->read($this->userOf($zed));
+        $account = $this->readerOver($colonies, [], [900 => 1_300.0, 1500 => 3_000.0])->read($this->userOf($zed));
 
         $this->assertSame([
             ['typeId' => self::AQUEOUS_LIQUIDS, 'perHourPerPlanet' => 3_000.0, 'planets' => 1],
-            ['typeId' => self::HEAVY_METALS, 'perHourPerPlanet' => 900.0, 'planets' => 1],
+            ['typeId' => self::HEAVY_METALS, 'perHourPerPlanet' => 1_300.0, 'planets' => 1],
         ], $account['extractionYields']);
     }
 
@@ -188,7 +229,7 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         return $user;
     }
 
-    private function extractor(int $productTypeId, ?int $quantityPerCycle, ?int $cycleSeconds, ?\DateTimeImmutable $expiryTime = null): PlanetaryPin
+    private function extractor(int $productTypeId, ?int $quantityPerCycle, ?int $cycleSeconds, ?\DateTimeImmutable $installTime = null, ?\DateTimeImmutable $expiryTime = null): PlanetaryPin
     {
         return (new PlanetaryPin())
             ->setPinId(++$this->nextPlanetId)
@@ -196,7 +237,8 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
             ->setExtractorProductTypeId($productTypeId)
             ->setExtractorQtyPerCycle($quantityPerCycle)
             ->setExtractorCycleTime($cycleSeconds)
-            ->setExpiryTime($expiryTime);
+            ->setInstallTime($installTime ?? new \DateTimeImmutable('2026-11-24T12:00:00+00:00'))
+            ->setExpiryTime($expiryTime ?? new \DateTimeImmutable('2026-11-27T12:00:00+00:00'));
     }
 
     private function launchpad(): PlanetaryPin
@@ -218,7 +260,7 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         return $colony;
     }
 
-    private function readerOver(array $colonies, array $levelsByEveCharacterId): PlanetaryPlannerAccountReader
+    private function readerOver(array $colonies, array $levelsByEveCharacterId, array $hourlyYieldByQuantity = [], array &$calls = []): PlanetaryPlannerAccountReader
     {
         $colonyRepository = $this->createStub(PlanetaryColonyRepository::class);
         $colonyRepository->method('findByUser')->willReturn($colonies);
@@ -226,7 +268,16 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         $skillRepository->method('findLevelsByEveCharacterId')->willReturnCallback(
             static fn (int $eveCharacterId): array => $levelsByEveCharacterId[$eveCharacterId] ?? [],
         );
+        $calculator = $this->createStub(ExtractorYieldCalculator::class);
+        $calculator->method('programDailyAverage')->willReturnCallback(
+            static function (int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime) use ($hourlyYieldByQuantity, &$calls): ?float {
+                $calls[] = [$quantityPerCycle, $cycleTime, $installTime?->format(\DATE_ATOM), $expiryTime?->format(\DATE_ATOM)];
+                $hourlyYield = $hourlyYieldByQuantity[$quantityPerCycle] ?? null;
 
-        return new PlanetaryPlannerAccountReader($colonyRepository, $skillRepository);
+                return $hourlyYield === null ? null : $hourlyYield * 24;
+            },
+        );
+
+        return new PlanetaryPlannerAccountReader($colonyRepository, $skillRepository, $calculator);
     }
 }
