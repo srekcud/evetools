@@ -14,6 +14,7 @@ import {
   HEAVY_METALS,
   LONG_TYPE_NAME,
   MECHANICAL_PARTS,
+  PLANNER_ACCOUNT,
   PLANNER_CATALOG,
   REACTIVE_METALS,
   ROBOTICS,
@@ -31,11 +32,11 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, failure: Error | null = null) {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  if (failure) {
-    vi.mocked(apiRequest).mockRejectedValue(failure)
-  } else {
-    vi.mocked(apiRequest).mockResolvedValue({ id: 'planner', ...catalog } as never)
-  }
+  vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
+    if (failure) throw failure
+    if (endpoint === '/planetary/planner/account') return { id: 'account', ...PLANNER_ACCOUNT }
+    return { id: 'planner', ...catalog }
+  }) as never)
   const wrapper = mount(PiPlannerTab, {
     global: {
       plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })],
@@ -90,10 +91,10 @@ function rootTypeId(wrapper: Wrapper): number {
 enableAutoUnmount(afterEach)
 
 describe('PiPlannerTab', () => {
-  it('loads the planner resource and invites the player to add a production while there is none', async () => {
+  it('loads the planner resource and the account and invites the player to add a production while there is none', async () => {
     const wrapper = await mountTab()
 
-    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0])).toEqual(['/planetary/planner'])
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0])).toEqual(['/planetary/planner', '/planetary/planner/account'])
     expect(wrapper.find('[data-testid="planner-empty"]').exists()).toBe(true)
     expect(rows(wrapper)).toHaveLength(0)
   })

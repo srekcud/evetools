@@ -3,6 +3,12 @@ import { computed, ref } from 'vue'
 import { i18n } from '@/i18n'
 import { apiRequest } from '@/services/api'
 import {
+  buildPlanetPlan,
+  isValidExtractionYield,
+  type PlanetPlan,
+  type PlannerAccount,
+} from '@/utils/planetaryPlanets'
+import {
   DEFAULT_SETTINGS,
   buildPlan,
   cheapestChoices,
@@ -27,10 +33,29 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   const choices = ref<Record<number, BuildChoice>>({})
   const settings = ref<PlannerSettings>({ ...DEFAULT_SETTINGS })
   const selectedIndex = ref<number | null>(null)
+  const account = ref<PlannerAccount | null>(null)
+  const extractionYieldOverrides = ref<Record<number, number>>({})
 
   const plan = computed<PlannerPlan | null>(() =>
     catalog.value ? buildPlan(productions.value, catalog.value, choices.value, settings.value) : null,
   )
+
+  const planetPlan = computed<PlanetPlan | null>(() =>
+    catalog.value
+      ? buildPlanetPlan(productions.value, catalog.value, choices.value, settings.value, account.value, extractionYieldOverrides.value)
+      : null,
+  )
+
+  async function fetchAccount(): Promise<void> {
+    return
+  }
+
+  function setExtractionYield(typeId: number, value: number): boolean {
+    void typeId
+    void value
+    void isValidExtractionYield
+    return true
+  }
 
   async function fetchCatalog(): Promise<void> {
     isLoading.value = true
@@ -43,7 +68,13 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
         error.value = i18n.global.t('pi.planner.errors.emptyCatalog')
         return
       }
-      catalog.value = { recipes: response.recipes, types: response.types, prices: response.prices }
+      catalog.value = {
+        recipes: response.recipes,
+        types: response.types,
+        prices: response.prices,
+        planetTypes: response.planetTypes,
+        extractionPlanetTypes: response.extractionPlanetTypes,
+      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : i18n.global.t('pi.planner.errors.load')
     } finally {
@@ -123,8 +154,13 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     choices,
     settings,
     selectedIndex,
+    account,
+    extractionYieldOverrides,
     plan,
+    planetPlan,
     fetchCatalog,
+    fetchAccount,
+    setExtractionYield,
     clearError,
     addProduction,
     setTarget,

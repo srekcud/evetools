@@ -22,6 +22,7 @@ final readonly class PlanetaryPlannerCatalog
         private InvTypeRepository $invTypeRepository,
         private PlanetaryProductionCalculator $productionCalculator,
         private JitaMarketService $jitaMarketService,
+        private PlanetaryPlanetTypeCatalog $planetTypeCatalog,
     ) {
     }
 
@@ -29,7 +30,9 @@ final readonly class PlanetaryPlannerCatalog
      * @return array{
      *     recipes: list<array{outputTypeId: int, outputQuantity: int, cycleSeconds: int, inputs: list<array{typeId: int, quantity: int}>}>,
      *     types: list<array{typeId: int, name: string, tier: string, volume: float|null}>,
-     *     prices: list<array{typeId: int, sell: float|null, buy: float|null}>
+     *     prices: list<array{typeId: int, sell: float|null, buy: float|null}>,
+     *     planetTypes: list<array{name: string, commandCenter: array{cpu: int, pg: int}, launchpad: array{cpu: int, pg: int, capacity: float}, facilities: array{basic: array{cpu: int, pg: int}|null, advanced: array{cpu: int, pg: int}|null, highTech: array{cpu: int, pg: int}|null}}>,
+     *     extractionPlanetTypes: list<array{typeId: int, planetTypes: list<string>}>
      * }
      */
     public function build(): array
@@ -42,6 +45,7 @@ final readonly class PlanetaryPlannerCatalog
             'recipes' => $recipes,
             'types' => $types,
             'prices' => $this->buildPrices(array_column($types, 'typeId')),
+            ...$this->planetTypeCatalog->build(),
         ];
     }
 

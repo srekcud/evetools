@@ -32,6 +32,15 @@ class InvTypeRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<int> $groupIds
+     * @return list<InvType>
+     */
+    public function findByGroupIds(array $groupIds): array
+    {
+        return [];
+    }
+
+    /**
      * @param int[] $typeIds
      * @return array<int, InvType>
      */

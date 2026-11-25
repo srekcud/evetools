@@ -1,3 +1,5 @@
+import type { PlannerExtractionPlanetTypes, PlannerPlanetType } from '@/utils/planetaryPlanets'
+
 export type PlanetaryTier = 'P0' | 'P1' | 'P2' | 'P3' | 'P4'
 export type BuildChoice = 'produce' | 'buy'
 export type PriceSource = 'jita-sell' | 'jita-buy'
@@ -31,6 +33,8 @@ export interface PlannerCatalog {
   recipes: PlannerRecipe[]
   types: PlannerType[]
   prices: PlannerPrice[]
+  planetTypes: PlannerPlanetType[]
+  extractionPlanetTypes: PlannerExtractionPlanetTypes[]
 }
 
 export interface PlannerSettings {
