@@ -17,8 +17,6 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['expiry_time'])]
 class PlanetaryPin
 {
-    private const int SECONDS_PER_HOUR = 3600;
-
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
