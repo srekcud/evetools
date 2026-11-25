@@ -31,7 +31,7 @@ Le joueur tient un tableur pour remplir les launchpads des planètes usines avan
 
 | Cas | Entrée | Sortie |
 |---|---|---|
-| 4 entrées à 2 880/j, N = 7, stock 0 | débit 2 188,8 m3/j | `capacityDays` 4,5687 ; `limited` ; 13 158 par entrée ; 9 999,6 m3 |
+| 4 entrées à 2 880/j, N = 7, stock 0 | débit 2 188,8 m3/j | `capacityDays` 4,5687 ; `limited` ; 13 158 par entrée ; 10 000,08 m3 |
 | Même launchpad, N = 4, stock projeté 0 | | `balancedDays` 4 ; 11 520 par entrée ; 8 755,2 m3 ; autonomie 4,0 |
 | Même, N = 4, stock projeté 2 000 | | 9 520 par entrée |
 | Stock au-dessus de la cible | stock projeté 20 000, débit 2 880, N = 4 | quantité 0 pour cette entrée |

@@ -6,6 +6,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import PlanetaryInteraction from '@/views/PlanetaryInteraction.vue'
 import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
+import PiSupplyTab from '@/components/planetary/PiSupplyTab.vue'
 import type { Colony } from '@/stores/planetary'
 import { apiRequest } from '@/services/api'
 import { deferred } from '../deferred'
@@ -24,6 +25,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const PLANNER_TAB_LABEL = (en.pi.tabs as Record<string, string>).planner
+const SUPPLY_TAB_LABEL = (en.pi.tabs as Record<string, string>).supply
 
 const BARREN_COLONY: Colony = {
   id: 'barren',
@@ -75,6 +77,7 @@ async function mountViewAnswering(coloniesRequest: () => Promise<unknown>, query
         PiTierLegend: true,
         PiKpiCards: true,
         PiPlannerTab: true,
+        PiSupplyTab: true,
       },
     },
   })
@@ -91,10 +94,10 @@ function selectedTab(wrapper: Wrapper): string | undefined {
 enableAutoUnmount(afterEach)
 
 describe('PlanetaryInteraction planner tab', () => {
-  it('lists the planner first, then the colonies and the revenue', async () => {
+  it('lists the planner first, then the colonies, the supply and the revenue', async () => {
     const wrapper = await mountView([BARREN_COLONY])
 
-    expect(wrapper.findAll('[role="tab"]').map(tab => tab.text())).toEqual([PLANNER_TAB_LABEL, en.pi.tabs.colonies, en.pi.tabs.revenue])
+    expect(wrapper.findAll('[role="tab"]').map(tab => tab.text())).toEqual([PLANNER_TAB_LABEL, en.pi.tabs.colonies, SUPPLY_TAB_LABEL, en.pi.tabs.revenue])
   })
 
   it('keeps the colonies tab open by default when the player has colonies', async () => {
@@ -158,5 +161,20 @@ describe('PlanetaryInteraction planner tab', () => {
     expect(plannerTab).toBeDefined()
     expect(selectedTab(wrapper)).toBe(PLANNER_TAB_LABEL)
     expect(wrapper.findComponent(PiPlannerTab).exists()).toBe(true)
+  })
+
+  it('opens the supply tab when the address names it', async () => {
+    const wrapper = await mountView([BARREN_COLONY], { tab: 'supply' })
+
+    expect(selectedTab(wrapper)).toBe(SUPPLY_TAB_LABEL)
+    expect(wrapper.findComponent(PiSupplyTab).exists()).toBe(true)
+    expect(wrapper.findComponent(PiPlannerTab).exists()).toBe(false)
+  })
+
+  it('keeps the supply tab closed when the colonies tab is the default', async () => {
+    const wrapper = await mountView([BARREN_COLONY])
+
+    expect(selectedTab(wrapper)).toBe(en.pi.tabs.colonies)
+    expect(wrapper.findComponent(PiSupplyTab).exists()).toBe(false)
   })
 })
