@@ -123,7 +123,7 @@ final readonly class PlanetaryPlannerAccountReader
                 continue;
             }
             $pinYield = $this->yieldPerHourOf($pin);
-            if ($pinYield === null) {
+            if ($pinYield === null || $pinYield <= 0.0) {
                 $incompleteResources[$resourceTypeId] = true;
                 continue;
             }
