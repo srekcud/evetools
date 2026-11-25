@@ -98,6 +98,7 @@ export interface Route {
   destinationPinId: number
   contentTypeId: number
   contentTypeName: string | null
+  contentVolume: number | null
   quantity: number
   waypoints: number[]
 }
