@@ -553,7 +553,8 @@
     "alerts": {
       "extractorsExpired": "{count} extracteur expire | {count} extracteur expire | {count} extracteurs expires",
       "expireInWindow": "{count} expirent dans moins de {window}",
-      "expireSoon": "{count} expirent bientot"
+      "expireSoon": "{count} expirent bientot",
+      "settingsLink": "Réglages des alertes"
     },
     "production": {
       "title": "Production globale par tier",
