@@ -16,6 +16,7 @@ use Symfony\Component\Uid\Uuid;
 class CachedCharacterSkill
 {
     /** Industry skill type IDs */
+    public const SKILL_INTERPLANETARY_CONSOLIDATION = 2495;
     public const SKILL_INDUSTRY = 3380;
     public const SKILL_ADVANCED_INDUSTRY = 3388;
     public const SKILL_REACTIONS = 45746;

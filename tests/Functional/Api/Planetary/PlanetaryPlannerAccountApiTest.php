@@ -1,0 +1,167 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Functional\Api\Planetary;
+
+use App\Entity\CachedCharacterSkill;
+use App\Entity\Character;
+use App\Entity\PlanetaryColony;
+use App\Entity\PlanetaryPin;
+use App\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\Group;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+
+#[Group('issue-1403')]
+final class PlanetaryPlannerAccountApiTest extends WebTestCase
+{
+    private const int AQUEOUS_LIQUIDS = 990_010;
+    private const int HEAVY_METALS = 990_012;
+    private const int EXTRACTOR_TYPE_ID = 990_848;
+    private const int ALICE_MAIN_EVE_ID = 2_113_903_001;
+    private const int ALICE_SECOND_EVE_ID = 2_113_903_002;
+    private const int BOB_EVE_ID = 2_113_903_003;
+
+    private KernelBrowser $client;
+    private EntityManagerInterface $em;
+    private User $alice;
+    private User $bob;
+    private int $nextPlanetId = 40_139_001;
+    private int $nextPinId = 1_039_000_000_001;
+
+    protected function setUp(): void
+    {
+        $this->client = self::createClient();
+        $this->client->disableReboot();
+        $this->em = self::getContainer()->get(EntityManagerInterface::class);
+
+        $this->alice = $this->persistPilot('Alice Tarn', self::ALICE_MAIN_EVE_ID);
+        $this->persistSecondCharacter($this->alice, 'Aldo Tarn', self::ALICE_SECOND_EVE_ID);
+        $this->bob = $this->persistPilot('Bob Kess', self::BOB_EVE_ID);
+    }
+
+    public function testTheAccountRequiresAuthentication(): void
+    {
+        $this->client->request('GET', '/api/planetary/planner/account', server: ['HTTP_ACCEPT' => 'application/json']);
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testTheAccountCarriesTheColoniesTheSlotsAndTheExtractionYieldOfTheConnectedUser(): void
+    {
+        $this->persistColony($this->alice->getMainCharacter(), self::AQUEOUS_LIQUIDS, 4400, 1800);
+        $this->persistSkill($this->alice->getMainCharacter(), CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION, 4);
+        $this->client->loginUser($this->alice, 'api');
+
+        $body = $this->getAccount();
+
+        self::assertSame('account', $body['id']);
+        self::assertSame(1, $body['usedPlanets']);
+        self::assertSame([self::ALICE_SECOND_EVE_ID, self::ALICE_MAIN_EVE_ID], array_column($body['characters'], 'characterId'));
+        self::assertSame(
+            ['characterId' => self::ALICE_MAIN_EVE_ID, 'characterName' => 'Alice Tarn', 'usedPlanets' => 1, 'maxPlanets' => 5],
+            array_column($body['characters'], null, 'characterId')[self::ALICE_MAIN_EVE_ID],
+        );
+        self::assertCount(1, $body['extractionYields']);
+        self::assertSame(self::AQUEOUS_LIQUIDS, $body['extractionYields'][0]['typeId']);
+        self::assertEqualsWithDelta(8_800.0, $body['extractionYields'][0]['perHourPerPlanet'], 0.0001);
+        self::assertSame(1, $body['extractionYields'][0]['planets']);
+    }
+
+    public function testACharacterWithoutTheConsolidationSkillInTheDatabaseHasANullMaximum(): void
+    {
+        $this->persistSkill($this->alice->getMainCharacter(), CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION, 4);
+        $this->client->loginUser($this->alice, 'api');
+
+        $characters = $this->getAccount()['characters'];
+
+        $second = array_values(array_filter($characters, static fn (array $character): bool => $character['characterId'] === self::ALICE_SECOND_EVE_ID));
+        self::assertCount(1, $second);
+        self::assertArrayHasKey('maxPlanets', $second[0]);
+        self::assertNull($second[0]['maxPlanets']);
+    }
+
+    public function testTheColoniesAndTheExtractionOfAnotherUserAreAbsent(): void
+    {
+        $this->persistColony($this->alice->getMainCharacter(), self::AQUEOUS_LIQUIDS, 4400, 1800);
+        $this->persistColony($this->bob->getMainCharacter(), self::HEAVY_METALS, 900, 3600);
+        $this->persistColony($this->bob->getMainCharacter(), self::HEAVY_METALS, 900, 3600);
+        $this->persistSkill($this->bob->getMainCharacter(), CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION, 5);
+        $this->client->loginUser($this->alice, 'api');
+
+        $body = $this->getAccount();
+
+        self::assertSame(1, $body['usedPlanets']);
+        self::assertSame([self::AQUEOUS_LIQUIDS], array_column($body['extractionYields'], 'typeId'));
+        self::assertNotContains(self::BOB_EVE_ID, array_column($body['characters'], 'characterId'));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getAccount(): array
+    {
+        $this->client->request('GET', '/api/planetary/planner/account', server: ['HTTP_ACCEPT' => 'application/json']);
+
+        self::assertResponseStatusCodeSame(200);
+
+        return json_decode((string) $this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+    }
+
+    private function persistPilot(string $name, int $eveCharacterId): User
+    {
+        $user = new User();
+        $this->em->persist($user);
+        $character = (new Character())
+            ->setEveCharacterId($eveCharacterId)
+            ->setName($name)
+            ->setCorporationId(98_539_001)
+            ->setCorporationName('Verhoeven Deep Core');
+        $user->addCharacter($character);
+        $user->setMainCharacter($character);
+        $this->em->persist($character);
+        $this->em->flush();
+
+        return $user;
+    }
+
+    private function persistSecondCharacter(User $user, string $name, int $eveCharacterId): void
+    {
+        $character = (new Character())
+            ->setEveCharacterId($eveCharacterId)
+            ->setName($name)
+            ->setCorporationId(98_539_001)
+            ->setCorporationName('Verhoeven Deep Core');
+        $user->addCharacter($character);
+        $this->em->persist($character);
+        $this->em->flush();
+    }
+
+    private function persistColony(Character $character, int $productTypeId, int $quantityPerCycle, int $cycleSeconds): void
+    {
+        $colony = (new PlanetaryColony())
+            ->setCharacter($character)
+            ->setPlanetId($this->nextPlanetId++)
+            ->setPlanetType('temperate')
+            ->setSolarSystemId(30_001_539)
+            ->setUpgradeLevel(4)
+            ->setNumPins(1)
+            ->setLastUpdate(new \DateTimeImmutable('2026-11-25T12:00:00+00:00'));
+        $colony->addPin((new PlanetaryPin())
+            ->setPinId($this->nextPinId++)
+            ->setTypeId(self::EXTRACTOR_TYPE_ID)
+            ->setExtractorProductTypeId($productTypeId)
+            ->setExtractorQtyPerCycle($quantityPerCycle)
+            ->setExtractorCycleTime($cycleSeconds));
+        $this->em->persist($colony);
+        $this->em->flush();
+    }
+
+    private function persistSkill(Character $character, int $skillId, int $level): void
+    {
+        $this->em->persist((new CachedCharacterSkill())->setCharacter($character)->setSkillId($skillId)->setLevel($level)->setSkillPoints(256_000));
+        $this->em->flush();
+    }
+}

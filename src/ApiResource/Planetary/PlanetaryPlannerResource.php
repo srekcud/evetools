@@ -35,4 +35,10 @@ final class PlanetaryPlannerResource
 
     /** @var list<array{typeId: int, sell: float|null, buy: float|null}> */
     public array $prices = [];
+
+    /** @var list<array{name: string, commandCenter: array{cpu: int, pg: int}, launchpad: array{cpu: int, pg: int, capacity: float}, facilities: array{basic: array{cpu: int, pg: int}|null, advanced: array{cpu: int, pg: int}|null, highTech: array{cpu: int, pg: int}|null}}> */
+    public array $planetTypes = [];
+
+    /** @var list<array{typeId: int, planetTypes: list<string>}> */
+    public array $extractionPlanetTypes = [];
 }

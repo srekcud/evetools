@@ -10,13 +10,16 @@ use App\Entity\Sde\PlanetSchematic;
 use App\Exception\PlanetaryTierMissingFromSdeException;
 use App\Exception\PlanetSchematicIncompleteException;
 use App\Exception\TypeMissingFromSdeException;
+use App\Repository\Sde\DgmTypeAttributeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\JitaMarketService;
+use App\Service\Planetary\PlanetaryPlanetTypeCatalog;
 use App\Service\Planetary\PlanetaryPlannerCatalog;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Support\StubsPlanetaryTypes;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -26,6 +29,8 @@ use PHPUnit\Framework\TestCase;
 #[Group('issue-1402')]
 final class PlanetaryPlannerCatalogTest extends TestCase
 {
+    use StubsPlanetaryTypes;
+
     private const int AQUEOUS_LIQUIDS = 91_001;
     private const int BASE_METALS = 91_002;
     private const int WATER = 91_011;
@@ -74,11 +79,30 @@ final class PlanetaryPlannerCatalogTest extends TestCase
         ], $catalog->build()['prices']);
     }
 
-    public function testAnEmptySdeGivesThreeEmptyLists(): void
+    public function testAnEmptySdeGivesFiveEmptyLists(): void
     {
         $catalog = $this->catalogOver([], [], [], [], []);
 
-        $this->assertSame(['recipes' => [], 'types' => [], 'prices' => []], $catalog->build());
+        $this->assertSame(['recipes' => [], 'types' => [], 'prices' => [], 'planetTypes' => [], 'extractionPlanetTypes' => []], $catalog->build());
+    }
+
+    public function testThePlanetTypesAndTheExtractionPlanetTypesComeAfterThePricesFromThePlanetTypeCatalog(): void
+    {
+        [$planetInvTypeRepository, $planetAttributeRepository] = $this->planetaryTypeRepositories(self::planetaryTypeTable());
+        $catalog = $this->catalogOver(
+            $this->schematics(),
+            $this->schematicMap(),
+            $this->types(),
+            $this->sellPrices(),
+            $this->buyPrices(),
+            new PlanetaryPlanetTypeCatalog($planetInvTypeRepository, $planetAttributeRepository),
+        );
+
+        $built = $catalog->build();
+
+        $this->assertSame(['recipes', 'types', 'prices', 'planetTypes', 'extractionPlanetTypes'], array_keys($built));
+        $this->assertSame(['Barren', 'Gas', 'Ice'], array_column($built['planetTypes'], 'name'));
+        $this->assertSame([self::AQUEOUS_LIQUIDS_P0, self::BASE_METALS_P0], array_column($built['extractionPlanetTypes'], 'typeId'));
     }
 
     public function testAnOutputTypeWithoutAPiMarketGroupRaisesAnExplicitErrorInsteadOfFallingBackToP0(): void
@@ -176,7 +200,7 @@ final class PlanetaryPlannerCatalogTest extends TestCase
         return [self::AQUEOUS_LIQUIDS => 5.0, self::BASE_METALS => null, self::WATER => 50.0, self::REACTIVE_METALS => 120.0, self::COOLANT => 900.0, self::ROBOTICS => 28000.0];
     }
 
-    private function catalogOver(array $cycleTimes, array $schematicMap, array $types, array $sellPrices, array $buyPrices): PlanetaryPlannerCatalog
+    private function catalogOver(array $cycleTimes, array $schematicMap, array $types, array $sellPrices, array $buyPrices, ?PlanetaryPlanetTypeCatalog $planetTypeCatalog = null): PlanetaryPlannerCatalog
     {
         $schematicRepository = $this->createStub(PlanetSchematicRepository::class);
         $schematicRepository->method('findAll')->willReturn(array_map(
@@ -211,6 +235,7 @@ final class PlanetaryPlannerCatalogTest extends TestCase
             $invTypeRepository,
             new PlanetaryProductionCalculator($schematicRepository, $schematicTypeRepository, $invTypeRepository, $this->createStub(TypeNameResolver::class), $jitaMarketService),
             $jitaMarketService,
+            $planetTypeCatalog ?? new PlanetaryPlanetTypeCatalog($invTypeRepository, $this->createStub(DgmTypeAttributeRepository::class)),
         );
     }
 

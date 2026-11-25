@@ -21,6 +21,20 @@ describe('planetary planner labels', () => {
     expect(leafKeys(english)).toContain('errors.emptyCatalog')
   })
 
+  it('words the planets table, its totals, its shortfall banner, its slots bar and the account error in both languages', () => {
+    const planner = (locale: { pi: object }) => plannerOf(locale) as Record<string, Record<string, unknown> | undefined>
+
+    for (const locale of [en, fr]) {
+      const planets = planner(locale).planets
+      expect(planets).toBeDefined()
+      for (const section of ['total', 'shortfall', 'slots']) {
+        expect(typeof (planets as Record<string, unknown>)[section]).toBe('object')
+      }
+      expect(typeof (planner(locale).errors as Record<string, unknown>).account).toBe('string')
+    }
+    expect(leafKeys(planner(fr).planets).sort()).toEqual(leafKeys(planner(en).planets).sort())
+  })
+
   it('names the planner tab in both languages and words it differently in French', () => {
     const tabs = (locale: { pi: { tabs: object } }) => (locale.pi.tabs as Record<string, string | undefined>).planner
 

@@ -35,6 +35,8 @@ final readonly class PlanetaryPlannerProvider implements ProviderInterface
         $resource->recipes = $catalog['recipes'];
         $resource->types = $catalog['types'];
         $resource->prices = $catalog['prices'];
+        $resource->planetTypes = $catalog['planetTypes'];
+        $resource->extractionPlanetTypes = $catalog['extractionPlanetTypes'];
 
         return $resource;
     }

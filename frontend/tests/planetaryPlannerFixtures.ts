@@ -1,4 +1,5 @@
 import type { PlannerCatalog, PlannerPrice, PlannerRecipe } from '@/utils/planetaryPlanner'
+import type { AccountCharacter, PlannerAccount, PlannerExtractionPlanetTypes, PlannerPlanetType } from '@/utils/planetaryPlanets'
 
 export const AQUEOUS_LIQUIDS = 91_001
 export const BASE_METALS = 91_002
@@ -11,7 +12,36 @@ export const MECHANICAL_PARTS = 91_022
 export const ROBOTICS = 91_031
 export const BROADCAST_NODE = 91_041
 
+export const ALMA_CHARACTER_ID = 90_000_101
+export const BRAN_CHARACTER_ID = 90_000_102
+
 export const LONG_TYPE_NAME = 'Coolant Reinforced Thermal Dissipation Compound of the Outer Rim Consortium, Extended Production Run'
+
+export const PLANET_TYPES: PlannerPlanetType[] = [
+  {
+    name: 'Barren',
+    commandCenter: { cpu: 25_415, pg: 19_000 },
+    launchpad: { cpu: 3_600, pg: 700, capacity: 10_000 },
+    facilities: { basic: { cpu: 200, pg: 800 }, advanced: { cpu: 500, pg: 700 }, highTech: { cpu: 1_100, pg: 400 } },
+  },
+  {
+    name: 'Lava',
+    commandCenter: { cpu: 21_000, pg: 15_000 },
+    launchpad: { cpu: 3_600, pg: 700, capacity: 10_000 },
+    facilities: { basic: { cpu: 200, pg: 800 }, advanced: { cpu: 500, pg: 700 }, highTech: null },
+  },
+  {
+    name: 'Temperate',
+    commandCenter: { cpu: 24_000, pg: 18_000 },
+    launchpad: { cpu: 3_600, pg: 700, capacity: 10_000 },
+    facilities: { basic: { cpu: 200, pg: 800 }, advanced: { cpu: 500, pg: 700 }, highTech: { cpu: 1_100, pg: 400 } },
+  },
+]
+
+export const EXTRACTION_PLANET_TYPES: PlannerExtractionPlanetTypes[] = [
+  { typeId: AQUEOUS_LIQUIDS, planetTypes: ['Barren', 'Temperate'] },
+  { typeId: BASE_METALS, planetTypes: ['Barren', 'Lava', 'Temperate'] },
+]
 
 export const PLANNER_CATALOG: PlannerCatalog = {
   recipes: [
@@ -47,6 +77,20 @@ export const PLANNER_CATALOG: PlannerCatalog = {
     { typeId: ROBOTICS, sell: 30000, buy: 28000 },
     { typeId: BROADCAST_NODE, sell: 900000, buy: 850000 },
   ],
+  planetTypes: PLANET_TYPES,
+  extractionPlanetTypes: EXTRACTION_PLANET_TYPES,
+}
+
+export const PLANNER_ACCOUNT: PlannerAccount = {
+  usedPlanets: 4,
+  characters: [
+    { characterId: ALMA_CHARACTER_ID, characterName: 'Alma Voss', usedPlanets: 3, maxPlanets: 6 },
+    { characterId: BRAN_CHARACTER_ID, characterName: 'Bran Tolk', usedPlanets: 1, maxPlanets: 4 },
+  ],
+  extractionYields: [
+    { typeId: AQUEOUS_LIQUIDS, perHourPerPlanet: 6_000, planets: 2 },
+    { typeId: BASE_METALS, perHourPerPlanet: 5_000, planets: 3 },
+  ],
 }
 
 export function withSellPrices(catalog: PlannerCatalog, sellByTypeId: Record<number, number | null>): PlannerCatalog {
@@ -62,4 +106,15 @@ export function withTypeName(catalog: PlannerCatalog, typeId: number, name: stri
 
 export function withRecipe(catalog: PlannerCatalog, outputTypeId: number, changes: Partial<Omit<PlannerRecipe, 'outputTypeId'>>): PlannerCatalog {
   return { ...catalog, recipes: catalog.recipes.map(recipe => (recipe.outputTypeId === outputTypeId ? { ...recipe, ...changes } : recipe)) }
+}
+
+export function withTypeVolume(catalog: PlannerCatalog, typeId: number, volume: number | null): PlannerCatalog {
+  return { ...catalog, types: catalog.types.map(type => (type.typeId === typeId ? { ...type, volume } : type)) }
+}
+
+export function withMaxPlanets(account: PlannerAccount, maxPlanetsByCharacterId: Record<number, number | null>): PlannerAccount {
+  return {
+    ...account,
+    characters: account.characters.map((character: AccountCharacter) => (character.characterId in maxPlanetsByCharacterId ? { ...character, maxPlanets: maxPlanetsByCharacterId[character.characterId] as number | null } : character)),
+  }
 }

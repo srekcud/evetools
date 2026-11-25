@@ -26,4 +26,14 @@ class DgmTypeAttributeRepository extends ServiceEntityRepository
     {
         return $this->findBy(['typeId' => $typeId]);
     }
+
+    /**
+     * @param list<int> $typeIds
+     * @param list<int> $attributeIds
+     * @return array<int, array<int, float|int|null>>
+     */
+    public function findValuesByTypeIds(array $typeIds, array $attributeIds): array
+    {
+        return [];
+    }
 }
