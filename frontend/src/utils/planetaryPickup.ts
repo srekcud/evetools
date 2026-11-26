@@ -25,12 +25,26 @@ export interface PendingOutput {
   dataStale: boolean
 }
 
+export interface CustomsOfficeStock {
+  typeId: number
+  typeName: string | null
+  quantity: number
+  volumePerUnit: number | null
+  volumeM3: number | null
+  probablePlanet: PendingConsumer | null
+}
+
 export interface PendingStockResponse {
   pendingOutputs: PendingOutput[]
+  customsOfficeStocks: CustomsOfficeStock[]
   complete: boolean
 }
 
+export type PickupSourceKind = 'colony' | 'customs'
+
 export interface PickupSource {
+  kind: PickupSourceKind
+  probable: boolean
   colonyId: string
   planetName: string | null
   quantity: number | null
@@ -56,6 +70,8 @@ function isBoundForAnotherColony(output: PendingOutput): boolean {
 
 function toPickupSource(output: PendingOutput): PickupSource {
   return {
+    kind: 'colony',
+    probable: false,
     colonyId: output.colonyId,
     planetName: output.planetName,
     quantity: output.quantity,
@@ -69,6 +85,7 @@ export function buildPickupPlan(
   totals: readonly { typeId: number; quantity: number }[],
   typeNames: ReadonlyMap<number, string | null>,
   outputs: readonly PendingOutput[],
+  _customsOfficeStocks: readonly CustomsOfficeStock[],
 ): PickupRow[] {
   const bound = outputs.filter(isBoundForAnotherColony)
 

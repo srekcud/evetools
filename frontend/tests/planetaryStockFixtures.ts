@@ -5,6 +5,7 @@ import { AMARR_STATION_ID, AMARR_STATION_NAME, FAVORITE_HUB_ID, FAVORITE_HUB_NAM
 export const PLASMA = 91_051
 export const BACTERIA = 91_061
 export const OXYGEN = 91_062
+export const SILICON = 91_071
 
 export const COVERAGE_TARGET_WEEKS = 3
 
@@ -16,6 +17,7 @@ export function stockRow(typeId: number, typeName: string | null, overrides: Par
     weeklyConsumption: 100,
     home: 0,
     hub: 0,
+    customsOffice: 0,
     corp: 0,
     openOrders: 0,
     coverageWeeks: 0,
@@ -59,6 +61,19 @@ export const COOLANT_ROW = stockRow(COOLANT, 'Coolant', {
   coverageWeeks: 3,
   coverageWithOrdersWeeks: 3,
   toBuy: 0,
+})
+
+export const SILICON_ROW = stockRow(SILICON, 'Silicon', {
+  volumePerUnit: 0.01,
+  weeklyConsumption: 1000,
+  home: 1500,
+  hub: 500,
+  customsOffice: 400,
+  corp: 0,
+  openOrders: 0,
+  coverageWeeks: 2.4,
+  coverageWithOrdersWeeks: 2.4,
+  toBuy: 600,
 })
 
 export const WATER_ROW = stockRow(WATER, 'Water', {

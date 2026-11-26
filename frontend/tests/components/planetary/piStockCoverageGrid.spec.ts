@@ -13,12 +13,14 @@ import {
   NO_HOME_ROW,
   PLASMA_ROW,
   ROBOTICS_ROW,
+  SILICON_ROW,
   STOCK_OF_ALL_KINDS,
   UNKNOWN_EXTRACTION_ROW,
   WATER_ROW,
   stockOf,
   stockRow,
 } from '../../planetaryStockFixtures'
+import { expectedMessage } from '../../expectedMessage'
 
 const RED_BAR = 'bg-red-500'
 const GREEN_BAR = 'bg-emerald-500'
@@ -49,7 +51,7 @@ function isUnknown(wrapper: Wrapper, field: string, typeId: number): boolean {
 enableAutoUnmount(afterEach)
 
 describe('PiStockCoverageGrid', () => {
-  it('shows one row per type in the order received and the ten columns with their figures', async () => {
+  it('shows one row per type in the order received and the eleven columns with their figures', async () => {
     const wrapper = mountGrid(stockOf([PLASMA_ROW, COOLANT_ROW]))
 
     expect(wrapper.findAll('[data-testid^="stock-row-"]').map(row => row.attributes('data-testid'))).toEqual([
@@ -60,6 +62,7 @@ describe('PiStockCoverageGrid', () => {
       en.pi.stock.grid.type,
       en.pi.stock.grid.home,
       en.pi.stock.grid.hub,
+      expectedMessage('en', 'pi.stock.grid.customsOffice'),
       en.pi.stock.grid.corp,
       en.pi.stock.grid.weeklyConsumption,
       en.pi.stock.grid.coverage,
@@ -70,8 +73,8 @@ describe('PiStockCoverageGrid', () => {
     ])
     expect(wrapper.get(`[data-testid="stock-row-${PLASMA_ROW.typeId}"]`).text()).toContain('Plasma')
     expect(wrapper.get(`[data-testid="stock-row-${COOLANT_ROW.typeId}"]`).text()).toContain('Coolant')
-    expect(['home', 'hub', 'corp', 'weeklyConsumption', 'openOrders', 'toBuy'].map(field => digitsOf(cell(wrapper, field, PLASMA_ROW.typeId).text()))).toEqual(['300', '100', '0', '400', '200', '600'])
-    expect(['home', 'hub', 'corp', 'weeklyConsumption', 'openOrders', 'toBuy'].map(field => digitsOf(cell(wrapper, field, COOLANT_ROW.typeId).text()))).toEqual(['2400', '500', '100', '1000', '0', '0'])
+    expect(['home', 'hub', 'customs', 'corp', 'weeklyConsumption', 'openOrders', 'toBuy'].map(field => digitsOf(cell(wrapper, field, PLASMA_ROW.typeId).text()))).toEqual(['300', '100', '0', '0', '400', '200', '600'])
+    expect(['home', 'hub', 'customs', 'corp', 'weeklyConsumption', 'openOrders', 'toBuy'].map(field => digitsOf(cell(wrapper, field, COOLANT_ROW.typeId).text()))).toEqual(['2400', '500', '0', '100', '1000', '0', '0'])
     expect(digitsOf(cell(wrapper, 'coverageWithOrders', PLASMA_ROW.typeId).text())).toBe('15')
     expect(digitsOf(cell(wrapper, 'coverageWithOrders', COOLANT_ROW.typeId).text())).toBe('30')
     expect(wrapper.findComponent(UnknownValue).exists()).toBe(false)
@@ -81,18 +84,33 @@ describe('PiStockCoverageGrid', () => {
     const wrapper = mountGrid(stockOf([UNKNOWN_EXTRACTION_ROW, NO_HOME_ROW]))
 
     const unknownOfExtraction = ['weeklyConsumption', 'coverage', 'coverageWithOrders', 'toBuy'].filter(field => isUnknown(wrapper, field, UNKNOWN_EXTRACTION_ROW.typeId))
-    const knownOfExtraction = ['home', 'hub', 'corp', 'openOrders'].filter(field => !isUnknown(wrapper, field, UNKNOWN_EXTRACTION_ROW.typeId))
+    const knownOfExtraction = ['home', 'hub', 'customs', 'corp', 'openOrders'].filter(field => !isUnknown(wrapper, field, UNKNOWN_EXTRACTION_ROW.typeId))
     const unknownWithoutHome = ['home', 'corp', 'coverage', 'coverageWithOrders', 'toBuy'].filter(field => isUnknown(wrapper, field, NO_HOME_ROW.typeId))
-    const knownWithoutHome = ['hub', 'weeklyConsumption', 'openOrders'].filter(field => !isUnknown(wrapper, field, NO_HOME_ROW.typeId))
+    const knownWithoutHome = ['hub', 'customs', 'weeklyConsumption', 'openOrders'].filter(field => !isUnknown(wrapper, field, NO_HOME_ROW.typeId))
 
     expect(unknownOfExtraction).toEqual(['weeklyConsumption', 'coverage', 'coverageWithOrders', 'toBuy'])
-    expect(knownOfExtraction).toEqual(['home', 'hub', 'corp', 'openOrders'])
+    expect(knownOfExtraction).toEqual(['home', 'hub', 'customs', 'corp', 'openOrders'])
     expect(unknownWithoutHome).toEqual(['home', 'corp', 'coverage', 'coverageWithOrders', 'toBuy'])
-    expect(knownWithoutHome).toEqual(['hub', 'weeklyConsumption', 'openOrders'])
+    expect(knownWithoutHome).toEqual(['hub', 'customs', 'weeklyConsumption', 'openOrders'])
     expect(cell(wrapper, 'corp', UNKNOWN_EXTRACTION_ROW.typeId).text()).toBe('0')
+    expect(cell(wrapper, 'customs', UNKNOWN_EXTRACTION_ROW.typeId).text()).toBe('0')
+    expect(cell(wrapper, 'customs', NO_HOME_ROW.typeId).text()).toBe('0')
     expect(cell(wrapper, 'openOrders', NO_HOME_ROW.typeId).text()).toBe('0')
     expect(digitsOf(cell(wrapper, 'hub', NO_HOME_ROW.typeId).text())).toBe('80')
     expect(wrapper.findAllComponents(UnknownValue)).toHaveLength(9)
+  })
+
+  it('shows the customs office stock between the hub and the corp hangar with a tooltip on its header, and the backend coverage and quantity to buy that include it', async () => {
+    const wrapper = mountGrid(stockOf([SILICON_ROW]))
+    const headers = wrapper.findAll('th').map(header => header.text())
+    const hint = wrapper.findAll('thead [title]').map(element => element.attributes('title'))
+
+    expect(headers.indexOf(expectedMessage('en', 'pi.stock.grid.customsOffice'))).toBe(headers.indexOf(en.pi.stock.grid.hub) + 1)
+    expect(headers.indexOf(en.pi.stock.grid.corp)).toBe(headers.indexOf(expectedMessage('en', 'pi.stock.grid.customsOffice')) + 1)
+    expect(hint).toEqual([expectedMessage('en', 'pi.stock.grid.customsOfficeHint')])
+    expect(['home', 'hub', 'customs', 'corp', 'toBuy'].map(field => digitsOf(cell(wrapper, field, SILICON_ROW.typeId).text()))).toEqual(['1500', '500', '400', '0', '600'])
+    expect(cell(wrapper, 'coverage', SILICON_ROW.typeId).text()).toContain(en.pi.stock.grid.weeksValue.replace('{weeks}', '2.4'))
+    expect(isUnknown(wrapper, 'customs', SILICON_ROW.typeId)).toBe(false)
   })
 
   it('writes the coverage in weeks with one decimal, trailing zero included and rounded, for a known coverage', async () => {
