@@ -50,14 +50,64 @@ export interface PickupRow {
   unknownSources: PickupSource[]
 }
 
-export function buildPickupPlan(
-  _totals: readonly { typeId: number; quantity: number }[],
-  _typeNames: ReadonlyMap<number, string | null>,
-  _outputs: readonly PendingOutput[],
-): PickupRow[] {
-  return []
+function isBoundForAnotherColony(output: PendingOutput): boolean {
+  return output.destination === 'colony' && output.consumers.length > 0
 }
 
-export function sortBringBack(_outputs: readonly PendingOutput[]): PendingOutput[] {
-  return []
+function toPickupSource(output: PendingOutput): PickupSource {
+  return {
+    colonyId: output.colonyId,
+    planetName: output.planetName,
+    quantity: output.quantity,
+    volumeM3: output.volumeM3,
+    dataStale: output.dataStale,
+    dataAgeSeconds: output.dataAgeSeconds,
+  }
+}
+
+export function buildPickupPlan(
+  totals: readonly { typeId: number; quantity: number }[],
+  typeNames: ReadonlyMap<number, string | null>,
+  outputs: readonly PendingOutput[],
+): PickupRow[] {
+  const bound = outputs.filter(isBoundForAnotherColony)
+
+  return totals
+    .filter(total => total.quantity > 0)
+    .map(total => {
+      const sources = bound.filter(output => output.typeId === total.typeId).map(toPickupSource)
+      const known = sources.filter(source => source.quantity !== null)
+      const pending = sources.reduce((sum, source) => (source.quantity === null ? sum : sum + source.quantity), 0)
+      const pickup = Math.min(total.quantity, pending)
+
+      return {
+        typeId: total.typeId,
+        typeName: typeNames.get(total.typeId) ?? null,
+        needed: total.quantity,
+        pending,
+        pickup,
+        remaining: total.quantity - pickup,
+        sources: known,
+        unknownSources: sources.filter(source => source.quantity === null),
+      }
+    })
+}
+
+function comparePlanetNames(first: string | null, second: string | null): number {
+  if (first === second) return 0
+  if (first === null) return 1
+  if (second === null) return -1
+  return first.localeCompare(second)
+}
+
+function destinationRank(output: PendingOutput): number {
+  return output.destination === 'colony' ? 0 : 1
+}
+
+export function sortBringBack(outputs: readonly PendingOutput[]): PendingOutput[] {
+  return [...outputs].sort((first, second) =>
+    destinationRank(first) - destinationRank(second)
+    || comparePlanetNames(first.planetName, second.planetName)
+    || first.typeId - second.typeId,
+  )
 }

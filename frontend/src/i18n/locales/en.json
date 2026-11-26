@@ -658,6 +658,35 @@
       "daysShort": "{value} d",
       "errors": {
         "load": "The input needs could not be loaded."
+      },
+      "pickup": {
+        "title": "To pick up on your colonies",
+        "help": "For each type in the refill totals, what your other colonies already hold as pending output: pick it up there before buying the rest.",
+        "product": "Product",
+        "needed": "To bring",
+        "amount": "To pick up",
+        "remaining": "Left to find",
+        "sources": "Colonies to pick up from",
+        "unknownSource": "unknown quantity",
+        "unknownNote": "Some colonies have an unknown pending quantity: it is left out of the amounts to pick up.",
+        "incomplete": "Some factories have an unknown schema, pending outputs may be missing.",
+        "loading": "Reading the pending stock...",
+        "errors": {
+          "load": "The pending stock could not be loaded."
+        }
+      },
+      "bringBack": {
+        "title": "To bring back",
+        "planet": "Planet",
+        "product": "Product",
+        "quantity": "Quantity",
+        "volume": "Volume",
+        "destination": "Destination",
+        "to": "to {planets}",
+        "unplaced": "to place: none of your colonies consumes it",
+        "empty": "No pending output on your colonies.",
+        "unknown": "unknown",
+        "age": "{hours} h old"
       }
     }
   },
