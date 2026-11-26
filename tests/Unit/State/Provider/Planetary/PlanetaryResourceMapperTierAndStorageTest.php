@@ -21,6 +21,7 @@ use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
+use App\Service\Planetary\PlanetaryExtractionBalanceCalculator;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
 use App\Service\Planetary\PlanetaryPowerCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
@@ -266,6 +267,7 @@ final class PlanetaryResourceMapperTierAndStorageTest extends TestCase
             $powerCalculator,
             $skillRepository,
             new ExtractorYieldCalculator($this->createStub(DgmAttributeTypeRepository::class)),
+            $this->createStub(PlanetaryExtractionBalanceCalculator::class),
         );
     }
 

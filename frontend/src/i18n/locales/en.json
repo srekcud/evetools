@@ -445,6 +445,25 @@
         "upgradeSignal": "CC to upgrade: skill {skill}"
       }
     },
+    "balance": {
+      "title": "P0 balance",
+      "type": "Resource",
+      "extracted": "Extracted / day",
+      "demanded": "Demanded / day",
+      "balance": "Balance / day",
+      "runRate": "Run rate",
+      "factories": "Factories",
+      "heads": "Heads",
+      "advice": "Advice",
+      "unknown": "unknown",
+      "unknownTooltip": "The extraction of this resource is unknown: the extractor has no readable program.",
+      "runRateTooltip": "Extracted divided by demanded, capped at 100 %: estimated capacity of the basic factories fed by the extractors.",
+      "adviceHeads": "+{count} head | +{count} heads",
+      "adviceFactories": "−{count} factory | −{count} factories",
+      "adviceOr": "or",
+      "adviceSurplus": "+{count} factory still holds | +{count} factories still hold",
+      "adviceBalanced": "balanced"
+    },
     "planner": {
       "title": "Production planner",
       "subtitle": "Pick the products you want per day, read the whole tree down to the raw resources and decide for each step whether to make or buy it.",
