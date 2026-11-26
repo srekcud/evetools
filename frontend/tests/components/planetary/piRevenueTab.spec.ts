@@ -4,7 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import PiRevenueTab from '@/components/planetary/PiRevenueTab.vue'
-import type { PlanetaryRevenue } from '@/stores/planetary'
+import type { PlanetaryProductionProfit, PlanetaryRevenue } from '@/stores/planetary'
 import type { PlanTemplate } from '@/utils/planetaryTemplates'
 import { apiRequest } from '@/services/api'
 import { PLANNER_ACCOUNT } from '../../planetaryPlannerFixtures'
@@ -38,7 +38,36 @@ const REVENUE: PlanetaryRevenue = {
   sellOrders: { orders: [], charactersToReconnect: [], syncedAt: null },
 }
 
+const PRODUCTION_PROFIT: PlanetaryProductionProfit = {
+  hub: { structureId: 1049588174021, structureName: 'C-J6MT - 1st Taj Mahgoon (Keepstar)', hasData: true },
+  lines: [
+    {
+      typeId: 9832,
+      typeName: 'Coolant',
+      tier: 'P2',
+      dailyQuantity: 100,
+      soldQuantity: 100,
+      internal: false,
+      hubSellPrice: 700,
+      salesIsk: 70_000,
+      inputsIsk: 30_000,
+      profitPerDay: 40_000,
+      marginPercent: 57.14,
+      valuesExtractedAtHubBuy: false,
+      jitaIsk: 80_000,
+    },
+  ],
+  salesIsk: 70_000,
+  inputsIsk: 30_000,
+  profitPerDay: 40_000,
+  unknownLineCount: 0,
+  taxes: { days: 30, perDay: null },
+  netProfitPerDay: 40_000,
+  unsyncedWallets: [],
+}
+
 const REVENUE_ENDPOINT = '/planetary/revenue'
+const PRODUCTION_PROFIT_ENDPOINT = '/planetary/production-profit'
 const CONTEXT_ENDPOINTS = ['/planetary/planner', '/planetary/planner/account', '/planetary/templates']
 
 async function mountTab(revenue: PlanetaryRevenue = REVENUE, locale: 'en' | 'fr' = 'en', followedTemplate: PlanTemplate | null = null, revenueOfDays: (days: number) => PlanetaryRevenue = () => revenue, contextError: Error | null = null) {
@@ -46,6 +75,7 @@ async function mountTab(revenue: PlanetaryRevenue = REVENUE, locale: 'en' | 'fr'
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
     if (endpoint.startsWith(REVENUE_ENDPOINT)) return revenueOfDays(Number(new URL(endpoint, 'http://localhost').searchParams.get('days')))
+    if (endpoint.startsWith(PRODUCTION_PROFIT_ENDPOINT)) return PRODUCTION_PROFIT
     if (contextError !== null) throw contextError
     if (endpoint === '/planetary/templates') return followedTemplate === null ? [] : [followedTemplate]
     if (endpoint === '/planetary/planner/account') return { id: 'account', ...PLANNER_ACCOUNT }
@@ -93,7 +123,7 @@ describe('PiRevenueTab', () => {
   it('loads the follow context, the catalog, the account and the templates, when it opens without waiting for the planner', async () => {
     await mountTab()
 
-    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0]).filter(endpoint => !endpoint.startsWith(REVENUE_ENDPOINT)).sort()).toEqual(CONTEXT_ENDPOINTS)
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0]).filter(endpoint => !endpoint.startsWith(REVENUE_ENDPOINT) && !endpoint.startsWith(PRODUCTION_PROFIT_ENDPOINT)).sort()).toEqual(CONTEXT_ENDPOINTS)
   })
 
   it('shows no planned against real line while no template is followed', async () => {
@@ -126,6 +156,22 @@ describe('PiRevenueTab', () => {
 
     expect(wrapper.findAll('[data-testid="revenue-line-grid"]')).toHaveLength(2)
     expect(wrapper.find('[data-testid="revenue-plan-line"]').exists()).toBe(false)
+  })
+
+  it('loads the production profit once when it opens, whatever the period', async () => {
+    const wrapper = await mountTab()
+
+    await wrapper.findAll('button').find(button => button.text() === '90 days')?.trigger('click')
+    await flushPromises()
+
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0]).filter(url => url.startsWith(PRODUCTION_PROFIT_ENDPOINT))).toEqual(['/planetary/production-profit'])
+  })
+
+  it('shows the production profit grid under the revenue grids', async () => {
+    const wrapper = await mountTab()
+
+    expect(wrapper.get('[data-testid="production-profit-grid"] [data-testid="profit-line"] [data-cell="profit"]').text()).toBe('40.0k')
+    expect(wrapper.findAll('[data-testid="revenue-line-grid"]')).toHaveLength(2)
   })
 
   it('shows the realised grid with one column per tier, the off-market column as unknown and the net of the sales only', async () => {

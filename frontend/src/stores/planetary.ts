@@ -85,6 +85,34 @@ export interface ExtractorYieldCurve {
   suggestedDays: number | null
 }
 
+export interface ProductionProfitLine {
+  typeId: number
+  typeName: string | null
+  tier: string
+  dailyQuantity: number
+  soldQuantity: number
+  internal: boolean
+  hubSellPrice: number | null
+  salesIsk: number | null
+  inputsIsk: number | null
+  profitPerDay: number | null
+  marginPercent: number | null
+  valuesExtractedAtHubBuy: boolean
+  jitaIsk: number | null
+}
+
+export interface PlanetaryProductionProfit {
+  hub: { structureId: number; structureName: string; hasData: boolean }
+  lines: ProductionProfitLine[]
+  salesIsk: number
+  inputsIsk: number
+  profitPerDay: number
+  unknownLineCount: number
+  taxes: { days: number; perDay: number | null }
+  netProfitPerDay: number
+  unsyncedWallets: PlanetaryRevenueUnsyncedWallet[]
+}
+
 export interface Pin {
   pinId: number
   typeId: number
@@ -268,6 +296,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
   const production = ref<ProductionTier[]>([])
   const inputNeeds = ref<PlanetaryInputNeeds | null>(null)
   const revenue = ref<PlanetaryRevenue | null>(null)
+  const productionProfit = ref<PlanetaryProductionProfit | null>(null)
   const isLoading = ref(false)
   const isSyncing = ref(false)
   const error = ref<string | null>(null)
@@ -385,6 +414,17 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     }
   }
 
+  async function fetchProductionProfit(): Promise<void> {
+    error.value = null
+
+    try {
+      productionProfit.value = await apiRequest<PlanetaryProductionProfit>('/planetary/production-profit')
+    } catch (e) {
+      productionProfit.value = null
+      error.value = e instanceof Error ? e.message : 'Erreur lors du chargement du bénéfice de production'
+    }
+  }
+
   async function fetchProduction(): Promise<void> {
     error.value = null
 
@@ -433,6 +473,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     production,
     inputNeeds,
     revenue,
+    productionProfit,
     isLoading,
     isSyncing,
     error,
@@ -452,6 +493,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     fetchProduction,
     fetchInputNeeds,
     fetchRevenue,
+    fetchProductionProfit,
     syncColonies,
     finishSync,
     failSync,
