@@ -58,6 +58,14 @@ final readonly class PersonalStockReader
     }
 
     /**
+     * @return list<PersonalStockContainerContents>
+     */
+    public function containerContentsOf(User $user): array
+    {
+        return [];
+    }
+
+    /**
      * @return list<array{reading: PersonalStockContainerReading, articles: array<int, int>, station: AssetStation|null}>
      */
     private function readingsOf(User $user): array

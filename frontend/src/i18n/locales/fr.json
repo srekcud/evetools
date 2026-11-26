@@ -371,6 +371,38 @@
       "revenue": "Revenus"
     },
     "stock": {
+      "banner": {
+        "noHome": "Aucun lieu maison choisi : le stock à la maison et les achats sont inconnus tant que tu n'en choisis pas un dans les réglages ci-dessous.",
+        "goToSettings": "Aller aux réglages",
+        "corpUnknown": "Les conteneurs corpo que tu as déclarés n'ont pas pu être lus ({reason}) : la colonne corpo et les achats sont inconnus.",
+        "consumptionUnknown": "L'extraction de certaines entrées est inconnue : leur consommation, leur couverture et leurs achats sont inconnus."
+      },
+      "grid": {
+        "title": "Couverture des entrées",
+        "type": "Entrée",
+        "home": "Maison",
+        "hub": "Hub (à rapatrier)",
+        "corp": "Hangar corpo",
+        "weeklyConsumption": "Conso / sem.",
+        "coverage": "Couverture",
+        "weeksValue": "{weeks} sem.",
+        "openOrders": "Ordres d'achat en cours",
+        "coverageWithOrders": "Couverture avec ordres",
+        "toBuy": "À acheter",
+        "decision": "Décision",
+        "produce": "Produire",
+        "buy": "Acheter",
+        "openPlanner": "Ouvrir le Planificateur"
+      },
+      "purchase": {
+        "title": "Liste d'achat",
+        "totalVolume": "Volume total",
+        "copy": "Copier (multibuy)",
+        "copied": "Copié",
+        "copyFailed": "Copie impossible",
+        "empty": "Rien à acheter"
+      },
+      "loadError": "Impossible de charger la couverture du stock.",
       "settings": {
         "title": "Réglages du stock",
         "homeLocation": "Lieu maison",

@@ -214,6 +214,17 @@ class AssetBrowseRepository
         return $reachableRoot !== false;
     }
 
+    /**
+     * @param list<int> $rootLocationIds
+     * @param list<int> $typeIds
+     *
+     * @return array<int, array<int, int>> rootLocationId => typeId => quantity
+     */
+    public function quantitiesByRootLocation(AssetScope $scope, array $rootLocationIds, array $typeIds): array
+    {
+        return [];
+    }
+
     private function treeCte(AssetScope $scope): string
     {
         $maxDepth = self::MAX_CONTAINER_DEPTH;
