@@ -654,7 +654,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                     CachedCharacterSkill::SKILL_ACCOUNTING => 0,
                     self::BLUEPRINT_SCIENCE_SKILL => 4,
                 ],
-                9,
+                10,
             ],
             [$this->persistedLevelsBySkillIdOf(self::PILOT_ONE), count($this->persistedSkillsOf(self::PILOT_ONE))],
         );

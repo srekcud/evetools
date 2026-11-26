@@ -53,7 +53,7 @@ final class PlanetaryColonyCommandCenterApiTest extends WebTestCase
         $this->persistColony(self::TRAINED_ID, 3);
         $this->persistColony(self::EQUAL_ID, 3);
         $this->persistColony(self::UNSYNCED_ID, 3);
-        $this->persistColony(self::OTHER_USER_ID, 1);
+        $this->persistColony(self::OTHER_USER_ID, 5);
         $this->persistSkillLevel(self::TRAINED_ID, 4);
         $this->persistSkillLevel(self::EQUAL_ID, 3);
         $this->persistSkillLevel(self::OTHER_USER_ID, 5);
