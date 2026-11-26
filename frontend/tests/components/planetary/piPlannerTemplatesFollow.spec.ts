@@ -120,6 +120,7 @@ describe('PiPlannerTemplates follow these plans', () => {
     vi.setSystemTime(new Date(2026, 10, 26, 10, 30))
     const { wrapper, store } = await mountTemplates({ templates: [], saved: SAVED })
     store.addProduction(RANKING_PRODUCT_B, 120)
+    await flushPromises()
 
     await wrapper.get('[data-testid="template-follow-plan"]').trigger('click')
     await flushPromises()
