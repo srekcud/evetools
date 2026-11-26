@@ -53,6 +53,30 @@ class CachedWalletTransactionRepository extends ServiceEntityRepository
      * @param int[] $typeIds
      * @return CachedWalletTransaction[]
      */
+    public function findBuysByCharactersSince(array $characters, array $typeIds, \DateTimeImmutable $since): array
+    {
+        if ($characters === [] || $typeIds === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('t')
+            ->where('t.character IN (:characters)')
+            ->andWhere('t.isBuy = true')
+            ->andWhere('t.typeId IN (:typeIds)')
+            ->andWhere('t.date >= :since')
+            ->setParameter('characters', $characters)
+            ->setParameter('typeIds', $typeIds)
+            ->setParameter('since', $since)
+            ->orderBy('t.date', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @param Character[] $characters
+     * @param int[] $typeIds
+     * @return CachedWalletTransaction[]
+     */
     public function findUnlinkedSaleTransactions(array $characters, array $typeIds, \DateTimeImmutable $since): array
     {
         if ($characters === [] || $typeIds === []) {
