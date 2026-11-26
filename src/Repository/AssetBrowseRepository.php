@@ -222,7 +222,34 @@ class AssetBrowseRepository
      */
     public function quantitiesByRootLocation(AssetScope $scope, array $rootLocationIds, array $typeIds): array
     {
-        return [];
+        if ([] === $rootLocationIds || [] === $typeIds) {
+            return [];
+        }
+
+        [$values, $types] = $this->bindings($scope);
+        $values['rootLocationIds'] = $rootLocationIds;
+        $values['typeIds'] = $typeIds;
+        $types['rootLocationIds'] = ArrayParameterType::INTEGER;
+        $types['typeIds'] = ArrayParameterType::INTEGER;
+
+        $rows = $this->connection->fetchAllAssociative(
+            $this->treeCte($scope) . <<<SQL
+
+            SELECT root_location_id, type_id, SUM(quantity) AS quantity
+            FROM tree
+            WHERE root_location_id IN (:rootLocationIds) AND type_id IN (:typeIds)
+            GROUP BY root_location_id, type_id
+            SQL,
+            $values,
+            $types,
+        );
+
+        $quantities = [];
+        foreach ($rows as $row) {
+            $quantities[(int) $row['root_location_id']][(int) $row['type_id']] = (int) $row['quantity'];
+        }
+
+        return $quantities;
     }
 
     private function treeCte(AssetScope $scope): string
