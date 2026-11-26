@@ -37,6 +37,7 @@ use App\Entity\MoonComposition;
 use App\Entity\MoonTaxStatement;
 use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
+use App\Entity\PlanetaryPlanTemplate;
 use App\Entity\PushSubscription;
 use App\Entity\PveIncome;
 use App\Entity\SharedShoppingList;
@@ -170,6 +171,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'moon_tax_statements.acted_by_user_id' => 1,
             'notifications.user_id' => 1,
             'planetary_colonies.character_id' => 1,
+            'planetary_plan_templates.user_id' => 1,
             'push_subscriptions.user_id' => 1,
             'pve_income.user_id' => 1,
             'shared_shopping_lists.created_by_id' => 1,
@@ -1209,6 +1211,10 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setUpgradeLevel(3 + $seed)
             ->setNumPins(8 + $seed)
             ->setLastUpdate($start));
+        $this->em->persist((new PlanetaryPlanTemplate())
+            ->setUser($user)
+            ->setName(sprintf('Plan template %d', $seed))
+            ->setProductions([['typeId' => 9_830 + $seed, 'targetPerDay' => 24 * $seed]]));
         $this->em->persist((new IndustryProject())->setOwner($user)
             ->addItem((new IndustryProjectProduct())->setTypeId(22_444 + $seed)->setTypeName(sprintf('Seeded product %d', $seed))->setRuns(10 * $seed)));
         $this->em->persist((new IndustryUserSettings())

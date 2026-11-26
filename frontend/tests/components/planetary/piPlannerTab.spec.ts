@@ -8,6 +8,7 @@ import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
 import { apiRequest } from '@/services/api'
 import type { PlannerCatalog } from '@/utils/planetaryPlanner'
 import type { PlannerMarket } from '@/utils/planetaryRanking'
+import type { PlanTemplate } from '@/utils/planetaryTemplates'
 import {
   AQUEOUS_LIQUIDS,
   BASE_METALS,
@@ -26,13 +27,14 @@ import {
   withSellPrices,
   withTypeName,
 } from '../../planetaryPlannerFixtures'
+import { TEMPLATE_B_LINE, TEMPLATE_CATALOG } from '../../planetaryTemplatesFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
   apiRequest: vi.fn(),
 }))
 
-async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, failure: Error | null = null, market: PlannerMarket | Error = PLANNER_MARKET) {
+async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, failure: Error | null = null, market: PlannerMarket | Error = PLANNER_MARKET, templates: PlanTemplate[] | Error = []) {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
@@ -41,6 +43,10 @@ async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, failure: Erro
     if (endpoint === '/planetary/planner/market') {
       if (market instanceof Error) throw market
       return { id: 'market', ...market }
+    }
+    if (endpoint === '/planetary/templates') {
+      if (templates instanceof Error) throw templates
+      return templates
     }
     return { id: 'planner', ...catalog }
   }) as never)
@@ -101,7 +107,7 @@ describe('PiPlannerTab', () => {
   it('loads the planner resource, the account and the market and invites the player to add a production while there is none', async () => {
     const wrapper = await mountTab()
 
-    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0])).toEqual(['/planetary/planner', '/planetary/planner/account', '/planetary/planner/market'])
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0])).toEqual(['/planetary/planner', '/planetary/planner/account', '/planetary/planner/market', '/planetary/templates'])
     expect(wrapper.find('[data-testid="planner-empty"]').exists()).toBe(true)
     expect(rows(wrapper)).toHaveLength(0)
   })
@@ -389,6 +395,26 @@ describe('PiPlannerTab', () => {
     expect(wrapper.findComponent(ErrorBanner).props('message')).toBe((en.pi.planner.errors as Record<string, string>).market)
     expect(wrapper.findAll('[data-testid="ranking-row"]')).toHaveLength(4)
     expect(wrapper.get('[data-testid="ranking-row"] [data-testid="ranking-volume"]').attributes('data-state')).toBe('unknown')
+    await addProduction(wrapper, ROBOTICS)
+    expect(rows(wrapper)).toHaveLength(11)
+  })
+
+  it('shows the templates block below the ranking with the saved templates valued at the prices of the catalog', async () => {
+    const wrapper = await mountTab(TEMPLATE_CATALOG, null, PLANNER_MARKET, [TEMPLATE_B_LINE])
+
+    const templatesBlock = wrapper.get('[data-testid="planner-templates"]')
+    const rankingRows = wrapper.findAll('[data-testid="ranking-row"]')
+
+    expect(templatesBlock.element.compareDocumentPosition(rankingRows[rankingRows.length - 1].element) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    expect(wrapper.get('[data-testid="template-row"][data-template-id="tpl-b-line"] [data-testid="template-profit-day"]').text()).toBe('67.20 K')
+  })
+
+  it('reports a failing templates read in the banner while the templates block and the planner stay usable', async () => {
+    const wrapper = await mountTab(PLANNER_CATALOG, null, PLANNER_MARKET, new Error('templates unavailable'))
+
+    expect(wrapper.findComponent(ErrorBanner).props('message')).toBe((en.pi.planner.errors as Record<string, string>).templatesRead)
+    expect(wrapper.find('[data-testid="planner-templates"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="templates-empty"]').exists()).toBe(true)
     await addProduction(wrapper, ROBOTICS)
     expect(rows(wrapper)).toHaveLength(11)
   })
