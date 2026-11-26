@@ -68,7 +68,8 @@ describe('planetaryPlanner store market', () => {
 
     expect(store.market).toBeNull()
     expect(store.catalog).not.toBeNull()
-    expect([MARKET_ERROR_KEY, i18n.global.t(MARKET_ERROR_KEY)]).toContain(store.error)
+    expect(store.error).toBe(i18n.global.t(MARKET_ERROR_KEY))
+    expect(store.error).not.toBe(MARKET_ERROR_KEY)
   })
 
   it('does not replace the error of a failing catalog with the market error', async () => {
@@ -87,7 +88,8 @@ describe('planetaryPlanner store market', () => {
       const store = await loadedStore(response)
 
       expect(store.market).toBeNull()
-      expect([MARKET_ERROR_KEY, i18n.global.t(MARKET_ERROR_KEY)]).toContain(store.error)
+      expect(store.error).toBe(i18n.global.t(MARKET_ERROR_KEY))
+      expect(store.error).not.toBe(MARKET_ERROR_KEY)
     }
   })
 })
