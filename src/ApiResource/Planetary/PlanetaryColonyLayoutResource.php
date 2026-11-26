@@ -13,11 +13,11 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Planetary\CreateColonyLayoutInput;
-use App\ApiResource\Input\Planetary\RenameColonyLayoutInput;
+use App\ApiResource\Input\Planetary\UpdateColonyLayoutInput;
 use App\Entity\PlanetaryColonyLayout;
 use App\State\Processor\Planetary\CreateColonyLayoutProcessor;
 use App\State\Processor\Planetary\DeleteColonyLayoutProcessor;
-use App\State\Processor\Planetary\RenameColonyLayoutProcessor;
+use App\State\Processor\Planetary\UpdateColonyLayoutProcessor;
 use App\State\Provider\Planetary\PlanetaryColonyLayoutCollectionProvider;
 use App\State\Provider\Planetary\PlanetaryColonyLayoutItemProvider;
 
@@ -44,9 +44,9 @@ use App\State\Provider\Planetary\PlanetaryColonyLayoutItemProvider;
         new Patch(
             uriTemplate: '/planetary/layouts/{id}',
             provider: PlanetaryColonyLayoutItemProvider::class,
-            input: RenameColonyLayoutInput::class,
-            processor: RenameColonyLayoutProcessor::class,
-            openapi: new Model\Operation(summary: 'Rename a colony layout', tags: ['Planetary']),
+            input: UpdateColonyLayoutInput::class,
+            processor: UpdateColonyLayoutProcessor::class,
+            openapi: new Model\Operation(summary: 'Rename and publish or unpublish a colony layout', tags: ['Planetary']),
         ),
         new Delete(
             uriTemplate: '/planetary/layouts/{id}',
@@ -56,6 +56,7 @@ use App\State\Provider\Planetary\PlanetaryColonyLayoutItemProvider;
         ),
     ],
     security: "is_granted('ROLE_USER')",
+    normalizationContext: ['skip_null_values' => false],
 )]
 class PlanetaryColonyLayoutResource
 {
@@ -70,6 +71,10 @@ class PlanetaryColonyLayoutResource
     /** @var array<string, mixed> */
     public array $gameTemplate = [];
 
+    public bool $public = false;
+
+    public ?string $publishedAt = null;
+
     public string $createdAt = '';
 
     /**
@@ -82,6 +87,8 @@ class PlanetaryColonyLayoutResource
         $resource->name = $layout->getName();
         $resource->summary = $summary;
         $resource->gameTemplate = $layout->getTemplate();
+        $resource->public = $layout->isPublic();
+        $resource->publishedAt = $layout->getPublishedAt()?->format('c');
         $resource->createdAt = $layout->getCreatedAt()->format('c');
 
         return $resource;

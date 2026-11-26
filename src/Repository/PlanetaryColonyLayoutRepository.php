@@ -61,6 +61,14 @@ class PlanetaryColonyLayoutRepository extends ServiceEntityRepository
      */
     public function findPublic(int $limit): array
     {
-        return [];
+        return $this->createQueryBuilder('layout')
+            ->addSelect('author')
+            ->innerJoin('layout.user', 'author')
+            ->where('layout.public = true')
+            ->orderBy('layout.publishedAt', 'DESC')
+            ->addOrderBy('layout.createdAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
     }
 }
