@@ -11,6 +11,8 @@ import type { Colony } from '@/stores/planetary'
 import { apiRequest } from '@/services/api'
 import { deferred } from '../deferred'
 
+const EMPTY_INPUT_NEEDS = { launchpads: [], colonies: [], extractions: [], weekly: [], complete: true }
+
 const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/planetary', params: {}, query: {} })
 
 vi.mock(import('vue-router'), async importOriginal => ({
@@ -37,6 +39,8 @@ const BARREN_COLONY: Colony = {
   solarSystemName: 'Jita',
   solarSystemSecurity: 0.9,
   upgradeLevel: 4,
+  tier: null,
+  storageFull: null,
   numPins: 12,
   lastUpdate: '2026-10-22T09:00:00+00:00',
   cachedAt: '2026-10-22T09:05:00+00:00',
@@ -62,6 +66,7 @@ async function mountViewAnswering(coloniesRequest: () => Promise<unknown>, query
     if (endpoint === '/planetary/stats') return Promise.resolve({})
     if (endpoint === '/planetary/production') return Promise.resolve({ tiers: [] })
     if (endpoint === '/planetary/slots') return Promise.resolve({ characters: [], totalUsed: 0, totalMax: 0 })
+    if (endpoint === '/planetary/input-needs') return Promise.resolve(EMPTY_INPUT_NEEDS)
     return new Promise(() => {})
   })
   setActivePinia(createPinia())

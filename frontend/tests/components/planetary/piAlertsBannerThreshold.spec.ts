@@ -15,6 +15,8 @@ const TAMA_COLONY: Colony = {
   solarSystemName: 'Tama',
   solarSystemSecurity: 0.3,
   upgradeLevel: 5,
+  tier: null,
+  storageFull: null,
   numPins: 2,
   lastUpdate: '2026-10-26T10:00:00+00:00',
   cachedAt: '2026-10-26T10:05:00+00:00',
