@@ -18,6 +18,7 @@ import {
   LONG_TYPE_NAME,
   PLANNER_ACCOUNT,
   PLANNER_CATALOG,
+  PLANNER_MARKET,
   ROBOTICS,
   TOXIC_METALS,
   WATER,
@@ -40,6 +41,7 @@ async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, account: Plan
       if (account instanceof Error) throw account
       return { id: 'account', ...account }
     }
+    if (endpoint === '/planetary/planner/market') return { id: 'market', ...PLANNER_MARKET }
     return { id: 'planner', ...catalog }
   }) as never)
   const wrapper = mount(PiPlannerTab, {

@@ -14,6 +14,7 @@ import {
   BROADCAST_NODE,
   PLANNER_ACCOUNT,
   PLANNER_CATALOG,
+  PLANNER_MARKET,
   REACTIVE_METALS,
   ROBOTICS,
   TOXIC_METALS,
@@ -32,6 +33,7 @@ async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, account: Plan
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
     if (endpoint === '/planetary/planner/account') return { id: 'account', ...account }
+    if (endpoint === '/planetary/planner/market') return { id: 'market', ...PLANNER_MARKET }
     return { id: 'planner', ...catalog }
   }) as never)
   const wrapper = mount(PiPlannerTab, {

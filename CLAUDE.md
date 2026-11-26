@@ -196,7 +196,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Taxe lunaire (ledger des observers + journal wallet corpo, par corporation à raffinerie ouverte) | 1h |
 | Blueprints sync (blueprints personnels + corpo, par utilisateur actif) | 1h |
 | Alerte d'un contrat de courrier lié à un projet qui échoue (une notification par contrat, propriétaire du projet) | 30 min |
-| Volumes journaliers régionaux (The Forge, sous les clés `jita_volume_<typeId>` lues par le classement « quoi produire », plus les régions de la structure par défaut et des structures préférées, produits fabricables ; environ 4 200 requêtes d'historique par région) | 24h |
+| Volumes journaliers régionaux (The Forge, sous les clés `jita_volume_<typeId>` lues par le classement « quoi produire », plus les régions de la structure par défaut et des structures préférées, produits fabricables ; environ 4 200 requêtes d'historique par région ; plus l'historique des produits P2 à P4 de The Forge) | 24h |
 | Build SDE (dernière build CCP comparée à la build importée ; alerte admins, aucun import automatique) | 24h |
 | Volumes reconditionnés (table `type_packaged_volumes`, un appel ESI `/universe/types/{id}` par type présent dans les assets, hors conteneurs de station ; suivi `packaged-volumes`) | 7 jours |
 | Cost indices | 2h |

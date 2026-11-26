@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Constant\EveConstants;
+use App\Exception\EsiApiException;
 use App\Message\SyncRegionalMarketVolumes;
 use App\Repository\CachedStructureRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -12,6 +13,8 @@ use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\UserRepository;
 use App\Service\Admin\SyncTracker;
 use App\Service\JitaMarketService;
+use App\Service\MarketHistoryService;
+use App\Service\Planetary\PlanetaryProductTypeResolver;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -19,6 +22,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class SyncRegionalMarketVolumesHandler
 {
     private const string SYNC_TYPE = 'market-volumes';
+    private const int MAX_CONSECUTIVE_FAILED_HISTORY_SYNCS = 3;
+    private const array ESI_THROTTLING_STATUS_CODES = [420, 429];
 
     public function __construct(
         private IndustryActivityProductRepository $productRepository,
@@ -26,6 +31,8 @@ final readonly class SyncRegionalMarketVolumesHandler
         private CachedStructureRepository $cachedStructureRepository,
         private MapSolarSystemRepository $solarSystemRepository,
         private JitaMarketService $jitaMarketService,
+        private PlanetaryProductTypeResolver $planetaryProductTypeResolver,
+        private MarketHistoryService $marketHistoryService,
         private SyncTracker $syncTracker,
         private LoggerInterface $logger,
         private int $defaultMarketStructureId,
@@ -67,6 +74,10 @@ final readonly class SyncRegionalMarketVolumesHandler
                     $abandonedRegionIds[] = $regionId;
                 }
             }
+
+            $historyResult = $this->syncPlanetaryProductHistory(!\in_array(EveConstants::THE_FORGE_REGION_ID, $abandonedRegionIds, true));
+            $synced += $historyResult['synced'];
+            $failed += $historyResult['failed'];
         } catch (\Throwable $e) {
             $this->syncTracker->fail(self::SYNC_TYPE, $e->getMessage());
             throw $e;
@@ -123,5 +134,47 @@ final readonly class SyncRegionalMarketVolumesHandler
         }
 
         return implode('; ', $parts);
+    }
+
+    /**
+     * @return array{synced: int, failed: int}
+     */
+    private function syncPlanetaryProductHistory(bool $theForgeReachable): array
+    {
+        $productTypeIds = $this->planetaryProductTypeResolver->factoryOutputTypeIds();
+        if (!$theForgeReachable) {
+            return ['synced' => 0, 'failed' => \count($productTypeIds)];
+        }
+
+        $synced = 0;
+        $failed = 0;
+        $consecutiveFailures = 0;
+        foreach ($productTypeIds as $position => $productTypeId) {
+            try {
+                $entryCount = $this->marketHistoryService->syncHistory($productTypeId, EveConstants::THE_FORGE_REGION_ID);
+            } catch (EsiApiException $exception) {
+                ++$failed;
+                ++$consecutiveFailures;
+                $this->logger->warning('Planetary product history sync failed', [
+                    'typeId' => $productTypeId,
+                    'error' => $exception->getMessage(),
+                ]);
+                if (\in_array($exception->statusCode, self::ESI_THROTTLING_STATUS_CODES, true) || $consecutiveFailures >= self::MAX_CONSECUTIVE_FAILED_HISTORY_SYNCS) {
+                    return ['synced' => $synced, 'failed' => $failed + \count($productTypeIds) - $position - 1];
+                }
+                continue;
+            }
+
+            if ($entryCount === 0) {
+                ++$failed;
+                $this->logger->warning('Planetary product history is empty', ['typeId' => $productTypeId]);
+                continue;
+            }
+
+            ++$synced;
+            $consecutiveFailures = 0;
+        }
+
+        return ['synced' => $synced, 'failed' => $failed];
     }
 }
