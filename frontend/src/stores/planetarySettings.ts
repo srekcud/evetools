@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { i18n } from '@/i18n'
+import { apiRequest } from '@/services/api'
 
 export interface PlanetarySettings {
   homeLocationId: number | null
@@ -20,8 +22,36 @@ export interface HubChoice {
   name: string
 }
 
+interface HomeLocationCandidates {
+  locations: HomeLocationCandidate[]
+}
+
+interface MarketSettings {
+  preferredMarketStructureId: number | null
+  preferredMarketStructureName: string | null
+  marketStructures: HubChoice[]
+}
+
 export const MIN_COVERAGE_WEEKS = 1
 export const MAX_COVERAGE_WEEKS = 52
+
+const SETTINGS_ENDPOINT = '/planetary/settings'
+const LOCATIONS_ENDPOINT = '/planetary/settings/locations'
+const MARKET_SETTINGS_ENDPOINT = '/me/settings'
+
+export function isValidCoverageWeeks(weeks: number): boolean {
+  return Number.isInteger(weeks) && weeks >= MIN_COVERAGE_WEEKS && weeks <= MAX_COVERAGE_WEEKS
+}
+
+function hubChoicesOf(market: MarketSettings): HubChoice[] {
+  if (market.marketStructures.length > 0) return market.marketStructures
+  if (market.preferredMarketStructureId === null) return []
+
+  return [{
+    id: market.preferredMarketStructureId,
+    name: market.preferredMarketStructureName ?? String(market.preferredMarketStructureId),
+  }]
+}
 
 export const usePlanetarySettingsStore = defineStore('planetarySettings', () => {
   const settings = ref<PlanetarySettings | null>(null)
@@ -31,19 +61,74 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
   const error = ref<string | null>(null)
 
   async function load(): Promise<void> {
-    return undefined
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const [loadedSettings, candidates, market] = await Promise.all([
+        apiRequest<PlanetarySettings>(SETTINGS_ENDPOINT),
+        apiRequest<HomeLocationCandidates>(LOCATIONS_ENDPOINT),
+        apiRequest<MarketSettings>(MARKET_SETTINGS_ENDPOINT),
+      ])
+      settings.value = loadedSettings
+      locations.value = candidates.locations
+      hubChoices.value = hubChoicesOf(market)
+    } catch {
+      settings.value = null
+      locations.value = []
+      hubChoices.value = []
+      error.value = i18n.global.t('pi.stock.settings.loadError')
+    } finally {
+      isLoading.value = false
+    }
   }
 
-  async function saveHomeLocation(_locationId: number | null): Promise<boolean> {
-    return false
+  async function patchSettings(patch: Partial<Pick<PlanetarySettings, 'homeLocationId' | 'coverageWeeks'>>): Promise<boolean> {
+    error.value = null
+
+    try {
+      settings.value = await apiRequest<PlanetarySettings>(SETTINGS_ENDPOINT, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      })
+      return true
+    } catch {
+      error.value = i18n.global.t('pi.stock.settings.saveError')
+      return false
+    }
   }
 
-  async function saveCoverageWeeks(_weeks: number): Promise<boolean> {
-    return false
+  async function saveHomeLocation(locationId: number | null): Promise<boolean> {
+    return patchSettings({ homeLocationId: locationId })
   }
 
-  async function saveHub(_structureId: number): Promise<boolean> {
-    return false
+  async function saveCoverageWeeks(weeks: number): Promise<boolean> {
+    if (!isValidCoverageWeeks(weeks)) return false
+
+    return patchSettings({ coverageWeeks: weeks })
+  }
+
+  async function saveHub(structureId: number): Promise<boolean> {
+    error.value = null
+
+    const chosen = hubChoices.value.find(choice => choice.id === structureId)
+      ?? (settings.value?.hubStructureId === structureId ? { id: structureId, name: settings.value.hubStructureName } : undefined)
+    if (chosen === undefined) {
+      error.value = i18n.global.t('pi.stock.settings.saveError')
+      return false
+    }
+
+    try {
+      await apiRequest<MarketSettings>(MARKET_SETTINGS_ENDPOINT, {
+        method: 'PATCH',
+        body: JSON.stringify({ preferredMarketStructureId: chosen.id, preferredMarketStructureName: chosen.name }),
+      })
+      settings.value = await apiRequest<PlanetarySettings>(SETTINGS_ENDPOINT)
+      return true
+    } catch {
+      error.value = i18n.global.t('pi.stock.settings.saveError')
+      return false
+    }
   }
 
   function clearError(): void {

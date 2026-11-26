@@ -30,6 +30,6 @@ final readonly class PlanetarySettingsProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Authentication required');
         }
 
-        return new PlanetarySettingsResource();
+        return PlanetarySettingsResource::forUser($user, $this->defaultMarketStructureId, $this->defaultMarketStructureName);
     }
 }

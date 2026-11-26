@@ -30,6 +30,9 @@ final readonly class PlanetaryHomeLocationProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Authentication required');
         }
 
-        return new PlanetaryHomeLocationResource();
+        $resource = new PlanetaryHomeLocationResource();
+        $resource->locations = $this->catalog->forUser($user);
+
+        return $resource;
     }
 }
