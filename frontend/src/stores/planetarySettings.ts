@@ -92,6 +92,7 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
         method: 'PATCH',
         body: JSON.stringify(patch),
       })
+      saveRevision.value += 1
       return true
     } catch {
       error.value = i18n.global.t('pi.stock.settings.saveError')
@@ -124,6 +125,7 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
         method: 'PATCH',
         body: JSON.stringify({ preferredMarketStructureId: chosen.id, preferredMarketStructureName: chosen.name }),
       })
+      saveRevision.value += 1
       settings.value = await apiRequest<PlanetarySettings>(SETTINGS_ENDPOINT)
       return true
     } catch {
