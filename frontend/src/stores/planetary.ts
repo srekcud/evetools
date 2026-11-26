@@ -77,6 +77,14 @@ export interface PlanetaryRevenue {
   sellOrders: PlanetarySellOrders
 }
 
+export interface ExtractorYieldCurve {
+  cycleSeconds: number
+  yields: number[]
+  totalQuantity: number
+  averagePerHour: number
+  suggestedDays: number | null
+}
+
 export interface Pin {
   pinId: number
   typeId: number
@@ -98,6 +106,7 @@ export interface Pin {
   contents: PinContent[]
   dailyOutput: number | null
   outputTier: string | null
+  yieldCurve?: ExtractorYieldCurve | null
 }
 
 export interface Route {
@@ -164,6 +173,12 @@ export interface PlanetaryInputNeedsFeed {
 export interface PlanetaryInputNeedsLaunchpad {
   colonyId: string
   pinId: number
+  capacityM3?: number | null
+  usedVolumeM3?: number | null
+  dailyVolumeM3?: number | null
+  lastViewAt?: string
+  dataAgeSeconds?: number
+  dataStale?: boolean
   feeds: PlanetaryInputNeedsFeed[]
 }
 

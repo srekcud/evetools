@@ -66,6 +66,14 @@ class ExtractorYieldCalculator
         return array_sum($yields) / ($durationSeconds / self::SECONDS_PER_DAY);
     }
 
+    /**
+     * @return array{cycleSeconds: int, yields: list<float>, totalQuantity: float, averagePerHour: float, suggestedDays: int|null}|null
+     */
+    public function programCurve(int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime): ?array
+    {
+        return null;
+    }
+
     public function yieldBetween(int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime, \DateTimeImmutable $from, \DateTimeImmutable $to): ?float
     {
         if ($installTime === null || $expiryTime === null || $cycleTime <= 0) {

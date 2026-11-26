@@ -9,6 +9,7 @@ use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\PlanetaryRoute;
+use App\Entity\Sde\DgmAttributeType;
 use App\Entity\Sde\InvType;
 use App\Entity\Sde\PlanetSchematic;
 use App\Entity\Sde\PlanetSchematicType;
@@ -16,10 +17,12 @@ use App\Entity\User;
 use App\Entity\UserNotificationPreference;
 use App\Entity\CachedCharacterSkill;
 use App\Repository\CachedCharacterSkillRepository;
+use App\Repository\Sde\DgmAttributeTypeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\UserNotificationPreferenceRepository;
+use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
 use App\Service\Planetary\PlanetaryPowerCalculator;
@@ -79,6 +82,8 @@ final class PlanetaryResourceMapperTest extends TestCase
     private ?array $powerOutputs = null;
 
     private ?array $powerLoad = null;
+
+    private ?array $yieldFactors = ['decay' => 0.012, 'noise' => 0.8];
 
     private array $skillLevelsByCharacterId = [];
 
@@ -500,6 +505,80 @@ final class PlanetaryResourceMapperTest extends TestCase
         $this->assertNull($resource->commandCenterUpgradable);
     }
 
+    #[Group('issue-1386')]
+    public function testExtractorWithItsProgramDatesCarriesTheYieldCurveOfItsProgram(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+        $pin = $this->extractorPin(self::MICROORGANISMS)
+            ->setExtractorCycleTime(1800)
+            ->setExtractorQtyPerCycle(6965)
+            ->setInstallTime($install)
+            ->setExpiryTime($install->modify('+171000 seconds'));
+
+        $mappedPin = $this->mapSinglePin($pin);
+
+        $this->assertArrayHasKey('yieldCurve', $mappedPin);
+        $this->assertIsArray($mappedPin['yieldCurve']);
+        $this->assertSame(['cycleSeconds', 'yields', 'totalQuantity', 'averagePerHour', 'suggestedDays'], array_keys($mappedPin['yieldCurve']));
+        $this->assertSame(1800, $mappedPin['yieldCurve']['cycleSeconds']);
+        $this->assertCount(95, $mappedPin['yieldCurve']['yields']);
+        $this->assertEqualsWithDelta(24261.6594, $mappedPin['yieldCurve']['yields'][0], 0.001);
+        $this->assertEqualsWithDelta(789365.5893, $mappedPin['yieldCurve']['totalQuantity'], 0.001);
+        $this->assertEqualsWithDelta(16618.2229, $mappedPin['yieldCurve']['averagePerHour'], 0.001);
+        $this->assertSame(2, $mappedPin['yieldCurve']['suggestedDays']);
+    }
+
+    #[Group('issue-1386')]
+    public function testExtractorWithoutInstallTimeCarriesAnUnknownYieldCurveKey(): void
+    {
+        $mappedPin = $this->mapSinglePin($this->extractorPin(self::MICROORGANISMS));
+
+        $this->assertArrayHasKey('yieldCurve', $mappedPin);
+        $this->assertNull($mappedPin['yieldCurve']);
+    }
+
+    #[Group('issue-1386')]
+    public function testExtractorWithoutSdeFactorsCarriesAnUnknownYieldCurveKey(): void
+    {
+        $this->yieldFactors = null;
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+        $pin = $this->extractorPin(self::MICROORGANISMS)->setInstallTime($install)->setExpiryTime($install->modify('+48 hours'));
+
+        $mappedPin = $this->mapSinglePin($pin);
+
+        $this->assertArrayHasKey('yieldCurve', $mappedPin);
+        $this->assertNull($mappedPin['yieldCurve']);
+    }
+
+    #[Group('issue-1386')]
+    public function testFactoryAndStoragePinsCarryAnUnknownYieldCurveKey(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+        $colony = $this->colony();
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_BACTERIA)->setInstallTime($install)->setExpiryTime($install->modify('+48 hours')));
+        $colony->addPin($this->pin(self::STORAGE_FACILITY));
+
+        $pins = $this->mapper()->toDetailResource($colony)->pins;
+
+        $this->assertCount(2, $pins);
+        foreach ($pins as $mappedPin) {
+            $this->assertArrayHasKey('yieldCurve', $mappedPin);
+            $this->assertNull($mappedPin['yieldCurve']);
+        }
+    }
+
+    #[Group('issue-1386')]
+    public function testListResourceDoesNotCarryPinsAndSoNoYieldCurve(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+        $colony = $this->colony();
+        $colony->addPin($this->extractorPin(self::MICROORGANISMS)->setInstallTime($install)->setExpiryTime($install->modify('+48 hours')));
+
+        $resource = $this->mapper()->toResource($colony);
+
+        $this->assertSame([], $resource->pins);
+    }
+
     private function statusAndExpiringFlagOfAnExtractorExpiring(string $expiresIn): array
     {
         $colony = $this->colony();
@@ -578,6 +657,15 @@ final class PlanetaryResourceMapperTest extends TestCase
             fn (int $eveCharacterId): array => $this->skillLevelsByCharacterId[$eveCharacterId] ?? [],
         );
 
+        $attributeRepository = $this->createStub(DgmAttributeTypeRepository::class);
+        $attributeRepository->method('find')->willReturnCallback(
+            fn (mixed $attributeId): ?DgmAttributeType => $this->yieldFactors === null
+                ? null
+                : (new DgmAttributeType())
+                    ->setAttributeId($attributeId)
+                    ->setDefaultValue($attributeId === 1683 ? $this->yieldFactors['decay'] : $this->yieldFactors['noise']),
+        );
+
         return new PlanetaryResourceMapper(
             $invTypeRepository,
             new TypeNameResolver($invTypeRepository),
@@ -588,6 +676,7 @@ final class PlanetaryResourceMapperTest extends TestCase
             $productionCalculator,
             $powerCalculator,
             $skillRepository,
+            new ExtractorYieldCalculator($attributeRepository),
         );
     }
 
