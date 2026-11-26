@@ -69,7 +69,7 @@ const STATE_BAR: Record<GaugeState, string> = {
           :style="{ width: barWidth }"
         ></div>
       </div>
-      <div class="mt-0.5 flex items-baseline justify-between gap-2 text-[11px] font-mono-tech">
+      <div class="mt-0.5 flex items-baseline justify-between gap-2 text-xs font-mono-tech">
         <span :class="STATE_TEXT[state]">{{ t('pi.power.free', { free: formatNumber(free, 0) }) }}</span>
         <span :class="STATE_TEXT[state]">{{ percent }}%</span>
       </div>

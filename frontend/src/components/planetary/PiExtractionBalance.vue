@@ -109,7 +109,7 @@ function signedBalance(value: number): string {
                       :style="{ width: `${Math.min(percentOf(row.runRate), PERCENT)}%` }"
                     ></div>
                   </div>
-                  <div :class="['mt-0.5 text-right text-[11px] font-mono-tech', GAUGE_TEXT[gaugeState(row.runRate)]]">{{ percentOf(row.runRate) }}%</div>
+                  <div :class="['mt-0.5 text-right text-xs font-mono-tech', GAUGE_TEXT[gaugeState(row.runRate)]]">{{ percentOf(row.runRate) }}%</div>
                 </div>
                 <span v-else class="text-slate-500">-</span>
               </td>

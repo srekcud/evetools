@@ -87,7 +87,7 @@ const constantRateGap = computed(() => {
 
 <template>
   <div data-testid="yield-curve" class="mt-2 rounded-sm border border-slate-700/60 bg-slate-900/60 px-2 py-1.5">
-    <div class="mb-1 flex items-center justify-between gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+    <div class="mb-1 flex items-center justify-between gap-2 text-xs uppercase tracking-wider text-slate-500">
       <span class="truncate">{{ t('pi.curve.yield.title') }}</span>
       <span v-if="curve !== null" class="whitespace-nowrap font-mono-tech text-slate-500">{{ t('pi.curve.yield.unit') }}</span>
     </div>
@@ -138,7 +138,7 @@ const constantRateGap = computed(() => {
         />
       </svg>
 
-      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-400">
+      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
         <span class="inline-flex items-center gap-1 text-slate-500">
           <span class="inline-block h-0 w-3 border-t border-dashed border-slate-400"></span>
           {{ t('pi.curve.yield.constantRate') }}
@@ -149,13 +149,13 @@ const constantRateGap = computed(() => {
         </span>
       </div>
 
-      <p data-testid="yield-curve-summary" class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 font-mono-tech text-[11px] text-slate-300">
+      <p data-testid="yield-curve-summary" class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 font-mono-tech text-xs text-slate-300">
         <span>{{ t('pi.curve.yield.total', { quantity: formatNumber(curve.totalQuantity, 0) }) }}</span>
         <span>{{ t('pi.curve.yield.average', { quantity: formatNumber(curve.averagePerHour, 0) }) }}</span>
         <span v-if="constantRateGap !== null">{{ t('pi.curve.yield.constantGap', { gap: constantRateGap }) }}</span>
       </p>
 
-      <p v-if="curve.suggestedDays !== null" data-testid="yield-curve-suggestion" class="mt-1 text-[11px] text-cyan-400">
+      <p v-if="curve.suggestedDays !== null" data-testid="yield-curve-suggestion" class="mt-1 text-xs text-cyan-400">
         {{ t('pi.curve.yield.suggestion', { days: curve.suggestedDays }) }}
       </p>
     </template>

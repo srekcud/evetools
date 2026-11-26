@@ -104,7 +104,7 @@ const ageLabel = computed(() => {
 
 <template>
   <div data-testid="launchpad-curve" class="mt-2 rounded-sm border border-slate-700/60 bg-slate-900/60 px-2 py-1.5">
-    <div class="mb-1 flex items-center justify-between gap-2 text-[11px] uppercase tracking-wider text-slate-500">
+    <div class="mb-1 flex items-center justify-between gap-2 text-xs uppercase tracking-wider text-slate-500">
       <span class="truncate">{{ t('pi.curve.launchpad.title', { pinId: launchpad.pinId }) }}</span>
       <span
         v-if="ageLabel !== null"
@@ -180,7 +180,7 @@ const ageLabel = computed(() => {
         />
       </svg>
 
-      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-400">
+      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
         <span class="inline-flex items-center gap-1 text-slate-500">
           <span class="inline-block h-2.5 w-px bg-slate-500"></span>
           {{ t('pi.curve.launchpad.lastView') }}
@@ -195,7 +195,7 @@ const ageLabel = computed(() => {
         </span>
       </div>
 
-      <p class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 font-mono-tech text-[11px] text-slate-300">
+      <p class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 font-mono-tech text-xs text-slate-300">
         <span>{{ t('pi.curve.launchpad.used', { volume: formatNumber(projection.usedVolume, 0) }) }}</span>
         <span v-if="emptyAtIso !== null" class="text-red-400">{{ t('pi.curve.launchpad.emptyAt', { date: formatDateTime(emptyAtIso) }) }}</span>
         <span v-else data-testid="launchpad-curve-flat" class="text-slate-400">{{ t('pi.curve.launchpad.notConsumed') }}</span>

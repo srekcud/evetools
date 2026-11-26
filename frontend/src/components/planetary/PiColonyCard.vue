@@ -145,7 +145,7 @@ defineEmits<{
             v-if="commandCenterUpgradable"
             data-testid="cc-upgrade-badge"
             :title="t('pi.power.upgradeTooltip')"
-            class="ml-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium uppercase tracking-wider whitespace-nowrap text-amber-400 bg-amber-500/10 border-amber-500/40"
+            class="ml-1 text-xs px-1.5 py-0.5 rounded-full border font-medium uppercase tracking-wider whitespace-nowrap text-amber-400 bg-amber-500/10 border-amber-500/40"
           >
             {{ t('pi.power.upgradeBadge') }}
           </span>
