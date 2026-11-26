@@ -273,6 +273,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->assertSame(
             [
                 CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0,
+                CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0,
                 CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0,
                 CachedCharacterSkill::SKILL_SCIENCE => 4,
                 CachedCharacterSkill::SKILL_RESEARCH => 0,
@@ -292,6 +293,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->assertSame(
             [
                 CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0,
+                CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0,
                 CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0,
                 CachedCharacterSkill::SKILL_SCIENCE => 0,
                 CachedCharacterSkill::SKILL_RESEARCH => 0,
@@ -318,6 +320,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             [
                 [
                     CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0,
+                    CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0,
                     CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0,
                     CachedCharacterSkill::SKILL_SCIENCE => 0,
                     CachedCharacterSkill::SKILL_RESEARCH => 0,
@@ -343,7 +346,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->syncSkills();
 
         $this->assertSame(
-            [4, [CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0, CachedCharacterSkill::SKILL_RESEARCH => 0, CachedCharacterSkill::SKILL_METALLURGY => 0, CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
+            [4, [CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0, CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0, CachedCharacterSkill::SKILL_RESEARCH => 0, CachedCharacterSkill::SKILL_METALLURGY => 0, CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
             [$science->getLevel(), $this->persistedLevelsBySkillIdOf(self::PILOT_ONE)],
         );
     }
@@ -357,7 +360,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->syncSkills();
 
         $this->assertSame(
-            [0, [CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0, CachedCharacterSkill::SKILL_RESEARCH => 0, CachedCharacterSkill::SKILL_METALLURGY => 0, CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
+            [0, [CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0, CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0, CachedCharacterSkill::SKILL_RESEARCH => 0, CachedCharacterSkill::SKILL_METALLURGY => 0, CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
             [$science->getLevel(), $this->persistedLevelsBySkillIdOf(self::PILOT_ONE)],
         );
     }
@@ -484,6 +487,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 [],
                 [
                     CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0,
+                    CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0,
                     CachedCharacterSkill::SKILL_SCIENCE => 3,
                     CachedCharacterSkill::SKILL_RESEARCH => 0,
                     CachedCharacterSkill::SKILL_METALLURGY => 0,
@@ -518,6 +522,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->assertSame(
             [
                 CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0,
+                CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0,
                 CachedCharacterSkill::SKILL_INDUSTRY => 5,
                 CachedCharacterSkill::SKILL_MASS_PRODUCTION => 2,
                 CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4,
@@ -563,6 +568,34 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $levels = $this->persistedLevelsBySkillIdOf(self::PILOT_ONE);
         $this->assertArrayHasKey(CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION, $levels);
         $this->assertSame(4, $levels[CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION]);
+    }
+
+    #[Group('issue-1385')]
+    public function testWritesCommandCenterUpgradesAtLevelZeroWhenEsiDoesNotReturnIt(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_SCIENCE, 4, 4),
+        ];
+
+        $this->syncSkills();
+
+        $levels = $this->persistedLevelsBySkillIdOf(self::PILOT_ONE);
+        $this->assertArrayHasKey(CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES, $levels);
+        $this->assertSame(0, $levels[CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES]);
+    }
+
+    #[Group('issue-1385')]
+    public function testWritesTheCommandCenterUpgradesLevelReadFromEsi(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES, 3, 4),
+        ];
+
+        $this->syncSkills();
+
+        $levels = $this->persistedLevelsBySkillIdOf(self::PILOT_ONE);
+        $this->assertArrayHasKey(CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES, $levels);
+        $this->assertSame(3, $levels[CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES]);
     }
 
     #[Group('issue-475')]
@@ -611,6 +644,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             [
                 [
                     CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0,
+                    CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0,
                     CachedCharacterSkill::SKILL_INDUSTRY => 5,
                     CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0,
                     CachedCharacterSkill::SKILL_SCIENCE => 0,
@@ -716,6 +750,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->assertSame(
             [
                 CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0,
+                CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0,
                 CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0,
                 CachedCharacterSkill::SKILL_SCIENCE => 0,
                 CachedCharacterSkill::SKILL_RESEARCH => 0,
@@ -774,6 +809,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 [['characterName' => self::PILOT_ONE, 'reason' => 'missing_scope', 'statusCode' => null]],
                 [
                     CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 0,
+                    CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0,
                     CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0,
                     CachedCharacterSkill::SKILL_SCIENCE => 0,
                     CachedCharacterSkill::SKILL_RESEARCH => 0,
