@@ -17,6 +17,7 @@ export interface TemplatesScenario {
   catalog?: PlannerCatalog
   templates?: PlanTemplate[]
   saved?: PlanTemplate
+  locale?: 'en' | 'fr'
 }
 
 export async function mountTemplates(scenario: TemplatesScenario = {}) {
@@ -39,7 +40,7 @@ export async function mountTemplates(scenario: TemplatesScenario = {}) {
   await store.fetchTemplates()
   const wrapper = mount(PiPlannerTemplates, {
     global: {
-      plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })],
+      plugins: [createI18n({ legacy: false, locale: scenario.locale === undefined ? 'en' : scenario.locale, messages: { en, fr } })],
       stubs: { RouterLink: RouterLinkStub },
     },
   })

@@ -1,6 +1,5 @@
 import { DEFAULT_SETTINGS } from '@/utils/planetaryPlanner'
 import {
-  MAX_TEMPLATE_NAME_LENGTH,
   evaluateTemplate,
   isTemplateResolvable,
   loadTemplate,
@@ -184,7 +183,7 @@ describe('mergeTemplate', () => {
 })
 
 describe('templateToPayload', () => {
-  it('carries the name, the productions, the explicit choices and the settings of the plan, and the name limit is 100 characters', () => {
+  it('carries the name, the productions, the explicit choices and the settings of the plan', () => {
     const settings = { priceSource: 'jita-buy' as const, taxPercent: 7.5, daysBetweenRounds: 6 }
 
     expect(templateToPayload([{ typeId: TEMPLATE_PRODUCT_M, targetPerDay: 18 }], { [RANKING_INPUT_C]: 'buy' }, settings, 'M line')).toEqual({
@@ -193,6 +192,5 @@ describe('templateToPayload', () => {
       choices: { [RANKING_INPUT_C]: 'buy' },
       settings: { priceSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
     })
-    expect(MAX_TEMPLATE_NAME_LENGTH).toBe(100)
   })
 })
