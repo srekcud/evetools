@@ -8,6 +8,7 @@ import { usePlanetaryHelpers, TIER_CONFIG } from '@/composables/usePlanetaryHelp
 import { useTypeNames } from '@/composables/useTypeNames'
 import type { Colony, PlanetaryInputNeedsLaunchpad } from '@/stores/planetary'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
+import PiExtractionBalance from '@/components/planetary/PiExtractionBalance.vue'
 import PiExtractorYieldCurve from '@/components/planetary/PiExtractorYieldCurve.vue'
 import PiLaunchpadStockCurve from '@/components/planetary/PiLaunchpadStockCurve.vue'
 import PiFactoryProgress from '@/components/planetary/PiFactoryProgress.vue'
@@ -327,6 +328,8 @@ defineEmits<{
             :launchpad="launchpad"
           />
         </div>
+
+        <PiExtractionBalance v-if="colony.extractionBalance && colony.extractionBalance.length > 0" :balance="colony.extractionBalance" />
 
         <!-- Factories Detail -->
         <div v-if="getFactoryPins(colony).length > 0">

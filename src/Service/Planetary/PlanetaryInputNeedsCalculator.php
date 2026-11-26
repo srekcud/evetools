@@ -93,6 +93,36 @@ class PlanetaryInputNeedsCalculator
     }
 
     /**
+     * @return list<array<string, mixed>> the colony's input needs, each with the `factoryCount` of factories consuming the type
+     */
+    public function factoryNeedsOf(PlanetaryColony $colony): array
+    {
+        $schematicMap = $this->schematicTypeRepository->getSchematicMap();
+        $now = $this->clock->now();
+        $flows = $this->analyseColony($colony, $schematicMap, $now);
+        if (!$flows['hasFactory']) {
+            return [];
+        }
+
+        $factoryCounts = [];
+        foreach ($flows['factoryInputsByPin'] as $inputs) {
+            foreach (array_keys($inputs) as $typeId) {
+                if (!isset($factoryCounts[$typeId])) {
+                    $factoryCounts[$typeId] = 0;
+                }
+                ++$factoryCounts[$typeId];
+            }
+        }
+
+        $needs = [];
+        foreach ($this->colonyRow($colony, $flows, $this->loadSdeTypes([$colony], $schematicMap), $now)['needs'] as $need) {
+            $needs[] = $need + ['factoryCount' => $factoryCounts[$need['typeId']]];
+        }
+
+        return $needs;
+    }
+
+    /**
      * @param SchematicMap $schematicMap
      * @return ColonyFlows
      */

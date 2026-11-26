@@ -15,6 +15,7 @@ use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
+use App\Service\Planetary\PlanetaryExtractionBalanceCalculator;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
 use App\Service\Planetary\PlanetaryPowerCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
@@ -47,6 +48,7 @@ class PlanetaryResourceMapper implements ResetInterface
         private readonly PlanetaryPowerCalculator $powerCalculator,
         private readonly CachedCharacterSkillRepository $skillRepository,
         private readonly ExtractorYieldCalculator $yieldCalculator,
+        private readonly PlanetaryExtractionBalanceCalculator $extractionBalanceCalculator,
     ) {
     }
 
@@ -81,6 +83,7 @@ class PlanetaryResourceMapper implements ResetInterface
         $this->applyCommandCenterSkill($colony, $resource);
         $resource->tier = $this->resolveColonyTier($colony);
         $resource->storageFull = $this->resolveStorageFull($colony);
+        $resource->extractionBalance = $this->extractionBalanceCalculator->calculate($colony);
 
         return $resource;
     }

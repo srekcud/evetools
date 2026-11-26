@@ -444,6 +444,25 @@
         "upgradeSignal": "CC à monter : skill {skill}"
       }
     },
+    "balance": {
+      "title": "Bilan P0",
+      "type": "Ressource",
+      "extracted": "Extrait / jour",
+      "demanded": "Demandé / jour",
+      "balance": "Solde / jour",
+      "runRate": "Taux de fonctionnement",
+      "factories": "Usines",
+      "heads": "Têtes",
+      "advice": "Conseil",
+      "unknown": "inconnu",
+      "unknownTooltip": "L'extraction de cette ressource est inconnue : l'extracteur n'a pas de programme lisible.",
+      "runRateTooltip": "Extrait divisé par demandé, plafonné à 100 % : capacité estimée des usines de base alimentées par les extracteurs.",
+      "adviceHeads": "+{count} tête | +{count} têtes",
+      "adviceFactories": "−{count} usine | −{count} usines",
+      "adviceOr": "ou",
+      "adviceSurplus": "+{count} usine de plus tient | +{count} usines de plus tiennent",
+      "adviceBalanced": "équilibré"
+    },
     "planner": {
       "title": "Planificateur de production",
       "subtitle": "Choisissez les produits à sortir par jour, lisez l'arbre complet jusqu'aux ressources brutes et décidez pour chaque étape de produire ou d'acheter.",
