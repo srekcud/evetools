@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { usePlanetaryStore } from '@/stores/planetary'
+import { usePlanetaryStore, type Colony, type PlanetarySlotCharacter } from '@/stores/planetary'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -11,6 +11,7 @@ import PiKpiCards from '@/components/planetary/PiKpiCards.vue'
 import PiAlertsBanner from '@/components/planetary/PiAlertsBanner.vue'
 import PiProductionTable from '@/components/planetary/PiProductionTable.vue'
 import PiColonyCard from '@/components/planetary/PiColonyCard.vue'
+import PiSlotsBadge from '@/components/planetary/PiSlotsBadge.vue'
 import PiTierLegend from '@/components/planetary/PiTierLegend.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
@@ -22,6 +23,19 @@ import PiStockTab from '@/components/planetary/PiStockTab.vue'
 import PiSupplyTab from '@/components/planetary/PiSupplyTab.vue'
 
 type PlanetaryTab = 'planner' | 'colonies' | 'stock' | 'supply' | 'revenue'
+type ColonyGrouping = 'account' | 'character'
+
+interface ColonyGroup {
+  key: string
+  title: string
+  avatars: { characterId: number; characterName: string }[]
+  colonies: Colony[]
+  slots: { used: number; max: number | null } | null
+  slotCharacters: PlanetarySlotCharacter[]
+  showCharacterName: boolean
+}
+
+const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
 
 const PLANETARY_TABS = ['planner', 'colonies', 'stock', 'supply', 'revenue'] as const satisfies readonly PlanetaryTab[]
 
@@ -69,6 +83,7 @@ watch(
 // ========== UI State ==========
 
 const expandedColonies = ref<Set<string>>(new Set())
+const colonyGrouping = ref<ColonyGrouping>('account')
 
 // ========== Data loading ==========
 
@@ -76,6 +91,7 @@ onMounted(async () => {
   await Promise.all([
     planetaryStore.fetchColonies(),
     planetaryStore.fetchStats(),
+    planetaryStore.fetchSlots(),
     planetaryStore.fetchProduction(),
   ])
 
@@ -98,6 +114,49 @@ const statsData = computed(() => planetaryStore.stats)
 const totalCharacterCount = computed(() => {
   return planetaryStore.coloniesByCharacter.length
 })
+
+// ========== Colony groups ==========
+
+const slotCharacters = computed(() => planetaryStore.slots?.characters ?? [])
+
+const accountName = computed(() => {
+  const main = slotCharacters.value.find(character => character.isMain) ?? slotCharacters.value[0]
+  return main?.characterName ?? planetaryStore.coloniesByCharacter[0]?.characterName ?? ''
+})
+
+const colonyGroups = computed<ColonyGroup[]>(() => {
+  const byCharacter = planetaryStore.coloniesByCharacter
+  const slots = planetaryStore.slots
+
+  if (colonyGrouping.value === 'account') {
+    return [{
+      key: 'account',
+      title: t('pi.groupBy.accountTitle', { name: accountName.value }),
+      avatars: byCharacter.map(({ characterId, characterName }) => ({ characterId, characterName })),
+      colonies: byCharacter.flatMap(group => group.colonies),
+      slots: slots ? { used: slots.totalUsed, max: slots.totalMax } : null,
+      slotCharacters: slotCharacters.value,
+      showCharacterName: true,
+    }]
+  }
+
+  return byCharacter.map(group => {
+    const characterSlots = slotCharacters.value.find(character => character.characterId === group.characterId)
+    return {
+      key: String(group.characterId),
+      title: group.characterName,
+      avatars: [{ characterId: group.characterId, characterName: group.characterName }],
+      colonies: group.colonies,
+      slots: characterSlots ? { used: characterSlots.coloniesUsed, max: characterSlots.maxColonies } : null,
+      slotCharacters: [],
+      showCharacterName: false,
+    }
+  })
+})
+
+function isOverMaximum(character: PlanetarySlotCharacter): boolean {
+  return character.maxColonies !== null && character.coloniesUsed > character.maxColonies
+}
 
 // ========== Colony expand/collapse ==========
 
@@ -227,29 +286,75 @@ async function toggleColony(colonyId: string): Promise<void> {
           :total-daily-isk="planetaryStore.totalDailyIsk"
         />
 
-        <!-- ============ COLONIES BY CHARACTER ============ -->
+        <!-- ============ COLONIES GROUPS ============ -->
+        <div class="flex items-center gap-2 px-2">
+          <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.groupBy.label') }}</span>
+          <div class="flex items-center gap-1 p-0.5 bg-slate-900 border border-slate-800 rounded-lg">
+            <button
+              v-for="grouping in COLONY_GROUPINGS"
+              :key="grouping"
+              type="button"
+              :data-testid="`group-by-${grouping}`"
+              :aria-pressed="colonyGrouping === grouping"
+              :class="[
+                'px-3 py-1 rounded-md text-xs font-semibold transition-colors',
+                colonyGrouping === grouping ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white',
+              ]"
+              @click="colonyGrouping = grouping"
+            >
+              {{ t(`pi.groupBy.${grouping}`) }}
+            </button>
+          </div>
+        </div>
+
         <div
-          v-for="group in planetaryStore.coloniesByCharacter"
-          :key="group.characterId"
+          v-for="group in colonyGroups"
+          :key="group.key"
+          data-testid="colony-group-section"
           class="space-y-2"
         >
-          <!-- Character Header -->
           <div class="flex items-center gap-3 px-2">
-            <div class="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 overflow-hidden shrink-0">
-              <img
-                :src="`https://images.evetech.net/characters/${group.characterId}/portrait?size=64`"
-                :alt="group.characterName"
-                class="w-8 h-8 rounded-full"
-              />
+            <div class="flex items-center -space-x-2 shrink-0">
+              <div
+                v-for="avatar in group.avatars"
+                :key="avatar.characterId"
+                class="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 overflow-hidden shrink-0"
+              >
+                <img
+                  data-testid="account-avatar"
+                  :src="`https://images.evetech.net/characters/${avatar.characterId}/portrait?size=64`"
+                  :alt="avatar.characterName"
+                  class="w-8 h-8 rounded-full"
+                />
+              </div>
             </div>
-            <h2 class="text-lg font-semibold text-white">{{ group.characterName }}</h2>
-            <span class="text-xs px-2 py-0.5 bg-slate-800 rounded-full text-slate-400">
+            <h2 data-testid="colony-group-title" class="text-lg font-semibold text-white truncate min-w-0">{{ group.title }}</h2>
+            <span class="text-xs px-2 py-0.5 bg-slate-800 rounded-full text-slate-400 whitespace-nowrap">
               {{ t('common.units.colony', group.colonies.length) }}
             </span>
+            <PiSlotsBadge v-if="group.slots" :used="group.slots.used" :max="group.slots.max" />
             <div class="flex-1 h-px bg-slate-800"></div>
           </div>
 
-          <!-- Colony Cards -->
+          <ul
+            v-if="group.slotCharacters.length > 0"
+            :aria-label="t('pi.slots.characters')"
+            class="flex flex-wrap gap-2 px-2"
+          >
+            <li
+              v-for="character in group.slotCharacters"
+              :key="character.characterId"
+              data-testid="slots-character"
+              class="flex items-center gap-2 px-2.5 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs max-w-[240px]"
+              :title="character.maxColonies === null ? t('pi.slots.unknownTooltip') : undefined"
+            >
+              <span class="text-slate-300 truncate">{{ character.characterName }}</span>
+              <span :class="['font-mono-tech whitespace-nowrap', isOverMaximum(character) ? 'text-red-400' : 'text-slate-400']">
+                {{ character.coloniesUsed }} / {{ character.maxColonies === null ? t('pi.slots.unknownMax') : character.maxColonies }}
+              </span>
+            </li>
+          </ul>
+
           <div class="space-y-1">
             <PiColonyCard
               v-for="colony in group.colonies"
@@ -257,6 +362,7 @@ async function toggleColony(colonyId: string): Promise<void> {
               :colony="colony"
               :expanded="expandedColonies.has(colony.id)"
               :threshold-minutes="statsData?.expiryThresholdMinutes"
+              :show-character-name="group.showCharacterName"
               @toggle="toggleColony(colony.id)"
             />
           </div>

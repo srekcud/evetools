@@ -386,6 +386,19 @@
         "loadError": "Impossible de charger les réglages du stock."
       }
     },
+    "groupBy": {
+      "label": "Regrouper par",
+      "account": "Compte",
+      "character": "Personnage",
+      "accountTitle": "Compte « {name} »"
+    },
+    "slots": {
+      "badge": "{used} / {max} emplacements",
+      "unknownMax": "?",
+      "unknownTooltip": "Maximum inconnu : le skill Interplanetary Consolidation n'est pas encore synchronisé. Lancez la sync des skills dans Industrie.",
+      "overTooltip": "Plus de colonies que le maximum permis par Interplanetary Consolidation (skill baissé ou données périmées).",
+      "characters": "Emplacements de colonie par personnage"
+    },
     "planner": {
       "title": "Planificateur de production",
       "subtitle": "Choisissez les produits à sortir par jour, lisez l'arbre complet jusqu'aux ressources brutes et décidez pour chaque étape de produire ou d'acheter.",

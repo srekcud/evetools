@@ -63,6 +63,7 @@ async function mountViewAnswering(coloniesRequest: () => Promise<unknown>, query
     if (endpoint === '/planetary') return coloniesRequest()
     if (endpoint === '/planetary/stats') return Promise.resolve({})
     if (endpoint === '/planetary/production') return Promise.resolve({ tiers: [] })
+    if (endpoint === '/planetary/slots') return Promise.resolve({ characters: [], totalUsed: 0, totalMax: 0 })
     return new Promise(() => {})
   })
   setActivePinia(createPinia())

@@ -159,6 +159,21 @@ export interface PlanetaryStats {
   expiryThresholdMinutes?: number
 }
 
+export interface PlanetarySlotCharacter {
+  characterId: number
+  characterName: string
+  isMain: boolean
+  coloniesUsed: number
+  consolidationLevel: number | null
+  maxColonies: number | null
+}
+
+export interface PlanetarySlots {
+  characters: PlanetarySlotCharacter[]
+  totalUsed: number
+  totalMax: number | null
+}
+
 export interface ProductionInput {
   typeId: number
   typeName: string | null
@@ -190,6 +205,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
   // State
   const colonies = ref<Colony[]>([])
   const stats = ref<PlanetaryStats | null>(null)
+  const slots = ref<PlanetarySlots | null>(null)
   const production = ref<ProductionTier[]>([])
   const revenue = ref<PlanetaryRevenue | null>(null)
   const isLoading = ref(false)
@@ -275,6 +291,17 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     }
   }
 
+  async function fetchSlots(): Promise<void> {
+    error.value = null
+
+    try {
+      slots.value = await apiRequest<PlanetarySlots>('/planetary/slots')
+    } catch (e) {
+      slots.value = null
+      error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des emplacements'
+    }
+  }
+
   async function fetchRevenue(days: number): Promise<void> {
     error.value = null
 
@@ -314,7 +341,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
   async function finishSync(): Promise<void> {
     isSyncing.value = false
     lastSyncAt.value = new Date().toISOString()
-    await Promise.all([fetchColonies(), fetchStats(), fetchProduction()])
+    await Promise.all([fetchColonies(), fetchStats(), fetchSlots(), fetchProduction()])
   }
 
   function failSync(message?: string): void {
@@ -330,6 +357,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     // State
     colonies,
     stats,
+    slots,
     production,
     revenue,
     isLoading,
@@ -347,6 +375,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     fetchColonies,
     fetchColonyDetail,
     fetchStats,
+    fetchSlots,
     fetchProduction,
     fetchRevenue,
     syncColonies,
