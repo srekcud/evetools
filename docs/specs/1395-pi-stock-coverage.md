@@ -12,21 +12,21 @@ Mode nuit : validée en autonomie, décisions en bas. Pile sur #1394 (réglages 
 ## Backend
 
 1. Ressource `PlanetaryStockResource` (`GET /planetary/stock`, id fixe `stock`, `ROLE_USER`, provider dédié, limité à l'utilisateur connecté) : `homeLocationId`, `homeLocationName`, `hubStructureId`, `hubStructureName`, `coverageWeeks` (réglages #1394), `corpUnknownReason` (?string), `complete` (bool), `rows[]`.
-2. Lignes : une par type de `weekly[]` (entrées consommées par les usines), triée par `typeName` puis `typeId`. Champs : `typeId`, `typeName`, `volumePerUnit` (?float, SDE), `weeklyConsumption` (?float = `weeklyNetNeed`), `home`, `hub`, `corp` (?int), `openOrders` (int), `coverageWeeks` (?float), `coverageWithOrdersWeeks` (?float), `toBuy` (?int).
+2. Lignes : une par type de `weekly[]` (entrées consommées par les usines), triée par `typeName` (nom null en dernier) puis `typeId`. `volumePerUnit` est lu dans la SDE (`InvType::getVolume()`, null reste null). Champs : `typeId`, `typeName`, `volumePerUnit` (?float, SDE), `weeklyConsumption` (?float = `weeklyNetNeed`), `home`, `hub`, `corp` (?int), `openOrders` (int), `coverageWeeks` (?float), `coverageWithOrdersWeeks` (?float), `toBuy` (?int).
 3. `home` : quantité du type, tous personnages de l'utilisateur, dont le lieu racine est `homeLocationId` (conteneurs inclus). `null` quand aucun lieu maison n'est choisi.
 4. `hub` (« à rapatrier ») : même lecture au lieu racine `hubStructureId`. Quand le hub est le lieu maison, `hub` vaut 0 (la quantité est déjà dans `home`, jamais comptée deux fois).
-5. `corp` : quantité du type dans les conteneurs corpo déclarés dont la station est le lieu maison. Aucun conteneur déclaré (ou aucun au lieu maison) : 0. Une lecture de conteneur inconnue (`PersonalStock::unknownReason()`, division masquée, assets corpo périmés, station non résolue) : `corp` null sur toutes les lignes et `corpUnknownReason` renseigné.
+5. `corp` : quantité du type dans les conteneurs corpo déclarés dont la station est le lieu maison. Sans lieu maison : null. Aucun conteneur déclaré (ou aucun au lieu maison) : 0. Une lecture de conteneur inconnue (`PersonalStock::unknownReason()`, division masquée, assets corpo périmés, station non résolue) : `corp` null sur toutes les lignes et `corpUnknownReason` renseigné.
 6. `openOrders` : somme de `volumeRemain` des ordres d'achat stockés des personnages de l'utilisateur, pour ce type, dont `locationId` est le hub (`findByCharactersAndTypes`). Les ordres d'un autre lieu ne comptent pas.
 7. `coverageWeeks` = (`home` + `hub` + `corp`) / `weeklyConsumption` ; `coverageWithOrdersWeeks` = (`home` + `hub` + `corp` + `openOrders`) / `weeklyConsumption`. `null` si `home`, `corp` ou `weeklyConsumption` est null, et `null` si `weeklyConsumption` vaut 0 (type couvert par la production propre : pas de couverture à afficher).
 8. `toBuy` = `ceil(max(0, weeklyConsumption × coverageWeeks_réglage − (home + hub + corp + openOrders)))`. `null` si `home`, `corp` ou `weeklyConsumption` est null (jamais 0 par défaut) ; 0 si `weeklyConsumption` vaut 0.
-9. `complete` est faux si l'extraction d'un type est inconnue (une ligne a `weeklyConsumption` null), si aucun lieu maison n'est choisi ou si `corpUnknownReason` est renseigné.
+9. `complete` est faux si le calcul d'entrées #1380 est incomplet (`complete` faux : schéma d'usine absent de la SDE, ses entrées n'apparaissent pas), si l'extraction d'un type est inconnue (une ligne a `weeklyConsumption` null), si aucun lieu maison n'est choisi ou si `corpUnknownReason` est renseigné.
 10. Accès : colonies, assets, conteneurs et ordres des seuls personnages de l'utilisateur (aucun identifiant reçu). Fraîcheur : assets à la dernière synchro, ordres à la synchro des ordres (5 min), colonies à la synchro des colonies (30 min). Pas de Mercure, pas de synchro nouvelle, aucun appel ESI.
 
 ## Frontend
 
 11. `PiStockTab.vue` (créé par #1394, au-dessus des réglages) affiche, dans l'ordre : le bandeau d'incomplétude (rien de choisi : lien vers les réglages ci-dessous ; `corpUnknownReason` ; consommation inconnue), la grille de couverture, la liste d'achat, puis `PiStockSettings.vue`. Store `planetaryStock` (`load()`, `rows`, `purchaseList`, `error`), rechargé quand un réglage de #1394 est enregistré.
-12. Grille : une ligne par type (icône, nom), colonnes Maison, Hub, Hangar corpo, Conso / sem., Couverture (barre à la couverture visée, rouge sous la cible, texte en semaines à une décimale), Ordres d'achat, Couverture avec ordres, À acheter, Décision. Une valeur `null` s'affiche « inconnu » (composant `UnknownValue`), jamais 0.
-13. Liste d'achat unique : lignes où `toBuy` > 0, total en m3 (`toBuy × volumePerUnit`, « inconnu » si un volume l'est), bouton « Copier (multibuy) » qui met dans le presse-papier une ligne `<nom> <quantité>` par type, sans séparateur de milliers. Liste vide : message « Rien à acheter ». Une ligne dont `toBuy` est null n'entre pas dans la liste (affichée « inconnu » dans la grille).
+12. Grille : une ligne par type (icône, nom), colonnes Maison, Hub, Hangar corpo, Conso / sem., Couverture (barre à la couverture visée, rouge sous la cible, texte en semaines à une décimale), Ordres d'achat, Couverture avec ordres, À acheter, Décision. Une valeur `null` s'affiche par le composant `UnknownValue` (« — » avec titre « inconnu »), jamais 0 ; les tests repèrent le composant, pas le texte.
+13. Liste d'achat unique : lignes où `toBuy` > 0, total en m3 (`toBuy × volumePerUnit`, « inconnu » si un volume l'est), bouton « Copier (multibuy) » qui met dans le presse-papier, par `multibuyText` existant (`frontend/src/utils/multibuy.ts`), une ligne `<nom><tabulation><quantité>` par type, sans séparateur de milliers. Liste vide : message « Rien à acheter ». Une ligne dont `toBuy` est null n'entre pas dans la liste (affichée par `UnknownValue` dans la grille).
 14. Colonne Décision : « Produire » ou « Acheter » selon `choices` du store `planetaryPlanner` pour ce type (état de page, #1402), « — » sans choix, avec un lien vers l'onglet Planificateur. Stock n'offre aucun bouton de décision.
 15. Aucun libellé, onglet ou réglage existant n'est retiré. FR et EN.
 
@@ -46,11 +46,11 @@ Cible 3 semaines, hub ≠ maison.
 | Conteneur corpo déclaré au lieu maison avec 700 | `corp` 700 |
 | Aucun conteneur déclaré | `corp` 0 |
 | Division masquée (lecture inconnue) | `corp` null partout, `toBuy` null, `corpUnknownReason` |
-| Aucun lieu maison | `home` null, `toBuy` null, `complete` false |
+| Aucun lieu maison | `home` null, `corp` null, `toBuy` null, `complete` false |
 | Extraction inconnue pour un type | `weeklyConsumption` null, couverture et `toBuy` null |
 | Conso 0 (couverte par l'extraction) | couverture null, `toBuy` 0 |
 | Autre utilisateur | ses assets, conteneurs et ordres n'apparaissent pas |
-| Liste d'achat | lignes à 1 001 et 600 → `Robotics 1001\nPlasma 600`, total m3 = Σ quantité × volume |
+| Liste d'achat | lignes à 1 001 et 600 → `Robotics\t1001\nPlasma\t600`, total m3 = Σ quantité × volume |
 
 ## Hors périmètre
 
@@ -62,3 +62,5 @@ Colonne customs office et stock « non localisé » (#1390, non livré) ; prix p
 - Consommation de la grille = `weeklyNetNeed` de #1380 (la maquette soustrait l'extraction propre) ; un type dont l'extraction est inconnue reste « inconnu ».
 - Hangar corpo = conteneurs corpo déclarés (#1324), seule lecture corpo déjà scopée sur l'utilisateur ; une lecture inconnue rend la colonne et le « à acheter » inconnus plutôt que de les compter à 0.
 - Le hub n'est jamais compté deux fois quand il est le lieu maison.
+- Une lecture de conteneur corpo inconnue, même hors du lieu maison, rend la colonne inconnue (prudence). Un conteneur rangé dans un bureau d'une structure qui n'est pas à la corporation donne une station non résolue (`station_unresolved`, comportement #1324) : cas courant si la maison est une structure d'alliance, à signaler sur l'issue.
+- Règle de rouge : `ceil(round(déficit, 6))` pour éviter les erreurs de virgule flottante.
