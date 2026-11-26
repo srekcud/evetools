@@ -14,7 +14,7 @@ import {
 type PendingAction = 'load' | 'delete'
 
 const COMMUNITY_TEMPLATES_URL = 'https://github.com/DalShooth/EVE_PI_Templates/tree/main/PlanetaryInteractionTemplates'
-const GRID_COLUMNS = 'grid min-w-[80rem] grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.8fr)_5rem_6.5rem_6.5rem_6.5rem_6.5rem_6rem_14rem] items-center gap-3'
+const GRID_COLUMNS = 'grid min-w-[87rem] grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.8fr)_5rem_6.5rem_6.5rem_6.5rem_6.5rem_6rem_21rem] items-center gap-3'
 const FIGURES = [
   { testId: 'template-profit-day', key: 'profitPerDay' },
   { testId: 'template-profit-week', key: 'profitPerWeek' },
@@ -32,6 +32,8 @@ const canSave = computed(() => {
   const trimmedLength = templateName.value.trim().length
   return store.productions.length > 0 && trimmedLength > 0 && trimmedLength <= MAX_TEMPLATE_NAME_LENGTH
 })
+
+const canFollowPlan = computed(() => store.productions.length > 0 && templateName.value.trim().length <= MAX_TEMPLATE_NAME_LENGTH)
 
 const entries = computed(() => {
   const catalog = store.catalog
@@ -75,6 +77,16 @@ function formatSavedDate(createdAt: string): string {
 async function onSave(): Promise<void> {
   if (!canSave.value) return
   if (await store.saveTemplate(templateName.value)) templateName.value = ''
+}
+
+async function onFollowPlan(): Promise<void> {
+  if (!canFollowPlan.value) return
+  if (await store.followCurrentPlan(templateName.value)) templateName.value = ''
+}
+
+async function onToggleFollow(template: PlanTemplate): Promise<void> {
+  if (template.followed) await store.unfollowTemplate(template.id)
+  else await store.followTemplate(template.id)
 }
 
 function onLoad(template: PlanTemplate): void {
@@ -134,6 +146,13 @@ async function onAccept(): Promise<void> {
         class="rounded-md border border-cyan-500/40 px-4 py-1.5 text-sm text-cyan-300 transition-colors hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-600 disabled:hover:bg-transparent"
         @click="onSave"
       >{{ t('pi.planner.templates.save') }}</button>
+      <button
+        type="button"
+        data-testid="template-follow-plan"
+        :disabled="!canFollowPlan"
+        class="rounded-md border border-emerald-500/40 px-4 py-1.5 text-sm text-emerald-300 transition-colors hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-600 disabled:hover:bg-transparent"
+        @click="onFollowPlan"
+      >{{ t('pi.planner.follow.actions.followPlans') }}</button>
     </div>
 
     <p v-if="store.templates.length === 0" class="rounded-md border border-dashed border-slate-700 px-4 py-6 text-center text-sm text-slate-400" data-testid="templates-empty">{{ t('pi.planner.templates.empty') }}</p>
@@ -201,6 +220,14 @@ async function onAccept(): Promise<void> {
           <span class="text-right font-mono-tech text-xs text-slate-400" data-testid="template-date">{{ formatSavedDate(entry.template.createdAt) }}</span>
 
           <div class="flex justify-end gap-2">
+            <button
+              type="button"
+              data-testid="template-follow"
+              :data-followed="entry.template.followed"
+              :class="entry.template.followed ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-300' : 'border-slate-600 text-slate-300 hover:border-emerald-500/40 hover:text-emerald-300'"
+              class="rounded-md border px-2 py-1 text-xs transition-colors"
+              @click="onToggleFollow(entry.template)"
+            >{{ entry.template.followed ? t('pi.planner.follow.actions.unfollow') : t('pi.planner.follow.actions.follow') }}</button>
             <button
               type="button"
               data-testid="template-load"

@@ -34,4 +34,7 @@ final class PlanetaryPlannerAccountResource
 
     /** @var list<array{typeId: int, perHourPerPlanet: float, planets: int}> */
     public array $extractionYields = [];
+
+    /** @var array{P1: int, P2: int, P3: int, P4: int} */
+    public array $factories = ['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0];
 }

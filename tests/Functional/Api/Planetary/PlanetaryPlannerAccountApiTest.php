@@ -9,6 +9,12 @@ use App\Entity\Character;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\Sde\DgmAttributeType;
+use App\Entity\Sde\InvCategory;
+use App\Entity\Sde\InvGroup;
+use App\Entity\Sde\InvMarketGroup;
+use App\Entity\Sde\InvType;
+use App\Entity\Sde\PlanetSchematic;
+use App\Entity\Sde\PlanetSchematicType;
 use App\Entity\User;
 use App\Service\Planetary\ExtractorYieldCalculator;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,6 +34,13 @@ final class PlanetaryPlannerAccountApiTest extends WebTestCase
     private const int ALICE_MAIN_EVE_ID = 2_113_903_001;
     private const int ALICE_SECOND_EVE_ID = 2_113_903_002;
     private const int BOB_EVE_ID = 2_113_903_003;
+    private const int FACTORY_TYPE_ID = 991_501;
+    private const int BASIC_SCHEMATIC = 991_401;
+    private const int REFINED_SCHEMATIC = 991_402;
+    private const int SECOND_REFINED_SCHEMATIC = 991_403;
+    private const int SPECIALIZED_SCHEMATIC = 991_404;
+    private const int ADVANCED_SCHEMATIC = 991_405;
+    private const int UNKNOWN_SCHEMATIC = 991_499;
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -125,6 +138,59 @@ final class PlanetaryPlannerAccountApiTest extends WebTestCase
         self::assertNotContains(self::BOB_EVE_ID, array_column($body['characters'], 'characterId'));
     }
 
+    public function testFactoriesCountsTheFactoriesOfTheConnectedUserByTierOfTheirProductAndNeverThoseOfAnotherUser(): void
+    {
+        $this->seedFactorySchematics();
+        $install = new \DateTimeImmutable('2026-11-24T12:00:00+00:00');
+        $this->persistFactoryColony($this->alice->getMainCharacter(), [self::REFINED_SCHEMATIC, self::SPECIALIZED_SCHEMATIC], true);
+        $this->persistFactoryColony($this->alice->getMainCharacter(), [self::SECOND_REFINED_SCHEMATIC], false);
+        $this->persistColony($this->alice->getMainCharacter(), self::AQUEOUS_LIQUIDS, 4400, 1800, $install, $install->modify('+24 hours'));
+        $this->persistFactoryColony($this->bob->getMainCharacter(), [self::ADVANCED_SCHEMATIC, self::ADVANCED_SCHEMATIC, self::BASIC_SCHEMATIC, self::REFINED_SCHEMATIC], true);
+        $this->client->loginUser($this->alice, 'api');
+
+        $body = $this->getAccount();
+
+        self::assertSame(['P1' => 0, 'P2' => 2, 'P3' => 1, 'P4' => 0], $body['factories']);
+    }
+
+    public function testFactoriesCountsEveryTierWithItsOwnNumberOfFactories(): void
+    {
+        $this->seedFactorySchematics();
+        $this->persistFactoryColony($this->alice->getMainCharacter(), [self::BASIC_SCHEMATIC, self::BASIC_SCHEMATIC, self::BASIC_SCHEMATIC, self::REFINED_SCHEMATIC], false);
+        $this->persistFactoryColony($this->alice->getMainCharacter(), [self::SPECIALIZED_SCHEMATIC, self::SPECIALIZED_SCHEMATIC, self::ADVANCED_SCHEMATIC, self::ADVANCED_SCHEMATIC, self::ADVANCED_SCHEMATIC, self::ADVANCED_SCHEMATIC, self::ADVANCED_SCHEMATIC], true);
+        $this->client->loginUser($this->alice, 'api');
+
+        $body = $this->getAccount();
+
+        self::assertSame(['P1' => 3, 'P2' => 1, 'P3' => 2, 'P4' => 5], $body['factories']);
+    }
+
+    public function testFactoriesIsZeroInEveryTierWithoutAnyFactory(): void
+    {
+        $this->seedFactorySchematics();
+        $install = new \DateTimeImmutable('2026-11-24T12:00:00+00:00');
+        $this->persistColony($this->alice->getMainCharacter(), self::AQUEOUS_LIQUIDS, 4400, 1800, $install, $install->modify('+24 hours'));
+        $this->persistFactoryColony($this->bob->getMainCharacter(), [self::ADVANCED_SCHEMATIC], false);
+        $this->client->loginUser($this->alice, 'api');
+
+        $body = $this->getAccount();
+
+        self::assertArrayHasKey('factories', $body);
+        self::assertSame(['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0], $body['factories']);
+    }
+
+    public function testAFactoryWhoseSchematicIsUnknownMakesTheAccountAnInternalServerErrorAndNeverAPartialCount(): void
+    {
+        $this->seedFactorySchematics();
+        $this->persistFactoryColony($this->alice->getMainCharacter(), [self::REFINED_SCHEMATIC, self::UNKNOWN_SCHEMATIC], true);
+        $this->client->loginUser($this->alice, 'api');
+
+        $this->client->request('GET', '/api/planetary/planner/account', server: ['HTTP_ACCEPT' => 'application/json']);
+
+        self::assertResponseStatusCodeSame(500);
+        self::assertStringNotContainsString('"factories"', (string) $this->client->getResponse()->getContent());
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -197,6 +263,54 @@ final class PlanetaryPlannerAccountApiTest extends WebTestCase
             ->setExtractorCycleTime($cycleSeconds)
             ->setInstallTime($installTime)
             ->setExpiryTime($expiryTime));
+        $this->em->persist($colony);
+        $this->em->flush();
+    }
+
+    private function seedFactorySchematics(): void
+    {
+        $category = (new InvCategory())->setCategoryId(991_001)->setCategoryName('Test Follow Commodities');
+        $group = (new InvGroup())->setGroupId(991_002)->setGroupName('Test Follow Products')->setCategory($category);
+        $this->em->persist($category);
+        $this->em->persist($group);
+        $products = [
+            self::BASIC_SCHEMATIC => [991_201, 1334, 991_301, 3_000],
+            self::REFINED_SCHEMATIC => [991_202, 1335, 991_201, 40],
+            self::SECOND_REFINED_SCHEMATIC => [991_203, 1335, 991_201, 30],
+            self::SPECIALIZED_SCHEMATIC => [991_204, 1336, 991_202, 10],
+            self::ADVANCED_SCHEMATIC => [991_205, 1337, 991_204, 6],
+        ];
+        foreach ($products as $schematicId => [$outputTypeId, $marketGroupId, $inputTypeId, $inputQuantity]) {
+            $marketGroup = $this->em->find(InvMarketGroup::class, $marketGroupId);
+            if ($marketGroup === null) {
+                $marketGroup = (new InvMarketGroup())->setMarketGroupId($marketGroupId)->setMarketGroupName(sprintf('Test market group %d', $marketGroupId));
+                $this->em->persist($marketGroup);
+            }
+            $this->em->persist((new InvType())->setTypeId($outputTypeId)->setTypeName(sprintf('Test product %d', $outputTypeId))->setGroup($group)->setVolume(0.19)->setMarketGroup($marketGroup));
+            $schematic = (new PlanetSchematic())->setSchematicId($schematicId)->setSchematicName(sprintf('Test schematic %d', $schematicId))->setCycleTime(3_600);
+            $this->em->persist($schematic);
+            $this->em->persist((new PlanetSchematicType())->setSchematic($schematic)->setTypeId($inputTypeId)->setIsInput(true)->setQuantity($inputQuantity));
+            $this->em->persist((new PlanetSchematicType())->setSchematic($schematic)->setTypeId($outputTypeId)->setIsInput(false)->setQuantity(5));
+        }
+        $this->em->flush();
+    }
+
+    private function persistFactoryColony(Character $character, array $schematicIds, bool $withLaunchpad): void
+    {
+        $colony = (new PlanetaryColony())
+            ->setCharacter($character)
+            ->setPlanetId($this->nextPlanetId++)
+            ->setPlanetType('temperate')
+            ->setSolarSystemId(30_001_539)
+            ->setUpgradeLevel(4)
+            ->setNumPins(\count($schematicIds))
+            ->setLastUpdate(new \DateTimeImmutable('2026-11-25T12:00:00+00:00'));
+        foreach ($schematicIds as $schematicId) {
+            $colony->addPin((new PlanetaryPin())->setPinId($this->nextPinId++)->setTypeId(self::FACTORY_TYPE_ID)->setSchematicId($schematicId));
+        }
+        if ($withLaunchpad) {
+            $colony->addPin((new PlanetaryPin())->setPinId($this->nextPinId++)->setTypeId(2_544));
+        }
         $this->em->persist($colony);
         $this->em->flush();
     }

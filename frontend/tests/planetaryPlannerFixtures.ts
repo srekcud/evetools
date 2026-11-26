@@ -99,6 +99,7 @@ export const PLANNER_ACCOUNT: PlannerAccount = {
     { typeId: AQUEOUS_LIQUIDS, perHourPerPlanet: 6_000, planets: 2 },
     { typeId: BASE_METALS, perHourPerPlanet: 5_000, planets: 3 },
   ],
+  factories: { P1: 0, P2: 0, P3: 0, P4: 0 },
 }
 
 export function withSellPrices(catalog: PlannerCatalog, sellByTypeId: Record<number, number | null>): PlannerCatalog {

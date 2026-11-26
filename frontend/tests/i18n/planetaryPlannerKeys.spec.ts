@@ -73,6 +73,26 @@ describe('planetary planner labels', () => {
     expect((planner(fr).templates as Record<string, unknown>).title).not.toBe((planner(en).templates as Record<string, unknown>).title)
   })
 
+  it('words following a plan in both languages: three actions, the default name, the banner, four gaps, the factories box, the revenue line and the follow error', () => {
+    const planner = (locale: { pi: object }) => plannerOf(locale) as Record<string, Record<string, unknown> | undefined>
+    const leafAt = (locale: { pi: object }, path: string): unknown => path.split('.').reduce<unknown>((node, key) => (typeof node === 'object' && node !== null ? (node as Record<string, unknown>)[key] : undefined), planner(locale).follow)
+
+    for (const locale of [en, fr]) {
+      expect(planner(locale).follow).toBeDefined()
+      for (const path of ['actions.followPlans', 'actions.follow', 'actions.unfollow', 'defaultName', 'banner.title', 'banner.open', 'banner.missingRecipe', 'gap.missing', 'gap.free', 'gap.ok', 'gap.unknown', 'factories.title', 'revenue.title', 'revenue.openPlanner']) {
+        expect(typeof leafAt(locale, path), path).toBe('string')
+      }
+      expect(typeof (planner(locale).errors as Record<string, unknown>).templateFollow).toBe('string')
+      expect(leafAt(locale, 'defaultName')).toContain('{date}')
+      expect(leafAt(locale, 'gap.missing')).toContain('{n}')
+      expect(leafAt(locale, 'gap.free')).toContain('{n}')
+    }
+    expect(leafKeys(planner(fr).follow).sort()).toEqual(leafKeys(planner(en).follow).sort())
+    for (const path of ['actions.followPlans', 'banner.title', 'banner.open', 'factories.title', 'revenue.title']) {
+      expect(leafAt(fr, path), path).not.toBe(leafAt(en, path))
+    }
+  })
+
   it('names the planner tab in both languages and words it differently in French', () => {
     const tabs = (locale: { pi: { tabs: object } }) => (locale.pi.tabs as Record<string, string | undefined>).planner
 

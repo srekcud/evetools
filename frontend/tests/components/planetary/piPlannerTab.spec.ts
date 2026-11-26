@@ -192,6 +192,16 @@ describe('PiPlannerTab', () => {
     expect(summaryText(wrapper, 'summary-purchases')).toMatch(/(?<![\d.,])4\.50 M(?![\d.,])/)
   })
 
+  it('shows the factories box against the colonies for the current plan: missing 4 in P2 and 1 in P3 with no factory built, P1 and P4 ok', async () => {
+    const wrapper = await mountTab()
+
+    await addProduction(wrapper, ROBOTICS)
+
+    const gapRows = wrapper.findAll('[data-testid="factory-gap-row"]')
+    expect(gapRows.map(row => row.attributes('data-tier'))).toEqual(['P1', 'P2', 'P3', 'P4'])
+    expect(gapRows.map(row => row.get('[data-testid="factory-gap-text"]').text())).toEqual(['ok', 'missing 4', 'missing 1', 'ok'])
+  })
+
   it('lists the factories of each tier in the summary', async () => {
     const wrapper = await mountTab()
 

@@ -24,8 +24,13 @@ export function makeTemplate(
   choices: Record<number, BuildChoice> = {},
   settings: PlannerSettings = DEFAULT_TEMPLATE_SETTINGS,
   createdAt = '2026-11-20T12:00:00+00:00',
+  followed = false,
 ): PlanTemplate {
-  return { id, name, productions, choices, settings, createdAt }
+  return { id, name, productions, choices, settings, followed, createdAt }
+}
+
+export function asFollowed(template: PlanTemplate, followed = true): PlanTemplate {
+  return { ...template, followed }
 }
 
 export const TEMPLATE_B_LINE = makeTemplate('tpl-b-line', 'Barren B line', [{ typeId: RANKING_PRODUCT_B, targetPerDay: 120 }])

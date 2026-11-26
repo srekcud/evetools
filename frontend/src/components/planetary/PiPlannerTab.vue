@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import PiPlannerFactoryGap from '@/components/planetary/PiPlannerFactoryGap.vue'
 import PiPlannerPlanets from '@/components/planetary/PiPlannerPlanets.vue'
 import PiPlannerProductions from '@/components/planetary/PiPlannerProductions.vue'
 import PiPlannerRanking from '@/components/planetary/PiPlannerRanking.vue'
@@ -45,6 +46,7 @@ onMounted(() => {
         </div>
       </div>
       <PiPlannerPlanets />
+      <PiPlannerFactoryGap />
       <PiPlannerRanking />
       <PiPlannerTemplates />
     </template>

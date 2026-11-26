@@ -9,12 +9,15 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Planetary\CreatePlanTemplateInput;
+use App\ApiResource\Input\Planetary\FollowPlanTemplateInput;
 use App\Entity\PlanetaryPlanTemplate;
 use App\State\Processor\Planetary\CreatePlanTemplateProcessor;
 use App\State\Processor\Planetary\DeletePlanTemplateProcessor;
+use App\State\Processor\Planetary\FollowPlanTemplateProcessor;
 use App\State\Provider\Planetary\PlanetaryPlanTemplateCollectionProvider;
 use App\State\Provider\Planetary\PlanetaryPlanTemplateItemProvider;
 
@@ -37,6 +40,13 @@ use App\State\Provider\Planetary\PlanetaryPlanTemplateItemProvider;
             input: CreatePlanTemplateInput::class,
             processor: CreatePlanTemplateProcessor::class,
             openapi: new Model\Operation(summary: 'Save the current PI plan as a template', tags: ['Planetary']),
+        ),
+        new Patch(
+            uriTemplate: '/planetary/templates/{id}',
+            provider: PlanetaryPlanTemplateItemProvider::class,
+            input: FollowPlanTemplateInput::class,
+            processor: FollowPlanTemplateProcessor::class,
+            openapi: new Model\Operation(summary: 'Follow or stop following a saved PI plan template', tags: ['Planetary']),
         ),
         new Delete(
             uriTemplate: '/planetary/templates/{id}',
@@ -63,6 +73,8 @@ class PlanetaryPlanTemplateResource
     /** @var array{priceSource?: string, taxPercent?: int|float, daysBetweenRounds?: int|float} */
     public array $settings = [];
 
+    public bool $followed = false;
+
     public string $createdAt = '';
 
     public static function fromEntity(PlanetaryPlanTemplate $template): self
@@ -73,6 +85,7 @@ class PlanetaryPlanTemplateResource
         $resource->productions = $template->getProductions();
         $resource->choices = $template->getChoices();
         $resource->settings = $template->getSettings();
+        $resource->followed = $template->isFollowed();
         $resource->createdAt = $template->getCreatedAt()->format('c');
 
         return $resource;

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { i18n } from '@/i18n'
+import { compareFactories, followedTargets, type FactoryGap, type FollowedTargets } from '@/utils/planetaryFollow'
 import { apiRequest } from '@/services/api'
 import {
   MAX_TEMPLATE_NAME_LENGTH,
@@ -45,6 +46,16 @@ import {
 
 const TEMPLATES_ENDPOINT = '/planetary/templates'
 
+function twoDigits(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+function defaultFollowedPlanName(): string {
+  const today = new Date()
+  const date = `${twoDigits(today.getDate())}/${twoDigits(today.getMonth() + 1)}/${today.getFullYear()}`
+  return i18n.global.t('pi.planner.follow.defaultName', { date })
+}
+
 export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   const catalog = ref<PlannerCatalog | null>(null)
   const isLoading = ref(false)
@@ -80,6 +91,61 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
         })
       : [],
   )
+
+  const followedTemplate = computed<PlanTemplate | null>(() => templates.value.find(template => template.followed) ?? null)
+
+  const followedTargetsOfPlan = computed<FollowedTargets | null>(() => {
+    const template = followedTemplate.value
+    if (!template || !catalog.value || !isTemplateResolvable(template, catalog.value)) return null
+    return followedTargets(template, catalog.value)
+  })
+
+  const factoryComparison = computed<FactoryGap[]>(() =>
+    plan.value ? compareFactories(plan.value.summary.factoriesByTier, account.value === null ? null : account.value.factories) : [],
+  )
+
+  const followedFactoryComparison = computed<FactoryGap[]>(() =>
+    followedTargetsOfPlan.value ? compareFactories(followedTargetsOfPlan.value.factoriesByTier, account.value === null ? null : account.value.factories) : [],
+  )
+
+  async function setFollowed(id: string, followed: boolean): Promise<boolean> {
+    try {
+      await apiRequest<PlanTemplate>(`${TEMPLATES_ENDPOINT}/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ followed }),
+      })
+      templates.value = templates.value.map(template => {
+        if (template.id === id) return { ...template, followed }
+        return followed ? { ...template, followed: false } : template
+      })
+      return true
+    } catch {
+      error.value = i18n.global.t('pi.planner.errors.templateFollow')
+      return false
+    }
+  }
+
+  async function followTemplate(id: string): Promise<boolean> {
+    return setFollowed(id, true)
+  }
+
+  async function unfollowTemplate(id: string): Promise<boolean> {
+    return setFollowed(id, false)
+  }
+
+  async function followCurrentPlan(name?: string): Promise<boolean> {
+    if (productions.value.length === 0) return false
+
+    const trimmedName = name === undefined ? '' : name.trim()
+    const saved = await saveTemplate(trimmedName === '' ? defaultFollowedPlanName() : trimmedName)
+    if (!saved) return false
+
+    return followTemplate(templates.value[0].id)
+  }
+
+  async function loadFollowContext(): Promise<void> {
+    await Promise.all([fetchCatalog(), fetchAccount(), fetchTemplates()])
+  }
 
   async function fetchTemplates(): Promise<void> {
     try {
@@ -185,6 +251,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
         usedPlanets: response.usedPlanets,
         characters: response.characters,
         extractionYields: response.extractionYields,
+        factories: response.factories,
       }
     } catch {
       account.value = null
@@ -300,6 +367,14 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     account,
     market,
     templates,
+    followedTemplate,
+    factoryComparison,
+    followedFactoryComparison,
+    followedTargetsOfPlan,
+    followTemplate,
+    unfollowTemplate,
+    followCurrentPlan,
+    loadFollowContext,
     fetchTemplates,
     saveTemplate,
     deleteTemplate,

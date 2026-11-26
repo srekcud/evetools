@@ -8,6 +8,7 @@ export interface PlanTemplate {
   productions: PlannedProduction[]
   choices: Record<number, BuildChoice>
   settings: PlannerSettings
+  followed: boolean
   createdAt: string
 }
 

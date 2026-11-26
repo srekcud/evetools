@@ -30,6 +30,20 @@ class PlanetaryPlanTemplateRepository extends ServiceEntityRepository
             ->where('template.user = :user')
             ->setParameter('user', $user)
             ->orderBy('template.createdAt', 'DESC')
+            ->addOrderBy('template.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return list<PlanetaryPlanTemplate>
+     */
+    public function findFollowedByUser(User $user): array
+    {
+        return $this->createQueryBuilder('template')
+            ->where('template.user = :user')
+            ->andWhere('template.followed = true')
+            ->setParameter('user', $user)
             ->getQuery()
             ->getResult();
     }

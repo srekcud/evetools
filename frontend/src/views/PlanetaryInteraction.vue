@@ -34,6 +34,8 @@ import PiRevenueTab from '@/components/planetary/PiRevenueTab.vue'
 import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
 import PiStockTab from '@/components/planetary/PiStockTab.vue'
 import PiSupplyTab from '@/components/planetary/PiSupplyTab.vue'
+import PiFollowedPlanBanner from '@/components/planetary/PiFollowedPlanBanner.vue'
+import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 
 type PlanetaryTab = 'planner' | 'colonies' | 'stock' | 'supply' | 'revenue'
 type ColonyGrouping = 'account' | 'character'
@@ -116,6 +118,7 @@ const CLOCK_REFRESH_MS = 60_000
 const { t } = useI18n()
 const route = useRoute()
 const planetaryStore = usePlanetaryStore()
+const plannerStore = usePlanetaryPlannerStore()
 const coloniesUpdated = useUpdateFlash(() => planetaryStore.colonies)
 const syncStore = useSyncStore()
 const { formatTimeSince } = useFormatters()
@@ -170,6 +173,8 @@ const clockTimer = setInterval(() => {
 // ========== Data loading ==========
 
 onMounted(async () => {
+  if (activeTab.value === 'colonies') void plannerStore.loadFollowContext()
+
   await Promise.all([
     planetaryStore.fetchColonies(),
     planetaryStore.fetchStats(),
@@ -369,6 +374,10 @@ async function toggleColony(colonyId: string): Promise<void> {
 
       <!-- ============ ERROR BANNER ============ -->
       <ErrorBanner v-if="planetaryStore.error" :message="planetaryStore.error" @dismiss="planetaryStore.clearError()" />
+
+      <p v-if="plannerStore.error !== null && plannerStore.followedTemplate !== null" class="text-sm text-amber-400" data-testid="followed-plan-error">{{ plannerStore.error }}</p>
+
+      <PiFollowedPlanBanner @open="activeTab = 'planner'" />
 
       <!-- ============ LOADING STATE ============ -->
       <div v-if="planetaryStore.isLoading && !planetaryStore.colonies.length" class="flex items-center justify-center py-20">

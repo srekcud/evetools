@@ -2,6 +2,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePlanetaryStore } from '@/stores/planetary'
+import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
+import PiRevenuePlanLine from '@/components/planetary/PiRevenuePlanLine.vue'
 import RevenueLineGrid from '@/components/revenue/RevenueLineGrid.vue'
 import RevenueTodoPanel from '@/components/revenue/RevenueTodoPanel.vue'
 import ProjectSellOrdersCard from '@/components/group-industry/ProjectSellOrdersCard.vue'
@@ -22,6 +24,7 @@ const DEFAULT_PERIOD_DAYS = 30
 
 const { t } = useI18n()
 const planetaryStore = usePlanetaryStore()
+const plannerStore = usePlanetaryPlannerStore()
 
 const selectedDays = ref<number>(DEFAULT_PERIOD_DAYS)
 const revenue = computed(() => planetaryStore.revenue)
@@ -69,7 +72,10 @@ function periodButtonClass(days: number): string[] {
 watch(revenue, () => {
   now.value = Date.now()
 })
-onMounted(() => planetaryStore.fetchRevenue(selectedDays.value))
+onMounted(() => {
+  void plannerStore.loadFollowContext()
+  return planetaryStore.fetchRevenue(selectedDays.value)
+})
 watch(selectedDays, days => planetaryStore.fetchRevenue(days))
 </script>
 
@@ -93,6 +99,8 @@ watch(selectedDays, days => planetaryStore.fetchRevenue(days))
     </div>
 
     <template v-else-if="revenue !== null">
+      <PiRevenuePlanLine />
+
       <RevenueLineGrid
         :title="t('pi.revenue.realisedTitle')"
         :row-label="t('pi.revenue.rowLabel')"

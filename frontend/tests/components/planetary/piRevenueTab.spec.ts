@@ -5,7 +5,11 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import PiRevenueTab from '@/components/planetary/PiRevenueTab.vue'
 import type { PlanetaryRevenue } from '@/stores/planetary'
+import type { PlanTemplate } from '@/utils/planetaryTemplates'
 import { apiRequest } from '@/services/api'
+import { PLANNER_ACCOUNT } from '../../planetaryPlannerFixtures'
+import { TEMPLATE_B_LINE, TEMPLATE_CATALOG, asFollowed } from '../../planetaryTemplatesFixtures'
+import { revenueOf } from '../../planetaryFollowHarness'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -34,10 +38,19 @@ const REVENUE: PlanetaryRevenue = {
   sellOrders: { orders: [], charactersToReconnect: [], syncedAt: null },
 }
 
-async function mountTab(revenue: PlanetaryRevenue = REVENUE, locale: 'en' | 'fr' = 'en') {
+const REVENUE_ENDPOINT = '/planetary/revenue'
+const CONTEXT_ENDPOINTS = ['/planetary/planner', '/planetary/planner/account', '/planetary/templates']
+
+async function mountTab(revenue: PlanetaryRevenue = REVENUE, locale: 'en' | 'fr' = 'en', followedTemplate: PlanTemplate | null = null, revenueOfDays: (days: number) => PlanetaryRevenue = () => revenue, contextError: Error | null = null) {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockResolvedValue(revenue as never)
+  vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
+    if (endpoint.startsWith(REVENUE_ENDPOINT)) return revenueOfDays(Number(new URL(endpoint, 'http://localhost').searchParams.get('days')))
+    if (contextError !== null) throw contextError
+    if (endpoint === '/planetary/templates') return followedTemplate === null ? [] : [followedTemplate]
+    if (endpoint === '/planetary/planner/account') return { id: 'account', ...PLANNER_ACCOUNT }
+    return { id: 'planner', ...TEMPLATE_CATALOG }
+  }) as never)
   const wrapper = mount(PiRevenueTab, {
     global: {
       plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
@@ -74,7 +87,45 @@ describe('PiRevenueTab', () => {
     await wrapper.findAll('button').find(button => button.text() === '90 days')?.trigger('click')
     await flushPromises()
 
-    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0])).toEqual(['/planetary/revenue?days=30', '/planetary/revenue?days=90'])
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0]).filter(endpoint => endpoint.startsWith(REVENUE_ENDPOINT))).toEqual(['/planetary/revenue?days=30', '/planetary/revenue?days=90'])
+  })
+
+  it('loads the follow context, the catalog, the account and the templates, when it opens without waiting for the planner', async () => {
+    await mountTab()
+
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0]).filter(endpoint => !endpoint.startsWith(REVENUE_ENDPOINT)).sort()).toEqual(CONTEXT_ENDPOINTS)
+  })
+
+  it('shows no planned against real line while no template is followed', async () => {
+    const wrapper = await mountTab()
+
+    expect(wrapper.find('[data-testid="revenue-plan-line"]').exists()).toBe(false)
+  })
+
+  it('shows the planned against real line of the followed plan: 120,000 planned a day against 30,000 realised a day over the 30 days', async () => {
+    const wrapper = await mountTab({ ...REVENUE, realisedIsk: 900_000 }, 'en', asFollowed(TEMPLATE_B_LINE))
+
+    expect(wrapper.get('[data-testid="revenue-plan-planned"]').text()).toBe('120.00 K')
+    expect(wrapper.get('[data-testid="revenue-plan-real"]').text()).toBe('30.00 K')
+    expect(wrapper.get('[data-testid="revenue-plan-gap"]').text()).toBe('-90.00 K')
+  })
+
+  it('follows the chosen period: 9,000,000 realised over 90 days is 100,000 a day, a gap of -20,000 and a ratio of 0.83', async () => {
+    const wrapper = await mountTab(REVENUE, 'en', asFollowed(TEMPLATE_B_LINE), days => ({ ...revenueOf(days === 90 ? 9_000_000 : 900_000, days) }))
+
+    await wrapper.findAll('button').find(button => button.text() === '90 days')?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="revenue-plan-real"]').text()).toBe('100.00 K')
+    expect(wrapper.get('[data-testid="revenue-plan-gap"]').text()).toBe('-20.00 K')
+    expect(wrapper.get('[data-testid="revenue-plan-ratio"]').text()).toBe('0.83')
+  })
+
+  it('keeps the revenue grids and shows no planned against real line when the follow context cannot be loaded', async () => {
+    const wrapper = await mountTab(REVENUE, 'en', asFollowed(TEMPLATE_B_LINE), () => REVENUE, new Error('context unavailable'))
+
+    expect(wrapper.findAll('[data-testid="revenue-line-grid"]')).toHaveLength(2)
+    expect(wrapper.find('[data-testid="revenue-plan-line"]').exists()).toBe(false)
   })
 
   it('shows the realised grid with one column per tier, the off-market column as unknown and the net of the sales only', async () => {

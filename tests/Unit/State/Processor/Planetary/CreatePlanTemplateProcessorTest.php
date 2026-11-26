@@ -85,6 +85,21 @@ final class CreatePlanTemplateProcessorTest extends TestCase
         $this->assertSame($persisted[0]->getCreatedAt()->format('c'), $resource->createdAt);
     }
 
+    #[Group('issue-1406')]
+    public function testTheCreatedTemplateIsNotFollowed(): void
+    {
+        $persisted = [];
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void {
+            $persisted[] = $entity;
+        });
+
+        $resource = $this->processor($entityManager)->process($this->validInput(), new Post());
+
+        $this->assertFalse($persisted[0]->isFollowed());
+        $this->assertFalse($resource->followed);
+    }
+
     public function testItStoresProductionsGivenWithArbitraryKeysAsAListInTheirOrder(): void
     {
         $persisted = [];

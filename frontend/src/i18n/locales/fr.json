@@ -675,6 +675,40 @@
           "cancel": "Annuler"
         }
       },
+      "follow": {
+        "actions": {
+          "followPlans": "Suivre ces plans",
+          "follow": "Suivre",
+          "unfollow": "Ne plus suivre"
+        },
+        "defaultName": "Plan du {date}",
+        "banner": {
+          "title": "Plan suivi",
+          "open": "Ouvrir le plan",
+          "missingRecipe": "recette introuvable",
+          "loading": "Chargement du plan"
+        },
+        "gap": {
+          "missing": "manque {n}",
+          "free": "{n} libre | {n} libres",
+          "ok": "ok",
+          "unknown": "inconnu"
+        },
+        "factories": {
+          "title": "Usines : plan contre tes colonies",
+          "planned": "Plan",
+          "real": "Colonies"
+        },
+        "revenue": {
+          "title": "Prévu contre réel",
+          "openPlanner": "Ouvrir le planificateur",
+          "planned": "Ventes prévues / jour",
+          "real": "Ventes réelles / jour",
+          "gap": "Écart",
+          "ratio": "Réel / prévu",
+          "profit": "Bénéfice prévu / jour"
+        }
+      },
       "errors": {
         "emptyCatalog": "La SDE ne contient aucun schéma planétaire. Importez-la avant d'utiliser le planificateur.",
         "account": "Impossible de charger vos colonies et vos emplacements de planète. Rendements et maximum sont affichés comme inconnus.",
@@ -682,7 +716,8 @@
         "load": "Impossible de charger les données du planificateur.",
         "templatesRead": "Impossible de charger vos templates.",
         "templateSave": "Impossible d'enregistrer le template. La limite est de 50 templates.",
-        "templateDelete": "Impossible de supprimer le template."
+        "templateDelete": "Impossible de supprimer le template.",
+        "templateFollow": "Impossible de suivre ou de ne plus suivre le template."
       }
     },
     "revenue": {
