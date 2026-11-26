@@ -5,6 +5,7 @@ import { usePlanetaryStore } from '@/stores/planetary'
 import RevenueLineGrid from '@/components/revenue/RevenueLineGrid.vue'
 import RevenueTodoPanel from '@/components/revenue/RevenueTodoPanel.vue'
 import ProjectSellOrdersCard from '@/components/group-industry/ProjectSellOrdersCard.vue'
+import PiProductionProfitGrid from './PiProductionProfitGrid.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import type { RevenueTodoItem } from '@/types/revenueGrid'
@@ -26,6 +27,7 @@ const planetaryStore = usePlanetaryStore()
 const selectedDays = ref<number>(DEFAULT_PERIOD_DAYS)
 const revenue = computed(() => planetaryStore.revenue)
 const now = ref(Date.now())
+const productionProfit = computed(() => planetaryStore.productionProfit)
 
 const labels = computed<PlanetaryRevenueLabels>(() => ({
   tier: tier => t(`pi.revenue.tiers.${tier}`),
@@ -69,7 +71,10 @@ function periodButtonClass(days: number): string[] {
 watch(revenue, () => {
   now.value = Date.now()
 })
-onMounted(() => planetaryStore.fetchRevenue(selectedDays.value))
+onMounted(() => {
+  planetaryStore.fetchRevenue(selectedDays.value)
+  planetaryStore.fetchProductionProfit()
+})
 watch(selectedDays, days => planetaryStore.fetchRevenue(days))
 </script>
 
@@ -119,6 +124,7 @@ watch(selectedDays, days => planetaryStore.fetchRevenue(days))
         :title="t('pi.revenue.sellOrders.title')"
         :empty="t('pi.revenue.sellOrders.empty')"
       />
+      <PiProductionProfitGrid v-if="productionProfit !== null" :profit="productionProfit" />
 
       <RevenueTodoPanel :items="todoItems" />
     </template>
