@@ -138,6 +138,8 @@ export interface Colony {
   powergridMax?: number | null
   commandCenterSkillLevel?: number | null
   commandCenterUpgradable?: boolean | null
+  tier: string | null
+  storageFull: boolean | null
   numPins: number
   lastUpdate: string
   cachedAt: string
@@ -151,6 +153,23 @@ export interface Colony {
   status: 'active' | 'expiring' | 'expired' | 'idle' | 'factory'
   pins: Pin[]
   routes: Route[]
+}
+
+export interface PlanetaryInputNeedsFeed {
+  typeId: number
+  typeName: string | null
+  emptyAt: string | null
+}
+
+export interface PlanetaryInputNeedsLaunchpad {
+  colonyId: string
+  pinId: number
+  feeds: PlanetaryInputNeedsFeed[]
+}
+
+export interface PlanetaryInputNeeds {
+  launchpads: PlanetaryInputNeedsLaunchpad[]
+  complete: boolean
 }
 
 export interface PlanetaryStats {
@@ -213,6 +232,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
   const stats = ref<PlanetaryStats | null>(null)
   const slots = ref<PlanetarySlots | null>(null)
   const production = ref<ProductionTier[]>([])
+  const inputNeeds = ref<PlanetaryInputNeeds | null>(null)
   const revenue = ref<PlanetaryRevenue | null>(null)
   const isLoading = ref(false)
   const isSyncing = ref(false)
@@ -308,6 +328,18 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     }
   }
 
+  async function fetchInputNeeds(): Promise<void> {
+    error.value = null
+
+    try {
+      const data = await apiRequest<PlanetaryInputNeeds>('/planetary/input-needs')
+      inputNeeds.value = { launchpads: data.launchpads, complete: data.complete }
+    } catch (e) {
+      inputNeeds.value = null
+      error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des besoins en intrants'
+    }
+  }
+
   async function fetchRevenue(days: number): Promise<void> {
     error.value = null
 
@@ -347,7 +379,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
   async function finishSync(): Promise<void> {
     isSyncing.value = false
     lastSyncAt.value = new Date().toISOString()
-    await Promise.all([fetchColonies(), fetchStats(), fetchSlots(), fetchProduction()])
+    await Promise.all([fetchColonies(), fetchStats(), fetchSlots(), fetchProduction(), fetchInputNeeds()])
   }
 
   function failSync(message?: string): void {
@@ -365,6 +397,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     stats,
     slots,
     production,
+    inputNeeds,
     revenue,
     isLoading,
     isSyncing,
@@ -383,6 +416,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     fetchStats,
     fetchSlots,
     fetchProduction,
+    fetchInputNeeds,
     fetchRevenue,
     syncColonies,
     finishSync,

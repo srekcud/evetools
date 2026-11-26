@@ -10,15 +10,22 @@ import type { Colony } from '@/stores/planetary'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 import PiFactoryProgress from '@/components/planetary/PiFactoryProgress.vue'
 import PiPowerGauge from '@/components/planetary/PiPowerGauge.vue'
+import PiTierBadge from '@/components/planetary/PiTierBadge.vue'
+import { useColonyNextActionText } from '@/composables/useColonyNextActionText'
+import type { NextAction } from '@/utils/colonyNextAction'
 
 const props = withDefaults(defineProps<{
   colony: Colony
   expanded: boolean
   thresholdMinutes?: number
   showCharacterName?: boolean
+  nextAction?: NextAction | null
+  now?: number
 }>(), {
   thresholdMinutes: DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES,
   showCharacterName: false,
+  nextAction: null,
+  now: undefined,
 })
 
 const { t } = useI18n()
@@ -46,6 +53,10 @@ const {
   getColonyProduction,
 } = usePlanetaryHelpers()
 
+
+const { labelOf: nextActionLabelOf, isOverdue: isNextActionOverdue, whenOf: nextActionWhenOf } = useColonyNextActionText()
+
+const nextActionNow = computed(() => props.now ?? Date.now())
 
 const ROMAN_SKILL_LEVELS = ['0', 'I', 'II', 'III', 'IV', 'V']
 
@@ -91,9 +102,10 @@ defineEmits<{
           />
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-white font-semibold text-[15px]">
+              <span class="text-white font-semibold text-[15px] truncate max-w-[180px]">
                 {{ colony.planetName || `${colony.solarSystemName || t('pi.colony.unknown')} ${colony.planetId}` }}
               </span>
+              <PiTierBadge :tier="colony.tier" />
               <span :class="['text-xs px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider border',
                 getPlanetConfig(colony.planetType).badgeBg,
                 getPlanetConfig(colony.planetType).badgeText,
@@ -182,6 +194,21 @@ defineEmits<{
           <span v-else class="text-slate-500 text-xs italic">
             {{ t('pi.colony.noExtractors') }}
           </span>
+        </div>
+
+        <div v-if="nextAction" class="min-w-[130px] max-w-[160px] text-right">
+          <div
+            data-testid="next-action-label"
+            :data-action-type="nextAction.type"
+            :data-overdue="String(isNextActionOverdue(nextAction, nextActionNow))"
+            :class="['text-xs font-semibold uppercase tracking-wider truncate', isNextActionOverdue(nextAction, nextActionNow) ? 'text-red-400' : 'text-slate-300']"
+            :title="nextActionLabelOf(nextAction.type)"
+          >
+            {{ nextActionLabelOf(nextAction.type) }}
+          </div>
+          <div :class="['font-mono-tech text-xs', isNextActionOverdue(nextAction, nextActionNow) ? 'text-red-400' : 'text-slate-500']">
+            {{ nextActionWhenOf(nextAction, nextActionNow) }}
+          </div>
         </div>
 
         <!-- Last update -->

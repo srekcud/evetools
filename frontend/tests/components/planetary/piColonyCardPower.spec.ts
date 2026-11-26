@@ -32,6 +32,8 @@ const BARREN_COLONY: Colony = {
   powergridMax: 19_000,
   commandCenterSkillLevel: 4,
   commandCenterUpgradable: true,
+  tier: null,
+  storageFull: null,
   numPins: 4,
   lastUpdate: '2026-11-26T09:00:00+00:00',
   cachedAt: '2026-11-26T09:05:00+00:00',

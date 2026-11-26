@@ -12,6 +12,18 @@ import PiAlertsBanner from '@/components/planetary/PiAlertsBanner.vue'
 import PiProductionTable from '@/components/planetary/PiProductionTable.vue'
 import PiColonyCard from '@/components/planetary/PiColonyCard.vue'
 import PiSlotsBadge from '@/components/planetary/PiSlotsBadge.vue'
+import { useColonyNextActionText } from '@/composables/useColonyNextActionText'
+import {
+  COLONY_FILTER_IDS,
+  compareNextActions,
+  filterColonies,
+  filterCounts,
+  nextActionOf,
+  sortColonies,
+  type ColonyFilterId,
+  type ColonySortMode,
+  type NextAction,
+} from '@/utils/colonyNextAction'
 import PiTierLegend from '@/components/planetary/PiTierLegend.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
@@ -51,6 +63,24 @@ interface ColonyGroup {
 const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
 
 const PLANETARY_TABS = ['planner', 'colonies', 'stock', 'supply', 'revenue'] as const satisfies readonly PlanetaryTab[]
+type ColonyGrouping = 'account' | 'character'
+
+interface ColonyGroup {
+  key: string
+  title: string
+  avatars: { characterId: number; characterName: string }[]
+  colonies: Colony[]
+  nextAction: NextAction | null
+  slots: { used: number; max: number | null } | null
+  slotCharacters: PlanetarySlotCharacter[]
+  showCharacterName: boolean
+}
+
+const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
+
+const COLONY_SORT_MODES = ['nextAction', 'character', 'system'] as const satisfies readonly ColonySortMode[]
+
+const CLOCK_REFRESH_MS = 60_000
 
 const { t } = useI18n()
 const route = useRoute()
@@ -58,6 +88,7 @@ const planetaryStore = usePlanetaryStore()
 const coloniesUpdated = useUpdateFlash(() => planetaryStore.colonies)
 const syncStore = useSyncStore()
 const { formatTimeSince } = useFormatters()
+const { labelOf: nextActionLabelOf, isOverdue: isNextActionOverdue, whenOf: nextActionWhenOf } = useColonyNextActionText()
 const activeTab = useTabQuery<PlanetaryTab>(PLANETARY_TABS, 'colonies')
 const subTabs = computed(() => PLANETARY_TABS.map(tab => ({ id: tab, label: t(`pi.tabs.${tab}`) })))
 
@@ -97,6 +128,13 @@ watch(
 
 const expandedColonies = ref<Set<string>>(new Set())
 const colonyGrouping = ref<ColonyGrouping>('account')
+const colonySortMode = ref<ColonySortMode>('nextAction')
+const colonyFilter = ref<ColonyFilterId>('all')
+const now = ref(Date.now())
+
+const clockTimer = setInterval(() => {
+  now.value = Date.now()
+}, CLOCK_REFRESH_MS)
 
 // ========== Data loading ==========
 
@@ -106,6 +144,7 @@ onMounted(async () => {
     planetaryStore.fetchStats(),
     planetaryStore.fetchSlots(),
     planetaryStore.fetchProduction(),
+    planetaryStore.fetchInputNeeds(),
   ])
 
   const hasNoColony = planetaryStore.error === null && planetaryStore.colonies.length === 0
@@ -115,6 +154,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  clearInterval(clockTimer)
   if (syncDebounce) {
     clearTimeout(syncDebounce)
   }
@@ -137,16 +177,40 @@ const accountName = computed(() => {
   return main?.characterName ?? planetaryStore.coloniesByCharacter[0]?.characterName ?? ''
 })
 
+const inputNeeds = computed(() => planetaryStore.inputNeeds)
+
+const chipCounts = computed(() => filterCounts(planetaryStore.colonies, inputNeeds.value, now.value))
+
+function earliestActionOf(colonies: Colony[]): NextAction | null {
+  const actions = colonies
+    .map(colony => nextActionOf(colony, inputNeeds.value))
+    .filter((action): action is NextAction => action !== null)
+  if (actions.length === 0) return null
+  return actions.reduce((nearest, action) => (action.at < nearest.at ? action : nearest))
+}
+
+function arrange(colonies: Colony[]): Colony[] {
+  return sortColonies(filterColonies(colonies, colonyFilter.value, inputNeeds.value, now.value), colonySortMode.value, inputNeeds.value)
+}
+
+const actionByColonyId = computed(() => new Map(
+  planetaryStore.colonies.map(colony => [colony.id, nextActionOf(colony, inputNeeds.value)] as const),
+))
+
 const colonyGroups = computed<ColonyGroup[]>(() => {
   const byCharacter = planetaryStore.coloniesByCharacter
   const slots = planetaryStore.slots
 
   if (colonyGrouping.value === 'account') {
+    const colonies = arrange(byCharacter.flatMap(group => group.colonies))
+    if (colonies.length === 0) return []
     return [{
       key: 'account',
       title: t('pi.groupBy.accountTitle', { name: accountName.value }),
       avatars: byCharacter.map(({ characterId, characterName }) => ({ characterId, characterName })),
       colonies: byCharacter.flatMap(group => group.colonies),
+      colonies,
+      nextAction: earliestActionOf(colonies),
       slots: slots ? { used: slots.totalUsed, max: slots.totalMax } : null,
       slotCharacters: slotCharacters.value,
       showCharacterName: true,
@@ -166,6 +230,32 @@ const colonyGroups = computed<ColonyGroup[]>(() => {
     }
   })
 })
+
+  const groups = byCharacter
+    .map(group => {
+      const characterSlots = slotCharacters.value.find(character => character.characterId === group.characterId)
+      const colonies = arrange(group.colonies)
+      return {
+        key: String(group.characterId),
+        title: group.characterName,
+        avatars: [{ characterId: group.characterId, characterName: group.characterName }],
+        colonies,
+        nextAction: earliestActionOf(colonies),
+        slots: characterSlots ? { used: characterSlots.coloniesUsed, max: characterSlots.maxColonies } : null,
+        slotCharacters: [],
+        showCharacterName: false,
+      }
+    })
+    .filter(group => group.colonies.length > 0)
+
+  if (colonySortMode.value !== 'nextAction') return groups
+  return groups
+    .map((group, index) => ({ group, index }))
+    .sort((a, b) => compareNextActions(a.group.nextAction, b.group.nextAction) || a.index - b.index)
+    .map(entry => entry.group)
+})
+
+const hasNoMatchingColony = computed(() => colonyGroups.value.length === 0)
 
 function isOverMaximum(character: PlanetarySlotCharacter): boolean {
   return character.maxColonies !== null && character.coloniesUsed > character.maxColonies
@@ -321,6 +411,76 @@ async function toggleColony(colonyId: string): Promise<void> {
         </div>
 
         <div
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.groupBy.label') }}</span>
+            <div class="flex items-center gap-1 p-0.5 bg-slate-900 border border-slate-800 rounded-lg">
+              <button
+                v-for="grouping in COLONY_GROUPINGS"
+                :key="grouping"
+                type="button"
+                :data-testid="`group-by-${grouping}`"
+                :aria-pressed="colonyGrouping === grouping"
+                :class="[
+                  'px-3 py-1 rounded-md text-xs font-semibold transition-colors',
+                  colonyGrouping === grouping ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white',
+                ]"
+                @click="colonyGrouping = grouping"
+              >
+                {{ t(`pi.groupBy.${grouping}`) }}
+              </button>
+            </div>
+          </div>
+          <label class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.sort.label') }}</span>
+            <select
+              v-model="colonySortMode"
+              data-testid="sort-select"
+              class="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500"
+            >
+              <option v-for="mode in COLONY_SORT_MODES" :key="mode" :value="mode">{{ t(`pi.sort.${mode}`) }}</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 px-2" role="group" :aria-label="t('pi.filters.label')">
+          <button
+            v-for="filterId in COLONY_FILTER_IDS"
+            :key="filterId"
+            type="button"
+            :data-testid="`filter-chip-${filterId}`"
+            :data-count="chipCounts[filterId] ?? '?'"
+            :aria-pressed="colonyFilter === filterId"
+            :title="chipCounts[filterId] === null ? t('pi.filters.refillUnknown') : undefined"
+            :class="[
+              'flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors',
+              colonyFilter === filterId ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white',
+              chipCounts[filterId] === 0 && colonyFilter !== filterId ? 'opacity-40' : '',
+            ]"
+            @click="colonyFilter = filterId"
+          >
+            <span>{{ t(`pi.filters.${filterId}`) }}</span>
+            <span class="font-mono-tech">{{ chipCounts[filterId] ?? '?' }}</span>
+          </button>
+        </div>
+
+        <div
+          v-if="hasNoMatchingColony"
+          data-testid="filter-empty"
+          class="flex flex-col items-center gap-3 py-10 text-center"
+        >
+          <p class="text-sm text-slate-400">{{ t('pi.filters.empty') }}</p>
+          <button
+            type="button"
+            data-testid="filter-reset"
+            class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-semibold text-slate-200 transition-colors"
+            @click="colonyFilter = 'all'"
+          >
+            {{ t('pi.filters.reset') }}
+          </button>
+        </div>
+
+        <div
           v-for="group in colonyGroups"
           :key="group.key"
           data-testid="colony-group-section"
@@ -347,6 +507,15 @@ async function toggleColony(colonyId: string): Promise<void> {
             </span>
             <PiSlotsBadge v-if="group.slots" :used="group.slots.used" :max="group.slots.max" />
             <div class="flex-1 h-px bg-slate-800"></div>
+            <span
+              v-if="group.nextAction"
+              data-testid="group-next-action"
+              :data-action-type="group.nextAction.type"
+              :class="['text-xs font-mono-tech whitespace-nowrap truncate max-w-[280px]', isNextActionOverdue(group.nextAction, now) ? 'text-red-400' : 'text-slate-400']"
+              :title="nextActionLabelOf(group.nextAction.type)"
+            >
+              {{ t('pi.nextAction.group') }} {{ nextActionWhenOf(group.nextAction, now) }}
+            </span>
           </div>
 
           <ul
@@ -376,6 +545,8 @@ async function toggleColony(colonyId: string): Promise<void> {
               :expanded="expandedColonies.has(colony.id)"
               :threshold-minutes="statsData?.expiryThresholdMinutes"
               :show-character-name="group.showCharacterName"
+              :next-action="actionByColonyId.get(colony.id) ?? null"
+              :now="now"
               @toggle="toggleColony(colony.id)"
             />
           </div>
