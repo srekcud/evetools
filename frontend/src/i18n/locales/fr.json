@@ -391,6 +391,35 @@
       "character": "Personnage",
       "accountTitle": "Compte « {name} »"
     },
+    "sort": {
+      "label": "Trier par",
+      "nextAction": "Prochaine action",
+      "character": "Personnage",
+      "system": "Système"
+    },
+    "filters": {
+      "label": "Filtres rapides",
+      "all": "Toutes",
+      "P1": "P1",
+      "P2": "P2",
+      "P3": "P3",
+      "P4": "P4",
+      "restart": "À relancer",
+      "refill": "À recharger",
+      "storage_full": "Stockage plein",
+      "upgrade": "CC à monter",
+      "refillUnknown": "Données des launchpads indisponibles : le nombre de recharges ne peut pas être calculé",
+      "empty": "Aucune colonie pour ce filtre",
+      "reset": "Afficher toutes les colonies"
+    },
+    "nextAction": {
+      "restart": "Extracteurs finis",
+      "refill": "Launchpad vide",
+      "storage_full": "Stockage plein",
+      "group": "Prochaine action",
+      "in": "dans {duration}",
+      "ago": "il y a {duration}"
+    },
     "slots": {
       "badge": "{used} / {max} emplacements",
       "unknownMax": "?",

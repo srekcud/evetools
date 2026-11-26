@@ -391,6 +391,35 @@
       "character": "Character",
       "accountTitle": "Account \"{name}\""
     },
+    "sort": {
+      "label": "Sort by",
+      "nextAction": "Next action",
+      "character": "Character",
+      "system": "System"
+    },
+    "filters": {
+      "label": "Quick filters",
+      "all": "All",
+      "P1": "P1",
+      "P2": "P2",
+      "P3": "P3",
+      "P4": "P4",
+      "restart": "To restart",
+      "refill": "To refill",
+      "storage_full": "Storage full",
+      "upgrade": "CC to raise",
+      "refillUnknown": "Launchpad data unavailable: the refill count cannot be computed",
+      "empty": "No colony for this filter",
+      "reset": "Show all colonies"
+    },
+    "nextAction": {
+      "restart": "Extractors finished",
+      "refill": "Launchpad empty",
+      "storage_full": "Storage full",
+      "group": "Next action",
+      "in": "in {duration}",
+      "ago": "{duration} ago"
+    },
     "slots": {
       "badge": "{used} / {max} slots",
       "unknownMax": "?",
