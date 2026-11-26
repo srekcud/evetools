@@ -254,6 +254,6 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
       </template>
     </template>
 
-    <PiSupplyPendingBlocks />
+    <PiSupplyPendingBlocks :totals="grid.totals" :type-names="typeNameById" />
   </div>
 </template>
