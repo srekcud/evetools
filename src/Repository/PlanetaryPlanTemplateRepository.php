@@ -8,6 +8,7 @@ use App\Entity\PlanetaryPlanTemplate;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -25,16 +26,32 @@ class PlanetaryPlanTemplateRepository extends ServiceEntityRepository
      */
     public function findByUser(User $user): array
     {
-        return [];
+        return $this->createQueryBuilder('template')
+            ->where('template.user = :user')
+            ->setParameter('user', $user)
+            ->orderBy('template.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 
     public function findOneByUserAndId(User $user, Uuid $id): ?PlanetaryPlanTemplate
     {
-        return null;
+        return $this->createQueryBuilder('template')
+            ->where('template.user = :user')
+            ->andWhere('template.id = :id')
+            ->setParameter('user', $user)
+            ->setParameter('id', $id, UuidType::NAME)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     public function countByUser(User $user): int
     {
-        return 0;
+        return (int) $this->createQueryBuilder('template')
+            ->select('COUNT(template.id)')
+            ->where('template.user = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 }

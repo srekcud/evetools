@@ -12,6 +12,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Planetary\CreatePlanTemplateInput;
+use App\Entity\PlanetaryPlanTemplate;
 use App\State\Processor\Planetary\CreatePlanTemplateProcessor;
 use App\State\Processor\Planetary\DeletePlanTemplateProcessor;
 use App\State\Provider\Planetary\PlanetaryPlanTemplateCollectionProvider;
@@ -63,4 +64,17 @@ class PlanetaryPlanTemplateResource
     public array $settings = ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4];
 
     public string $createdAt = '';
+
+    public static function fromEntity(PlanetaryPlanTemplate $template): self
+    {
+        $resource = new self();
+        $resource->id = (string) $template->getId();
+        $resource->name = $template->getName();
+        $resource->productions = $template->getProductions();
+        $resource->choices = $template->getChoices();
+        $resource->settings = $template->getSettings();
+        $resource->createdAt = $template->getCreatedAt()->format('c');
+
+        return $resource;
+    }
 }
