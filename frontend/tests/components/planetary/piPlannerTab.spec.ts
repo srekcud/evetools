@@ -7,15 +7,18 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
 import { apiRequest } from '@/services/api'
 import type { PlannerCatalog } from '@/utils/planetaryPlanner'
+import type { PlannerMarket } from '@/utils/planetaryRanking'
 import {
   AQUEOUS_LIQUIDS,
   BASE_METALS,
+  BROADCAST_NODE,
   COOLANT,
   HEAVY_METALS,
   LONG_TYPE_NAME,
   MECHANICAL_PARTS,
   PLANNER_ACCOUNT,
   PLANNER_CATALOG,
+  PLANNER_MARKET,
   REACTIVE_METALS,
   ROBOTICS,
   TOXIC_METALS,
@@ -29,12 +32,16 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, failure: Error | null = null) {
+async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, failure: Error | null = null, market: PlannerMarket | Error = PLANNER_MARKET) {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
     if (failure) throw failure
     if (endpoint === '/planetary/planner/account') return { id: 'account', ...PLANNER_ACCOUNT }
+    if (endpoint === '/planetary/planner/market') {
+      if (market instanceof Error) throw market
+      return { id: 'market', ...market }
+    }
     return { id: 'planner', ...catalog }
   }) as never)
   const wrapper = mount(PiPlannerTab, {
@@ -91,10 +98,10 @@ function rootTypeId(wrapper: Wrapper): number {
 enableAutoUnmount(afterEach)
 
 describe('PiPlannerTab', () => {
-  it('loads the planner resource and the account and invites the player to add a production while there is none', async () => {
+  it('loads the planner resource, the account and the market and invites the player to add a production while there is none', async () => {
     const wrapper = await mountTab()
 
-    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0])).toEqual(['/planetary/planner', '/planetary/planner/account'])
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0])).toEqual(['/planetary/planner', '/planetary/planner/account', '/planetary/planner/market'])
     expect(wrapper.find('[data-testid="planner-empty"]').exists()).toBe(true)
     expect(rows(wrapper)).toHaveLength(0)
   })
@@ -363,5 +370,26 @@ describe('PiPlannerTab', () => {
     expect(summaryText(wrapper, 'summary-profit')).toBe('1.35 M')
     expect(summaryText(wrapper, 'summary-purchases')).toMatch(/(?<![\d.,])3\.90 M(?![\d.,])/)
     expect([cell(wrapper, COOLANT, 'tree-price'), cell(wrapper, WATER, 'tree-price')]).toEqual(['900', '50'])
+  })
+
+  it('shows the ranking of what to produce below the planets table', async () => {
+    const wrapper = await mountTab()
+    await addProduction(wrapper, ROBOTICS)
+
+    const rankingRows = wrapper.findAll('[data-testid="ranking-row"]')
+    const planetsRow = wrapper.get('[data-testid="planets-row"]')
+
+    expect(rankingRows.map(row => Number(row.attributes('data-type-id')))).toEqual([ROBOTICS, MECHANICAL_PARTS, COOLANT, BROADCAST_NODE])
+    expect(planetsRow.element.compareDocumentPosition(rankingRows[0].element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('reports a failing market in the banner while the planner and the ranking stay usable with an unknown volume', async () => {
+    const wrapper = await mountTab(PLANNER_CATALOG, null, new Error('market unavailable'))
+
+    expect(wrapper.findComponent(ErrorBanner).props('message')).toBe((en.pi.planner.errors as Record<string, string>).market)
+    expect(wrapper.findAll('[data-testid="ranking-row"]')).toHaveLength(4)
+    expect(wrapper.get('[data-testid="ranking-row"] [data-testid="ranking-volume"]').attributes('data-state')).toBe('unknown')
+    await addProduction(wrapper, ROBOTICS)
+    expect(rows(wrapper)).toHaveLength(11)
   })
 })
