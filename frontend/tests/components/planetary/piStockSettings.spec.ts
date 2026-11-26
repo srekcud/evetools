@@ -33,6 +33,7 @@ import {
   type MeSettingsBody,
   type SettingsBody,
 } from '../../planetarySettingsFixtures'
+import { STOCK_WITH_PURCHASES } from '../../planetaryStockFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -64,6 +65,7 @@ async function mountStockTab(scenario: Partial<Scenario> = {}) {
     'GET /planetary/settings': () => current,
     'GET /planetary/settings/locations': { id: 'locations', locations },
     'GET /me/settings': me,
+    'GET /planetary/stock': STOCK_WITH_PURCHASES,
     'PATCH /planetary/settings': (body) => (current = { ...current, ...body }),
     'PATCH /me/settings': (body) => {
       const chosen = me.marketStructures.find(structure => structure.id === body?.preferredMarketStructureId)
@@ -136,6 +138,7 @@ describe('PiStockTab settings', () => {
       'GET /me/settings',
       'GET /planetary/settings',
       'GET /planetary/settings/locations',
+      'GET /planetary/stock',
     ])
   })
 

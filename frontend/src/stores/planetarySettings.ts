@@ -59,6 +59,7 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
   const hubChoices = ref<HubChoice[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const saveRevision = ref(0)
 
   async function load(): Promise<void> {
     isLoading.value = true
@@ -135,5 +136,5 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
     error.value = null
   }
 
-  return { settings, locations, hubChoices, isLoading, error, load, saveHomeLocation, saveCoverageWeeks, saveHub, clearError }
+  return { settings, locations, hubChoices, isLoading, error, saveRevision, load, saveHomeLocation, saveCoverageWeeks, saveHub, clearError }
 })

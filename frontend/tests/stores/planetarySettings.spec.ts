@@ -233,4 +233,43 @@ describe('planetarySettings store', () => {
     expect(store.error).toEqual(expect.any(String))
     expect(store.error).not.toBe('')
   })
+
+  it('counts one more save revision per successful save, whatever the number of requests it takes, and none for a read, a refusal or an invalid entry', async () => {
+    const store = await loadedStore()
+    expect(store.saveRevision).toBe(0)
+    serve({ 'PATCH /planetary/settings': { ...SETTINGS_WITH_AMARR_HOME, coverageWeeks: 7 } })
+
+    await store.saveCoverageWeeks(7)
+    expect(store.saveRevision).toBe(1)
+
+    await store.saveHomeLocation(ASHAB_FORTIZAR_ID)
+    expect(store.saveRevision).toBe(2)
+
+    await store.saveCoverageWeeks(0)
+    await store.saveCoverageWeeks(53)
+    expect(store.saveRevision).toBe(2)
+
+    serve({ 'PATCH /planetary/settings': rejectedLocation() })
+    await store.saveHomeLocation(ASHAB_FORTIZAR_ID)
+    expect(store.saveRevision).toBe(2)
+
+    serve({
+      'PATCH /me/settings': { ...ME_WITH_TWO_FAVORITES, preferredMarketStructureId: SECOND_FAVORITE_HUB_ID, preferredMarketStructureName: SECOND_FAVORITE_HUB_NAME },
+      'GET /planetary/settings': { ...SETTINGS_WITH_AMARR_HOME, hubStructureId: SECOND_FAVORITE_HUB_ID, hubStructureName: SECOND_FAVORITE_HUB_NAME },
+    })
+    await store.saveHub(SECOND_FAVORITE_HUB_ID)
+    expect(store.saveRevision).toBe(3)
+
+    serve({ 'PATCH /me/settings': rejectedLocation() })
+    await store.saveHub(FAVORITE_HUB_ID)
+    expect(store.saveRevision).toBe(3)
+
+    serve({
+      'GET /planetary/settings': SETTINGS_WITH_AMARR_HOME,
+      'GET /planetary/settings/locations': { id: 'locations', locations: [AMARR_CANDIDATE, ASHAB_CANDIDATE] },
+      'GET /me/settings': ME_WITH_TWO_FAVORITES,
+    })
+    await store.load()
+    expect(store.saveRevision).toBe(3)
+  })
 })
