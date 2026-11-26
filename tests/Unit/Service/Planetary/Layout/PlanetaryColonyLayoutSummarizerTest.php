@@ -94,10 +94,10 @@ final class PlanetaryColonyLayoutSummarizerTest extends TestCase
 
         self::assertSame(
             [
-                'load' => ['cpu' => 8720, 'powergrid' => 14200],
                 'buildings' => ['extractorControlUnits' => 2, 'extractorHeads' => 10, 'processors' => 3, 'storages' => 1, 'launchpads' => 1],
                 'links' => 4,
                 'routes' => 3,
+                'load' => ['cpu' => 8720, 'powergrid' => 14200],
             ],
             array_intersect_key($summary, array_flip(['load', 'buildings', 'links', 'routes'])),
         );

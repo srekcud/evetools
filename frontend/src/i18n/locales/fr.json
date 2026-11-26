@@ -369,7 +369,8 @@
       "colonies": "Colonies",
       "stock": "Stock",
       "supply": "Approvisionnement",
-      "revenue": "Revenus"
+      "revenue": "Revenus",
+      "layouts": "Layouts"
     },
     "stock": {
       "banner": {
@@ -1031,6 +1032,93 @@
         "empty": "Aucune sortie en attente sur tes colonies.",
         "unknown": "inconnu",
         "age": "il y a {hours} h"
+      }
+    },
+    "layouts": {
+      "loadError": "Vos layouts de colonie n'ont pas pu être chargés.",
+      "renameError": "Le layout n'a pas pu être renommé.",
+      "deleteError": "Le layout n'a pas pu être supprimé.",
+      "import": {
+        "title": "Importer un layout",
+        "subtitle": "Collez le JSON d'un template de colonie exporté du jeu. Il est vérifié contre les données du jeu et enregistré parmi vos layouts.",
+        "textLabel": "Template du jeu (JSON)",
+        "textPlaceholder": "Collez le template du jeu ici",
+        "nameLabel": "Nom du layout (facultatif)",
+        "namePlaceholder": "Par défaut, le commentaire écrit dans le template",
+        "submit": "Importer le layout"
+      },
+      "mine": {
+        "title": "Mes layouts",
+        "subtitle": "Copiez ou téléchargez un layout pour le recoller dans le jeu, avec son nom comme commentaire du template.",
+        "empty": "Aucun layout pour l'instant. Collez un template du jeu ci-dessus pour le garder ici."
+      },
+      "card": {
+        "level": "Centre de commande",
+        "pins": "Pins",
+        "pinsDetail": "{extractorControlUnits} unités de contrôle d'extracteur, {processors} usines, {storages} stockages, {launchpads} launchpads",
+        "cpu": "CPU",
+        "powergrid": "PG",
+        "unknown": "Inconnu",
+        "loadUnknown": "Un bâtiment de ce layout n'a pas de valeur CPU ou PG dans les données du jeu",
+        "noProduct": "Aucun produit",
+        "extracted": "Extrait : {names}",
+        "copy": "Copier",
+        "copied": "Copié",
+        "copyFailed": "Le template n'a pas pu être copié.",
+        "download": "Télécharger",
+        "rename": "Renommer",
+        "renameLabel": "Nouveau nom",
+        "delete": "Supprimer",
+        "deleteConfirm": "Supprimer le layout « {name} » ?",
+        "confirm": "Confirmer",
+        "cancel": "Annuler"
+      },
+      "community": {
+        "title": "Collections communautaires",
+        "subtitle": "Templates partagés par d'autres joueurs, hébergés hors de cette application. Copiez-en un depuis leur site et collez-le ci-dessus.",
+        "links": {
+          "dalshooth": {
+            "name": "DalShooth, EVE PI Templates",
+            "description": "Dépôt GitHub de templates du jeu classés par type de planète et par produit."
+          },
+          "metalgear": {
+            "name": "MetalGear32, evepi",
+            "description": "Dépôt GitHub de templates d'interaction planétaire."
+          },
+          "legion": {
+            "name": "TheLegi0n-NBI, PlayingWithPP",
+            "description": "Dépôt GitHub de templates et de notes de planification."
+          },
+          "university": {
+            "name": "EVE University, PI Templates",
+            "description": "Page du wiki qui liste des templates avec leur usage."
+          },
+          "colonyBuilder": {
+            "name": "Colony Builder for Industrial EVE",
+            "description": "Fil du forum qui présente un outil de construction de colonie."
+          }
+        }
+      },
+      "errors": {
+        "missing": "Cette valeur est absente.",
+        "invalid_type": "Cette valeur n'a pas le bon type.",
+        "out_of_range": "Cette valeur est hors des bornes permises.",
+        "unknown_planet": "Ce type de planète n'est pas dans les données du jeu.",
+        "unknown_installation": "Ce bâtiment n'est pas une installation planétaire des données du jeu.",
+        "unknown_product": "Ce produit n'est pas valide ici.",
+        "too_many_pins": "Le template a plus de 200 pins.",
+        "too_many_links": "Le template a plus de 400 liens.",
+        "too_many_routes": "Le template a plus de 600 routes.",
+        "too_large": "Le texte dépasse 64 Kio.",
+        "invalid_json": "Le texte n'est pas un objet JSON.",
+        "empty_layout": "Le template n'a ni usine ni unité de contrôle d'extracteur.",
+        "route_not_linked": "Deux pins consécutifs de cette route ne sont pas reliés.",
+        "same_pin": "Un lien ne peut pas relier un pin à lui-même.",
+        "too_short": "Une route demande au moins deux pins.",
+        "name_blank": "Le nom est vide.",
+        "name_too_long": "Le nom dépasse 100 caractères.",
+        "layout_limit_reached": "Vous avez déjà 100 layouts, supprimez-en un d'abord.",
+        "request_failed": "L'import a échoué, réessayez."
       }
     }
   },

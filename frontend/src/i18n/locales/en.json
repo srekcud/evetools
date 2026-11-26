@@ -369,7 +369,8 @@
       "colonies": "Colonies",
       "stock": "Stock",
       "supply": "Supply",
-      "revenue": "Revenue"
+      "revenue": "Revenue",
+      "layouts": "Layouts"
     },
     "stock": {
       "banner": {
@@ -1031,6 +1032,93 @@
         "empty": "No pending output on your colonies.",
         "unknown": "unknown",
         "age": "{hours} h old"
+      }
+    },
+    "layouts": {
+      "loadError": "Your colony layouts could not be loaded.",
+      "renameError": "The layout could not be renamed.",
+      "deleteError": "The layout could not be deleted.",
+      "import": {
+        "title": "Import a layout",
+        "subtitle": "Paste the JSON of a colony template exported from the game. It is checked against the game data and stored as one of your layouts.",
+        "textLabel": "Game template (JSON)",
+        "textPlaceholder": "Paste the game template here",
+        "nameLabel": "Layout name (optional)",
+        "namePlaceholder": "Defaults to the comment written in the template",
+        "submit": "Import the layout"
+      },
+      "mine": {
+        "title": "My layouts",
+        "subtitle": "Copy or download a layout to paste it back into the game, with its name as the template comment.",
+        "empty": "No layout yet. Paste a game template above to keep it here."
+      },
+      "card": {
+        "level": "Command center",
+        "pins": "Pins",
+        "pinsDetail": "{extractorControlUnits} extractor control units, {processors} processors, {storages} storages, {launchpads} launchpads",
+        "cpu": "CPU",
+        "powergrid": "PG",
+        "unknown": "Unknown",
+        "loadUnknown": "A building of this layout has no CPU or PG value in the game data",
+        "noProduct": "No product",
+        "extracted": "Extracts: {names}",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyFailed": "The template could not be copied.",
+        "download": "Download",
+        "rename": "Rename",
+        "renameLabel": "New name",
+        "delete": "Delete",
+        "deleteConfirm": "Delete the layout \"{name}\"?",
+        "confirm": "Confirm",
+        "cancel": "Cancel"
+      },
+      "community": {
+        "title": "Community collections",
+        "subtitle": "Templates shared by other players, hosted outside this app. Copy one from there and paste it above.",
+        "links": {
+          "dalshooth": {
+            "name": "DalShooth, EVE PI Templates",
+            "description": "GitHub repository of game templates sorted by planet type and product."
+          },
+          "metalgear": {
+            "name": "MetalGear32, evepi",
+            "description": "GitHub repository of planetary interaction templates."
+          },
+          "legion": {
+            "name": "TheLegi0n-NBI, PlayingWithPP",
+            "description": "GitHub repository of templates and planning notes."
+          },
+          "university": {
+            "name": "EVE University, PI Templates",
+            "description": "Wiki page listing templates with their purpose."
+          },
+          "colonyBuilder": {
+            "name": "Colony Builder for Industrial EVE",
+            "description": "Forum thread introducing a colony builder tool."
+          }
+        }
+      },
+      "errors": {
+        "missing": "This value is missing.",
+        "invalid_type": "This value has the wrong type.",
+        "out_of_range": "This value is out of the allowed range.",
+        "unknown_planet": "This planet type is not in the game data.",
+        "unknown_installation": "This building is not a planetary installation of the game data.",
+        "unknown_product": "This product is not valid here.",
+        "too_many_pins": "The template has more than 200 pins.",
+        "too_many_links": "The template has more than 400 links.",
+        "too_many_routes": "The template has more than 600 routes.",
+        "too_large": "The text is larger than 64 KiB.",
+        "invalid_json": "The text is not a JSON object.",
+        "empty_layout": "The template has no processor and no extractor control unit.",
+        "route_not_linked": "Two consecutive pins of this route are not linked.",
+        "same_pin": "A link cannot join a pin to itself.",
+        "too_short": "A route needs at least two pins.",
+        "name_blank": "The name is empty.",
+        "name_too_long": "The name is longer than 100 characters.",
+        "layout_limit_reached": "You already have 100 layouts, delete one first.",
+        "request_failed": "The import failed, try again."
       }
     }
   },
