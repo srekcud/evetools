@@ -50,6 +50,12 @@ final class PlanetaryStockApiTest extends WebTestCase
     private const int BOB_EVE_ID = 2_113_950_003;
     private const int CAROL_EVE_ID = 2_113_950_004;
     private const int DAN_EVE_ID = 2_113_950_005;
+    private const int ERIN_EVE_ID = 2_113_950_006;
+    private const int ERIN_SECOND_EVE_ID = 2_113_950_007;
+
+    private const int UNRESOLVED_CUSTOMS_OFFICE_ID = 1_020_000_000_001;
+    private const int UNRESOLVED_LOCATION_ID = 1_020_000_000_002;
+    private const int NAMED_STRUCTURE_ID = 1_020_000_000_003;
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -57,6 +63,7 @@ final class PlanetaryStockApiTest extends WebTestCase
     private User $bob;
     private User $carol;
     private User $dan;
+    private User $erin;
     private int $nextItemId = 1_139_500_000_001;
     private int $nextOrderId = 1_139_500_900_001;
     private int $nextPlanetId = 40_139_501;
@@ -74,17 +81,22 @@ final class PlanetaryStockApiTest extends WebTestCase
         $this->bob = $this->persistPilot('Bob Kess', self::BOB_EVE_ID);
         $this->carol = $this->persistPilot('Carol Vane', self::CAROL_EVE_ID);
         $this->dan = $this->persistPilot('Dan Orsk', self::DAN_EVE_ID);
+        $this->erin = $this->persistPilot('Erin Holt', self::ERIN_EVE_ID);
+        $erinSecond = $this->persistSecondCharacter($this->erin, 'Eli Holt', self::ERIN_SECOND_EVE_ID);
 
         $this->alice->setPlanetaryHomeLocation(self::JITA_STATION_ID, self::JITA_STATION_NAME);
         $this->carol->setPlanetaryHomeLocation(self::JITA_STATION_ID, self::JITA_STATION_NAME);
+        $this->erin->setPlanetaryHomeLocation(self::JITA_STATION_ID, self::JITA_STATION_NAME);
         $this->em->flush();
 
         $this->persistFactoryColony($this->alice, self::ALICE_CAROL_SCHEMATIC);
         $this->persistFactoryColony($this->bob, self::BOB_SCHEMATIC);
         $this->persistFactoryColony($this->carol, self::ALICE_CAROL_SCHEMATIC);
+        $this->persistFactoryColony($this->erin, self::ALICE_CAROL_SCHEMATIC);
 
         $this->persistAliceStock($this->alice->getMainCharacter(), $aliceSecond);
         $this->persistBobStock($this->bob->getMainCharacter());
+        $this->persistErinStock($this->erin->getMainCharacter(), $erinSecond);
     }
 
     public function testTheStockRequiresAuthentication(): void
@@ -183,6 +195,39 @@ final class PlanetaryStockApiTest extends WebTestCase
         self::assertSame([], $body['rows']);
         self::assertFalse($body['complete']);
         self::assertNull($body['homeLocationId']);
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeStockOfAllTheCharactersIsHeldStockInTheCoverageAndWhatToBuy(): void
+    {
+        $body = $this->read($this->erin);
+
+        self::assertTrue($body['complete']);
+        self::assertSame([self::BACTERIA, self::REACTIVE_METALS], array_column($body['rows'], 'typeId'));
+
+        $bacteria = $this->rowOf($body, self::BACTERIA);
+        self::assertArrayHasKey('customsOffice', $bacteria);
+        self::assertSame([1_000, 0, 0, 2_000, 0, 17_160], [$bacteria['home'], $bacteria['hub'], $bacteria['corp'], $bacteria['customsOffice'], $bacteria['openOrders'], $bacteria['toBuy']]);
+        self::assertEqualsWithDelta(0.4464286, $bacteria['coverageWeeks'], 0.0000001);
+        self::assertEqualsWithDelta(0.4464286, $bacteria['coverageWithOrdersWeeks'], 0.0000001);
+
+        $metals = $this->rowOf($body, self::REACTIVE_METALS);
+        self::assertArrayHasKey('customsOffice', $metals);
+        self::assertSame([0, 0, 0, 80, 0, 12_520], [$metals['home'], $metals['hub'], $metals['corp'], $metals['customsOffice'], $metals['openOrders'], $metals['toBuy']]);
+        self::assertEqualsWithDelta(0.0190476, $metals['coverageWeeks'], 0.0000001);
+    }
+
+    #[Group('issue-1390')]
+    public function testUsersWithoutCustomsOfficeStockGetAZeroOnEveryRowAndNeverTheStockOfAnotherUser(): void
+    {
+        $body = $this->read($this->alice);
+
+        self::assertSame([self::BACTERIA, self::REACTIVE_METALS], array_column($body['rows'], 'typeId'));
+        foreach ($body['rows'] as $row) {
+            self::assertArrayHasKey('customsOffice', $row);
+            self::assertSame(0, $row['customsOffice']);
+        }
+        self::assertSame(16_260, $this->rowOf($body, self::BACTERIA)['toBuy']);
     }
 
     private function actAs(User $user): void
@@ -352,7 +397,20 @@ final class PlanetaryStockApiTest extends WebTestCase
         $this->em->flush();
     }
 
-    private function persistAsset(Character $character, int $typeId, int $quantity, int $locationId, string $locationType, bool $singleton = false): int
+    private function persistErinStock(Character $main, Character $second): void
+    {
+        $customsOfficeName = 'Structure #'.self::UNRESOLVED_CUSTOMS_OFFICE_ID;
+        $box = $this->persistAsset($main, self::CONTAINER_TYPE_ID, 1, self::UNRESOLVED_CUSTOMS_OFFICE_ID, 'other', true, $customsOfficeName);
+        $this->persistAsset($main, self::BACTERIA, 1_200, self::UNRESOLVED_CUSTOMS_OFFICE_ID, 'other', false, $customsOfficeName);
+        $this->persistAsset($main, self::BACTERIA, 300, $box, 'item', false, $customsOfficeName);
+        $this->persistAsset($main, self::REACTIVE_METALS, 80, self::UNRESOLVED_LOCATION_ID, 'other', false, 'Location #'.self::UNRESOLVED_LOCATION_ID);
+        $this->persistAsset($main, self::BACTERIA, 4_000, self::NAMED_STRUCTURE_ID, 'other', false, 'Ashab - Market Fortizar');
+        $this->persistAsset($main, self::BACTERIA, 1_000, self::JITA_STATION_ID, 'station');
+        $this->persistAsset($second, self::BACTERIA, 500, self::UNRESOLVED_CUSTOMS_OFFICE_ID, 'other', false, $customsOfficeName);
+        $this->em->flush();
+    }
+
+    private function persistAsset(Character $character, int $typeId, int $quantity, int $locationId, string $locationType, bool $singleton = false, ?string $locationName = null): int
     {
         $itemId = $this->nextItemId++;
         $this->em->persist((new CachedAsset())
@@ -361,7 +419,7 @@ final class PlanetaryStockApiTest extends WebTestCase
             ->setTypeName('Type '.$typeId)
             ->setQuantity($quantity)
             ->setLocationId($locationId)
-            ->setLocationName('Location '.$locationId)
+            ->setLocationName($locationName ?? 'Location '.$locationId)
             ->setLocationType($locationType)
             ->setLocationFlag('Hangar')
             ->setIsSingleton($singleton)

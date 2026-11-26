@@ -38,6 +38,28 @@ final class AssetBrowseRepositoryTest extends IntegrationTestCase
     private const int STOCK_OTHER_CHARACTER_TRITANIUM = 1_395_000_012;
     private const int STOCK_CORPORATION_TRITANIUM = 1_395_000_013;
 
+    private const int UNRESOLVED_STRUCTURE_ID = 1_020_000_000_001;
+    private const int UNRESOLVED_LOCATION_ID = 1_020_000_000_002;
+    private const int NAMED_OTHER_STRUCTURE_ID = 1_020_000_000_003;
+    private const int SOLAR_SYSTEM_ID = 30_000_142;
+    private const int CUSTOMS_ROBOTICS_LOOSE = 1_390_000_001;
+    private const int CUSTOMS_BOX = 1_390_000_002;
+    private const int CUSTOMS_ROBOTICS_IN_BOX = 1_390_000_003;
+    private const int CUSTOMS_COOLANT_AT_LOCATION = 1_390_000_004;
+    private const int CUSTOMS_ROBOTICS_IN_STATION = 1_390_000_005;
+    private const int CUSTOMS_STATION_BOX = 1_390_000_006;
+    private const int CUSTOMS_BACTERIA_IN_STATION = 1_390_000_007;
+    private const int CUSTOMS_BACTERIA_IN_NAMED_STRUCTURE = 1_390_000_008;
+    private const int CUSTOMS_BACTERIA_IN_SOLAR_SYSTEM = 1_390_000_009;
+    private const int CUSTOMS_OTHER_CHARACTER_ROBOTICS = 1_390_000_010;
+    private const int CUSTOMS_CORPORATION_ROBOTICS = 1_390_000_011;
+    private const int CUSTOMS_ROBOTICS_IN_NAMED_STRUCTURE = 1_390_000_012;
+    private const int CUSTOMS_ROBOTICS_IN_SOLAR_SYSTEM = 1_390_000_013;
+
+    private const int ROBOTICS_TYPE = 9_848;
+    private const int COOLANT_TYPE = 9_832;
+    private const int BACTERIA_TYPE = 2_393;
+
     private const int SHIP_TYPE = 603;
     private const int TRITANIUM_TYPE = 34;
     private const int PYERITE_TYPE = 35;
@@ -305,6 +327,101 @@ final class AssetBrowseRepositoryTest extends IntegrationTestCase
         self::assertSame([], $this->repository->quantitiesByRootLocation($scope, [], []));
     }
 
+    #[Group('issue-1390')]
+    public function testCustomsOfficeQuantitiesCountItemsAndContainersUnderAnUnresolvedStructureName(): void
+    {
+        $scope = $this->customsOfficeInventory();
+
+        self::assertSame(
+            [self::ROBOTICS_TYPE => 1_500],
+            $this->repository->customsOfficeQuantities($scope, [self::ROBOTICS_TYPE]),
+        );
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeQuantitiesCountItemsUnderAnUnresolvedLocationName(): void
+    {
+        $scope = $this->customsOfficeInventory();
+
+        self::assertSame(
+            [self::COOLANT_TYPE => 90],
+            $this->repository->customsOfficeQuantities($scope, [self::COOLANT_TYPE]),
+        );
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeQuantitiesAreGroupedPerTypeAndLeaveOutTypesOutOfTheList(): void
+    {
+        $scope = $this->customsOfficeInventory();
+
+        $quantities = $this->repository->customsOfficeQuantities($scope, [self::COOLANT_TYPE, self::ROBOTICS_TYPE, self::BACTERIA_TYPE, self::TRITANIUM_TYPE]);
+        ksort($quantities);
+
+        self::assertSame([self::COOLANT_TYPE => 90, self::ROBOTICS_TYPE => 1_500], $quantities);
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeQuantitiesIgnoreResolvedStationsNamedStructuresAndSolarSystems(): void
+    {
+        $scope = $this->customsOfficeInventory();
+
+        self::assertSame([], $this->repository->customsOfficeQuantities($scope, [self::BACTERIA_TYPE]));
+        self::assertSame(
+            [self::ROBOTICS_TYPE => 1_500],
+            $this->repository->customsOfficeQuantities($scope, [self::ROBOTICS_TYPE]),
+        );
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeQuantitiesOfAnotherCharacterAndCorporationAssetsAreNotInThePersonalScope(): void
+    {
+        $pilotScope = $this->customsOfficeInventory();
+        $otherScope = AssetScope::forCharacter($this->stockOtherCharacterId);
+
+        self::assertSame(
+            [self::ROBOTICS_TYPE => 700],
+            $this->repository->customsOfficeQuantities($otherScope, [self::ROBOTICS_TYPE]),
+        );
+        self::assertSame(
+            [self::ROBOTICS_TYPE => 1_500],
+            $this->repository->customsOfficeQuantities($pilotScope, [self::ROBOTICS_TYPE]),
+        );
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeQuantitiesOfAnEmptyTypeListAreEmpty(): void
+    {
+        $scope = $this->customsOfficeInventory();
+
+        self::assertSame([], $this->repository->customsOfficeQuantities($scope, []));
+    }
+
+    private function customsOfficeInventory(): AssetScope
+    {
+        $pilot = $this->createCharacter(null, 'Ilse Varrow');
+        $other = $this->createCharacter(null, 'Someone Else');
+        $structureName = 'Structure #'.self::UNRESOLVED_STRUCTURE_ID;
+        $locationName = 'Location #'.self::UNRESOLVED_LOCATION_ID;
+
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_ROBOTICS_LOOSE, self::ROBOTICS_TYPE, 'Robotics', 1_200, self::UNRESOLVED_STRUCTURE_ID, $structureName, 'other', 'Hangar', null));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_BOX, self::CONTAINER_TYPE, 'Giant Secure Container', 1, self::UNRESOLVED_STRUCTURE_ID, $structureName, 'other', 'Hangar', null)->setIsSingleton(true));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_ROBOTICS_IN_BOX, self::ROBOTICS_TYPE, 'Robotics', 300, self::CUSTOMS_BOX, $structureName, 'item', 'Unlocked', null));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_COOLANT_AT_LOCATION, self::COOLANT_TYPE, 'Coolant', 90, self::UNRESOLVED_LOCATION_ID, $locationName, 'other', 'Hangar', null));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_ROBOTICS_IN_STATION, self::ROBOTICS_TYPE, 'Robotics', 400, self::JITA_ID, 'Jita IV', 'station', 'Hangar', 'Jita'));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_STATION_BOX, self::CONTAINER_TYPE, 'Giant Secure Container', 1, self::JITA_ID, 'Jita IV', 'station', 'Hangar', 'Jita')->setIsSingleton(true));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_BACTERIA_IN_STATION, self::BACTERIA_TYPE, 'Bacteria', 25, self::CUSTOMS_STATION_BOX, 'Jita IV', 'item', 'Unlocked', 'Jita'));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_BACTERIA_IN_NAMED_STRUCTURE, self::BACTERIA_TYPE, 'Bacteria', 35, self::NAMED_OTHER_STRUCTURE_ID, 'Ashab - Market Fortizar', 'other', 'Hangar', 'Ashab'));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_ROBOTICS_IN_NAMED_STRUCTURE, self::ROBOTICS_TYPE, 'Robotics', 777, self::NAMED_OTHER_STRUCTURE_ID, 'Ashab - Market Fortizar', 'other', 'Hangar', 'Ashab'));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_BACTERIA_IN_SOLAR_SYSTEM, self::BACTERIA_TYPE, 'Bacteria', 45, self::SOLAR_SYSTEM_ID, 'Location #'.self::SOLAR_SYSTEM_ID, 'solar_system', 'Hangar', 'Jita'));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_ROBOTICS_IN_SOLAR_SYSTEM, self::ROBOTICS_TYPE, 'Robotics', 66, self::SOLAR_SYSTEM_ID, 'Structure #'.self::SOLAR_SYSTEM_ID, 'solar_system', 'Hangar', 'Jita'));
+        $this->em->persist($this->personal($other, self::CUSTOMS_OTHER_CHARACTER_ROBOTICS, self::ROBOTICS_TYPE, 'Robotics', 700, self::UNRESOLVED_STRUCTURE_ID, $structureName, 'other', 'Hangar', null));
+        $this->em->persist($this->personal($pilot, self::CUSTOMS_CORPORATION_ROBOTICS, self::ROBOTICS_TYPE, 'Robotics', 5_555, self::UNRESOLVED_STRUCTURE_ID, $structureName, 'other', 'CorpSAG1', null)->setCorporationId(self::CORPORATION_ID)->setIsCorporationAsset(true));
+        $this->flushAndClear();
+        $this->stockOtherCharacterId = $other->getId()->toRfc4122();
+
+        return AssetScope::forCharacter($pilot->getId()->toRfc4122());
+    }
+
     private function personalScopeWithInventory(): AssetScope
     {
         $pilot = $this->createCharacter(null, 'Ilse Varrow');
@@ -433,6 +550,9 @@ final class AssetBrowseRepositoryTest extends IntegrationTestCase
             [self::TRITANIUM_TYPE, 'Tritanium', 18],
             [self::PYERITE_TYPE, 'Pyerite', 18],
             [1_230, 'Veldspar', 18],
+            [self::ROBOTICS_TYPE, 'Robotics', 18],
+            [self::COOLANT_TYPE, 'Coolant', 18],
+            [self::BACTERIA_TYPE, 'Bacteria', 18],
             [self::CONTAINER_TYPE, 'Giant Secure Container', 12],
         ] as [$typeId, $name, $groupId]) {
             $this->em->persist((new InvType())->setTypeId($typeId)->setTypeName($name)->setGroup($groups[$groupId])->setPublished(true));

@@ -33,5 +33,8 @@ class PlanetaryPendingStockResource
     /** @var list<array<string, mixed>> */
     public array $pendingOutputs = [];
 
+    /** @var list<array<string, mixed>> */
+    public array $customsOfficeStocks = [];
+
     public bool $complete = true;
 }

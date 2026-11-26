@@ -58,6 +58,12 @@ final class PlanetaryStockReaderTest extends TestCase
     /** @var list<array{string|null, list<int>, list<int>}> */
     private array $assetRequests = [];
 
+    /** @var array<string, array<int, int>> */
+    private array $customsByCharacterUuid = [];
+
+    /** @var list<array{string|null, list<int>}> */
+    private array $customsRequests = [];
+
     /** @var list<CachedCharacterBuyOrder> */
     private array $storedOrders = [];
 
@@ -117,6 +123,14 @@ final class PlanetaryStockReaderTest extends TestCase
             },
         );
 
+        $this->assetBrowseRepository->method('customsOfficeQuantities')->willReturnCallback(
+            function (AssetScope $scope, array $typeIds): array {
+                $this->customsRequests[] = [$scope->characterId, $typeIds];
+
+                return array_intersect_key($this->customsByCharacterUuid[$scope->characterId] ?? [], array_flip($typeIds));
+            },
+        );
+
         $this->buyOrderRepository = $this->createStub(CachedCharacterBuyOrderRepository::class);
         $this->buyOrderRepository->method('findByCharactersAndTypes')->willReturnCallback(
             function (array $characters, array $typeIds): array {
@@ -167,11 +181,11 @@ final class PlanetaryStockReaderTest extends TestCase
         self::assertCount(2, $stock->rows);
         self::assertSame([self::COOLANT, self::ROBOTICS], array_map(static fn (PlanetaryStockRow $row): int => $row->typeId, $stock->rows));
         self::assertSame(
-            ['Robotics', 0.15, 1000.0, 1500, 500, 100, 400, 2.1, 2.5, 500],
+            ['Robotics', 0.15, 1000.0, 1500, 500, 100, 0, 400, 2.1, 2.5, 500],
             $this->valuesOf($stock->rows[1]),
         );
         self::assertSame(
-            ['Coolant', 1.5, 600.0, 90, 0, 0, 30, 0.15, 0.2, 1680],
+            ['Coolant', 1.5, 600.0, 90, 0, 0, 0, 30, 0.15, 0.2, 1680],
             $this->valuesOf($stock->rows[0]),
         );
         self::assertNull($stock->corpUnknownReason);
@@ -198,7 +212,7 @@ final class PlanetaryStockReaderTest extends TestCase
         $stock = $this->reader()->read($this->user, new PlanetaryStockSettings(null, self::HUB_STATION, 3));
 
         self::assertCount(1, $stock->rows);
-        self::assertSame(['Robotics', 0.15, 1000.0, null, 500, null, 0, null, null, null], $this->valuesOf($stock->rows[0]));
+        self::assertSame(['Robotics', 0.15, 1000.0, null, 500, null, 0, 0, null, null, null], $this->valuesOf($stock->rows[0]));
         self::assertFalse($stock->complete);
         foreach ($this->assetRequests as [, $rootLocationIds]) {
             self::assertSame([self::HUB_STATION], $rootLocationIds);
@@ -213,7 +227,7 @@ final class PlanetaryStockReaderTest extends TestCase
         $stock = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3));
 
         self::assertCount(1, $stock->rows);
-        self::assertSame([null, null, null, 40, 0, 0, 0, null, null, null], $this->valuesOf($stock->rows[0]));
+        self::assertSame([null, null, null, 40, 0, 0, 0, 0, null, null, null], $this->valuesOf($stock->rows[0]));
         self::assertFalse($stock->complete);
     }
 
@@ -236,8 +250,56 @@ final class PlanetaryStockReaderTest extends TestCase
         $stock = $this->reader()->read(new User(), new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3));
 
         self::assertCount(1, $stock->rows);
-        self::assertSame(['Robotics', 0.15, 1000.0, 0, 0, 0, 0, 0.0, 0.0, 3000], $this->valuesOf($stock->rows[0]));
+        self::assertSame(['Robotics', 0.15, 1000.0, 0, 0, 0, 0, 0, 0.0, 0.0, 3000], $this->valuesOf($stock->rows[0]));
         self::assertSame([], $this->assetRequests);
+        self::assertSame([], $this->customsRequests);
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeQuantitiesOfEveryCharacterAreSummedForTheConsumedTypesOnly(): void
+    {
+        $this->inputNeeds = [
+            'weekly' => [
+                $this->weeklyRow(self::ROBOTICS, 'Robotics', 1000.0),
+                $this->weeklyRow(self::COOLANT, 'Coolant', 800.0),
+            ],
+            'complete' => true,
+        ];
+        $this->sdeTypes = [self::ROBOTICS => $this->sdeType(self::ROBOTICS, 0.15), self::COOLANT => $this->sdeType(self::COOLANT, 1.5)];
+        $this->assetsByCharacterUuid = [self::ALMA_UUID => [self::HOME_STATION => [self::ROBOTICS => 300]]];
+        $this->customsByCharacterUuid = [
+            self::ALMA_UUID => [self::ROBOTICS => 700, self::COOLANT => 40, self::BACTERIA => 5_000],
+            self::CORA_UUID => [self::ROBOTICS => 500],
+        ];
+
+        $stock = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3));
+
+        self::assertCount(2, $stock->rows);
+        self::assertSame(
+            ['Robotics', 0.15, 1000.0, 300, 0, 0, 1_200, 0, 1.5, 1.5, 1_500],
+            $this->valuesOf($stock->rows[1]),
+        );
+        self::assertSame(
+            ['Coolant', 1.5, 800.0, 0, 0, 0, 40, 0, 0.05, 0.05, 2_360],
+            $this->valuesOf($stock->rows[0]),
+        );
+        self::assertSame([self::ALMA_UUID, self::CORA_UUID], array_column($this->customsRequests, 0));
+        foreach ($this->customsRequests as [, $typeIds]) {
+            self::assertEqualsCanonicalizing([self::ROBOTICS, self::COOLANT], $typeIds);
+        }
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeIsZeroWhenNoCharacterHoldsTheTypeThere(): void
+    {
+        $this->inputNeeds = ['weekly' => [$this->weeklyRow(self::BACTERIA, 'Bacteria', 600.0)], 'complete' => true];
+        $this->sdeTypes = [self::BACTERIA => $this->sdeType(self::BACTERIA, 0.5)];
+        $this->customsByCharacterUuid = [self::ALMA_UUID => [self::ROBOTICS => 700]];
+
+        $stock = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3));
+
+        self::assertCount(1, $stock->rows);
+        self::assertSame(0, $stock->rows[0]->customsOffice);
     }
 
     private function reader(): PlanetaryStockReader
@@ -294,6 +356,6 @@ final class PlanetaryStockReaderTest extends TestCase
      */
     private function valuesOf(PlanetaryStockRow $row): array
     {
-        return [$row->typeName, $row->volumePerUnit, $row->weeklyConsumption, $row->home, $row->hub, $row->corp, $row->openOrders, $row->coverageWeeks, $row->coverageWithOrdersWeeks, $row->toBuy];
+        return [$row->typeName, $row->volumePerUnit, $row->weeklyConsumption, $row->home, $row->hub, $row->corp, $row->customsOffice, $row->openOrders, $row->coverageWeeks, $row->coverageWithOrdersWeeks, $row->toBuy];
     }
 }
