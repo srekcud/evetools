@@ -283,4 +283,48 @@ class MarketHistoryServiceTest extends TestCase
 
         $service->syncHistory(34);
     }
+
+    public function testSyncHistoryReturnsZeroWhenEsiReturnsEmpty(): void
+    {
+        $this->esiClient->method('get')->willReturn([]);
+
+        $this->assertSame(0, $this->service->syncHistory(34));
+    }
+
+    public function testSyncHistoryReturnsTheNumberOfEntriesReceivedFromEsi(): void
+    {
+        /** @var MarketHistoryService $service */
+        /** @var Connection&MockObject $connection */
+        [$service, $connection] = $this->createServiceWithMockConnection();
+
+        $this->historyRepository->method('getLatestDate')->willReturn(null);
+        $this->esiClient->method('get')->willReturn([
+            ['date' => '2026-02-13', 'order_count' => 100, 'volume' => 5000, 'lowest' => 5.0, 'highest' => 6.0, 'average' => 5.5],
+            ['date' => '2026-02-14', 'order_count' => 110, 'volume' => 5500, 'lowest' => 5.1, 'highest' => 6.1, 'average' => 5.6],
+            ['date' => '2026-02-15', 'order_count' => 120, 'volume' => 6000, 'lowest' => 5.2, 'highest' => 6.2, 'average' => 5.7],
+        ]);
+        $stmt = $this->createStub(Statement::class);
+        $stmt->method('bindValue')->willReturnSelf();
+        $connection->method('prepare')->willReturn($stmt);
+
+        $this->assertSame(3, $service->syncHistory(34));
+    }
+
+    public function testSyncHistoryReturnsTheNumberOfEntriesReceivedEvenWhenAllOfThemAreAlreadyStored(): void
+    {
+        /** @var MarketHistoryService $service */
+        /** @var Connection&MockObject $connection */
+        [$service, $connection] = $this->createServiceWithMockConnection();
+
+        $this->historyRepository->method('getLatestDate')->willReturn(new \DateTime('2026-02-20'));
+        $this->esiClient->method('get')->willReturn([
+            ['date' => '2026-02-18', 'order_count' => 50, 'volume' => 1000, 'lowest' => 4.0, 'highest' => 5.0, 'average' => 4.5],
+            ['date' => '2026-02-19', 'order_count' => 60, 'volume' => 1100, 'lowest' => 4.1, 'highest' => 5.1, 'average' => 4.6],
+        ]);
+        $stmt = $this->createMock(Statement::class);
+        $stmt->expects($this->never())->method('executeStatement');
+        $connection->method('prepare')->willReturn($stmt);
+
+        $this->assertSame(2, $service->syncHistory(34));
+    }
 }
