@@ -218,3 +218,16 @@ export function withMarketProduct(market: PlannerMarket, typeId: number, changes
 export function withoutMarketProduct(market: PlannerMarket, typeId: number): PlannerMarket {
   return { ...market, products: market.products.filter(product => product.typeId !== typeId) }
 }
+
+export const DISTINCT_OUTPUTS_CATALOG: PlannerCatalog = withSellPrices(
+  withRecipe(
+    withRecipe(
+      withRecipe(PLANNER_CATALOG, COOLANT, { outputQuantity: 4 }),
+      MECHANICAL_PARTS,
+      { outputQuantity: 6 },
+    ),
+    ROBOTICS,
+    { inputs: [{ typeId: COOLANT, quantity: 10 }, { typeId: MECHANICAL_PARTS, quantity: 20 }] },
+  ),
+  { [COOLANT]: 3_000 },
+)
