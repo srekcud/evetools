@@ -8,6 +8,8 @@ import { usePlanetaryHelpers, TIER_CONFIG } from '@/composables/usePlanetaryHelp
 import { useTypeNames } from '@/composables/useTypeNames'
 import type { Colony, PlanetaryInputNeedsLaunchpad } from '@/stores/planetary'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
+import PiExtractorYieldCurve from '@/components/planetary/PiExtractorYieldCurve.vue'
+import PiLaunchpadStockCurve from '@/components/planetary/PiLaunchpadStockCurve.vue'
 import PiFactoryProgress from '@/components/planetary/PiFactoryProgress.vue'
 import PiPowerGauge from '@/components/planetary/PiPowerGauge.vue'
 import PiTierBadge from '@/components/planetary/PiTierBadge.vue'
@@ -309,8 +311,21 @@ defineEmits<{
                 <span class="text-slate-500">{{ t('pi.colony.initialRate') }}</span>
                 <span class="text-cyan-400 font-medium">{{ formatDailyOutput(pin) }}</span>
               </div>
+              <PiExtractorYieldCurve
+                :curve="pin.yieldCurve ?? null"
+                :install-time="pin.installTime"
+                :expiry-time="pin.expiryTime"
+              />
             </div>
           </div>
+        </div>
+
+        <div v-if="launchpads.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <PiLaunchpadStockCurve
+            v-for="launchpad in launchpads"
+            :key="launchpad.pinId"
+            :launchpad="launchpad"
+          />
         </div>
 
         <!-- Factories Detail -->

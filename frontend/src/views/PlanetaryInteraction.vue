@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { usePlanetaryStore, type Colony, type PlanetarySlotCharacter } from '@/stores/planetary'
+import { usePlanetaryStore, type Colony, type PlanetaryInputNeedsLaunchpad, type PlanetarySlotCharacter } from '@/stores/planetary'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -168,6 +168,14 @@ function arrange(colonies: Colony[]): Colony[] {
 const actionByColonyId = computed(() => new Map(
   planetaryStore.colonies.map(colony => [colony.id, nextActionOf(colony, inputNeeds.value)] as const),
 ))
+
+const launchpadsByColonyId = computed(() => {
+  const grouped = new Map<string, PlanetaryInputNeedsLaunchpad[]>()
+  for (const launchpad of inputNeeds.value?.launchpads ?? []) {
+    grouped.set(launchpad.colonyId, [...(grouped.get(launchpad.colonyId) ?? []), launchpad])
+  }
+  return grouped
+})
 
 const colonyGroups = computed<ColonyGroup[]>(() => {
   const byCharacter = planetaryStore.coloniesByCharacter
@@ -481,6 +489,7 @@ async function toggleColony(colonyId: string): Promise<void> {
               :show-character-name="group.showCharacterName"
               :next-action="actionByColonyId.get(colony.id) ?? null"
               :now="now"
+              :launchpads="launchpadsByColonyId.get(colony.id) ?? []"
               @toggle="toggleColony(colony.id)"
             />
           </div>
