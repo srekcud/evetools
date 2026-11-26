@@ -40,6 +40,7 @@ final class PlanetaryPlannerAccountApiTest extends WebTestCase
     private const int SECOND_REFINED_SCHEMATIC = 991_403;
     private const int SPECIALIZED_SCHEMATIC = 991_404;
     private const int ADVANCED_SCHEMATIC = 991_405;
+    private const int UNKNOWN_SCHEMATIC = 991_499;
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -176,6 +177,18 @@ final class PlanetaryPlannerAccountApiTest extends WebTestCase
 
         self::assertArrayHasKey('factories', $body);
         self::assertSame(['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0], $body['factories']);
+    }
+
+    public function testAFactoryWhoseSchematicIsUnknownMakesTheAccountAnInternalServerErrorAndNeverAPartialCount(): void
+    {
+        $this->seedFactorySchematics();
+        $this->persistFactoryColony($this->alice->getMainCharacter(), [self::REFINED_SCHEMATIC, self::UNKNOWN_SCHEMATIC], true);
+        $this->client->loginUser($this->alice, 'api');
+
+        $this->client->request('GET', '/api/planetary/planner/account', server: ['HTTP_ACCEPT' => 'application/json']);
+
+        self::assertResponseStatusCodeSame(500);
+        self::assertStringNotContainsString('"factories"', (string) $this->client->getResponse()->getContent());
     }
 
     /**

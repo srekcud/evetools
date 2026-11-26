@@ -9,6 +9,8 @@ use App\Entity\Character;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\User;
+use App\Exception\PlanetaryTierMissingFromSdeException;
+use App\Exception\PlanetSchematicIncompleteException;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\PlanetaryColonyRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
@@ -40,6 +42,7 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
     private const int UNKNOWN_SCHEMATIC = 92_199;
     private const int OUTPUT_WITHOUT_TIER_SCHEMATIC = 92_106;
     private const int OUTPUT_LESS_SCHEMATIC = 92_107;
+    private const int RAW_OUTPUT_SCHEMATIC = 92_108;
 
     private int $nextPlanetId = 40_000_000;
 
@@ -344,7 +347,8 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
         $colonies = [$this->colony($zed, [...$this->factories(self::REFINED_SCHEMATIC, 2), ...$this->factories(self::UNKNOWN_SCHEMATIC, 1)])];
 
-        $this->expectException(\Exception::class);
+        $this->expectException(PlanetSchematicIncompleteException::class);
+        $this->expectExceptionMessage('Planet schematic 92199 is incomplete in the SDE');
 
         $this->factoryReaderOver($colonies, [])->read($this->userOf($zed));
     }
@@ -354,7 +358,8 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
         $colonies = [$this->colony($zed, $this->factories(self::OUTPUT_LESS_SCHEMATIC, 1))];
 
-        $this->expectException(\Exception::class);
+        $this->expectException(PlanetSchematicIncompleteException::class);
+        $this->expectExceptionMessage('Planet schematic 92107 is incomplete in the SDE');
 
         $this->factoryReaderOver($colonies, [])->read($this->userOf($zed));
     }
@@ -364,9 +369,44 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
         $colonies = [$this->colony($zed, $this->factories(self::OUTPUT_WITHOUT_TIER_SCHEMATIC, 1))];
 
-        $this->expectException(\Exception::class);
+        $this->expectException(PlanetaryTierMissingFromSdeException::class);
+        $this->expectExceptionMessage('No PI tier found in the SDE market groups for type 92206');
 
         $this->factoryReaderOver($colonies, [])->read($this->userOf($zed));
+    }
+
+    public function testAFactoryWhoseProductIsOfTierP0IsAnExplicitErrorNotACountInAnyTier(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [$this->colony($zed, [...$this->factories(self::REFINED_SCHEMATIC, 2), ...$this->factories(self::RAW_OUTPUT_SCHEMATIC, 1)])];
+        $schematicMap = $this->schematicMap() + [self::RAW_OUTPUT_SCHEMATIC => ['inputs' => [92_201 => 5], 'output' => ['typeId' => 92_207, 'quantity' => 1]]];
+        $tiers = $this->tiersByOutput() + [92_207 => 'P0'];
+        $calls = [];
+
+        $this->expectException(PlanetaryTierMissingFromSdeException::class);
+        $this->expectExceptionMessage('No PI tier found in the SDE market groups for type 92207');
+
+        $this->readerOver($colonies, [], [], $calls, $schematicMap, $tiers)->read($this->userOf($zed));
+    }
+
+    public function testFactoriesKeepsEachTierInItsOwnKeyWhateverTheOrderOfTheColoniesWithADifferentCountPerTier(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [
+            $this->colony($zed, [
+                ...$this->factories(self::ADVANCED_SCHEMATIC, 7),
+                ...$this->factories(self::REFINED_SCHEMATIC, 2),
+            ]),
+            $this->colony($zed, [
+                ...$this->factories(self::SPECIALIZED_SCHEMATIC, 2),
+                ...$this->factories(self::SECOND_REFINED_SCHEMATIC, 3),
+                ...$this->factories(self::BASIC_SCHEMATIC, 3),
+            ]),
+        ];
+
+        $account = $this->factoryReaderOver($colonies, [])->read($this->userOf($zed));
+
+        $this->assertSame(['P1' => 3, 'P2' => 5, 'P3' => 2, 'P4' => 7], $account['factories']);
     }
 
     private function factories(int $schematicId, int $count): array
