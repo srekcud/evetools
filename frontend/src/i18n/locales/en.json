@@ -398,6 +398,23 @@
       "overTooltip": "More colonies than the maximum allowed by Interplanetary Consolidation (skill lowered or stale data).",
       "characters": "Colony slots by character"
     },
+    "power": {
+      "cpu": "CPU",
+      "pg": "PG",
+      "unknown": "unknown",
+      "free": "{free} free",
+      "linksNotCounted": "Links not counted, keep a margin. Unknown when a pin type cannot be read from the SDE.",
+      "upgradeBadge": "CC to upgrade",
+      "upgradeTooltip": "The Command Center Upgrades skill of this character is higher than the command center level of the colony.",
+      "commandCenter": {
+        "title": "Command center",
+        "level": "Level {level}",
+        "skill": "Command Center Upgrades skill of the character:",
+        "unknown": "skill not synchronized",
+        "unknownTooltip": "The Command Center Upgrades skill is not synchronized yet. Run the skills sync in Industry.",
+        "upgradeSignal": "CC to upgrade: skill {skill}"
+      }
+    },
     "planner": {
       "title": "Production planner",
       "subtitle": "Pick the products you want per day, read the whole tree down to the raw resources and decide for each step whether to make or buy it.",

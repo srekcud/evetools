@@ -398,6 +398,23 @@
       "overTooltip": "Plus de colonies que le maximum permis par Interplanetary Consolidation (skill baissé ou données périmées).",
       "characters": "Emplacements de colonie par personnage"
     },
+    "power": {
+      "cpu": "CPU",
+      "pg": "PG",
+      "unknown": "inconnu",
+      "free": "{free} libres",
+      "linksNotCounted": "Liens non comptés, gardez une marge. Inconnu quand un type de pin est illisible dans la SDE.",
+      "upgradeBadge": "CC à monter",
+      "upgradeTooltip": "Le skill Command Center Upgrades de ce personnage dépasse le niveau du command center de la colonie.",
+      "commandCenter": {
+        "title": "Command center",
+        "level": "Niveau {level}",
+        "skill": "Skill Command Center Upgrades du personnage :",
+        "unknown": "skill non synchronisé",
+        "unknownTooltip": "Le skill Command Center Upgrades n'est pas encore synchronisé. Lancez la sync des skills dans Industrie.",
+        "upgradeSignal": "CC à monter : skill {skill}"
+      }
+    },
     "planner": {
       "title": "Planificateur de production",
       "subtitle": "Choisissez les produits à sortir par jour, lisez l'arbre complet jusqu'aux ressources brutes et décidez pour chaque étape de produire ou d'acheter.",
