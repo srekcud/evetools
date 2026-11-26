@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\MarketPriceHistory;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -102,6 +103,32 @@ class MarketPriceHistoryRepository extends ServiceEntityRepository
      */
     public function findLatestEntriesByType(array $typeIds, int $regionId, int $entriesPerType): array
     {
-        return [];
+        if ($typeIds === []) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT type_id, date, average, volume FROM (
+                 SELECT type_id, date, average, volume,
+                        ROW_NUMBER() OVER (PARTITION BY type_id ORDER BY date DESC) AS position
+                 FROM market_price_history
+                 WHERE type_id IN (:typeIds) AND region_id = :regionId
+             ) ranked
+             WHERE position <= :entriesPerType
+             ORDER BY type_id, date ASC',
+            ['typeIds' => $typeIds, 'regionId' => $regionId, 'entriesPerType' => $entriesPerType],
+            ['typeIds' => ArrayParameterType::INTEGER],
+        );
+
+        $entriesByType = [];
+        foreach ($rows as $row) {
+            $entriesByType[(int) $row['type_id']][] = [
+                'date' => (new \DateTimeImmutable($row['date']))->format('Y-m-d'),
+                'average' => (float) $row['average'],
+                'volume' => (int) $row['volume'],
+            ];
+        }
+
+        return $entriesByType;
     }
 }
