@@ -10,6 +10,7 @@ use App\ApiResource\Planetary\PlanetarySettingsResource;
 use App\ApiResource\Planetary\PlanetaryStockResource;
 use App\Entity\User;
 use App\Service\Planetary\Stock\PlanetaryStockReader;
+use App\Service\Planetary\Stock\PlanetaryStockRow;
 use App\Service\Planetary\Stock\PlanetaryStockSettings;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -35,7 +36,7 @@ final readonly class PlanetaryStockProvider implements ProviderInterface
         }
 
         $settings = PlanetarySettingsResource::forUser($user, $this->defaultMarketStructureId, $this->defaultMarketStructureName);
-        $this->reader->read($user, new PlanetaryStockSettings($settings->homeLocationId, $settings->hubStructureId, $settings->coverageWeeks));
+        $stock = $this->reader->read($user, new PlanetaryStockSettings($settings->homeLocationId, $settings->hubStructureId, $settings->coverageWeeks));
 
         $resource = new PlanetaryStockResource();
         $resource->homeLocationId = $settings->homeLocationId;
@@ -43,6 +44,24 @@ final readonly class PlanetaryStockProvider implements ProviderInterface
         $resource->hubStructureId = $settings->hubStructureId;
         $resource->hubStructureName = $settings->hubStructureName;
         $resource->coverageWeeks = $settings->coverageWeeks;
+        $resource->corpUnknownReason = $stock->corpUnknownReason;
+        $resource->complete = $stock->complete;
+        $resource->rows = array_map(
+            static fn (PlanetaryStockRow $row): array => [
+                'typeId' => $row->typeId,
+                'typeName' => $row->typeName,
+                'volumePerUnit' => $row->volumePerUnit,
+                'weeklyConsumption' => $row->weeklyConsumption,
+                'home' => $row->home,
+                'hub' => $row->hub,
+                'corp' => $row->corp,
+                'openOrders' => $row->openOrders,
+                'coverageWeeks' => $row->coverageWeeks,
+                'coverageWithOrdersWeeks' => $row->coverageWithOrdersWeeks,
+                'toBuy' => $row->toBuy,
+            ],
+            $stock->rows,
+        );
 
         return $resource;
     }
