@@ -406,6 +406,49 @@
         "empty": "Nothing to buy"
       },
       "loadError": "Could not load the stock coverage.",
+      "prices": {
+        "title": "Prices and signals",
+        "type": "Input",
+        "paidPrice": "Paid price",
+        "paidPriceHint": "Average price paid over the last {days} days",
+        "hubSell": "Hub sell",
+        "jitaSell": "Jita sell",
+        "paidVsHub": "Paid vs hub",
+        "myBuyOrder": "My buy order",
+        "buyOrderVsHub": "Buy order vs hub",
+        "trend": "7-day trend",
+        "signalColumn": "Signal",
+        "signal": {
+          "buy_jita": "Buy in Jita",
+          "buy_hub": "Buy at the hub",
+          "outbid": "Outbid",
+          "place_order": "Place a buy order"
+        },
+        "noOrder": "none",
+        "noteMarketIncomplete": "The market is not synced: the hub or Jita prices may be missing, and the signals that depend on them are unknown.",
+        "noteWalletIncomplete": "A wallet is not read: the paid price may be incomplete.",
+        "loadError": "Could not load the prices and signals."
+      },
+      "todo": {
+        "bringBack": {
+          "text": "Bring back {quantity} {type} from the hub to home",
+          "effect": "{volume} m3 to move",
+          "effectUnknownVolume": "Volume unknown for this input"
+        },
+        "toBuy": {
+          "text": "Buy {quantity} {type}",
+          "effect": "{volume} m3 to buy",
+          "effectUnknownVolume": "Volume unknown for this input"
+        },
+        "buyJita": {
+          "text": "Buy {type} in Jita at {jitaSell} ISK, below the {paidPrice} ISK paid",
+          "effect": "{gap} ISK saved per unit, to compare with the hauling cost"
+        },
+        "outbid": {
+          "text": "Raise the buy order on {type}: yours is at {myBuyOrder} ISK, the hub best is {hubBestBuy} ISK",
+          "effect": "{gap} ISK to add per unit to lead again"
+        }
+      },
       "projectNeeds": {
         "title": "Asked by your industry projects",
         "product": "Product",

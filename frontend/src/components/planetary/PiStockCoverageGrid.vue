@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import PiStockPin from '@/components/planetary/PiStockPin.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import { usePlanetaryStockTodo } from '@/composables/usePlanetaryStockTodo'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 import { usePlanetaryStockStore, type PlanetaryStockRow } from '@/stores/planetaryStock'
@@ -18,6 +20,7 @@ const { typeNameLabel } = useTypeNames()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const store = usePlanetaryStockStore()
 const planner = usePlanetaryPlannerStore()
+const todo = usePlanetaryStockTodo()
 
 function weeksText(weeks: number): string {
   const formatted = weeks.toLocaleString(locale.value === 'fr' ? 'fr-FR' : 'en-US', {
@@ -75,7 +78,9 @@ function openPlanner(): void {
               <UnknownValue v-if="row.home === null" />
               <template v-else>{{ formatNumber(row.home, 0) }}</template>
             </td>
-            <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-hub-${row.typeId}`">{{ formatNumber(row.hub, 0) }}</td>
+            <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-hub-${row.typeId}`">
+              {{ formatNumber(row.hub, 0) }}<PiStockPin kind="bringBack" :type-id="row.typeId" :number="todo.pins.bringBack[row.typeId]" />
+            </td>
             <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-customs-${row.typeId}`">{{ formatNumber(row.customsOffice, 0) }}</td>
             <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-corp-${row.typeId}`">
               <UnknownValue v-if="row.corp === null" />
@@ -106,6 +111,7 @@ function openPlanner(): void {
             <td class="py-2.5 text-right font-mono-tech font-medium text-cyan-400" :data-testid="`stock-cell-toBuy-${row.typeId}`">
               <UnknownValue v-if="row.toBuy === null" />
               <template v-else>{{ formatNumber(row.toBuy, 0) }}</template>
+              <PiStockPin kind="toBuy" :type-id="row.typeId" :number="todo.pins.toBuy[row.typeId]" />
             </td>
             <td class="py-2.5" :data-testid="`stock-cell-decision-${row.typeId}`">
               <div class="flex items-center gap-2">

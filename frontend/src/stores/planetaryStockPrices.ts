@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { i18n } from '@/i18n'
+import { apiRequest } from '@/services/api'
 
 export type PlanetaryStockSignal = 'buy_jita' | 'buy_hub' | 'outbid' | 'place_order'
 
@@ -32,6 +34,8 @@ export interface PlanetaryStockPrices {
   rows: PlanetaryStockPriceRow[]
 }
 
+const STOCK_PRICES_ENDPOINT = '/planetary/stock-prices'
+
 export const usePlanetaryStockPricesStore = defineStore('planetaryStockPrices', () => {
   const prices = ref<PlanetaryStockPrices | null>(null)
   const error = ref<string | null>(null)
@@ -39,7 +43,14 @@ export const usePlanetaryStockPricesStore = defineStore('planetaryStockPrices', 
   const rows = computed<PlanetaryStockPriceRow[]>(() => prices.value?.rows ?? [])
 
   async function load(): Promise<void> {
-    return Promise.resolve()
+    error.value = null
+
+    try {
+      prices.value = await apiRequest<PlanetaryStockPrices>(STOCK_PRICES_ENDPOINT)
+    } catch {
+      prices.value = null
+      error.value = i18n.global.t('pi.stock.prices.loadError')
+    }
   }
 
   return { prices, rows, error, load }
