@@ -29,6 +29,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 
 const PLANNER_TAB_LABEL = (en.pi.tabs as Record<string, string>).planner
 const SUPPLY_TAB_LABEL = (en.pi.tabs as Record<string, string>).supply
+const LAYOUTS_TAB_LABEL = (en.pi.tabs as Record<string, string>).layouts
 
 const BARREN_COLONY: Colony = {
   id: 'barren',
@@ -102,10 +103,10 @@ function selectedTab(wrapper: Wrapper): string | undefined {
 enableAutoUnmount(afterEach)
 
 describe('PlanetaryInteraction planner tab', () => {
-  it('lists the planner first, then the colonies, the stock, the supply and the revenue', async () => {
+  it('lists the planner first, then the colonies, the stock, the supply, the revenue and the layouts', async () => {
     const wrapper = await mountView([BARREN_COLONY])
 
-    expect(wrapper.findAll('[role="tab"]').map(tab => tab.text())).toEqual([PLANNER_TAB_LABEL, en.pi.tabs.colonies, en.pi.tabs.stock, SUPPLY_TAB_LABEL, en.pi.tabs.revenue])
+    expect(wrapper.findAll('[role="tab"]').map(tab => tab.text())).toEqual([PLANNER_TAB_LABEL, en.pi.tabs.colonies, en.pi.tabs.stock, SUPPLY_TAB_LABEL, en.pi.tabs.revenue, LAYOUTS_TAB_LABEL])
   })
 
   it('opens the stock tab when the player clicks it and leaves the colonies tab open by default', async () => {
