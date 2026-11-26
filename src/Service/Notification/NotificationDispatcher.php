@@ -18,6 +18,7 @@ class NotificationDispatcher
         private readonly UserNotificationPreferenceRepository $preferenceRepository,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly WebPushService $webPushService,
+        private readonly DiscordWebhookSender $discordWebhookSender,
         private readonly LoggerInterface $logger,
     ) {
     }

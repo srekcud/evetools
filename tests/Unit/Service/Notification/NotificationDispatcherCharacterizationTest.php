@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Entity\UserNotificationPreference;
 use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\DiscordWebhookSender;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Notification\WebPushService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,6 +33,7 @@ final class NotificationDispatcherCharacterizationTest extends TestCase
     private UserNotificationPreferenceRepository&Stub $preferenceRepository;
     private HubInterface&Stub $hub;
     private WebPushService&MockObject $webPushService;
+    private DiscordWebhookSender&Stub $discordWebhookSender;
     private BufferingLogger $logger;
     private NotificationDispatcher $dispatcher;
     private User&Stub $user;
@@ -48,6 +50,7 @@ final class NotificationDispatcherCharacterizationTest extends TestCase
         $this->preferenceRepository = $this->createStub(UserNotificationPreferenceRepository::class);
         $this->hub = $this->createStub(HubInterface::class);
         $this->webPushService = $this->createMock(WebPushService::class);
+        $this->discordWebhookSender = $this->createStub(DiscordWebhookSender::class);
         $this->logger = new BufferingLogger();
 
         $this->user = $this->createStub(User::class);
@@ -69,6 +72,7 @@ final class NotificationDispatcherCharacterizationTest extends TestCase
             $this->preferenceRepository,
             new MercurePublisherService($this->hub, $this->logger),
             $this->webPushService,
+            $this->discordWebhookSender,
             $this->logger,
         );
     }
