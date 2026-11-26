@@ -27,9 +27,13 @@ class PlanetaryResourceMapper implements ResetInterface
     private const MARKET_GROUP_P2 = 1335;
     private const MARKET_GROUP_P3 = 1336;
     private const MARKET_GROUP_P4 = 1337;
+    private const TIER_RANKS = ['P1' => 1, 'P2' => 2, 'P3' => 3, 'P4' => 4];
 
     /** @var array<int, array<int, int>> */
     private array $skillLevelsByEveCharacterId = [];
+
+    /** @var array<int, array{name: string, cycleTime: int, inputs: list<array<string, mixed>>, output: array<string, mixed>|null}> */
+    private array $schematicDetailsById = [];
 
     public function __construct(
         private readonly InvTypeRepository $invTypeRepository,
@@ -47,6 +51,7 @@ class PlanetaryResourceMapper implements ResetInterface
     public function reset(): void
     {
         $this->skillLevelsByEveCharacterId = [];
+        $this->schematicDetailsById = [];
     }
 
     /**
@@ -72,6 +77,8 @@ class PlanetaryResourceMapper implements ResetInterface
         $this->computePinStats($colony, $resource);
         $this->applyPower($colony, $resource);
         $this->applyCommandCenterSkill($colony, $resource);
+        $resource->tier = $this->resolveColonyTier($colony);
+        $resource->storageFull = $this->resolveStorageFull($colony);
 
         return $resource;
     }
@@ -102,6 +109,72 @@ class PlanetaryResourceMapper implements ResetInterface
         }
 
         return $resource;
+    }
+
+    private function resolveColonyTier(PlanetaryColony $colony): ?string
+    {
+        $highestTier = null;
+
+        foreach ($colony->getPins() as $pin) {
+            if (!$pin->isFactory()) {
+                continue;
+            }
+
+            $schematicId = $pin->getSchematicId();
+            $schematicDetail = $schematicId === null ? null : $this->resolveSchematicDetail($schematicId);
+            $tier = $this->resolveOutputTier($pin, $schematicDetail);
+            if ($tier === null || !isset(self::TIER_RANKS[$tier])) {
+                return null;
+            }
+
+            if ($highestTier === null || self::TIER_RANKS[$tier] > self::TIER_RANKS[$highestTier]) {
+                $highestTier = $tier;
+            }
+        }
+
+        return $highestTier;
+    }
+
+    private function resolveStorageFull(PlanetaryColony $colony): ?bool
+    {
+        $unreadable = false;
+
+        foreach ($colony->getPins() as $pin) {
+            if ($this->derivePinCategory($pin) !== 'storage') {
+                continue;
+            }
+
+            $capacity = $this->invTypeRepository->find($pin->getTypeId())?->getCapacity();
+            [$containedVolume, $contentsReadable] = $this->containedVolumeOf($pin);
+
+            if ($capacity !== null && $containedVolume >= $capacity) {
+                return true;
+            }
+            if ($capacity === null || !$contentsReadable) {
+                $unreadable = true;
+            }
+        }
+
+        return $unreadable ? null : false;
+    }
+
+    /** @return array{float, bool} */
+    private function containedVolumeOf(PlanetaryPin $pin): array
+    {
+        $containedVolume = 0.0;
+        $readable = true;
+
+        foreach ($pin->getContents() ?? [] as $item) {
+            $volume = $this->invTypeRepository->find($item['type_id'])?->getVolume();
+            if ($volume === null) {
+                $readable = false;
+                continue;
+            }
+
+            $containedVolume += $item['amount'] * $volume;
+        }
+
+        return [$containedVolume, $readable];
     }
 
     private function applyPower(PlanetaryColony $colony, ColonyResource $resource): void
@@ -339,6 +412,12 @@ class PlanetaryResourceMapper implements ResetInterface
 
     /** @return array{name: string, cycleTime: int, inputs: list<array<string, mixed>>, output: array<string, mixed>|null} */
     private function resolveSchematicDetail(int $schematicId): array
+    {
+        return $this->schematicDetailsById[$schematicId] ??= $this->readSchematicDetail($schematicId);
+    }
+
+    /** @return array{name: string, cycleTime: int, inputs: list<array<string, mixed>>, output: array<string, mixed>|null} */
+    private function readSchematicDetail(int $schematicId): array
     {
         $schematic = $this->schematicRepository->find($schematicId);
 
