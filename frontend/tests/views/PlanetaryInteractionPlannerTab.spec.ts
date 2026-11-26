@@ -117,6 +117,20 @@ describe('PlanetaryInteraction planner tab', () => {
     expect(wrapper.findComponent(PiPlannerTab).exists()).toBe(false)
   })
 
+  it('switches to the planner when the stock tab asks for it', async () => {
+    const wrapper = await mountView([BARREN_COLONY])
+    await wrapper.findAll('[role="tab"]').find(tab => tab.text() === en.pi.tabs.stock)?.trigger('click')
+    await flushPromises()
+    expect(selectedTab(wrapper)).toBe(en.pi.tabs.stock)
+
+    wrapper.findComponent(PiStockTab).vm.$emit('open-planner')
+    await flushPromises()
+
+    expect(selectedTab(wrapper)).toBe(PLANNER_TAB_LABEL)
+    expect(wrapper.findComponent(PiPlannerTab).exists()).toBe(true)
+    expect(wrapper.findComponent(PiStockTab).exists()).toBe(false)
+  })
+
   it('keeps the colonies tab open by default when the player has colonies', async () => {
     const wrapper = await mountView([BARREN_COLONY])
 
