@@ -16,8 +16,10 @@ import {
   serve,
   type Answer,
 } from '../../planetarySettingsFixtures'
+import { expectedMessage } from '../../expectedMessage'
 import { PROJECT_NEEDS_WITH_THREE_PRODUCTS } from '../../planetaryProjectNeedsFixtures'
-import { COOLANT_ROW, PLASMA_ROW, ROBOTICS_ROW, STOCK_WITH_PURCHASES, stockOf } from '../../planetaryStockFixtures'
+import { COOLANT_ROW, PLASMA_ROW, ROBOTICS_ROW, STOCK_WITH_PURCHASES, WATER_ROW, stockOf } from '../../planetaryStockFixtures'
+import { COOLANT_PRICE_ROW, PLASMA_PRICE_ROW, WATER_PRICE_ROW, pricesOf } from '../../planetaryStockPricesFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -26,6 +28,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 
 const STOCK_BEFORE = stockOf([ROBOTICS_ROW, PLASMA_ROW])
 const STOCK_AFTER = stockOf([COOLANT_ROW])
+const PRICES_WITH_TWO_SIGNALS = pricesOf([PLASMA_PRICE_ROW, WATER_PRICE_ROW])
 
 async function mountStockTab(overrides: Record<string, Answer> = {}, stockAnswer: Answer = STOCK_WITH_PURCHASES) {
   setActivePinia(createPinia())
@@ -35,6 +38,7 @@ async function mountStockTab(overrides: Record<string, Answer> = {}, stockAnswer
     'GET /planetary/settings/locations': { id: 'locations', locations: [AMARR_CANDIDATE, ASHAB_CANDIDATE] },
     'GET /me/settings': ME_WITH_TWO_FAVORITES,
     'GET /planetary/stock': stockAnswer,
+    'GET /planetary/stock-prices': PRICES_WITH_TWO_SIGNALS,
     'GET /planetary/project-needs': PROJECT_NEEDS_WITH_THREE_PRODUCTS,
     'PATCH /planetary/settings': (body) => (current = { ...current, ...body }),
     'PATCH /me/settings': (body) => ({ ...ME_WITH_TWO_FAVORITES, ...body }),
@@ -52,6 +56,10 @@ async function mountStockTab(overrides: Record<string, Answer> = {}, stockAnswer
 
 function projectNeedsReads(): number {
   return apiCalls().filter(call => call.method === 'GET' && call.endpoint === '/planetary/project-needs').length
+}
+
+function priceReads(): number {
+  return apiCalls().filter(call => call.method === 'GET' && call.endpoint === '/planetary/stock-prices').length
 }
 
 function stockReads(): number {
@@ -150,5 +158,43 @@ describe('PiStockTab', () => {
     expect(wrapper.findAll('[data-testid^="stock-row-"]')).toHaveLength(3)
     expect(wrapper.findAll('[data-testid^="project-need-row-"]')).toHaveLength(0)
     expect(wrapper.get('[data-testid="project-needs-error"]').text()).toBe(en.pi.stock.projectNeeds.loadError)
+  })
+
+  it('lays the price grid between the coverage grid and the purchase list and the to-do panel after the purchase list, and reads the stock prices again after a saved setting', async () => {
+    const wrapper = await mountStockTab()
+
+    const html = wrapper.html()
+    const positions = ['pi-stock-grid', 'pi-stock-price-grid', 'pi-stock-purchase-list', 'revenue-todo-panel', 'stock-home-location'].map(marker => html.indexOf(marker))
+    expect(positions.every(position => position >= 0)).toBe(true)
+    expect([...positions].sort((left, right) => left - right)).toEqual(positions)
+    expect(wrapper.findAll('[data-testid="revenue-todo-panel"] li').map(item => item.attributes('data-todo'))).toEqual(['1', '2', '3', '4', '5', '6'])
+    expect(wrapper.findAll('[data-testid="revenue-todo-panel"] button')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid^="price-cell-signal-"]')).toHaveLength(2)
+    expect(priceReads()).toBe(1)
+
+    await wrapper.get('[data-testid="stock-home-location"]').setValue(String(ASHAB_FORTIZAR_ID))
+    await flushPromises()
+
+    expect(priceReads()).toBe(2)
+  })
+
+  it('keeps the coverage grid and shows the price grid error when only the stock prices cannot be read', async () => {
+    const wrapper = await mountStockTab({ 'GET /planetary/stock-prices': new Error('Network down') })
+
+    expect(priceReads()).toBe(1)
+    expect(wrapper.findAll('[data-testid^="stock-row-"]')).toHaveLength(3)
+    expect(wrapper.find('[data-testid="stock-load-error"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="stock-prices-load-error"]').text()).toBe(expectedMessage('en', 'pi.stock.prices.loadError'))
+    expect(wrapper.findAll('[data-testid^="price-cell-signal-"]')).toHaveLength(0)
+  })
+
+  it('shows no to-do panel when no row needs a quantity to bring back or to buy and no price signal asks for a purchase or an outbid', async () => {
+    const wrapper = await mountStockTab(
+      { 'GET /planetary/stock-prices': pricesOf([COOLANT_PRICE_ROW]) },
+      stockOf([WATER_ROW]),
+    )
+
+    expect(wrapper.findAll('[data-testid^="stock-row-"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="revenue-todo-panel"]').exists()).toBe(false)
   })
 })

@@ -406,6 +406,49 @@
         "empty": "Rien à acheter"
       },
       "loadError": "Impossible de charger la couverture du stock.",
+      "prices": {
+        "title": "Prix et signaux",
+        "type": "Entrée",
+        "paidPrice": "Prix payé",
+        "paidPriceHint": "Prix moyen payé sur les {days} derniers jours",
+        "hubSell": "Sell hub",
+        "jitaSell": "Sell Jita",
+        "paidVsHub": "Payé vs hub",
+        "myBuyOrder": "Mon BO",
+        "buyOrderVsHub": "BO vs hub",
+        "trend": "Tendance 7 j",
+        "signalColumn": "Signal",
+        "signal": {
+          "buy_jita": "Acheter à Jita",
+          "buy_hub": "Acheter au hub",
+          "outbid": "Surenchéri",
+          "place_order": "Poser un BO"
+        },
+        "noOrder": "aucun",
+        "noteMarketIncomplete": "Le marché n'est pas synchronisé : les prix du hub ou de Jita peuvent manquer, et les signaux qui en dépendent sont inconnus.",
+        "noteWalletIncomplete": "Un wallet n'est pas lu : le prix payé peut être incomplet.",
+        "loadError": "Impossible de charger les prix et les signaux."
+      },
+      "todo": {
+        "bringBack": {
+          "text": "Rapatrier {quantity} {type} du hub vers la maison",
+          "effect": "{volume} m3 à déplacer",
+          "effectUnknownVolume": "Volume inconnu pour cette entrée"
+        },
+        "toBuy": {
+          "text": "Acheter {quantity} {type}",
+          "effect": "{volume} m3 à acheter",
+          "effectUnknownVolume": "Volume inconnu pour cette entrée"
+        },
+        "buyJita": {
+          "text": "Acheter {type} à Jita à {jitaSell} ISK, sous les {paidPrice} ISK payés",
+          "effect": "{gap} ISK gagnés par unité, à comparer au coût du transport"
+        },
+        "outbid": {
+          "text": "Relever le BO sur {type} : le tien est à {myBuyOrder} ISK, le meilleur du hub à {hubBestBuy} ISK",
+          "effect": "{gap} ISK à ajouter par unité pour repasser devant"
+        }
+      },
       "projectNeeds": {
         "title": "Demandé par tes projets industrie",
         "product": "Produit",

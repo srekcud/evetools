@@ -35,6 +35,7 @@ import {
 } from '../../planetarySettingsFixtures'
 import { PROJECT_NEEDS_WITH_THREE_PRODUCTS } from '../../planetaryProjectNeedsFixtures'
 import { STOCK_WITH_PURCHASES } from '../../planetaryStockFixtures'
+import { pricesOf } from '../../planetaryStockPricesFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -67,6 +68,7 @@ async function mountStockTab(scenario: Partial<Scenario> = {}) {
     'GET /planetary/settings/locations': { id: 'locations', locations },
     'GET /me/settings': me,
     'GET /planetary/stock': STOCK_WITH_PURCHASES,
+    'GET /planetary/stock-prices': pricesOf([]),
     'GET /planetary/project-needs': PROJECT_NEEDS_WITH_THREE_PRODUCTS,
     'PATCH /planetary/settings': (body) => (current = { ...current, ...body }),
     'PATCH /me/settings': (body) => {
@@ -146,6 +148,7 @@ describe('PiStockTab settings', () => {
       'GET /planetary/settings',
       'GET /planetary/settings/locations',
       'GET /planetary/stock',
+      'GET /planetary/stock-prices',
     ])
   })
 

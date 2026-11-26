@@ -27,8 +27,10 @@ const ACTION_CLASSES =
           <p class="text-sm text-slate-100">{{ item.text }}</p>
           <p class="text-xs text-slate-500">{{ item.effect }}</p>
         </div>
-        <RouterLink v-if="item.to" :to="item.to" :class="ACTION_CLASSES">{{ item.actionLabel }}</RouterLink>
-        <button v-else type="button" :class="ACTION_CLASSES" @click="emit('action', index)">{{ item.actionLabel }}</button>
+        <template v-if="item.actionLabel">
+          <RouterLink v-if="item.to" :to="item.to" :class="ACTION_CLASSES">{{ item.actionLabel }}</RouterLink>
+          <button v-else type="button" :class="ACTION_CLASSES" @click="emit('action', index)">{{ item.actionLabel }}</button>
+        </template>
       </li>
     </ul>
   </section>

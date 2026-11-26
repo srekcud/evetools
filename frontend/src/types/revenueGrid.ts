@@ -42,7 +42,7 @@ export interface RevenueGridPeriod {
 export interface RevenueTodoItem {
   text: string
   effect: string
-  actionLabel: string
+  actionLabel?: string
   to?: RouteLocationRaw
 }
 
