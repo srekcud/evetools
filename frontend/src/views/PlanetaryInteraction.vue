@@ -21,6 +21,7 @@ import {
   nextActionOf,
   sortColonies,
   type ColonyFilterId,
+  type ColonySelection,
   type ColonySortMode,
   type NextAction,
 } from '@/utils/colonyNextAction'
@@ -105,7 +106,7 @@ watch(
 const expandedColonies = ref<Set<string>>(new Set())
 const colonyGrouping = ref<ColonyGrouping>('account')
 const colonySortMode = ref<ColonySortMode>('nextAction')
-const colonyFilter = ref<ColonyFilterId>('all')
+const colonyFilter = ref<ColonySelection>('all')
 const now = ref(Date.now())
 
 const clockTimer = setInterval(() => {
@@ -159,6 +160,17 @@ const inputNeeds = computed(() => planetaryStore.inputNeeds)
 
 const chipCounts = computed(() => filterCounts(planetaryStore.colonies, inputNeeds.value, now.value))
 
+const planChipCount = computed(() => filterColonies(planetaryStore.colonies, 'plan', inputNeeds.value, now.value, plannerStore.followedPlanTiers).length)
+
+watch(() => plannerStore.followedPlanTiers, tiers => {
+  if (tiers === null && colonyFilter.value === 'plan') colonyFilter.value = 'all'
+})
+
+function showColoniesOfTier(tier: string): void {
+  colonyFilter.value = tier as ColonyFilterId
+  activeTab.value = 'colonies'
+}
+
 function earliestActionOf(colonies: Colony[]): NextAction | null {
   const actions = colonies
     .map(colony => nextActionOf(colony, inputNeeds.value))
@@ -168,7 +180,7 @@ function earliestActionOf(colonies: Colony[]): NextAction | null {
 }
 
 function arrange(colonies: Colony[]): Colony[] {
-  return sortColonies(filterColonies(colonies, colonyFilter.value, inputNeeds.value, now.value), colonySortMode.value, inputNeeds.value)
+  return sortColonies(filterColonies(colonies, colonyFilter.value, inputNeeds.value, now.value, plannerStore.followedPlanTiers), colonySortMode.value, inputNeeds.value)
 }
 
 const actionByColonyId = computed(() => new Map(
@@ -289,11 +301,11 @@ async function toggleColony(colonyId: string): Promise<void> {
 
       <SubTabs v-model="activeTab" :tabs="subTabs" />
 
-      <PiPlannerTab v-if="activeTab === 'planner'" />
+      <PiPlannerTab v-if="activeTab === 'planner'" @show-colonies="showColoniesOfTier" />
 
       <PiStockTab v-else-if="activeTab === 'stock'" @open-planner="activeTab = 'planner'" />
 
-      <PiSupplyTab v-else-if="activeTab === 'supply'" />
+      <PiSupplyTab v-else-if="activeTab === 'supply'" @open-stock="activeTab = 'stock'" />
 
       <PiRevenueTab v-else-if="activeTab === 'revenue'" />
 
@@ -304,7 +316,7 @@ async function toggleColony(colonyId: string): Promise<void> {
 
       <p v-if="plannerStore.error !== null && plannerStore.followedTemplate !== null" class="text-sm text-amber-400" data-testid="followed-plan-error">{{ plannerStore.error }}</p>
 
-      <PiFollowedPlanBanner @open="activeTab = 'planner'" />
+      <PiFollowedPlanBanner @open="activeTab = 'planner'" @filter="colonyFilter = 'plan'" />
 
       <!-- ============ LOADING STATE ============ -->
       <div v-if="planetaryStore.isLoading && !planetaryStore.colonies.length" class="flex items-center justify-center py-20">
@@ -415,6 +427,22 @@ async function toggleColony(colonyId: string): Promise<void> {
           >
             <span>{{ t(`pi.filters.${filterId}`) }}</span>
             <span class="font-mono-tech">{{ chipCounts[filterId] ?? '?' }}</span>
+          </button>
+          <button
+            v-if="plannerStore.followedPlanTiers !== null"
+            type="button"
+            data-testid="filter-chip-plan"
+            :data-count="planChipCount"
+            :aria-pressed="colonyFilter === 'plan'"
+            :class="[
+              'flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors',
+              colonyFilter === 'plan' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-900 border-emerald-500/30 text-emerald-400 hover:text-white',
+              planChipCount === 0 && colonyFilter !== 'plan' ? 'opacity-40' : '',
+            ]"
+            @click="colonyFilter = 'plan'"
+          >
+            <span>{{ t('pi.filters.plan') }}</span>
+            <span class="font-mono-tech">{{ planChipCount }}</span>
           </button>
         </div>
 

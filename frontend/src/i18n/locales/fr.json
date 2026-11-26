@@ -498,7 +498,8 @@
       "upgrade": "CC à monter",
       "refillUnknown": "Données des launchpads indisponibles : le nombre de recharges ne peut pas être calculé",
       "empty": "Aucune colonie pour ce filtre",
-      "reset": "Afficher toutes les colonies"
+      "reset": "Afficher toutes les colonies",
+      "plan": "Plan"
     },
     "nextAction": {
       "restart": "Extracteurs finis",
@@ -772,6 +773,7 @@
         "banner": {
           "title": "Plan suivi",
           "open": "Ouvrir le plan",
+          "filter": "Filtrer les colonies du plan",
           "missingRecipe": "recette introuvable",
           "loading": "Chargement du plan"
         },
@@ -784,7 +786,8 @@
         "factories": {
           "title": "Usines : plan contre tes colonies",
           "planned": "Plan",
-          "real": "Colonies"
+          "real": "Colonies",
+          "showColonies": "Colonies filtrées sur le tier"
         },
         "revenue": {
           "title": "Prévu contre réel",
@@ -1002,6 +1005,9 @@
         "needed": "À apporter",
         "amount": "À ramasser",
         "remaining": "Reste à trouver",
+        "home": "Stock maison",
+        "shortfall": "Manque",
+        "openStock": "Ouvrir Stock",
         "sources": "Colonies où ramasser",
         "unknownSource": "quantité inconnue",
         "customsOfficeProbable": "{planet} (probable)",

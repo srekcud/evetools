@@ -8,6 +8,7 @@ import PiStockPurchaseList from '@/components/planetary/PiStockPurchaseList.vue'
 import PiStockSettings from '@/components/planetary/PiStockSettings.vue'
 import RevenueTodoPanel from '@/components/revenue/RevenueTodoPanel.vue'
 import { usePlanetaryStockTodo } from '@/composables/usePlanetaryStockTodo'
+import { usePlanetaryTiers } from '@/composables/usePlanetaryTiers'
 import { usePlanetaryProjectNeedsStore } from '@/stores/planetaryProjectNeeds'
 import { usePlanetarySettingsStore } from '@/stores/planetarySettings'
 import { usePlanetaryStockStore } from '@/stores/planetaryStock'
@@ -19,11 +20,13 @@ const pricesStore = usePlanetaryStockPricesStore()
 const todo = usePlanetaryStockTodo()
 const settingsStore = usePlanetarySettingsStore()
 const projectNeedsStore = usePlanetaryProjectNeedsStore()
+const { ensureCatalog } = usePlanetaryTiers()
 
 onMounted(() => {
   stockStore.load()
   pricesStore.load()
   projectNeedsStore.load()
+  ensureCatalog()
 })
 
 watch(() => settingsStore.saveRevision, () => {

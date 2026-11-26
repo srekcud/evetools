@@ -2,9 +2,11 @@
 import { useI18n } from 'vue-i18n'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import PiStockPin from '@/components/planetary/PiStockPin.vue'
+import PiTierBadge from '@/components/planetary/PiTierBadge.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePlanetaryStockTodo } from '@/composables/usePlanetaryStockTodo'
+import { usePlanetaryTiers } from '@/composables/usePlanetaryTiers'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 import { usePlanetaryStockStore, type PlanetaryStockRow } from '@/stores/planetaryStock'
@@ -21,6 +23,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const store = usePlanetaryStockStore()
 const planner = usePlanetaryPlannerStore()
 const todo = usePlanetaryStockTodo()
+const { tierOf } = usePlanetaryTiers()
 
 function weeksText(weeks: number): string {
   const formatted = weeks.toLocaleString(locale.value === 'fr' ? 'fr-FR' : 'en-US', {
@@ -72,6 +75,7 @@ function openPlanner(): void {
               <div class="flex items-center gap-2">
                 <img :src="getTypeIconUrl(row.typeId, ICON_SIZE)" alt="" class="h-6 w-6 shrink-0 rounded-sm" @error="onImageError" />
                 <span class="text-slate-100">{{ typeNameLabel(row.typeName, row.typeId) }}</span>
+                <PiTierBadge :tier="tierOf(row.typeId)" />
               </div>
             </td>
             <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-home-${row.typeId}`">

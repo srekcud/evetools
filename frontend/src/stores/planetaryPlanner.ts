@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { i18n } from '@/i18n'
-import { compareFactories, followedTargets, type FactoryGap, type FollowedTargets } from '@/utils/planetaryFollow'
+import { compareFactories, followedTargets, type FactoryGap, type FollowedTargets, type FollowTier } from '@/utils/planetaryFollow'
 import { apiRequest } from '@/services/api'
 import {
   MAX_TEMPLATE_NAME_LENGTH,
@@ -106,6 +106,10 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
 
   const followedFactoryComparison = computed<FactoryGap[]>(() =>
     followedTargetsOfPlan.value ? compareFactories(followedTargetsOfPlan.value.factoriesByTier, account.value === null ? null : account.value.factories) : [],
+  )
+
+  const followedPlanTiers = computed<FollowTier[] | null>(() =>
+    followedTargetsOfPlan.value === null ? null : followedFactoryComparison.value.filter(gap => gap.planned > 0).map(gap => gap.tier),
   )
 
   async function setFollowed(id: string, followed: boolean): Promise<boolean> {
@@ -370,6 +374,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     followedTemplate,
     factoryComparison,
     followedFactoryComparison,
+    followedPlanTiers,
     followedTargetsOfPlan,
     followTemplate,
     unfollowTemplate,

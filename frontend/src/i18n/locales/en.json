@@ -498,7 +498,8 @@
       "upgrade": "CC to raise",
       "refillUnknown": "Launchpad data unavailable: the refill count cannot be computed",
       "empty": "No colony for this filter",
-      "reset": "Show all colonies"
+      "reset": "Show all colonies",
+      "plan": "Plan"
     },
     "nextAction": {
       "restart": "Extractors finished",
@@ -772,6 +773,7 @@
         "banner": {
           "title": "Followed plan",
           "open": "Open the plan",
+          "filter": "Filter the plan's colonies",
           "missingRecipe": "recipe not found",
           "loading": "Loading the plan"
         },
@@ -784,7 +786,8 @@
         "factories": {
           "title": "Factories: plan against your colonies",
           "planned": "Plan",
-          "real": "Colonies"
+          "real": "Colonies",
+          "showColonies": "Colonies filtered on the tier"
         },
         "revenue": {
           "title": "Planned against real",
@@ -1002,6 +1005,9 @@
         "needed": "To bring",
         "amount": "To pick up",
         "remaining": "Left to find",
+        "home": "At home",
+        "shortfall": "Shortfall",
+        "openStock": "Open Stock",
         "sources": "Colonies to pick up from",
         "unknownSource": "unknown quantity",
         "customsOfficeProbable": "{planet} (probable)",

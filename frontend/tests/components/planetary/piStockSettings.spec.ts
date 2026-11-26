@@ -143,6 +143,7 @@ describe('PiStockTab settings', () => {
     expect(wrapper.find('[data-testid="stock-settings-error"]').exists()).toBe(false)
     expect(apiCalls().map(call => `${call.method} ${call.endpoint}`).sort()).toEqual([
       'GET /me/settings',
+      'GET /planetary/planner',
       'GET /planetary/project-needs',
       'GET /planetary/settings',
       'GET /planetary/settings/locations',
