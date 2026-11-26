@@ -2,6 +2,7 @@
 import { onMounted, watch } from 'vue'
 import PiStockBanner from '@/components/planetary/PiStockBanner.vue'
 import PiStockCoverageGrid from '@/components/planetary/PiStockCoverageGrid.vue'
+import PiStockProjectNeeds from '@/components/planetary/PiStockProjectNeeds.vue'
 import PiStockPurchaseList from '@/components/planetary/PiStockPurchaseList.vue'
 import PiStockSettings from '@/components/planetary/PiStockSettings.vue'
 import { usePlanetarySettingsStore } from '@/stores/planetarySettings'
@@ -30,6 +31,7 @@ function openPlanner(): void {
       <PiStockCoverageGrid @open-planner="openPlanner" />
       <PiStockPurchaseList />
     </template>
+    <PiStockProjectNeeds />
     <PiStockSettings />
   </div>
 </template>
