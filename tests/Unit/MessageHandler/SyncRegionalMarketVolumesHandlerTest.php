@@ -524,6 +524,55 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
         $this->assertSame('2 regions, 7 types synced; 4 types failed', $state['message']);
     }
 
+    public function testAnEmptyProductHistoryBetweenTwoFailuresNeitherAddsToTheConsecutiveFailureCountNorResetsIt(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts(self::SEVEN_PLANETARY_PRODUCTS);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $attemptedTypeIds = $this->givenHistoryOutcomes([
+            self::COOLANT => $this->esiFailure(503),
+            self::ROBOTICS => 0,
+            self::BROADCAST_NODE => $this->esiFailure(503),
+            self::SUPERCONDUCTORS => 9,
+            self::TRANSMITTER => 12,
+            self::SYNTHETIC_OIL => 15,
+            self::MECHANICAL_PARTS => 21,
+        ]);
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame(
+            [self::COOLANT, self::ROBOTICS, self::BROADCAST_NODE, self::SUPERCONDUCTORS, self::TRANSMITTER, self::SYNTHETIC_OIL, self::MECHANICAL_PARTS],
+            $attemptedTypeIds(),
+        );
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 8 types synced; 3 types failed', $state['message']);
+    }
+
+    public function testTwoFailuresThenAnEmptyProductHistoryThenAFailureStopTheLoopAtTheThirdConsecutiveFailure(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts(self::SEVEN_PLANETARY_PRODUCTS);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $attemptedTypeIds = $this->givenHistoryOutcomes([
+            self::COOLANT => $this->esiFailure(503),
+            self::ROBOTICS => $this->esiFailure(503),
+            self::BROADCAST_NODE => 0,
+            self::SUPERCONDUCTORS => $this->esiFailure(503),
+            self::TRANSMITTER => 12,
+            self::SYNTHETIC_OIL => 15,
+            self::MECHANICAL_PARTS => 21,
+        ]);
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([self::COOLANT, self::ROBOTICS, self::BROADCAST_NODE, self::SUPERCONDUCTORS], $attemptedTypeIds());
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 4 types synced; 7 types failed', $state['message']);
+    }
+
     /**
      * @param array<int, int|EsiApiException> $outcomeByTypeId
      */
