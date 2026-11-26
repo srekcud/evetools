@@ -26,7 +26,8 @@ const planetaryStore = usePlanetaryStore()
 const pendingStore = usePlanetaryPendingStockStore()
 
 const outputs = computed(() => pendingStore.data?.pendingOutputs ?? [])
-const pickupRows = computed(() => buildPickupPlan(props.totals, props.typeNames, outputs.value))
+const customsOfficeStocks = computed(() => pendingStore.data?.customsOfficeStocks ?? [])
+const pickupRows = computed(() => buildPickupPlan(props.totals, props.typeNames, outputs.value, customsOfficeStocks.value))
 const bringBackRows = computed(() => sortBringBack(outputs.value))
 const hasUnknownSource = computed(() => pickupRows.value.some(row => row.unknownSources.length > 0))
 
