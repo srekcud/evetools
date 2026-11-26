@@ -4,6 +4,7 @@ import { ApiError, apiRequest, authFetch } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { chunkDay, type CorporationMiningExtractions } from '@/composables/useCorporationMiningExtractions'
+import { downloadBlob } from '@/utils/downloadBlob'
 
 export const RATE_FIELDS = ['rateR4', 'rateR8', 'rateR16', 'rateR32', 'rateR64'] as const
 
@@ -163,17 +164,6 @@ export function withoutKey<Key extends string | number, Value>(record: Record<Ke
   const copy = { ...record }
   delete copy[key]
   return copy
-}
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  document.body.append(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
 }
 
 export function useMoonTaxLabels(corporations: Ref<CorporationMiningExtractions[]>) {

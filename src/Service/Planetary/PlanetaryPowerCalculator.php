@@ -104,7 +104,15 @@ class PlanetaryPowerCalculator implements ResetInterface
      */
     public function loadOfInstallation(int $typeId, ?int $extractorHeads): ?array
     {
-        return null;
+        if (!\array_key_exists($typeId, $this->typesById)) {
+            $this->typesById[$typeId] = $this->invTypeRepository->findByTypeIds([$typeId])[$typeId] ?? null;
+        }
+        $installationType = $this->typesById[$typeId];
+        if ($installationType === null) {
+            return null;
+        }
+
+        return $this->loadOfType($installationType, $extractorHeads);
     }
 
     /**
@@ -140,6 +148,14 @@ class PlanetaryPowerCalculator implements ResetInterface
      */
     private function loadOfPin(PlanetaryPin $pin, InvType $pinType): ?array
     {
+        return $this->loadOfType($pinType, $pin->getExtractorNumHeads());
+    }
+
+    /**
+     * @return array{cpu: int, powergrid: int}|null
+     */
+    private function loadOfType(InvType $pinType, ?int $heads): ?array
+    {
         $values = $this->attributeValues($pinType->getTypeId(), [self::CPU_LOAD_ATTRIBUTE_ID, self::POWER_LOAD_ATTRIBUTE_ID]);
         if (!isset($values[self::CPU_LOAD_ATTRIBUTE_ID], $values[self::POWER_LOAD_ATTRIBUTE_ID])) {
             return null;
@@ -149,7 +165,6 @@ class PlanetaryPowerCalculator implements ResetInterface
         $powergrid = $values[self::POWER_LOAD_ATTRIBUTE_ID];
 
         if ($pinType->getGroup()->getGroupId() === self::EXTRACTOR_CONTROL_UNIT_GROUP_ID) {
-            $heads = $pin->getExtractorNumHeads();
             $headValues = $this->attributeValues($pinType->getTypeId(), [self::EXTRACTOR_HEAD_CPU_ATTRIBUTE_ID, self::EXTRACTOR_HEAD_POWER_ATTRIBUTE_ID]);
             if ($heads === null || !isset($headValues[self::EXTRACTOR_HEAD_CPU_ATTRIBUTE_ID], $headValues[self::EXTRACTOR_HEAD_POWER_ATTRIBUTE_ID])) {
                 return null;

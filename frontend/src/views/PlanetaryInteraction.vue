@@ -31,13 +31,14 @@ import { useUpdateFlash } from '@/composables/useUpdateFlash'
 import { useTabQuery } from '@/composables/useTabQuery'
 import SubTabs from '@/components/common/SubTabs.vue'
 import PiRevenueTab from '@/components/planetary/PiRevenueTab.vue'
+import PiLayoutsTab from '@/components/planetary/PiLayoutsTab.vue'
 import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
 import PiStockTab from '@/components/planetary/PiStockTab.vue'
 import PiSupplyTab from '@/components/planetary/PiSupplyTab.vue'
 import PiFollowedPlanBanner from '@/components/planetary/PiFollowedPlanBanner.vue'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 
-type PlanetaryTab = 'planner' | 'colonies' | 'stock' | 'supply' | 'revenue'
+type PlanetaryTab = 'planner' | 'colonies' | 'stock' | 'supply' | 'revenue' | 'layouts'
 type ColonyGrouping = 'account' | 'character'
 
 interface ColonyGroup {
@@ -53,7 +54,7 @@ interface ColonyGroup {
 
 const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
 
-const PLANETARY_TABS = ['planner', 'colonies', 'stock', 'supply', 'revenue'] as const satisfies readonly PlanetaryTab[]
+const PLANETARY_TABS = ['planner', 'colonies', 'stock', 'supply', 'revenue', 'layouts'] as const satisfies readonly PlanetaryTab[]
 const COLONY_SORT_MODES = ['nextAction', 'character', 'system'] as const satisfies readonly ColonySortMode[]
 
 const CLOCK_REFRESH_MS = 60_000
@@ -308,6 +309,8 @@ async function toggleColony(colonyId: string): Promise<void> {
       <PiSupplyTab v-else-if="activeTab === 'supply'" @open-stock="activeTab = 'stock'" />
 
       <PiRevenueTab v-else-if="activeTab === 'revenue'" />
+
+      <PiLayoutsTab v-else-if="activeTab === 'layouts'" />
 
       <template v-else>
 
