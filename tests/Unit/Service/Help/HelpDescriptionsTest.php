@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Help;
 
 use App\Message\PurgeExpiredLineReservations;
+use App\Message\SyncRegionalMarketVolumes;
 use App\Scheduler\SyncScheduler;
 use App\Service\ESI\AuthenticationService;
 use App\Service\Help\HelpDescriptionMissing;
@@ -56,6 +57,15 @@ final class HelpDescriptionsTest extends TestCase
 
         self::assertSame('Purge des réservations de lignes expirées', $descriptions->syncLabel(PurgeExpiredLineReservations::class, 'fr'));
         self::assertSame('Purge of expired line reservations', $descriptions->syncLabel(PurgeExpiredLineReservations::class, 'en'));
+    }
+
+    #[Group('issue-1404')]
+    public function testTheRegionalMarketVolumesSyncMentionsTheHistoryOfThePlanetaryProductsInBothLanguages(): void
+    {
+        $descriptions = new HelpDescriptions();
+
+        self::assertSame('Volumes de marché journaliers par région et historique des produits PI', $descriptions->syncLabel(SyncRegionalMarketVolumes::class, 'fr'));
+        self::assertSame('Daily market volumes by region and PI product history', $descriptions->syncLabel(SyncRegionalMarketVolumes::class, 'en'));
     }
 
     public function testNoDescriptionIsLeftForAScopeThatIsNoLongerRequired(): void

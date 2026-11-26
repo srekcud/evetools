@@ -7,16 +7,21 @@ namespace App\Tests\Unit\MessageHandler;
 use App\Constant\EveConstants;
 use App\Entity\CachedStructure;
 use App\Entity\Sde\MapSolarSystem;
+use App\Exception\EsiApiException;
 use App\Message\SyncRegionalMarketVolumes;
 use App\MessageHandler\SyncRegionalMarketVolumesHandler;
 use App\Repository\CachedStructureRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Repository\UserRepository;
 use App\Service\Admin\SyncTracker;
 use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\JitaMarketService;
+use App\Service\MarketHistoryService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Planetary\PlanetaryProductionCalculator;
+use App\Service\Planetary\PlanetaryProductTypeResolver;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -30,6 +35,7 @@ use Symfony\Component\Mercure\HubInterface;
 #[AllowMockObjectsWithoutExpectations]
 #[Group('issue-419')]
 #[Group('issue-781')]
+#[Group('issue-1404')]
 final class SyncRegionalMarketVolumesHandlerTest extends TestCase
 {
     private const int DEFAULT_STRUCTURE_ID = 1_035_466_617_946;
@@ -40,12 +46,19 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
     private const int PREFERRED_REGION_ID = 10000030;
     private const int THE_FORGE_REGION_ID = EveConstants::THE_FORGE_REGION_ID;
     private const string SYNC_TYPE = 'market-volumes';
+    private const int COOLANT = 91_021;
+    private const int ROBOTICS = 91_031;
+    private const int BROADCAST_NODE = 91_041;
+    private const int WATER = 91_011;
 
     private JitaMarketService&MockObject $jitaMarketService;
     private IndustryActivityProductRepository&MockObject $productRepository;
     private UserRepository&MockObject $userRepository;
     private CachedStructureRepository&MockObject $cachedStructureRepository;
     private MapSolarSystemRepository&MockObject $solarSystemRepository;
+    private PlanetSchematicTypeRepository&MockObject $schematicTypeRepository;
+    private PlanetaryProductionCalculator&MockObject $productionCalculator;
+    private MarketHistoryService&MockObject $marketHistoryService;
     private SyncTracker $syncTracker;
     private SyncRegionalMarketVolumesHandler $handler;
 
@@ -59,6 +72,9 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
         $this->userRepository = $this->createMock(UserRepository::class);
         $this->cachedStructureRepository = $this->createMock(CachedStructureRepository::class);
         $this->solarSystemRepository = $this->createMock(MapSolarSystemRepository::class);
+        $this->schematicTypeRepository = $this->createMock(PlanetSchematicTypeRepository::class);
+        $this->productionCalculator = $this->createMock(PlanetaryProductionCalculator::class);
+        $this->marketHistoryService = $this->createMock(MarketHistoryService::class);
         $this->syncTracker = new SyncTracker(
             new ArrayAdapter(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
@@ -243,6 +259,128 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
         $this->assertSame('1 regions, 2 types synced; skipped (region unknown): ' . self::DEFAULT_STRUCTURE_ID, $state['message']);
     }
 
+    public function testTheHistoryOfEachP2P3AndP4ProductIsSyncedOnTheForgeOnlyWhileTheVolumeListOfEachRegionStaysUnchanged(): void
+    {
+        $this->givenPreferredStructures([self::PREFERRED_STRUCTURE_ID]);
+        $this->givenPlanetaryProducts([self::WATER => 'P1', self::COOLANT => 'P2', self::ROBOTICS => 'P3', self::BROADCAST_NODE => 'P4']);
+        $volumeCalls = [];
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturnCallback(
+            function (int $regionId, array $typeIds) use (&$volumeCalls): array {
+                $volumeCalls[] = [$regionId, $typeIds];
+
+                return ['synced' => 2, 'failed' => 0, 'aborted' => false];
+            },
+        );
+        $historyCalls = $this->recordHistorySyncs();
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([
+            [self::THE_FORGE_REGION_ID, [587, 588]],
+            [self::DEFAULT_REGION_ID, [587, 588]],
+            [self::PREFERRED_REGION_ID, [587, 588]],
+        ], $volumeCalls);
+        $this->assertSame([
+            [self::COOLANT, self::THE_FORGE_REGION_ID],
+            [self::ROBOTICS, self::THE_FORGE_REGION_ID],
+            [self::BROADCAST_NODE, self::THE_FORGE_REGION_ID],
+        ], $historyCalls());
+        $state = $this->trackerState();
+        $this->assertSame('ok', $state['status']);
+        $this->assertSame('3 regions, 9 types synced', $state['message']);
+    }
+
+    public function testAnEsiFailureOnOneProductHistoryCountsAsAFailedTypeAndTheOtherProductsAreStillSynced(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts([self::COOLANT => 'P2', self::ROBOTICS => 'P3', self::BROADCAST_NODE => 'P4']);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $attemptedTypeIds = [];
+        $this->marketHistoryService->method('syncHistory')->willReturnCallback(
+            function (int $typeId, int $regionId) use (&$attemptedTypeIds): void {
+                $attemptedTypeIds[] = $typeId;
+                if ($typeId === self::ROBOTICS) {
+                    throw EsiApiException::fromResponse(503, 'Service unavailable', sprintf('/markets/%d/history/?type_id=%d', $regionId, $typeId));
+                }
+            },
+        );
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([self::COOLANT, self::ROBOTICS, self::BROADCAST_NODE], $attemptedTypeIds);
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 6 types synced; 1 types failed', $state['message']);
+    }
+
+    public function testAFailureThatIsNotAnEsiErrorFailsTheTrackerWithItsMessageAndIsRethrown(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts([self::COOLANT => 'P2', self::ROBOTICS => 'P3']);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $attemptedTypeIds = [];
+        $this->marketHistoryService->method('syncHistory')->willReturnCallback(
+            function (int $typeId) use (&$attemptedTypeIds): void {
+                $attemptedTypeIds[] = $typeId;
+                throw new \RuntimeException('Database connection lost');
+            },
+        );
+
+        $thrown = null;
+        try {
+            $this->handler()(new SyncRegionalMarketVolumes());
+        } catch (\RuntimeException $exception) {
+            $thrown = $exception;
+        }
+
+        $this->assertNotNull($thrown);
+        $this->assertSame('Database connection lost', $thrown->getMessage());
+
+        $this->assertSame([self::COOLANT], $attemptedTypeIds);
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('Database connection lost', $state['message']);
+    }
+
+    public function testWithoutAnyP2P3OrP4SchematicNoHistoryIsSynced(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts([self::WATER => 'P1']);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $historyCalls = $this->recordHistorySyncs();
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([], $historyCalls());
+        $this->assertSame('2 regions, 4 types synced', $this->trackerState()['message']);
+    }
+
+    private function givenPlanetaryProducts(array $tierByTypeId): void
+    {
+        $schematicMap = [];
+        foreach (array_keys($tierByTypeId) as $position => $typeId) {
+            $schematicMap[301 + $position] = ['inputs' => [91_001 => 40], 'output' => ['typeId' => $typeId, 'quantity' => 5]];
+        }
+        $this->schematicTypeRepository->method('getSchematicMap')->willReturn($schematicMap);
+        $this->productionCalculator->method('findProductTier')->willReturnCallback(
+            static fn (int $typeId): ?string => $tierByTypeId[$typeId] ?? null,
+        );
+    }
+
+    private function recordHistorySyncs(): \Closure
+    {
+        $calls = [];
+        $this->marketHistoryService->method('syncHistory')->willReturnCallback(
+            function (int $typeId, int $regionId) use (&$calls): void {
+                $calls[] = [$typeId, $regionId];
+            },
+        );
+
+        return static function () use (&$calls): array {
+            return $calls;
+        };
+    }
+
     /**
      * @param list<int> $structureIds
      */
@@ -259,6 +397,8 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
             cachedStructureRepository: $this->cachedStructureRepository,
             solarSystemRepository: $this->solarSystemRepository,
             jitaMarketService: $this->jitaMarketService,
+            planetaryProductTypeResolver: new PlanetaryProductTypeResolver($this->schematicTypeRepository, $this->productionCalculator),
+            marketHistoryService: $this->marketHistoryService,
             syncTracker: $this->syncTracker,
             logger: new NullLogger(),
             defaultMarketStructureId: self::DEFAULT_STRUCTURE_ID,

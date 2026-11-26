@@ -95,4 +95,13 @@ class MarketPriceHistoryRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
+    /**
+     * @param list<int> $typeIds
+     * @return array<int, list<array{date: string, average: float, volume: int}>>
+     */
+    public function findLatestEntriesByType(array $typeIds, int $regionId, int $entriesPerType): array
+    {
+        return [];
+    }
 }
