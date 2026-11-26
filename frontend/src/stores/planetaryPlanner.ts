@@ -3,6 +3,14 @@ import { computed, ref } from 'vue'
 import { i18n } from '@/i18n'
 import { apiRequest } from '@/services/api'
 import {
+  MAX_TEMPLATE_NAME_LENGTH,
+  isTemplateResolvable,
+  loadTemplate,
+  mergeTemplate,
+  templateToPayload,
+  type PlanTemplate,
+} from '@/utils/planetaryTemplates'
+import {
   DEFAULT_VOLUME_SHARE_PERCENT,
   isValidVolumeShare,
   rankProducts,
@@ -35,6 +43,8 @@ import {
   type PriceSource,
 } from '@/utils/planetaryPlanner'
 
+const TEMPLATES_ENDPOINT = '/planetary/templates'
+
 export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   const catalog = ref<PlannerCatalog | null>(null)
   const isLoading = ref(false)
@@ -45,6 +55,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   const selectedIndex = ref<number | null>(null)
   const account = ref<PlannerAccount | null>(null)
   const market = ref<PlannerMarket | null>(null)
+  const templates = ref<PlanTemplate[]>([])
   const rankingBase = ref<RankingBase>('planet')
   const volumeSharePercent = ref(DEFAULT_VOLUME_SHARE_PERCENT)
   const rankingTier = ref<RankingTierFilter>('all')
@@ -69,6 +80,74 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
         })
       : [],
   )
+
+  async function fetchTemplates(): Promise<void> {
+    try {
+      const response = await apiRequest<PlanTemplate[]>(TEMPLATES_ENDPOINT)
+      if (!Array.isArray(response)) throw new Error('The templates response is not a list')
+      templates.value = response
+    } catch {
+      if (error.value === null) error.value = i18n.global.t('pi.planner.errors.templatesRead')
+    }
+  }
+
+  async function saveTemplate(name: string): Promise<boolean> {
+    const trimmedName = name.trim()
+    if (productions.value.length === 0 || trimmedName === '' || trimmedName.length > MAX_TEMPLATE_NAME_LENGTH) return false
+
+    try {
+      const saved = await apiRequest<PlanTemplate>(TEMPLATES_ENDPOINT, {
+        method: 'POST',
+        body: JSON.stringify(templateToPayload(productions.value, choices.value, settings.value, trimmedName)),
+      })
+      templates.value = [saved, ...templates.value]
+      return true
+    } catch {
+      error.value = i18n.global.t('pi.planner.errors.templateSave')
+      return false
+    }
+  }
+
+  async function deleteTemplate(id: string): Promise<boolean> {
+    try {
+      await apiRequest<null>(`${TEMPLATES_ENDPOINT}/${id}`, { method: 'DELETE' })
+      templates.value = templates.value.filter(template => template.id !== id)
+      return true
+    } catch {
+      error.value = i18n.global.t('pi.planner.errors.templateDelete')
+      return false
+    }
+  }
+
+  function resolvableTemplate(id: string): PlanTemplate | null {
+    const template = templates.value.find(candidate => candidate.id === id)
+    if (!template || !catalog.value || !isTemplateResolvable(template, catalog.value)) return null
+    return template
+  }
+
+  function loadTemplateIntoPlan(id: string): void {
+    const template = resolvableTemplate(id)
+    if (!template) return
+
+    const loaded = loadTemplate(template)
+    productions.value = loaded.productions
+    choices.value = loaded.choices
+    settings.value = loaded.settings
+    selectedIndex.value = loaded.productions.length === 0 ? null : 0
+  }
+
+  function addTemplateToPlan(id: string): void {
+    const template = resolvableTemplate(id)
+    if (!template) return
+    if (productions.value.length === 0) {
+      loadTemplateIntoPlan(id)
+      return
+    }
+
+    const merged = mergeTemplate(productions.value, choices.value, template)
+    productions.value = merged.productions
+    choices.value = merged.choices
+  }
 
   async function fetchMarket(): Promise<void> {
     try {
@@ -220,6 +299,12 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     selectedIndex,
     account,
     market,
+    templates,
+    fetchTemplates,
+    saveTemplate,
+    deleteTemplate,
+    loadTemplateIntoPlan,
+    addTemplateToPlan,
     rankingBase,
     volumeSharePercent,
     rankingTier,

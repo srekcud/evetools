@@ -42,6 +42,7 @@ async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, account: Plan
       return { id: 'account', ...account }
     }
     if (endpoint === '/planetary/planner/market') return { id: 'market', ...PLANNER_MARKET }
+    if (endpoint === '/planetary/templates') return []
     return { id: 'planner', ...catalog }
   }) as never)
   const wrapper = mount(PiPlannerTab, {

@@ -642,11 +642,47 @@
           "disabled": "Moins d'une unité par jour ou base vide : rien à planifier"
         }
       },
+      "templates": {
+        "title": "Mes templates",
+        "subtitle": "Un plan enregistré garde ses produits, ses choix fabriquer ou acheter et ses réglages. Les planètes et les profits sont recalculés aux prix du jour.",
+        "nameLabel": "Nom du template",
+        "namePlaceholder": "Nom du plan à enregistrer",
+        "save": "Enregistrer le plan",
+        "empty": "Aucun template. Planifiez des produits ci-dessus, nommez le plan et enregistrez-le pour le comparer et le recharger plus tard.",
+        "missing": "Recette introuvable",
+        "missingHelp": "Un produit de ce template n'existe plus dans la SDE",
+        "perDay": "/ jour",
+        "community": "Templates de la communauté",
+        "columns": {
+          "name": "Nom",
+          "productions": "Productions",
+          "planets": "Planètes",
+          "profitDay": "Profit / jour",
+          "profitWeek": "Profit / semaine",
+          "profitMonth": "Profit / mois",
+          "purchases": "Achats / semaine",
+          "date": "Enregistré le"
+        },
+        "actions": {
+          "load": "Charger",
+          "add": "Ajouter",
+          "delete": "Supprimer"
+        },
+        "confirm": {
+          "load": "Remplacer le plan actuel par « {name} » ?",
+          "delete": "Supprimer le template « {name} » ?",
+          "accept": "Confirmer",
+          "cancel": "Annuler"
+        }
+      },
       "errors": {
         "emptyCatalog": "La SDE ne contient aucun schéma planétaire. Importez-la avant d'utiliser le planificateur.",
         "account": "Impossible de charger vos colonies et vos emplacements de planète. Rendements et maximum sont affichés comme inconnus.",
         "market": "Impossible de charger les volumes du marché. Volumes et profits sont affichés comme inconnus.",
-        "load": "Impossible de charger les données du planificateur."
+        "load": "Impossible de charger les données du planificateur.",
+        "templatesRead": "Impossible de charger vos templates.",
+        "templateSave": "Impossible d'enregistrer le template. La limite est de 50 templates.",
+        "templateDelete": "Impossible de supprimer le template."
       }
     },
     "revenue": {

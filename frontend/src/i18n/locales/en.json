@@ -642,11 +642,47 @@
           "disabled": "Less than one unit a day or no base: nothing to plan"
         }
       },
+      "templates": {
+        "title": "My templates",
+        "subtitle": "Saved plans keep their products, their make or buy choices and their settings. Planets and profits are recomputed at today's prices.",
+        "nameLabel": "Template name",
+        "namePlaceholder": "Name of the plan to save",
+        "save": "Save the plan",
+        "empty": "No template yet. Plan some products above, name the plan and save it to compare and reload it later.",
+        "missing": "Recipe not found",
+        "missingHelp": "A product of this template no longer exists in the SDE",
+        "perDay": "/ day",
+        "community": "Community templates",
+        "columns": {
+          "name": "Name",
+          "productions": "Productions",
+          "planets": "Planets",
+          "profitDay": "Profit / day",
+          "profitWeek": "Profit / week",
+          "profitMonth": "Profit / month",
+          "purchases": "Purchases / week",
+          "date": "Saved on"
+        },
+        "actions": {
+          "load": "Load",
+          "add": "Add",
+          "delete": "Delete"
+        },
+        "confirm": {
+          "load": "Replace the current plan with \"{name}\"?",
+          "delete": "Delete the template \"{name}\"?",
+          "accept": "Confirm",
+          "cancel": "Cancel"
+        }
+      },
       "errors": {
         "emptyCatalog": "The SDE holds no planetary schematic. Import it before using the planner.",
         "account": "Could not load your colonies and planet slots. Yields and maximum are shown as unknown.",
         "market": "Could not load the market volumes. Volumes and profits are shown as unknown.",
-        "load": "Could not load the planner data."
+        "load": "Could not load the planner data.",
+        "templatesRead": "Could not load your templates.",
+        "templateSave": "Could not save the template. The limit is 50 templates.",
+        "templateDelete": "Could not delete the template."
       }
     },
     "revenue": {
