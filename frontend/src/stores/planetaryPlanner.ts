@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { i18n } from '@/i18n'
 import { apiRequest } from '@/services/api'
+import type { PlanTemplate } from '@/utils/planetaryTemplates'
 import {
   DEFAULT_VOLUME_SHARE_PERCENT,
   isValidVolumeShare,
@@ -45,6 +46,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   const selectedIndex = ref<number | null>(null)
   const account = ref<PlannerAccount | null>(null)
   const market = ref<PlannerMarket | null>(null)
+  const templates = ref<PlanTemplate[]>([])
   const rankingBase = ref<RankingBase>('planet')
   const volumeSharePercent = ref(DEFAULT_VOLUME_SHARE_PERCENT)
   const rankingTier = ref<RankingTierFilter>('all')
@@ -69,6 +71,28 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
         })
       : [],
   )
+
+  async function fetchTemplates(): Promise<void> {
+    return
+  }
+
+  async function saveTemplate(name: string): Promise<boolean> {
+    void name
+    return true
+  }
+
+  async function deleteTemplate(id: string): Promise<boolean> {
+    void id
+    return true
+  }
+
+  function loadTemplateIntoPlan(id: string): void {
+    void id
+  }
+
+  function addTemplateToPlan(id: string): void {
+    void id
+  }
 
   async function fetchMarket(): Promise<void> {
     try {
@@ -220,6 +244,12 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     selectedIndex,
     account,
     market,
+    templates,
+    fetchTemplates,
+    saveTemplate,
+    deleteTemplate,
+    loadTemplateIntoPlan,
+    addTemplateToPlan,
     rankingBase,
     volumeSharePercent,
     rankingTier,
