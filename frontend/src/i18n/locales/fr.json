@@ -949,6 +949,35 @@
       "daysShort": "{value} j",
       "errors": {
         "load": "Les besoins en entrées n'ont pas pu être chargés."
+      },
+      "pickup": {
+        "title": "À ramasser sur tes colonies",
+        "help": "Pour chaque type des totaux du plein, ce que tes autres colonies tiennent déjà en sortie en attente : ramasse-le là-bas avant d'acheter le reste.",
+        "product": "Produit",
+        "needed": "À apporter",
+        "amount": "À ramasser",
+        "remaining": "Reste à trouver",
+        "sources": "Colonies où ramasser",
+        "unknownSource": "quantité inconnue",
+        "unknownNote": "Certaines colonies ont une quantité en attente inconnue : elle est exclue des quantités à ramasser.",
+        "incomplete": "Certaines usines ont un schéma inconnu, des sorties en attente peuvent manquer.",
+        "loading": "Lecture des stocks en attente...",
+        "errors": {
+          "load": "Les stocks en attente n'ont pas pu être chargés."
+        }
+      },
+      "bringBack": {
+        "title": "À rapporter",
+        "planet": "Planète",
+        "product": "Produit",
+        "quantity": "Quantité",
+        "volume": "Volume",
+        "destination": "Destination",
+        "to": "vers {planets}",
+        "unplaced": "à placer : aucune de tes colonies ne le consomme",
+        "empty": "Aucune sortie en attente sur tes colonies.",
+        "unknown": "inconnu",
+        "age": "il y a {hours} h"
       }
     }
   },

@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import PiSupplyPendingBlocks from '@/components/planetary/PiSupplyPendingBlocks.vue'
 import { useCopyFeedback } from '@/composables/useCopyFeedback'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
@@ -252,5 +253,7 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
         </div>
       </template>
     </template>
+
+    <PiSupplyPendingBlocks :totals="grid.totals" :type-names="typeNameById" />
   </div>
 </template>

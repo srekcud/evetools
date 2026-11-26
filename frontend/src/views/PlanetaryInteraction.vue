@@ -368,6 +368,8 @@ async function toggleColony(colonyId: string): Promise<void> {
 
       <PiSupplyTab v-else-if="activeTab === 'supply'" />
 
+      <PiSupplyTab v-else-if="activeTab === 'supply'" />
+
       <PiRevenueTab v-else-if="activeTab === 'revenue'" />
 
       <template v-else>
