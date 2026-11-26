@@ -3,6 +3,65 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.32 (2026-11-26)
+--------------------------------------------------------------------------------
+
+### Planetaire - layouts de colonie
+- Nouvel onglet Layouts : collez un template de colonie exporte par le jeu, il
+  est valide, resume (planete, batiments, CPU et PG, produits, competences)
+  puis garde dans vos layouts
+- Copiez ou telechargez un layout au format du jeu pour le reimporter en jeu
+- Publiez un layout dans la bibliotheque publique, visible de tous les
+  utilisateurs sans nom d'auteur, et depubliez-le quand vous voulez ; filtre
+  par planete et par produit, et ajout d'un layout public a vos layouts
+- Liens vers les collections communautaires de templates (rien n'est heberge)
+
+### Planetaire - planificateur
+- Onglet Planificateur : vos productions, l'arbre complet et le choix
+  produire ou acheter, avec les planetes necessaires
+- Classement "Que produire" avec l'historique du marche PI de The Forge
+- Mes templates : enregistrez un plan, il est recalcule aux prix du jour
+- Suivez un plan comme objectif sur Colonies, Revenus et le Planificateur ;
+  le lien filtre les colonies concernees
+
+### Planetaire - colonies
+- Colonies groupees par compte avec les slots utilises face au maximum de la
+  competence, tri par prochaine action et filtres rapides, pastille de tier
+- CPU et PG libres par colonie selon le niveau du centre de commandement
+- Une usine affiche son statut avec son autonomie et sa date de recharge
+- Rendement d'extracteur decroissant (formule CCP), courbe avec la duree de
+  relance conseillee et le stock projete du launchpad
+- Bilan P0 des planetes d'extraction avec conseil sur les tetes et les usines
+- Stock et extraction projetes depuis votre derniere vue en jeu, avec l'age
+  des donnees
+
+### Planetaire - stock et approvisionnement
+- Onglet Stock : grille de couverture, liste d'achat unique, prix, signaux et
+  bloc A traiter ; produits demandes par vos projets industriels
+- Onglet Approvisionnement : recharge equilibree des launchpads pour les N
+  prochains jours, bloc A ramasser avec stock maison et manque
+- Stock des bureaux de douane pris en compte comme source de ramassage
+- Prix paye des intrants PI d'apres vos achats des 90 derniers jours
+- Reglages PI : lieu maison, hub et objectif de couverture
+
+### Planetaire - revenus et alertes
+- Profit de production par jour dans l'onglet Revenus, taxes des bureaux de
+  douane (POCO) gardees depuis le journal wallet, par colonie et par jour
+- Vos ordres de vente PI compares au meilleur prix
+- Alertes : launchpad d'usine vide, stockage plein, donnees de colonie
+  anciennes ; webhook Discord optionnel pour les notifications planetaires
+
+### Industrie
+- Profit previsionnel du projet entier dans le Resume financier, structure de
+  vente et Jita cote a cote
+- Les ventes qui ne correspondent a aucun produit final sont listees a cote
+  du revenu enregistre
+
+### Commerce
+- Les ordres d'achat de vos personnages sont enregistres avec les ordres de
+  vente
+
+--------------------------------------------------------------------------------
 Version 0.31 (2026-11-22)
 --------------------------------------------------------------------------------
 
