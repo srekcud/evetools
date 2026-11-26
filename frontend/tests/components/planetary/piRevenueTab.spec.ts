@@ -4,7 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import PiRevenueTab from '@/components/planetary/PiRevenueTab.vue'
-import type { PlanetaryRevenue } from '@/stores/planetary'
+import type { PlanetaryProductionProfit, PlanetaryRevenue } from '@/stores/planetary'
 import { apiRequest } from '@/services/api'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -34,10 +34,38 @@ const REVENUE: PlanetaryRevenue = {
   sellOrders: { orders: [], charactersToReconnect: [], syncedAt: null },
 }
 
+const PRODUCTION_PROFIT: PlanetaryProductionProfit = {
+  hub: { structureId: 1049588174021, structureName: 'C-J6MT - 1st Taj Mahgoon (Keepstar)', hasData: true },
+  lines: [
+    {
+      typeId: 9832,
+      typeName: 'Coolant',
+      tier: 'P2',
+      dailyQuantity: 100,
+      soldQuantity: 100,
+      internal: false,
+      hubSellPrice: 700,
+      salesIsk: 70_000,
+      inputsIsk: 30_000,
+      profitPerDay: 40_000,
+      marginPercent: 57.14,
+      valuesExtractedAtHubBuy: false,
+      jitaIsk: 80_000,
+    },
+  ],
+  salesIsk: 70_000,
+  inputsIsk: 30_000,
+  profitPerDay: 40_000,
+  unknownLineCount: 0,
+  taxes: { days: 30, perDay: null },
+  netProfitPerDay: 40_000,
+  unsyncedWallets: [],
+}
+
 async function mountTab(revenue: PlanetaryRevenue = REVENUE, locale: 'en' | 'fr' = 'en') {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockResolvedValue(revenue as never)
+  vi.mocked(apiRequest).mockImplementation((async (url: string) => (url.startsWith('/planetary/production-profit') ? PRODUCTION_PROFIT : revenue)) as never)
   const wrapper = mount(PiRevenueTab, {
     global: {
       plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
@@ -74,7 +102,23 @@ describe('PiRevenueTab', () => {
     await wrapper.findAll('button').find(button => button.text() === '90 days')?.trigger('click')
     await flushPromises()
 
-    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0])).toEqual(['/planetary/revenue?days=30', '/planetary/revenue?days=90'])
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0]).filter(url => url.startsWith('/planetary/revenue'))).toEqual(['/planetary/revenue?days=30', '/planetary/revenue?days=90'])
+  })
+
+  it('loads the production profit once when it opens, whatever the period', async () => {
+    const wrapper = await mountTab()
+
+    await wrapper.findAll('button').find(button => button.text() === '90 days')?.trigger('click')
+    await flushPromises()
+
+    expect(vi.mocked(apiRequest).mock.calls.map(call => call[0]).filter(url => url.startsWith('/planetary/production-profit'))).toEqual(['/planetary/production-profit'])
+  })
+
+  it('shows the production profit grid under the revenue grids', async () => {
+    const wrapper = await mountTab()
+
+    expect(wrapper.get('[data-testid="production-profit-grid"] [data-testid="profit-line"] [data-cell="profit"]').text()).toBe('40.0k')
+    expect(wrapper.findAll('[data-testid="revenue-line-grid"]')).toHaveLength(2)
   })
 
   it('shows the realised grid with one column per tier, the off-market column as unknown and the net of the sales only', async () => {
