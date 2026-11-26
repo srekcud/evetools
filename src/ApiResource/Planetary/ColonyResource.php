@@ -40,6 +40,7 @@ use App\State\Provider\Planetary\ColonyDetailProvider;
         ),
     ],
     security: "is_granted('ROLE_USER')",
+    normalizationContext: ['skip_null_values' => false],
 )]
 class ColonyResource
 {

@@ -39,6 +39,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         CachedCharacterSkill::SKILL_ACCOUNTING,
         CachedCharacterSkill::SKILL_BROKER_RELATIONS,
         CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION,
+        CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES,
     ];
 
     private const int INVENTION_ACTIVITY_ID = 8;
