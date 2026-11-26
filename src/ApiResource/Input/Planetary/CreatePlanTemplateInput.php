@@ -8,7 +8,7 @@ class CreatePlanTemplateInput
 {
     public string $name = '';
 
-    /** @var list<array{typeId: int, targetPerDay: int|float}> */
+    /** @var array<int|string, array{typeId?: mixed, targetPerDay?: mixed}> */
     public array $productions = [];
 
     /** @var array<int|string, string> */
