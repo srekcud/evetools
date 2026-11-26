@@ -9,6 +9,7 @@ import PiPlannerProductions from '@/components/planetary/PiPlannerProductions.vu
 import PiPlannerRanking from '@/components/planetary/PiPlannerRanking.vue'
 import PiPlannerSettings from '@/components/planetary/PiPlannerSettings.vue'
 import PiPlannerSummary from '@/components/planetary/PiPlannerSummary.vue'
+import PiPlannerTemplates from '@/components/planetary/PiPlannerTemplates.vue'
 import PiPlannerTree from '@/components/planetary/PiPlannerTree.vue'
 
 const { t } = useI18n()
@@ -18,6 +19,7 @@ onMounted(() => {
   void store.fetchCatalog()
   void store.fetchAccount()
   void store.fetchMarket()
+  void store.fetchTemplates()
 })
 </script>
 
@@ -44,6 +46,7 @@ onMounted(() => {
       </div>
       <PiPlannerPlanets />
       <PiPlannerRanking />
+      <PiPlannerTemplates />
     </template>
   </div>
 </template>

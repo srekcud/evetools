@@ -1,5 +1,6 @@
-import type { BuildChoice, PlannedProduction, PlannerCatalog, PlannerSettings } from '@/utils/planetaryPlanner'
-import type { PlannerAccount } from '@/utils/planetaryPlanets'
+import { DAYS_PER_MONTH, DAYS_PER_WEEK } from '@/utils/planetaryRanking'
+import { buildPlan, indexCatalog, type BuildChoice, type PlannedProduction, type PlannerCatalog, type PlannerSettings } from '@/utils/planetaryPlanner'
+import { buildPlanetPlan, type PlannerAccount } from '@/utils/planetaryPlanets'
 
 export interface PlanTemplate {
   id: string
@@ -39,9 +40,24 @@ export interface MergedTemplate {
   choices: Record<number, BuildChoice>
 }
 
-export const DAYS_PER_WEEK = 7
-export const DAYS_PER_MONTH = 30
+export { DAYS_PER_MONTH, DAYS_PER_WEEK } from '@/utils/planetaryRanking'
 export const MAX_TEMPLATE_NAME_LENGTH = 100
+
+const UNKNOWN_EVALUATION: TemplateEvaluation = {
+  planets: null,
+  planetsIncomplete: true,
+  profitPerDay: null,
+  profitPerWeek: null,
+  profitPerMonth: null,
+  profitIncomplete: true,
+  weeklyPurchasesIsk: null,
+  purchasesIncomplete: true,
+}
+
+export function isTemplateResolvable(template: PlanTemplate, catalog: PlannerCatalog): boolean {
+  const { recipeByOutput } = indexCatalog(catalog)
+  return template.productions.every(production => recipeByOutput.has(production.typeId))
+}
 
 export function evaluateTemplate(
   template: PlanTemplate,
@@ -49,38 +65,49 @@ export function evaluateTemplate(
   account: PlannerAccount | null,
   overrides: Record<number, number>,
 ): TemplateEvaluation {
-  void template
-  void catalog
-  void account
-  void overrides
+  if (!isTemplateResolvable(template, catalog)) return { ...UNKNOWN_EVALUATION }
+
+  const { summary } = buildPlan(template.productions, catalog, template.choices, template.settings)
+  const planetPlan = buildPlanetPlan(template.productions, catalog, template.choices, template.settings, account, overrides)
+  const profitPerDay = summary.profitIncomplete ? null : summary.totalProfitPerDay
+
   return {
-    planets: null,
-    planetsIncomplete: false,
-    profitPerDay: null,
-    profitPerWeek: null,
-    profitPerMonth: null,
-    profitIncomplete: false,
-    weeklyPurchasesIsk: null,
-    purchasesIncomplete: false,
+    planets: planetPlan.incomplete ? null : planetPlan.totalPlanets,
+    planetsIncomplete: planetPlan.incomplete,
+    profitPerDay,
+    profitPerWeek: profitPerDay === null ? null : profitPerDay * DAYS_PER_WEEK,
+    profitPerMonth: profitPerDay === null ? null : profitPerDay * DAYS_PER_MONTH,
+    profitIncomplete: summary.profitIncomplete,
+    weeklyPurchasesIsk: summary.purchasesIncomplete ? null : summary.weeklyPurchasesIsk,
+    purchasesIncomplete: summary.purchasesIncomplete,
   }
 }
 
-export function isTemplateResolvable(template: PlanTemplate, catalog: PlannerCatalog): boolean {
-  void template
-  void catalog
-  return true
-}
-
 export function loadTemplate(template: PlanTemplate): LoadedTemplate {
-  void template
-  return { productions: [], choices: {}, settings: { priceSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 } }
+  return {
+    productions: template.productions.map(production => ({ ...production })),
+    choices: { ...template.choices },
+    settings: { ...template.settings },
+  }
 }
 
 export function mergeTemplate(currentProductions: PlannedProduction[], currentChoices: Record<number, BuildChoice>, template: PlanTemplate): MergedTemplate {
-  void template
-  return { productions: currentProductions, choices: currentChoices }
+  const choices = { ...currentChoices }
+  for (const [typeId, choice] of Object.entries(template.choices)) {
+    if (!(typeId in choices)) choices[Number(typeId)] = choice
+  }
+
+  return {
+    productions: [...currentProductions, ...template.productions].map(production => ({ ...production })),
+    choices,
+  }
 }
 
 export function templateToPayload(productions: PlannedProduction[], choices: Record<number, BuildChoice>, settings: PlannerSettings, name: string): PlanTemplatePayload {
-  return { name, productions, choices, settings }
+  return {
+    name,
+    productions: productions.map(production => ({ ...production })),
+    choices: { ...choices },
+    settings: { ...settings },
+  }
 }
