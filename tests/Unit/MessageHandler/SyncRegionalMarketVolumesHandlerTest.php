@@ -24,9 +24,11 @@ use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\Planetary\PlanetaryProductTypeResolver;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Mercure\HubInterface;
@@ -50,6 +52,19 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
     private const int ROBOTICS = 91_031;
     private const int BROADCAST_NODE = 91_041;
     private const int WATER = 91_011;
+    private const int SUPERCONDUCTORS = 91_051;
+    private const int TRANSMITTER = 91_061;
+    private const int SYNTHETIC_OIL = 91_071;
+    private const int MECHANICAL_PARTS = 91_081;
+    private const array SEVEN_PLANETARY_PRODUCTS = [
+        self::COOLANT => 'P2',
+        self::ROBOTICS => 'P3',
+        self::BROADCAST_NODE => 'P4',
+        self::SUPERCONDUCTORS => 'P2',
+        self::TRANSMITTER => 'P3',
+        self::SYNTHETIC_OIL => 'P2',
+        self::MECHANICAL_PARTS => 'P3',
+    ];
 
     private JitaMarketService&MockObject $jitaMarketService;
     private IndustryActivityProductRepository&MockObject $productRepository;
@@ -297,11 +312,13 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
         $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
         $attemptedTypeIds = [];
         $this->marketHistoryService->method('syncHistory')->willReturnCallback(
-            function (int $typeId, int $regionId) use (&$attemptedTypeIds): void {
+            function (int $typeId, int $regionId) use (&$attemptedTypeIds): int {
                 $attemptedTypeIds[] = $typeId;
                 if ($typeId === self::ROBOTICS) {
                     throw EsiApiException::fromResponse(503, 'Service unavailable', sprintf('/markets/%d/history/?type_id=%d', $regionId, $typeId));
                 }
+
+                return 1;
             },
         );
 
@@ -320,7 +337,7 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
         $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
         $attemptedTypeIds = [];
         $this->marketHistoryService->method('syncHistory')->willReturnCallback(
-            function (int $typeId) use (&$attemptedTypeIds): void {
+            function (int $typeId) use (&$attemptedTypeIds): int {
                 $attemptedTypeIds[] = $typeId;
                 throw new \RuntimeException('Database connection lost');
             },
@@ -355,6 +372,186 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
         $this->assertSame('2 regions, 4 types synced', $this->trackerState()['message']);
     }
 
+    public function testAnEmptyProductHistoryCountsAsAFailedTypeWithAWarningAndNotAsSynced(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts([self::COOLANT => 'P2', self::ROBOTICS => 'P3', self::BROADCAST_NODE => 'P4']);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $attemptedTypeIds = $this->givenHistoryOutcomes([self::COOLANT => 3, self::ROBOTICS => 0, self::BROADCAST_NODE => 7]);
+        $warnedTypeIds = [];
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->method('warning')->willReturnCallback(
+            function (string|\Stringable $message, array $context) use (&$warnedTypeIds): void {
+                $warnedTypeIds[] = $context['typeId'];
+            },
+        );
+
+        $this->handler($logger)(new SyncRegionalMarketVolumes());
+
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 6 types synced; 1 types failed', $state['message']);
+        $this->assertSame([self::COOLANT, self::ROBOTICS, self::BROADCAST_NODE], $attemptedTypeIds());
+        $this->assertSame([self::ROBOTICS], $warnedTypeIds);
+    }
+
+    public function testAbandoningTheForgeSyncsNoProductHistoryAndCountsEachProductAsFailed(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts([self::COOLANT => 'P2', self::ROBOTICS => 'P3', self::BROADCAST_NODE => 'P4']);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturnCallback(
+            static fn (int $regionId): array => $regionId === self::THE_FORGE_REGION_ID
+                ? ['synced' => 0, 'failed' => 60, 'aborted' => true]
+                : ['synced' => 2, 'failed' => 0, 'aborted' => false],
+        );
+        $attemptedTypeIds = $this->givenHistoryOutcomes([self::COOLANT => 3, self::ROBOTICS => 7, self::BROADCAST_NODE => 11]);
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([], $attemptedTypeIds());
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 2 types synced; 63 types failed; abandoned: ' . self::THE_FORGE_REGION_ID, $state['message']);
+    }
+
+    #[DataProvider('esiErrorBudgetStatusCodes')]
+    public function testAnEsiErrorBudgetOrRateLimitStatusStopsTheProductHistoryLoopAndCountsTheRemainingProductsAsFailed(int $statusCode): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts(self::SEVEN_PLANETARY_PRODUCTS);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $attemptedTypeIds = $this->givenHistoryOutcomes([
+            self::COOLANT => 4,
+            self::ROBOTICS => $this->esiFailure($statusCode),
+            self::BROADCAST_NODE => 7,
+            self::SUPERCONDUCTORS => 9,
+            self::TRANSMITTER => 12,
+            self::SYNTHETIC_OIL => 15,
+            self::MECHANICAL_PARTS => 21,
+        ]);
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([self::COOLANT, self::ROBOTICS], $attemptedTypeIds());
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 5 types synced; 6 types failed', $state['message']);
+    }
+
+    /**
+     * @return array<string, array{int}>
+     */
+    public static function esiErrorBudgetStatusCodes(): array
+    {
+        return [
+            'error budget exhausted' => [420],
+            'rate limited' => [429],
+        ];
+    }
+
+    public function testAnEsiServiceUnavailableStatusOnTheFirstProductDoesNotStopTheLoopAndCountsASingleFailure(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts(self::SEVEN_PLANETARY_PRODUCTS);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $attemptedTypeIds = $this->givenHistoryOutcomes([
+            self::COOLANT => $this->esiFailure(503),
+            self::ROBOTICS => 4,
+            self::BROADCAST_NODE => 7,
+            self::SUPERCONDUCTORS => 9,
+            self::TRANSMITTER => 12,
+            self::SYNTHETIC_OIL => 15,
+            self::MECHANICAL_PARTS => 21,
+        ]);
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame(
+            [self::COOLANT, self::ROBOTICS, self::BROADCAST_NODE, self::SUPERCONDUCTORS, self::TRANSMITTER, self::SYNTHETIC_OIL, self::MECHANICAL_PARTS],
+            $attemptedTypeIds(),
+        );
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 10 types synced; 1 types failed', $state['message']);
+    }
+
+    public function testThreeConsecutiveFailedProductHistoriesStopTheLoopAndCountTheRemainingProductsAsFailed(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts(self::SEVEN_PLANETARY_PRODUCTS);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $attemptedTypeIds = $this->givenHistoryOutcomes([
+            self::COOLANT => $this->esiFailure(503),
+            self::ROBOTICS => $this->esiFailure(503),
+            self::BROADCAST_NODE => $this->esiFailure(503),
+            self::SUPERCONDUCTORS => 9,
+            self::TRANSMITTER => 12,
+            self::SYNTHETIC_OIL => 15,
+            self::MECHANICAL_PARTS => 21,
+        ]);
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame([self::COOLANT, self::ROBOTICS, self::BROADCAST_NODE], $attemptedTypeIds());
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 4 types synced; 7 types failed', $state['message']);
+    }
+
+    public function testASuccessfulProductHistoryBetweenFailuresResetsTheConsecutiveFailureCount(): void
+    {
+        $this->givenPreferredStructures([]);
+        $this->givenPlanetaryProducts(self::SEVEN_PLANETARY_PRODUCTS);
+        $this->jitaMarketService->method('syncRegionalDailyVolumes')->willReturn(['synced' => 2, 'failed' => 0, 'aborted' => false]);
+        $attemptedTypeIds = $this->givenHistoryOutcomes([
+            self::COOLANT => $this->esiFailure(503),
+            self::ROBOTICS => $this->esiFailure(503),
+            self::BROADCAST_NODE => 7,
+            self::SUPERCONDUCTORS => $this->esiFailure(503),
+            self::TRANSMITTER => $this->esiFailure(503),
+            self::SYNTHETIC_OIL => 15,
+            self::MECHANICAL_PARTS => 21,
+        ]);
+
+        $this->handler()(new SyncRegionalMarketVolumes());
+
+        $this->assertSame(
+            [self::COOLANT, self::ROBOTICS, self::BROADCAST_NODE, self::SUPERCONDUCTORS, self::TRANSMITTER, self::SYNTHETIC_OIL, self::MECHANICAL_PARTS],
+            $attemptedTypeIds(),
+        );
+        $state = $this->trackerState();
+        $this->assertSame('error', $state['status']);
+        $this->assertSame('2 regions, 7 types synced; 4 types failed', $state['message']);
+    }
+
+    /**
+     * @param array<int, int|EsiApiException> $outcomeByTypeId
+     */
+    private function givenHistoryOutcomes(array $outcomeByTypeId): \Closure
+    {
+        $attemptedTypeIds = [];
+        $this->marketHistoryService->method('syncHistory')->willReturnCallback(
+            function (int $typeId) use (&$attemptedTypeIds, $outcomeByTypeId): int {
+                $attemptedTypeIds[] = $typeId;
+                $outcome = $outcomeByTypeId[$typeId];
+                if ($outcome instanceof EsiApiException) {
+                    throw $outcome;
+                }
+
+                return $outcome;
+            },
+        );
+
+        return static function () use (&$attemptedTypeIds): array {
+            return $attemptedTypeIds;
+        };
+    }
+
+    private function esiFailure(int $statusCode): EsiApiException
+    {
+        return EsiApiException::fromResponse($statusCode, 'ESI failure', sprintf('/markets/%d/history/', self::THE_FORGE_REGION_ID));
+    }
+
     private function givenPlanetaryProducts(array $tierByTypeId): void
     {
         $schematicMap = [];
@@ -371,8 +568,10 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
     {
         $calls = [];
         $this->marketHistoryService->method('syncHistory')->willReturnCallback(
-            function (int $typeId, int $regionId) use (&$calls): void {
+            function (int $typeId, int $regionId) use (&$calls): int {
                 $calls[] = [$typeId, $regionId];
+
+                return 1;
             },
         );
 
@@ -389,7 +588,7 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
         $this->userRepository->method('findDistinctMarketStructureIds')->willReturn($structureIds);
     }
 
-    private function handler(): SyncRegionalMarketVolumesHandler
+    private function handler(?LoggerInterface $logger = null): SyncRegionalMarketVolumesHandler
     {
         return new SyncRegionalMarketVolumesHandler(
             productRepository: $this->productRepository,
@@ -400,7 +599,7 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
             planetaryProductTypeResolver: new PlanetaryProductTypeResolver($this->schematicTypeRepository, $this->productionCalculator),
             marketHistoryService: $this->marketHistoryService,
             syncTracker: $this->syncTracker,
-            logger: new NullLogger(),
+            logger: $logger ?? new NullLogger(),
             defaultMarketStructureId: self::DEFAULT_STRUCTURE_ID,
         );
     }
