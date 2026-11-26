@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Planetary\PlanetaryProjectNeedsResource;
 use App\Entity\User;
+use App\Service\Planetary\Stock\PlanetaryProjectNeed;
 use App\Service\Planetary\Stock\PlanetaryProjectNeedsReader;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -30,8 +31,19 @@ final readonly class PlanetaryProjectNeedsProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Authentication required');
         }
 
-        $this->reader->read($user);
+        $resource = new PlanetaryProjectNeedsResource();
+        $resource->products = array_map(
+            static fn (PlanetaryProjectNeed $need): array => [
+                'typeId' => $need->typeId,
+                'typeName' => $need->typeName,
+                'required' => $need->required,
+                'stock' => $need->stock,
+                'missing' => $need->missing,
+                'projects' => $need->projects,
+            ],
+            $this->reader->read($user),
+        );
 
-        return new PlanetaryProjectNeedsResource();
+        return $resource;
     }
 }

@@ -5,14 +5,19 @@ import PiStockCoverageGrid from '@/components/planetary/PiStockCoverageGrid.vue'
 import PiStockProjectNeeds from '@/components/planetary/PiStockProjectNeeds.vue'
 import PiStockPurchaseList from '@/components/planetary/PiStockPurchaseList.vue'
 import PiStockSettings from '@/components/planetary/PiStockSettings.vue'
+import { usePlanetaryProjectNeedsStore } from '@/stores/planetaryProjectNeeds'
 import { usePlanetarySettingsStore } from '@/stores/planetarySettings'
 import { usePlanetaryStockStore } from '@/stores/planetaryStock'
 
 const emit = defineEmits<{ 'open-planner': [] }>()
 const stockStore = usePlanetaryStockStore()
 const settingsStore = usePlanetarySettingsStore()
+const projectNeedsStore = usePlanetaryProjectNeedsStore()
 
-onMounted(() => stockStore.load())
+onMounted(() => {
+  stockStore.load()
+  projectNeedsStore.load()
+})
 
 watch(() => settingsStore.saveRevision, () => stockStore.load())
 
