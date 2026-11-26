@@ -25,7 +25,7 @@ This table is generated from the code by `app:help:generate-tables`: do not edit
 | System cost indices | 2 h |
 | Ansiblex jump gates | 12 h |
 | Adjusted prices | 1 day |
-| Daily market volumes by region | 1 day |
+| Daily market volumes by region and PI product history | 1 day |
 | Purge of expired shared shopping lists | 1 day |
 | Purge of market history | 1 day |
 | Purge of old notifications | 1 day |

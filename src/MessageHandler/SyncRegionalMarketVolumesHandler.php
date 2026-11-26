@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Constant\EveConstants;
+use App\Exception\EsiApiException;
 use App\Message\SyncRegionalMarketVolumes;
 use App\Repository\CachedStructureRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -69,6 +70,19 @@ final readonly class SyncRegionalMarketVolumesHandler
                 $failed += $result['failed'];
                 if ($result['aborted']) {
                     $abandonedRegionIds[] = $regionId;
+                }
+            }
+
+            foreach ($this->planetaryProductTypeResolver->factoryOutputTypeIds() as $productTypeId) {
+                try {
+                    $this->marketHistoryService->syncHistory($productTypeId, EveConstants::THE_FORGE_REGION_ID);
+                    ++$synced;
+                } catch (EsiApiException $exception) {
+                    ++$failed;
+                    $this->logger->warning('Planetary product history sync failed', [
+                        'typeId' => $productTypeId,
+                        'error' => $exception->getMessage(),
+                    ]);
                 }
             }
         } catch (\Throwable $e) {

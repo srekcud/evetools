@@ -91,7 +91,7 @@ final readonly class HelpDescriptions
         CheckCourierContracts::class => ['fr' => 'Alerte d\'un contrat de courrier de projet qui échoue', 'en' => 'Alert for a failing project courier contract'],
         CheckMoonChunkAlerts::class => ['fr' => 'Alertes de chunk lunaire', 'en' => 'Moon chunk alerts'],
         CheckMiningSiteDepletionAlerts::class => ['fr' => 'Alertes d\'épuisement de site de minage', 'en' => 'Mining site depletion alerts'],
-        SyncRegionalMarketVolumes::class => ['fr' => 'Volumes de marché journaliers par région', 'en' => 'Daily market volumes by region'],
+        SyncRegionalMarketVolumes::class => ['fr' => 'Volumes de marché journaliers par région et historique des produits PI', 'en' => 'Daily market volumes by region and PI product history'],
         PurgeOldNotifications::class => ['fr' => 'Purge des notifications anciennes', 'en' => 'Purge of old notifications'],
         PurgeOldMarketHistory::class => ['fr' => 'Purge de l\'historique de marché', 'en' => 'Purge of market history'],
         PurgeExpiredSharedLists::class => ['fr' => 'Purge des listes d\'achats partagées expirées', 'en' => 'Purge of expired shared shopping lists'],
