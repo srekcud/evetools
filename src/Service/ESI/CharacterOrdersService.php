@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\ESI;
 
+use App\Dto\CharacterBuyOrder;
+use App\Dto\CharacterOrders;
 use App\Dto\CharacterSellOrder;
 use App\Entity\Character;
 use App\Exception\EsiApiException;
@@ -19,34 +21,48 @@ class CharacterOrdersService
     }
 
     /**
-     * @return list<CharacterSellOrder>
-     *
      * @throws EveAuthRequiredException
      * @throws EsiApiException
      */
-    public function getSellOrders(Character $character): array
+    public function getOrders(Character $character): CharacterOrders
     {
         $token = $character->getEveToken() ?? throw new EveAuthRequiredException((string) $character->getEveCharacterId());
         $endpoint = '/characters/' . $character->getEveCharacterId() . '/orders/';
 
         $sellOrders = [];
+        $buyOrders = [];
         foreach ($this->esiClient->getPaginated($endpoint, $token) as $row) {
             if (!\is_array($row)) {
                 throw $this->incompleteRow('row', $endpoint);
             }
             if (($row['is_buy_order'] ?? false) === true) {
-                continue;
+                $buyOrders[] = $this->toBuyOrder($row, $endpoint);
+            } else {
+                $sellOrders[] = $this->toSellOrder($row, $endpoint);
             }
-            $sellOrders[] = $this->toOrder($row, $endpoint);
         }
 
-        return $sellOrders;
+        return new CharacterOrders($sellOrders, $buyOrders);
     }
 
     /** @param array<mixed> $row */
-    private function toOrder(array $row, string $endpoint): CharacterSellOrder
+    private function toSellOrder(array $row, string $endpoint): CharacterSellOrder
     {
         return new CharacterSellOrder(
+            $this->integerField($row, 'order_id', $endpoint),
+            $this->integerField($row, 'type_id', $endpoint),
+            $this->integerField($row, 'location_id', $endpoint),
+            $this->floatField($row, 'price', $endpoint),
+            $this->integerField($row, 'volume_remain', $endpoint),
+            $this->integerField($row, 'volume_total', $endpoint),
+            $this->dateField($row, 'issued', $endpoint),
+        );
+    }
+
+    /** @param array<mixed> $row */
+    private function toBuyOrder(array $row, string $endpoint): CharacterBuyOrder
+    {
+        return new CharacterBuyOrder(
             $this->integerField($row, 'order_id', $endpoint),
             $this->integerField($row, 'type_id', $endpoint),
             $this->integerField($row, 'location_id', $endpoint),

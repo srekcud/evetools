@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry\Stock;
 
 use App\Entity\User;
+use App\Service\Industry\Stock\PersonalStockContainerContents;
 use App\Service\Industry\Stock\PersonalStockContainerReading;
 use App\Service\Industry\Stock\PersonalStockReader;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -370,6 +371,95 @@ final class PersonalStockReaderTest extends TestCase
             array_map(static fn (PersonalStockContainerReading $reading): array => [$reading->name, $reading->unknownReason], $stock->containers),
         );
         self::assertSame('container_in_hidden_division', $stock->unknownReason());
+    }
+
+    #[Group('issue-1395')]
+    public function testContainerContentsListEachKnownContainerWithItsArticlesByTypeAndItsStationWithoutTheHangars(): void
+    {
+        $persoA = $this->cacheContainer(self::PERSO_A, $this->officeAtJita);
+        $this->cacheItem(self::TRITANIUM, 5, $persoA, 'Tritanium');
+        $this->cacheItem(self::PYERITE, 2, $persoA, 'Pyerite');
+        $bulk = $this->cacheContainer('Vrac', $persoA, 'Unlocked');
+        $this->cacheItem(self::PYERITE, 3, $bulk, 'Pyerite');
+        $persoB = $this->cacheContainer(self::PERSO_B, $this->officeAtAmarr);
+        $this->cacheItem(self::ZYDRINE, 50, $persoB, 'Zydrine');
+        $this->declareContainer($this->user, self::PERSO_B, $persoB, 'Division 2', self::STATION_AMARR, 'Amarr VIII');
+        $this->declareContainer($this->user, self::PERSO_A, $persoA);
+
+        $contents = $this->personalStockReader->containerContentsOf($this->user);
+
+        self::assertCount(2, $contents);
+        self::assertSame(
+            [
+                [self::PERSO_A, self::STATION_JITA, PersonalStockContainerReading::STATUS_KNOWN, null, 2, [self::TRITANIUM => 5, self::PYERITE => 5]],
+                [self::PERSO_B, self::STATION_AMARR, PersonalStockContainerReading::STATUS_KNOWN, null, 1, [self::ZYDRINE => 50]],
+            ],
+            array_map(
+                fn (PersonalStockContainerContents $container): array => [
+                    $container->reading->name,
+                    $container->reading->stationId,
+                    $container->reading->status,
+                    $container->reading->unknownReason,
+                    $container->reading->itemCount,
+                    $this->sortedByTypeId($container->articles),
+                ],
+                $contents,
+            ),
+        );
+    }
+
+    #[Group('issue-1395')]
+    public function testContainerContentsOfAnUnknownContainerHaveNoArticlesAndKeepTheReason(): void
+    {
+        $persoA = $this->cacheContainer(self::PERSO_A, $this->officeAtJita);
+        $this->cacheItem(self::PYERITE, 2, $persoA, 'Pyerite');
+        $persoB = $this->cacheContainer(self::PERSO_B, $this->officeAtJita);
+        $this->cacheItem(self::ZYDRINE, 9, $persoB, 'Zydrine');
+        $this->declareContainer($this->user, self::PERSO_A, $persoA);
+        $this->declareContainer($this->user, self::PERSO_B, $persoB);
+        $this->removeFromAssets($persoB);
+
+        $contents = $this->personalStockReader->containerContentsOf($this->user);
+
+        self::assertCount(2, $contents);
+        self::assertSame(
+            [
+                [self::PERSO_A, PersonalStockContainerReading::STATUS_KNOWN, null, [self::PYERITE => 2]],
+                [self::PERSO_B, PersonalStockContainerReading::STATUS_UNKNOWN, 'container_not_found', []],
+            ],
+            array_map(
+                static fn (PersonalStockContainerContents $container): array => [$container->reading->name, $container->reading->status, $container->reading->unknownReason, $container->articles],
+                $contents,
+            ),
+        );
+        self::assertEquals(
+            $this->personalStockReader->containersOf($this->user),
+            array_map(static fn (PersonalStockContainerContents $container): PersonalStockContainerReading => $container->reading, $contents),
+        );
+    }
+
+    #[Group('issue-1395')]
+    public function testContainerContentsOfAUserWithoutCorporationAreUnknownWithoutArticles(): void
+    {
+        $user = new User();
+        $this->declareContainer($user, self::PERSO_A, $this->cacheContainer(self::PERSO_A, $this->officeAtJita));
+
+        $contents = $this->personalStockReader->containerContentsOf($user);
+
+        self::assertCount(1, $contents);
+        self::assertSame(
+            [PersonalStockContainerReading::STATUS_UNKNOWN, 'owner_without_corporation', []],
+            [$contents[0]->reading->status, $contents[0]->reading->unknownReason, $contents[0]->articles],
+        );
+    }
+
+    #[Group('issue-1395')]
+    public function testContainerContentsWithoutAnyDeclarationAreEmpty(): void
+    {
+        $this->cacheContainer(self::PERSO_A, $this->officeAtJita);
+
+        self::assertSame([], $this->personalStockReader->containerContentsOf($this->user));
+        self::assertSame([], $this->personalStockReader->containersOf($this->user));
     }
 
     private static function jitaHangarLocation(int $quantity): array

@@ -7,6 +7,7 @@ import en from '@/i18n/locales/en.json'
 import PlanetaryInteraction from '@/views/PlanetaryInteraction.vue'
 import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
 import PiSupplyTab from '@/components/planetary/PiSupplyTab.vue'
+import PiStockTab from '@/components/planetary/PiStockTab.vue'
 import type { Colony } from '@/stores/planetary'
 import { apiRequest } from '@/services/api'
 import { deferred } from '../deferred'
@@ -78,6 +79,7 @@ async function mountViewAnswering(coloniesRequest: () => Promise<unknown>, query
         PiKpiCards: true,
         PiPlannerTab: true,
         PiSupplyTab: true,
+        PiStockTab: true,
       },
     },
   })
@@ -94,10 +96,39 @@ function selectedTab(wrapper: Wrapper): string | undefined {
 enableAutoUnmount(afterEach)
 
 describe('PlanetaryInteraction planner tab', () => {
-  it('lists the planner first, then the colonies, the supply and the revenue', async () => {
+  it('lists the planner first, then the colonies, the supply, the stock and the revenue', async () => {
     const wrapper = await mountView([BARREN_COLONY])
 
-    expect(wrapper.findAll('[role="tab"]').map(tab => tab.text())).toEqual([PLANNER_TAB_LABEL, en.pi.tabs.colonies, SUPPLY_TAB_LABEL, en.pi.tabs.revenue])
+    expect(wrapper.findAll('[role="tab"]').map(tab => tab.text())).toEqual([PLANNER_TAB_LABEL, en.pi.tabs.colonies, SUPPLY_TAB_LABEL, en.pi.tabs.stock, en.pi.tabs.revenue])
+  })
+
+  it('opens the stock tab when the player clicks it and leaves the colonies tab open by default', async () => {
+    const wrapper = await mountView([BARREN_COLONY])
+    const stockTab = wrapper.findAll('[role="tab"]').find(tab => tab.text() === en.pi.tabs.stock)
+    const stockOpenedByDefault = wrapper.findComponent(PiStockTab).exists()
+
+    await stockTab?.trigger('click')
+    await flushPromises()
+
+    expect(stockTab).toBeDefined()
+    expect(stockOpenedByDefault).toBe(false)
+    expect(selectedTab(wrapper)).toBe(en.pi.tabs.stock)
+    expect(wrapper.findComponent(PiStockTab).exists()).toBe(true)
+    expect(wrapper.findComponent(PiPlannerTab).exists()).toBe(false)
+  })
+
+  it('switches to the planner when the stock tab asks for it', async () => {
+    const wrapper = await mountView([BARREN_COLONY])
+    await wrapper.findAll('[role="tab"]').find(tab => tab.text() === en.pi.tabs.stock)?.trigger('click')
+    await flushPromises()
+    expect(selectedTab(wrapper)).toBe(en.pi.tabs.stock)
+
+    wrapper.findComponent(PiStockTab).vm.$emit('open-planner')
+    await flushPromises()
+
+    expect(selectedTab(wrapper)).toBe(PLANNER_TAB_LABEL)
+    expect(wrapper.findComponent(PiPlannerTab).exists()).toBe(true)
+    expect(wrapper.findComponent(PiStockTab).exists()).toBe(false)
   })
 
   it('keeps the colonies tab open by default when the player has colonies', async () => {
