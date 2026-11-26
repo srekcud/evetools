@@ -1,5 +1,6 @@
 import type { PlannerCatalog, PlannerPrice, PlannerRecipe } from '@/utils/planetaryPlanner'
 import type { AccountCharacter, PlannerAccount, PlannerExtractionPlanetTypes, PlannerPlanetType } from '@/utils/planetaryPlanets'
+import type { PlannerMarket, PlannerMarketProduct } from '@/utils/planetaryRanking'
 
 export const AQUEOUS_LIQUIDS = 91_001
 export const BASE_METALS = 91_002
@@ -11,6 +12,13 @@ export const COOLANT = 91_021
 export const MECHANICAL_PARTS = 91_022
 export const ROBOTICS = 91_031
 export const BROADCAST_NODE = 91_041
+
+export const RANKING_INPUT_A = 92_011
+export const RANKING_INPUT_C = 92_012
+export const RANKING_PRODUCT_B = 92_021
+export const RANKING_FIRST_GENERATED_PRODUCT = 93_001
+
+export const THE_FORGE_REGION_ID = 10_000_002
 
 export const ALMA_CHARACTER_ID = 90_000_101
 export const BRAN_CHARACTER_ID = 90_000_102
@@ -142,3 +150,71 @@ export const DISTINCT_INPUTS_CATALOG: PlannerCatalog = Object.entries(DISTINCT_I
   (catalog, [outputTypeId, changes]) => withRecipe(catalog, Number(outputTypeId), changes),
   Object.entries(DISTINCT_INPUT_VOLUMES).reduce((catalog, [typeId, volume]) => withTypeVolume(catalog, Number(typeId), volume), PLANNER_CATALOG),
 )
+
+export const PLANNER_MARKET: PlannerMarket = {
+  regionId: THE_FORGE_REGION_ID,
+  products: [
+    { typeId: COOLANT, averageDailyVolume: 12_000, averagePrice: 1_010, priceChange: 4.2, lastDate: '2026-11-20' },
+    { typeId: MECHANICAL_PARTS, averageDailyVolume: 3_400, averagePrice: 2_190, priceChange: -1.5, lastDate: '2026-11-21' },
+    { typeId: ROBOTICS, averageDailyVolume: 460, averagePrice: 29_800, priceChange: 8.8, lastDate: '2026-11-22' },
+  ],
+}
+
+export const RANKING_PLANET_TYPE: PlannerPlanetType = {
+  name: 'Barren',
+  commandCenter: { cpu: 25_415, pg: 19_000 },
+  launchpad: { cpu: 3_600, pg: 700, capacity: 10_000 },
+  facilities: { basic: null, advanced: { cpu: 500, pg: 700 }, highTech: null },
+}
+
+export const RANKING_CATALOG: PlannerCatalog = {
+  recipes: [
+    { outputTypeId: RANKING_PRODUCT_B, outputQuantity: 5, cycleSeconds: 3_600, inputs: [{ typeId: RANKING_INPUT_A, quantity: 40 }, { typeId: RANKING_INPUT_C, quantity: 40 }] },
+  ],
+  types: [
+    { typeId: RANKING_INPUT_A, name: 'Ranking Input A', tier: 'P1', volume: 0.01 },
+    { typeId: RANKING_INPUT_C, name: 'Ranking Input C', tier: 'P1', volume: 0.01 },
+    { typeId: RANKING_PRODUCT_B, name: 'Ranking Product B', tier: 'P2', volume: 0.01 },
+  ],
+  prices: [
+    { typeId: RANKING_INPUT_A, sell: 20, buy: 18 },
+    { typeId: RANKING_INPUT_C, sell: 30, buy: 27 },
+    { typeId: RANKING_PRODUCT_B, sell: 1_000, buy: 900 },
+  ],
+  planetTypes: [RANKING_PLANET_TYPE],
+  extractionPlanetTypes: [],
+}
+
+export const RANKING_MARKET: PlannerMarket = {
+  regionId: THE_FORGE_REGION_ID,
+  products: [{ typeId: RANKING_PRODUCT_B, averageDailyVolume: 20_000, averagePrice: 977.5, priceChange: 3.5, lastDate: '2026-11-25' }],
+}
+
+export function catalogWithP2Products(count: number): PlannerCatalog {
+  const generated = Array.from({ length: count }, (_, position) => RANKING_FIRST_GENERATED_PRODUCT + position)
+  return {
+    ...RANKING_CATALOG,
+    recipes: generated.map((typeId, position) => ({
+      outputTypeId: typeId,
+      outputQuantity: 2 + (position % 3),
+      cycleSeconds: 3_600,
+      inputs: [{ typeId: RANKING_INPUT_A, quantity: 10 + position }, { typeId: RANKING_INPUT_C, quantity: 20 + position }],
+    })),
+    types: [
+      ...RANKING_CATALOG.types.filter(type => type.tier === 'P1'),
+      ...generated.map((typeId, position) => ({ typeId, name: `Ranking Product ${position + 1}`, tier: 'P2' as const, volume: 0.01 })),
+    ],
+    prices: [
+      ...RANKING_CATALOG.prices.filter(price => price.typeId === RANKING_INPUT_A || price.typeId === RANKING_INPUT_C),
+      ...generated.map((typeId, position) => ({ typeId, sell: 500 + 37 * position, buy: 450 + 31 * position })),
+    ],
+  }
+}
+
+export function withMarketProduct(market: PlannerMarket, typeId: number, changes: Partial<Omit<PlannerMarketProduct, 'typeId'>>): PlannerMarket {
+  return { ...market, products: market.products.map(product => (product.typeId === typeId ? { ...product, ...changes } : product)) }
+}
+
+export function withoutMarketProduct(market: PlannerMarket, typeId: number): PlannerMarket {
+  return { ...market, products: market.products.filter(product => product.typeId !== typeId) }
+}

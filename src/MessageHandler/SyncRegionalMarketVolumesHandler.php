@@ -12,6 +12,8 @@ use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\UserRepository;
 use App\Service\Admin\SyncTracker;
 use App\Service\JitaMarketService;
+use App\Service\MarketHistoryService;
+use App\Service\Planetary\PlanetaryProductTypeResolver;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -26,6 +28,8 @@ final readonly class SyncRegionalMarketVolumesHandler
         private CachedStructureRepository $cachedStructureRepository,
         private MapSolarSystemRepository $solarSystemRepository,
         private JitaMarketService $jitaMarketService,
+        private PlanetaryProductTypeResolver $planetaryProductTypeResolver,
+        private MarketHistoryService $marketHistoryService,
         private SyncTracker $syncTracker,
         private LoggerInterface $logger,
         private int $defaultMarketStructureId,

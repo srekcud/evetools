@@ -3,6 +3,16 @@ import { computed, ref } from 'vue'
 import { i18n } from '@/i18n'
 import { apiRequest } from '@/services/api'
 import {
+  DEFAULT_VOLUME_SHARE_PERCENT,
+  isValidVolumeShare,
+  rankProducts,
+  rankingBaseCount,
+  type PlannerMarket,
+  type RankingBase,
+  type RankingRow,
+  type RankingTierFilter,
+} from '@/utils/planetaryRanking'
+import {
   buildPlanetPlan,
   isValidExtractionYield,
   type PlanetPlan,
@@ -34,6 +44,10 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   const settings = ref<PlannerSettings>({ ...DEFAULT_SETTINGS })
   const selectedIndex = ref<number | null>(null)
   const account = ref<PlannerAccount | null>(null)
+  const market = ref<PlannerMarket | null>(null)
+  const rankingBase = ref<RankingBase>('planet')
+  const volumeSharePercent = ref(DEFAULT_VOLUME_SHARE_PERCENT)
+  const rankingTier = ref<RankingTierFilter>('all')
   const extractionYieldOverrides = ref<Record<number, number>>({})
 
   const plan = computed<PlannerPlan | null>(() =>
@@ -45,6 +59,35 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
       ? buildPlanetPlan(productions.value, catalog.value, choices.value, settings.value, account.value, extractionYieldOverrides.value)
       : null,
   )
+
+  const ranking = computed<RankingRow[]>(() =>
+    catalog.value
+      ? rankProducts(catalog.value, settings.value, market.value, {
+          baseCount: rankingBaseCount(rankingBase.value, planetPlan.value),
+          volumeSharePercent: volumeSharePercent.value,
+          tier: rankingTier.value,
+        })
+      : [],
+  )
+
+  async function fetchMarket(): Promise<void> {
+    return
+  }
+
+  function setRankingBase(base: RankingBase): boolean {
+    void base
+    return true
+  }
+
+  function setVolumeShare(value: number): boolean {
+    void value
+    void isValidVolumeShare
+    return true
+  }
+
+  function setRankingTier(tier: RankingTierFilter): void {
+    void tier
+  }
 
   async function fetchAccount(): Promise<void> {
     try {
@@ -96,7 +139,8 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     error.value = null
   }
 
-  function addProduction(typeId: number): void {
+  function addProduction(typeId: number, targetPerDay?: number): void {
+    void targetPerDay
     if (!catalog.value) return
     const recipe = indexCatalog(catalog.value).recipeByOutput.get(typeId)
     if (!recipe) return
@@ -165,6 +209,15 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     settings,
     selectedIndex,
     account,
+    market,
+    rankingBase,
+    volumeSharePercent,
+    rankingTier,
+    ranking,
+    fetchMarket,
+    setRankingBase,
+    setVolumeShare,
+    setRankingTier,
     extractionYieldOverrides,
     plan,
     planetPlan,

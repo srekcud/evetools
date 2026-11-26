@@ -35,6 +35,22 @@ describe('planetary planner labels', () => {
     expect(leafKeys(planner(fr).planets).sort()).toEqual(leafKeys(planner(en).planets).sort())
   })
 
+  it('words the what to produce ranking in both languages: base, share, four tiers, twelve columns, statuses and the market error', () => {
+    const planner = (locale: { pi: object }) => plannerOf(locale) as Record<string, Record<string, unknown> | undefined>
+
+    for (const locale of [en, fr]) {
+      const ranking = planner(locale).ranking as Record<string, unknown> | undefined
+      expect(ranking).toBeDefined()
+      for (const section of ['base', 'share', 'tiers', 'columns', 'status']) {
+        expect(typeof (ranking as Record<string, unknown>)[section]).toBe('object')
+      }
+      expect(leafKeys((ranking as Record<string, unknown>).tiers)).toHaveLength(4)
+      expect(leafKeys((ranking as Record<string, unknown>).columns)).toHaveLength(12)
+      expect(typeof (planner(locale).errors as Record<string, unknown>).market).toBe('string')
+    }
+    expect(leafKeys(planner(fr).ranking).sort()).toEqual(leafKeys(planner(en).ranking).sort())
+  })
+
   it('names the planner tab in both languages and words it differently in French', () => {
     const tabs = (locale: { pi: { tabs: object } }) => (locale.pi.tabs as Record<string, string | undefined>).planner
 
