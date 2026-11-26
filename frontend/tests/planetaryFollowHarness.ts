@@ -55,6 +55,7 @@ export function revenueOf(realisedIsk: number, days: number): PlanetaryRevenue {
     estimate: { dailyIsk: 0, periodIsk: 0, contributors: [] },
     toFix: [],
     unsyncedWallets: [],
+    sellOrders: { orders: [], charactersToReconnect: [], syncedAt: null },
   }
 }
 
