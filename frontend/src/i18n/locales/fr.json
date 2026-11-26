@@ -404,6 +404,16 @@
         "empty": "Rien à acheter"
       },
       "loadError": "Impossible de charger la couverture du stock.",
+      "projectNeeds": {
+        "title": "Demandé par tes projets industrie",
+        "product": "Produit",
+        "required": "Demandé",
+        "stock": "En stock",
+        "missing": "Manque",
+        "projects": "Projets",
+        "empty": "Aucun projet industrie ne demande de produit PI.",
+        "loadError": "Impossible de charger les produits demandés par tes projets."
+      },
       "settings": {
         "title": "Réglages du stock",
         "homeLocation": "Lieu maison",

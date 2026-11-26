@@ -404,6 +404,16 @@
         "empty": "Nothing to buy"
       },
       "loadError": "Could not load the stock coverage.",
+      "projectNeeds": {
+        "title": "Asked by your industry projects",
+        "product": "Product",
+        "required": "Asked",
+        "stock": "In stock",
+        "missing": "Missing",
+        "projects": "Projects",
+        "empty": "No industry project asks for a PI product.",
+        "loadError": "Could not load the products asked by your projects."
+      },
       "settings": {
         "title": "Stock settings",
         "homeLocation": "Home location",
