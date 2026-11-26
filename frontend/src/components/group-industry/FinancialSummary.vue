@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useGroupSellForecastStore } from '@/stores/group-industry/sellForecast'
+import { buildForecastProfit, hasProductsLeftToSell, type ForecastProfitColumn } from '@/components/group-industry/projectForecastProfit'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import UnclaimedStockNotice from '@/components/group-industry/UnclaimedStockNotice.vue'
 import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
@@ -12,11 +14,39 @@ import AwaitingSalesValue from '@/components/group-industry/AwaitingSalesValue.v
 const { t } = useI18n()
 const distStore = useGroupDistributionStore()
 const projectStore = useGroupProjectStore()
+const forecastStore = useGroupSellForecastStore()
 const { formatIsk } = useFormatters()
 
 const dist = computed(() => distStore.distribution)
 
 const isAwaitingSales = computed(() => dist.value?.awaitingSales === true)
+
+const projectForecast = computed(() => {
+  const forecast = forecastStore.forecast
+  if (!dist.value || forecast?.projectId !== projectStore.currentProject?.id || !hasProductsLeftToSell(forecast)) return null
+  return { sellStructureName: forecast.sellStructure?.name ?? null, profit: buildForecastProfit(dist.value, forecast) }
+})
+
+const forecastMarkets = computed(() => {
+  if (projectForecast.value === null) return []
+  const { sellStructureName, profit } = projectForecast.value
+  const markets: { key: 'structure' | 'jita'; label: string; column: ForecastProfitColumn }[] = []
+  if (profit.structure !== null && sellStructureName !== null) markets.push({ key: 'structure', label: sellStructureName, column: profit.structure })
+  markets.push({ key: 'jita', label: t('groupIndustry.sellForecast.jita'), column: profit.jita })
+  return markets
+})
+
+const forecastRows = [
+  { field: 'sold', labelKey: 'groupIndustry.financialSummary.forecastSold', valueOf: (column: ForecastProfitColumn) => column.netRevenueSold, sign: '' },
+  { field: 'left', labelKey: 'groupIndustry.financialSummary.forecastLeft', valueOf: (column: ForecastProfitColumn) => column.netRevenueLeft, sign: '' },
+  { field: 'incurred', labelKey: 'groupIndustry.financialSummary.forecastIncurred', valueOf: (column: ForecastProfitColumn) => column.costIncurred, sign: '-' },
+  { field: 'remaining', labelKey: 'groupIndustry.financialSummary.forecastRemaining', valueOf: (column: ForecastProfitColumn) => column.costLeft, sign: '-' },
+] as const
+
+function forecastProfitClass(profit: number | null): string {
+  if (profit === null) return 'text-slate-500'
+  return profit >= 0 ? 'text-emerald-400' : 'text-red-400'
+}
 
 const unmatchedSales = computed(() => dist.value?.unmatchedSales ?? [])
 
@@ -150,8 +180,42 @@ const salesTaxLabel = computed(() => {
           <p v-else-if="dist.totalProjectCost === null" class="text-xs text-violet-300">{{ t('groupIndustry.financialSummary.unknownContributionValue') }}</p>
         </div>
 
+        <!-- Forecast profit of the whole project -->
+        <div v-if="projectForecast" data-testid="forecast-profit" class="rounded-xl border border-slate-700 bg-slate-800/40 p-5">
+          <p class="text-xs uppercase tracking-wider mb-3 text-slate-400">{{ t('groupIndustry.financialSummary.forecastProfit') }}</p>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs uppercase tracking-wider text-slate-500">
+                <th class="py-1"></th>
+                <th v-for="market in forecastMarkets" :key="market.key" class="py-1 pl-3 text-right" :class="market.key === 'structure' ? 'text-cyan-400' : ''">{{ market.label }}</th>
+              </tr>
+            </thead>
+            <tbody class="font-mono" style="font-variant-numeric: tabular-nums;">
+              <tr v-for="row in forecastRows" :key="row.field">
+                <td class="py-1 font-sans text-slate-500">{{ t(row.labelKey) }}</td>
+                <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-${row.field}`" class="py-1 pl-3 text-right text-slate-300">
+                  <UnknownValue v-if="row.valueOf(market.column) === null" /><template v-else>{{ row.sign }}{{ formatIsk(row.valueOf(market.column)) }}</template>
+                </td>
+              </tr>
+              <tr class="border-t border-slate-700">
+                <td class="py-2 font-sans font-semibold text-slate-300">{{ t('groupIndustry.financialSummary.forecastProfit') }}</td>
+                <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-profit`" class="py-2 pl-3 text-right text-lg font-bold" :class="forecastProfitClass(market.column.profit)">
+                  <UnknownValue v-if="market.column.profit === null" /><template v-else>{{ market.column.profit >= 0 ? '+' : '' }}{{ formatIsk(market.column.profit) }}</template>
+                </td>
+              </tr>
+              <tr>
+                <td class="py-1 font-sans text-slate-500">{{ t('groupIndustry.financialSummary.marginLabel') }}</td>
+                <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-margin`" class="py-1 pl-3 text-right text-sm" :class="forecastProfitClass(market.column.profit)">
+                  <UnknownValue v-if="market.column.marginPercent === null" /><template v-else>{{ market.column.marginPercent >= 0 ? '+' : '' }}{{ market.column.marginPercent.toFixed(1) }}%</template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <!-- Profit ring -->
         <div
+          v-else
           class="rounded-xl border p-5 flex flex-col items-center justify-center"
           :class="profitUnknown ? 'bg-slate-800/40 border-slate-700' : isProfit ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'"
         >
