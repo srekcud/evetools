@@ -14,12 +14,15 @@ use App\Entity\Sde\PlanetSchematic;
 use App\Entity\Sde\PlanetSchematicType;
 use App\Entity\User;
 use App\Entity\UserNotificationPreference;
+use App\Entity\CachedCharacterSkill;
+use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
+use App\Service\Planetary\PlanetaryPowerCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Planetary\PlanetaryResourceMapper;
@@ -72,6 +75,12 @@ final class PlanetaryResourceMapperTest extends TestCase
     private ?PlanetaryFactoryColonyTracker $factoryColonyTracker = null;
 
     private ?float $factoryAutonomyDays = null;
+
+    private ?array $powerOutputs = null;
+
+    private ?array $powerLoad = null;
+
+    private array $skillLevelsByCharacterId = [];
 
     public function testRoutesToKnownTypesKeepTheirSdeContentTypeName(): void
     {
@@ -391,6 +400,106 @@ final class PlanetaryResourceMapperTest extends TestCase
         $this->assertNull($resource->factoryAutonomyDays);
     }
 
+    #[Group('issue-1385')]
+    public function testListResourceCarriesTheCpuAndPowergridUsedAgainstTheCommandCenterOutput(): void
+    {
+        $this->powerOutputs = ['cpu' => 25415, 'powergrid' => 19000];
+        $this->powerLoad = ['cpu' => 4000, 'powergrid' => 2300];
+
+        $resource = $this->mapper()->toResource($this->colony());
+
+        $this->assertSame(
+            [4000, 25415, 2300, 19000],
+            [$resource->cpuUsed, $resource->cpuMax, $resource->powergridUsed, $resource->powergridMax],
+        );
+    }
+
+    #[Group('issue-1385')]
+    public function testDetailResourceCarriesTheSameCpuAndPowergridFigures(): void
+    {
+        $this->powerOutputs = ['cpu' => 1675, 'powergrid' => 6000];
+        $this->powerLoad = ['cpu' => 950, 'powergrid' => 5350];
+
+        $resource = $this->mapper()->toDetailResource($this->colony());
+
+        $this->assertSame(
+            [950, 1675, 5350, 6000],
+            [$resource->cpuUsed, $resource->cpuMax, $resource->powergridUsed, $resource->powergridMax],
+        );
+    }
+
+    #[Group('issue-1385')]
+    public function testUnknownLoadLeavesEveryCpuAndPowergridFigureUnknownEvenWhenTheOutputIsKnown(): void
+    {
+        $this->powerOutputs = ['cpu' => 25415, 'powergrid' => 19000];
+        $this->powerLoad = null;
+
+        $resource = $this->mapper()->toResource($this->colony());
+
+        $this->assertNull($resource->cpuUsed);
+        $this->assertNull($resource->cpuMax);
+        $this->assertNull($resource->powergridUsed);
+        $this->assertNull($resource->powergridMax);
+    }
+
+    #[Group('issue-1385')]
+    public function testUnknownOutputLeavesEveryCpuAndPowergridFigureUnknownEvenWhenTheLoadIsKnown(): void
+    {
+        $this->powerOutputs = null;
+        $this->powerLoad = ['cpu' => 4000, 'powergrid' => 2300];
+
+        $resource = $this->mapper()->toResource($this->colony());
+
+        $this->assertNull($resource->cpuUsed);
+        $this->assertNull($resource->cpuMax);
+        $this->assertNull($resource->powergridUsed);
+        $this->assertNull($resource->powergridMax);
+    }
+
+    #[Group('issue-1385')]
+    public function testColonyIsUpgradableWhenTheCharacterSkillExceedsTheCommandCenterLevel(): void
+    {
+        $this->skillLevelsByCharacterId = [2112000201 => [CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 4, CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 2]];
+
+        $resource = $this->mapper()->toResource($this->colony()->setUpgradeLevel(3));
+
+        $this->assertSame(4, $resource->commandCenterSkillLevel);
+        $this->assertTrue($resource->commandCenterUpgradable);
+    }
+
+    #[Group('issue-1385')]
+    public function testColonyIsNotUpgradableWhenTheCharacterSkillEqualsTheCommandCenterLevel(): void
+    {
+        $this->skillLevelsByCharacterId = [2112000201 => [CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 3]];
+
+        $resource = $this->mapper()->toResource($this->colony()->setUpgradeLevel(3));
+
+        $this->assertSame(3, $resource->commandCenterSkillLevel);
+        $this->assertFalse($resource->commandCenterUpgradable);
+    }
+
+    #[Group('issue-1385')]
+    public function testUntrainedSkillIsKnownAtZeroAndDoesNotMakeTheColonyUpgradable(): void
+    {
+        $this->skillLevelsByCharacterId = [2112000201 => [CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES => 0]];
+
+        $resource = $this->mapper()->toResource($this->colony()->setUpgradeLevel(0));
+
+        $this->assertSame(0, $resource->commandCenterSkillLevel);
+        $this->assertFalse($resource->commandCenterUpgradable);
+    }
+
+    #[Group('issue-1385')]
+    public function testCharacterWithoutSkillLineHasAnUnknownSkillAndAnUnknownUpgradeSignal(): void
+    {
+        $this->skillLevelsByCharacterId = [2112000201 => [CachedCharacterSkill::SKILL_INTERPLANETARY_CONSOLIDATION => 2]];
+
+        $resource = $this->mapper()->toResource($this->colony()->setUpgradeLevel(1));
+
+        $this->assertNull($resource->commandCenterSkillLevel);
+        $this->assertNull($resource->commandCenterUpgradable);
+    }
+
     private function statusAndExpiringFlagOfAnExtractorExpiring(string $expiresIn): array
     {
         $colony = $this->colony();
@@ -460,6 +569,15 @@ final class PlanetaryResourceMapperTest extends TestCase
         $productionCalculator = $this->createStub(PlanetaryProductionCalculator::class);
         $productionCalculator->method('calculateAutonomyDays')->willReturn($this->factoryAutonomyDays);
 
+        $powerCalculator = $this->createStub(PlanetaryPowerCalculator::class);
+        $powerCalculator->method('outputs')->willReturn($this->powerOutputs);
+        $powerCalculator->method('load')->willReturn($this->powerLoad);
+
+        $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
+        $skillRepository->method('findLevelsByEveCharacterId')->willReturnCallback(
+            fn (int $eveCharacterId): array => $this->skillLevelsByCharacterId[$eveCharacterId] ?? [],
+        );
+
         return new PlanetaryResourceMapper(
             $invTypeRepository,
             new TypeNameResolver($invTypeRepository),
@@ -468,6 +586,8 @@ final class PlanetaryResourceMapperTest extends TestCase
             new PlanetaryExpiryThresholdResolver($preferenceRepository),
             $this->factoryColonyTracker ?? $this->createStub(PlanetaryFactoryColonyTracker::class),
             $productionCalculator,
+            $powerCalculator,
+            $skillRepository,
         );
     }
 
