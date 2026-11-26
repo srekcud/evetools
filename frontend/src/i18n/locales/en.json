@@ -371,6 +371,38 @@
       "revenue": "Revenue"
     },
     "stock": {
+      "banner": {
+        "noHome": "No home location chosen: the stock at home and the purchases are unknown until you pick one in the settings below.",
+        "goToSettings": "Go to the settings",
+        "corpUnknown": "The corporation containers you declared could not be read ({reason}): the corporation column and the purchases are unknown.",
+        "consumptionUnknown": "The extraction of some inputs is unknown: their consumption, coverage and purchases are unknown."
+      },
+      "grid": {
+        "title": "Input coverage",
+        "type": "Input",
+        "home": "Home",
+        "hub": "Hub (to bring back)",
+        "corp": "Corp hangar",
+        "weeklyConsumption": "Use / week",
+        "coverage": "Coverage",
+        "weeksValue": "{weeks} wk",
+        "openOrders": "Open buy orders",
+        "coverageWithOrders": "Coverage with orders",
+        "toBuy": "To buy",
+        "decision": "Decision",
+        "produce": "Make",
+        "buy": "Buy",
+        "openPlanner": "Open the Planner"
+      },
+      "purchase": {
+        "title": "Purchase list",
+        "totalVolume": "Total volume",
+        "copy": "Copy (multibuy)",
+        "copied": "Copied",
+        "copyFailed": "Copy failed",
+        "empty": "Nothing to buy"
+      },
+      "loadError": "Could not load the stock coverage.",
       "settings": {
         "title": "Stock settings",
         "homeLocation": "Home location",
