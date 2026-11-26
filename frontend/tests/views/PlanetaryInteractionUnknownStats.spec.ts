@@ -9,6 +9,8 @@ import PiKpiCards from '@/components/planetary/PiKpiCards.vue'
 import type { Colony, PlanetaryStats, ProductionTier } from '@/stores/planetary'
 import { apiRequest } from '@/services/api'
 
+const EMPTY_INPUT_NEEDS = { launchpads: [], colonies: [], extractions: [], weekly: [], complete: true }
+
 const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/planetary', params: {}, query: {} })
 
 vi.mock(import('vue-router'), async importOriginal => ({
@@ -34,6 +36,8 @@ function colony(overrides: Partial<Colony>): Colony {
     solarSystemName: 'Jita',
     solarSystemSecurity: 0.9,
     upgradeLevel: 4,
+    tier: null,
+    storageFull: null,
     numPins: 12,
     lastUpdate: '2026-10-22T09:00:00+00:00',
     cachedAt: '2026-10-22T09:05:00+00:00',
@@ -73,6 +77,7 @@ function respondWith(stats: () => Promise<unknown>) {
     if (endpoint === '/planetary/stats') return stats()
     if (endpoint === '/planetary/production') return Promise.resolve({ tiers: PRODUCTION_TIERS })
     if (endpoint === '/planetary/slots') return Promise.resolve({ characters: [], totalUsed: 0, totalMax: 0 })
+    if (endpoint === '/planetary/input-needs') return Promise.resolve(EMPTY_INPUT_NEEDS)
     return new Promise(() => {})
   })
 }

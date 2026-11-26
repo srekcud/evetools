@@ -77,6 +77,10 @@ class ColonyResource
 
     public ?bool $commandCenterUpgradable = null;
 
+    public ?string $tier = null;
+
+    public ?bool $storageFull = null;
+
     public int $numPins;
 
     public string $lastUpdate;
