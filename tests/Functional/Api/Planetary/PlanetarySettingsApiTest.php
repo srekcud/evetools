@@ -78,6 +78,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
         );
 
         self::assertResponseStatusCodeSame(401);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertSame(3, $this->alice->getPlanetaryCoverageWeeks());
     }
@@ -127,6 +128,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
         self::assertSame(4, $reread['coverageWeeks']);
         self::assertSame(self::STORED_HOME_ID, $reread['homeLocationId']);
         self::assertSame(self::STORED_HOME_NAME, $reread['homeLocationName']);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertSame(4, $this->alice->getPlanetaryCoverageWeeks());
     }
@@ -135,11 +137,13 @@ final class PlanetarySettingsApiTest extends WebTestCase
     {
         $this->patch($this->alice, ['coverageWeeks' => 1]);
         self::assertResponseStatusCodeSame(200);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertSame(1, $this->alice->getPlanetaryCoverageWeeks());
 
         $this->patch($this->alice, ['coverageWeeks' => 52]);
         self::assertResponseStatusCodeSame(200);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertSame(52, $this->alice->getPlanetaryCoverageWeeks());
     }
@@ -164,6 +168,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
         $this->patch($this->alice, ['coverageWeeks' => $coverageWeeks]);
 
         self::assertResponseStatusCodeSame(422);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertSame(3, $this->alice->getPlanetaryCoverageWeeks());
     }
@@ -186,6 +191,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
         self::assertSame(self::AMARR_STATION_ID, $patched['homeLocationId']);
         self::assertSame(self::AMARR_STATION_NAME, $patched['homeLocationName']);
         self::assertSame(3, $patched['coverageWeeks']);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertSame(self::AMARR_STATION_ID, $this->alice->getPlanetaryHomeLocationId());
         self::assertSame(self::AMARR_STATION_NAME, $this->alice->getPlanetaryHomeLocationName());
@@ -202,6 +208,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
             static fn (array $violation): array => [$violation['propertyPath'] ?? null, $violation['message'] ?? null],
             $body['violations'] ?? [],
         ));
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertNull($this->alice->getPlanetaryHomeLocationId());
         self::assertNull($this->alice->getPlanetaryHomeLocationName());
@@ -212,6 +219,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
         $this->patch($this->alice, ['homeLocationId' => self::ASHAB_FORTIZAR_ID]);
 
         self::assertResponseStatusCodeSame(422);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertNull($this->alice->getPlanetaryHomeLocationId());
     }
@@ -227,6 +235,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
         );
 
         self::assertResponseStatusCodeSame(422);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertNull($this->alice->getPlanetaryHomeLocationId());
     }
@@ -244,6 +253,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
         self::assertNull($patched['homeLocationId']);
         self::assertArrayHasKey('homeLocationName', $patched);
         self::assertNull($patched['homeLocationName']);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertNull($this->alice->getPlanetaryHomeLocationId());
         self::assertNull($this->alice->getPlanetaryHomeLocationName());
@@ -257,6 +267,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
         $this->patch($this->alice, ['coverageWeeks' => 6]);
 
         self::assertResponseStatusCodeSame(200);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertSame(6, $this->alice->getPlanetaryCoverageWeeks());
         self::assertSame(self::STORED_HOME_ID, $this->alice->getPlanetaryHomeLocationId());
@@ -275,6 +286,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
         self::assertSame(self::DEFAULT_STRUCTURE_ID, $patched['hubStructureId']);
         self::assertSame(5, $patched['coverageWeeks']);
         self::assertSame(self::STORED_HOME_ID, $patched['homeLocationId']);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertSame(5, $this->alice->getPlanetaryCoverageWeeks());
         self::assertSame(self::STORED_HOME_ID, $this->alice->getPlanetaryHomeLocationId());
@@ -290,6 +302,7 @@ final class PlanetarySettingsApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame(5, $patched['coverageWeeks']);
+        $this->alice = $this->em->find(User::class, $this->alice->getId());
         $this->em->refresh($this->alice);
         self::assertSame(5, $this->alice->getPlanetaryCoverageWeeks());
     }
