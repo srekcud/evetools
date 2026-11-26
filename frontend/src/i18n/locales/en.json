@@ -1038,6 +1038,7 @@
       "loadError": "Your colony layouts could not be loaded.",
       "renameError": "The layout could not be renamed.",
       "deleteError": "The layout could not be deleted.",
+      "publishError": "The publication of the layout could not be changed.",
       "import": {
         "title": "Import a layout",
         "subtitle": "Paste the JSON of a colony template exported from the game. It is checked against the game data and stored as one of your layouts.",
@@ -1071,7 +1072,24 @@
         "delete": "Delete",
         "deleteConfirm": "Delete the layout \"{name}\"?",
         "confirm": "Confirm",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "public": "Public",
+        "publish": "Publish",
+        "unpublish": "Unpublish"
+      },
+      "library": {
+        "title": "Public library",
+        "subtitle": "Layouts that players chose to publish. Copy one to paste it into the game, or add it to your layouts.",
+        "planetLabel": "Planet type",
+        "allPlanets": "All planets",
+        "productLabel": "Product",
+        "productPlaceholder": "Filter by product name",
+        "empty": "No layout is published yet. Publish one of yours from the list above.",
+        "noMatch": "No published layout matches these filters.",
+        "mine": "Yours",
+        "add": "Add to my layouts",
+        "added": "Added to your layouts",
+        "loadError": "The public library could not be loaded."
       },
       "community": {
         "title": "Community collections",

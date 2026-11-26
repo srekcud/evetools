@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import PiLayoutLibrary from '@/components/planetary/PiLayoutLibrary.vue'
 import PiTierBadge from '@/components/planetary/PiTierBadge.vue'
-import { useCopyFeedback } from '@/composables/useCopyFeedback'
+import { useColonyLayoutExport } from '@/composables/useColonyLayoutExport'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePlanetaryLayoutsStore, type ColonyLayout, type ColonyLayoutError } from '@/stores/planetaryLayouts'
-import { downloadBlob } from '@/utils/downloadBlob'
 
 type PendingAction = 'rename' | 'delete'
 
 const MAX_LAYOUT_NAME_LENGTH = 100
-const FILENAME_FORBIDDEN_CHARACTERS = /[\\/:*?"<>|]/g
 const COMMUNITY_COLLECTIONS = [
   { id: 'dalshooth', url: 'https://github.com/DalShooth/EVE_PI_Templates' },
   { id: 'metalgear', url: 'https://github.com/MetalGear32/evepi' },
@@ -22,7 +21,7 @@ const COMMUNITY_COLLECTIONS = [
 const { t, te } = useI18n()
 const store = usePlanetaryLayoutsStore()
 const { formatNumber } = useFormatters()
-const { copied, failed, copy } = useCopyFeedback()
+const { copied, failed, lastCopiedLayoutId, copyTemplate, downloadTemplate } = useColonyLayoutExport()
 
 const importText = ref('')
 const importName = ref('')
@@ -30,7 +29,6 @@ const importErrors = ref<ColonyLayoutError[]>([])
 const isImporting = ref(false)
 const pending = ref<{ action: PendingAction, layoutId: string } | null>(null)
 const renameDraft = ref('')
-const lastCopiedLayoutId = ref<string | null>(null)
 
 const canImport = computed(() => importText.value.trim() !== '' && !isImporting.value && importName.value.length <= MAX_LAYOUT_NAME_LENGTH)
 
@@ -63,14 +61,6 @@ function errorMessageOf(error: ColonyLayoutError): string {
   return te(key) ? t(key) : error.code
 }
 
-function exportedTemplateOf(layout: ColonyLayout): string {
-  return JSON.stringify({ ...layout.gameTemplate, Cmt: layout.name })
-}
-
-function fileNameOf(layout: ColonyLayout): string {
-  return `${layout.name.replace(FILENAME_FORBIDDEN_CHARACTERS, '_')}.json`
-}
-
 async function onImport(): Promise<void> {
   if (!canImport.value) return
 
@@ -85,12 +75,15 @@ async function onImport(): Promise<void> {
 }
 
 async function onCopy(layout: ColonyLayout): Promise<void> {
-  lastCopiedLayoutId.value = layout.id
-  await copy(exportedTemplateOf(layout))
+  await copyTemplate(layout.id, layout.name, layout.gameTemplate)
 }
 
 function onDownload(layout: ColonyLayout): void {
-  downloadBlob(new Blob([exportedTemplateOf(layout)], { type: 'application/json' }), fileNameOf(layout))
+  downloadTemplate(layout.name, layout.gameTemplate)
+}
+
+async function onTogglePublic(layout: ColonyLayout): Promise<void> {
+  await store.setPublic(layout.id, !layout.public)
 }
 
 function onRename(layout: ColonyLayout): void {
@@ -196,6 +189,7 @@ function isPending(layout: ColonyLayout, action: PendingAction): boolean {
             <h4 class="min-w-0 truncate text-base font-semibold text-slate-100" data-testid="layout-name" :title="layout.name">{{ layout.name }}</h4>
             <span class="shrink-0 font-mono-tech text-xs text-cyan-300" data-testid="layout-planet">{{ planetLabelOf(layout) }}</span>
           </div>
+          <p v-if="layout.public" class="mt-1 text-xs uppercase tracking-wider text-emerald-300" data-testid="layout-public-badge">{{ t('pi.layouts.card.public') }}</p>
 
           <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4">
             <div>
@@ -256,6 +250,12 @@ function isPending(layout: ColonyLayout, action: PendingAction): boolean {
               class="rounded-md border border-cyan-500/40 px-2 py-1 text-xs text-cyan-300 transition-colors hover:bg-cyan-500/10"
               @click="onDownload(layout)"
             >{{ t('pi.layouts.card.download') }}</button>
+            <button
+              type="button"
+              data-testid="layout-publish-toggle"
+              class="rounded-md border border-emerald-500/40 px-2 py-1 text-xs text-emerald-300 transition-colors hover:bg-emerald-500/10"
+              @click="onTogglePublic(layout)"
+            >{{ layout.public ? t('pi.layouts.card.unpublish') : t('pi.layouts.card.publish') }}</button>
             <button
               type="button"
               data-testid="layout-rename"
@@ -322,6 +322,8 @@ function isPending(layout: ColonyLayout, action: PendingAction): boolean {
         </article>
       </div>
     </section>
+
+    <PiLayoutLibrary />
 
     <section class="rounded-xl border border-slate-800 bg-slate-900 p-5" data-testid="layout-community">
       <div class="mb-4">

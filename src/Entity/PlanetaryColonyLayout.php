@@ -32,6 +32,12 @@ class PlanetaryColonyLayout
     #[ORM\Column(type: Types::JSON)]
     private array $template = [];
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $public = false;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $publishedAt = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -79,6 +85,32 @@ class PlanetaryColonyLayout
     public function setTemplate(array $template): static
     {
         $this->template = $template;
+
+        return $this;
+    }
+
+    public function isPublic(): bool
+    {
+        return $this->public;
+    }
+
+    public function getPublishedAt(): ?\DateTimeImmutable
+    {
+        return $this->publishedAt;
+    }
+
+    public function publish(\DateTimeImmutable $at): static
+    {
+        $this->public = true;
+        $this->publishedAt = $at;
+
+        return $this;
+    }
+
+    public function unpublish(): static
+    {
+        $this->public = false;
+        $this->publishedAt = null;
 
         return $this;
     }

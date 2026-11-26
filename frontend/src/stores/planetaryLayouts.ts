@@ -38,6 +38,8 @@ export interface ColonyLayout {
   name: string
   summary: ColonyLayoutSummary
   gameTemplate: Record<string, unknown>
+  public: boolean
+  publishedAt: string | null
   createdAt: string
 }
 
@@ -108,5 +110,18 @@ export const usePlanetaryLayoutsStore = defineStore('planetaryLayouts', () => {
     }
   }
 
-  return { layouts, isLoading, error, load, importLayout, rename, remove }
+  async function setPublic(id: string, isPublic: boolean): Promise<boolean> {
+    error.value = null
+
+    try {
+      const updated = await apiRequest<ColonyLayout>(`${LAYOUTS_ENDPOINT}/${id}`, { method: 'PATCH', body: JSON.stringify({ public: isPublic }) })
+      layouts.value = layouts.value.map(layout => layout.id === id ? updated : layout)
+      return true
+    } catch {
+      error.value = i18n.global.t('pi.layouts.publishError')
+      return false
+    }
+  }
+
+  return { layouts, isLoading, error, load, importLayout, rename, remove, setPublic }
 })
