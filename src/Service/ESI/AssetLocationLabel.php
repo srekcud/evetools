@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Service\ESI;
 
+use App\Constant\EveConstants;
+
 final class AssetLocationLabel
 {
     private const string UNKNOWN_STRUCTURE = 'Unknown structure';
     private const string UNKNOWN_STATION = 'Unknown station';
     private const string ASSET_SAFETY = 'Asset Safety';
-    private const string UNRESOLVED_STRUCTURE_PREFIX = 'Structure #';
+    private const string UNRESOLVED_STRUCTURE_PREFIX = EveConstants::UNRESOLVED_STRUCTURE_NAME_PREFIX;
 
     public static function unknownStructure(?string $solarSystemName): string
     {

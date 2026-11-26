@@ -57,6 +57,7 @@ final readonly class PlanetaryStockReader
                 $this->buyOrderRepository->findByCharactersAndTypes($characters, $typeIds),
             ),
             $needs['complete'],
+            $this->customsOfficeQuantities($user, $typeIds),
         ));
     }
 
@@ -83,6 +84,27 @@ final readonly class PlanetaryStockReader
                 foreach ($byType as $typeId => $quantity) {
                     $totals[$locationId][$typeId] = ($totals[$locationId][$typeId] ?? 0) + $quantity;
                 }
+            }
+        }
+
+        return $totals;
+    }
+
+    /**
+     * @param list<int> $typeIds
+     *
+     * @return array<int, int> typeId => quantity
+     */
+    private function customsOfficeQuantities(User $user, array $typeIds): array
+    {
+        $totals = [];
+        foreach ($user->getCharacters() as $character) {
+            $quantities = $this->assetBrowseRepository->customsOfficeQuantities(
+                AssetScope::forCharacter($character->getId()?->toRfc4122() ?? throw new \LogicException('A loaded character is persisted')),
+                $typeIds,
+            );
+            foreach ($quantities as $typeId => $quantity) {
+                $totals[$typeId] = ($totals[$typeId] ?? 0) + $quantity;
             }
         }
 

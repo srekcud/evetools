@@ -53,6 +53,7 @@ function openPlanner(): void {
             <th class="pb-3 text-left font-medium">{{ t('pi.stock.grid.type') }}</th>
             <th class="pb-3 text-right font-medium">{{ t('pi.stock.grid.home') }}</th>
             <th class="pb-3 text-right font-medium">{{ t('pi.stock.grid.hub') }}</th>
+            <th class="pb-3 text-right font-medium" :title="t('pi.stock.grid.customsOfficeHint')">{{ t('pi.stock.grid.customsOffice') }}</th>
             <th class="pb-3 text-right font-medium">{{ t('pi.stock.grid.corp') }}</th>
             <th class="pb-3 text-right font-medium">{{ t('pi.stock.grid.weeklyConsumption') }}</th>
             <th class="pb-3 text-left font-medium">{{ t('pi.stock.grid.coverage') }}</th>
@@ -75,6 +76,7 @@ function openPlanner(): void {
               <template v-else>{{ formatNumber(row.home, 0) }}</template>
             </td>
             <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-hub-${row.typeId}`">{{ formatNumber(row.hub, 0) }}</td>
+            <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-customs-${row.typeId}`">{{ formatNumber(row.customsOffice, 0) }}</td>
             <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-corp-${row.typeId}`">
               <UnknownValue v-if="row.corp === null" />
               <template v-else>{{ formatNumber(row.corp, 0) }}</template>
