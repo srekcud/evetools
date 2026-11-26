@@ -44,6 +44,8 @@ const GAS_COLONY: Colony = {
   nearestExpiry: '2026-11-27T09:00:00+00:00',
   factoryProgress: null,
   status: 'expiring',
+  tier: null,
+  storageFull: null,
   pins: [],
   routes: [],
 }
