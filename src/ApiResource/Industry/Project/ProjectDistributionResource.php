@@ -61,6 +61,11 @@ class ProjectDistributionResource
      */
     public array $unsoldProducts = [];
 
+    /**
+     * @var list<array{typeId: int, typeName: string, quantity: int, revenue: float}>
+     */
+    public array $unmatchedSales = [];
+
     public ?float $projectedMarginPercent = null;
 
     public ?float $breakEvenPerUnit = null;

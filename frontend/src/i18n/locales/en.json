@@ -4985,6 +4985,8 @@
       "contractRevenue": "Contracts",
       "contractFees": "Contract fees",
       "title": "Financial Summary",
+      "unmatchedSalesTitle": "Sales outside the final products",
+      "unmatchedSalesHint": "These sales count in the revenue but match no final product to sell: they do not reduce the quantities left to sell.",
       "feesUnknown": "Fees unknown: the project owner has no synced skills and standings, so the net revenue, the profit and the margin cannot be computed.",
       "brokerFeeWithRate": "Broker Fee ({percent}%)",
       "salesTaxWithRate": "Sales Tax ({percent}%)",

@@ -182,7 +182,7 @@ final class ProjectDistributionServiceUndistributableTest extends TestCase
     private function distributionOf(IndustryProject $project, array $saleTotals, array $approvedContributions): DistributionResult
     {
         $this->saleRepository->method('findBy')->willReturn(array_map(
-            static fn (float $totalPrice): IndustryProjectSale => (new IndustryProjectSale())->setTotalPrice($totalPrice),
+            static fn (float $totalPrice): IndustryProjectSale => (new IndustryProjectSale())->setTypeId(11993)->setTypeName('Hammerhead II')->setQuantity(1)->setTotalPrice($totalPrice),
             $saleTotals,
         ));
         $this->contributionRepository->method('findApprovedByProject')->willReturn($approvedContributions);

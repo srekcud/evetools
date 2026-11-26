@@ -112,7 +112,7 @@ final class ProjectDistributionServiceUnknownContributionValueTest extends TestC
         $project->method('getBrokerFeePercent')->willReturn(2.0);
         $project->method('getSalesTaxPercent')->willReturn(3.0);
         $project->method('getBomItems')->willReturn(new ArrayCollection());
-        $this->saleRepository->method('findBy')->willReturn([(new IndustryProjectSale())->setTotalPrice(5_000.0)]);
+        $this->saleRepository->method('findBy')->willReturn([(new IndustryProjectSale())->setTypeId(11993)->setTypeName('Hammerhead II')->setQuantity(1)->setTotalPrice(5_000.0)]);
         $this->contributionRepository->method('findApprovedByProject')->willReturn($approvedContributions);
 
         return $this->service->calculateDistribution($project);

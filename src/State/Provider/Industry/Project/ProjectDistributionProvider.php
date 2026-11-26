@@ -13,6 +13,7 @@ use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Industry\Project\ParticipantDistribution;
 use App\Service\Industry\Project\UnclaimedStockLine;
+use App\Service\Industry\Project\UnmatchedSale;
 use App\Service\Industry\Project\UnsoldProduct;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -79,6 +80,15 @@ class ProjectDistributionProvider implements ProviderInterface
                 'lastUnitPrice' => $unsoldProduct->lastUnitPrice,
             ],
             $result->unsoldProducts,
+        );
+        $resource->unmatchedSales = array_map(
+            static fn (UnmatchedSale $unmatchedSale): array => [
+                'typeId' => $unmatchedSale->typeId,
+                'typeName' => $unmatchedSale->typeName,
+                'quantity' => $unmatchedSale->quantity,
+                'revenue' => $unmatchedSale->revenue,
+            ],
+            $result->unmatchedSales,
         );
         $resource->projectedMarginPercent = $result->projectedMarginPercent;
         $resource->breakEvenPerUnit = $result->breakEvenPerUnit;
