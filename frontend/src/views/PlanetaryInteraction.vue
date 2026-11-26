@@ -18,10 +18,11 @@ import { useTabQuery } from '@/composables/useTabQuery'
 import SubTabs from '@/components/common/SubTabs.vue'
 import PiRevenueTab from '@/components/planetary/PiRevenueTab.vue'
 import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
+import PiStockTab from '@/components/planetary/PiStockTab.vue'
 
-type PlanetaryTab = 'planner' | 'colonies' | 'revenue'
+type PlanetaryTab = 'planner' | 'colonies' | 'stock' | 'revenue'
 
-const PLANETARY_TABS = ['planner', 'colonies', 'revenue'] as const satisfies readonly PlanetaryTab[]
+const PLANETARY_TABS = ['planner', 'colonies', 'stock', 'revenue'] as const satisfies readonly PlanetaryTab[]
 
 const { t } = useI18n()
 const route = useRoute()
@@ -155,6 +156,8 @@ async function toggleColony(colonyId: string): Promise<void> {
       <SubTabs v-model="activeTab" :tabs="subTabs" />
 
       <PiPlannerTab v-if="activeTab === 'planner'" />
+
+      <PiStockTab v-else-if="activeTab === 'stock'" />
 
       <PiRevenueTab v-else-if="activeTab === 'revenue'" />
 

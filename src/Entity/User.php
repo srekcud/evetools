@@ -17,6 +17,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'users')]
 class User implements UserInterface
 {
+    public const int DEFAULT_PLANETARY_COVERAGE_WEEKS = 3;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -57,6 +59,15 @@ class User implements UserInterface
     /** @var array<string, int> Default line rental rates per category */
     #[ORM\Column(type: 'json', options: ['default' => '{}'])]
     private array $lineRentalRates = [];
+
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $planetaryHomeLocationId = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $planetaryHomeLocationName = null;
+
+    #[ORM\Column(type: 'smallint', options: ['default' => self::DEFAULT_PLANETARY_COVERAGE_WEEKS])]
+    private int $planetaryCoverageWeeks = self::DEFAULT_PLANETARY_COVERAGE_WEEKS;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
@@ -323,6 +334,36 @@ class User implements UserInterface
     public function setLineRentalRates(array $rates): static
     {
         $this->lineRentalRates = $rates;
+        return $this;
+    }
+
+    public function getPlanetaryHomeLocationId(): ?int
+    {
+        return $this->planetaryHomeLocationId;
+    }
+
+    public function getPlanetaryHomeLocationName(): ?string
+    {
+        return $this->planetaryHomeLocationName;
+    }
+
+    public function setPlanetaryHomeLocation(?int $locationId, ?string $locationName): static
+    {
+        $this->planetaryHomeLocationId = $locationId;
+        $this->planetaryHomeLocationName = $locationId === null ? null : $locationName;
+
+        return $this;
+    }
+
+    public function getPlanetaryCoverageWeeks(): int
+    {
+        return $this->planetaryCoverageWeeks;
+    }
+
+    public function setPlanetaryCoverageWeeks(int $weeks): static
+    {
+        $this->planetaryCoverageWeeks = $weeks;
+
         return $this;
     }
 
