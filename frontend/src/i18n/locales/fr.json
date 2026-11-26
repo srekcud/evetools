@@ -367,7 +367,23 @@
     "tabs": {
       "planner": "Planificateur",
       "colonies": "Colonies",
+      "stock": "Stock",
       "revenue": "Revenus"
+    },
+    "stock": {
+      "settings": {
+        "title": "Réglages du stock",
+        "homeLocation": "Lieu maison",
+        "homeLocationNone": "Aucun",
+        "homeLocationHint": "Là où tu gardes ton stock PI. Seuls les lieux où un de tes personnages a des assets sont proposés.",
+        "hub": "Hub",
+        "hubHint": "Le hub est ton marché préféré. Ajoute des structures de marché dans les Réglages pour en choisir un autre.",
+        "coverageWeeks": "Couverture visée",
+        "weeksUnit": "semaines",
+        "coverageWeeksHint": "Semaines entières, de 1 à 52.",
+        "saveError": "Impossible d'enregistrer ce réglage, la valeur précédente est conservée.",
+        "loadError": "Impossible de charger les réglages du stock."
+      }
     },
     "planner": {
       "title": "Planificateur de production",

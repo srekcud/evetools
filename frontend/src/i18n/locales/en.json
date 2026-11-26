@@ -367,7 +367,23 @@
     "tabs": {
       "planner": "Planner",
       "colonies": "Colonies",
+      "stock": "Stock",
       "revenue": "Revenue"
+    },
+    "stock": {
+      "settings": {
+        "title": "Stock settings",
+        "homeLocation": "Home location",
+        "homeLocationNone": "None",
+        "homeLocationHint": "Where you keep your PI stock. Only places where one of your characters holds assets are listed.",
+        "hub": "Hub",
+        "hubHint": "The hub is your preferred market. Add market structures in Settings to pick another one.",
+        "coverageWeeks": "Target coverage",
+        "weeksUnit": "weeks",
+        "coverageWeeksHint": "Whole weeks, from 1 to 52.",
+        "saveError": "Could not save this setting, the previous value is kept.",
+        "loadError": "Could not load the stock settings."
+      }
     },
     "planner": {
       "title": "Production planner",
