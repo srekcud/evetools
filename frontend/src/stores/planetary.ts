@@ -132,6 +132,12 @@ export interface Colony {
   solarSystemName: string | null
   solarSystemSecurity: number | null
   upgradeLevel: number
+  cpuUsed?: number | null
+  cpuMax?: number | null
+  powergridUsed?: number | null
+  powergridMax?: number | null
+  commandCenterSkillLevel?: number | null
+  commandCenterUpgradable?: boolean | null
   numPins: number
   lastUpdate: string
   cachedAt: string

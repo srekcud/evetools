@@ -64,6 +64,18 @@ class ColonyResource
 
     public int $upgradeLevel;
 
+    public ?int $cpuUsed = null;
+
+    public ?int $cpuMax = null;
+
+    public ?int $powergridUsed = null;
+
+    public ?int $powergridMax = null;
+
+    public ?int $commandCenterSkillLevel = null;
+
+    public ?bool $commandCenterUpgradable = null;
+
     public int $numPins;
 
     public string $lastUpdate;
