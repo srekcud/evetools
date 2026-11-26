@@ -48,6 +48,7 @@ export interface PlannerAccount {
   usedPlanets: number
   characters: AccountCharacter[]
   extractionYields: ExtractionYield[]
+  factories: Record<'P1' | 'P2' | 'P3' | 'P4', number>
 }
 
 export type FactoryTier = 'P2' | 'P3' | 'P4'

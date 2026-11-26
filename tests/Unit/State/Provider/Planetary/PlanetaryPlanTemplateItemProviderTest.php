@@ -57,6 +57,21 @@ final class PlanetaryPlanTemplateItemProviderTest extends TestCase
         $this->assertSame('2026-11-21T07:45:00+00:00', $resource->createdAt);
     }
 
+    #[Group('issue-1406')]
+    public function testItExposesWhetherTheTemplateIsFollowed(): void
+    {
+        foreach ([true, false] as $followed) {
+            $template = (new PlanetaryPlanTemplate())->setUser($this->user)->setName('Broadcast chain')->setFollowed($followed);
+            (new \ReflectionProperty(PlanetaryPlanTemplate::class, 'id'))->setValue($template, Uuid::fromString(self::TEMPLATE_ID));
+            $repository = $this->createStub(PlanetaryPlanTemplateRepository::class);
+            $repository->method('findOneByUserAndId')->willReturn($template);
+
+            $resource = $this->provider($repository)->provide(new Get(), ['id' => self::TEMPLATE_ID]);
+
+            $this->assertSame($followed, $resource->followed);
+        }
+    }
+
     public function testATemplateOfAnotherUserOrAnUnknownOneIsNotFoundNeverForbidden(): void
     {
         $repository = $this->createStub(PlanetaryPlanTemplateRepository::class);

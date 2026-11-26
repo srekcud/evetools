@@ -13,8 +13,10 @@ use App\Entity\PlanetaryPin;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryPlannerAccountReader;
+use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\State\Provider\Planetary\PlanetaryPlannerAccountProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -29,6 +31,8 @@ final class PlanetaryPlannerAccountProviderTest extends TestCase
     private const int AQUEOUS_LIQUIDS = 91_001;
     private const int ALMA_EVE_ID = 90_000_101;
     private const int BOB_EVE_ID = 90_000_201;
+    private const int SPECIALIZED_SCHEMATIC = 92_501;
+    private const int SPECIALIZED_OUTPUT = 92_601;
 
     private User $almaUser;
     private User $bobUser;
@@ -53,6 +57,13 @@ final class PlanetaryPlannerAccountProviderTest extends TestCase
         ], $resource->extractionYields);
     }
 
+    #[Group('issue-1406')]
+    public function testTheResourceCarriesTheFactoriesOfTheConnectedUserByTierAndNothingOfAnotherUser(): void
+    {
+        $this->assertSame(['P1' => 0, 'P2' => 0, 'P3' => 2, 'P4' => 0], $this->provide($this->almaUser)->factories);
+        $this->assertSame(['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0], $this->provide($this->bobUser)->factories);
+    }
+
     public function testAnAnonymousVisitorIsRejected(): void
     {
         $this->expectException(UnauthorizedHttpException::class);
@@ -66,6 +77,9 @@ final class PlanetaryPlannerAccountProviderTest extends TestCase
         $security->method('getUser')->willReturn($user);
 
         $almaColonies = [$this->colonyWithExtractor($this->almaUser, 4400, 1800)];
+        foreach ([2, 3] as $pinId) {
+            $almaColonies[0]->addPin((new PlanetaryPin())->setPinId($pinId)->setTypeId(2473)->setSchematicId(self::SPECIALIZED_SCHEMATIC));
+        }
         $bobColonies = [$this->colonyWithExtractor($this->bobUser, 1000, 900), $this->colonyWithExtractor($this->bobUser, 1000, 900)];
         $colonyRepository = $this->createStub(PlanetaryColonyRepository::class);
         $colonyRepository->method('findByUser')->willReturnCallback(
@@ -81,7 +95,16 @@ final class PlanetaryPlannerAccountProviderTest extends TestCase
             static fn (int $quantityPerCycle, int $cycleTime): float => $quantityPerCycle * 86400 / $cycleTime,
         );
 
-        return (new PlanetaryPlannerAccountProvider($security, new PlanetaryPlannerAccountReader($colonyRepository, $skillRepository, $extractorYield)))->provide(new Get());
+        $schematicTypeRepository = $this->createStub(PlanetSchematicTypeRepository::class);
+        $schematicTypeRepository->method('getSchematicMap')->willReturn([
+            self::SPECIALIZED_SCHEMATIC => ['inputs' => [92_602 => 10], 'output' => ['typeId' => self::SPECIALIZED_OUTPUT, 'quantity' => 3]],
+        ]);
+        $productionCalculator = $this->createStub(PlanetaryProductionCalculator::class);
+        $productionCalculator->method('findProductTier')->willReturnCallback(
+            static fn (int $typeId): ?string => $typeId === self::SPECIALIZED_OUTPUT ? 'P3' : null,
+        );
+
+        return (new PlanetaryPlannerAccountProvider($security, new PlanetaryPlannerAccountReader($colonyRepository, $skillRepository, $extractorYield, $schematicTypeRepository, $productionCalculator)))->provide(new Get());
     }
 
     private function colonyWithExtractor(User $user, int $quantityPerCycle, int $cycleSeconds): PlanetaryColony

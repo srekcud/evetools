@@ -36,6 +36,7 @@ final readonly class PlanetaryPlannerAccountProvider implements ProviderInterfac
         $resource->usedPlanets = $account['usedPlanets'];
         $resource->characters = $account['characters'];
         $resource->extractionYields = $account['extractionYields'];
+        $resource->factories = $account['factories'];
 
         return $resource;
     }

@@ -30,6 +30,10 @@ export async function mountTemplates(scenario: TemplatesScenario = {}) {
     if (endpoint === TEMPLATES_ENDPOINT && method === 'GET') return templates
     if (endpoint === TEMPLATES_ENDPOINT && method === 'POST') return scenario.saved
     if (endpoint.startsWith(`${TEMPLATES_ENDPOINT}/`) && method === 'DELETE') return null
+    if (endpoint.startsWith(`${TEMPLATES_ENDPOINT}/`) && method === 'PATCH') {
+      const patched = [...templates, ...(scenario.saved === undefined ? [] : [scenario.saved])].find(candidate => endpoint === `${TEMPLATES_ENDPOINT}/${candidate.id}`)
+      return { ...patched, followed: JSON.parse(String(options?.body)).followed }
+    }
     if (endpoint === '/planetary/planner/account') return { id: 'account', ...PLANNER_ACCOUNT }
     if (endpoint === '/planetary/planner/market') return { id: 'market', ...PLANNER_MARKET }
     return { id: 'planner', ...catalog }
@@ -72,4 +76,10 @@ export function deletedEndpoints(): string[] {
   return vi.mocked(apiRequest).mock.calls
     .filter(call => (call[1] as RequestInit | undefined)?.method === 'DELETE')
     .map(call => call[0])
+}
+
+export function patchedRequests(): Array<{ endpoint: string, body: unknown }> {
+  return vi.mocked(apiRequest).mock.calls
+    .filter(call => (call[1] as RequestInit | undefined)?.method === 'PATCH')
+    .map(call => ({ endpoint: call[0], body: JSON.parse(String((call[1] as RequestInit).body)) }))
 }

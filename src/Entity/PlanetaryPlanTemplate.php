@@ -40,6 +40,9 @@ class PlanetaryPlanTemplate
     #[ORM\Column(type: Types::JSON)]
     private array $settings = ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4];
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $followed = false;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -115,6 +118,18 @@ class PlanetaryPlanTemplate
     public function setSettings(array $settings): static
     {
         $this->settings = $settings;
+
+        return $this;
+    }
+
+    public function isFollowed(): bool
+    {
+        return $this->followed;
+    }
+
+    public function setFollowed(bool $followed): static
+    {
+        $this->followed = $followed;
 
         return $this;
     }

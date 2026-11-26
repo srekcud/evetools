@@ -11,8 +11,10 @@ use App\Entity\PlanetaryPin;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryPlannerAccountReader;
+use App\Service\Planetary\PlanetaryProductionCalculator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -30,6 +32,14 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
     private const int ALMA_EVE_ID = 90_000_101;
     private const int BRAN_EVE_ID = 90_000_102;
     private const int CORA_EVE_ID = 90_000_104;
+    private const int BASIC_SCHEMATIC = 92_101;
+    private const int REFINED_SCHEMATIC = 92_102;
+    private const int SECOND_REFINED_SCHEMATIC = 92_103;
+    private const int SPECIALIZED_SCHEMATIC = 92_104;
+    private const int ADVANCED_SCHEMATIC = 92_105;
+    private const int UNKNOWN_SCHEMATIC = 92_199;
+    private const int OUTPUT_WITHOUT_TIER_SCHEMATIC = 92_106;
+    private const int OUTPUT_LESS_SCHEMATIC = 92_107;
 
     private int $nextPlanetId = 40_000_000;
 
@@ -280,6 +290,111 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         $this->assertSame([['characterId' => self::ZED_EVE_ID, 'characterName' => 'Zed Marrow', 'usedPlanets' => 0, 'maxPlanets' => 4]], $account['characters']);
     }
 
+    public function testFactoriesCountsTheInstalledFactoriesByTierOfTheProductOfTheirSchematic(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [
+            $this->colony($zed, [
+                ...$this->factories(self::BASIC_SCHEMATIC, 3),
+                ...$this->factories(self::REFINED_SCHEMATIC, 2),
+            ]),
+            $this->colony($zed, [
+                ...$this->factories(self::SECOND_REFINED_SCHEMATIC, 1),
+                ...$this->factories(self::SPECIALIZED_SCHEMATIC, 1),
+                $this->extractor(self::AQUEOUS_LIQUIDS, 1500, self::EXTRACTOR_CYCLE_SECONDS),
+                $this->launchpad(),
+            ]),
+            $this->colony($zed, [
+                ...$this->factories(self::ADVANCED_SCHEMATIC, 4),
+                ...$this->factories(self::BASIC_SCHEMATIC, 1),
+            ]),
+        ];
+
+        $account = $this->factoryReaderOver($colonies, [1500 => 3_000.0])->read($this->userOf($zed));
+
+        $this->assertSame(['P1' => 4, 'P2' => 3, 'P3' => 1, 'P4' => 4], $account['factories']);
+    }
+
+    public function testFactoriesIsZeroInEveryTierForAUserWithoutColonyOrWithoutFactory(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $withoutFactory = [$this->colony($zed, [$this->extractor(self::BASE_METALS, 1200, self::EXTRACTOR_CYCLE_SECONDS), $this->launchpad()])];
+
+        $withoutColony = $this->factoryReaderOver([], [])->read($this->userOf($zed));
+        $extractorsOnly = $this->factoryReaderOver($withoutFactory, [1200 => 2_100.0])->read($this->userOf($zed));
+
+        $this->assertSame(['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0], $withoutColony['factories']);
+        $this->assertSame(['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0], $extractorsOnly['factories']);
+    }
+
+    public function testAnExtractorCarryingASchematicIdIsNotAFactoryAndItsSchematicIsNotLookedUp(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $extractorWithKnownSchematic = $this->extractor(self::AQUEOUS_LIQUIDS, 1500, self::EXTRACTOR_CYCLE_SECONDS)->setSchematicId(self::ADVANCED_SCHEMATIC);
+        $extractorWithUnknownSchematic = $this->extractor(self::AQUEOUS_LIQUIDS, 1500, self::EXTRACTOR_CYCLE_SECONDS)->setSchematicId(self::UNKNOWN_SCHEMATIC);
+        $colonies = [$this->colony($zed, [$extractorWithKnownSchematic, $extractorWithUnknownSchematic])];
+
+        $account = $this->factoryReaderOver($colonies, [1500 => 3_000.0])->read($this->userOf($zed));
+
+        $this->assertSame(['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0], $account['factories']);
+    }
+
+    public function testAFactoryWhoseSchematicIsUnknownIsAnExplicitErrorNotASilentCount(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [$this->colony($zed, [...$this->factories(self::REFINED_SCHEMATIC, 2), ...$this->factories(self::UNKNOWN_SCHEMATIC, 1)])];
+
+        $this->expectException(\Exception::class);
+
+        $this->factoryReaderOver($colonies, [])->read($this->userOf($zed));
+    }
+
+    public function testAFactoryWhoseSchematicHasNoOutputIsAnExplicitError(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [$this->colony($zed, $this->factories(self::OUTPUT_LESS_SCHEMATIC, 1))];
+
+        $this->expectException(\Exception::class);
+
+        $this->factoryReaderOver($colonies, [])->read($this->userOf($zed));
+    }
+
+    public function testAFactoryWhoseProductHasNoTierIsAnExplicitError(): void
+    {
+        $zed = $this->character('Zed Marrow', self::ZED_EVE_ID);
+        $colonies = [$this->colony($zed, $this->factories(self::OUTPUT_WITHOUT_TIER_SCHEMATIC, 1))];
+
+        $this->expectException(\Exception::class);
+
+        $this->factoryReaderOver($colonies, [])->read($this->userOf($zed));
+    }
+
+    private function factories(int $schematicId, int $count): array
+    {
+        return array_map(
+            fn (): PlanetaryPin => (new PlanetaryPin())->setPinId(++$this->nextPlanetId)->setTypeId(2473)->setSchematicId($schematicId),
+            range(1, $count),
+        );
+    }
+
+    private function schematicMap(): array
+    {
+        return [
+            self::BASIC_SCHEMATIC => ['inputs' => [92_301 => 3_000], 'output' => ['typeId' => 92_201, 'quantity' => 20]],
+            self::REFINED_SCHEMATIC => ['inputs' => [92_201 => 40], 'output' => ['typeId' => 92_202, 'quantity' => 5]],
+            self::SECOND_REFINED_SCHEMATIC => ['inputs' => [92_201 => 30], 'output' => ['typeId' => 92_203, 'quantity' => 5]],
+            self::SPECIALIZED_SCHEMATIC => ['inputs' => [92_202 => 10], 'output' => ['typeId' => 92_204, 'quantity' => 3]],
+            self::ADVANCED_SCHEMATIC => ['inputs' => [92_204 => 6], 'output' => ['typeId' => 92_205, 'quantity' => 1]],
+            self::OUTPUT_WITHOUT_TIER_SCHEMATIC => ['inputs' => [92_201 => 7], 'output' => ['typeId' => 92_206, 'quantity' => 2]],
+            self::OUTPUT_LESS_SCHEMATIC => ['inputs' => [92_201 => 7], 'output' => null],
+        ];
+    }
+
+    private function tiersByOutput(): array
+    {
+        return [92_201 => 'P1', 92_202 => 'P2', 92_203 => 'P2', 92_204 => 'P3', 92_205 => 'P4'];
+    }
+
     private function character(string $name, int $eveCharacterId): Character
     {
         return (new Character())->setEveCharacterId($eveCharacterId)->setName($name);
@@ -326,7 +441,14 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
         return $colony;
     }
 
-    private function readerOver(array $colonies, array $levelsByEveCharacterId, array $hourlyYieldByQuantity = [], array &$calls = []): PlanetaryPlannerAccountReader
+    private function factoryReaderOver(array $colonies, array $hourlyYieldByQuantity): PlanetaryPlannerAccountReader
+    {
+        $calls = [];
+
+        return $this->readerOver($colonies, [], $hourlyYieldByQuantity, $calls, $this->schematicMap(), $this->tiersByOutput());
+    }
+
+    private function readerOver(array $colonies, array $levelsByEveCharacterId, array $hourlyYieldByQuantity = [], array &$calls = [], array $schematicMap = [], array $tierByOutputTypeId = []): PlanetaryPlannerAccountReader
     {
         $colonyRepository = $this->createStub(PlanetaryColonyRepository::class);
         $colonyRepository->method('findByUser')->willReturn($colonies);
@@ -344,6 +466,13 @@ final class PlanetaryPlannerAccountReaderTest extends TestCase
             },
         );
 
-        return new PlanetaryPlannerAccountReader($colonyRepository, $skillRepository, $calculator);
+        $schematicTypeRepository = $this->createStub(PlanetSchematicTypeRepository::class);
+        $schematicTypeRepository->method('getSchematicMap')->willReturn($schematicMap);
+        $productionCalculator = $this->createStub(PlanetaryProductionCalculator::class);
+        $productionCalculator->method('findProductTier')->willReturnCallback(
+            static fn (int $typeId): ?string => $tierByOutputTypeId[$typeId] ?? null,
+        );
+
+        return new PlanetaryPlannerAccountReader($colonyRepository, $skillRepository, $calculator, $schematicTypeRepository, $productionCalculator);
     }
 }

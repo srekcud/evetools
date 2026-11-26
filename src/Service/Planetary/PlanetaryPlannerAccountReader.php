@@ -11,6 +11,7 @@ use App\Entity\PlanetaryPin;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Repository\Sde\PlanetSchematicTypeRepository;
 
 final readonly class PlanetaryPlannerAccountReader
 {
@@ -21,6 +22,8 @@ final readonly class PlanetaryPlannerAccountReader
         private PlanetaryColonyRepository $colonyRepository,
         private CachedCharacterSkillRepository $skillRepository,
         private ExtractorYieldCalculator $extractorYield,
+        private PlanetSchematicTypeRepository $schematicTypeRepository,
+        private PlanetaryProductionCalculator $productionCalculator,
     ) {
     }
 
@@ -28,7 +31,8 @@ final readonly class PlanetaryPlannerAccountReader
      * @return array{
      *     usedPlanets: int,
      *     characters: list<array{characterId: int, characterName: string, usedPlanets: int, maxPlanets: int|null}>,
-     *     extractionYields: list<array{typeId: int, perHourPerPlanet: float, planets: int}>
+     *     extractionYields: list<array{typeId: int, perHourPerPlanet: float, planets: int}>,
+     *     factories: array{P1: int, P2: int, P3: int, P4: int}
      * }
      */
     public function read(User $user): array
@@ -39,6 +43,7 @@ final readonly class PlanetaryPlannerAccountReader
             'usedPlanets' => \count($colonies),
             'characters' => $this->readCharacters($user, $colonies),
             'extractionYields' => $this->readExtractionYields($colonies),
+            'factories' => ['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0],
         ];
     }
 

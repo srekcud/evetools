@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { i18n } from '@/i18n'
+import type { FactoryGap, FollowedTargets } from '@/utils/planetaryFollow'
 import { apiRequest } from '@/services/api'
 import {
   MAX_TEMPLATE_NAME_LENGTH,
@@ -80,6 +81,30 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
         })
       : [],
   )
+
+  const followedTemplate = computed<PlanTemplate | null>(() => templates.value.find(template => template.followed) ?? null)
+  const factoryComparison = computed<FactoryGap[]>(() => [])
+  const followedFactoryComparison = computed<FactoryGap[]>(() => [])
+  const followedTargetsOfPlan = computed<FollowedTargets | null>(() => null)
+
+  async function followTemplate(id: string): Promise<boolean> {
+    void id
+    return true
+  }
+
+  async function unfollowTemplate(id: string): Promise<boolean> {
+    void id
+    return true
+  }
+
+  async function followCurrentPlan(name?: string): Promise<boolean> {
+    void name
+    return true
+  }
+
+  async function loadFollowContext(): Promise<void> {
+    return
+  }
 
   async function fetchTemplates(): Promise<void> {
     try {
@@ -185,6 +210,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
         usedPlanets: response.usedPlanets,
         characters: response.characters,
         extractionYields: response.extractionYields,
+        factories: response.factories,
       }
     } catch {
       account.value = null
@@ -300,6 +326,14 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     account,
     market,
     templates,
+    followedTemplate,
+    factoryComparison,
+    followedFactoryComparison,
+    followedTargetsOfPlan,
+    followTemplate,
+    unfollowTemplate,
+    followCurrentPlan,
+    loadFollowContext,
     fetchTemplates,
     saveTemplate,
     deleteTemplate,

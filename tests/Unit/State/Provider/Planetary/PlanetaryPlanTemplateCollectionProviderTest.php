@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Planetary;
 
 use ApiPlatform\Metadata\GetCollection;
+use App\ApiResource\Planetary\PlanetaryPlanTemplateResource;
 use App\Entity\PlanetaryPlanTemplate;
 use App\Entity\User;
 use App\Repository\PlanetaryPlanTemplateRepository;
@@ -55,6 +56,19 @@ final class PlanetaryPlanTemplateCollectionProviderTest extends TestCase
         $this->assertSame([], $resources[1]->choices);
         $this->assertSame(['priceSource' => 'jita-sell', 'taxPercent' => 0, 'daysBetweenRounds' => 0.5], $resources[1]->settings);
         $this->assertSame('2026-11-20T09:00:00+00:00', $resources[1]->createdAt);
+    }
+
+    #[Group('issue-1406')]
+    public function testItExposesWhichTemplateIsFollowed(): void
+    {
+        $coolant = $this->template(self::COOLANT_TEMPLATE_ID, 'Coolant line', [['typeId' => self::COOLANT, 'targetPerDay' => 120]], [], ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4], '2026-11-22T18:30:00+00:00')->setFollowed(true);
+        $robotics = $this->template(self::ROBOTICS_TEMPLATE_ID, 'Robotics', [['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]], [], ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4], '2026-11-20T09:00:00+00:00');
+        $repository = $this->createStub(PlanetaryPlanTemplateRepository::class);
+        $repository->method('findByUser')->willReturn([$coolant, $robotics]);
+
+        $resources = $this->provider($repository)->provide(new GetCollection());
+
+        $this->assertSame([true, false], array_map(static fn (PlanetaryPlanTemplateResource $resource): bool => $resource->followed, $resources));
     }
 
     public function testAUserWithoutTemplateGetsAnEmptyList(): void
