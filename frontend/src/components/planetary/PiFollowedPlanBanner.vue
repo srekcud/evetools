@@ -16,6 +16,7 @@ const { formatNumber } = useFormatters()
 const { gapText, gapClass } = useFactoryGapDisplay()
 
 const template = computed(() => store.followedTemplate)
+const loading = computed(() => store.catalog === null)
 const recipeMissing = computed(() => store.catalog !== null && store.followedTargetsOfPlan === null)
 
 const tiers = computed(() =>
@@ -24,7 +25,7 @@ const tiers = computed(() =>
 
 function onOpen(): void {
   const current = template.value
-  if (current === null) return
+  if (current === null || loading.value) return
   store.loadTemplateIntoPlan(current.id)
   emit('open')
 }
@@ -35,6 +36,7 @@ function onOpen(): void {
     v-if="template !== null"
     class="rounded-xl border border-emerald-500/30 bg-slate-900 p-4"
     data-testid="followed-plan-banner"
+    :data-state="loading ? 'loading' : 'ready'"
   >
     <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
       <div class="min-w-0">
@@ -42,7 +44,9 @@ function onOpen(): void {
         <span class="mt-0.5 block truncate text-base font-semibold text-white" data-testid="followed-plan-name" :title="template.name">{{ template.name }}</span>
       </div>
 
-      <p v-if="recipeMissing" class="text-sm text-amber-400" data-testid="followed-plan-missing">{{ t('pi.planner.follow.banner.missingRecipe') }}</p>
+      <p v-if="loading" class="text-sm text-slate-400" data-testid="followed-plan-loading">{{ t('pi.planner.follow.banner.loading') }}</p>
+
+      <p v-else-if="recipeMissing" class="text-sm text-amber-400" data-testid="followed-plan-missing">{{ t('pi.planner.follow.banner.missingRecipe') }}</p>
 
       <ul v-else class="flex flex-wrap gap-3">
         <li
@@ -66,7 +70,7 @@ function onOpen(): void {
       <button
         type="button"
         data-testid="followed-plan-open"
-        :disabled="recipeMissing"
+        :disabled="recipeMissing || loading"
         class="rounded-md border border-emerald-500/40 px-4 py-1.5 text-sm text-emerald-300 transition-colors hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-600 disabled:hover:bg-transparent"
         @click="onOpen"
       >{{ t('pi.planner.follow.banner.open') }}</button>

@@ -171,6 +171,8 @@ async function toggleColony(colonyId: string): Promise<void> {
       <!-- ============ ERROR BANNER ============ -->
       <ErrorBanner v-if="planetaryStore.error" :message="planetaryStore.error" @dismiss="planetaryStore.clearError()" />
 
+      <p v-if="plannerStore.error !== null && plannerStore.followedTemplate !== null" class="text-sm text-amber-400" data-testid="followed-plan-error">{{ plannerStore.error }}</p>
+
       <PiFollowedPlanBanner @open="activeTab = 'planner'" />
 
       <!-- ============ LOADING STATE ============ -->

@@ -606,7 +606,8 @@
         "banner": {
           "title": "Plan suivi",
           "open": "Ouvrir le plan",
-          "missingRecipe": "recette introuvable"
+          "missingRecipe": "recette introuvable",
+          "loading": "Chargement du plan"
         },
         "gap": {
           "missing": "manque {n}",
