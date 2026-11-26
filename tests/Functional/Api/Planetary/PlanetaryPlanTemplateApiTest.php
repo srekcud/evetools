@@ -37,6 +37,8 @@ final class PlanetaryPlanTemplateApiTest extends WebTestCase
     private User $alice;
     private User $bob;
 
+    private ?User $actingUser = null;
+
     protected function setUp(): void
     {
         $this->client = self::createClient();
@@ -350,6 +352,10 @@ final class PlanetaryPlanTemplateApiTest extends WebTestCase
      */
     private function send(string $method, ?array $body = null, string $suffix = ''): array
     {
+        if ($this->actingUser !== null) {
+            $this->client->getKernel()->boot();
+            $this->client->loginUser($this->em->find(User::class, $this->actingUser->getId()), 'api');
+        }
         $this->client->request(
             $method,
             self::ENDPOINT.$suffix,
@@ -386,7 +392,7 @@ final class PlanetaryPlanTemplateApiTest extends WebTestCase
 
     private function actAs(User $user): void
     {
-        $this->client->loginUser($user, 'api');
+        $this->actingUser = $user;
     }
 
     private function storedCount(User $user): int
