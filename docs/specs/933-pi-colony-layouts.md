@@ -37,7 +37,7 @@ Planète Barren (`Pln` 2016), niveau 5, 1 launchpad (2544), 2 processeurs (2474,
 Suggestion de layout par colonie ou plan suivi, édition des pins, CPU/PG des liens, compétence Interplanetary Consolidation, modération des noms, import d'un fichier (collage seulement), hébergement de templates tiers.
 
 ## Décisions prises en autonomie (journal)
-`S` = typeId du produit (observé sur les fichiers), pas de schematic id ; plafond 100 layouts par utilisateur ; liens exclus de la charge ; noms de layouts publics non modérés (texte échappé à l'affichage, limité à 100 caractères).
+`S` = typeId du produit (observé sur les fichiers), pas de schematic id ; plafond 100 layouts par utilisateur ; liens exclus de la charge ; noms de layouts publics non modérés (texte échappé à l'affichage, limité à 100 caractères) ; republier un layout déjà public conserve son `publishedAt` (pas de remontée en tête de bibliothèque) ; un PATCH sans `name` ni `public` est refusé en 422 (`missing`).
 
 ## Actions prod
 Une migration par lot (jouée par `bin/deploy`), aucune commande console.

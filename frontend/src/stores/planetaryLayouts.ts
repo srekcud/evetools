@@ -110,8 +110,17 @@ export const usePlanetaryLayoutsStore = defineStore('planetaryLayouts', () => {
     }
   }
 
-  async function setPublic(_id: string, _isPublic: boolean): Promise<boolean> {
-    return false
+  async function setPublic(id: string, isPublic: boolean): Promise<boolean> {
+    error.value = null
+
+    try {
+      const updated = await apiRequest<ColonyLayout>(`${LAYOUTS_ENDPOINT}/${id}`, { method: 'PATCH', body: JSON.stringify({ public: isPublic }) })
+      layouts.value = layouts.value.map(layout => layout.id === id ? updated : layout)
+      return true
+    } catch {
+      error.value = i18n.global.t('pi.layouts.publishError')
+      return false
+    }
   }
 
   return { layouts, isLoading, error, load, importLayout, rename, remove, setPublic }

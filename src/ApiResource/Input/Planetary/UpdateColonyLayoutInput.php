@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\Planetary;
 
-class RenameColonyLayoutInput
+class UpdateColonyLayoutInput
 {
-    public mixed $name = null;
+    public mixed $name;
+
+    public mixed $public;
 }

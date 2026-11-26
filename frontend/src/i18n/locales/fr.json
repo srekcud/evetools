@@ -1038,6 +1038,7 @@
       "loadError": "Vos layouts de colonie n'ont pas pu être chargés.",
       "renameError": "Le layout n'a pas pu être renommé.",
       "deleteError": "Le layout n'a pas pu être supprimé.",
+      "publishError": "La publication du layout n'a pas pu être modifiée.",
       "import": {
         "title": "Importer un layout",
         "subtitle": "Collez le JSON d'un template de colonie exporté du jeu. Il est vérifié contre les données du jeu et enregistré parmi vos layouts.",
@@ -1071,7 +1072,24 @@
         "delete": "Supprimer",
         "deleteConfirm": "Supprimer le layout « {name} » ?",
         "confirm": "Confirmer",
-        "cancel": "Annuler"
+        "cancel": "Annuler",
+        "public": "Public",
+        "publish": "Publier",
+        "unpublish": "Dépublier"
+      },
+      "library": {
+        "title": "Bibliothèque publique",
+        "subtitle": "Layouts que des joueurs ont choisi de publier. Copiez-en un pour le coller dans le jeu, ou ajoutez-le à vos layouts.",
+        "planetLabel": "Type de planète",
+        "allPlanets": "Toutes les planètes",
+        "productLabel": "Produit",
+        "productPlaceholder": "Filtrer par nom de produit",
+        "empty": "Aucun layout n'est publié pour l'instant. Publiez l'un des vôtres depuis la liste ci-dessus.",
+        "noMatch": "Aucun layout publié ne correspond à ces filtres.",
+        "mine": "Le vôtre",
+        "add": "Ajouter à mes layouts",
+        "added": "Ajouté à vos layouts",
+        "loadError": "La bibliothèque publique n'a pas pu être chargée."
       },
       "community": {
         "title": "Collections communautaires",
