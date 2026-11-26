@@ -7,6 +7,7 @@ import { usePushNotifications } from '@/composables/usePushNotifications'
 import { useToast } from '@/composables/useToast'
 import { categoryIcons, categoryColors } from './notificationConstants'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import DiscordWebhookSettings from './DiscordWebhookSettings.vue'
 
 const { t } = useI18n()
 const store = useNotificationsStore()
@@ -200,6 +201,8 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <DiscordWebhookSettings />
   </div>
 
   <!-- Footer -->
