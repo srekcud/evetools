@@ -357,6 +357,100 @@ final class PlanetaryStockCalculatorTest extends TestCase
         self::assertNull($this->rowOf($stock, self::UNNAMED_FIRST)->volumePerUnit);
     }
 
+    #[Group('issue-1390')]
+    public function testCustomsOfficeQuantityIsHeldStockInTheCoverageAndWhatToBuy(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [
+                new PlanetaryWeeklyNeed(self::ROBOTICS, 'Robotics', 1000.0, 0.15),
+                new PlanetaryWeeklyNeed(self::COOLANT, 'Coolant', 500.0, 1.5),
+            ],
+            [self::HOME_STATION => [self::ROBOTICS => 1500, self::COOLANT => 200], self::HUB_STATION => [self::ROBOTICS => 500]],
+            customsOffice: [self::ROBOTICS => 400, self::COOLANT => 1300],
+        ));
+
+        $robotics = $this->rowOf($stock, self::ROBOTICS);
+        self::assertSame(400, $robotics->customsOffice);
+        self::assertSame(
+            ['weeklyConsumption' => 1000.0, 'home' => 1500, 'hub' => 500, 'corp' => 0, 'openOrders' => 0, 'coverageWeeks' => 2.4, 'coverageWithOrdersWeeks' => 2.4, 'toBuy' => 600],
+            $this->figures($robotics),
+        );
+        $coolant = $this->rowOf($stock, self::COOLANT);
+        self::assertSame(1300, $coolant->customsOffice);
+        self::assertSame(
+            ['weeklyConsumption' => 500.0, 'home' => 200, 'hub' => 0, 'corp' => 0, 'openOrders' => 0, 'coverageWeeks' => 3.0, 'coverageWithOrdersWeeks' => 3.0, 'toBuy' => 0],
+            $this->figures($coolant),
+        );
+        self::assertTrue($stock->complete);
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeQuantityAddsToTheOpenOrdersInTheCoverageWithOrders(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [new PlanetaryWeeklyNeed(self::PLASMOIDS, 'Plasmoids', 1000.0, 0.01)],
+            [self::HOME_STATION => [self::PLASMOIDS => 1500], self::HUB_STATION => [self::PLASMOIDS => 500]],
+            orders: [new PlanetaryBuyOrder(self::PLASMOIDS, self::HUB_STATION, 200)],
+            customsOffice: [self::PLASMOIDS => 400],
+        ));
+
+        self::assertSame(
+            ['weeklyConsumption' => 1000.0, 'home' => 1500, 'hub' => 500, 'corp' => 0, 'openOrders' => 200, 'coverageWeeks' => 2.4, 'coverageWithOrdersWeeks' => 2.6, 'toBuy' => 400],
+            $this->figures($this->rowOf($stock, self::PLASMOIDS)),
+        );
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeOfAnotherTypeNeverLeaksIntoARowAndAnAbsentOneIsZero(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [new PlanetaryWeeklyNeed(self::ROBOTICS, 'Robotics', 1000.0, 0.15)],
+            [self::HOME_STATION => [self::ROBOTICS => 1500], self::HUB_STATION => [self::ROBOTICS => 500]],
+            customsOffice: [self::WATER => 999],
+        ));
+
+        $row = $this->rowOf($stock, self::ROBOTICS);
+        self::assertSame(0, $row->customsOffice);
+        self::assertSame(
+            ['weeklyConsumption' => 1000.0, 'home' => 1500, 'hub' => 500, 'corp' => 0, 'openOrders' => 0, 'coverageWeeks' => 2.0, 'coverageWithOrdersWeeks' => 2.0, 'toBuy' => 1000],
+            $this->figures($row),
+        );
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeStaysShownWhileTheCorporationColumnIsUnknownAndTheCoverageStaysUnknown(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [new PlanetaryWeeklyNeed(self::PLASMOIDS, 'Plasmoids', 1000.0, 0.01)],
+            [self::HOME_STATION => [self::PLASMOIDS => 1500]],
+            containers: [$this->unknownContainer(self::OTHER_STATION, self::NOT_FOUND)],
+            customsOffice: [self::PLASMOIDS => 400],
+        ));
+
+        $row = $this->rowOf($stock, self::PLASMOIDS);
+        self::assertSame(400, $row->customsOffice);
+        self::assertSame(
+            ['weeklyConsumption' => 1000.0, 'home' => 1500, 'hub' => 0, 'corp' => null, 'openOrders' => 0, 'coverageWeeks' => null, 'coverageWithOrdersWeeks' => null, 'toBuy' => null],
+            $this->figures($row),
+        );
+    }
+
+    #[Group('issue-1390')]
+    public function testCustomsOfficeStaysShownWithoutAHomeLocationAndTheCoverageStaysUnknown(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [new PlanetaryWeeklyNeed(self::PLASMOIDS, 'Plasmoids', 1000.0, 0.01)],
+            [self::HUB_STATION => [self::PLASMOIDS => 500]],
+            home: null,
+            customsOffice: [self::PLASMOIDS => 400],
+        ));
+
+        $row = $this->rowOf($stock, self::PLASMOIDS);
+        self::assertSame(400, $row->customsOffice);
+        self::assertNull($row->coverageWeeks);
+        self::assertNull($row->toBuy);
+    }
+
     private function calculate(PlanetaryStockReadings $readings): PlanetaryStock
     {
         return (new PlanetaryStockCalculator())->calculate($readings);
@@ -367,6 +461,7 @@ final class PlanetaryStockCalculatorTest extends TestCase
      * @param array<int, array<int, int>> $quantities
      * @param list<PersonalStockContainerContents> $containers
      * @param list<PlanetaryBuyOrder> $orders
+     * @param array<int, int> $customsOffice
      */
     private function readings(
         array $weeklyNeeds,
@@ -377,8 +472,9 @@ final class PlanetaryStockCalculatorTest extends TestCase
         array $containers = [],
         array $orders = [],
         bool $needsComplete = true,
+        array $customsOffice = [],
     ): PlanetaryStockReadings {
-        return new PlanetaryStockReadings($weeklyNeeds, $home, $hub, $coverageWeeks, $quantities, $containers, $orders, $needsComplete);
+        return new PlanetaryStockReadings($weeklyNeeds, $home, $hub, $coverageWeeks, $quantities, $containers, $orders, $needsComplete, $customsOffice);
     }
 
     /**

@@ -13,6 +13,7 @@ final readonly class PlanetaryStockReadings
      * @param array<int, array<int, int>> $quantitiesByRootLocation locationId => typeId => quantity
      * @param list<PersonalStockContainerContents> $corporationContainers
      * @param list<PlanetaryBuyOrder> $buyOrders
+     * @param array<int, int> $customsOfficeQuantities typeId => quantity
      */
     public function __construct(
         public array $weeklyNeeds,
@@ -23,6 +24,7 @@ final readonly class PlanetaryStockReadings
         public array $corporationContainers,
         public array $buyOrders,
         public bool $needsComplete,
+        public array $customsOfficeQuantities = [],
     ) {
     }
 }

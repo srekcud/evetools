@@ -14,6 +14,7 @@ final readonly class PlanetaryStockRow
         public ?int $home,
         public int $hub,
         public ?int $corp,
+        public int $customsOffice,
         public int $openOrders,
         public ?float $coverageWeeks,
         public ?float $coverageWithOrdersWeeks,

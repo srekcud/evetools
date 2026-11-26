@@ -252,6 +252,16 @@ class AssetBrowseRepository
         return $quantities;
     }
 
+    /**
+     * @param list<int> $typeIds
+     *
+     * @return array<int, int> typeId => quantity
+     */
+    public function customsOfficeQuantities(AssetScope $scope, array $typeIds): array
+    {
+        return [];
+    }
+
     private function treeCte(AssetScope $scope): string
     {
         $maxDepth = self::MAX_CONTAINER_DEPTH;

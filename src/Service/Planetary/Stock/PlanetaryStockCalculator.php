@@ -69,6 +69,7 @@ final readonly class PlanetaryStockCalculator
             $home,
             $hub,
             $corp,
+            0,
             $openOrders,
             $coverage,
             $coverageWithOrders,

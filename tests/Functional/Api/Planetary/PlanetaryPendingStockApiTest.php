@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Planetary;
 
+use App\Entity\CachedAsset;
 use App\Entity\Character;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
@@ -41,6 +42,10 @@ final class PlanetaryPendingStockApiTest extends WebTestCase
     private const int ALICE_SCHEMATIC = 990_001;
     private const int BOB_SCHEMATIC = 990_002;
 
+    private const int UNRESOLVED_CUSTOMS_OFFICE_ID = 1_020_000_000_001;
+    private const int UNRESOLVED_LOCATION_ID = 1_020_000_000_002;
+    private const int NAMED_STRUCTURE_ID = 1_020_000_000_003;
+
     private const int ALICE_PLANET = 40_113_801;
     private const int BOB_PLANET = 40_113_802;
 
@@ -53,7 +58,9 @@ final class PlanetaryPendingStockApiTest extends WebTestCase
     private EntityManagerInterface $em;
     private User $alice;
     private User $bob;
+    private ?string $aliceColonyId = null;
     private int $nextEveCharacterId = 2_113_801_001;
+    private int $nextItemId = 1_139_000_000_001;
 
     protected function setUp(): void
     {
@@ -67,6 +74,7 @@ final class PlanetaryPendingStockApiTest extends WebTestCase
         $this->bob = $this->persistPilot('Bob Kess');
         $this->persistAliceColony();
         $this->persistBobColony();
+        $this->persistCustomsOfficeAssets();
     }
 
     public function testPendingStockRequiresAuthentication(): void
@@ -117,6 +125,56 @@ final class PlanetaryPendingStockApiTest extends WebTestCase
         self::assertSame([self::REACTIVE_METALS], array_column($json['storages'][0]['contents'], 'typeId'));
         self::assertEqualsWithDelta(300.0, $json['storages'][0]['contents'][0]['projectedStock'], 0.0001);
         self::assertSame([], $json['pendingOutputs']);
+    }
+
+    #[Group('issue-1390')]
+    public function testUserSeesTheCustomsOfficeStockOfTheTypesOfTheirColoniesWithTheirProbablePlanet(): void
+    {
+        $this->client->loginUser($this->alice, 'api');
+
+        $json = $this->getPendingStock();
+
+        self::assertArrayHasKey('customsOfficeStocks', $json);
+        self::assertSame([self::BACTERIA, self::OXYGEN], array_column($json['customsOfficeStocks'], 'typeId'));
+        [$bacteria, $oxygen] = $json['customsOfficeStocks'];
+        self::assertSame(['Bacteria', 700], [$bacteria['typeName'], $bacteria['quantity']]);
+        self::assertEqualsWithDelta(0.38, $bacteria['volumePerUnit'], 0.000001);
+        self::assertEqualsWithDelta(266.0, $bacteria['volumeM3'], 0.0001);
+        self::assertSame(['Oxygen', 55], [$oxygen['typeName'], $oxygen['quantity']]);
+        self::assertEqualsWithDelta(1.5, $oxygen['volumePerUnit'], 0.000001);
+        self::assertEqualsWithDelta(82.5, $oxygen['volumeM3'], 0.0001);
+        foreach ([$bacteria, $oxygen] as $row) {
+            self::assertSame('Aldranette II', $row['probablePlanet']['planetName']);
+            self::assertSame($this->aliceColonyId, $row['probablePlanet']['colonyId']);
+        }
+        self::assertSame([self::ALICE_LAUNCHPAD], array_column($json['storages'], 'pinId'));
+        self::assertSame([self::OXYGEN], array_column($json['pendingOutputs'], 'typeId'));
+    }
+
+    #[Group('issue-1390')]
+    public function testAnotherUserSeesTheirOwnCustomsOfficeStockAndNothingOfTheFirst(): void
+    {
+        $this->client->loginUser($this->bob, 'api');
+
+        $json = $this->getPendingStock();
+
+        self::assertSame([self::REACTIVE_METALS, self::COOLANT], array_column($json['customsOfficeStocks'], 'typeId'));
+        self::assertSame([80, 14], array_column($json['customsOfficeStocks'], 'quantity'));
+        self::assertEqualsWithDelta(41.6, $json['customsOfficeStocks'][0]['volumeM3'], 0.0001);
+        self::assertEqualsWithDelta(24.5, $json['customsOfficeStocks'][1]['volumeM3'], 0.0001);
+        self::assertSame('Jaspet IV', $json['customsOfficeStocks'][0]['probablePlanet']['planetName']);
+        self::assertSame('Jaspet IV', $json['customsOfficeStocks'][1]['probablePlanet']['planetName']);
+    }
+
+    #[Group('issue-1390')]
+    public function testUserWithoutColonyGetsAnEmptyCustomsOfficeStockListAndNotAMissingField(): void
+    {
+        $this->client->loginUser($this->persistPilot('Carol Vane'), 'api');
+
+        $json = $this->getPendingStock();
+
+        self::assertArrayHasKey('customsOfficeStocks', $json);
+        self::assertSame([], $json['customsOfficeStocks']);
     }
 
     private function seedSde(): void
@@ -213,6 +271,7 @@ final class PlanetaryPendingStockApiTest extends WebTestCase
             ->setQuantity(1800.0));
         $this->em->persist($colony);
         $this->em->flush();
+        $this->aliceColonyId = $colony->getId()?->toRfc4122();
     }
 
     private function persistBobColony(): void
@@ -234,6 +293,41 @@ final class PlanetaryPendingStockApiTest extends WebTestCase
             ->setQuantity(600.0));
         $this->em->persist($colony);
         $this->em->flush();
+    }
+
+    private function persistCustomsOfficeAssets(): void
+    {
+        $customsOfficeName = 'Structure #'.self::UNRESOLVED_CUSTOMS_OFFICE_ID;
+        $locationName = 'Location #'.self::UNRESOLVED_LOCATION_ID;
+        $alice = $this->alice->getMainCharacter();
+        $bob = $this->bob->getMainCharacter();
+        self::assertNotNull($alice);
+        self::assertNotNull($bob);
+
+        $this->persistAsset($alice, self::BACTERIA, 700, self::UNRESOLVED_CUSTOMS_OFFICE_ID, 'other', $customsOfficeName);
+        $this->persistAsset($alice, self::OXYGEN, 55, self::UNRESOLVED_CUSTOMS_OFFICE_ID, 'other', $customsOfficeName);
+        $this->persistAsset($alice, self::COOLANT, 12, self::UNRESOLVED_LOCATION_ID, 'other', $locationName);
+        $this->persistAsset($alice, self::REACTIVE_METALS, 900, self::NAMED_STRUCTURE_ID, 'other', 'Ashab - Market Fortizar');
+        $this->persistAsset($bob, self::REACTIVE_METALS, 80, self::UNRESOLVED_LOCATION_ID, 'other', $locationName);
+        $this->persistAsset($bob, self::COOLANT, 14, self::UNRESOLVED_CUSTOMS_OFFICE_ID, 'other', $customsOfficeName);
+        $this->persistAsset($bob, self::BACTERIA, 9_999, self::NAMED_STRUCTURE_ID, 'other', 'Ashab - Market Fortizar');
+        $this->em->flush();
+    }
+
+    private function persistAsset(Character $character, int $typeId, int $quantity, int $locationId, string $locationType, string $locationName): void
+    {
+        $this->em->persist((new CachedAsset())
+            ->setItemId($this->nextItemId++)
+            ->setTypeId($typeId)
+            ->setTypeName('Type '.$typeId)
+            ->setQuantity($quantity)
+            ->setLocationId($locationId)
+            ->setLocationName($locationName)
+            ->setLocationType($locationType)
+            ->setLocationFlag('Hangar')
+            ->setIsSingleton(false)
+            ->setCharacter($character)
+            ->setIsCorporationAsset(false));
     }
 
     private function newColony(User $user, int $planetId, string $planetName): PlanetaryColony
