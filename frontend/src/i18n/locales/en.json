@@ -509,9 +509,64 @@
           "freeUnknown": "Free slots unknown: the maximum of a character is not known"
         }
       },
+      "ranking": {
+        "title": "What to produce?",
+        "subtitle": "P2, P3 and P4 products ranked by profit a day on their cheapest chain: P1 always bought, each intermediate made only when it costs no more than its price.",
+        "showAll": "Show all {count} products",
+        "showLess": "Show the first {count}",
+        "base": {
+          "label": "Base",
+          "free": "Free planets · {count}",
+          "planet": "1 planet",
+          "character": "1 character · {count} planets",
+          "freeUnknown": "Free planets unknown: the maximum of a character is not known"
+        },
+        "share": {
+          "label": "Share of the Jita volume",
+          "unit": "%",
+          "help": "Output capped at this share of the average daily volume of The Forge",
+          "invalid": "A share between 0 and 100 is expected, the previous value is kept"
+        },
+        "tiers": {
+          "all": "All",
+          "P2": "P2",
+          "P3": "P3",
+          "P4": "P4"
+        },
+        "columns": {
+          "rank": "Rank",
+          "product": "Product",
+          "chain": "Chain",
+          "output": "Output / day",
+          "planets": "Planets",
+          "volume": "Jita volume",
+          "trend": "30-day trend",
+          "margin": "Margin",
+          "profitDay": "Profit / day",
+          "profitWeek": "Profit / week",
+          "profitMonth": "Profit / month",
+          "purchases": "Purchases / week"
+        },
+        "status": {
+          "capped": "Capped by the volume of the market",
+          "volumeUnknown": "Volume unknown",
+          "costUnknown": "Cost unknown",
+          "doesNotFit": "Does not fit {days} d",
+          "sdeVolumeUnknown": "SDE volume unknown",
+          "lastDate": "Market data of {date}"
+        },
+        "chain": {
+          "legend": "made · bought"
+        },
+        "add": {
+          "label": "+ Plan",
+          "disabled": "Less than one unit a day or no base: nothing to plan"
+        }
+      },
       "errors": {
         "emptyCatalog": "The SDE holds no planetary schematic. Import it before using the planner.",
         "account": "Could not load your colonies and planet slots. Yields and maximum are shown as unknown.",
+        "market": "Could not load the market volumes. Volumes and profits are shown as unknown.",
         "load": "Could not load the planner data."
       }
     },

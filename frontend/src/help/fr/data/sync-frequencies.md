@@ -29,6 +29,6 @@ Ce tableau est généré depuis le code par `app:help:generate-tables` : ne le m
 | Purge des listes d'achats partagées expirées | 1 jour |
 | Purge des notifications anciennes | 1 jour |
 | Version du SDE (alerte aux admins, aucun import automatique) | 1 jour |
-| Volumes de marché journaliers par région | 1 jour |
+| Volumes de marché journaliers par région et historique des produits PI | 1 jour |
 | Volumes reconditionnés des types présents dans les inventaires | 7 jours |
 | Assets des personnages et de la corporation | À la demande |

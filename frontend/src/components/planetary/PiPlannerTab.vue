@@ -6,6 +6,7 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import PiPlannerPlanets from '@/components/planetary/PiPlannerPlanets.vue'
 import PiPlannerProductions from '@/components/planetary/PiPlannerProductions.vue'
+import PiPlannerRanking from '@/components/planetary/PiPlannerRanking.vue'
 import PiPlannerSettings from '@/components/planetary/PiPlannerSettings.vue'
 import PiPlannerSummary from '@/components/planetary/PiPlannerSummary.vue'
 import PiPlannerTree from '@/components/planetary/PiPlannerTree.vue'
@@ -16,6 +17,7 @@ const store = usePlanetaryPlannerStore()
 onMounted(() => {
   void store.fetchCatalog()
   void store.fetchAccount()
+  void store.fetchMarket()
 })
 </script>
 
@@ -41,6 +43,7 @@ onMounted(() => {
         </div>
       </div>
       <PiPlannerPlanets />
+      <PiPlannerRanking />
     </template>
   </div>
 </template>

@@ -71,22 +71,32 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   )
 
   async function fetchMarket(): Promise<void> {
-    return
+    try {
+      const response = await apiRequest<PlannerMarket>('/planetary/planner/market')
+      if (!Array.isArray(response.products)) throw new Error('The market response has no product list')
+      market.value = { regionId: response.regionId, products: response.products }
+    } catch {
+      market.value = null
+      if (error.value === null) error.value = i18n.global.t('pi.planner.errors.market')
+    }
   }
 
   function setRankingBase(base: RankingBase): boolean {
-    void base
+    if (rankingBaseCount(base, planetPlan.value) === null) return false
+
+    rankingBase.value = base
     return true
   }
 
   function setVolumeShare(value: number): boolean {
-    void value
-    void isValidVolumeShare
+    if (!isValidVolumeShare(value)) return false
+
+    volumeSharePercent.value = value
     return true
   }
 
   function setRankingTier(tier: RankingTierFilter): void {
-    void tier
+    rankingTier.value = tier
   }
 
   async function fetchAccount(): Promise<void> {
@@ -140,12 +150,12 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   }
 
   function addProduction(typeId: number, targetPerDay?: number): void {
-    void targetPerDay
     if (!catalog.value) return
     const recipe = indexCatalog(catalog.value).recipeByOutput.get(typeId)
     if (!recipe) return
+    if (targetPerDay !== undefined && !isValidTarget(targetPerDay)) return
 
-    productions.value.push({ typeId, targetPerDay: defaultTargetPerDay(recipe) })
+    productions.value.push({ typeId, targetPerDay: targetPerDay === undefined ? defaultTargetPerDay(recipe) : targetPerDay })
     selectedIndex.value = productions.value.length - 1
   }
 
