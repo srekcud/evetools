@@ -40,6 +40,12 @@ function cell(wrapper: Wrapper, field: string, typeId: number) {
   return wrapper.get(`[data-testid="stock-cell-${field}-${typeId}"]`)
 }
 
+function figureOf(wrapper: Wrapper, field: string, typeId: number): string {
+  const copy = cell(wrapper, field, typeId).element.cloneNode(true) as HTMLElement
+  copy.querySelectorAll('[data-testid^="stock-pin-"]').forEach(pin => pin.remove())
+  return copy.textContent ?? ''
+}
+
 function digitsOf(text: string): string {
   return text.replace(/[^0-9]/g, '')
 }
@@ -73,10 +79,10 @@ describe('PiStockCoverageGrid', () => {
     ])
     expect(wrapper.get(`[data-testid="stock-row-${PLASMA_ROW.typeId}"]`).text()).toContain('Plasma')
     expect(wrapper.get(`[data-testid="stock-row-${COOLANT_ROW.typeId}"]`).text()).toContain('Coolant')
-    expect(['home', 'hub', 'customs', 'corp', 'weeklyConsumption', 'openOrders', 'toBuy'].map(field => digitsOf(cell(wrapper, field, PLASMA_ROW.typeId).text()))).toEqual(['300', '100', '0', '0', '400', '200', '600'])
-    expect(['home', 'hub', 'customs', 'corp', 'weeklyConsumption', 'openOrders', 'toBuy'].map(field => digitsOf(cell(wrapper, field, COOLANT_ROW.typeId).text()))).toEqual(['2400', '500', '0', '100', '1000', '0', '0'])
-    expect(digitsOf(cell(wrapper, 'coverageWithOrders', PLASMA_ROW.typeId).text())).toBe('15')
-    expect(digitsOf(cell(wrapper, 'coverageWithOrders', COOLANT_ROW.typeId).text())).toBe('30')
+    expect(['home', 'hub', 'customs', 'corp', 'weeklyConsumption', 'openOrders', 'toBuy'].map(field => digitsOf(figureOf(wrapper, field, PLASMA_ROW.typeId)))).toEqual(['300', '100', '0', '0', '400', '200', '600'])
+    expect(['home', 'hub', 'customs', 'corp', 'weeklyConsumption', 'openOrders', 'toBuy'].map(field => digitsOf(figureOf(wrapper, field, COOLANT_ROW.typeId)))).toEqual(['2400', '500', '0', '100', '1000', '0', '0'])
+    expect(digitsOf(figureOf(wrapper, 'coverageWithOrders', PLASMA_ROW.typeId))).toBe('15')
+    expect(digitsOf(figureOf(wrapper, 'coverageWithOrders', COOLANT_ROW.typeId))).toBe('30')
     expect(wrapper.findComponent(UnknownValue).exists()).toBe(false)
   })
 
@@ -96,7 +102,7 @@ describe('PiStockCoverageGrid', () => {
     expect(cell(wrapper, 'customs', UNKNOWN_EXTRACTION_ROW.typeId).text()).toBe('0')
     expect(cell(wrapper, 'customs', NO_HOME_ROW.typeId).text()).toBe('0')
     expect(cell(wrapper, 'openOrders', NO_HOME_ROW.typeId).text()).toBe('0')
-    expect(digitsOf(cell(wrapper, 'hub', NO_HOME_ROW.typeId).text())).toBe('80')
+    expect(digitsOf(figureOf(wrapper, 'hub', NO_HOME_ROW.typeId))).toBe('80')
     expect(wrapper.findAllComponents(UnknownValue)).toHaveLength(9)
   })
 
@@ -108,7 +114,7 @@ describe('PiStockCoverageGrid', () => {
     expect(headers.indexOf(expectedMessage('en', 'pi.stock.grid.customsOffice'))).toBe(headers.indexOf(en.pi.stock.grid.hub) + 1)
     expect(headers.indexOf(en.pi.stock.grid.corp)).toBe(headers.indexOf(expectedMessage('en', 'pi.stock.grid.customsOffice')) + 1)
     expect(hint).toEqual([expectedMessage('en', 'pi.stock.grid.customsOfficeHint')])
-    expect(['home', 'hub', 'customs', 'corp', 'toBuy'].map(field => digitsOf(cell(wrapper, field, SILICON_ROW.typeId).text()))).toEqual(['1500', '500', '400', '0', '600'])
+    expect(['home', 'hub', 'customs', 'corp', 'toBuy'].map(field => digitsOf(figureOf(wrapper, field, SILICON_ROW.typeId)))).toEqual(['1500', '500', '400', '0', '600'])
     expect(cell(wrapper, 'coverage', SILICON_ROW.typeId).text()).toContain(en.pi.stock.grid.weeksValue.replace('{weeks}', '2.4'))
     expect(isUnknown(wrapper, 'customs', SILICON_ROW.typeId)).toBe(false)
   })
@@ -165,5 +171,20 @@ describe('PiStockCoverageGrid', () => {
     expect(nothingBuilt.find('[data-testid="pi-stock-grid"]').exists()).toBe(true)
     expect(nothingBuilt.findAll('[data-testid^="stock-row-"]')).toHaveLength(0)
     expect(notLoaded.findAll('[data-testid^="stock-row-"]')).toHaveLength(0)
+  })
+
+  it('numbers the to-do points beside the quantity to bring back in the Hub cell and the quantity to buy, and shows no pin where there is no point', () => {
+    const wrapper = mountGrid(stockOf([ROBOTICS_ROW, PLASMA_ROW, COOLANT_ROW]))
+    const pinOf = (kind: string, field: string, typeId: number) => cell(wrapper, field, typeId).find(`[data-testid="stock-pin-${kind}-${typeId}"]`)
+
+    expect(pinOf('toBuy', 'toBuy', ROBOTICS_ROW.typeId).text()).toBe('1')
+    expect(pinOf('bringBack', 'hub', PLASMA_ROW.typeId).text()).toBe('2')
+    expect(pinOf('toBuy', 'toBuy', PLASMA_ROW.typeId).text()).toBe('3')
+    expect(pinOf('bringBack', 'hub', COOLANT_ROW.typeId).text()).toBe('4')
+    expect(pinOf('bringBack', 'hub', ROBOTICS_ROW.typeId).exists()).toBe(false)
+    expect(pinOf('toBuy', 'toBuy', COOLANT_ROW.typeId).exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid^="stock-pin-"]')).toHaveLength(4)
+    expect(digitsOf(figureOf(wrapper, 'hub', PLASMA_ROW.typeId))).toBe('100')
+    expect(digitsOf(figureOf(wrapper, 'toBuy', PLASMA_ROW.typeId))).toBe('600')
   })
 })

@@ -45,6 +45,15 @@ describe('RevenueTodoPanel', () => {
     expect(second.getComponent(RouterLinkStub).props('to')).toBe('/mining')
   })
 
+  it('renders neither a button nor a link for an item without an action label', () => {
+    const wrapper = mountPanel([{ text: 'Bring back 500 Plasma', effect: '125 m3' }])
+
+    const first = wrapper.get('[data-todo="1"]')
+    expect(first.text()).toContain('Bring back 500 Plasma')
+    expect(first.find('button').exists()).toBe(false)
+    expect(first.findComponent(RouterLinkStub).exists()).toBe(false)
+  })
+
   it('renders nothing without an item', () => {
     expect(mountPanel([]).find('[data-testid="revenue-todo-panel"]').exists()).toBe(false)
   })
