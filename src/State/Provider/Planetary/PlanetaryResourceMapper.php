@@ -37,9 +37,6 @@ class PlanetaryResourceMapper implements ResetInterface
     /** @var array<int, array{name: string, cycleTime: int, inputs: list<array<string, mixed>>, output: array<string, mixed>|null}> */
     private array $schematicDetailsById = [];
 
-    /** @var array<int, array<int, int>> */
-    private array $skillLevelsByEveCharacterId = [];
-
     public function __construct(
         private readonly InvTypeRepository $invTypeRepository,
         private readonly TypeNameResolver $typeNameResolver,
