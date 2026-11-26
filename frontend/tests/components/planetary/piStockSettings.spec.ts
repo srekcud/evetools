@@ -1,4 +1,4 @@
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
@@ -33,6 +33,7 @@ import {
   type MeSettingsBody,
   type SettingsBody,
 } from '../../planetarySettingsFixtures'
+import { PROJECT_NEEDS_WITH_THREE_PRODUCTS } from '../../planetaryProjectNeedsFixtures'
 import { STOCK_WITH_PURCHASES } from '../../planetaryStockFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -66,6 +67,7 @@ async function mountStockTab(scenario: Partial<Scenario> = {}) {
     'GET /planetary/settings/locations': { id: 'locations', locations },
     'GET /me/settings': me,
     'GET /planetary/stock': STOCK_WITH_PURCHASES,
+    'GET /planetary/project-needs': PROJECT_NEEDS_WITH_THREE_PRODUCTS,
     'PATCH /planetary/settings': (body) => (current = { ...current, ...body }),
     'PATCH /me/settings': (body) => {
       const chosen = me.marketStructures.find(structure => structure.id === body?.preferredMarketStructureId)
@@ -75,7 +77,10 @@ async function mountStockTab(scenario: Partial<Scenario> = {}) {
     ...overrides,
   })
   const wrapper = mount(PiStockTab, {
-    global: { plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })] },
+    global: {
+      plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
+      stubs: { RouterLink: RouterLinkStub },
+    },
   })
   await flushPromises()
   return wrapper
@@ -136,6 +141,7 @@ describe('PiStockTab settings', () => {
     expect(wrapper.find('[data-testid="stock-settings-error"]').exists()).toBe(false)
     expect(apiCalls().map(call => `${call.method} ${call.endpoint}`).sort()).toEqual([
       'GET /me/settings',
+      'GET /planetary/project-needs',
       'GET /planetary/settings',
       'GET /planetary/settings/locations',
       'GET /planetary/stock',

@@ -1,4 +1,4 @@
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
@@ -16,6 +16,7 @@ import {
   serve,
   type Answer,
 } from '../../planetarySettingsFixtures'
+import { PROJECT_NEEDS_WITH_THREE_PRODUCTS } from '../../planetaryProjectNeedsFixtures'
 import { COOLANT_ROW, PLASMA_ROW, ROBOTICS_ROW, STOCK_WITH_PURCHASES, stockOf } from '../../planetaryStockFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -34,15 +35,23 @@ async function mountStockTab(overrides: Record<string, Answer> = {}, stockAnswer
     'GET /planetary/settings/locations': { id: 'locations', locations: [AMARR_CANDIDATE, ASHAB_CANDIDATE] },
     'GET /me/settings': ME_WITH_TWO_FAVORITES,
     'GET /planetary/stock': stockAnswer,
+    'GET /planetary/project-needs': PROJECT_NEEDS_WITH_THREE_PRODUCTS,
     'PATCH /planetary/settings': (body) => (current = { ...current, ...body }),
     'PATCH /me/settings': (body) => ({ ...ME_WITH_TWO_FAVORITES, ...body }),
     ...overrides,
   })
   const wrapper = mount(PiStockTab, {
-    global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })] },
+    global: {
+      plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })],
+      stubs: { RouterLink: RouterLinkStub },
+    },
   })
   await flushPromises()
   return wrapper
+}
+
+function projectNeedsReads(): number {
+  return apiCalls().filter(call => call.method === 'GET' && call.endpoint === '/planetary/project-needs').length
 }
 
 function stockReads(): number {
@@ -121,5 +130,25 @@ describe('PiStockTab', () => {
     expect(stockReads()).toBe(1)
     expect(wrapper.findAll('[data-testid^="stock-row-"]')).toHaveLength(0)
     expect(wrapper.text()).toContain(en.pi.stock.loadError)
+  })
+
+  it('reads the products asked by the projects once when it is shown and lays the block out after the purchase list and before the settings', async () => {
+    const wrapper = await mountStockTab()
+
+    expect(projectNeedsReads()).toBe(1)
+    expect(wrapper.findAll('[data-testid^="project-need-row-"]')).toHaveLength(3)
+    const html = wrapper.html()
+    const positions = ['pi-stock-purchase-list', 'pi-stock-project-needs', 'stock-home-location'].map(marker => html.indexOf(marker))
+    expect(positions.every(position => position >= 0)).toBe(true)
+    expect([...positions].sort((left, right) => left - right)).toEqual(positions)
+  })
+
+  it('keeps the grid and shows the block error when only the products asked by the projects cannot be read', async () => {
+    const wrapper = await mountStockTab({ 'GET /planetary/project-needs': new Error('Network down') })
+
+    expect(projectNeedsReads()).toBe(1)
+    expect(wrapper.findAll('[data-testid^="stock-row-"]')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid^="project-need-row-"]')).toHaveLength(0)
+    expect(wrapper.get('[data-testid="project-needs-error"]').text()).toBe(en.pi.stock.projectNeeds.loadError)
   })
 })
