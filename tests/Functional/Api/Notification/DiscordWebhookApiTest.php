@@ -23,6 +23,8 @@ final class DiscordWebhookApiTest extends WebTestCase
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
+    private ?string $actingUserId = null;
+    private ?DiscordWebhookSender $senderOverride = null;
 
     protected function setUp(): void
     {
@@ -43,7 +45,7 @@ final class DiscordWebhookApiTest extends WebTestCase
 
     public function testGetReportsNotConfiguredWhenNoWebhookIsRegistered(): void
     {
-        $this->client->loginUser($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'), 'api');
+        $this->actAs($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'));
 
         $this->request('GET', self::ENDPOINT);
 
@@ -53,7 +55,7 @@ final class DiscordWebhookApiTest extends WebTestCase
 
     public function testPutRejectsAnUrlOutsideDiscordWithAnExplicitMessage(): void
     {
-        $this->client->loginUser($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'), 'api');
+        $this->actAs($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'));
 
         $this->request('PUT', self::ENDPOINT, ['url' => 'https://discord.com.evil.io/api/webhooks/123456789012345678/' . self::WEBHOOK_TOKEN]);
 
@@ -64,7 +66,7 @@ final class DiscordWebhookApiTest extends WebTestCase
 
     public function testPutRejectsAnUrlOf513Characters(): void
     {
-        $this->client->loginUser($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'), 'api');
+        $this->actAs($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'));
 
         $prefix = 'https://discord.com/api/webhooks/123456789012345678/';
         $url = $prefix . str_repeat('a', 513 - strlen($prefix));
@@ -78,7 +80,7 @@ final class DiscordWebhookApiTest extends WebTestCase
 
     public function testPutWithoutUrlOrWithEmptyUrlIsRejectedAsUnprocessable(): void
     {
-        $this->client->loginUser($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'), 'api');
+        $this->actAs($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'));
 
         $this->request('PUT', self::ENDPOINT, []);
         self::assertResponseStatusCodeSame(422);
@@ -91,7 +93,7 @@ final class DiscordWebhookApiTest extends WebTestCase
     public function testPutStoresTheUrlEncryptedAndNeverReturnsIt(): void
     {
         $user = $this->persistPilot(2_112_392_001, 'Ilsa Verhoeven');
-        $this->client->loginUser($user, 'api');
+        $this->actAs($user);
 
         $this->request('PUT', self::ENDPOINT, ['url' => self::WEBHOOK_URL]);
 
@@ -113,7 +115,7 @@ final class DiscordWebhookApiTest extends WebTestCase
     public function testPutReplacesTheExistingWebhookInTheSingleRow(): void
     {
         $user = $this->persistPilot(2_112_392_001, 'Ilsa Verhoeven');
-        $this->client->loginUser($user, 'api');
+        $this->actAs($user);
         $this->request('PUT', self::ENDPOINT, ['url' => self::WEBHOOK_URL]);
         self::assertResponseStatusCodeSame(200);
         $first = $this->storedUrlsOf($user);
@@ -131,7 +133,7 @@ final class DiscordWebhookApiTest extends WebTestCase
     public function testDeleteRemovesTheWebhook(): void
     {
         $user = $this->persistPilot(2_112_392_001, 'Ilsa Verhoeven');
-        $this->client->loginUser($user, 'api');
+        $this->actAs($user);
         $this->request('PUT', self::ENDPOINT, ['url' => self::WEBHOOK_URL]);
         self::assertResponseStatusCodeSame(200);
 
@@ -145,7 +147,7 @@ final class DiscordWebhookApiTest extends WebTestCase
 
     public function testDeleteWithoutWebhookIsANoOp(): void
     {
-        $this->client->loginUser($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'), 'api');
+        $this->actAs($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'));
 
         $this->request('DELETE', self::ENDPOINT);
 
@@ -156,18 +158,18 @@ final class DiscordWebhookApiTest extends WebTestCase
     {
         $owner = $this->persistPilot(2_112_392_001, 'Ilsa Verhoeven');
         $other = $this->persistPilot(2_112_392_002, 'Tomas Brandt');
-        $this->client->loginUser($owner, 'api');
+        $this->actAs($owner);
         $this->request('PUT', self::ENDPOINT, ['url' => self::WEBHOOK_URL]);
         self::assertResponseStatusCodeSame(200);
 
-        $this->client->loginUser($other, 'api');
+        $this->actAs($other);
         $this->request('GET', self::ENDPOINT);
         $this->assertConfigured(false);
 
         $this->request('DELETE', self::ENDPOINT);
         self::assertResponseStatusCodeSame(204);
 
-        $this->client->loginUser($owner, 'api');
+        $this->actAs($owner);
         $this->request('GET', self::ENDPOINT);
         $this->assertConfigured(true);
         self::assertCount(1, $this->storedUrlsOf($owner));
@@ -179,10 +181,10 @@ final class DiscordWebhookApiTest extends WebTestCase
         $owner = $this->persistPilot(2_112_392_001, 'Ilsa Verhoeven');
         $other = $this->persistPilot(2_112_392_002, 'Tomas Brandt');
 
-        $this->client->loginUser($owner, 'api');
+        $this->actAs($owner);
         $this->request('PUT', self::ENDPOINT, ['url' => self::WEBHOOK_URL]);
         self::assertResponseStatusCodeSame(200);
-        $this->client->loginUser($other, 'api');
+        $this->actAs($other);
         $this->request('PUT', self::ENDPOINT, ['url' => self::WEBHOOK_URL]);
 
         self::assertResponseStatusCodeSame(200);
@@ -191,7 +193,7 @@ final class DiscordWebhookApiTest extends WebTestCase
 
     public function testTestWithoutWebhookIsRejectedAsUnprocessable(): void
     {
-        $this->client->loginUser($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'), 'api');
+        $this->actAs($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'));
 
         $this->request('POST', self::ENDPOINT . '/test');
 
@@ -201,12 +203,16 @@ final class DiscordWebhookApiTest extends WebTestCase
     public function testTestSendsTheTestMessageThroughTheSender(): void
     {
         $user = $this->persistPilot(2_112_392_001, 'Ilsa Verhoeven');
-        $this->client->loginUser($user, 'api');
+        $this->actAs($user);
         $this->request('PUT', self::ENDPOINT, ['url' => self::WEBHOOK_URL]);
         self::assertResponseStatusCodeSame(200);
         $sender = $this->createMock(DiscordWebhookSender::class);
-        $sender->expects(self::once())->method('send')->with($user, 'Test', self::isType('string'));
-        self::getContainer()->set(DiscordWebhookSender::class, $sender);
+        $sender->expects(self::once())->method('send')->with(
+            self::callback(static fn (User $actual): bool => $actual->getId()?->toRfc4122() === $user->getId()?->toRfc4122()),
+            'Test',
+            self::isString(),
+        );
+        $this->senderOverride = $sender;
 
         $this->request('POST', self::ENDPOINT . '/test');
 
@@ -215,12 +221,12 @@ final class DiscordWebhookApiTest extends WebTestCase
 
     public function testTestAnswersBadGatewayWithTheDiscordHttpCodeWhenTheSendFails(): void
     {
-        $this->client->loginUser($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'), 'api');
+        $this->actAs($this->persistPilot(2_112_392_001, 'Ilsa Verhoeven'));
         $this->request('PUT', self::ENDPOINT, ['url' => self::WEBHOOK_URL]);
         self::assertResponseStatusCodeSame(200);
         $sender = $this->createStub(DiscordWebhookSender::class);
         $sender->method('send')->willThrowException(new \RuntimeException('Discord webhook answered HTTP 404'));
-        self::getContainer()->set(DiscordWebhookSender::class, $sender);
+        $this->senderOverride = $sender;
 
         $this->request('POST', self::ENDPOINT . '/test');
 
@@ -253,6 +259,11 @@ final class DiscordWebhookApiTest extends WebTestCase
         ));
     }
 
+    private function actAs(User $user): void
+    {
+        $this->actingUserId = $user->getId()?->toRfc4122();
+    }
+
     private function persistPilot(int $eveCharacterId, string $name): User
     {
         $user = new User();
@@ -275,6 +286,17 @@ final class DiscordWebhookApiTest extends WebTestCase
      */
     private function request(string $method, string $uri, array $body = []): void
     {
+        if ($this->actingUserId !== null) {
+            self::ensureKernelShutdown();
+            $this->client = self::createClient();
+            $this->client->disableReboot();
+            self::getContainer()->set('logger', new NullLogger());
+            if ($this->senderOverride !== null) {
+                self::getContainer()->set(DiscordWebhookSender::class, $this->senderOverride);
+            }
+            $this->em = self::getContainer()->get(EntityManagerInterface::class);
+            $this->client->loginUser($this->em->find(User::class, $this->actingUserId), 'api');
+        }
         $this->client->request(
             $method,
             $uri,
