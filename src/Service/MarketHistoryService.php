@@ -23,7 +23,7 @@ class MarketHistoryService
     /**
      * Fetch ESI market history for a type/region and persist new entries.
      */
-    public function syncHistory(int $typeId, int $regionId = MarketPriceHistory::DEFAULT_REGION_ID): void
+    public function syncHistory(int $typeId, int $regionId = MarketPriceHistory::DEFAULT_REGION_ID): int
     {
         $this->logger->debug('Syncing market history', ['typeId' => $typeId, 'regionId' => $regionId]);
 
@@ -33,7 +33,7 @@ class MarketHistoryService
         $history = $this->esiClient->get($endpoint);
 
         if (empty($history)) {
-            return;
+            return 0;
         }
 
         $latestDate = $this->historyRepository->getLatestDate($typeId, $regionId);
@@ -74,6 +74,8 @@ class MarketHistoryService
                 'inserted' => $inserted,
             ]);
         }
+
+        return \count($history);
     }
 
     /**
