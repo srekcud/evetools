@@ -15,6 +15,9 @@ export const usePlanetaryPendingStockStore = defineStore('planetaryPendingStock'
 
     try {
       const response = await apiRequest<PendingStockResponse>('/planetary/pending-stock')
+      if (!Array.isArray(response.customsOfficeStocks)) {
+        throw new Error(i18n.global.t('pi.supply.pickup.errors.load'))
+      }
       data.value = { pendingOutputs: response.pendingOutputs, customsOfficeStocks: response.customsOfficeStocks, complete: response.complete }
     } catch (e) {
       data.value = null
