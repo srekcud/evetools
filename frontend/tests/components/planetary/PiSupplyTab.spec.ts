@@ -19,6 +19,7 @@ import {
   supplyResponse,
   unknownCapacityLaunchpad,
 } from '../../planetarySupplyFixtures'
+import { pendingStockResponse } from '../../planetaryPendingStockFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -30,11 +31,13 @@ const writeText = vi.fn()
 async function mountTab(launchpads: SupplyLaunchpad[], complete = true, failure: Error | null = null) {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  if (failure) {
-    vi.mocked(apiRequest).mockRejectedValue(failure)
-  } else {
-    vi.mocked(apiRequest).mockResolvedValue(supplyResponse(launchpads, complete) as never)
-  }
+  vi.mocked(apiRequest).mockImplementation((endpoint: string) => {
+    if (endpoint === '/planetary/input-needs') {
+      return failure ? Promise.reject(failure) : Promise.resolve(supplyResponse(launchpads, complete))
+    }
+    if (endpoint === '/planetary/pending-stock') return Promise.resolve(pendingStockResponse([]))
+    return new Promise(() => {})
+  })
   const wrapper = mount(PiSupplyTab, {
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })] },
   })
