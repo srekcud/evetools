@@ -37,6 +37,7 @@ use App\Entity\MoonComposition;
 use App\Entity\MoonTaxStatement;
 use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
+use App\Entity\PlanetaryColonyLayout;
 use App\Entity\PlanetaryPlanTemplate;
 use App\Entity\PushSubscription;
 use App\Entity\PveIncome;
@@ -171,6 +172,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'moon_tax_statements.acted_by_user_id' => 1,
             'notifications.user_id' => 1,
             'planetary_colonies.character_id' => 1,
+            'planetary_colony_layouts.user_id' => 1,
             'planetary_plan_templates.user_id' => 1,
             'push_subscriptions.user_id' => 1,
             'pve_income.user_id' => 1,
@@ -1211,6 +1213,21 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setUpgradeLevel(3 + $seed)
             ->setNumPins(8 + $seed)
             ->setLastUpdate($start));
+        $this->em->persist((new PlanetaryColonyLayout())
+            ->setUser($user)
+            ->setName(sprintf('Colony layout %d', $seed))
+            ->setTemplate([
+                'CmdCtrLv' => 2 + $seed,
+                'Cmt' => sprintf('Colony layout %d', $seed),
+                'Diam' => 0.5 * $seed,
+                'L' => [['D' => 2, 'Lv' => 0, 'S' => 1]],
+                'P' => [
+                    ['H' => 0, 'La' => 1.25, 'Lo' => -0.5, 'S' => null, 'T' => 2544],
+                    ['H' => 0, 'La' => 1.5, 'Lo' => -0.25, 'S' => 9_830 + $seed, 'T' => 2474],
+                ],
+                'Pln' => 2016,
+                'R' => [['P' => [2, 1], 'Q' => 40 * $seed, 'T' => 3645]],
+            ]));
         $this->em->persist((new PlanetaryPlanTemplate())
             ->setUser($user)
             ->setName(sprintf('Plan template %d', $seed))
