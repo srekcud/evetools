@@ -60,8 +60,8 @@ class PlanetaryPlanTemplateResource
     /** @var array<int|string, string> */
     public array $choices = [];
 
-    /** @var array{priceSource: string, taxPercent: int|float, daysBetweenRounds: int|float} */
-    public array $settings = ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4];
+    /** @var array{priceSource?: string, taxPercent?: int|float, daysBetweenRounds?: int|float} */
+    public array $settings = [];
 
     public string $createdAt = '';
 
