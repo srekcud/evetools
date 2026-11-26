@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { usePlanetaryStore, type Colony, type PlanetarySlotCharacter } from '@/stores/planetary'
 import { usePlanetaryStore, type Colony, type PlanetaryInputNeedsLaunchpad, type PlanetarySlotCharacter } from '@/stores/planetary'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
@@ -39,25 +38,13 @@ import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 
 type PlanetaryTab = 'planner' | 'colonies' | 'stock' | 'supply' | 'revenue'
 type ColonyGrouping = 'account' | 'character'
-type ColonyGrouping = 'account' | 'character'
 
 interface ColonyGroup {
   key: string
   title: string
   avatars: { characterId: number; characterName: string }[]
   colonies: Colony[]
-  slots: { used: number; max: number | null } | null
-  slotCharacters: PlanetarySlotCharacter[]
-  showCharacterName: boolean
-}
-
-const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
-
-interface ColonyGroup {
-  key: string
-  title: string
-  avatars: { characterId: number; characterName: string }[]
-  colonies: Colony[]
+  nextAction: NextAction | null
   slots: { used: number; max: number | null } | null
   slotCharacters: PlanetarySlotCharacter[]
   showCharacterName: boolean
@@ -66,51 +53,6 @@ interface ColonyGroup {
 const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
 
 const PLANETARY_TABS = ['planner', 'colonies', 'stock', 'supply', 'revenue'] as const satisfies readonly PlanetaryTab[]
-type ColonyGrouping = 'account' | 'character'
-
-interface ColonyGroup {
-  key: string
-  title: string
-  avatars: { characterId: number; characterName: string }[]
-  colonies: Colony[]
-  nextAction: NextAction | null
-  slots: { used: number; max: number | null } | null
-  slotCharacters: PlanetarySlotCharacter[]
-  showCharacterName: boolean
-}
-
-const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
-
-type ColonyGrouping = 'account' | 'character'
-
-interface ColonyGroup {
-  key: string
-  title: string
-  avatars: { characterId: number; characterName: string }[]
-  colonies: Colony[]
-  nextAction: NextAction | null
-  slots: { used: number; max: number | null } | null
-  slotCharacters: PlanetarySlotCharacter[]
-  showCharacterName: boolean
-}
-
-const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
-
-type ColonyGrouping = 'account' | 'character'
-
-interface ColonyGroup {
-  key: string
-  title: string
-  avatars: { characterId: number; characterName: string }[]
-  colonies: Colony[]
-  nextAction: NextAction | null
-  slots: { used: number; max: number | null } | null
-  slotCharacters: PlanetarySlotCharacter[]
-  showCharacterName: boolean
-}
-
-const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
-
 const COLONY_SORT_MODES = ['nextAction', 'character', 'system'] as const satisfies readonly ColonySortMode[]
 
 const CLOCK_REFRESH_MS = 60_000
@@ -252,7 +194,6 @@ const colonyGroups = computed<ColonyGroup[]>(() => {
       key: 'account',
       title: t('pi.groupBy.accountTitle', { name: accountName.value }),
       avatars: byCharacter.map(({ characterId, characterName }) => ({ characterId, characterName })),
-      colonies: byCharacter.flatMap(group => group.colonies),
       colonies,
       nextAction: earliestActionOf(colonies),
       slots: slots ? { used: slots.totalUsed, max: slots.totalMax } : null,
@@ -260,20 +201,6 @@ const colonyGroups = computed<ColonyGroup[]>(() => {
       showCharacterName: true,
     }]
   }
-
-  return byCharacter.map(group => {
-    const characterSlots = slotCharacters.value.find(character => character.characterId === group.characterId)
-    return {
-      key: String(group.characterId),
-      title: group.characterName,
-      avatars: [{ characterId: group.characterId, characterName: group.characterName }],
-      colonies: group.colonies,
-      slots: characterSlots ? { used: characterSlots.coloniesUsed, max: characterSlots.maxColonies } : null,
-      slotCharacters: [],
-      showCharacterName: false,
-    }
-  })
-})
 
   const groups = byCharacter
     .map(group => {
@@ -368,8 +295,6 @@ async function toggleColony(colonyId: string): Promise<void> {
 
       <PiSupplyTab v-else-if="activeTab === 'supply'" />
 
-      <PiSupplyTab v-else-if="activeTab === 'supply'" />
-
       <PiRevenueTab v-else-if="activeTab === 'revenue'" />
 
       <template v-else>
@@ -440,135 +365,6 @@ async function toggleColony(colonyId: string): Promise<void> {
         />
 
         <!-- ============ COLONIES GROUPS ============ -->
-        <div class="flex items-center gap-2 px-2">
-          <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.groupBy.label') }}</span>
-          <div class="flex items-center gap-1 p-0.5 bg-slate-900 border border-slate-800 rounded-lg">
-            <button
-              v-for="grouping in COLONY_GROUPINGS"
-              :key="grouping"
-              type="button"
-              :data-testid="`group-by-${grouping}`"
-              :aria-pressed="colonyGrouping === grouping"
-              :class="[
-                'px-3 py-1 rounded-md text-xs font-semibold transition-colors',
-                colonyGrouping === grouping ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white',
-              ]"
-              @click="colonyGrouping = grouping"
-            >
-              {{ t(`pi.groupBy.${grouping}`) }}
-            </button>
-          </div>
-        </div>
-
-        <div
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-2">
-          <div class="flex items-center gap-2">
-            <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.groupBy.label') }}</span>
-            <div class="flex items-center gap-1 p-0.5 bg-slate-900 border border-slate-800 rounded-lg">
-              <button
-                v-for="grouping in COLONY_GROUPINGS"
-                :key="grouping"
-                type="button"
-                :data-testid="`group-by-${grouping}`"
-                :aria-pressed="colonyGrouping === grouping"
-                :class="[
-                  'px-3 py-1 rounded-md text-xs font-semibold transition-colors',
-                  colonyGrouping === grouping ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white',
-                ]"
-                @click="colonyGrouping = grouping"
-              >
-                {{ t(`pi.groupBy.${grouping}`) }}
-              </button>
-            </div>
-          </div>
-          <label class="flex items-center gap-2">
-            <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.sort.label') }}</span>
-            <select
-              v-model="colonySortMode"
-              data-testid="sort-select"
-              class="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500"
-            >
-              <option v-for="mode in COLONY_SORT_MODES" :key="mode" :value="mode">{{ t(`pi.sort.${mode}`) }}</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2 px-2" role="group" :aria-label="t('pi.filters.label')">
-          <button
-            v-for="filterId in COLONY_FILTER_IDS"
-            :key="filterId"
-            type="button"
-            :data-testid="`filter-chip-${filterId}`"
-            :data-count="chipCounts[filterId] ?? '?'"
-            :aria-pressed="colonyFilter === filterId"
-            :title="chipCounts[filterId] === null ? t('pi.filters.refillUnknown') : undefined"
-            :class="[
-              'flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors',
-              colonyFilter === filterId ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white',
-              chipCounts[filterId] === 0 && colonyFilter !== filterId ? 'opacity-40' : '',
-            ]"
-            @click="colonyFilter = filterId"
-          >
-            <span>{{ t(`pi.filters.${filterId}`) }}</span>
-            <span class="font-mono-tech">{{ chipCounts[filterId] ?? '?' }}</span>
-          </button>
-        </div>
-
-        <div
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-2">
-          <div class="flex items-center gap-2">
-            <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.groupBy.label') }}</span>
-            <div class="flex items-center gap-1 p-0.5 bg-slate-900 border border-slate-800 rounded-lg">
-              <button
-                v-for="grouping in COLONY_GROUPINGS"
-                :key="grouping"
-                type="button"
-                :data-testid="`group-by-${grouping}`"
-                :aria-pressed="colonyGrouping === grouping"
-                :class="[
-                  'px-3 py-1 rounded-md text-xs font-semibold transition-colors',
-                  colonyGrouping === grouping ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white',
-                ]"
-                @click="colonyGrouping = grouping"
-              >
-                {{ t(`pi.groupBy.${grouping}`) }}
-              </button>
-            </div>
-          </div>
-          <label class="flex items-center gap-2">
-            <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.sort.label') }}</span>
-            <select
-              v-model="colonySortMode"
-              data-testid="sort-select"
-              class="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500"
-            >
-              <option v-for="mode in COLONY_SORT_MODES" :key="mode" :value="mode">{{ t(`pi.sort.${mode}`) }}</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2 px-2" role="group" :aria-label="t('pi.filters.label')">
-          <button
-            v-for="filterId in COLONY_FILTER_IDS"
-            :key="filterId"
-            type="button"
-            :data-testid="`filter-chip-${filterId}`"
-            :data-count="chipCounts[filterId] ?? '?'"
-            :aria-pressed="colonyFilter === filterId"
-            :title="chipCounts[filterId] === null ? t('pi.filters.refillUnknown') : undefined"
-            :class="[
-              'flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors',
-              colonyFilter === filterId ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white',
-              chipCounts[filterId] === 0 && colonyFilter !== filterId ? 'opacity-40' : '',
-            ]"
-            @click="colonyFilter = filterId"
-          >
-            <span>{{ t(`pi.filters.${filterId}`) }}</span>
-            <span class="font-mono-tech">{{ chipCounts[filterId] ?? '?' }}</span>
-          </button>
-        </div>
-
-        <div
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-2">
           <div class="flex items-center gap-2">
             <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.groupBy.label') }}</span>

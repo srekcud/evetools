@@ -48,6 +48,8 @@ const BARREN_COLONY: Colony = {
   nearestExpiry: '2026-10-24T09:00:00+00:00',
   factoryProgress: null,
   status: 'active',
+  tier: null,
+  storageFull: null,
   pins: [],
   routes: [],
 }
