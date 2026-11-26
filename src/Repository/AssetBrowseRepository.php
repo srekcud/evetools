@@ -14,6 +14,8 @@ class AssetBrowseRepository
 {
     private const int MAX_CONTAINER_DEPTH = 5;
 
+    private const string UNRESOLVED_LOCATION_TYPE = 'other';
+
     private const string SEARCH_ESCAPE = '!';
     private const string ACCENTED_LETTERS = 'àáâãäåçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ';
     private const string PLAIN_LETTERS = 'aaaaaaceeeeiiiinooooouuuuyyAAAAAACEEEEIIIINOOOOOUUUUY';
@@ -247,6 +249,46 @@ class AssetBrowseRepository
         $quantities = [];
         foreach ($rows as $row) {
             $quantities[(int) $row['root_location_id']][(int) $row['type_id']] = (int) $row['quantity'];
+        }
+
+        return $quantities;
+    }
+
+    /**
+     * @param list<int> $typeIds
+     *
+     * @return array<int, int> typeId => quantity
+     */
+    public function customsOfficeQuantities(AssetScope $scope, array $typeIds): array
+    {
+        if ([] === $typeIds) {
+            return [];
+        }
+
+        [$values, $types] = $this->bindings($scope);
+        $values['typeIds'] = $typeIds;
+        $types['typeIds'] = ArrayParameterType::INTEGER;
+        $values['locationType'] = self::UNRESOLVED_LOCATION_TYPE;
+        $values['structurePrefix'] = EveConstants::UNRESOLVED_STRUCTURE_NAME_PREFIX . '%';
+        $values['locationPrefix'] = EveConstants::UNRESOLVED_LOCATION_NAME_PREFIX . '%';
+
+        $rows = $this->connection->fetchAllAssociative(
+            $this->treeCte($scope) . <<<'SQL'
+
+            SELECT type_id, SUM(quantity) AS quantity
+            FROM tree
+            WHERE type_id IN (:typeIds)
+              AND root_location_type = :locationType
+              AND (root_location_name LIKE :structurePrefix OR root_location_name LIKE :locationPrefix)
+            GROUP BY type_id
+            SQL,
+            $values,
+            $types,
+        );
+
+        $quantities = [];
+        foreach ($rows as $row) {
+            $quantities[(int) $row['type_id']] = (int) $row['quantity'];
         }
 
         return $quantities;

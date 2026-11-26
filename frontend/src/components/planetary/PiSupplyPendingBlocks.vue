@@ -8,7 +8,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePlanetaryStore } from '@/stores/planetary'
 import { usePlanetaryPendingStockStore } from '@/stores/planetaryPendingStock'
 import { buildPickupPlan, sortBringBack } from '@/utils/planetaryPickup'
-import type { PendingOutput } from '@/utils/planetaryPickup'
+import type { PendingOutput, PickupSource } from '@/utils/planetaryPickup'
 
 const ICON_SIZE = 32
 const ONE_DECIMAL = 1
@@ -26,7 +26,9 @@ const planetaryStore = usePlanetaryStore()
 const pendingStore = usePlanetaryPendingStockStore()
 
 const outputs = computed(() => pendingStore.data?.pendingOutputs ?? [])
-const pickupRows = computed(() => buildPickupPlan(props.totals, props.typeNames, outputs.value))
+const pickupRows = computed(() => pendingStore.data === null
+  ? []
+  : buildPickupPlan(props.totals, props.typeNames, pendingStore.data.pendingOutputs, pendingStore.data.customsOfficeStocks))
 const bringBackRows = computed(() => sortBringBack(outputs.value))
 const hasUnknownSource = computed(() => pickupRows.value.some(row => row.unknownSources.length > 0))
 
@@ -36,6 +38,14 @@ function typeLabel(typeId: number, typeName: string | null): string {
 
 function planetLabel(planetName: string | null): string {
   return planetName ?? t('common.unknownName')
+}
+
+function sourceLabel(source: PickupSource): string {
+  if (source.kind === 'colony') return planetLabel(source.planetName)
+
+  return source.probable && source.planetName !== null
+    ? t('pi.supply.pickup.customsOfficeProbable', { planet: source.planetName })
+    : t('pi.supply.pickup.customsOfficeUnlocated')
 }
 
 function ageHours(dataAgeSeconds: number): number {
@@ -119,11 +129,12 @@ watch(() => planetaryStore.lastSyncAt, () => pendingStore.fetchPendingStock())
                   <ul class="space-y-1">
                     <li
                       v-for="source in row.sources"
-                      :key="source.colonyId"
+                      :key="`${source.kind}-${source.colonyId}`"
                       class="flex items-baseline gap-3"
                       data-testid="pi-pickup-source"
+                      :data-kind="source.kind"
                     >
-                      <span class="min-w-0 flex-1 truncate text-slate-300" :title="planetLabel(source.planetName)" data-testid="pi-pickup-source-planet">{{ planetLabel(source.planetName) }}</span>
+                      <span class="min-w-0 flex-1 truncate" :class="source.kind === 'customs' ? 'text-cyan-300' : 'text-slate-300'" :title="sourceLabel(source)" data-testid="pi-pickup-source-planet">{{ sourceLabel(source) }}</span>
                       <span class="font-mono-tech" :class="staleClass(source.dataStale)" data-testid="pi-pickup-source-quantity">{{ formatNumber(source.quantity, 0) }}</span>
                       <span class="font-mono-tech text-xs text-slate-500" data-testid="pi-pickup-source-volume">
                         <template v-if="source.volumeM3 === null">{{ t('pi.supply.bringBack.unknown') }}</template>

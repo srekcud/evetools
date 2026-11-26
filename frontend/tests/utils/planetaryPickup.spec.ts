@@ -2,10 +2,12 @@ import { buildPickupPlan, sortBringBack } from '@/utils/planetaryPickup'
 import {
   coolantFromAmarr,
   coolantFromPerimeter,
+  customsOfficeStockOf,
   homePlasmoidsFromJitaVII,
   mechanicalPartsFromAmarr,
   pendingOutputOf,
   unknownFertilizerFromAmarrVIII,
+  unlocatedWaterInCustomsOffice,
   waterFromAmarr,
 } from '../planetaryPendingStockFixtures'
 import { COOLANT, FERTILIZER, MECHANICAL_PARTS, PLASMOIDS, TYPE_NAMES, WATER } from '../planetarySupplyFixtures'
@@ -22,6 +24,7 @@ describe('buildPickupPlan', () => {
       [{ typeId: COOLANT, quantity: 11520 }, { typeId: WATER, quantity: 800 }],
       TYPE_NAME_BY_ID,
       [coolantFromAmarr(), coolantFromPerimeter(), waterFromAmarr()],
+      [],
     )
 
     expect(rows.map(row => [row.typeId, row.typeName, row.needed, row.pending, row.pickup, row.remaining])).toEqual([
@@ -40,6 +43,7 @@ describe('buildPickupPlan', () => {
         unknownFertilizerFromAmarrVIII(),
         unknownFertilizerFromAmarrVIII({ colonyId: 'colony-jita-vii', planetName: 'Jita VII', quantity: 310, volumeM3: 235.6 }),
       ],
+      [],
     )
 
     expect(rows).toHaveLength(1)
@@ -53,12 +57,38 @@ describe('buildPickupPlan', () => {
       [{ typeId: MECHANICAL_PARTS, quantity: 0 }, { typeId: PLASMOIDS, quantity: 720 }, { typeId: FERTILIZER, quantity: 960 }],
       TYPE_NAME_BY_ID,
       [homePlasmoidsFromJitaVII(), mechanicalPartsFromAmarr(), pendingOutputOf({ typeId: FERTILIZER, quantity: 90, consumers: [], destination: 'home' })],
+      [],
     )
 
     expect(rows.map(row => [row.typeId, row.needed, row.pending, row.pickup, row.remaining, row.sources.length, row.unknownSources.length])).toEqual([
       [PLASMOIDS, 720, 0, 0, 720, 0, 0],
       [FERTILIZER, 960, 0, 0, 960, 0, 0],
     ])
+  })
+
+  it('adds a customs office source per line to the needed types, probable with its planet or unlocated, and counts it as pending', () => {
+    const rows = buildPickupPlan(
+      [{ typeId: COOLANT, quantity: 11520 }, { typeId: WATER, quantity: 300 }, { typeId: MECHANICAL_PARTS, quantity: 0 }],
+      TYPE_NAME_BY_ID,
+      [coolantFromAmarr()],
+      [
+        customsOfficeStockOf(),
+        unlocatedWaterInCustomsOffice(),
+        customsOfficeStockOf({ typeId: MECHANICAL_PARTS, quantity: 640, volumeM3: 243.2 }),
+        customsOfficeStockOf({ typeId: PLASMOIDS, quantity: 120, volumeM3: 68.4 }),
+      ],
+    )
+
+    const customsOf = (row: (typeof rows)[number]) => row.sources
+      .filter(source => source.kind === 'customs')
+      .map(source => [source.planetName, source.probable, source.quantity, source.volumeM3])
+    expect(rows.map(row => [row.typeId, row.needed, row.pending, row.pickup, row.remaining])).toEqual([
+      [COOLANT, 11520, 4900, 4900, 6620],
+      [WATER, 300, 350, 300, 0],
+    ])
+    expect(customsOf(rows[0])).toEqual([['Amarr III', true, 900, 171]])
+    expect(customsOf(rows[1])).toEqual([[null, false, 350, 98]])
+    expect(rows[0].sources.filter(source => source.kind === 'colony').map(source => [source.planetName, source.quantity])).toEqual([['Amarr III', 4000]])
   })
 })
 

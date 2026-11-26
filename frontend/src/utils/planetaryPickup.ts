@@ -25,12 +25,26 @@ export interface PendingOutput {
   dataStale: boolean
 }
 
+export interface CustomsOfficeStock {
+  typeId: number
+  typeName: string | null
+  quantity: number
+  volumePerUnit: number | null
+  volumeM3: number | null
+  probablePlanet: PendingConsumer | null
+}
+
 export interface PendingStockResponse {
   pendingOutputs: PendingOutput[]
+  customsOfficeStocks: CustomsOfficeStock[]
   complete: boolean
 }
 
+export type PickupSourceKind = 'colony' | 'customs'
+
 export interface PickupSource {
+  kind: PickupSourceKind
+  probable: boolean
   colonyId: string
   planetName: string | null
   quantity: number | null
@@ -56,6 +70,8 @@ function isBoundForAnotherColony(output: PendingOutput): boolean {
 
 function toPickupSource(output: PendingOutput): PickupSource {
   return {
+    kind: 'colony',
+    probable: false,
     colonyId: output.colonyId,
     planetName: output.planetName,
     quantity: output.quantity,
@@ -65,17 +81,34 @@ function toPickupSource(output: PendingOutput): PickupSource {
   }
 }
 
+function toCustomsPickupSource(stock: CustomsOfficeStock): PickupSource {
+  return {
+    kind: 'customs',
+    probable: stock.probablePlanet !== null,
+    colonyId: stock.probablePlanet?.colonyId ?? '',
+    planetName: stock.probablePlanet?.planetName ?? null,
+    quantity: stock.quantity,
+    volumeM3: stock.volumeM3,
+    dataStale: false,
+    dataAgeSeconds: 0,
+  }
+}
+
 export function buildPickupPlan(
   totals: readonly { typeId: number; quantity: number }[],
   typeNames: ReadonlyMap<number, string | null>,
   outputs: readonly PendingOutput[],
+  customsOfficeStocks: readonly CustomsOfficeStock[],
 ): PickupRow[] {
   const bound = outputs.filter(isBoundForAnotherColony)
 
   return totals
     .filter(total => total.quantity > 0)
     .map(total => {
-      const sources = bound.filter(output => output.typeId === total.typeId).map(toPickupSource)
+      const sources = [
+        ...bound.filter(output => output.typeId === total.typeId).map(toPickupSource),
+        ...customsOfficeStocks.filter(stock => stock.typeId === total.typeId).map(toCustomsPickupSource),
+      ]
       const known = sources.filter(source => source.quantity !== null)
       const pending = sources.reduce((sum, source) => (source.quantity === null ? sum : sum + source.quantity), 0)
       const pickup = Math.min(total.quantity, pending)

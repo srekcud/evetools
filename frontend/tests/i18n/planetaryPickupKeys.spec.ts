@@ -1,7 +1,7 @@
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 
-const PICKUP_KEYS = ['title', 'help', 'needed', 'amount', 'remaining', 'sources', 'unknownSource', 'unknownNote', 'incomplete', 'loading', 'errors.load']
+const PICKUP_KEYS = ['title', 'help', 'needed', 'amount', 'remaining', 'sources', 'unknownSource', 'unknownNote', 'customsOfficeProbable', 'customsOfficeUnlocated', 'incomplete', 'loading', 'errors.load']
 const BRING_BACK_KEYS = ['title', 'planet', 'product', 'quantity', 'volume', 'destination', 'to', 'unplaced', 'empty', 'unknown', 'age']
 
 type Locale = { pi: { supply: object } }
@@ -11,6 +11,14 @@ function leaf(locale: Locale, block: 'pickup' | 'bringBack', path: string): unkn
     (node, key) => (typeof node === 'object' && node !== null ? (node as Record<string, unknown>)[key] : undefined),
     (locale.pi.supply as Record<string, unknown>)[block],
   )
+}
+
+const STOCK_GRID_KEYS = ['customsOffice', 'customsOfficeHint']
+
+function stockGridLeaf(locale: Locale, key: string): unknown {
+  const grid = (locale as unknown as { pi: { stock: { grid: Record<string, unknown> } } }).pi.stock.grid
+
+  return grid[key]
 }
 
 describe('planetary pending stock labels', () => {
@@ -24,5 +32,17 @@ describe('planetary pending stock labels', () => {
     }
     expect(String(leaf(en, 'bringBack', 'unplaced'))).not.toMatch(/home/i)
     expect(String(leaf(fr, 'bringBack', 'unplaced'))).not.toMatch(/maison/i)
+  })
+})
+
+describe('customs office labels', () => {
+  it('has the Stock column header and its hint in English and French, and the probable planet label takes the planet', () => {
+    for (const locale of [en, fr]) {
+      const gridLabels = STOCK_GRID_KEYS.map(key => typeof stockGridLeaf(locale, key) === 'string' && (stockGridLeaf(locale, key) as string).length > 0)
+      const probable = leaf(locale, 'pickup', 'customsOfficeProbable')
+
+      expect(gridLabels).toEqual(STOCK_GRID_KEYS.map(() => true))
+      expect(String(probable)).toContain('{planet}')
+    }
   })
 })

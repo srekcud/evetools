@@ -10,6 +10,7 @@ export interface PlanetaryStockRow {
   weeklyConsumption: number | null
   home: number | null
   hub: number
+  customsOffice: number
   corp: number | null
   openOrders: number
   coverageWeeks: number | null

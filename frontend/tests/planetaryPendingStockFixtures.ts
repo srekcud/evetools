@@ -1,4 +1,4 @@
-import type { PendingOutput } from '@/utils/planetaryPickup'
+import type { CustomsOfficeStock, PendingOutput } from '@/utils/planetaryPickup'
 import {
   COOLANT,
   FERTILIZER,
@@ -108,6 +108,30 @@ export function homePlasmoidsFromJitaVII(overrides: Partial<PendingOutput> = {})
   })
 }
 
-export function pendingStockResponse(pendingOutputs: PendingOutput[], complete = true) {
-  return { id: 'pending-stock', storages: [], pendingOutputs, complete }
+export function customsOfficeStockOf(overrides: Partial<CustomsOfficeStock> = {}): CustomsOfficeStock {
+  return {
+    typeId: COOLANT,
+    typeName: TYPE_NAMES[COOLANT],
+    quantity: 900,
+    volumePerUnit: 0.19,
+    volumeM3: 171,
+    probablePlanet: { colonyId: 'colony-amarr-iii', planetName: 'Amarr III' },
+    ...overrides,
+  }
+}
+
+export function unlocatedWaterInCustomsOffice(overrides: Partial<CustomsOfficeStock> = {}): CustomsOfficeStock {
+  return customsOfficeStockOf({
+    typeId: WATER,
+    typeName: TYPE_NAMES[WATER],
+    quantity: 350,
+    volumePerUnit: 0.28,
+    volumeM3: 98,
+    probablePlanet: null,
+    ...overrides,
+  })
+}
+
+export function pendingStockResponse(pendingOutputs: PendingOutput[], complete = true, customsOfficeStocks: CustomsOfficeStock[] = []) {
+  return { id: 'pending-stock', storages: [], pendingOutputs, customsOfficeStocks, complete }
 }

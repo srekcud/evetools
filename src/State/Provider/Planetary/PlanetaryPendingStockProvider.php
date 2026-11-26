@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Planetary\PlanetaryPendingStockResource;
 use App\Entity\User;
 use App\Repository\PlanetaryColonyRepository;
+use App\Service\Planetary\PlanetaryCustomsOfficeStockReader;
 use App\Service\Planetary\PlanetaryPendingStockCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -22,6 +23,7 @@ class PlanetaryPendingStockProvider implements ProviderInterface
         private readonly Security $security,
         private readonly PlanetaryColonyRepository $colonyRepository,
         private readonly PlanetaryPendingStockCalculator $pendingStockCalculator,
+        private readonly PlanetaryCustomsOfficeStockReader $customsOfficeStockReader,
     ) {
     }
 
@@ -33,11 +35,13 @@ class PlanetaryPendingStockProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $pending = $this->pendingStockCalculator->calculate($this->colonyRepository->findByUser($user));
+        $colonies = $this->colonyRepository->findByUser($user);
+        $pending = $this->pendingStockCalculator->calculate($colonies);
 
         $resource = new PlanetaryPendingStockResource();
         $resource->storages = $pending['storages'];
         $resource->pendingOutputs = $pending['pendingOutputs'];
+        $resource->customsOfficeStocks = $this->customsOfficeStockReader->read($user, $colonies);
         $resource->complete = $pending['complete'];
 
         return $resource;

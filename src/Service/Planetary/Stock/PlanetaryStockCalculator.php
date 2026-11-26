@@ -44,6 +44,7 @@ final readonly class PlanetaryStockCalculator
         $home = null === $homeLocationId ? null : ($readings->quantitiesByRootLocation[$homeLocationId][$need->typeId] ?? 0);
         $hub = $readings->hubStructureId === $homeLocationId ? 0 : ($readings->quantitiesByRootLocation[$readings->hubStructureId][$need->typeId] ?? 0);
         $corp = null === $homeLocationId ? null : $corpQuantity;
+        $customsOffice = $readings->customsOfficeQuantities[$need->typeId] ?? 0;
         $openOrders = $this->openOrdersOf($need->typeId, $readings);
         $consumption = $need->weeklyNetNeed;
 
@@ -51,7 +52,7 @@ final readonly class PlanetaryStockCalculator
         $coverageWithOrders = null;
         $toBuy = null;
         if (null !== $home && null !== $corp && null !== $consumption) {
-            $held = $home + $hub + $corp;
+            $held = $home + $hub + $corp + $customsOffice;
             if ($consumption > 0.0) {
                 $coverage = $held / $consumption;
                 $coverageWithOrders = ($held + $openOrders) / $consumption;
@@ -69,6 +70,7 @@ final readonly class PlanetaryStockCalculator
             $home,
             $hub,
             $corp,
+            $customsOffice,
             $openOrders,
             $coverage,
             $coverageWithOrders,
