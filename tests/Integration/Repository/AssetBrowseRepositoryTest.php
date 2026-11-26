@@ -22,6 +22,22 @@ final class AssetBrowseRepositoryTest extends IntegrationTestCase
     private const int CORPORATION_ID = 98_878_001;
     private const int OTHER_CORPORATION_ID = 98_878_002;
 
+    private const int STOCK_STRUCTURE_ID = 1_030_000_000_123;
+    private const int VELDSPAR_TYPE = 1_230;
+    private const int STOCK_LOOSE_TRITANIUM = 1_395_000_001;
+    private const int STOCK_JITA_BOX = 1_395_000_002;
+    private const int STOCK_PYERITE_IN_JITA_BOX = 1_395_000_003;
+    private const int STOCK_JITA_INNER_BOX = 1_395_000_004;
+    private const int STOCK_TRITANIUM_IN_INNER_BOX = 1_395_000_005;
+    private const int STOCK_AMARR_BOX = 1_395_000_006;
+    private const int STOCK_TRITANIUM_IN_AMARR_BOX = 1_395_000_007;
+    private const int STOCK_LOOSE_PYERITE_AT_AMARR = 1_395_000_008;
+    private const int STOCK_STRUCTURE_BOX = 1_395_000_009;
+    private const int STOCK_TRITANIUM_IN_STRUCTURE_BOX = 1_395_000_010;
+    private const int STOCK_VELDSPAR = 1_395_000_011;
+    private const int STOCK_OTHER_CHARACTER_TRITANIUM = 1_395_000_012;
+    private const int STOCK_CORPORATION_TRITANIUM = 1_395_000_013;
+
     private const int SHIP_TYPE = 603;
     private const int TRITANIUM_TYPE = 34;
     private const int PYERITE_TYPE = 35;
@@ -46,6 +62,7 @@ final class AssetBrowseRepositoryTest extends IntegrationTestCase
     private const int OTHER_CORP_BOX = 1_878_000_017;
 
     private AssetBrowseRepository $repository;
+    private string $stockOtherCharacterId;
 
     protected function setUp(): void
     {
@@ -218,6 +235,76 @@ final class AssetBrowseRepositoryTest extends IntegrationTestCase
         self::assertSame([], $this->repository->search($scope, 'matiriaux', 50)['hits']);
     }
 
+    #[Group('issue-1395')]
+    public function testQuantitiesAtARootLocationCountDirectItemsContainersAndSubContainersOfThePersonalScope(): void
+    {
+        $scope = $this->stockInventory();
+
+        $quantities = $this->repository->quantitiesByRootLocation($scope, [self::JITA_ID], [self::TRITANIUM_TYPE, self::PYERITE_TYPE]);
+
+        self::assertSame([self::JITA_ID => [self::TRITANIUM_TYPE => 433, self::PYERITE_TYPE => 120]], $this->sortedByLocationAndType($quantities));
+    }
+
+    #[Group('issue-1395')]
+    public function testQuantitiesAreGroupedPerRootLocationAndContainersOfAnotherLocationStayThere(): void
+    {
+        $scope = $this->stockInventory();
+
+        $quantities = $this->repository->quantitiesByRootLocation($scope, [self::JITA_ID, self::AMARR_ID, self::STOCK_STRUCTURE_ID], [self::TRITANIUM_TYPE, self::PYERITE_TYPE]);
+
+        self::assertSame(
+            [
+                self::JITA_ID => [self::TRITANIUM_TYPE => 433, self::PYERITE_TYPE => 120],
+                self::AMARR_ID => [self::TRITANIUM_TYPE => 6_000, self::PYERITE_TYPE => 77],
+                self::STOCK_STRUCTURE_ID => [self::TRITANIUM_TYPE => 250],
+            ],
+            $this->sortedByLocationAndType($quantities),
+        );
+    }
+
+    #[Group('issue-1395')]
+    public function testQuantitiesIgnoreTypesOutOfTheListAndLocationsOutOfTheList(): void
+    {
+        $scope = $this->stockInventory();
+
+        self::assertSame(
+            [self::AMARR_ID => [self::PYERITE_TYPE => 77]],
+            $this->repository->quantitiesByRootLocation($scope, [self::AMARR_ID], [self::PYERITE_TYPE]),
+        );
+        self::assertSame(
+            [self::JITA_ID => [self::VELDSPAR_TYPE => 15]],
+            $this->repository->quantitiesByRootLocation($scope, [self::JITA_ID], [self::VELDSPAR_TYPE]),
+        );
+        self::assertSame([], $this->repository->quantitiesByRootLocation($scope, [self::STOCK_STRUCTURE_ID], [self::PYERITE_TYPE]));
+        self::assertSame([], $this->repository->quantitiesByRootLocation($scope, [999_999_999], [self::TRITANIUM_TYPE]));
+    }
+
+    #[Group('issue-1395')]
+    public function testQuantitiesOfAnotherCharacterAndCorporationAssetsAreNotInThePersonalScope(): void
+    {
+        $pilotScope = $this->stockInventory();
+        $otherScope = AssetScope::forCharacter($this->stockOtherCharacterId);
+
+        self::assertSame(
+            [self::JITA_ID => [self::TRITANIUM_TYPE => 9_999]],
+            $this->repository->quantitiesByRootLocation($otherScope, [self::JITA_ID], [self::TRITANIUM_TYPE]),
+        );
+        self::assertSame(
+            [self::JITA_ID => [self::TRITANIUM_TYPE => 433]],
+            $this->repository->quantitiesByRootLocation($pilotScope, [self::JITA_ID], [self::TRITANIUM_TYPE]),
+        );
+    }
+
+    #[Group('issue-1395')]
+    public function testEmptyLocationOrTypeListsGiveNothing(): void
+    {
+        $scope = $this->stockInventory();
+
+        self::assertSame([], $this->repository->quantitiesByRootLocation($scope, [], [self::TRITANIUM_TYPE]));
+        self::assertSame([], $this->repository->quantitiesByRootLocation($scope, [self::JITA_ID], []));
+        self::assertSame([], $this->repository->quantitiesByRootLocation($scope, [], []));
+    }
+
     private function personalScopeWithInventory(): AssetScope
     {
         $pilot = $this->createCharacter(null, 'Ilse Varrow');
@@ -237,6 +324,46 @@ final class AssetBrowseRepositoryTest extends IntegrationTestCase
         $this->flushAndClear();
 
         return AssetScope::forCharacter($pilot->getId()->toRfc4122());
+    }
+
+    private function stockInventory(): AssetScope
+    {
+        $pilot = $this->createCharacter(null, 'Ilse Varrow');
+        $other = $this->createCharacter(null, 'Someone Else');
+
+        $this->em->persist($this->personal($pilot, self::STOCK_LOOSE_TRITANIUM, self::TRITANIUM_TYPE, 'Tritanium', 400, self::JITA_ID, 'Jita IV', 'station', 'Hangar', 'Jita'));
+        $this->em->persist($this->personal($pilot, self::STOCK_JITA_BOX, self::CONTAINER_TYPE, 'Giant Secure Container', 1, self::JITA_ID, 'Jita IV', 'station', 'Hangar', 'Jita')->setIsSingleton(true));
+        $this->em->persist($this->personal($pilot, self::STOCK_PYERITE_IN_JITA_BOX, self::PYERITE_TYPE, 'Pyerite', 120, self::STOCK_JITA_BOX, 'Jita IV', 'item', 'Unlocked', 'Jita'));
+        $this->em->persist($this->personal($pilot, self::STOCK_JITA_INNER_BOX, self::CONTAINER_TYPE, 'Giant Secure Container', 1, self::STOCK_JITA_BOX, 'Jita IV', 'item', 'Unlocked', 'Jita')->setIsSingleton(true));
+        $this->em->persist($this->personal($pilot, self::STOCK_TRITANIUM_IN_INNER_BOX, self::TRITANIUM_TYPE, 'Tritanium', 33, self::STOCK_JITA_INNER_BOX, 'Jita IV', 'item', 'Unlocked', 'Jita'));
+        $this->em->persist($this->personal($pilot, self::STOCK_VELDSPAR, self::VELDSPAR_TYPE, 'Veldspar', 15, self::JITA_ID, 'Jita IV', 'station', 'Hangar', 'Jita'));
+        $this->em->persist($this->personal($pilot, self::STOCK_AMARR_BOX, self::CONTAINER_TYPE, 'Giant Secure Container', 1, self::AMARR_ID, 'Amarr VIII', 'station', 'Hangar', 'Amarr')->setIsSingleton(true));
+        $this->em->persist($this->personal($pilot, self::STOCK_TRITANIUM_IN_AMARR_BOX, self::TRITANIUM_TYPE, 'Tritanium', 6_000, self::STOCK_AMARR_BOX, 'Amarr VIII', 'item', 'Unlocked', 'Amarr'));
+        $this->em->persist($this->personal($pilot, self::STOCK_LOOSE_PYERITE_AT_AMARR, self::PYERITE_TYPE, 'Pyerite', 77, self::AMARR_ID, 'Amarr VIII', 'station', 'Hangar', 'Amarr'));
+        $this->em->persist($this->personal($pilot, self::STOCK_STRUCTURE_BOX, self::CONTAINER_TYPE, 'Giant Secure Container', 1, self::STOCK_STRUCTURE_ID, 'Ashab - Market Fortizar', 'item', 'Hangar', 'Ashab')->setIsSingleton(true));
+        $this->em->persist($this->personal($pilot, self::STOCK_TRITANIUM_IN_STRUCTURE_BOX, self::TRITANIUM_TYPE, 'Tritanium', 250, self::STOCK_STRUCTURE_BOX, 'Ashab - Market Fortizar', 'item', 'Unlocked', 'Ashab'));
+        $this->em->persist($this->personal($other, self::STOCK_OTHER_CHARACTER_TRITANIUM, self::TRITANIUM_TYPE, 'Tritanium', 9_999, self::JITA_ID, 'Jita IV', 'station', 'Hangar', 'Jita'));
+        $this->em->persist($this->personal($pilot, self::STOCK_CORPORATION_TRITANIUM, self::TRITANIUM_TYPE, 'Tritanium', 8_888, self::JITA_ID, 'Jita IV', 'station', 'CorpSAG1', 'Jita')->setCorporationId(self::CORPORATION_ID)->setIsCorporationAsset(true));
+        $this->flushAndClear();
+        $this->stockOtherCharacterId = $other->getId()->toRfc4122();
+
+        return AssetScope::forCharacter($pilot->getId()->toRfc4122());
+    }
+
+    /**
+     * @param array<int, array<int, int>> $quantities
+     *
+     * @return array<int, array<int, int>>
+     */
+    private function sortedByLocationAndType(array $quantities): array
+    {
+        foreach ($quantities as &$byType) {
+            ksort($byType);
+        }
+        unset($byType);
+        ksort($quantities);
+
+        return $quantities;
     }
 
     /**

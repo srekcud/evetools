@@ -59,6 +59,7 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
   const hubChoices = ref<HubChoice[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const saveRevision = ref(0)
 
   async function load(): Promise<void> {
     isLoading.value = true
@@ -91,6 +92,7 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
         method: 'PATCH',
         body: JSON.stringify(patch),
       })
+      saveRevision.value += 1
       return true
     } catch {
       error.value = i18n.global.t('pi.stock.settings.saveError')
@@ -123,6 +125,7 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
         method: 'PATCH',
         body: JSON.stringify({ preferredMarketStructureId: chosen.id, preferredMarketStructureName: chosen.name }),
       })
+      saveRevision.value += 1
       settings.value = await apiRequest<PlanetarySettings>(SETTINGS_ENDPOINT)
       return true
     } catch {
@@ -135,5 +138,5 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
     error.value = null
   }
 
-  return { settings, locations, hubChoices, isLoading, error, load, saveHomeLocation, saveCoverageWeeks, saveHub, clearError }
+  return { settings, locations, hubChoices, isLoading, error, saveRevision, load, saveHomeLocation, saveCoverageWeeks, saveHub, clearError }
 })

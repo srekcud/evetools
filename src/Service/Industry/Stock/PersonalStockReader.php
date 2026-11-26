@@ -58,6 +58,17 @@ final readonly class PersonalStockReader
     }
 
     /**
+     * @return list<PersonalStockContainerContents>
+     */
+    public function containerContentsOf(User $user): array
+    {
+        return array_map(
+            static fn (array $reading): PersonalStockContainerContents => new PersonalStockContainerContents($reading['reading'], $reading['articles']),
+            $this->readingsOf($user),
+        );
+    }
+
+    /**
      * @return list<array{reading: PersonalStockContainerReading, articles: array<int, int>, station: AssetStation|null}>
      */
     private function readingsOf(User $user): array
