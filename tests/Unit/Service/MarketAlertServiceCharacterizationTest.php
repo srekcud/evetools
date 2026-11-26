@@ -17,6 +17,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\JitaMarketService;
 use App\Service\MarketAlertService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\DiscordWebhookSender;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Notification\WebPushService;
 use App\Service\StructureMarketService;
@@ -109,6 +110,7 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
             $this->preferenceRepository,
             new MercurePublisherService($notificationHub, new NullLogger()),
             $this->webPushService,
+            $this->createStub(DiscordWebhookSender::class),
             $this->dispatcherLogger,
         );
 

@@ -18,6 +18,7 @@ class NotificationDispatcher
         private readonly UserNotificationPreferenceRepository $preferenceRepository,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly WebPushService $webPushService,
+        private readonly DiscordWebhookSender $discordWebhookSender,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -84,6 +85,18 @@ class NotificationDispatcher
                 $this->webPushService->send($user, $notification);
             } catch (\Throwable $e) {
                 $this->logger->warning('Failed to send web push notification', [
+                    'userId' => $userId,
+                    'category' => $category,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($category === Notification::CATEGORY_PLANETARY) {
+            try {
+                $this->discordWebhookSender->send($user, $title, $message);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to send Discord webhook notification', [
                     'userId' => $userId,
                     'category' => $category,
                     'error' => $e->getMessage(),

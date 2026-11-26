@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Entity\UserNotificationPreference;
 use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\DiscordWebhookSender;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Notification\WebPushService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -17,7 +18,9 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -44,6 +47,7 @@ class NotificationDispatcherTest extends TestCase
             $this->preferenceRepository,
             $mercurePublisher,
             $this->webPushService,
+            $this->createStub(DiscordWebhookSender::class),
             new NullLogger(),
         );
     }
@@ -285,6 +289,104 @@ class NotificationDispatcherTest extends TestCase
     }
 
     // ===========================================
+    // dispatch — Discord webhook
+    // ===========================================
+
+    #[Group('issue-1392')]
+    public function testPlanetaryNotificationIsSentToTheDiscordWebhook(): void
+    {
+        $user = $this->createUserStub();
+        $this->preferenceRepository->method('findByUserAndCategory')->willReturn(null);
+
+        $discordWebhookSender = $this->createMock(DiscordWebhookSender::class);
+        $discordWebhookSender->expects($this->once())
+            ->method('send')
+            ->with($user, 'Launchpad empty', 'Your factory launchpad on Ishomilken IV is empty.');
+
+        $dispatcher = $this->dispatcherWith($discordWebhookSender);
+
+        $dispatcher->dispatch(
+            $user,
+            Notification::CATEGORY_PLANETARY,
+            Notification::LEVEL_WARNING,
+            'Launchpad empty',
+            'Your factory launchpad on Ishomilken IV is empty.',
+        );
+    }
+
+    #[Group('issue-1392')]
+    public function testNonPlanetaryCategoriesAreNeverSentToTheDiscordWebhook(): void
+    {
+        $user = $this->createUserStub();
+        $this->preferenceRepository->method('findByUserAndCategory')->willReturn(null);
+        $discordWebhookSender = $this->createMock(DiscordWebhookSender::class);
+        $discordWebhookSender->expects($this->never())->method('send');
+        $dispatcher = $this->dispatcherWith($discordWebhookSender);
+
+        foreach ([
+            Notification::CATEGORY_INDUSTRY,
+            Notification::CATEGORY_ESCALATION,
+            Notification::CATEGORY_ESI,
+            Notification::CATEGORY_PRICE,
+            Notification::CATEGORY_MINING_OPERATION,
+            Notification::CATEGORY_MOON_CHUNK,
+        ] as $category) {
+            $dispatcher->dispatch($user, $category, Notification::LEVEL_INFO, 'Title', 'Message');
+        }
+    }
+
+    #[Group('issue-1392')]
+    public function testDisabledPlanetaryCategoryIsNotSentToTheDiscordWebhook(): void
+    {
+        $user = $this->createUserStub();
+        $this->preferenceRepository->method('findByUserAndCategory')->willReturn($this->createPreference(false, true));
+        $discordWebhookSender = $this->createMock(DiscordWebhookSender::class);
+        $discordWebhookSender->expects($this->never())->method('send');
+
+        $dispatcher = $this->dispatcherWith($discordWebhookSender);
+
+        $dispatcher->dispatch(
+            $user,
+            Notification::CATEGORY_PLANETARY,
+            Notification::LEVEL_WARNING,
+            'Launchpad empty',
+            'Your factory launchpad is empty.',
+        );
+    }
+
+    #[Group('issue-1392')]
+    public function testDiscordWebhookFailureDoesNotPreventNotificationAndIsLoggedWithoutTheUrl(): void
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::fromString('0192a7c4-5e1f-7d3a-9b2c-4f6e8a1d3c57'));
+        $this->preferenceRepository->method('findByUserAndCategory')->willReturn(null);
+        $discordWebhookSender = $this->createMock(DiscordWebhookSender::class);
+        $discordWebhookSender->expects($this->once())
+            ->method('send')
+            ->willThrowException(new \RuntimeException('Discord webhook answered HTTP 404'));
+        $logger = new BufferingLogger();
+        $dispatcher = $this->dispatcherWith($discordWebhookSender, $logger);
+
+        $this->entityManager->expects($this->once())->method('persist');
+        $this->entityManager->expects($this->once())->method('flush');
+        $this->hub->expects($this->once())->method('publish');
+
+        $dispatcher->dispatch(
+            $user,
+            Notification::CATEGORY_PLANETARY,
+            Notification::LEVEL_WARNING,
+            'Launchpad empty',
+            'Your factory launchpad is empty.',
+        );
+
+        $warnings = array_values(array_filter($logger->cleanLogs(), static fn (array $log): bool => $log[0] === 'warning'));
+        self::assertCount(1, $warnings);
+        self::assertSame('planetary', $warnings[0][2]['category']);
+        self::assertSame('Discord webhook answered HTTP 404', $warnings[0][2]['error']);
+        self::assertSame('0192a7c4-5e1f-7d3a-9b2c-4f6e8a1d3c57', $warnings[0][2]['userId']);
+    }
+
+    // ===========================================
     // dispatch — user without ID
     // ===========================================
 
@@ -346,6 +448,18 @@ class NotificationDispatcherTest extends TestCase
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function dispatcherWith(DiscordWebhookSender $discordWebhookSender, ?LoggerInterface $logger = null): NotificationDispatcher
+    {
+        return new NotificationDispatcher(
+            $this->entityManager,
+            $this->preferenceRepository,
+            new MercurePublisherService($this->hub, new NullLogger()),
+            $this->webPushService,
+            $discordWebhookSender,
+            $logger ?? new NullLogger(),
+        );
+    }
 
     private function createUserStub(): User&Stub
     {

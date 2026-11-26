@@ -3348,6 +3348,18 @@
       "moon_chunk": "Chunks lunaires",
       "sde_build": "Build SDE"
     },
+    "discord": {
+      "title": "Discord",
+      "help": "L'URL du webhook est un secret : elle est chiffrée et ne s'affiche plus jamais. Seules les alertes d'industrie planétaire sont envoyées sur Discord.",
+      "urlLabel": "URL du webhook",
+      "configured": "Configuré",
+      "notConfigured": "Non configuré",
+      "save": "Enregistrer le webhook",
+      "test": "Envoyer un test",
+      "remove": "Retirer",
+      "testSucceeded": "Message de test envoyé",
+      "testFailed": "Échec du message de test"
+    },
     "settingsModal": {
       "title": "Preferences de notifications",
       "category": "Categorie",
