@@ -44,6 +44,8 @@ final readonly class CreatePlanTemplateProcessor implements ProcessorInterface
     private const int MAX_PRODUCTIONS = 20;
     private const int TEMPLATE_LIMIT_PER_USER = 50;
     private const float MIN_DAYS_BETWEEN_ROUNDS = 0.5;
+    private const int MAX_DAYS_BETWEEN_ROUNDS = 365;
+    private const int MAX_TARGET_PER_DAY = 1_000_000_000;
     private const int MIN_TAX_PERCENT = 0;
     private const int MAX_TAX_PERCENT = 100;
     private const array PRICE_SOURCES = ['jita-sell', 'jita-buy'];
@@ -81,10 +83,13 @@ final readonly class CreatePlanTemplateProcessor implements ProcessorInterface
             $choices[(int) $typeId] = $choice;
         }
 
+        /** @var list<array{typeId: int, targetPerDay: int|float}> $productions */
+        $productions = array_values($data->productions);
+
         $template = (new PlanetaryPlanTemplate())
             ->setUser($user)
             ->setName($name)
-            ->setProductions($data->productions)
+            ->setProductions($productions)
             ->setChoices($choices)
             ->setSettings([
                 'priceSource' => $settings['priceSource'],
@@ -175,7 +180,7 @@ final readonly class CreatePlanTemplateProcessor implements ProcessorInterface
             new Count(min: self::MIN_PRODUCTIONS, max: self::MAX_PRODUCTIONS),
             new All([new Collection(fields: [
                 'typeId' => [new NotNull(), new Type('int'), new Choice(callback: static fn (): array => $outputTypeIds)],
-                'targetPerDay' => [new NotNull(), new Type(['int', 'float']), new Positive(), new LessThanOrEqual(PHP_FLOAT_MAX)],
+                'targetPerDay' => [new NotNull(), new Type(['int', 'float']), new Positive(), new LessThanOrEqual(self::MAX_TARGET_PER_DAY)],
             ])]),
         ];
     }
@@ -207,7 +212,7 @@ final readonly class CreatePlanTemplateProcessor implements ProcessorInterface
         return [new Collection(fields: [
             'priceSource' => [new NotNull(), new Choice(choices: self::PRICE_SOURCES)],
             'taxPercent' => [new NotNull(), new Type(['int', 'float']), new GreaterThanOrEqual(self::MIN_TAX_PERCENT), new LessThanOrEqual(self::MAX_TAX_PERCENT)],
-            'daysBetweenRounds' => [new NotNull(), new Type(['int', 'float']), new GreaterThanOrEqual(self::MIN_DAYS_BETWEEN_ROUNDS), new LessThanOrEqual(PHP_FLOAT_MAX)],
+            'daysBetweenRounds' => [new NotNull(), new Type(['int', 'float']), new GreaterThanOrEqual(self::MIN_DAYS_BETWEEN_ROUNDS), new LessThanOrEqual(self::MAX_DAYS_BETWEEN_ROUNDS)],
         ])];
     }
 }
