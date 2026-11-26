@@ -8,10 +8,14 @@ use App\Repository\Sde\DgmAttributeTypeRepository;
 
 class ExtractorYieldCalculator
 {
+    public const SUGGESTION_MAX_DAYS = 14;
+    public const SUGGESTION_MARGINAL_SHARE = 0.5;
+
     private const DECAY_FACTOR_ATTRIBUTE_ID = 1683;
     private const NOISE_FACTOR_ATTRIBUTE_ID = 1687;
     private const BAR_SECONDS = 900;
     private const SECONDS_PER_DAY = 86400;
+    private const SECONDS_PER_HOUR = 3600;
     private const PHASE_SHIFT_EXPONENT = 0.7;
 
     public function __construct(
@@ -71,7 +75,29 @@ class ExtractorYieldCalculator
      */
     public function programCurve(int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime): ?array
     {
-        return null;
+        if ($installTime === null || $expiryTime === null || $cycleTime <= 0) {
+            return null;
+        }
+
+        $durationSeconds = $expiryTime->getTimestamp() - $installTime->getTimestamp();
+        if ($durationSeconds <= 0) {
+            return null;
+        }
+
+        $yields = $this->cycleYields($quantityPerCycle, $cycleTime, intdiv($durationSeconds, $cycleTime));
+        if ($yields === null) {
+            return null;
+        }
+
+        $totalQuantity = array_sum($yields);
+
+        return [
+            'cycleSeconds' => $cycleTime,
+            'yields' => $yields,
+            'totalQuantity' => $totalQuantity,
+            'averagePerHour' => $totalQuantity / ($durationSeconds / self::SECONDS_PER_HOUR),
+            'suggestedDays' => $this->suggestedDays($quantityPerCycle, $cycleTime),
+        ];
     }
 
     public function yieldBetween(int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime, \DateTimeImmutable $from, \DateTimeImmutable $to): ?float
@@ -99,6 +125,32 @@ class ExtractorYieldCalculator
         }
 
         return $total;
+    }
+
+    private function suggestedDays(int $quantityPerCycle, int $cycleTime): ?int
+    {
+        $cyclesPerDay = intdiv(self::SECONDS_PER_DAY, $cycleTime);
+        if ($cyclesPerDay < 1) {
+            return null;
+        }
+
+        $yields = $this->cycleYields($quantityPerCycle, $cycleTime, $cyclesPerDay * self::SUGGESTION_MAX_DAYS);
+        if ($yields === null) {
+            return null;
+        }
+
+        $dailyYields = array_map(array_sum(...), array_chunk($yields, $cyclesPerDay));
+        $threshold = $dailyYields[0] * self::SUGGESTION_MARGINAL_SHARE;
+
+        $suggestedDays = 1;
+        foreach (array_slice($dailyYields, 1) as $dayYield) {
+            if ($dayYield < $threshold) {
+                break;
+            }
+            ++$suggestedDays;
+        }
+
+        return $suggestedDays;
     }
 
     private function defaultValueOf(int $attributeId): ?float

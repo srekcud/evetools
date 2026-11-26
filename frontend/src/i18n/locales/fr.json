@@ -656,6 +656,31 @@
       "P3": "Specialise",
       "P4": "Avance"
     },
+    "curve": {
+      "now": "Maintenant",
+      "yield": {
+        "title": "Rendement du programme",
+        "unit": "/h",
+        "ariaLabel": "Rendement horaire de chaque cycle du programme d'extraction, face au débit initial constant",
+        "unknown": "Courbe inconnue",
+        "constantRate": "Débit constant",
+        "total": "Total {quantity}",
+        "average": "Moy. {quantity}/h",
+        "constantGap": "Débit constant {gap} vs moy.",
+        "suggestion": "Relancer sur {days} j : le jour {days} rend encore au moins la moitié du jour 1"
+      },
+      "launchpad": {
+        "title": "Launchpad {pinId}",
+        "ariaLabel": "Stock projeté du launchpad depuis sa dernière vue, face à sa capacité",
+        "unknown": "Stock inconnu",
+        "age": "Donnée {age}",
+        "lastView": "Dernière vue",
+        "capacity": "Capacité {capacity} m3",
+        "used": "Utilisé {volume} m3",
+        "emptyAt": "Vide {date}",
+        "notConsumed": "Non consommé"
+      }
+    },
     "colony": {
       "unknown": "Inconnu",
       "noExtractors": "Aucun extracteur",
