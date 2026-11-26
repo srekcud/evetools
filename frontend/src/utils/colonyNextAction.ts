@@ -15,6 +15,8 @@ export type ColonySortMode = 'nextAction' | 'character' | 'system'
 
 export type ColonyFilterId = 'all' | 'P1' | 'P2' | 'P3' | 'P4' | 'restart' | 'refill' | 'storage_full' | 'upgrade'
 
+export type ColonySelection = ColonyFilterId | 'plan'
+
 export const COLONY_FILTER_IDS: readonly ColonyFilterId[] = ['all', 'P1', 'P2', 'P3', 'P4', 'restart', 'refill', 'storage_full', 'upgrade']
 
 function restartActionOf(colony: Colony): NextAction | null {
@@ -77,10 +79,12 @@ function isRefillDue(colony: Colony, inputNeeds: PlanetaryInputNeeds, now: numbe
   return at !== null && at <= now + REFILL_HORIZON_HOURS * HOUR_MS
 }
 
-function matchesFilter(colony: Colony, filter: ColonyFilterId, inputNeeds: PlanetaryInputNeeds | null, now: number): boolean {
+function matchesFilter(colony: Colony, filter: ColonySelection, inputNeeds: PlanetaryInputNeeds | null, now: number, planTiers: readonly string[] | null): boolean {
   switch (filter) {
     case 'all':
       return true
+    case 'plan':
+      return planTiers === null || (colony.tier !== null && planTiers.includes(colony.tier))
     case 'restart':
       return colony.status === 'expired' || colony.status === 'expiring'
     case 'refill':
@@ -94,8 +98,8 @@ function matchesFilter(colony: Colony, filter: ColonyFilterId, inputNeeds: Plane
   }
 }
 
-export function filterColonies(colonies: Colony[], filter: ColonyFilterId, inputNeeds: PlanetaryInputNeeds | null, now: number): Colony[] {
-  return colonies.filter(colony => matchesFilter(colony, filter, inputNeeds, now))
+export function filterColonies(colonies: Colony[], filter: ColonySelection, inputNeeds: PlanetaryInputNeeds | null, now: number, planTiers: readonly string[] | null = null): Colony[] {
+  return colonies.filter(colony => matchesFilter(colony, filter, inputNeeds, now, planTiers))
 }
 
 export function filterCounts(colonies: Colony[], inputNeeds: PlanetaryInputNeeds | null, now: number): Record<ColonyFilterId, number | null> {

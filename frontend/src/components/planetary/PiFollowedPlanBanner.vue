@@ -8,7 +8,7 @@ import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 
 const UNKNOWN_FIGURE = '—'
 
-const emit = defineEmits<{ open: [] }>()
+const emit = defineEmits<{ open: []; filter: [] }>()
 
 const { t } = useI18n()
 const store = usePlanetaryPlannerStore()
@@ -22,6 +22,11 @@ const recipeMissing = computed(() => store.catalog !== null && store.followedTar
 const tiers = computed(() =>
   store.followedFactoryComparison.filter(gap => !(gap.planned === 0 && (gap.real === 0 || gap.real === null))),
 )
+
+function onFilter(): void {
+  if (recipeMissing.value || loading.value) return
+  emit('filter')
+}
 
 function onOpen(): void {
   const current = template.value
@@ -66,6 +71,14 @@ function onOpen(): void {
           <span class="font-mono-tech" :class="gapClass(gap.state)" data-testid="followed-plan-gap">{{ gapText(gap) }}</span>
         </li>
       </ul>
+
+      <button
+        type="button"
+        data-testid="followed-plan-filter"
+        :disabled="recipeMissing || loading"
+        class="rounded-md border border-slate-700 px-4 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent"
+        @click="onFilter"
+      >{{ t('pi.planner.follow.banner.filter') }}</button>
 
       <button
         type="button"
