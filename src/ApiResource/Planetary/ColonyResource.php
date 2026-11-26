@@ -81,6 +81,9 @@ class ColonyResource
 
     public ?bool $storageFull = null;
 
+    /** @var list<array<string, mixed>> */
+    public array $extractionBalance = [];
+
     public int $numPins;
 
     public string $lastUpdate;

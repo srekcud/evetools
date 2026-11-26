@@ -130,6 +130,24 @@ export interface FactoryProgress {
   endsAt: string
 }
 
+export interface ExtractionBalanceAdvice {
+  kind: 'deficit' | 'surplus' | 'balanced'
+  heads: number | null
+  factories: number | null
+}
+
+export interface ExtractionBalanceRow {
+  typeId: number
+  typeName: string | null
+  extractedPerDay: number | null
+  demandedPerDay: number
+  balancePerDay: number | null
+  runRate: number | null
+  factoryCount: number
+  headCount: number | null
+  advice: ExtractionBalanceAdvice | null
+}
+
 export interface Colony {
   id: string
   characterId: number
@@ -159,6 +177,7 @@ export interface Colony {
   factoryProgress: FactoryProgress | null
   factoryAutonomyDays?: number | null
   factoryRefillBy?: string | null
+  extractionBalance?: ExtractionBalanceRow[]
   status: 'active' | 'expiring' | 'expired' | 'idle' | 'factory'
   pins: Pin[]
   routes: Route[]

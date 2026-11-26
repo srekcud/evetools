@@ -21,10 +21,13 @@ use App\Repository\Sde\DgmAttributeTypeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
+use App\Repository\Sde\PlanetSchematicTypeRepository;
 use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
+use App\Service\Planetary\PlanetaryExtractionBalanceCalculator;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
+use App\Service\Planetary\PlanetaryInputNeedsCalculator;
 use App\Service\Planetary\PlanetaryPowerCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
@@ -32,6 +35,7 @@ use App\State\Provider\Planetary\PlanetaryResourceMapper;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 #[CoversClass(PlanetaryResourceMapper::class)]
 final class PlanetaryResourceMapperTest extends TestCase
@@ -579,6 +583,64 @@ final class PlanetaryResourceMapperTest extends TestCase
         $this->assertSame([], $resource->pins);
     }
 
+    #[Group('issue-1387')]
+    public function testListResourceCarriesTheExtractionBalanceOfAnExtractionColonyWithFactories(): void
+    {
+        $resource = $this->mapper()->toResource($this->extractionColonyFeedingOneBacteriaFactory());
+
+        $this->assertExtractionBalanceOfMicroorganisms($resource->extractionBalance);
+    }
+
+    #[Group('issue-1387')]
+    public function testDetailResourceCarriesTheSameExtractionBalance(): void
+    {
+        $resource = $this->mapper()->toDetailResource($this->extractionColonyFeedingOneBacteriaFactory());
+
+        $this->assertExtractionBalanceOfMicroorganisms($resource->extractionBalance);
+    }
+
+    #[Group('issue-1387')]
+    public function testColonyWithoutExtractorHasAnEmptyExtractionBalance(): void
+    {
+        $colony = $this->colony();
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_BACTERIA));
+
+        $this->assertSame([], $this->mapper()->toResource($colony)->extractionBalance);
+        $this->assertSame([], $this->mapper()->toDetailResource($colony)->extractionBalance);
+    }
+
+    #[Group('issue-1387')]
+    public function testColonyWithoutAnyPinHasAnEmptyExtractionBalance(): void
+    {
+        $this->assertSame([], $this->mapper()->toResource($this->colony())->extractionBalance);
+    }
+
+    private function extractionColonyFeedingOneBacteriaFactory(): PlanetaryColony
+    {
+        $colony = $this->colony();
+        $colony->addPin($this->extractorPin(self::MICROORGANISMS)->setExtractorNumHeads(4));
+        $colony->addPin($this->factoryPin(self::SCHEMATIC_BACTERIA));
+
+        return $colony;
+    }
+
+    private function assertExtractionBalanceOfMicroorganisms(array $extractionBalance): void
+    {
+        $this->assertCount(1, $extractionBalance);
+        $row = $extractionBalance[0];
+        $this->assertSame(self::MICROORGANISMS, $row['typeId']);
+        $this->assertSame('Microorganisms', $row['typeName']);
+        $this->assertEqualsWithDelta(616320.0, $row['extractedPerDay'], 0.0001);
+        $this->assertEqualsWithDelta(144000.0, $row['demandedPerDay'], 0.0001);
+        $this->assertEqualsWithDelta(472320.0, $row['balancePerDay'], 0.0001);
+        $this->assertEqualsWithDelta(1.0, $row['runRate'], 0.0001);
+        $this->assertSame(1, $row['factoryCount']);
+        $this->assertSame(4, $row['headCount']);
+        $this->assertSame('surplus', $row['advice']['kind']);
+        $this->assertSame(3, $row['advice']['factories']);
+        $this->assertNull($row['advice']['heads']);
+    }
+
     private function statusAndExpiringFlagOfAnExtractorExpiring(string $expiresIn): array
     {
         $colony = $this->colony();
@@ -677,6 +739,55 @@ final class PlanetaryResourceMapperTest extends TestCase
             $powerCalculator,
             $skillRepository,
             new ExtractorYieldCalculator($attributeRepository),
+            $this->extractionBalanceCalculator($invTypeRepository),
+        );
+    }
+
+    private function extractionBalanceCalculator(InvTypeRepository $invTypeRepository): PlanetaryExtractionBalanceCalculator
+    {
+        $balanceInvTypeRepository = $this->createStub(InvTypeRepository::class);
+        $balanceInvTypeRepository->method('findByTypeIds')->willReturnCallback(
+            static function (array $typeIds) use ($invTypeRepository): array {
+                $types = [];
+                foreach ($typeIds as $typeId) {
+                    $type = $invTypeRepository->find($typeId);
+                    if ($type !== null) {
+                        $types[$typeId] = $type;
+                    }
+                }
+
+                return $types;
+            },
+        );
+
+        $balanceSchematicRepository = $this->createStub(PlanetSchematicRepository::class);
+        $balanceSchematicRepository->method('findBySchematicId')->willReturnCallback($this->sdeSchematic(...));
+
+        $schematicTypeRepository = $this->createStub(PlanetSchematicTypeRepository::class);
+        $schematicTypeRepository->method('getSchematicMap')->willReturn([
+            self::SCHEMATIC_BACTERIA => ['inputs' => [self::MICROORGANISMS => 3000], 'output' => ['typeId' => self::BACTERIA, 'quantity' => 20]],
+            self::SCHEMATIC_NANITES => ['inputs' => [self::ROBOTICS => 6, self::BACTERIA => 40], 'output' => ['typeId' => self::NANITES, 'quantity' => 1]],
+        ]);
+
+        $constantRateYield = $this->createStub(ExtractorYieldCalculator::class);
+        $constantRateYield->method('programDailyAverage')->willReturnCallback(
+            static fn (int $quantityPerCycle, int $cycleTime, ?\DateTimeImmutable $installTime, ?\DateTimeImmutable $expiryTime): ?float => $expiryTime === null
+                ? null
+                : $quantityPerCycle * (86400 / $cycleTime),
+        );
+
+        $clock = new MockClock();
+
+        return new PlanetaryExtractionBalanceCalculator(
+            new PlanetaryInputNeedsCalculator(
+                $balanceSchematicRepository,
+                $schematicTypeRepository,
+                $balanceInvTypeRepository,
+                new TypeNameResolver($invTypeRepository),
+                $clock,
+                $constantRateYield,
+            ),
+            $clock,
         );
     }
 
