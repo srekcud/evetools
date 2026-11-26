@@ -133,7 +133,7 @@ final class ProjectDistributionServiceSurplusStoredTest extends TestCase
         $contributions = $this->createStub(IndustryProjectContributionRepository::class);
         $contributions->method('findApprovedByProject')->willReturn($this->contributions);
         $sales = $this->createStub(IndustryProjectSaleRepository::class);
-        $sales->method('findBy')->willReturn([(new IndustryProjectSale())->setTypeId(self::HAMMERHEAD_II)->setQuantity(100)->setUnitPrice(120.0)->setTotalPrice(12_000.0)]);
+        $sales->method('findBy')->willReturn([(new IndustryProjectSale())->setTypeId(self::HAMMERHEAD_II)->setTypeName('Hammerhead II')->setQuantity(100)->setUnitPrice(120.0)->setTotalPrice(12_000.0)]);
 
         return (new ProjectDistributionService($contributions, $sales))->calculateDistribution($this->project);
     }

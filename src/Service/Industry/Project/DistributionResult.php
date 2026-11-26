@@ -10,6 +10,7 @@ class DistributionResult
      * @param ParticipantDistribution[] $members
      * @param list<UnsoldProduct> $unsoldProducts
      * @param list<UnclaimedStockLine> $unclaimedStockLines
+     * @param list<UnmatchedSale> $unmatchedSales
      */
     public function __construct(
         public readonly float $totalRevenue,
@@ -32,5 +33,6 @@ class DistributionResult
         public readonly array $unclaimedStockLines = [],
         public readonly bool $surplusStored = false,
         public readonly ?float $storedSurplusValue = null,
+        public readonly array $unmatchedSales = [],
     ) {}
 }

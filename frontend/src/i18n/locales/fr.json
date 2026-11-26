@@ -4985,6 +4985,8 @@
       "contractRevenue": "Contrats",
       "contractFees": "Frais des contrats",
       "title": "Résumé financier",
+      "unmatchedSalesTitle": "Ventes hors produits finaux",
+      "unmatchedSalesHint": "Ces ventes comptent dans le revenu mais ne correspondent à aucun produit final à vendre : elles ne réduisent pas les quantités restant à vendre.",
       "feesUnknown": "Frais inconnus : le propriétaire du projet n'a pas synchronisé ses compétences et ses standings, le revenu net, le profit et la marge ne peuvent pas être calculés.",
       "brokerFeeWithRate": "Frais courtier ({percent}%)",
       "salesTaxWithRate": "Taxe de vente ({percent}%)",

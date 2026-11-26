@@ -351,6 +351,13 @@ export type UnsoldProduct = {
   lastUnitPrice: number | null
 }
 
+export type UnmatchedSale = {
+  typeId: number
+  typeName: string
+  quantity: number
+  revenue: number
+}
+
 export type SellForecastMarket = {
   name: string
   unitPrice: number | null
@@ -402,6 +409,7 @@ export type Distribution = {
   marginPercent: number | null
   awaitingSales: boolean
   unsoldProducts: UnsoldProduct[]
+  unmatchedSales?: UnmatchedSale[]
   projectedMarginPercent: number | null
   breakEvenPerUnit?: number | null
   breakEvenUnknownReason?: string | null

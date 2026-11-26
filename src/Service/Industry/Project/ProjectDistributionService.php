@@ -24,6 +24,7 @@ class ProjectDistributionService
         private readonly ProjectBreakEven $projectBreakEven = new ProjectBreakEven(),
         private readonly ?UnclaimedStockLines $unclaimedStockLines = null,
         private readonly ProjectSurplusBuilder $surplusBuilder = new ProjectSurplusBuilder(),
+        private readonly UnmatchedSalesOfProject $unmatchedSales = new UnmatchedSalesOfProject(),
     ) {}
 
     public function calculateDistribution(IndustryProject $project): DistributionResult
@@ -83,6 +84,7 @@ class ProjectDistributionService
             unclaimedStockLines: $unclaimedStockLines,
             surplusStored: $project->getSurplusStoredAt() !== null,
             storedSurplusValue: $project->getSurplusStoredAt() === null ? null : $this->surplusBuilder->build($project)->totalValue,
+            unmatchedSales: $this->unmatchedSales->of($project, $sales),
         );
     }
 

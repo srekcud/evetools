@@ -18,6 +18,7 @@ use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Industry\Project\ParticipantDistribution;
 use App\Service\Industry\Project\UnclaimedStockLine;
+use App\Service\Industry\Project\UnmatchedSale;
 use App\Service\Industry\Project\UnsoldProduct;
 use App\State\Provider\Industry\Project\ProjectDistributionProvider;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -206,7 +207,7 @@ class ProjectDistributionProviderTest extends TestCase
         $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findApprovedByProject')->willReturn([$freeLineRental]);
         $saleRepository = $this->createStub(IndustryProjectSaleRepository::class);
-        $saleRepository->method('findBy')->willReturn([(new IndustryProjectSale())->setTotalPrice(1_000_000.0)]);
+        $saleRepository->method('findBy')->willReturn([(new IndustryProjectSale())->setTypeId(11993)->setTypeName('Hammerhead II')->setQuantity(1)->setTotalPrice(1_000_000.0)]);
         $provider = new ProjectDistributionProvider(
             $this->security,
             $this->sabreBatchProjectRepository(),
@@ -306,7 +307,7 @@ class ProjectDistributionProviderTest extends TestCase
         $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findApprovedByProject')->willReturn([$knownMaterial, $unknownJobInstall]);
         $saleRepository = $this->createStub(IndustryProjectSaleRepository::class);
-        $saleRepository->method('findBy')->willReturn([(new IndustryProjectSale())->setTotalPrice(5_000.0)]);
+        $saleRepository->method('findBy')->willReturn([(new IndustryProjectSale())->setTypeId(11993)->setTypeName('Hammerhead II')->setQuantity(1)->setTotalPrice(5_000.0)]);
         $provider = new ProjectDistributionProvider(
             $this->security,
             $this->sabreBatchProjectRepository(),
@@ -368,6 +369,33 @@ class ProjectDistributionProviderTest extends TestCase
             $resource->unsoldProducts,
         );
         self::assertSame(90.0, $resource->projectedMarginPercent);
+    }
+
+    #[Group('issue-1376')]
+    public function testUnmatchedSalesReachTheApiWithTheirQuantityAndRevenue(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+        $distributionService = $this->createStub(ProjectDistributionService::class);
+        $distributionService->method('calculateDistribution')->willReturn(new DistributionResult(
+            totalRevenue: 33_300_000.0,
+            brokerFee: 0.0,
+            salesTax: 0.0,
+            netRevenue: 33_300_000.0,
+            totalProjectCost: 1_000_000.0,
+            marginPercent: 3_230.0,
+            members: [],
+            unmatchedSales: [new UnmatchedSale(638, 'Raven', 3, 33_300_000.0)],
+        ));
+        $provider = new ProjectDistributionProvider(
+            $this->security,
+            $this->sabreBatchProjectRepository(),
+            new ProjectAccessChecker($this->sabreBatchMemberRepository()),
+            $distributionService,
+        );
+
+        $resource = $provider->provide(new Get(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertSame([['typeId' => 638, 'typeName' => 'Raven', 'quantity' => 3, 'revenue' => 33_300_000.0]], $resource->unmatchedSales);
     }
 
     #[Group('issue-323')]

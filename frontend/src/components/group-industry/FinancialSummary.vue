@@ -18,6 +18,8 @@ const dist = computed(() => distStore.distribution)
 
 const isAwaitingSales = computed(() => dist.value?.awaitingSales === true)
 
+const unmatchedSales = computed(() => dist.value?.unmatchedSales ?? [])
+
 const isProvisional = computed(() => !isAwaitingSales.value && (dist.value?.unsoldProducts.length ?? 0) > 0)
 
 const profitLabel = computed(() => t(isProvisional.value ? 'groupIndustry.financialSummary.provisionalProfit' : 'groupIndustry.financialSummary.profit'))
@@ -167,6 +169,16 @@ const salesTaxLabel = computed(() => {
             :class="profitUnknown ? 'text-slate-500' : isProfit ? 'text-emerald-400/80' : 'text-red-400/80'"
           >{{ t('groupIndustry.financialSummary.marginLabel') }} <AwaitingSalesValue v-if="isAwaitingSales" /><UnknownValue v-else-if="dist.marginPercent === null" /><template v-else>{{ dist.marginPercent >= 0 ? '+' : '' }}{{ dist.marginPercent.toFixed(1) }}%</template></p>
         </div>
+      </div>
+      <div v-if="unmatchedSales.length > 0" data-testid="unmatched-sales" class="mt-6 border-t border-slate-800 pt-4 text-xs text-amber-400">
+        <p class="font-semibold">{{ t('groupIndustry.financialSummary.unmatchedSalesTitle') }}</p>
+        <p class="mt-1 text-slate-500">{{ t('groupIndustry.financialSummary.unmatchedSalesHint') }}</p>
+        <ul class="mt-2 space-y-1">
+          <li v-for="unmatchedSale in unmatchedSales" :key="unmatchedSale.typeId" class="flex items-center justify-between">
+            <span>{{ unmatchedSale.typeName }} × {{ unmatchedSale.quantity }}</span>
+            <span class="font-mono" style="font-variant-numeric: tabular-nums;">{{ formatIsk(unmatchedSale.revenue) }}</span>
+          </li>
+        </ul>
       </div>
     </div>
   </div>
