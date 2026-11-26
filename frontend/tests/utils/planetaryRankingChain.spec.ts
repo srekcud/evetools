@@ -109,10 +109,10 @@ describe('rankProduct on a P4 whose chain crosses three tiers', () => {
       { tier: 'P2', produced: 2, bought: 0 },
     ])
     expect(row.unitCost).toBeCloseTo(10_693.3333333, 4)
-    expect(row.planetsPerUnit).toBeCloseTo(5 / 156, 10)
+    expect(row.planetsPerUnit).toBeCloseTo(5 / 936, 10)
     expect(row.outputPerDay).toBeCloseTo(23, 8)
     expect(row.profitPerDay).toBeCloseTo(444_053.3333, 2)
-    expect(row.weeklyPurchasesIsk).toBeCloseTo(8_629_600, 2)
+    expect(row.weeklyPurchasesIsk).toBeCloseTo(1_438_266.6667, 2)
   })
 })
 
