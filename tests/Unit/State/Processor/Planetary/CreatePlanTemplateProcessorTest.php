@@ -85,6 +85,22 @@ final class CreatePlanTemplateProcessorTest extends TestCase
         $this->assertSame($persisted[0]->getCreatedAt()->format('c'), $resource->createdAt);
     }
 
+    public function testItStoresProductionsGivenWithArbitraryKeysAsAListInTheirOrder(): void
+    {
+        $persisted = [];
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void {
+            $persisted[] = $entity;
+        });
+        $input = $this->validInput();
+        $input->productions = ['first' => ['typeId' => self::COOLANT, 'targetPerDay' => 120], 7 => ['typeId' => self::ROBOTICS, 'targetPerDay' => 36]];
+
+        $resource = $this->processor($entityManager)->process($input, new Post());
+
+        $this->assertSame([['typeId' => self::COOLANT, 'targetPerDay' => 120], ['typeId' => self::ROBOTICS, 'targetPerDay' => 36]], $persisted[0]->getProductions());
+        $this->assertSame([['typeId' => self::COOLANT, 'targetPerDay' => 120], ['typeId' => self::ROBOTICS, 'targetPerDay' => 36]], $resource->productions);
+    }
+
     #[DataProvider('acceptedBoundaries')]
     public function testItAcceptsTheValuesOnTheEdgeOfEachRule(callable $edit): void
     {
@@ -130,6 +146,12 @@ final class CreatePlanTemplateProcessorTest extends TestCase
         }];
         yield 'the Jita sell source' => [static function (CreatePlanTemplateInput $input): void {
             $input->settings['priceSource'] = 'jita-sell';
+        }];
+        yield 'one billion units a day' => [static function (CreatePlanTemplateInput $input): void {
+            $input->productions[0]['targetPerDay'] = 1_000_000_000;
+        }];
+        yield 'a year between rounds' => [static function (CreatePlanTemplateInput $input): void {
+            $input->settings['daysBetweenRounds'] = 365;
         }];
     }
 
@@ -200,6 +222,8 @@ final class CreatePlanTemplateProcessorTest extends TestCase
      */
     public static function invalidTargets(): iterable
     {
+        yield 'just above one billion a day' => [1_000_000_001];
+        yield 'the largest float' => [PHP_FLOAT_MAX];
         yield 'zero' => [0];
         yield 'zero as a float' => [0.0];
         yield 'negative' => [-3];
@@ -270,6 +294,8 @@ final class CreatePlanTemplateProcessorTest extends TestCase
         yield 'a tax just above 100' => [array_replace($valid, ['taxPercent' => 100.01])];
         yield 'a tax that is not a number' => [array_replace($valid, ['taxPercent' => NAN])];
         yield 'a tax written as a string' => [array_replace($valid, ['taxPercent' => '4'])];
+        yield 'a delay of 366 days' => [array_replace($valid, ['daysBetweenRounds' => 366])];
+        yield 'the largest float as a delay' => [array_replace($valid, ['daysBetweenRounds' => PHP_FLOAT_MAX])];
         yield 'a delay of 0.4 day' => [array_replace($valid, ['daysBetweenRounds' => 0.4])];
         yield 'a delay of 0' => [array_replace($valid, ['daysBetweenRounds' => 0])];
         yield 'a negative delay' => [array_replace($valid, ['daysBetweenRounds' => -1])];
