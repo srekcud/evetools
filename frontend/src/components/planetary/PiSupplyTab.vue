@@ -4,9 +4,11 @@ import { useI18n } from 'vue-i18n'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import PiSupplyPendingBlocks from '@/components/planetary/PiSupplyPendingBlocks.vue'
+import PiTierBadge from '@/components/planetary/PiTierBadge.vue'
 import { useCopyFeedback } from '@/composables/useCopyFeedback'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import { usePlanetaryTiers } from '@/composables/usePlanetaryTiers'
 import { usePlanetaryStore } from '@/stores/planetary'
 import { usePlanetarySupplyStore } from '@/stores/planetarySupply'
 import { multibuyText } from '@/utils/multibuy'
@@ -21,6 +23,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const { copied, failed, copy } = useCopyFeedback()
 const planetaryStore = usePlanetaryStore()
 const supplyStore = usePlanetarySupplyStore()
+const { tierOf, ensureCatalog } = usePlanetaryTiers()
 
 const daysInput = ref<string | number>(DEFAULT_SUPPLY_DAYS)
 
@@ -74,7 +77,10 @@ function copyTotals(): Promise<void> {
   return copy(multibuyText(copyLines.value))
 }
 
-onMounted(() => supplyStore.fetchInputNeeds())
+onMounted(() => {
+  supplyStore.fetchInputNeeds()
+  ensureCatalog()
+})
 
 watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
 </script>
@@ -187,6 +193,7 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
                       @error="onImageError"
                     />
                     <span class="truncate" :title="typeLabel(column.typeId, column.typeName)">{{ typeLabel(column.typeId, column.typeName) }}</span>
+                    <PiTierBadge :tier="tierOf(column.typeId)" />
                   </div>
                 </th>
                 <th class="px-3 py-3 text-right font-medium">{{ t('pi.supply.bring') }}</th>
