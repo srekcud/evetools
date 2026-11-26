@@ -3075,6 +3075,18 @@
       "moon_chunk": "Moon Chunks",
       "sde_build": "SDE build"
     },
+    "discord": {
+      "title": "Discord",
+      "help": "The webhook URL is a secret: it is stored encrypted and never shown again. Only planetary industry alerts are sent to Discord.",
+      "urlLabel": "Webhook URL",
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "save": "Save webhook",
+      "test": "Send a test",
+      "remove": "Remove",
+      "testSucceeded": "Test message sent",
+      "testFailed": "Test message failed"
+    },
     "settingsModal": {
       "title": "Notification Preferences",
       "category": "Category",

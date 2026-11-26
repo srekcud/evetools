@@ -91,5 +91,17 @@ class NotificationDispatcher
                 ]);
             }
         }
+
+        if ($category === Notification::CATEGORY_PLANETARY) {
+            try {
+                $this->discordWebhookSender->send($user, $title, $message);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to send Discord webhook notification', [
+                    'userId' => $userId,
+                    'category' => $category,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 }
