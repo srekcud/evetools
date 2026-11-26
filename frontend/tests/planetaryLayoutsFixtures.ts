@@ -28,6 +28,8 @@ export const COOLANT_LAYOUT: ColonyLayout = {
     Pln: 2016,
     R: [{ P: [2, 1], Q: 40, T: 3645 }, { P: [3, 1], Q: 40, T: 3645 }],
   },
+  public: false,
+  publishedAt: null,
   createdAt: '2026-11-24T10:00:00+00:00',
 }
 
@@ -58,6 +60,8 @@ export const ROBOTICS_LAYOUT: ColonyLayout = {
     Pln: 2015,
     R: [{ P: [2, 1], Q: 120, T: 2073 }],
   },
+  public: false,
+  publishedAt: null,
   createdAt: '2026-11-25T08:30:00+00:00',
 }
 
