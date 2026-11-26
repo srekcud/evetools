@@ -38,6 +38,8 @@ export interface ColonyLayout {
   name: string
   summary: ColonyLayoutSummary
   gameTemplate: Record<string, unknown>
+  public: boolean
+  publishedAt: string | null
   createdAt: string
 }
 
@@ -108,5 +110,9 @@ export const usePlanetaryLayoutsStore = defineStore('planetaryLayouts', () => {
     }
   }
 
-  return { layouts, isLoading, error, load, importLayout, rename, remove }
+  async function setPublic(_id: string, _isPublic: boolean): Promise<boolean> {
+    return false
+  }
+
+  return { layouts, isLoading, error, load, importLayout, rename, remove, setPublic }
 })
