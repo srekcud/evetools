@@ -9,6 +9,7 @@ import { useTypeNames } from '@/composables/useTypeNames'
 import type { Colony } from '@/stores/planetary'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 import PiFactoryProgress from '@/components/planetary/PiFactoryProgress.vue'
+import PiPowerGauge from '@/components/planetary/PiPowerGauge.vue'
 
 const props = withDefaults(defineProps<{
   colony: Colony
@@ -45,6 +46,16 @@ const {
   getColonyProduction,
 } = usePlanetaryHelpers()
 
+
+const ROMAN_SKILL_LEVELS = ['0', 'I', 'II', 'III', 'IV', 'V']
+
+const commandCenterSkillLabel = computed(() => {
+  const level = props.colony.commandCenterSkillLevel
+  if (level === null || level === undefined) return null
+  return ROMAN_SKILL_LEVELS[level] ?? String(level)
+})
+
+const commandCenterUpgradable = computed(() => props.colony.commandCenterUpgradable === true)
 
 const colonyUpdated = useUpdateFlash(() => JSON.stringify(props.colony))
 
@@ -113,6 +124,20 @@ defineEmits<{
               :class="['w-3.5 h-1.5 rounded-xs', level <= colony.upgradeLevel ? 'bg-cyan-400' : 'bg-slate-700']"
             ></div>
           </div>
+          <span
+            v-if="commandCenterUpgradable"
+            data-testid="cc-upgrade-badge"
+            :title="t('pi.power.upgradeTooltip')"
+            class="ml-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium uppercase tracking-wider whitespace-nowrap text-amber-400 bg-amber-500/10 border-amber-500/40"
+          >
+            {{ t('pi.power.upgradeBadge') }}
+          </span>
+        </div>
+
+        <!-- CPU and powergrid -->
+        <div class="grid grid-cols-2 gap-3 w-[260px] shrink-0">
+          <PiPowerGauge kind="cpu" :used="colony.cpuUsed" :max="colony.cpuMax" />
+          <PiPowerGauge kind="pg" :used="colony.powergridUsed" :max="colony.powergridMax" />
         </div>
 
         <!-- Installations -->
@@ -180,6 +205,26 @@ defineEmits<{
     <!-- ============ EXPANDED COLONY DETAIL ============ -->
     <div v-if="expanded" class="border-t border-slate-800">
       <div class="px-5 py-4 space-y-5">
+
+        <!-- Command center -->
+        <div data-testid="command-center-block" class="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+          <h4 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-2">{{ t('pi.power.commandCenter.title') }}</h4>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+            <span class="text-white font-medium">{{ t('pi.power.commandCenter.level', { level: colony.upgradeLevel }) }}</span>
+            <span class="flex items-center gap-1.5 min-w-0 text-slate-400">
+              <span class="truncate">{{ t('pi.power.commandCenter.skill') }}</span>
+              <span v-if="commandCenterSkillLabel !== null" data-testid="command-center-skill" class="text-cyan-400 font-mono-tech">{{ commandCenterSkillLabel }}</span>
+              <span v-else data-testid="command-center-skill-unknown" :title="t('pi.power.commandCenter.unknownTooltip')" class="text-slate-500 italic">{{ t('pi.power.commandCenter.unknown') }}</span>
+            </span>
+            <span
+              v-if="commandCenterUpgradable"
+              data-testid="cc-upgrade-signal"
+              class="text-xs px-1.5 py-0.5 rounded-full border font-medium uppercase tracking-wider text-amber-400 bg-amber-500/10 border-amber-500/40"
+            >
+              {{ t('pi.power.commandCenter.upgradeSignal', { skill: commandCenterSkillLabel }) }}
+            </span>
+          </div>
+        </div>
 
         <!-- Extractors Detail -->
         <div v-if="getExtractorPins(colony).length > 0">

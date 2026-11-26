@@ -5,24 +5,31 @@ declare(strict_types=1);
 namespace App\State\Provider\Planetary;
 
 use App\ApiResource\Planetary\ColonyResource;
+use App\Entity\CachedCharacterSkill;
 use App\Entity\PlanetaryColony;
 use App\Enum\ColonyStatus;
 use App\Entity\PlanetaryPin;
+use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
+use App\Service\Planetary\PlanetaryPowerCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\TypeNameResolver;
+use Symfony\Contracts\Service\ResetInterface;
 
-class PlanetaryResourceMapper
+class PlanetaryResourceMapper implements ResetInterface
 {
     private const SECONDS_PER_DAY = 86400;
     private const MARKET_GROUP_P1 = 1334;
     private const MARKET_GROUP_P2 = 1335;
     private const MARKET_GROUP_P3 = 1336;
     private const MARKET_GROUP_P4 = 1337;
+
+    /** @var array<int, array<int, int>> */
+    private array $skillLevelsByEveCharacterId = [];
 
     public function __construct(
         private readonly InvTypeRepository $invTypeRepository,
@@ -32,7 +39,14 @@ class PlanetaryResourceMapper
         private readonly PlanetaryExpiryThresholdResolver $expiryThresholdResolver,
         private readonly PlanetaryFactoryColonyTracker $factoryColonyTracker,
         private readonly PlanetaryProductionCalculator $productionCalculator,
+        private readonly PlanetaryPowerCalculator $powerCalculator,
+        private readonly CachedCharacterSkillRepository $skillRepository,
     ) {
+    }
+
+    public function reset(): void
+    {
+        $this->skillLevelsByEveCharacterId = [];
     }
 
     /**
@@ -56,6 +70,8 @@ class PlanetaryResourceMapper
         $resource->cachedAt = $colony->getCachedAt()->format('c');
 
         $this->computePinStats($colony, $resource);
+        $this->applyPower($colony, $resource);
+        $this->applyCommandCenterSkill($colony, $resource);
 
         return $resource;
     }
@@ -86,6 +102,30 @@ class PlanetaryResourceMapper
         }
 
         return $resource;
+    }
+
+    private function applyPower(PlanetaryColony $colony, ColonyResource $resource): void
+    {
+        $outputs = $this->powerCalculator->outputs($colony);
+        $load = $this->powerCalculator->load($colony);
+        if ($outputs === null || $load === null) {
+            return;
+        }
+
+        $resource->cpuUsed = $load['cpu'];
+        $resource->cpuMax = $outputs['cpu'];
+        $resource->powergridUsed = $load['powergrid'];
+        $resource->powergridMax = $outputs['powergrid'];
+    }
+
+    private function applyCommandCenterSkill(PlanetaryColony $colony, ColonyResource $resource): void
+    {
+        $eveCharacterId = $colony->getCharacter()->getEveCharacterId();
+        $this->skillLevelsByEveCharacterId[$eveCharacterId] ??= $this->skillRepository->findLevelsByEveCharacterId($eveCharacterId);
+        $skillLevel = $this->skillLevelsByEveCharacterId[$eveCharacterId][CachedCharacterSkill::SKILL_COMMAND_CENTER_UPGRADES] ?? null;
+
+        $resource->commandCenterSkillLevel = $skillLevel;
+        $resource->commandCenterUpgradable = $skillLevel === null ? null : $skillLevel > $colony->getUpgradeLevel();
     }
 
     private function computePinStats(PlanetaryColony $colony, ColonyResource $resource): void

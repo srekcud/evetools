@@ -40,6 +40,7 @@ use App\State\Provider\Planetary\ColonyDetailProvider;
         ),
     ],
     security: "is_granted('ROLE_USER')",
+    normalizationContext: ['skip_null_values' => false],
 )]
 class ColonyResource
 {
@@ -63,6 +64,18 @@ class ColonyResource
     public ?float $solarSystemSecurity = null;
 
     public int $upgradeLevel;
+
+    public ?int $cpuUsed = null;
+
+    public ?int $cpuMax = null;
+
+    public ?int $powergridUsed = null;
+
+    public ?int $powergridMax = null;
+
+    public ?int $commandCenterSkillLevel = null;
+
+    public ?bool $commandCenterUpgradable = null;
 
     public int $numPins;
 

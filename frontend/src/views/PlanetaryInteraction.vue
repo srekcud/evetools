@@ -24,6 +24,19 @@ import PiSupplyTab from '@/components/planetary/PiSupplyTab.vue'
 
 type PlanetaryTab = 'planner' | 'colonies' | 'stock' | 'supply' | 'revenue'
 type ColonyGrouping = 'account' | 'character'
+type ColonyGrouping = 'account' | 'character'
+
+interface ColonyGroup {
+  key: string
+  title: string
+  avatars: { characterId: number; characterName: string }[]
+  colonies: Colony[]
+  slots: { used: number; max: number | null } | null
+  slotCharacters: PlanetarySlotCharacter[]
+  showCharacterName: boolean
+}
+
+const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
 
 interface ColonyGroup {
   key: string
