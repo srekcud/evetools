@@ -55,4 +55,12 @@ class PlanetaryColonyLayoutRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    /**
+     * @return list<PlanetaryColonyLayout>
+     */
+    public function findPublic(int $limit): array
+    {
+        return [];
+    }
 }
