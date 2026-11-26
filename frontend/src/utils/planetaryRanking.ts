@@ -212,7 +212,7 @@ export function rankProduct(typeId: number, catalog: PlannerCatalog, settings: P
     profitPerWeek: profitPerDay === null ? null : profitPerDay * DAYS_PER_WEEK,
     profitPerMonth: profitPerDay === null ? null : profitPerDay * DAYS_PER_MONTH,
     weeklyPurchasesIsk: outputPerDay === null || unitCost === null ? null : weeklyPurchasesOf(nodes, outputPerDay),
-    planTarget: planTargetOf(outputPerDay, options.baseCount),
+    planTarget: marketProduct === undefined ? null : planTargetOf(outputPerDay, options.baseCount),
   }
 }
 
