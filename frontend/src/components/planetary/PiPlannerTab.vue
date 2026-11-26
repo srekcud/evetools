@@ -13,6 +13,7 @@ import PiPlannerSummary from '@/components/planetary/PiPlannerSummary.vue'
 import PiPlannerTemplates from '@/components/planetary/PiPlannerTemplates.vue'
 import PiPlannerTree from '@/components/planetary/PiPlannerTree.vue'
 
+const emit = defineEmits<{ 'show-colonies': [tier: string] }>()
 const { t } = useI18n()
 const store = usePlanetaryPlannerStore()
 
@@ -46,7 +47,7 @@ onMounted(() => {
         </div>
       </div>
       <PiPlannerPlanets />
-      <PiPlannerFactoryGap />
+      <PiPlannerFactoryGap @show-colonies="tier => emit('show-colonies', tier)" />
       <PiPlannerRanking />
       <PiPlannerTemplates />
     </template>
