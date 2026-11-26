@@ -329,7 +329,15 @@ export const usePlanetaryStore = defineStore('planetary', () => {
   }
 
   async function fetchInputNeeds(): Promise<void> {
-    return Promise.resolve()
+    error.value = null
+
+    try {
+      const data = await apiRequest<PlanetaryInputNeeds>('/planetary/input-needs')
+      inputNeeds.value = { launchpads: data.launchpads, complete: data.complete }
+    } catch (e) {
+      inputNeeds.value = null
+      error.value = e instanceof Error ? e.message : 'Erreur lors du chargement des besoins en intrants'
+    }
   }
 
   async function fetchRevenue(days: number): Promise<void> {
@@ -371,7 +379,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
   async function finishSync(): Promise<void> {
     isSyncing.value = false
     lastSyncAt.value = new Date().toISOString()
-    await Promise.all([fetchColonies(), fetchStats(), fetchSlots(), fetchProduction()])
+    await Promise.all([fetchColonies(), fetchStats(), fetchSlots(), fetchProduction(), fetchInputNeeds()])
   }
 
   function failSync(message?: string): void {
