@@ -102,6 +102,14 @@ class PlanetaryPowerCalculator implements ResetInterface
     /**
      * @return array{cpu: int, powergrid: int}|null
      */
+    public function loadOfInstallation(int $typeId, ?int $extractorHeads): ?array
+    {
+        return null;
+    }
+
+    /**
+     * @return array{cpu: int, powergrid: int}|null
+     */
     private function outputsOfLevel(InvType $baseCommandCenter, int $upgradeLevel): ?array
     {
         if ($upgradeLevel === 0) {
