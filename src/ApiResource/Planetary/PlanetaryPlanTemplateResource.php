@@ -13,9 +13,9 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Planetary\CreatePlanTemplateInput;
+use App\ApiResource\Input\Planetary\FollowPlanTemplateInput;
 use App\Entity\PlanetaryPlanTemplate;
 use App\State\Processor\Planetary\CreatePlanTemplateProcessor;
-use App\ApiResource\Input\Planetary\FollowPlanTemplateInput;
 use App\State\Processor\Planetary\DeletePlanTemplateProcessor;
 use App\State\Processor\Planetary\FollowPlanTemplateProcessor;
 use App\State\Provider\Planetary\PlanetaryPlanTemplateCollectionProvider;
@@ -85,7 +85,7 @@ class PlanetaryPlanTemplateResource
         $resource->productions = $template->getProductions();
         $resource->choices = $template->getChoices();
         $resource->settings = $template->getSettings();
-        $resource->followed = false;
+        $resource->followed = $template->isFollowed();
         $resource->createdAt = $template->getCreatedAt()->format('c');
 
         return $resource;

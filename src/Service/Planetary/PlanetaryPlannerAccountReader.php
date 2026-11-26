@@ -11,6 +11,8 @@ use App\Entity\PlanetaryPin;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Exception\PlanetaryTierMissingFromSdeException;
+use App\Exception\PlanetSchematicIncompleteException;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
 
 final readonly class PlanetaryPlannerAccountReader
@@ -43,8 +45,50 @@ final readonly class PlanetaryPlannerAccountReader
             'usedPlanets' => \count($colonies),
             'characters' => $this->readCharacters($user, $colonies),
             'extractionYields' => $this->readExtractionYields($colonies),
-            'factories' => ['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0],
+            'factories' => $this->readFactories($colonies),
         ];
+    }
+
+    /**
+     * @param PlanetaryColony[] $colonies
+     * @return array{P1: int, P2: int, P3: int, P4: int}
+     */
+    private function readFactories(array $colonies): array
+    {
+        $factories = ['P1' => 0, 'P2' => 0, 'P3' => 0, 'P4' => 0];
+        $schematicMap = null;
+
+        foreach ($colonies as $colony) {
+            foreach ($colony->getPins() as $pin) {
+                if (!$pin->isFactory()) {
+                    continue;
+                }
+                $schematicMap ??= $this->schematicTypeRepository->getSchematicMap();
+                $factories[$this->tierOfFactory($pin, $schematicMap)]++;
+            }
+        }
+
+        return $factories;
+    }
+
+    /**
+     * @param array<int, array{inputs: array<int, int>, output: array{typeId: int, quantity: int}|null}> $schematicMap
+     * @return 'P1'|'P2'|'P3'|'P4'
+     */
+    private function tierOfFactory(PlanetaryPin $pin, array $schematicMap): string
+    {
+        $schematicId = $pin->getSchematicId();
+        assert($schematicId !== null);
+
+        $schematic = $schematicMap[$schematicId] ?? throw new PlanetSchematicIncompleteException($schematicId);
+        $output = $schematic['output'] ?? throw new PlanetSchematicIncompleteException($schematicId);
+
+        $tier = $this->productionCalculator->findProductTier($output['typeId']) ?? throw new PlanetaryTierMissingFromSdeException($output['typeId']);
+
+        return match ($tier) {
+            'P1', 'P2', 'P3', 'P4' => $tier,
+            default => throw new PlanetaryTierMissingFromSdeException($output['typeId']),
+        };
     }
 
     /**

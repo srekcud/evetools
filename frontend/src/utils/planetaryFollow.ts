@@ -1,4 +1,4 @@
-import type { PlanetaryTier, PlannerCatalog } from '@/utils/planetaryPlanner'
+import { buildPlan, unitPrice, type PlanetaryTier, type PlannerCatalog } from '@/utils/planetaryPlanner'
 import type { PlanTemplate } from '@/utils/planetaryTemplates'
 
 export type FollowTier = 'P1' | 'P2' | 'P3' | 'P4'
@@ -34,20 +34,51 @@ export interface RevenueSales {
 export const FOLLOW_TIERS: FollowTier[] = ['P1', 'P2', 'P3', 'P4']
 
 export function followedTargets(template: PlanTemplate, catalog: PlannerCatalog): FollowedTargets {
-  void template
-  void catalog
-  return { factoriesByTier: { P1: 0, P2: 0, P3: 0, P4: 0 }, salesPerDay: null, profitPerDay: null, incomplete: false }
+  const { summary } = buildPlan(template.productions, catalog, template.choices, template.settings)
+  const salesPerDay = salesPerDayOf(template, catalog)
+  const profitPerDay = summary.profitIncomplete ? null : summary.totalProfitPerDay
+
+  return {
+    factoriesByTier: summary.factoriesByTier,
+    salesPerDay,
+    profitPerDay,
+    incomplete: salesPerDay === null || summary.profitIncomplete,
+  }
+}
+
+function salesPerDayOf(template: PlanTemplate, catalog: PlannerCatalog): number | null {
+  let total = 0
+  for (const production of template.productions) {
+    const price = unitPrice(production.typeId, catalog, template.settings.priceSource)
+    if (price === null) return null
+    total += production.targetPerDay * price
+  }
+  return total
+}
+
+function stateOf(gap: number): FactoryGapState {
+  if (gap < 0) return 'missing'
+  return gap > 0 ? 'free' : 'ok'
 }
 
 export function compareFactories(planned: Record<FollowTier, number>, real: Record<FollowTier, number> | null): FactoryGap[] {
-  void planned
-  void real
-  return []
+  return FOLLOW_TIERS.map(tier => {
+    if (real === null) return { tier, planned: planned[tier], real: null, gap: null, state: 'unknown' }
+    const gap = real[tier] - planned[tier]
+    return { tier, planned: planned[tier], real: real[tier], gap, state: stateOf(gap) }
+  })
 }
 
 export function compareSales(plannedSalesPerDay: number | null, revenue: RevenueSales): SalesComparison {
-  void plannedSalesPerDay
-  return { planned: null, real: 0, gap: null, ratio: revenue.days > 0 ? null : null }
+  const real = revenue.realisedIsk / revenue.days
+  if (plannedSalesPerDay === null) return { planned: null, real, gap: null, ratio: null }
+
+  return {
+    planned: plannedSalesPerDay,
+    real,
+    gap: real - plannedSalesPerDay,
+    ratio: plannedSalesPerDay === 0 ? null : real / plannedSalesPerDay,
+  }
 }
 
 export function isFollowTier(tier: PlanetaryTier): tier is FollowTier {

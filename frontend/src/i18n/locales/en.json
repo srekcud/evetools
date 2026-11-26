@@ -596,6 +596,39 @@
           "cancel": "Cancel"
         }
       },
+      "follow": {
+        "actions": {
+          "followPlans": "Follow these plans",
+          "follow": "Follow",
+          "unfollow": "Stop following"
+        },
+        "defaultName": "Plan of {date}",
+        "banner": {
+          "title": "Followed plan",
+          "open": "Open the plan",
+          "missingRecipe": "recipe not found"
+        },
+        "gap": {
+          "missing": "missing {n}",
+          "free": "{n} free",
+          "ok": "ok",
+          "unknown": "unknown"
+        },
+        "factories": {
+          "title": "Factories: plan against your colonies",
+          "planned": "Plan",
+          "real": "Colonies"
+        },
+        "revenue": {
+          "title": "Planned against real",
+          "openPlanner": "Open the planner",
+          "planned": "Planned sales / day",
+          "real": "Real sales / day",
+          "gap": "Gap",
+          "ratio": "Real / planned",
+          "profit": "Planned profit / day"
+        }
+      },
       "errors": {
         "emptyCatalog": "The SDE holds no planetary schematic. Import it before using the planner.",
         "account": "Could not load your colonies and planet slots. Yields and maximum are shown as unknown.",
@@ -603,7 +636,8 @@
         "load": "Could not load the planner data.",
         "templatesRead": "Could not load your templates.",
         "templateSave": "Could not save the template. The limit is 50 templates.",
-        "templateDelete": "Could not delete the template."
+        "templateDelete": "Could not delete the template.",
+        "templateFollow": "Could not follow or stop following the template."
       }
     },
     "revenue": {
