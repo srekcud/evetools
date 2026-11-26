@@ -14,10 +14,12 @@ use App\Entity\Sde\PlanetSchematic;
 use App\Entity\Sde\PlanetSchematicType;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
+use App\Repository\Sde\DgmAttributeTypeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
 use App\Repository\UserNotificationPreferenceRepository;
+use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
 use App\Service\Planetary\PlanetaryPowerCalculator;
@@ -263,6 +265,7 @@ final class PlanetaryResourceMapperTierAndStorageTest extends TestCase
             $productionCalculator,
             $powerCalculator,
             $skillRepository,
+            new ExtractorYieldCalculator($this->createStub(DgmAttributeTypeRepository::class)),
         );
     }
 

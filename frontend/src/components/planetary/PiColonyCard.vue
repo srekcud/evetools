@@ -6,7 +6,7 @@ import { computed } from 'vue'
 import { DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES, usePlanetaryTimers } from '@/composables/usePlanetaryTimers'
 import { usePlanetaryHelpers, TIER_CONFIG } from '@/composables/usePlanetaryHelpers'
 import { useTypeNames } from '@/composables/useTypeNames'
-import type { Colony } from '@/stores/planetary'
+import type { Colony, PlanetaryInputNeedsLaunchpad } from '@/stores/planetary'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 import PiFactoryProgress from '@/components/planetary/PiFactoryProgress.vue'
 import PiPowerGauge from '@/components/planetary/PiPowerGauge.vue'
@@ -21,11 +21,13 @@ const props = withDefaults(defineProps<{
   showCharacterName?: boolean
   nextAction?: NextAction | null
   now?: number
+  launchpads?: PlanetaryInputNeedsLaunchpad[]
 }>(), {
   thresholdMinutes: DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES,
   showCharacterName: false,
   nextAction: null,
   now: undefined,
+  launchpads: () => [],
 })
 
 const { t } = useI18n()
