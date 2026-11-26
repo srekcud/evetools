@@ -6,8 +6,10 @@ import { computed } from 'vue'
 import { DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES, usePlanetaryTimers } from '@/composables/usePlanetaryTimers'
 import { usePlanetaryHelpers, TIER_CONFIG } from '@/composables/usePlanetaryHelpers'
 import { useTypeNames } from '@/composables/useTypeNames'
-import type { Colony } from '@/stores/planetary'
+import type { Colony, PlanetaryInputNeedsLaunchpad } from '@/stores/planetary'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
+import PiExtractorYieldCurve from '@/components/planetary/PiExtractorYieldCurve.vue'
+import PiLaunchpadStockCurve from '@/components/planetary/PiLaunchpadStockCurve.vue'
 import PiFactoryProgress from '@/components/planetary/PiFactoryProgress.vue'
 import PiPowerGauge from '@/components/planetary/PiPowerGauge.vue'
 import PiTierBadge from '@/components/planetary/PiTierBadge.vue'
@@ -21,11 +23,13 @@ const props = withDefaults(defineProps<{
   showCharacterName?: boolean
   nextAction?: NextAction | null
   now?: number
+  launchpads?: PlanetaryInputNeedsLaunchpad[]
 }>(), {
   thresholdMinutes: DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES,
   showCharacterName: false,
   nextAction: null,
   now: undefined,
+  launchpads: () => [],
 })
 
 const { t } = useI18n()
@@ -307,8 +311,21 @@ defineEmits<{
                 <span class="text-slate-500">{{ t('pi.colony.initialRate') }}</span>
                 <span class="text-cyan-400 font-medium">{{ formatDailyOutput(pin) }}</span>
               </div>
+              <PiExtractorYieldCurve
+                :curve="pin.yieldCurve ?? null"
+                :install-time="pin.installTime"
+                :expiry-time="pin.expiryTime"
+              />
             </div>
           </div>
+        </div>
+
+        <div v-if="launchpads.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <PiLaunchpadStockCurve
+            v-for="launchpad in launchpads"
+            :key="launchpad.pinId"
+            :launchpad="launchpad"
+          />
         </div>
 
         <!-- Factories Detail -->

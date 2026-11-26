@@ -150,6 +150,141 @@ final class ExtractorYieldCalculatorTest extends TestCase
         self::assertNull((new ExtractorYieldCalculator($withoutFactors))->yieldBetween(4400, 1800, $moment, $later, $moment, $later));
     }
 
+    #[Group('issue-1386')]
+    public function testFortyEightHourProgramCurveHasOneYieldPerCycleTheirSumAndTheHourlyAverage(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+
+        $curve = $this->calculator(0.012, 0.8)->programCurve(4400, 1800, $install, $install->modify('+48 hours'));
+
+        self::assertNotNull($curve);
+        self::assertSame(['cycleSeconds', 'yields', 'totalQuantity', 'averagePerHour', 'suggestedDays'], array_keys($curve));
+        self::assertSame(1800, $curve['cycleSeconds']);
+        self::assertCount(96, $curve['yields']);
+        self::assertEqualsWithDelta(8695.6522, $curve['yields'][0], self::DELTA);
+        self::assertEqualsWithDelta(8494.2085, $curve['yields'][1], self::DELTA);
+        self::assertEqualsWithDelta(3173.3981, $curve['yields'][95], self::DELTA);
+        self::assertEqualsWithDelta(497764.1957, $curve['totalQuantity'], self::DELTA);
+        self::assertEqualsWithDelta(array_sum($curve['yields']), $curve['totalQuantity'], self::DELTA);
+        self::assertEqualsWithDelta(10370.0874, $curve['averagePerHour'], self::DELTA);
+    }
+
+    #[Group('issue-1386')]
+    public function testProgramCurveYieldsOfTheLastSixHoursOfTheFirstDayMatchTheYieldBetweenOfTheSameWindow(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+        $calculator = $this->calculator(0.012, 0.8);
+
+        $curve = $calculator->programCurve(4400, 1800, $install, $install->modify('+48 hours'));
+
+        self::assertNotNull($curve);
+        self::assertEqualsWithDelta(57035.5843, array_sum(array_slice($curve['yields'], 36, 12)), self::DELTA);
+        self::assertEqualsWithDelta(
+            57035.5843,
+            $calculator->yieldBetween(4400, 1800, $install, $install->modify('+48 hours'), $install->modify('+18 hours'), $install->modify('+24 hours')),
+            self::DELTA,
+        );
+    }
+
+    #[Group('issue-1386')]
+    public function testProgramLastingOneCycleAndHalfYieldsItsSingleCycleOverTheRealDuration(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+
+        $curve = $this->calculator(0.012, 0.8)->programCurve(4400, 1800, $install, $install->modify('+3000 seconds'));
+
+        self::assertNotNull($curve);
+        self::assertCount(1, $curve['yields']);
+        self::assertEqualsWithDelta(8695.6522, $curve['totalQuantity'], self::DELTA);
+        self::assertEqualsWithDelta(10434.7826, $curve['averagePerHour'], self::DELTA);
+    }
+
+    #[Group('issue-1386')]
+    public function testSuggestedDaysKeepsTheLastDayStillYieldingHalfOfTheFirstDay(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+
+        $curve = $this->calculator(0.012, 0.8)->programCurve(4400, 1800, $install, $install->modify('+48 hours'));
+
+        self::assertNotNull($curve);
+        self::assertSame(2, $curve['suggestedDays']);
+    }
+
+    #[Group('issue-1386')]
+    public function testSuggestedDaysOfASlowlyDecayingExtractorStopsAtTheFirstDayUnderHalfOfTheFirstDay(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+
+        $curve = $this->calculator(0.001, 0.0)->programCurve(4400, 1800, $install, $install->modify('+48 hours'));
+
+        self::assertNotNull($curve);
+        self::assertSame(11, $curve['suggestedDays']);
+    }
+
+    #[Group('issue-1386')]
+    public function testSuggestedDaysIsCappedAtFourteenDays(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+
+        $curve = $this->calculator(0.0003, 0.0)->programCurve(4400, 1800, $install, $install->modify('+48 hours'));
+
+        self::assertNotNull($curve);
+        self::assertSame(14, $curve['suggestedDays']);
+    }
+
+    #[Group('issue-1386')]
+    public function testSuggestedDaysIsAtLeastOneWhenTheSecondDayYieldsLessThanHalfOfTheFirst(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+
+        $curve = $this->calculator(0.5, 0.0)->programCurve(4400, 1800, $install, $install->modify('+48 hours'));
+
+        self::assertNotNull($curve);
+        self::assertSame(1, $curve['suggestedDays']);
+    }
+
+    #[Group('issue-1386')]
+    public function testSuggestedDaysFollowsTheQuantityPerCycleCycleTimeAndFactorsNotTheProgramDuration(): void
+    {
+        $install = new \DateTimeImmutable('2026-11-24 12:00:00');
+        $calculator = $this->calculator(0.012, 0.8);
+
+        $shortProgram = $calculator->programCurve(1000, 3600, $install, $install->modify('+5 hours'));
+        $longProgram = $calculator->programCurve(1000, 3600, $install, $install->modify('+96 hours'));
+
+        self::assertNotNull($shortProgram);
+        self::assertNotNull($longProgram);
+        self::assertCount(5, $shortProgram['yields']);
+        self::assertEqualsWithDelta(20604.9015, $shortProgram['totalQuantity'], self::DELTA);
+        self::assertEqualsWithDelta(4120.9803, $shortProgram['averagePerHour'], self::DELTA);
+        self::assertSame(2, $shortProgram['suggestedDays']);
+        self::assertSame(2, $longProgram['suggestedDays']);
+    }
+
+    #[Group('issue-1386')]
+    public function testProgramCurveIsUnknownWithoutInstallTimeExpiryTimeDurationOrCycle(): void
+    {
+        $moment = new \DateTimeImmutable('2026-11-24 12:00:00');
+        $later = $moment->modify('+24 hours');
+        $calculator = $this->calculator(0.012, 0.8);
+
+        self::assertNull($calculator->programCurve(4400, 1800, null, $later));
+        self::assertNull($calculator->programCurve(4400, 1800, $moment, null));
+        self::assertNull($calculator->programCurve(4400, 1800, $moment, $moment));
+        self::assertNull($calculator->programCurve(4400, 1800, $later, $moment));
+        self::assertNull($calculator->programCurve(4400, 0, $moment, $later));
+        self::assertNull($calculator->programCurve(4400, -1800, $moment, $later));
+    }
+
+    #[Group('issue-1386')]
+    public function testProgramCurveIsUnknownWithoutSdeFactors(): void
+    {
+        $moment = new \DateTimeImmutable('2026-11-24 12:00:00');
+        $withoutFactors = $this->createStub(DgmAttributeTypeRepository::class);
+
+        self::assertNull((new ExtractorYieldCalculator($withoutFactors))->programCurve(4400, 1800, $moment, $moment->modify('+24 hours')));
+    }
+
     private function calculator(float $decayFactor, float $noiseFactor): ExtractorYieldCalculator
     {
         $repository = $this->createStub(DgmAttributeTypeRepository::class);

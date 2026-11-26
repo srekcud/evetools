@@ -13,6 +13,7 @@ use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
+use App\Service\Planetary\ExtractorYieldCalculator;
 use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Planetary\PlanetaryFactoryColonyTracker;
 use App\Service\Planetary\PlanetaryPowerCalculator;
@@ -48,6 +49,7 @@ class PlanetaryResourceMapper implements ResetInterface
         private readonly PlanetaryProductionCalculator $productionCalculator,
         private readonly PlanetaryPowerCalculator $powerCalculator,
         private readonly CachedCharacterSkillRepository $skillRepository,
+        private readonly ExtractorYieldCalculator $yieldCalculator,
     ) {
     }
 
@@ -354,8 +356,21 @@ class PlanetaryResourceMapper implements ResetInterface
             'extractorQtyPerCycle' => $pin->getExtractorQtyPerCycle(),
             'extractorHeadRadius' => $pin->getExtractorHeadRadius(),
             'extractorNumHeads' => $pin->getExtractorNumHeads(),
+            'yieldCurve' => $this->mapYieldCurve($pin),
             'contents' => $this->mapContents($pin->getContents()),
         ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function mapYieldCurve(PlanetaryPin $pin): ?array
+    {
+        $quantityPerCycle = $pin->getExtractorQtyPerCycle();
+        $cycleTime = $pin->getExtractorCycleTime();
+        if (!$pin->isExtractor() || $quantityPerCycle === null || $cycleTime === null) {
+            return null;
+        }
+
+        return $this->yieldCalculator->programCurve($quantityPerCycle, $cycleTime, $pin->getInstallTime(), $pin->getExpiryTime());
     }
 
     private function derivePinCategory(PlanetaryPin $pin): string

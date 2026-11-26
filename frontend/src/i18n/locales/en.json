@@ -657,6 +657,31 @@
       "P3": "Specialized",
       "P4": "Advanced"
     },
+    "curve": {
+      "now": "Now",
+      "yield": {
+        "title": "Program yield",
+        "unit": "/h",
+        "ariaLabel": "Hourly yield of each cycle of the extraction program, against the constant initial rate",
+        "unknown": "Curve unknown",
+        "constantRate": "Constant rate",
+        "total": "Total {quantity}",
+        "average": "Avg {quantity}/h",
+        "constantGap": "Constant rate {gap} vs avg",
+        "suggestion": "Restart within {days} d: day {days} still yields at least half of day 1"
+      },
+      "launchpad": {
+        "title": "Launchpad {pinId}",
+        "ariaLabel": "Projected stock of the launchpad from its last view, against its capacity",
+        "unknown": "Stock unknown",
+        "age": "Data {age}",
+        "lastView": "Last view",
+        "capacity": "Capacity {capacity} m3",
+        "used": "Used {volume} m3",
+        "emptyAt": "Empty {date}",
+        "notConsumed": "Not consumed"
+      }
+    },
     "colony": {
       "unknown": "Unknown",
       "noExtractors": "No extractors",

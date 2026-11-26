@@ -80,7 +80,7 @@ const INPUT_NEEDS: PlanetaryInputNeeds & Record<string, unknown> = {
   ],
 }
 
-async function mountView(inputNeedsAvailable = true) {
+async function mountView(inputNeedsAvailable = true, inputNeeds: PlanetaryInputNeeds & Record<string, unknown> = INPUT_NEEDS) {
   route.query = {}
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation((endpoint: string) => {
@@ -89,7 +89,7 @@ async function mountView(inputNeedsAvailable = true) {
     if (endpoint === '/planetary/production') return Promise.resolve({ tiers: [] })
     if (endpoint === '/planetary/slots') return Promise.resolve({ characters: [], totalUsed: 0, totalMax: 0 })
     if (endpoint === '/planetary/input-needs') {
-      return inputNeedsAvailable ? Promise.resolve(INPUT_NEEDS) : Promise.reject(new Error('input needs unavailable'))
+      return inputNeedsAvailable ? Promise.resolve(inputNeeds) : Promise.reject(new Error('input needs unavailable'))
     }
     return new Promise(() => {})
   })
@@ -240,5 +240,28 @@ describe('PlanetaryInteraction colonies quick filters', () => {
     expect(chip(wrapper, 'restart').attributes('data-count')).toBe('2')
     expect(planetNames(wrapper)).toEqual(['Perimeter IV', 'Perimeter II', 'Jita IV', 'Jita VII', 'Amamake III'])
     expect(cardOf(wrapper, 'Jita VII').find('[data-testid="next-action-label"]').exists()).toBe(false)
+  })
+})
+
+describe('PlanetaryInteraction launchpad curves in the expanded colony', () => {
+  const STOCKED_INPUT_NEEDS: PlanetaryInputNeeds & Record<string, unknown> = {
+    ...INPUT_NEEDS,
+    launchpads: [
+      { colonyId: 'ilyra-ice', pinId: 1021, capacityM3: 10_000, usedVolumeM3: 4_000, dailyVolumeM3: 960, lastViewAt: at(-6), dataAgeSeconds: 21_600, dataStale: false, feeds: [] },
+      { colonyId: 'ilyra-ice', pinId: 1022, capacityM3: 10_000, usedVolumeM3: 2_500, dailyVolumeM3: 480, lastViewAt: at(-6), dataAgeSeconds: 21_600, dataStale: false, feeds: [] },
+      { colonyId: 'doran-gas', pinId: 2031, capacityM3: 10_000, usedVolumeM3: 1_000, dailyVolumeM3: 200, lastViewAt: at(-3), dataAgeSeconds: 10_800, dataStale: false, feeds: [] },
+    ],
+  }
+
+  it('gives each expanded colony the launchpads of its own colony only', async () => {
+    const wrapper = await mountView(true, STOCKED_INPUT_NEEDS)
+
+    await cardOf(wrapper, 'Jita VII').get('[role="button"]').trigger('click')
+    await cardOf(wrapper, 'Amamake III').get('[role="button"]').trigger('click')
+
+    expect(cardOf(wrapper, 'Amamake III').find('[data-testid="command-center-block"]').exists()).toBe(true)
+    expect(cardOf(wrapper, 'Jita VII').findAll('[data-testid="launchpad-curve"]')).toHaveLength(2)
+    expect(cardOf(wrapper, 'Amamake III').findAll('[data-testid="launchpad-curve"]')).toHaveLength(0)
+    expect(cardOf(wrapper, 'Perimeter II').findAll('[data-testid="launchpad-curve"]')).toHaveLength(0)
   })
 })

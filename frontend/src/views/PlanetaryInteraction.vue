@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { usePlanetaryStore, type Colony, type PlanetarySlotCharacter } from '@/stores/planetary'
+import { usePlanetaryStore, type Colony, type PlanetaryInputNeedsLaunchpad, type PlanetarySlotCharacter } from '@/stores/planetary'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -63,6 +64,21 @@ interface ColonyGroup {
 const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
 
 const PLANETARY_TABS = ['planner', 'colonies', 'stock', 'supply', 'revenue'] as const satisfies readonly PlanetaryTab[]
+type ColonyGrouping = 'account' | 'character'
+
+interface ColonyGroup {
+  key: string
+  title: string
+  avatars: { characterId: number; characterName: string }[]
+  colonies: Colony[]
+  nextAction: NextAction | null
+  slots: { used: number; max: number | null } | null
+  slotCharacters: PlanetarySlotCharacter[]
+  showCharacterName: boolean
+}
+
+const COLONY_GROUPINGS = ['account', 'character'] as const satisfies readonly ColonyGrouping[]
+
 type ColonyGrouping = 'account' | 'character'
 
 interface ColonyGroup {
@@ -196,6 +212,14 @@ function arrange(colonies: Colony[]): Colony[] {
 const actionByColonyId = computed(() => new Map(
   planetaryStore.colonies.map(colony => [colony.id, nextActionOf(colony, inputNeeds.value)] as const),
 ))
+
+const launchpadsByColonyId = computed(() => {
+  const grouped = new Map<string, PlanetaryInputNeedsLaunchpad[]>()
+  for (const launchpad of inputNeeds.value?.launchpads ?? []) {
+    grouped.set(launchpad.colonyId, [...(grouped.get(launchpad.colonyId) ?? []), launchpad])
+  }
+  return grouped
+})
 
 const colonyGroups = computed<ColonyGroup[]>(() => {
   const byCharacter = planetaryStore.coloniesByCharacter
@@ -465,6 +489,60 @@ async function toggleColony(colonyId: string): Promise<void> {
         </div>
 
         <div
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.groupBy.label') }}</span>
+            <div class="flex items-center gap-1 p-0.5 bg-slate-900 border border-slate-800 rounded-lg">
+              <button
+                v-for="grouping in COLONY_GROUPINGS"
+                :key="grouping"
+                type="button"
+                :data-testid="`group-by-${grouping}`"
+                :aria-pressed="colonyGrouping === grouping"
+                :class="[
+                  'px-3 py-1 rounded-md text-xs font-semibold transition-colors',
+                  colonyGrouping === grouping ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white',
+                ]"
+                @click="colonyGrouping = grouping"
+              >
+                {{ t(`pi.groupBy.${grouping}`) }}
+              </button>
+            </div>
+          </div>
+          <label class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('pi.sort.label') }}</span>
+            <select
+              v-model="colonySortMode"
+              data-testid="sort-select"
+              class="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500"
+            >
+              <option v-for="mode in COLONY_SORT_MODES" :key="mode" :value="mode">{{ t(`pi.sort.${mode}`) }}</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 px-2" role="group" :aria-label="t('pi.filters.label')">
+          <button
+            v-for="filterId in COLONY_FILTER_IDS"
+            :key="filterId"
+            type="button"
+            :data-testid="`filter-chip-${filterId}`"
+            :data-count="chipCounts[filterId] ?? '?'"
+            :aria-pressed="colonyFilter === filterId"
+            :title="chipCounts[filterId] === null ? t('pi.filters.refillUnknown') : undefined"
+            :class="[
+              'flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-colors',
+              colonyFilter === filterId ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white',
+              chipCounts[filterId] === 0 && colonyFilter !== filterId ? 'opacity-40' : '',
+            ]"
+            @click="colonyFilter = filterId"
+          >
+            <span>{{ t(`pi.filters.${filterId}`) }}</span>
+            <span class="font-mono-tech">{{ chipCounts[filterId] ?? '?' }}</span>
+          </button>
+        </div>
+
+        <div
           v-if="hasNoMatchingColony"
           data-testid="filter-empty"
           class="flex flex-col items-center gap-3 py-10 text-center"
@@ -547,6 +625,7 @@ async function toggleColony(colonyId: string): Promise<void> {
               :show-character-name="group.showCharacterName"
               :next-action="actionByColonyId.get(colony.id) ?? null"
               :now="now"
+              :launchpads="launchpadsByColonyId.get(colony.id) ?? []"
               @toggle="toggleColony(colony.id)"
             />
           </div>
