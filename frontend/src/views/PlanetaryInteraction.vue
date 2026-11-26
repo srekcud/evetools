@@ -293,7 +293,7 @@ async function toggleColony(colonyId: string): Promise<void> {
 
       <PiStockTab v-else-if="activeTab === 'stock'" @open-planner="activeTab = 'planner'" />
 
-      <PiSupplyTab v-else-if="activeTab === 'supply'" />
+      <PiSupplyTab v-else-if="activeTab === 'supply'" @open-stock="activeTab = 'stock'" />
 
       <PiRevenueTab v-else-if="activeTab === 'revenue'" />
 

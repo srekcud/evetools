@@ -15,6 +15,7 @@ import { DEFAULT_SUPPLY_DAYS, MAX_SUPPLY_DAYS, buildSupplyGrid, isValidSupplyDay
 const ICON_SIZE = 32
 const ONE_DECIMAL = 1
 
+const emit = defineEmits<{ 'open-stock': [] }>()
 const { t, locale } = useI18n()
 const { formatNumber } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -254,6 +255,6 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
       </template>
     </template>
 
-    <PiSupplyPendingBlocks :totals="grid.totals" :type-names="typeNameById" />
+    <PiSupplyPendingBlocks :totals="grid.totals" :type-names="typeNameById" @open-stock="emit('open-stock')" />
   </div>
 </template>

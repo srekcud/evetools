@@ -3,11 +3,13 @@ import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePlanetaryStore } from '@/stores/planetary'
 import { usePlanetaryPendingStockStore } from '@/stores/planetaryPendingStock'
-import { buildPickupPlan, sortBringBack } from '@/utils/planetaryPickup'
+import { usePlanetaryStockStore } from '@/stores/planetaryStock'
+import { buildPickupPlan, shortfallOf, sortBringBack } from '@/utils/planetaryPickup'
 import type { PendingOutput, PickupSource } from '@/utils/planetaryPickup'
 
 const ICON_SIZE = 32
@@ -19,11 +21,23 @@ const props = defineProps<{
   typeNames: ReadonlyMap<number, string | null>
 }>()
 
+const emit = defineEmits<{ 'open-stock': [] }>()
 const { t } = useI18n()
 const { formatNumber } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const planetaryStore = usePlanetaryStore()
 const pendingStore = usePlanetaryPendingStockStore()
+const stockStore = usePlanetaryStockStore()
+
+const homeByTypeId = computed(() => new Map(stockStore.rows.map(row => [row.typeId, row.home])))
+
+function homeOf(typeId: number): number | null {
+  return homeByTypeId.value.get(typeId) ?? null
+}
+
+function shortfallOfRow(row: { typeId: number; remaining: number }): number | null {
+  return shortfallOf(row.remaining, homeOf(row.typeId))
+}
 
 const outputs = computed(() => pendingStore.data?.pendingOutputs ?? [])
 const pickupRows = computed(() => pendingStore.data === null
@@ -62,7 +76,10 @@ function destinationLabel(output: PendingOutput): string {
     : t('pi.supply.bringBack.unplaced')
 }
 
-onMounted(() => pendingStore.fetchPendingStock())
+onMounted(() => {
+  pendingStore.fetchPendingStock()
+  stockStore.load()
+})
 
 watch(() => planetaryStore.lastSyncAt, () => pendingStore.fetchPendingStock())
 </script>
@@ -100,6 +117,8 @@ watch(() => planetaryStore.lastSyncAt, () => pendingStore.fetchPendingStock())
                 <th class="px-3 py-3 text-right font-medium">{{ t('pi.supply.pickup.needed') }}</th>
                 <th class="px-3 py-3 text-right font-medium">{{ t('pi.supply.pickup.amount') }}</th>
                 <th class="px-3 py-3 text-right font-medium">{{ t('pi.supply.pickup.remaining') }}</th>
+                <th class="px-3 py-3 text-right font-medium">{{ t('pi.supply.pickup.home') }}</th>
+                <th class="px-3 py-3 text-right font-medium">{{ t('pi.supply.pickup.shortfall') }}</th>
                 <th class="px-4 py-3 font-medium">{{ t('pi.supply.pickup.sources') }}</th>
               </tr>
             </thead>
@@ -125,6 +144,23 @@ watch(() => planetaryStore.lastSyncAt, () => pendingStore.fetchPendingStock())
                 <td class="px-3 py-2 text-right font-mono-tech text-slate-200" data-testid="pi-pickup-needed">{{ formatNumber(row.needed, 0) }}</td>
                 <td class="px-3 py-2 text-right font-mono-tech font-semibold text-cyan-400" data-testid="pi-pickup-amount">{{ formatNumber(row.pickup, 0) }}</td>
                 <td class="px-3 py-2 text-right font-mono-tech text-slate-200" data-testid="pi-pickup-remaining">{{ formatNumber(row.remaining, 0) }}</td>
+                <td class="px-3 py-2 text-right font-mono-tech text-slate-200" data-testid="pi-pickup-home">
+                  <UnknownValue v-if="homeOf(row.typeId) === null" />
+                  <template v-else>{{ formatNumber(homeOf(row.typeId), 0) }}</template>
+                </td>
+                <td class="px-3 py-2 text-right font-mono-tech" data-testid="pi-pickup-shortfall">
+                  <UnknownValue v-if="shortfallOfRow(row) === null" />
+                  <template v-else>
+                    <span :class="shortfallOfRow(row) === 0 ? 'text-slate-200' : 'font-semibold text-orange-400'">{{ formatNumber(shortfallOfRow(row), 0) }}</span>
+                    <button
+                      v-if="shortfallOfRow(row) !== 0"
+                      type="button"
+                      class="ml-2 text-xs text-cyan-300 hover:text-cyan-200 hover:underline"
+                      data-testid="pi-pickup-open-stock"
+                      @click="emit('open-stock')"
+                    >{{ t('pi.supply.pickup.openStock') }}</button>
+                  </template>
+                </td>
                 <td class="px-4 py-2">
                   <ul class="space-y-1">
                     <li

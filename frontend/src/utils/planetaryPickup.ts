@@ -144,3 +144,10 @@ export function sortBringBack(outputs: readonly PendingOutput[]): PendingOutput[
     || first.typeId - second.typeId,
   )
 }
+
+export function shortfallOf(remaining: number, home: number | null): number | null {
+  if (remaining === 0) return 0
+  if (home === null) return null
+
+  return Math.max(0, remaining - home)
+}
