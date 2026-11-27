@@ -2,12 +2,16 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
-import { parseDecimalInput, type PriceSource } from '@/utils/planetaryPlanner'
+import { PAID_PRICE_DAYS, parseDecimalInput, type PurchaseSource, type SaleSource } from '@/utils/planetaryPlanner'
 
-const PRICE_SOURCES: readonly PriceSource[] = ['jita-sell', 'jita-buy']
-const PRICE_SOURCE_LABEL_KEY: Record<PriceSource, string> = {
+const PURCHASE_SOURCES: readonly PurchaseSource[] = ['jita-sell', 'jita-buy', 'hub', 'paid', 'best']
+const SALE_SOURCES: readonly SaleSource[] = ['jita-sell', 'jita-buy', 'hub']
+const SOURCE_LABEL_KEY: Record<PurchaseSource, string> = {
   'jita-sell': 'pi.planner.settings.jitaSell',
   'jita-buy': 'pi.planner.settings.jitaBuy',
+  hub: 'pi.planner.settings.hubSource',
+  paid: 'pi.planner.settings.paidSource',
+  best: 'pi.planner.settings.bestSource',
 }
 
 const { t } = useI18n()
@@ -24,10 +28,19 @@ function onDaysInput(event: Event): void {
   isDaysInvalid.value = !store.setDaysBetweenRounds(parseDecimalInput((event.target as HTMLInputElement).value))
 }
 
-function sourceButtonClass(source: PriceSource): string[] {
+function sourceLabel(source: PurchaseSource): string {
+  if (source === 'hub') {
+    return !store.hub || store.hub.structureName === ''
+      ? t('pi.planner.settings.hubSourceUnnamed')
+      : t(SOURCE_LABEL_KEY.hub, { name: store.hub.structureName })
+  }
+  return t(SOURCE_LABEL_KEY[source], { days: PAID_PRICE_DAYS })
+}
+
+function sourceButtonClass(isPressed: boolean): string[] {
   return [
     'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-    store.settings.priceSource === source ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50',
+    isPressed ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50',
   ]
 }
 
@@ -45,17 +58,32 @@ function inputClass(isInvalid: boolean): string[] {
 
     <div class="space-y-4">
       <div>
-        <span class="mb-1.5 block text-xs uppercase tracking-wider text-slate-500">{{ t('pi.planner.settings.priceSource') }}</span>
-        <div class="flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-slate-950 p-1" role="group" :aria-label="t('pi.planner.settings.priceSource')">
+        <span class="mb-1.5 block text-xs uppercase tracking-wider text-slate-500">{{ t('pi.planner.settings.purchaseSource') }}</span>
+        <div class="flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-slate-950 p-1" role="group" :aria-label="t('pi.planner.settings.purchaseSource')">
           <button
-            v-for="source in PRICE_SOURCES"
+            v-for="source in PURCHASE_SOURCES"
             :key="source"
             type="button"
-            :data-source="source"
-            :class="sourceButtonClass(source)"
-            :aria-pressed="store.settings.priceSource === source"
-            @click="store.setPriceSource(source)"
-          >{{ t(PRICE_SOURCE_LABEL_KEY[source]) }}</button>
+            :data-testid="`purchase-source-${source}`"
+            :class="sourceButtonClass(store.settings.purchaseSource === source)"
+            :aria-pressed="store.settings.purchaseSource === source"
+            @click="store.setPurchaseSource(source)"
+          >{{ sourceLabel(source) }}</button>
+        </div>
+      </div>
+
+      <div>
+        <span class="mb-1.5 block text-xs uppercase tracking-wider text-slate-500">{{ t('pi.planner.settings.saleSource') }}</span>
+        <div class="flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-slate-950 p-1" role="group" :aria-label="t('pi.planner.settings.saleSource')">
+          <button
+            v-for="source in SALE_SOURCES"
+            :key="source"
+            type="button"
+            :data-testid="`sale-source-${source}`"
+            :class="sourceButtonClass(store.settings.saleSource === source)"
+            :aria-pressed="store.settings.saleSource === source"
+            @click="store.setSaleSource(source)"
+          >{{ sourceLabel(source) }}</button>
         </div>
       </div>
 

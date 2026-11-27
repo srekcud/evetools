@@ -59,7 +59,7 @@ describe('evaluateTemplate with explicit choices and saved settings', () => {
   })
 
   it('makes an explicit choice to produce Water change both the planets and the profit: 2 planets, -14,400 a day and 940,800 of purchases against 1 planet, -72,000 a day and 1,344,000 without the choice', () => {
-    const settings = { purchaseSource: 'jita-sell', saleSource: 'jita-sell' as const, taxPercent: 0, daysBetweenRounds: 4 }
+    const settings = { purchaseSource: 'jita-sell' as const, saleSource: 'jita-sell' as const, taxPercent: 0, daysBetweenRounds: 4 }
     const productions = [{ typeId: COOLANT, targetPerDay: 120 }]
     const withChoice = makeTemplate('tpl-water-made', 'Water made', productions, { [WATER]: 'produce' }, settings)
     const withoutChoice = makeTemplate('tpl-water-bought', 'Water bought', productions, {}, settings)

@@ -33,8 +33,11 @@ final class PlanetaryPlannerResource
     /** @var list<array{typeId: int, name: string, tier: string, volume: float|null}> */
     public array $types = [];
 
-    /** @var list<array{typeId: int, sell: float|null, buy: float|null}> */
+    /** @var list<array{typeId: int, sell: float|null, buy: float|null, hub: float|null, paid: float|null}> */
     public array $prices = [];
+
+    /** @var array{structureId: int, structureName: string, hasData: bool} */
+    public array $hub = ['structureId' => 0, 'structureName' => '', 'hasData' => false];
 
     /** @var list<array{name: string, commandCenter: array{cpu: int, pg: int}, launchpad: array{cpu: int, pg: int, capacity: float}, facilities: array{basic: array{cpu: int, pg: int}|null, advanced: array{cpu: int, pg: int}|null, highTech: array{cpu: int, pg: int}|null}}> */
     public array $planetTypes = [];
