@@ -31,7 +31,7 @@ describe('PiPlannerTemplates load', () => {
 
     expect(wrapper.find('[data-testid="template-confirm"]').exists()).toBe(false)
     expect(store.productions).toEqual(TEMPLATE_PRODUCTIONS)
-    expect(store.settings).toEqual({ priceSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 })
+    expect(store.settings).toEqual({ purchaseSource: 'jita-buy', saleSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 })
     expect(store.selectedIndex).toBe(0)
   })
 
@@ -69,7 +69,7 @@ describe('PiPlannerTemplates load', () => {
     await answer(wrapper, 'template-confirm-cancel')
 
     expect(store.productions).toEqual(PLAN_PRODUCTIONS)
-    expect(store.settings).toEqual({ priceSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 })
+    expect(store.settings).toEqual({ purchaseSource: 'jita-sell', saleSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 })
     expect(wrapper.find('[data-testid="template-confirm"]').exists()).toBe(false)
   })
 })
@@ -85,7 +85,7 @@ describe('PiPlannerTemplates add', () => {
     expect(wrapper.find('[data-testid="template-confirm"]').exists()).toBe(false)
     expect(store.productions).toEqual([...PLAN_PRODUCTIONS, ...TEMPLATE_PRODUCTIONS])
     expect(store.choices).toEqual({ [RANKING_PRODUCT_B]: 'buy', [TEMPLATE_PRODUCT_M]: 'buy' })
-    expect(store.settings).toEqual({ priceSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 })
+    expect(store.settings).toEqual({ purchaseSource: 'jita-sell', saleSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 })
   })
 
   it('loads the template when the plan is empty', async () => {
