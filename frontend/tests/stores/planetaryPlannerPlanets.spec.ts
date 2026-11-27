@@ -126,8 +126,21 @@ describe('planetaryPlanner store planet plan', () => {
     expect(store.planetPlan).toBeNull()
   })
 
+  it('keeps the auto mode by default and recomputes the planets of the same productions when the mode changes', async () => {
+    const store = await loadedStore()
+    store.addProduction(ROBOTICS)
+    store.setTarget(0, 72)
+    expect([store.planetMode, store.planetPlan?.planetMode, store.planetPlan?.totalPlanets]).toEqual(['auto', 'wholeChain', 1])
+
+    store.setPlanetMode('perTier')
+
+    expect([store.planetMode, store.planetPlan?.planetMode, store.planetPlan?.totalPlanets]).toEqual(['perTier', 'perTier', 2])
+    expect(store.productions).toEqual([{ typeId: ROBOTICS, targetPerDay: 72 }])
+  })
+
   it('follows the days between rounds: more days need more launchpads of room and more planets', async () => {
     const store = await loadedStore()
+    store.setPlanetMode('perTier')
     store.addProduction(BROADCAST_NODE)
     store.setTarget(0, 144)
     expect([store.planetPlan?.totalPlanets, factoryRow(store, 'P2').layout?.days, factoryRow(store, 'P2').layout?.factories]).toEqual([7, 4, 13])

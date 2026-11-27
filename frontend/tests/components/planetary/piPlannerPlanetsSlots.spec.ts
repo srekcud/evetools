@@ -5,6 +5,7 @@ import PiPlannerTab from '@/components/planetary/PiPlannerTab.vue'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import { apiRequest } from '@/services/api'
+import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 import type { PlannerCatalog } from '@/utils/planetaryPlanner'
 import type { PlannerAccount } from '@/utils/planetaryPlanets'
 import {
@@ -43,6 +44,7 @@ async function mountTab(catalog: PlannerCatalog = PLANNER_CATALOG, account: Plan
       stubs: { RouterLink: RouterLinkStub },
     },
   })
+  usePlanetaryPlannerStore().setPlanetMode('perTier')
   await flushPromises()
   return wrapper
 }
