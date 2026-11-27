@@ -85,7 +85,7 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
     }
   }
 
-  async function patchSettings(patch: Partial<Pick<PlanetarySettings, 'homeLocationId' | 'coverageWeeks'>>): Promise<boolean> {
+  async function patchSettings(patch: Partial<Pick<PlanetarySettings, 'homeLocationId' | 'coverageWeeks' | 'excludedTypeIds'>>): Promise<boolean> {
     error.value = null
 
     try {
@@ -135,12 +135,24 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
     }
   }
 
+  async function replaceExcludedTypes(change: (excluded: number[]) => number[] | null): Promise<boolean> {
+    if (settings.value === null) {
+      error.value = i18n.global.t('pi.stock.settings.saveError')
+      return false
+    }
+
+    const next = change(settings.value.excludedTypeIds)
+    if (next === null) return true
+
+    return patchSettings({ excludedTypeIds: next })
+  }
+
   async function excludeType(typeId: number): Promise<boolean> {
-    return typeId > 0
+    return replaceExcludedTypes(excluded => (excluded.includes(typeId) ? null : [...excluded, typeId]))
   }
 
   async function restoreType(typeId: number): Promise<boolean> {
-    return typeId > 0
+    return replaceExcludedTypes(excluded => (excluded.includes(typeId) ? excluded.filter(id => id !== typeId) : null))
   }
 
   function clearError(): void {

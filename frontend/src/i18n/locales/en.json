@@ -396,7 +396,12 @@
         "decision": "Decision",
         "produce": "Make",
         "buy": "Buy",
-        "openPlanner": "Open the Planner"
+        "openPlanner": "Open the Planner",
+        "exclude": "Exclude"
+      },
+      "excluded": {
+        "title": "{count} product excluded from the coverage | {count} products excluded from the coverage",
+        "restore": "Restore"
       },
       "purchase": {
         "title": "Purchase list",

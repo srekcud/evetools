@@ -6,6 +6,9 @@ namespace App\Service\Planetary\Stock;
 
 final readonly class PlanetaryStockSettings
 {
+    /**
+     * @param list<int> $excludedTypeIds
+     */
     public function __construct(
         public ?int $homeLocationId,
         public int $hubStructureId,
