@@ -26,6 +26,7 @@ export interface PlanetaryStock {
   coverageWeeks: number
   corpUnknownReason: string | null
   complete: boolean
+  excludedTypeIds: number[]
   rows: PlanetaryStockRow[]
 }
 

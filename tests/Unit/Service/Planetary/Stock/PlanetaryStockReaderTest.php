@@ -302,6 +302,84 @@ final class PlanetaryStockReaderTest extends TestCase
         self::assertSame(0, $stock->rows[0]->customsOffice);
     }
 
+    #[Group('issue-1458')]
+    public function testAnExcludedTypeHasNoRowAndTheOtherRowKeepsItsFigures(): void
+    {
+        $this->stageBacteriaAndCoolantNeeds();
+
+        $stock = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3, [self::COOLANT]));
+
+        self::assertSame([self::BACTERIA], array_map(static fn (PlanetaryStockRow $row): int => $row->typeId, $stock->rows));
+        self::assertSame(['Bacteria', 0.5, 700.0, 700, 0, 0, 0, 0, 1.0, 1.0, 1_400], $this->valuesOf($stock->rows[0]));
+        self::assertTrue($stock->complete);
+        foreach ($this->assetRequests as [, , $typeIds]) {
+            self::assertSame([self::BACTERIA], $typeIds);
+        }
+        foreach ($this->customsRequests as [, $typeIds]) {
+            self::assertSame([self::BACTERIA], $typeIds);
+        }
+    }
+
+    #[Group('issue-1458')]
+    public function testWithoutExclusionOrWithATypeWithoutNeedBothRowsKeepTheFiguresOfTheCoverage(): void
+    {
+        $this->stageBacteriaAndCoolantNeeds();
+
+        foreach ([[], [self::ROBOTICS]] as $excludedTypeIds) {
+            $stock = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3, $excludedTypeIds));
+
+            self::assertSame([self::BACTERIA, self::COOLANT], array_map(static fn (PlanetaryStockRow $row): int => $row->typeId, $stock->rows));
+            self::assertSame(['Bacteria', 0.5, 700.0, 700, 0, 0, 0, 0, 1.0, 1.0, 1_400], $this->valuesOf($stock->rows[0]));
+            self::assertSame(['Coolant', 1.5, 140.0, 70, 0, 0, 0, 0, 0.5, 0.5, 350], $this->valuesOf($stock->rows[1]));
+        }
+    }
+
+    #[Group('issue-1458')]
+    public function testExcludingEveryNeededTypeLeavesNoRowAndStaysComplete(): void
+    {
+        $this->stageBacteriaAndCoolantNeeds();
+
+        $stock = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3, [self::COOLANT, self::BACTERIA]));
+
+        self::assertSame([], $stock->rows);
+        self::assertTrue($stock->complete);
+    }
+
+    #[Group('issue-1458')]
+    public function testCompleteIsComputedOnTheRemainingRowsOnly(): void
+    {
+        $this->inputNeeds = [
+            'weekly' => [
+                $this->weeklyRow(self::BACTERIA, 'Bacteria', 700.0),
+                $this->weeklyRow(self::COOLANT, 'Coolant', null),
+            ],
+            'complete' => true,
+        ];
+        $this->sdeTypes = [self::BACTERIA => $this->sdeType(self::BACTERIA, 0.5), self::COOLANT => $this->sdeType(self::COOLANT, 1.5)];
+
+        $withTheUnknownNeed = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3, []));
+        $withoutTheUnknownNeed = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3, [self::COOLANT]));
+
+        self::assertFalse($withTheUnknownNeed->complete);
+        self::assertTrue($withoutTheUnknownNeed->complete);
+    }
+
+    private function stageBacteriaAndCoolantNeeds(): void
+    {
+        $this->inputNeeds = [
+            'weekly' => [
+                $this->weeklyRow(self::BACTERIA, 'Bacteria', 700.0),
+                $this->weeklyRow(self::COOLANT, 'Coolant', 140.0),
+            ],
+            'complete' => true,
+        ];
+        $this->sdeTypes = [self::BACTERIA => $this->sdeType(self::BACTERIA, 0.5), self::COOLANT => $this->sdeType(self::COOLANT, 1.5)];
+        $this->assetsByCharacterUuid = [
+            self::ALMA_UUID => [self::HOME_STATION => [self::BACTERIA => 500, self::COOLANT => 70]],
+            self::CORA_UUID => [self::HOME_STATION => [self::BACTERIA => 200]],
+        ];
+    }
+
     private function reader(): PlanetaryStockReader
     {
         return new PlanetaryStockReader(

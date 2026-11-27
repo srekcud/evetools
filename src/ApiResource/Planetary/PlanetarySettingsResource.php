@@ -46,6 +46,9 @@ final class PlanetarySettingsResource
 
     public int $coverageWeeks = User::DEFAULT_PLANETARY_COVERAGE_WEEKS;
 
+    /** @var list<int> */
+    public array $excludedTypeIds = [];
+
     #[ApiProperty(writable: false)]
     public int $hubStructureId = 0;
 
