@@ -171,6 +171,7 @@ watch(() => planetaryStore.lastSyncAt, () => pendingStore.fetchPendingStock())
                       :data-kind="source.kind"
                     >
                       <span class="min-w-0 flex-1 truncate" :class="source.kind === 'customs' ? 'text-cyan-300' : 'text-slate-300'" :title="sourceLabel(source)" data-testid="pi-pickup-source-planet">{{ sourceLabel(source) }}</span>
+                      <span v-if="source.characterName" class="max-w-32 shrink-0 truncate text-xs text-cyan-400" :title="source.characterName" data-testid="pi-pickup-source-character">{{ source.characterName }}</span>
                       <span class="font-mono-tech" :class="staleClass(source.dataStale)" data-testid="pi-pickup-source-quantity">{{ formatNumber(source.quantity, 0) }}</span>
                       <span class="font-mono-tech text-xs text-slate-500" data-testid="pi-pickup-source-volume">
                         <template v-if="source.volumeM3 === null">{{ t('pi.supply.bringBack.unknown') }}</template>
@@ -184,6 +185,7 @@ watch(() => planetaryStore.lastSyncAt, () => pendingStore.fetchPendingStock())
                       data-testid="pi-pickup-unknown-source"
                     >
                       <span class="min-w-0 flex-1 truncate" :title="planetLabel(source.planetName)">{{ planetLabel(source.planetName) }}</span>
+                      <span v-if="source.characterName" class="max-w-32 shrink-0 truncate text-xs text-cyan-400" :title="source.characterName" data-testid="pi-pickup-source-character">{{ source.characterName }}</span>
                       <span class="font-mono-tech text-xs">{{ t('pi.supply.pickup.unknownSource') }}</span>
                     </li>
                   </ul>
@@ -228,6 +230,7 @@ watch(() => planetaryStore.lastSyncAt, () => pendingStore.fetchPendingStock())
               >
                 <td class="max-w-56 px-4 py-2">
                   <div class="truncate font-medium text-white" :title="planetLabel(output.planetName)" data-testid="pi-bringback-planet">{{ planetLabel(output.planetName) }}</div>
+                  <div v-if="output.characterName" class="truncate text-xs text-cyan-400" :title="output.characterName" data-testid="pi-bringback-character">{{ output.characterName }}</div>
                   <div v-if="output.solarSystemName" class="truncate text-xs text-slate-500" :title="output.solarSystemName">{{ output.solarSystemName }}</div>
                 </td>
                 <td class="max-w-56 px-3 py-2">

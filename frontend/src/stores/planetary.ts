@@ -318,6 +318,8 @@ export const usePlanetaryStore = defineStore('planetary', () => {
     return Object.values(grouped)
   })
 
+  const characterNameByColonyId = computed(() => new Map(colonies.value.map(colony => [colony.id, colony.characterName])))
+
   const expiredColonies = computed(() =>
     colonies.value.filter(c => c.status === 'expired')
   )
@@ -481,6 +483,7 @@ export const usePlanetaryStore = defineStore('planetary', () => {
 
     // Computed
     coloniesByCharacter,
+    characterNameByColonyId,
     expiredColonies,
     expiringColonies,
     totalDailyIsk,

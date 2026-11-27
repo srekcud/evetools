@@ -39,7 +39,7 @@ export interface LaunchpadRefill {
 
 export interface SupplyGrid {
   columns: { typeId: number; typeName: string | null }[]
-  rows: { key: string; planetName: string | null; launchpadTypeName: string | null; consumedTypeIds: number[]; refill: LaunchpadRefill }[]
+  rows: { key: string; colonyId: string | null; planetName: string | null; launchpadTypeName: string | null; consumedTypeIds: number[]; refill: LaunchpadRefill }[]
   totals: { typeId: number; quantity: number }[]
   totalM3: number
   excludedCount: number
@@ -98,6 +98,7 @@ export function buildSupplyGrid(launchpads: readonly SupplyLaunchpad[], days: nu
   const fed = launchpads.filter(launchpad => launchpad.feeds.length > 0)
   const rows = fed.map(launchpad => ({
     key: `${launchpad.colonyId}-${launchpad.pinId}`,
+    colonyId: launchpad.colonyId,
     planetName: launchpad.planetName,
     launchpadTypeName: launchpad.typeName,
     consumedTypeIds: launchpad.feeds.map(feed => feed.typeId),

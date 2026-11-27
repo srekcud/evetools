@@ -47,6 +47,7 @@ export interface PickupSource {
   probable: boolean
   colonyId: string
   planetName: string | null
+  characterName: string | null
   quantity: number | null
   volumeM3: number | null
   dataStale: boolean
@@ -74,6 +75,7 @@ function toPickupSource(output: PendingOutput): PickupSource {
     probable: false,
     colonyId: output.colonyId,
     planetName: output.planetName,
+    characterName: output.characterName,
     quantity: output.quantity,
     volumeM3: output.volumeM3,
     dataStale: output.dataStale,
@@ -87,6 +89,7 @@ function toCustomsPickupSource(stock: CustomsOfficeStock): PickupSource {
     probable: stock.probablePlanet !== null,
     colonyId: stock.probablePlanet?.colonyId ?? '',
     planetName: stock.probablePlanet?.planetName ?? null,
+    characterName: null,
     quantity: stock.quantity,
     volumeM3: stock.volumeM3,
     dataStale: false,
