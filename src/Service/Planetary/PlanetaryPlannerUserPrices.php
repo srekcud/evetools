@@ -22,6 +22,14 @@ final readonly class PlanetaryPlannerUserPrices
      */
     public function read(User $user, array $typeIds, int $hubStructureId, \DateTimeImmutable $now): array
     {
-        return ['hasHubData' => false, 'prices' => []];
+        $hubSells = $this->structureMarketService->getLowestSellPrices($hubStructureId, $typeIds);
+        $paidPrices = array_column($this->paidPriceCalculator->calculate($user, $now)['prices'], 'paidPrice', 'typeId');
+
+        $prices = [];
+        foreach ($typeIds as $typeId) {
+            $prices[$typeId] = ['hub' => $hubSells[$typeId] ?? null, 'paid' => $paidPrices[$typeId] ?? null];
+        }
+
+        return ['hasHubData' => $this->structureMarketService->hasCachedData($hubStructureId), 'prices' => $prices];
     }
 }

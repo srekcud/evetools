@@ -184,7 +184,7 @@ describe('mergeTemplate', () => {
 
 describe('templateToPayload', () => {
   it('carries the name, the productions, the explicit choices and the settings of the plan', () => {
-    const settings = { purchaseSource: 'jita-buy', saleSource: 'jita-buy' as const, taxPercent: 7.5, daysBetweenRounds: 6 }
+    const settings = { purchaseSource: 'jita-buy' as const, saleSource: 'jita-buy' as const, taxPercent: 7.5, daysBetweenRounds: 6 }
 
     expect(templateToPayload([{ typeId: TEMPLATE_PRODUCT_M, targetPerDay: 18 }], { [RANKING_INPUT_C]: 'buy' }, settings, 'M line')).toEqual({
       name: 'M line',

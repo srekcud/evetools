@@ -42,7 +42,9 @@ import {
   type PlannerCatalog,
   type PlannerPlan,
   type PlannerSettings,
-  type PriceSource,
+  type PlannerHub,
+  type PurchaseSource,
+  type SaleSource,
 } from '@/utils/planetaryPlanner'
 
 const TEMPLATES_ENDPOINT = '/planetary/templates'
@@ -60,6 +62,7 @@ function defaultFollowedPlanName(): string {
 
 export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   const catalog = ref<PlannerCatalog | null>(null)
+  const hub = ref<PlannerHub | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const productions = ref<PlannedProduction[]>([])
@@ -278,7 +281,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     error.value = null
 
     try {
-      const response = await apiRequest<PlannerCatalog>('/planetary/planner')
+      const response = await apiRequest<PlannerCatalog & { hub: PlannerHub }>('/planetary/planner')
       if (response.recipes.length === 0) {
         catalog.value = null
         error.value = i18n.global.t('pi.planner.errors.emptyCatalog')
@@ -291,6 +294,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
         planetTypes: response.planetTypes,
         extractionPlanetTypes: response.extractionPlanetTypes,
       }
+      hub.value = response.hub
     } catch (e) {
       error.value = e instanceof Error ? e.message : i18n.global.t('pi.planner.errors.load')
     } finally {
@@ -347,8 +351,12 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     choices.value = cheapestChoices(productions.value, catalog.value, choices.value, settings.value)
   }
 
-  function setPriceSource(source: PriceSource): void {
-    settings.value = { ...settings.value, priceSource: source }
+  function setPurchaseSource(source: PurchaseSource): void {
+    settings.value = { ...settings.value, purchaseSource: source }
+  }
+
+  function setSaleSource(source: SaleSource): void {
+    settings.value = { ...settings.value, saleSource: source }
   }
 
   function setTaxPercent(value: number): boolean {
@@ -370,6 +378,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
 
   return {
     catalog,
+    hub,
     isLoading,
     error,
     productions,
@@ -415,7 +424,8 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     selectProduction,
     setChoice,
     applyCheapest,
-    setPriceSource,
+    setPurchaseSource,
+    setSaleSource,
     setTaxPercent,
     setDaysBetweenRounds,
     setPlanetMode,

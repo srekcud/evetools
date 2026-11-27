@@ -1,4 +1,4 @@
-import { buildPlan, unitPrice, type PlanetaryTier, type PlannerCatalog } from '@/utils/planetaryPlanner'
+import { buildPlan, salePrice, type PlanetaryTier, type PlannerCatalog } from '@/utils/planetaryPlanner'
 import type { PlanTemplate } from '@/utils/planetaryTemplates'
 
 export type FollowTier = 'P1' | 'P2' | 'P3' | 'P4'
@@ -49,7 +49,7 @@ export function followedTargets(template: PlanTemplate, catalog: PlannerCatalog)
 function salesPerDayOf(template: PlanTemplate, catalog: PlannerCatalog): number | null {
   let total = 0
   for (const production of template.productions) {
-    const price = unitPrice(production.typeId, catalog, template.settings.priceSource)
+    const price = salePrice(production.typeId, catalog, template.settings.saleSource)
     if (price === null) return null
     total += production.targetPerDay * price
   }

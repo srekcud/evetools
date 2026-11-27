@@ -2,7 +2,14 @@ import type { PlannerExtractionPlanetTypes, PlannerPlanetType } from '@/utils/pl
 
 export type PlanetaryTier = 'P0' | 'P1' | 'P2' | 'P3' | 'P4'
 export type BuildChoice = 'produce' | 'buy'
-export type PriceSource = 'jita-sell' | 'jita-buy'
+export type PurchaseSource = 'jita-sell' | 'jita-buy' | 'hub' | 'paid' | 'best'
+export type SaleSource = 'jita-sell' | 'jita-buy' | 'hub'
+
+export interface PlannerHub {
+  structureId: number
+  structureName: string
+  hasData: boolean
+}
 
 export interface PlannerRecipeInput {
   typeId: number
@@ -27,6 +34,8 @@ export interface PlannerPrice {
   typeId: number
   sell: number | null
   buy: number | null
+  hub: number | null
+  paid: number | null
 }
 
 export interface PlannerCatalog {
@@ -38,7 +47,8 @@ export interface PlannerCatalog {
 }
 
 export interface PlannerSettings {
-  priceSource: PriceSource
+  purchaseSource: PurchaseSource
+  saleSource: SaleSource
   taxPercent: number
   daysBetweenRounds: number
 }
@@ -55,6 +65,7 @@ export interface TreeNode {
   factories: number | null
   produceCost: number | null
   price: number | null
+  salePrice: number | null
   choice: BuildChoice
   isTarget: boolean
   active: boolean
@@ -90,7 +101,8 @@ export interface PlannerPlan {
   summary: PlanSummary
 }
 
-export const DEFAULT_SETTINGS: PlannerSettings = { priceSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 }
+export const DEFAULT_SETTINGS: PlannerSettings = { purchaseSource: 'jita-sell', saleSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 }
+export const PAID_PRICE_DAYS = 90
 export const SECONDS_PER_DAY = 86400
 export const FACTORY_TOLERANCE = 1e-9
 export const MIN_DAYS_BETWEEN_ROUNDS = 0.5
@@ -151,10 +163,25 @@ export function effectiveChoice(typeId: number, choices: Record<number, BuildCho
   return choices[typeId] ?? defaultChoice(typeOf(typeId, indexCatalog(catalog)).tier)
 }
 
-export function unitPrice(typeId: number, catalog: PlannerCatalog, source: PriceSource): number | null {
+function lowestKnown(prices: (number | null)[]): number | null {
+  const known = prices.filter((price): price is number => price !== null)
+  return known.length === 0 ? null : Math.min(...known)
+}
+
+export function purchasePrice(typeId: number, catalog: PlannerCatalog, source: PurchaseSource): number | null {
   const price = indexCatalog(catalog).priceById.get(typeId)
   if (!price) return null
-  return source === 'jita-sell' ? price.sell : price.buy
+  if (source === 'best') return lowestKnown([price.paid, price.hub, price.sell])
+  if (source === 'jita-sell') return price.sell
+  if (source === 'jita-buy') return price.buy
+  return source === 'hub' ? price.hub : price.paid
+}
+
+export function salePrice(typeId: number, catalog: PlannerCatalog, source: SaleSource): number | null {
+  const price = indexCatalog(catalog).priceById.get(typeId)
+  if (!price) return null
+  if (source === 'jita-sell') return price.sell
+  return source === 'jita-buy' ? price.buy : price.hub
 }
 
 function contextOf(catalog: PlannerCatalog, choices: Record<number, BuildChoice>, settings: PlannerSettings): PlanContext {
@@ -162,16 +189,20 @@ function contextOf(catalog: PlannerCatalog, choices: Record<number, BuildChoice>
 }
 
 function priceIn(typeId: number, context: PlanContext): number | null {
-  return unitPrice(typeId, context.catalog, context.settings.priceSource)
+  return purchasePrice(typeId, context.catalog, context.settings.purchaseSource)
+}
+
+function salePriceIn(typeId: number, context: PlanContext): number | null {
+  return salePrice(typeId, context.catalog, context.settings.saleSource)
 }
 
 function produceCostIn(typeId: number, context: PlanContext): number | null {
   const recipe = context.index.recipeByOutput.get(typeId)
   if (!recipe) return null
 
-  const ownPrice = priceIn(typeId, context)
-  if (ownPrice === null) return null
-  const tax = (ownPrice * context.settings.taxPercent) / PERCENT
+  const ownSalePrice = salePriceIn(typeId, context)
+  if (ownSalePrice === null) return null
+  const tax = (ownSalePrice * context.settings.taxPercent) / PERCENT
 
   if (typeOf(typeId, context.index).tier === 'P1') return tax
 
@@ -223,6 +254,7 @@ function walk(typeId: number, perDay: number, isTarget: boolean, active: boolean
     factories: active && isMade && recipe ? perDay / outputPerDayOfOneFactory(recipe) : null,
     produceCost: produceCostIn(typeId, context),
     price: priceIn(typeId, context),
+    salePrice: salePriceIn(typeId, context),
     choice,
     isTarget,
     active,
@@ -279,8 +311,8 @@ export function extractionPerHourOf(nodes: TreeNode[]): ExtractionRate[] {
 }
 
 function profitOf(production: PlannedProduction | undefined, tree: TreeNode): number | null {
-  if (!production || tree.produceCost === null || tree.price === null) return null
-  return production.targetPerDay * (tree.price - tree.produceCost)
+  if (!production || tree.produceCost === null || tree.salePrice === null) return null
+  return production.targetPerDay * (tree.salePrice - tree.produceCost)
 }
 
 function summarize(productions: PlannedProduction[], trees: TreeNode[], context: PlanContext): PlanSummary {

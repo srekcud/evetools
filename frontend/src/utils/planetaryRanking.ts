@@ -4,7 +4,7 @@ import {
   FACTORY_TOLERANCE,
   indexCatalog,
   produceCost,
-  unitPrice,
+  purchasePrice,
   type BuildChoice,
   type PlanetaryTier,
   type PlannerCatalog,
@@ -109,7 +109,7 @@ function decideChain(typeId: number, catalog: PlannerCatalog, settings: PlannerS
     }
     decideChain(input.typeId, catalog, settings, choices)
     const cost = produceCost(input.typeId, catalog, choices, settings)
-    const price = unitPrice(input.typeId, catalog, settings.priceSource)
+    const price = purchasePrice(input.typeId, catalog, settings.purchaseSource)
     choices[input.typeId] = cost !== null && price !== null && cost > price ? 'buy' : 'produce'
   }
 }
@@ -180,7 +180,7 @@ export function rankProduct(typeId: number, catalog: PlannerCatalog, settings: P
   const fit = fitOf(tree, nodes, catalog, settings)
   const marketProduct = market === null ? undefined : market.products.find(product => product.typeId === typeId)
   const unitCost = tree.produceCost
-  const price = tree.price
+  const price = tree.salePrice
 
   const maxOutputPerDay = fit.planetsPerUnit === null || options.baseCount === null ? null : options.baseCount / fit.planetsPerUnit
   const volumeCap = volumeCapOf(options.volumeSharePercent, marketProduct)

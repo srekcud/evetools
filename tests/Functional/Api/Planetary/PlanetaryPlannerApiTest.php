@@ -191,15 +191,16 @@ final class PlanetaryPlannerApiTest extends WebTestCase
 
     public function testAnotherUserWithAPreferredHubSeesOnlyTheirOwnPaidPricesAndTheirOwnHubAndTheFirstIsUnchanged(): void
     {
-        $this->seedHubMarket(self::DEFAULT_HUB_STRUCTURE_ID, [self::AQUEOUS_LIQUIDS => 0.9]);
-        $this->seedHubMarket(self::PREFERRED_HUB_STRUCTURE_ID, [self::AQUEOUS_LIQUIDS => 1.5]);
         $rival = $this->createPilot(self::RIVAL_EVE_CHARACTER_ID, 'Orsk Rival');
         $rival->setPreferredMarketStructureId(self::PREFERRED_HUB_STRUCTURE_ID)->setPreferredMarketStructureName(self::PREFERRED_HUB_STRUCTURE_NAME);
         $this->persistPurchase($this->pilot->getMainCharacter(), self::AQUEOUS_LIQUIDS, 100, 0.5);
         $this->persistPurchase($rival->getMainCharacter(), self::AQUEOUS_LIQUIDS, 5, 9.0);
         $this->em->flush();
 
+        $this->seedHubMarket(self::PREFERRED_HUB_STRUCTURE_ID, [self::AQUEOUS_LIQUIDS => 1.5]);
         $rivalBody = $this->readAs($rival);
+        $this->client->getKernel()->boot();
+        $this->seedHubMarket(self::DEFAULT_HUB_STRUCTURE_ID, [self::AQUEOUS_LIQUIDS => 0.9]);
         $pilotBody = $this->readAs($this->pilot);
 
         self::assertSame(['structureId' => self::PREFERRED_HUB_STRUCTURE_ID, 'structureName' => self::PREFERRED_HUB_STRUCTURE_NAME, 'hasData' => true], $rivalBody['hub']);
