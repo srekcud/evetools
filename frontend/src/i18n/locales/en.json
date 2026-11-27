@@ -632,8 +632,28 @@
           "layout": "Layout",
           "planets": "Planets"
         },
+        "mode": {
+          "label": "Planet mode",
+          "auto": "Auto",
+          "perTier": "Per tier",
+          "wholeChain": "Chain on one planet",
+          "effective": {
+            "perTier": "Auto currently plans a group of planets for each tier",
+            "wholeChain": "Auto currently plans the whole chain on the same planets"
+          }
+        },
         "roles": {
-          "factory": "Factories"
+          "factory": "Factories",
+          "chain": "Chain on one planet"
+        },
+        "chain": {
+          "need": {
+            "advanced": "{count} advanced factory | {count} advanced factories",
+            "highTech": "{count} high technology factory | {count} high technology factories"
+          },
+          "perPlanet": "{factories} per planet",
+          "doesNotFit": "Does not fit: no planet type holds one installation of each tier and the volume of {days} days",
+          "unknown": "Layout unknown: a volume or the planet types are missing from the SDE"
         },
         "need": {
           "factories": "{count} factory | {count} factories",

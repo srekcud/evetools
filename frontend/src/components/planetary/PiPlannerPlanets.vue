@@ -6,12 +6,16 @@ import { useEveImages } from '@/composables/useEveImages'
 import { usePlannerDisplay } from '@/composables/usePlannerDisplay'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 import { parseDecimalInput } from '@/utils/planetaryPlanner'
-import { PLANETS_PER_CHARACTER, type ExtractionPlanetRow, type FactoryPlanetRow } from '@/utils/planetaryPlanets'
+import { PLANETS_PER_CHARACTER, type ChainLayout, type ChainPlanetRow, type ExtractionPlanetRow, type FactoryTier, type PlanetMode, type PlanetRow } from '@/utils/planetaryPlanets'
 
 const ICON_SIZE = 32
 const YIELD_DECIMALS = 2
 const PERCENT = 100
 const UNKNOWN = 'unknown'
+const PLANET_MODES: readonly PlanetMode[] = ['auto', 'perTier', 'wholeChain']
+const CHAIN_KEY = 'chain'
+const ADVANCED_TIERS: FactoryTier[] = ['P2', 'P3']
+const HIGH_TECH_TIERS: FactoryTier[] = ['P4']
 const SEGMENT_COLORS = ['bg-cyan-500', 'bg-violet-500', 'bg-amber-500', 'bg-fuchsia-500', 'bg-sky-500', 'bg-lime-500'] as const
 const GRID_COLUMNS = 'grid min-w-[56rem] grid-cols-[minmax(13rem,1.2fr)_minmax(8rem,0.8fr)_7rem_minmax(18rem,1.6fr)_5rem] items-start gap-3'
 
@@ -28,7 +32,7 @@ const plan = computed(() => store.planetPlan)
 const rows = computed(() =>
   (plan.value?.rows ?? []).map(row => ({
     row,
-    key: row.role === 'factory' ? row.tier : String(row.typeId),
+    key: row.role === 'extraction' ? String(row.typeId) : row.role === 'chain' ? CHAIN_KEY : row.tier,
     name: row.role === 'extraction' ? typeOf(row.typeId).name : null,
   })),
 )
@@ -76,13 +80,35 @@ function isYieldInvalid(typeId: number): boolean {
   return invalidYields.value[typeId] === true
 }
 
-function planetsState(row: FactoryPlanetRow | ExtractionPlanetRow): 'known' | 'unknown' {
+function planetsState(row: PlanetRow): 'known' | 'unknown' {
   return row.planets === null ? 'unknown' : 'known'
 }
 
-function rowStatus(row: FactoryPlanetRow | ExtractionPlanetRow): string {
-  if (row.role === 'factory') return row.status
-  return row.yieldPerHour === null ? 'unknownYield' : 'ok'
+function rowStatus(row: PlanetRow): string {
+  if (row.role === 'extraction') return row.yieldPerHour === null ? 'unknownYield' : 'ok'
+  return row.status
+}
+
+function chainFactoriesOf(row: ChainPlanetRow, tiers: FactoryTier[]): number {
+  return row.tiers.filter(tier => tiers.includes(tier)).reduce((total, tier) => total + (row.factoriesByTier[tier] as number), 0)
+}
+
+function chainNeedParts(row: ChainPlanetRow): string[] {
+  const advanced = chainFactoriesOf(row, ADVANCED_TIERS)
+  const highTech = chainFactoriesOf(row, HIGH_TECH_TIERS)
+  return [
+    ...(advanced > 0 ? [t('pi.planner.planets.chain.need.advanced', { count: formatNumber(advanced, 0) }, advanced)] : []),
+    ...(highTech > 0 ? [t('pi.planner.planets.chain.need.highTech', { count: formatNumber(highTech, 0) }, highTech)] : []),
+  ]
+}
+
+function chainPerPlanetText(row: ChainPlanetRow, layout: ChainLayout): string {
+  const factories = row.tiers.map(tier => `${tier} × ${formatNumber(layout.factoriesPerPlanet[tier] as number, 0)}`).join(', ')
+  return t('pi.planner.planets.chain.perPlanet', { factories })
+}
+
+function chainVolumeHeld(layout: ChainLayout, planets: number): number {
+  return (layout.dailyVolume * layout.days) / planets
 }
 </script>
 
@@ -102,6 +128,22 @@ function rowStatus(row: FactoryPlanetRow | ExtractionPlanetRow): string {
     >
       <span class="font-semibold">{{ t('pi.planner.planets.shortfall.title') }}</span>
       <span class="ml-2">{{ t('pi.planner.planets.shortfall.text', { missing: formatNumber(missingPlanets, 0), max: formatNumber(plan.accountMaxPlanets, 0), total: formatNumber(plan.totalPlanets, 0) }) }}</span>
+    </div>
+
+    <div class="mb-4" data-testid="planets-mode-selector">
+      <span class="mb-2 block text-xs uppercase tracking-wider text-slate-500">{{ t('pi.planner.planets.mode.label') }}</span>
+      <div class="inline-flex flex-wrap gap-2" role="group" :aria-label="t('pi.planner.planets.mode.label')" data-testid="planets-mode">
+        <button
+          v-for="mode in PLANET_MODES"
+          :key="mode"
+          type="button"
+          :data-mode="mode"
+          :aria-pressed="store.planetMode === mode"
+          :class="['rounded-md border px-3 py-1.5 text-xs uppercase tracking-wider transition-colors', store.planetMode === mode ? 'border-cyan-500 bg-cyan-500/15 text-cyan-300' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500 hover:text-slate-200']"
+          @click="store.setPlanetMode(mode)"
+        >{{ t(`pi.planner.planets.mode.${mode}`) }}</button>
+      </div>
+      <p v-if="store.planetMode === 'auto'" class="mt-2 text-xs text-slate-500" data-testid="planets-mode-effective" :data-effective="plan.planetMode">{{ t(`pi.planner.planets.mode.effective.${plan.planetMode}`) }}</p>
     </div>
 
     <div class="overflow-x-auto">
@@ -127,6 +169,15 @@ function rowStatus(row: FactoryPlanetRow | ExtractionPlanetRow): string {
             <span :class="['shrink-0 rounded-sm border px-1.5 py-0.5 text-xs', TIER_CONFIG[entry.row.tier].badgeBg, TIER_CONFIG[entry.row.tier].badgeText, TIER_CONFIG[entry.row.tier].badgeBorder]">{{ entry.row.tier }}</span>
             <span class="truncate text-slate-100">{{ t('pi.planner.planets.roles.factory') }}</span>
           </div>
+          <div v-else-if="entry.row.role === 'chain'" class="flex flex-wrap items-center gap-2">
+            <span
+              v-for="tier in entry.row.tiers"
+              :key="tier"
+              :class="['shrink-0 rounded-sm border px-1.5 py-0.5 text-xs', TIER_CONFIG[tier].badgeBg, TIER_CONFIG[tier].badgeText, TIER_CONFIG[tier].badgeBorder]"
+              data-testid="planets-chain-tier"
+            >{{ tier }}</span>
+            <span class="min-w-0 truncate text-slate-100">{{ t('pi.planner.planets.roles.chain') }}</span>
+          </div>
           <template v-else>
             <div class="flex items-center gap-2">
               <img :src="getTypeIconUrl(entry.row.typeId, ICON_SIZE)" alt="" class="h-5 w-5 shrink-0 rounded-sm" @error="onImageError" />
@@ -143,6 +194,7 @@ function rowStatus(row: FactoryPlanetRow | ExtractionPlanetRow): string {
 
         <span class="text-right font-mono-tech text-slate-300" data-testid="planets-need">
           <template v-if="entry.row.role === 'factory'">{{ t('pi.planner.planets.need.factories', { count: formatNumber(entry.row.factoriesNeeded, 0) }, entry.row.factoriesNeeded) }}</template>
+          <template v-else-if="entry.row.role === 'chain'">{{ chainNeedParts(entry.row).join(', ') }}</template>
           <template v-else>{{ t('pi.planner.planets.need.perHour', { count: formatNumber(entry.row.perHour, 0) }) }}</template>
         </span>
 
@@ -159,6 +211,18 @@ function rowStatus(row: FactoryPlanetRow | ExtractionPlanetRow): string {
             </span>
             <span v-else-if="entry.row.layout !== null" class="text-amber-400" data-testid="planets-layout">{{ t('pi.planner.planets.layout.doesNotFit', { days: formatNumber(entry.row.layout.days, 1) }) }}</span>
             <span v-else class="text-amber-400" data-testid="planets-layout">{{ t('pi.planner.planets.layout.unknown') }}</span>
+          </template>
+          <template v-else-if="entry.row.role === 'chain'">
+            <span
+              v-if="entry.row.layout !== null && entry.row.planets !== null"
+              data-testid="planets-layout"
+              :data-launchpads="entry.row.layout.launchpads"
+            >
+              <span class="font-mono-tech text-slate-100">{{ t('pi.planner.planets.layout.launchpads', { count: entry.row.layout.launchpads }, entry.row.layout.launchpads) }} + {{ chainPerPlanetText(entry.row, entry.row.layout) }}</span>
+              <span class="block text-xs text-slate-500">{{ t('pi.planner.planets.layout.volume', { volume: formatNumber(chainVolumeHeld(entry.row.layout, entry.row.planets), 0), capacity: formatNumber(entry.row.layout.capacity, 0), days: formatNumber(entry.row.layout.days, 1) }) }}</span>
+            </span>
+            <span v-else-if="entry.row.status === 'doesNotFit'" class="text-amber-400" data-testid="planets-layout">{{ t('pi.planner.planets.chain.doesNotFit', { days: formatNumber(store.settings.daysBetweenRounds, 1) }) }}</span>
+            <span v-else class="text-amber-400" data-testid="planets-layout">{{ t('pi.planner.planets.chain.unknown') }}</span>
           </template>
           <template v-else>
             <label class="flex items-center gap-2">

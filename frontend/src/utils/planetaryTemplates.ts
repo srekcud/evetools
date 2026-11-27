@@ -1,6 +1,6 @@
 import { DAYS_PER_MONTH, DAYS_PER_WEEK } from '@/utils/planetaryRanking'
 import { buildPlan, indexCatalog, type BuildChoice, type PlannedProduction, type PlannerCatalog, type PlannerSettings } from '@/utils/planetaryPlanner'
-import { buildPlanetPlan, type PlannerAccount } from '@/utils/planetaryPlanets'
+import { buildPlanetPlan, type PlanetMode, type PlannerAccount } from '@/utils/planetaryPlanets'
 
 export interface PlanTemplate {
   id: string
@@ -65,11 +65,12 @@ export function evaluateTemplate(
   catalog: PlannerCatalog,
   account: PlannerAccount | null,
   overrides: Record<number, number>,
+  planetMode?: PlanetMode,
 ): TemplateEvaluation {
   if (!isTemplateResolvable(template, catalog)) return { ...UNKNOWN_EVALUATION }
 
   const { summary } = buildPlan(template.productions, catalog, template.choices, template.settings)
-  const planetPlan = buildPlanetPlan(template.productions, catalog, template.choices, template.settings, account, overrides)
+  const planetPlan = buildPlanetPlan(template.productions, catalog, template.choices, template.settings, account, overrides, planetMode)
   const profitPerDay = summary.profitIncomplete ? null : summary.totalProfitPerDay
 
   return {
