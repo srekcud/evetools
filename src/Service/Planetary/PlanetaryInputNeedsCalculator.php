@@ -272,7 +272,7 @@ class PlanetaryInputNeedsCalculator
             return [];
         }
 
-        $ratesByPin = $this->feedRatesByLaunchpad($colony, $flows, array_keys($launchpads));
+        $ratesByPin = $this->cappedAtNetImport($this->feedRatesByLaunchpad($colony, $flows, array_keys($launchpads)), $flows);
 
         $rows = [];
         foreach ($launchpads as $pinId => $pin) {
@@ -312,6 +312,38 @@ class PlanetaryInputNeedsCalculator
         }
 
         return $rates;
+    }
+
+    /**
+     * @param array<int, array<int, float>> $ratesByPin launchpad pinId => typeId => daily rate
+     * @param ColonyFlows                   $flows
+     * @return array<int, array<int, float>>
+     */
+    private function cappedAtNetImport(array $ratesByPin, array $flows): array
+    {
+        $totalByType = [];
+        foreach ($ratesByPin as $rates) {
+            $this->addTo($totalByType, $rates);
+        }
+
+        $capped = [];
+        foreach ($ratesByPin as $pinId => $rates) {
+            $capped[$pinId] = [];
+            foreach ($rates as $typeId => $rate) {
+                if (isset($flows['unknownExtraction'][$typeId])) {
+                    $capped[$pinId][$typeId] = $rate;
+                    continue;
+                }
+
+                $netImport = max(0.0, $this->sumOf($flows['required'], $typeId) - $this->sumOf($flows['extraction'], $typeId) - $this->sumOf($flows['factoryOutput'], $typeId));
+                $scaled = $totalByType[$typeId] > $netImport ? $rate * $netImport / $totalByType[$typeId] : $rate;
+                if ($scaled > 0.0) {
+                    $capped[$pinId][$typeId] = $scaled;
+                }
+            }
+        }
+
+        return $capped;
     }
 
     /**
