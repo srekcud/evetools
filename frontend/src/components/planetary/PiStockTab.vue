@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue'
 import PiStockBanner from '@/components/planetary/PiStockBanner.vue'
+import PiStockExcluded from '@/components/planetary/PiStockExcluded.vue'
 import PiStockCoverageGrid from '@/components/planetary/PiStockCoverageGrid.vue'
 import PiStockPriceGrid from '@/components/planetary/PiStockPriceGrid.vue'
 import PiStockProjectNeeds from '@/components/planetary/PiStockProjectNeeds.vue'
@@ -46,6 +47,7 @@ function openPlanner(): void {
     </p>
     <template v-else>
       <PiStockBanner />
+      <PiStockExcluded />
       <PiStockCoverageGrid @open-planner="openPlanner" />
       <p v-if="pricesStore.error" class="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300" role="alert" data-testid="stock-prices-load-error">
         {{ pricesStore.error }}

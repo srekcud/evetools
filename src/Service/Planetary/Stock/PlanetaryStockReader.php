@@ -30,7 +30,11 @@ final readonly class PlanetaryStockReader
     public function read(User $user, PlanetaryStockSettings $settings): PlanetaryStock
     {
         $needs = $this->inputNeedsCalculator->calculate($this->colonyRepository->findByUser($user));
-        $typeIds = array_map(static fn (array $row): int => self::intOf($row['typeId']), $needs['weekly']);
+        $weekly = array_values(array_filter(
+            $needs['weekly'],
+            static fn (array $row): bool => !\in_array(self::intOf($row['typeId']), $settings->excludedTypeIds, true),
+        ));
+        $typeIds = array_map(static fn (array $row): int => self::intOf($row['typeId']), $weekly);
         $sdeTypes = [] === $typeIds ? [] : $this->invTypeRepository->findByTypeIds($typeIds);
 
         $weeklyNeeds = array_map(
@@ -40,7 +44,7 @@ final readonly class PlanetaryStockReader
                 self::nullableFloatOf($row['weeklyNetNeed']),
                 ($sdeTypes[self::intOf($row['typeId'])] ?? null)?->getVolume(),
             ),
-            $needs['weekly'],
+            $weekly,
         );
 
         $characters = $user->getCharacters()->getValues();

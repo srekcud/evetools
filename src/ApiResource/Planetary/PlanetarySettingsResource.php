@@ -61,6 +61,7 @@ final class PlanetarySettingsResource
         $resource->homeLocationId = $user->getPlanetaryHomeLocationId();
         $resource->homeLocationName = $user->getPlanetaryHomeLocationName();
         $resource->coverageWeeks = $user->getPlanetaryCoverageWeeks();
+        $resource->excludedTypeIds = $user->getPlanetaryExcludedTypeIds();
 
         $hubStructureId = $user->getEffectiveMarketStructureId();
         if ($hubStructureId === null) {
