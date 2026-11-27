@@ -31,8 +31,8 @@ Planètes : Barren 25 415 / 19 000, Temperate 24 000 / 18 000, Lava (pas de `hig
 | Robotics 72/j, `wholeChain` | usines P2 = 4, P3 = 1, aucune P4 ; entrées 3 840 + 1 920 + 1 920 P1 × 0,38 = 2 918,4, sorties 72 × 3 = 216, total 3 134,4 m³/j : N = 1, k = 2 (k = 1 : 40 000 / 10 000 ne passe pas), 1 planète, types Barren, Lava, Temperate |
 | Robotics 72/j, `auto` | même ligne `chain`, 1 planète ; `perTier` donne plus de planètes (P3 et P2 séparées) |
 | Broadcast Node 24/j, `wholeChain` | P2 = 8, P3 = 2, P4 = 1 ; total 8 236,8 m³/j : N = 1, k = 4 ; types Barren, Temperate seulement (Lava exclu faute de `highTech`) |
-| Broadcast Node 144/j, `wholeChain` | P2 = 96, P3 = 12, P4 = 6 ; Barren donne N = 6, k = 4, Temperate N = 7, k = 3 : on retient le plus grand N, soit 7 planètes, disposition de Temperate (3 launchpads, par planète P2 14, P3 2, P4 1) |
-| Broadcast Node 144/j, `auto` | chaîne, 7 planètes (`perTier` : P2 7 + P3 1 + P4 2 = 10) |
+| Broadcast Node 144/j, `wholeChain` | P2 = 48, P3 = 12, P4 = 6 ; Barren et Temperate donnent N = 5, k = 4 : 5 planètes, par planète P2 10, P3 3, P4 2 |
+| Broadcast Node 144/j, `auto` | chaîne, 5 planètes (`perTier` : P2 4 + P3 1 + P4 2 = 7) |
 | Un seul tier (Coolant 120/j), `auto` | lignes `factory` inchangées |
 | Volume SDE nul sur un P1 de la chaîne | statut `unknownVolume`, `planets` null, total incomplet |
 | Aucune planète ne loge une usine de chaque tier | `doesNotFit`, `planets` null |
