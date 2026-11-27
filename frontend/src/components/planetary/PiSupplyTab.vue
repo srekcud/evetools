@@ -62,6 +62,15 @@ function planetLabel(planetName: string | null): string {
   return planetName ?? t('common.unknownName')
 }
 
+function characterOf(colonyId: string | null): string | null {
+  return colonyId === null ? null : planetaryStore.characterNameByColonyId.get(colonyId) ?? null
+}
+
+function planetWithCharacter(row: { planetName: string | null; colonyId: string | null }): string {
+  const character = characterOf(row.colonyId)
+  return character === null ? planetLabel(row.planetName) : `${planetLabel(row.planetName)} (${character})`
+}
+
 function formatDecimal(value: number): string {
   return value.toLocaleString(locale.value, { minimumFractionDigits: ONE_DECIMAL, maximumFractionDigits: ONE_DECIMAL })
 }
@@ -170,7 +179,7 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
           data-testid="pi-supply-capacity-warning"
         >
           {{ t('pi.supply.capacityWarning', {
-            planet: planetLabel(row.planetName),
+            planet: planetWithCharacter(row),
             capacityDays: row.refill.capacityDays === null ? '' : formatDecimal(row.refill.capacityDays),
             days: formatNumber(days),
           }) }}
@@ -211,6 +220,7 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
                 <td class="max-w-56 px-4 py-2">
                   <div class="truncate font-medium text-white" :title="planetLabel(row.planetName)">{{ planetLabel(row.planetName) }}</div>
                   <div class="truncate text-xs text-slate-500" :title="row.launchpadTypeName ?? ''">{{ row.launchpadTypeName }}</div>
+                  <div v-if="characterOf(row.colonyId) !== null" class="truncate text-xs text-cyan-400" :title="characterOf(row.colonyId) ?? ''" data-testid="pi-supply-row-character">{{ characterOf(row.colonyId) }}</div>
                 </td>
                 <td
                   v-for="column in grid.columns"
