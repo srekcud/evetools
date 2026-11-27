@@ -1,15 +1,18 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import PiStockPin from '@/components/planetary/PiStockPin.vue'
 import PiTierBadge from '@/components/planetary/PiTierBadge.vue'
+import PiTierFilter from '@/components/planetary/PiTierFilter.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePlanetaryStockTodo } from '@/composables/usePlanetaryStockTodo'
+import { usePlanetaryTierFilter } from '@/composables/usePlanetaryTierFilter'
 import { usePlanetaryTiers } from '@/composables/usePlanetaryTiers'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
-import { usePlanetaryStockStore, type PlanetaryStockRow } from '@/stores/planetaryStock'
+import { usePlanetaryStockStore } from '@/stores/planetaryStock'
 
 const ICON_SIZE = 32
 const PERCENT = 100
@@ -24,6 +27,9 @@ const store = usePlanetaryStockStore()
 const planner = usePlanetaryPlannerStore()
 const todo = usePlanetaryStockTodo()
 const { tierOf } = usePlanetaryTiers()
+const { selectedTier, matchesTier } = usePlanetaryTierFilter()
+
+const visibleRows = computed(() => store.rows.filter(row => matchesTier(row.typeId)))
 
 function weeksText(weeks: number): string {
   const formatted = weeks.toLocaleString(locale.value === 'fr' ? 'fr-FR' : 'en-US', {
@@ -34,14 +40,14 @@ function weeksText(weeks: number): string {
   return t('pi.stock.grid.weeksValue', { weeks: formatted })
 }
 
-function isBelowTarget(row: PlanetaryStockRow): boolean {
-  return row.coverageWeeks !== null && store.stock !== null && row.coverageWeeks < store.stock.coverageWeeks
+function isBelowTarget(weeks: number | null): boolean {
+  return weeks !== null && store.stock !== null && weeks < store.stock.coverageWeeks
 }
 
-function barWidth(row: PlanetaryStockRow): string {
-  if (row.coverageWeeks === null || store.stock === null || store.stock.coverageWeeks <= 0) return '0%'
+function barWidth(weeks: number | null): string {
+  if (weeks === null || store.stock === null || store.stock.coverageWeeks <= 0) return '0%'
 
-  return `${Math.min(PERCENT, (row.coverageWeeks / store.stock.coverageWeeks) * PERCENT)}%`
+  return `${Math.min(PERCENT, (weeks / store.stock.coverageWeeks) * PERCENT)}%`
 }
 
 function openPlanner(): void {
@@ -52,6 +58,7 @@ function openPlanner(): void {
 <template>
   <section class="rounded-xl border border-slate-800 bg-slate-900 p-5" data-testid="pi-stock-grid">
     <h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-300">{{ t('pi.stock.grid.title') }}</h3>
+    <PiTierFilter v-model="selectedTier" test-id="stock-tier-filter" class="mb-4" />
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
@@ -70,7 +77,7 @@ function openPlanner(): void {
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800">
-          <tr v-for="row in store.rows" :key="row.typeId" :data-testid="`stock-row-${row.typeId}`" class="transition-colors hover:bg-slate-800/30">
+          <tr v-for="row in visibleRows" :key="row.typeId" :data-testid="`stock-row-${row.typeId}`" class="transition-colors hover:bg-slate-800/30">
             <td class="py-2.5">
               <div class="flex items-center gap-2">
                 <img :src="getTypeIconUrl(row.typeId, ICON_SIZE)" alt="" class="h-6 w-6 shrink-0 rounded-sm" @error="onImageError" />
@@ -100,8 +107,8 @@ function openPlanner(): void {
                 <div class="h-1.5 w-20 overflow-hidden rounded-full bg-slate-800">
                   <div
                     :data-testid="`stock-coverage-bar-${row.typeId}`"
-                    :class="['h-full rounded-full', isBelowTarget(row) ? 'bg-red-500' : 'bg-emerald-500']"
-                    :style="{ width: barWidth(row) }"
+                    :class="['h-full rounded-full', isBelowTarget(row.coverageWeeks) ? 'bg-red-500' : 'bg-emerald-500']"
+                    :style="{ width: barWidth(row.coverageWeeks) }"
                   ></div>
                 </div>
                 <span class="font-mono-tech text-slate-300">{{ weeksText(row.coverageWeeks) }}</span>
@@ -110,7 +117,16 @@ function openPlanner(): void {
             <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-openOrders-${row.typeId}`">{{ formatNumber(row.openOrders, 0) }}</td>
             <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-coverageWithOrders-${row.typeId}`">
               <UnknownValue v-if="row.coverageWithOrdersWeeks === null" />
-              <template v-else>{{ weeksText(row.coverageWithOrdersWeeks) }}</template>
+              <div v-else class="flex items-center justify-end gap-2">
+                <div class="h-1.5 w-20 overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    :data-testid="`stock-coverage-orders-bar-${row.typeId}`"
+                    :class="['h-full rounded-full', isBelowTarget(row.coverageWithOrdersWeeks) ? 'bg-red-500' : 'bg-emerald-500']"
+                    :style="{ width: barWidth(row.coverageWithOrdersWeeks) }"
+                  ></div>
+                </div>
+                <span>{{ weeksText(row.coverageWithOrdersWeeks) }}</span>
+              </div>
             </td>
             <td class="py-2.5 text-right font-mono-tech font-medium text-cyan-400" :data-testid="`stock-cell-toBuy-${row.typeId}`">
               <UnknownValue v-if="row.toBuy === null" />

@@ -3,9 +3,11 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import PiStockPin from '@/components/planetary/PiStockPin.vue'
+import PiTierFilter from '@/components/planetary/PiTierFilter.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { usePlanetaryStockTodo } from '@/composables/usePlanetaryStockTodo'
+import { usePlanetaryTierFilter } from '@/composables/usePlanetaryTierFilter'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { usePlanetaryStockPricesStore, type PlanetaryStockSignal } from '@/stores/planetaryStockPrices'
 
@@ -36,6 +38,9 @@ const { typeNameLabel } = useTypeNames()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const store = usePlanetaryStockPricesStore()
 const todo = usePlanetaryStockTodo()
+const { selectedTier, matchesTier } = usePlanetaryTierFilter()
+
+const visibleRows = computed(() => store.rows.filter(row => matchesTier(row.typeId)))
 
 const hasUnsyncedWallets = computed(() => (store.prices?.unsyncedWallets.length ?? 0) > 0)
 const isMarketIncomplete = computed(() => store.prices !== null && !store.prices.complete)
@@ -57,6 +62,7 @@ function percentText(percent: number): string {
 <template>
   <section class="rounded-xl border border-slate-800 bg-slate-900 p-5" data-testid="pi-stock-price-grid">
     <h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-300">{{ t('pi.stock.prices.title') }}</h3>
+    <PiTierFilter v-model="selectedTier" test-id="price-tier-filter" class="mb-4" />
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
@@ -73,7 +79,7 @@ function percentText(percent: number): string {
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800">
-          <tr v-for="row in store.rows" :key="row.typeId" :data-testid="`price-row-${row.typeId}`" class="transition-colors hover:bg-slate-800/30">
+          <tr v-for="row in visibleRows" :key="row.typeId" :data-testid="`price-row-${row.typeId}`" class="transition-colors hover:bg-slate-800/30">
             <td class="py-2.5">
               <div class="flex items-center gap-2">
                 <img :src="getTypeIconUrl(row.typeId, ICON_SIZE)" alt="" class="h-6 w-6 shrink-0 rounded-sm" @error="onImageError" />

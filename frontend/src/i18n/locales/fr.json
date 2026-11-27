@@ -966,6 +966,10 @@
       "fillDays": "remplissage ~{days} jours",
       "loadingRoutes": "Chargement des routes..."
     },
+    "tierFilter": {
+      "label": "Filtrer par tier",
+      "all": "Tous"
+    },
     "legend": {
       "piTiers": "Tiers PI",
       "moreThan24h": "> 24h",
