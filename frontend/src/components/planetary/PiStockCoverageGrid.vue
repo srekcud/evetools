@@ -12,6 +12,7 @@ import { usePlanetaryTierFilter } from '@/composables/usePlanetaryTierFilter'
 import { usePlanetaryTiers } from '@/composables/usePlanetaryTiers'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
+import { usePlanetarySettingsStore } from '@/stores/planetarySettings'
 import { usePlanetaryStockStore } from '@/stores/planetaryStock'
 
 const ICON_SIZE = 32
@@ -25,6 +26,7 @@ const { typeNameLabel } = useTypeNames()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const store = usePlanetaryStockStore()
 const planner = usePlanetaryPlannerStore()
+const settingsStore = usePlanetarySettingsStore()
 const todo = usePlanetaryStockTodo()
 const { tierOf } = usePlanetaryTiers()
 const { selectedTier, matchesTier } = usePlanetaryTierFilter()
@@ -52,6 +54,10 @@ function barWidth(weeks: number | null): string {
 
 function openPlanner(): void {
   emit('open-planner')
+}
+
+function excludeType(typeId: number): void {
+  void settingsStore.excludeType(typeId)
 }
 </script>
 
@@ -144,6 +150,16 @@ function openPlanner(): void {
                   :data-testid="`stock-open-planner-${row.typeId}`"
                   @click="openPlanner"
                 >{{ t('pi.stock.grid.openPlanner') }}</button>
+                <button
+                  type="button"
+                  class="shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                  :title="t('pi.stock.grid.exclude')"
+                  :aria-label="t('pi.stock.grid.exclude')"
+                  :data-testid="`stock-exclude-${row.typeId}`"
+                  @click="excludeType(row.typeId)"
+                >
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+                </button>
               </div>
             </td>
           </tr>

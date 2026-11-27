@@ -46,6 +46,9 @@ final class PlanetarySettingsResource
 
     public int $coverageWeeks = User::DEFAULT_PLANETARY_COVERAGE_WEEKS;
 
+    /** @var list<int> */
+    public array $excludedTypeIds = [];
+
     #[ApiProperty(writable: false)]
     public int $hubStructureId = 0;
 
@@ -58,6 +61,7 @@ final class PlanetarySettingsResource
         $resource->homeLocationId = $user->getPlanetaryHomeLocationId();
         $resource->homeLocationName = $user->getPlanetaryHomeLocationName();
         $resource->coverageWeeks = $user->getPlanetaryCoverageWeeks();
+        $resource->excludedTypeIds = $user->getPlanetaryExcludedTypeIds();
 
         $hubStructureId = $user->getEffectiveMarketStructureId();
         if ($hubStructureId === null) {

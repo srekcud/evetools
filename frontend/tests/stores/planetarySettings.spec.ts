@@ -23,6 +23,7 @@ import {
   patchCalls,
   serve,
 } from '../planetarySettingsFixtures'
+import { COOLANT, MECHANICAL_PARTS, WATER } from '../planetaryPlannerFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -49,6 +50,18 @@ function rejectedLocation(): ValidationError {
 async function loadedStore() {
   serve({
     'GET /planetary/settings': SETTINGS_WITH_AMARR_HOME,
+    'GET /planetary/settings/locations': { id: 'locations', locations: [AMARR_CANDIDATE, ASHAB_CANDIDATE] },
+    'GET /me/settings': ME_WITH_TWO_FAVORITES,
+  })
+  const store = freshStore()
+  await store.load()
+  vi.mocked(apiRequest).mockClear()
+  return store
+}
+
+async function loadedStoreExcluding(excludedTypeIds: number[]) {
+  serve({
+    'GET /planetary/settings': { ...SETTINGS_WITH_AMARR_HOME, excludedTypeIds },
     'GET /planetary/settings/locations': { id: 'locations', locations: [AMARR_CANDIDATE, ASHAB_CANDIDATE] },
     'GET /me/settings': ME_WITH_TWO_FAVORITES,
   })
@@ -271,5 +284,60 @@ describe('planetarySettings store', () => {
     })
     await store.load()
     expect(store.saveRevision).toBe(3)
+  })
+
+  it('patches the complete list with the excluded type, replaces the state with the answer and counts one save revision', async () => {
+    const store = await loadedStoreExcluding([])
+    serve({ 'PATCH /planetary/settings': (body) => ({ ...SETTINGS_WITH_AMARR_HOME, ...body }) })
+
+    const result = await store.excludeType(COOLANT)
+
+    expect(result).toBe(true)
+    expect(patchCalls()).toEqual([{ method: 'PATCH', endpoint: '/planetary/settings', body: { excludedTypeIds: [COOLANT] } }])
+    expect(store.settings?.excludedTypeIds).toEqual([COOLANT])
+    expect(store.saveRevision).toBe(1)
+    expect(store.error).toBeNull()
+  })
+
+  it('makes no call and returns true when the type is already excluded or when the restored type is not excluded', async () => {
+    const store = await loadedStoreExcluding([COOLANT, WATER])
+    serve({ 'PATCH /planetary/settings': (body) => ({ ...SETTINGS_WITH_AMARR_HOME, ...body }) })
+
+    const alreadyExcluded = await store.excludeType(WATER)
+    const notExcluded = await store.restoreType(MECHANICAL_PARTS)
+
+    expect([alreadyExcluded, notExcluded]).toEqual([true, true])
+    expect(apiCalls()).toEqual([])
+    expect(store.settings?.excludedTypeIds).toEqual([COOLANT, WATER])
+    expect(store.saveRevision).toBe(0)
+  })
+
+  it('patches the list without the restored type', async () => {
+    const store = await loadedStoreExcluding([COOLANT, WATER])
+    serve({ 'PATCH /planetary/settings': (body) => ({ ...SETTINGS_WITH_AMARR_HOME, ...body }) })
+
+    const result = await store.restoreType(WATER)
+
+    expect(result).toBe(true)
+    expect(patchCalls()).toEqual([{ method: 'PATCH', endpoint: '/planetary/settings', body: { excludedTypeIds: [COOLANT] } }])
+    expect(store.settings?.excludedTypeIds).toEqual([COOLANT])
+    expect(store.saveRevision).toBe(1)
+  })
+
+  it('keeps the excluded list and exposes an error when the exclusion or the restoration is refused', async () => {
+    const store = await loadedStoreExcluding([COOLANT])
+    serve({ 'PATCH /planetary/settings': new ApiError('API error: 422', 422) })
+
+    const excluded = await store.excludeType(WATER)
+    const excludeError = store.error
+    const restored = await store.restoreType(COOLANT)
+
+    expect([excluded, restored]).toEqual([false, false])
+    expect(excludeError).toEqual(expect.any(String))
+    expect(excludeError).not.toBe('')
+    expect(store.error).toEqual(expect.any(String))
+    expect(store.error).not.toBe('')
+    expect(store.settings?.excludedTypeIds).toEqual([COOLANT])
+    expect(store.saveRevision).toBe(0)
   })
 })

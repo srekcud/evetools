@@ -133,6 +133,7 @@ export function stockOf(rows: PlanetaryStockRow[], overrides: Partial<PlanetaryS
     coverageWeeks: COVERAGE_TARGET_WEEKS,
     corpUnknownReason: null,
     complete: true,
+    excludedTypeIds: [],
     rows,
     ...overrides,
   }

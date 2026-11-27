@@ -6,6 +6,7 @@ import fr from '@/i18n/locales/fr.json'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import PiStockCoverageGrid from '@/components/planetary/PiStockCoverageGrid.vue'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
+import { usePlanetarySettingsStore } from '@/stores/planetarySettings'
 import { usePlanetaryStockStore, type PlanetaryStock } from '@/stores/planetaryStock'
 import {
   COOLANT_ROW,
@@ -186,5 +187,21 @@ describe('PiStockCoverageGrid', () => {
     expect(wrapper.findAll('[data-testid^="stock-pin-"]')).toHaveLength(4)
     expect(digitsOf(figureOf(wrapper, 'hub', PLASMA_ROW.typeId))).toBe('100')
     expect(digitsOf(figureOf(wrapper, 'toBuy', PLASMA_ROW.typeId))).toBe('600')
+  })
+
+  it('offers an exclude button on every row that excludes the type of that row alone', async () => {
+    const wrapper = mountGrid(stockOf([PLASMA_ROW, COOLANT_ROW]))
+    const exclude = vi.spyOn(usePlanetarySettingsStore(), 'excludeType').mockResolvedValue(true)
+
+    expect(wrapper.findAll('[data-testid^="stock-exclude-"]').map(button => button.attributes('data-testid'))).toEqual([
+      `stock-exclude-${PLASMA_ROW.typeId}`,
+      `stock-exclude-${COOLANT_ROW.typeId}`,
+    ])
+    expect(cell(wrapper, 'decision', COOLANT_ROW.typeId).find(`[data-testid="stock-exclude-${COOLANT_ROW.typeId}"]`).exists()).toBe(true)
+
+    await wrapper.get(`[data-testid="stock-exclude-${COOLANT_ROW.typeId}"]`).trigger('click')
+
+    expect(exclude).toHaveBeenCalledTimes(1)
+    expect(exclude).toHaveBeenCalledWith(COOLANT_ROW.typeId)
   })
 })

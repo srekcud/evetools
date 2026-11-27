@@ -69,6 +69,10 @@ class User implements UserInterface
     #[ORM\Column(type: 'smallint', options: ['default' => self::DEFAULT_PLANETARY_COVERAGE_WEEKS])]
     private int $planetaryCoverageWeeks = self::DEFAULT_PLANETARY_COVERAGE_WEEKS;
 
+    /** @var list<int> */
+    #[ORM\Column(type: 'json', options: ['default' => '[]'])]
+    private array $planetaryExcludedTypeIds = [];
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -363,6 +367,26 @@ class User implements UserInterface
     public function setPlanetaryCoverageWeeks(int $weeks): static
     {
         $this->planetaryCoverageWeeks = $weeks;
+
+        return $this;
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function getPlanetaryExcludedTypeIds(): array
+    {
+        return $this->planetaryExcludedTypeIds;
+    }
+
+    /**
+     * @param list<int> $typeIds
+     */
+    public function setPlanetaryExcludedTypeIds(array $typeIds): static
+    {
+        $unique = array_values(array_unique($typeIds));
+        sort($unique);
+        $this->planetaryExcludedTypeIds = $unique;
 
         return $this;
     }

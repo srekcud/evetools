@@ -36,7 +36,7 @@ final readonly class PlanetaryStockProvider implements ProviderInterface
         }
 
         $settings = PlanetarySettingsResource::forUser($user, $this->defaultMarketStructureId, $this->defaultMarketStructureName);
-        $stock = $this->reader->read($user, new PlanetaryStockSettings($settings->homeLocationId, $settings->hubStructureId, $settings->coverageWeeks));
+        $stock = $this->reader->read($user, new PlanetaryStockSettings($settings->homeLocationId, $settings->hubStructureId, $settings->coverageWeeks, $settings->excludedTypeIds));
 
         $resource = new PlanetaryStockResource();
         $resource->homeLocationId = $settings->homeLocationId;
@@ -46,6 +46,7 @@ final readonly class PlanetaryStockProvider implements ProviderInterface
         $resource->coverageWeeks = $settings->coverageWeeks;
         $resource->corpUnknownReason = $stock->corpUnknownReason;
         $resource->complete = $stock->complete;
+        $resource->excludedTypeIds = $settings->excludedTypeIds;
         $resource->rows = array_map(
             static fn (PlanetaryStockRow $row): array => [
                 'typeId' => $row->typeId,

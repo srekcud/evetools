@@ -184,6 +184,63 @@ final class PlanetarySettingsProcessorTest extends TestCase
         $this->assertSame(self::DEFAULT_STRUCTURE_NAME, $result->hubStructureName);
     }
 
+    #[Group('issue-1458')]
+    public function testExcludedTypeIdsAreSortedWithoutDuplicatesStoredAndReturned(): void
+    {
+        $result = $this->process($this->resourceWith(coverageWeeks: 3, excludedTypeIds: [3, 1, 3]));
+
+        $this->assertSame([1, 3], $this->user->getPlanetaryExcludedTypeIds());
+        $this->assertSame([1, 3], $result->excludedTypeIds);
+        $this->assertSame(1, $this->flushCount);
+    }
+
+    #[Group('issue-1458')]
+    public function testAnEmptyListRestoresEveryExcludedType(): void
+    {
+        $this->user->setPlanetaryExcludedTypeIds([1, 3]);
+        $this->assertSame([1, 3], $this->user->getPlanetaryExcludedTypeIds());
+
+        $result = $this->process($this->resourceWith(coverageWeeks: 3, excludedTypeIds: []));
+
+        $this->assertSame([], $this->user->getPlanetaryExcludedTypeIds());
+        $this->assertSame([], $result->excludedTypeIds);
+        $this->assertSame(1, $this->flushCount);
+    }
+
+    #[Group('issue-1458')]
+    public function testAZeroTypeIdIsRefusedOnExcludedTypeIdsAndTheStoredListIsKept(): void
+    {
+        $this->user->setPlanetaryExcludedTypeIds([1, 3]);
+        $this->user->setPlanetaryCoverageWeeks(5);
+
+        $this->assertRefused(['excludedTypeIds'], $this->resourceWith(coverageWeeks: 9, excludedTypeIds: [0]));
+
+        $this->assertSame([1, 3], $this->user->getPlanetaryExcludedTypeIds());
+        $this->assertSame(5, $this->user->getPlanetaryCoverageWeeks());
+        $this->assertSame(0, $this->flushCount);
+    }
+
+    #[Group('issue-1458')]
+    public function testANegativeTypeIdIsRefusedOnExcludedTypeIds(): void
+    {
+        $this->assertRefused(['excludedTypeIds'], $this->resourceWith(coverageWeeks: 3, excludedTypeIds: [4, -5]));
+
+        $this->assertSame([], $this->user->getPlanetaryExcludedTypeIds());
+    }
+
+    #[Group('issue-1458')]
+    public function testTwoHundredExcludedTypesAreAcceptedAndTwoHundredAndOneAreRefused(): void
+    {
+        $accepted = $this->process($this->resourceWith(coverageWeeks: 3, excludedTypeIds: range(1, 200)));
+
+        $this->assertSame(range(1, 200), $accepted->excludedTypeIds);
+        $this->assertSame(range(1, 200), $this->user->getPlanetaryExcludedTypeIds());
+
+        $this->assertRefused(['excludedTypeIds'], $this->resourceWith(coverageWeeks: 3, excludedTypeIds: range(1, 201)));
+
+        $this->assertSame(range(1, 200), $this->user->getPlanetaryExcludedTypeIds());
+    }
+
     public function testAnAnonymousVisitorIsRejected(): void
     {
         $this->expectException(UnauthorizedHttpException::class);
@@ -191,11 +248,15 @@ final class PlanetarySettingsProcessorTest extends TestCase
         $this->processAs(null, $this->resourceWith(coverageWeeks: 4));
     }
 
-    private function resourceWith(int $coverageWeeks, ?int $homeLocationId = null): PlanetarySettingsResource
+    /**
+     * @param list<int> $excludedTypeIds
+     */
+    private function resourceWith(int $coverageWeeks, ?int $homeLocationId = null, array $excludedTypeIds = []): PlanetarySettingsResource
     {
         $resource = new PlanetarySettingsResource();
         $resource->coverageWeeks = $coverageWeeks;
         $resource->homeLocationId = $homeLocationId;
+        $resource->excludedTypeIds = $excludedTypeIds;
 
         return $resource;
     }

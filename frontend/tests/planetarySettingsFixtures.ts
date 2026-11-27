@@ -22,6 +22,7 @@ export interface SettingsBody {
   homeLocationId: number | null
   homeLocationName: string | null
   coverageWeeks: number
+  excludedTypeIds: number[]
   hubStructureId: number
   hubStructureName: string
 }
@@ -41,6 +42,7 @@ export const SETTINGS_WITH_AMARR_HOME: SettingsBody = {
   homeLocationId: AMARR_STATION_ID,
   homeLocationName: AMARR_STATION_NAME,
   coverageWeeks: 5,
+  excludedTypeIds: [],
   hubStructureId: FAVORITE_HUB_ID,
   hubStructureName: FAVORITE_HUB_NAME,
 }
@@ -50,6 +52,7 @@ export const SETTINGS_OF_A_NEW_USER: SettingsBody = {
   homeLocationId: null,
   homeLocationName: null,
   coverageWeeks: 3,
+  excludedTypeIds: [],
   hubStructureId: DEFAULT_HUB_ID,
   hubStructureName: DEFAULT_HUB_NAME,
 }

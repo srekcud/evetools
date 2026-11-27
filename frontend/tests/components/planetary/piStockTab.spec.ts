@@ -18,6 +18,7 @@ import {
 } from '../../planetarySettingsFixtures'
 import { expectedMessage } from '../../expectedMessage'
 import { PROJECT_NEEDS_WITH_THREE_PRODUCTS } from '../../planetaryProjectNeedsFixtures'
+import { COOLANT, WATER } from '../../planetaryPlannerFixtures'
 import { COOLANT_ROW, PLASMA_ROW, ROBOTICS_ROW, STOCK_WITH_PURCHASES, WATER_ROW, stockOf } from '../../planetaryStockFixtures'
 import { COOLANT_PRICE_ROW, PLASMA_PRICE_ROW, WATER_PRICE_ROW, pricesOf } from '../../planetaryStockPricesFixtures'
 
@@ -196,5 +197,18 @@ describe('PiStockTab', () => {
 
     expect(wrapper.findAll('[data-testid^="stock-row-"]')).toHaveLength(1)
     expect(wrapper.find('[data-testid="revenue-todo-panel"]').exists()).toBe(false)
+  })
+
+  it('shows the excluded products above the coverage grid only when the stock lists some', async () => {
+    const withoutExclusion = await mountStockTab()
+    expect(withoutExclusion.find('[data-testid="stock-excluded"]').exists()).toBe(false)
+
+    const withExclusion = await mountStockTab({}, stockOf([ROBOTICS_ROW, PLASMA_ROW], { excludedTypeIds: [COOLANT, WATER] }))
+
+    const html = withExclusion.html()
+    expect(withExclusion.find('[data-testid="stock-excluded"]').exists()).toBe(true)
+    expect(withExclusion.find(`[data-testid="stock-restore-${COOLANT}"]`).exists()).toBe(true)
+    expect(withExclusion.find(`[data-testid="stock-restore-${WATER}"]`).exists()).toBe(true)
+    expect(html.indexOf('data-testid="stock-excluded"')).toBeLessThan(html.indexOf('data-testid="pi-stock-grid"'))
   })
 })

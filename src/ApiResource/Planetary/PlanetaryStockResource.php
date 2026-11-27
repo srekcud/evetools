@@ -42,6 +42,9 @@ final class PlanetaryStockResource
 
     public bool $complete = false;
 
+    /** @var list<int> */
+    public array $excludedTypeIds = [];
+
     /** @var list<array<string, mixed>> */
     public array $rows = [];
 }
