@@ -41,7 +41,7 @@ const entries = computed(() => {
   const { typeById } = indexCatalog(catalog)
 
   return store.templates.map(template => {
-    const evaluation = evaluateTemplate(template, catalog, store.account, store.extractionYieldOverrides)
+    const evaluation = evaluateTemplate(template, catalog, store.account, store.extractionYieldOverrides, store.planetMode)
     return {
       template,
       resolvable: isTemplateResolvable(template, catalog),

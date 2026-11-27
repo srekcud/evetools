@@ -24,6 +24,7 @@ import {
 import {
   buildPlanetPlan,
   isValidExtractionYield,
+  type PlanetMode,
   type PlanetPlan,
   type PlannerAccount,
 } from '@/utils/planetaryPlanets'
@@ -45,6 +46,7 @@ import {
 } from '@/utils/planetaryPlanner'
 
 const TEMPLATES_ENDPOINT = '/planetary/templates'
+const PLANET_MODES: readonly PlanetMode[] = ['auto', 'perTier', 'wholeChain']
 
 function twoDigits(value: number): string {
   return String(value).padStart(2, '0')
@@ -71,6 +73,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
   const volumeSharePercent = ref(DEFAULT_VOLUME_SHARE_PERCENT)
   const rankingTier = ref<RankingTierFilter>('all')
   const extractionYieldOverrides = ref<Record<number, number>>({})
+  const planetMode = ref<PlanetMode>('auto')
 
   const plan = computed<PlannerPlan | null>(() =>
     catalog.value ? buildPlan(productions.value, catalog.value, choices.value, settings.value) : null,
@@ -78,7 +81,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
 
   const planetPlan = computed<PlanetPlan | null>(() =>
     catalog.value
-      ? buildPlanetPlan(productions.value, catalog.value, choices.value, settings.value, account.value, extractionYieldOverrides.value)
+      ? buildPlanetPlan(productions.value, catalog.value, choices.value, settings.value, account.value, extractionYieldOverrides.value, planetMode.value)
       : null,
   )
 
@@ -354,6 +357,11 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     return true
   }
 
+  function setPlanetMode(mode: PlanetMode): void {
+    if (!PLANET_MODES.includes(mode)) throw new Error(`Unknown planet mode ${String(mode)}`)
+    planetMode.value = mode
+  }
+
   function setDaysBetweenRounds(value: number): boolean {
     if (!isValidDaysBetweenRounds(value)) return false
     settings.value = { ...settings.value, daysBetweenRounds: value }
@@ -394,6 +402,7 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     setVolumeShare,
     setRankingTier,
     extractionYieldOverrides,
+    planetMode,
     plan,
     planetPlan,
     fetchCatalog,
@@ -409,5 +418,6 @@ export const usePlanetaryPlannerStore = defineStore('planetaryPlanner', () => {
     setPriceSource,
     setTaxPercent,
     setDaysBetweenRounds,
+    setPlanetMode,
   }
 })

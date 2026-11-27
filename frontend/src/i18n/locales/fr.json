@@ -632,8 +632,28 @@
           "layout": "Disposition",
           "planets": "Planètes"
         },
+        "mode": {
+          "label": "Mode des planètes",
+          "auto": "Auto",
+          "perTier": "Par tier",
+          "wholeChain": "Chaîne sur une planète",
+          "effective": {
+            "perTier": "Auto planifie actuellement un groupe de planètes par tier",
+            "wholeChain": "Auto planifie actuellement toute la chaîne sur les mêmes planètes"
+          }
+        },
         "roles": {
-          "factory": "Usines"
+          "factory": "Usines",
+          "chain": "Chaîne sur une planète"
+        },
+        "chain": {
+          "need": {
+            "advanced": "{count} usine avancée | {count} usines avancées",
+            "highTech": "{count} usine haute technologie | {count} usines haute technologie"
+          },
+          "perPlanet": "{factories} par planète",
+          "doesNotFit": "Ne tient pas : aucun type de planète ne loge une installation de chaque tier et le volume de {days} jours",
+          "unknown": "Disposition inconnue : un volume ou les types de planète manquent dans la SDE"
         },
         "need": {
           "factories": "{count} usine | {count} usines",

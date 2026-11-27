@@ -13,6 +13,10 @@ import {
   type PlannerSettings,
   type TreeNode,
 } from '@/utils/planetaryPlanner'
+import { FACILITY_BY_TIER, MAX_LAUNCHPADS, chainRowOf, type ChainLayout, type ChainPlanetRow } from '@/utils/planetaryChain'
+
+export { FACILITY_BY_TIER, MAX_LAUNCHPADS }
+export type { ChainLayout, ChainPlanetRow }
 
 export interface PlanetFacility {
   cpu: number
@@ -89,8 +93,13 @@ export interface TierAllocation {
   freeRemaining: number
 }
 
+export type PlanetMode = 'auto' | 'perTier' | 'wholeChain'
+export type EffectivePlanetMode = Exclude<PlanetMode, 'auto'>
+export type PlanetRow = FactoryPlanetRow | ExtractionPlanetRow | ChainPlanetRow
+
 export interface PlanetPlan {
-  rows: (FactoryPlanetRow | ExtractionPlanetRow)[]
+  planetMode: EffectivePlanetMode
+  rows: PlanetRow[]
   totalPlanets: number
   incomplete: boolean
   charactersNeeded: number
@@ -101,11 +110,10 @@ export interface PlanetPlan {
   allocations: TierAllocation[][]
 }
 
-export const MAX_LAUNCHPADS = 6
 export const PLANETS_PER_CHARACTER = 6
-export const FACILITY_BY_TIER: Record<FactoryTier, 'advanced' | 'highTech'> = { P2: 'advanced', P3: 'advanced', P4: 'highTech' }
 export const SECONDS_PER_HOUR = 3600
 
+const MIN_TIERS_FOR_AUTO_CHAIN = 2
 const FACTORY_TIERS_FROM_TOP: readonly FactoryTier[] = ['P4', 'P3', 'P2']
 
 interface PlanetContext {
@@ -250,20 +258,42 @@ function extractionRowsOf(nodes: TreeNode[], context: PlanetContext): Extraction
     })
 }
 
-function planetRowsOf(nodes: TreeNode[], context: PlanetContext): (FactoryPlanetRow | ExtractionPlanetRow)[] {
-  const factoryRows = FACTORY_TIERS_FROM_TOP.flatMap(tier => {
+function factoryRowsOf(nodes: TreeNode[], context: PlanetContext): FactoryPlanetRow[] {
+  return FACTORY_TIERS_FROM_TOP.flatMap(tier => {
     const factoriesNeeded = factoriesOfTier(nodes, tier)
     return factoriesNeeded === 0 ? [] : [factoryRowOf(tier, factoriesNeeded, nodes, context)]
   })
-  return [...factoryRows, ...extractionRowsOf(nodes, context)]
 }
 
-function totalPlanetsOf(rows: (FactoryPlanetRow | ExtractionPlanetRow)[]): number {
+function chainRowsOf(trees: TreeNode[], nodes: TreeNode[], context: PlanetContext): ChainPlanetRow[] {
+  const row = chainRowOf(trees, nodes, { catalog: context.catalog, days: context.days, volumeOf: typeId => volumeOf(typeId, context.index) })
+  return row === null ? [] : [row]
+}
+
+function planetRowsOf(trees: TreeNode[], planetMode: EffectivePlanetMode, context: PlanetContext): PlanetRow[] {
+  const nodes = trees.flatMap(activeNodes)
+  const hostingRows = planetMode === 'wholeChain' ? chainRowsOf(trees, nodes, context) : factoryRowsOf(nodes, context)
+  return [...hostingRows, ...extractionRowsOf(nodes, context)]
+}
+
+function totalPlanetsOf(rows: PlanetRow[]): number {
   return rows.reduce((total, row) => total + (row.planets === null ? 0 : row.planets), 0)
 }
 
-function isIncomplete(rows: (FactoryPlanetRow | ExtractionPlanetRow)[]): boolean {
+function isIncomplete(rows: PlanetRow[]): boolean {
   return rows.some(row => row.planets === null)
+}
+
+function chainIsPreferred(chain: ChainPlanetRow | undefined, factoryRows: FactoryPlanetRow[]): boolean {
+  if (chain === undefined || chain.tiers.length < MIN_TIERS_FOR_AUTO_CHAIN || chain.status !== 'ok' || chain.planets === null) return false
+  if (factoryRows.some(row => row.planets === null)) return true
+  return chain.planets <= totalPlanetsOf(factoryRows)
+}
+
+function effectivePlanetModeOf(planetMode: PlanetMode, trees: TreeNode[], context: PlanetContext): EffectivePlanetMode {
+  if (planetMode !== 'auto') return planetMode
+  const nodes = trees.flatMap(activeNodes)
+  return chainIsPreferred(chainRowsOf(trees, nodes, context)[0], factoryRowsOf(nodes, context)) ? 'wholeChain' : 'perTier'
 }
 
 function openSlotsOf(row: FactoryPlanetRow | undefined): number {
@@ -271,8 +301,8 @@ function openSlotsOf(row: FactoryPlanetRow | undefined): number {
   return row.planets * row.layout.factories - row.factoriesNeeded
 }
 
-function allocationsOf(rows: (FactoryPlanetRow | ExtractionPlanetRow)[], previousRows: (FactoryPlanetRow | ExtractionPlanetRow)[]): TierAllocation[] {
-  const factoryRows = (list: (FactoryPlanetRow | ExtractionPlanetRow)[]) => list.filter((row): row is FactoryPlanetRow => row.role === 'factory')
+function allocationsOf(rows: PlanetRow[], previousRows: PlanetRow[]): TierAllocation[] {
+  const factoryRows = (list: PlanetRow[]) => list.filter((row): row is FactoryPlanetRow => row.role === 'factory')
   const previousByTier = new Map(factoryRows(previousRows).map(row => [row.tier, row]))
 
   return factoryRows(rows).flatMap(row => {
@@ -291,21 +321,20 @@ export function buildPlanetPlan(
   settings: PlannerSettings,
   account: PlannerAccount | null,
   overrides: Record<number, number>,
+  planetMode: PlanetMode = 'perTier',
 ): PlanetPlan {
   const context: PlanetContext = { catalog, index: indexCatalog(catalog), days: settings.daysBetweenRounds, account, overrides }
   const { trees } = buildPlan(productions, catalog, choices, settings)
 
-  let nodes: TreeNode[] = []
-  const rowsAfterEachProduction = trees.map(tree => {
-    nodes = [...nodes, ...activeNodes(tree)]
-    return planetRowsOf(nodes, context)
-  })
+  const effectiveMode = effectivePlanetModeOf(planetMode, trees, context)
+  const rowsAfterEachProduction = trees.map((_, position) => planetRowsOf(trees.slice(0, position + 1), effectiveMode, context))
   const rows = rowsAfterEachProduction.length === 0 ? [] : rowsAfterEachProduction[rowsAfterEachProduction.length - 1]
   const totalsAfterEachProduction = rowsAfterEachProduction.map(totalPlanetsOf)
   const totalPlanets = totalPlanetsOf(rows)
   const accountMax = accountMaxPlanets(account)
 
   return {
+    planetMode: effectiveMode,
     rows,
     totalPlanets,
     incomplete: isIncomplete(rows),
