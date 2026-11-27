@@ -163,7 +163,7 @@ final class PlanetaryRevenueCalculatorTest extends TestCase
         );
     }
 
-    public function testAProducingColonyOfACharacterWithoutAnySaleInThePeriodIsToFix(): void
+    public function testProducingColoniesOfCharactersThatDoNotSellAreNotToFixWhileAnotherCharacterOfTheAccountSells(): void
     {
         $selling = $this->character(2112000001, 'Pilot One');
         $silent = $this->character(2112000002, 'Pilot Two');
@@ -173,8 +173,24 @@ final class PlanetaryRevenueCalculatorTest extends TestCase
             [$this->factoryColony($selling, 40000001), $this->factoryColony($silent, 40000002), $this->emptyColony($silent, 40000003)],
         );
 
+        $this->assertSame([], $report['toFix']);
+    }
+
+    public function testEveryProducingColonyOfTheAccountIsToFixWhenNoCharacterSoldAnythingInThePeriod(): void
+    {
+        $first = $this->character(2112000001, 'Pilot One');
+        $second = $this->character(2112000002, 'Pilot Two');
+        $report = $this->report(
+            [$this->sale($first, self::COOLANT, 1, 1_000.0, '2026-11-10T08:00:00+00:00')],
+            [$first, $second],
+            [$this->factoryColony($first, 40000001), $this->factoryColony($second, 40000002), $this->emptyColony($second, 40000003)],
+        );
+
         $this->assertSame(
-            [['characterId' => 2112000002, 'characterName' => 'Pilot Two', 'planetId' => 40000002, 'planetName' => 'Planet 40000002', 'solarSystemName' => 'Jita']],
+            [
+                ['characterId' => 2112000001, 'characterName' => 'Pilot One', 'planetId' => 40000001, 'planetName' => 'Planet 40000001', 'solarSystemName' => 'Jita'],
+                ['characterId' => 2112000002, 'characterName' => 'Pilot Two', 'planetId' => 40000002, 'planetName' => 'Planet 40000002', 'solarSystemName' => 'Jita'],
+            ],
             $report['toFix'],
         );
     }
