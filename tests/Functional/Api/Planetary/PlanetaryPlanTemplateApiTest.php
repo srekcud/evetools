@@ -68,7 +68,7 @@ final class PlanetaryPlanTemplateApiTest extends WebTestCase
             'name' => 'Coolant and robotics',
             'productions' => [['typeId' => self::COOLANT, 'targetPerDay' => 120], ['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]],
             'choices' => [self::WATER => 'buy', self::ROBOTICS => 'produce'],
-            'settings' => ['priceSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6],
+            'settings' => ['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6],
         ]);
         $this->actAs($this->alice);
 
@@ -81,7 +81,7 @@ final class PlanetaryPlanTemplateApiTest extends WebTestCase
         self::assertSame('Coolant and robotics', $created['name']);
         self::assertSame([['typeId' => self::COOLANT, 'targetPerDay' => 120], ['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]], $created['productions']);
         self::assertSame([(string) self::WATER => 'buy', (string) self::ROBOTICS => 'produce'], $created['choices']);
-        self::assertSame(['priceSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], $created['settings']);
+        self::assertSame(['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], $created['settings']);
         self::assertNotSame('', $created['createdAt']);
         self::assertEqualsWithDelta(time(), (new \DateTimeImmutable($created['createdAt']))->getTimestamp(), 120);
         self::assertSame([$created], $listed);
@@ -148,7 +148,8 @@ final class PlanetaryPlanTemplateApiTest extends WebTestCase
         yield 'a raw resource as production' => [static fn (array $body): array => [...$body, 'productions' => [['typeId' => self::AQUEOUS_LIQUIDS, 'targetPerDay' => 120]]]];
         yield 'a choice of maybe' => [static fn (array $body): array => [...$body, 'choices' => [self::WATER => 'maybe']]];
         yield 'a choice on a type outside planetary interaction' => [static fn (array $body): array => [...$body, 'choices' => [self::TRITANIUM => 'buy']]];
-        yield 'a price source that does not exist' => [static fn (array $body): array => [...$body, 'settings' => [...$body['settings'], 'priceSource' => 'jita-mid']]];
+        yield 'a purchase source that does not exist' => [static fn (array $body): array => [...$body, 'settings' => [...$body['settings'], 'purchaseSource' => 'jita-mid']]];
+        yield 'the best price as sale source' => [static fn (array $body): array => [...$body, 'settings' => [...$body['settings'], 'saleSource' => 'best']]];
         yield 'a tax of 101' => [static fn (array $body): array => [...$body, 'settings' => [...$body['settings'], 'taxPercent' => 101]]];
         yield 'a negative tax' => [static fn (array $body): array => [...$body, 'settings' => [...$body['settings'], 'taxPercent' => -1]]];
         yield 'a delay of 0.4 day' => [static fn (array $body): array => [...$body, 'settings' => [...$body['settings'], 'daysBetweenRounds' => 0.4]]];
@@ -167,8 +168,13 @@ final class PlanetaryPlanTemplateApiTest extends WebTestCase
 
             return $body;
         }];
-        yield 'no price source' => [static function (array $body): array {
-            unset($body['settings']['priceSource']);
+        yield 'no purchase source' => [static function (array $body): array {
+            unset($body['settings']['purchaseSource']);
+
+            return $body;
+        }];
+        yield 'no sale source' => [static function (array $body): array {
+            unset($body['settings']['saleSource']);
 
             return $body;
         }];
@@ -378,7 +384,7 @@ final class PlanetaryPlanTemplateApiTest extends WebTestCase
             'name' => 'Coolant line',
             'productions' => [['typeId' => self::COOLANT, 'targetPerDay' => 120]],
             'choices' => [self::WATER => 'buy'],
-            'settings' => ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4],
+            'settings' => ['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4],
         ], ...$overrides];
     }
 

@@ -66,7 +66,7 @@ final class CreatePlanTemplateProcessorTest extends TestCase
         $input->name = 'Barren coolant line';
         $input->productions = [['typeId' => self::COOLANT, 'targetPerDay' => 120], ['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]];
         $input->choices = [self::PLASMOIDS => 'buy', self::ROBOTICS => 'produce'];
-        $input->settings = ['priceSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6];
+        $input->settings = ['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6];
 
         $resource = $this->processor($entityManager)->process($input, new Post());
 
@@ -76,12 +76,12 @@ final class CreatePlanTemplateProcessorTest extends TestCase
         $this->assertSame('Barren coolant line', $persisted[0]->getName());
         $this->assertSame([['typeId' => self::COOLANT, 'targetPerDay' => 120], ['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]], $persisted[0]->getProductions());
         $this->assertSame([self::PLASMOIDS => 'buy', self::ROBOTICS => 'produce'], $persisted[0]->getChoices());
-        $this->assertSame(['priceSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], $persisted[0]->getSettings());
+        $this->assertSame(['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], $persisted[0]->getSettings());
         $this->assertInstanceOf(PlanetaryPlanTemplateResource::class, $resource);
         $this->assertSame('Barren coolant line', $resource->name);
         $this->assertSame([['typeId' => self::COOLANT, 'targetPerDay' => 120], ['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]], $resource->productions);
         $this->assertSame([self::PLASMOIDS => 'buy', self::ROBOTICS => 'produce'], $resource->choices);
-        $this->assertSame(['priceSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], $resource->settings);
+        $this->assertSame(['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], $resource->settings);
         $this->assertSame($persisted[0]->getCreatedAt()->format('c'), $resource->createdAt);
     }
 
@@ -159,8 +159,11 @@ final class CreatePlanTemplateProcessorTest extends TestCase
         yield 'half a day between rounds' => [static function (CreatePlanTemplateInput $input): void {
             $input->settings['daysBetweenRounds'] = 0.5;
         }];
-        yield 'the Jita sell source' => [static function (CreatePlanTemplateInput $input): void {
-            $input->settings['priceSource'] = 'jita-sell';
+        yield 'the best price as purchase source' => [static function (CreatePlanTemplateInput $input): void {
+            $input->settings['purchaseSource'] = 'best';
+        }];
+        yield 'the hub as sale source' => [static function (CreatePlanTemplateInput $input): void {
+            $input->settings['saleSource'] = 'hub';
         }];
         yield 'one billion units a day' => [static function (CreatePlanTemplateInput $input): void {
             $input->productions[0]['targetPerDay'] = 1_000_000_000;
@@ -300,10 +303,13 @@ final class CreatePlanTemplateProcessorTest extends TestCase
      */
     public static function invalidSettings(): iterable
     {
-        $valid = ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4];
+        $valid = ['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4];
 
-        yield 'an unknown price source' => [array_replace($valid, ['priceSource' => 'jita-mid'])];
-        yield 'a price source in capitals' => [array_replace($valid, ['priceSource' => 'JITA-SELL'])];
+        yield 'an unknown purchase source' => [array_replace($valid, ['purchaseSource' => 'jita-mid'])];
+        yield 'a purchase source in capitals' => [array_replace($valid, ['purchaseSource' => 'JITA-SELL'])];
+        yield 'the best price as sale source' => [array_replace($valid, ['saleSource' => 'best'])];
+        yield 'the paid price as sale source' => [array_replace($valid, ['saleSource' => 'paid'])];
+        yield 'the former price source key' => [[...$valid, 'priceSource' => 'jita-sell']];
         yield 'a tax just below 0' => [array_replace($valid, ['taxPercent' => -0.1])];
         yield 'a tax of 101' => [array_replace($valid, ['taxPercent' => 101])];
         yield 'a tax just above 100' => [array_replace($valid, ['taxPercent' => 100.01])];
@@ -317,9 +323,10 @@ final class CreatePlanTemplateProcessorTest extends TestCase
         yield 'an infinite delay' => [array_replace($valid, ['daysBetweenRounds' => INF])];
         yield 'a delay that is not a number' => [array_replace($valid, ['daysBetweenRounds' => NAN])];
         yield 'a delay written as a string' => [array_replace($valid, ['daysBetweenRounds' => '4'])];
-        yield 'no price source' => [['taxPercent' => 4, 'daysBetweenRounds' => 4]];
-        yield 'no tax' => [['priceSource' => 'jita-sell', 'daysBetweenRounds' => 4]];
-        yield 'no delay' => [['priceSource' => 'jita-sell', 'taxPercent' => 4]];
+        yield 'no purchase source' => [['saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4]];
+        yield 'no sale source' => [['purchaseSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4]];
+        yield 'no tax' => [['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'daysBetweenRounds' => 4]];
+        yield 'no delay' => [['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 4]];
         yield 'no settings at all' => [[]];
     }
 
@@ -395,7 +402,7 @@ final class CreatePlanTemplateProcessorTest extends TestCase
         $input->name = 'Coolant and robotics';
         $input->productions = [['typeId' => self::COOLANT, 'targetPerDay' => 120]];
         $input->choices = [self::PLASMOIDS => 'buy'];
-        $input->settings = ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4];
+        $input->settings = ['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4];
 
         return $input;
     }
