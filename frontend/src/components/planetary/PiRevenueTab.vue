@@ -23,6 +23,7 @@ import {
 const PERIOD_OPTIONS = [7, 30, 90] as const
 const DEFAULT_PERIOD_DAYS = 30
 
+const emit = defineEmits<{ 'open-planner': [] }>()
 const { t } = useI18n()
 const planetaryStore = usePlanetaryStore()
 const plannerStore = usePlanetaryPlannerStore()
@@ -130,7 +131,7 @@ watch(selectedDays, days => planetaryStore.fetchRevenue(days))
         :title="t('pi.revenue.sellOrders.title')"
         :empty="t('pi.revenue.sellOrders.empty')"
       />
-      <PiProductionProfitGrid v-if="productionProfit !== null" :profit="productionProfit" />
+      <PiProductionProfitGrid v-if="productionProfit !== null" :profit="productionProfit" @open-planner="emit('open-planner')" />
 
       <RevenueTodoPanel :items="todoItems" />
     </template>

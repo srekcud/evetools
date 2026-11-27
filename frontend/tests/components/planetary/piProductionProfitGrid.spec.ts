@@ -20,6 +20,7 @@ function line(overrides: Partial<ProductionProfitLine>): ProductionProfitLine {
     marginPercent: 56,
     valuesExtractedAtHubBuy: false,
     jitaIsk: 8_000_000,
+    ifSold: null,
     ...overrides,
   }
 }
@@ -87,6 +88,57 @@ describe('PiProductionProfitGrid', () => {
 
     expect(row.get('[data-cell="profit"]').attributes('data-state')).toBe('internal')
     expect(row.get('[data-cell="profit"]').text()).toBe('Internal step, margin counted on the final product')
+  })
+
+  it('shows the margin an internal step would have if sold next to the current wording, and none on a sold line', () => {
+    const internal = line({
+      typeId: 2390,
+      typeName: 'Plasmoids',
+      tier: 'P1',
+      soldQuantity: 0,
+      internal: true,
+      salesIsk: 0,
+      inputsIsk: null,
+      profitPerDay: null,
+      marginPercent: null,
+      jitaIsk: 0,
+      ifSold: { salesIsk: 2_000_000, inputsIsk: 800_000, profitPerDay: 1_200_000, marginPercent: 60 },
+    })
+    const wrapper = mountGrid(profit({ lines: [line({}), internal] }))
+
+    const internalRow = wrapper.get('[data-testid="profit-line"][data-type-id="2390"]')
+    expect(internalRow.get('[data-cell="profit"]').text()).toBe('Internal step, margin counted on the final product')
+    const ifSold = internalRow.get('[data-testid="profit-if-sold"]').text()
+    expect(ifSold).toContain('1.20M')
+    expect(ifSold).toContain('60 %')
+    expect(wrapper.get('[data-testid="profit-line"][data-type-id="9832"]').find('[data-testid="profit-if-sold"]').exists()).toBe(false)
+  })
+
+  it('shows an unknown margin if sold as unknown and never as zero', () => {
+    const internal = line({
+      typeId: 2390,
+      internal: true,
+      soldQuantity: 0,
+      salesIsk: 0,
+      inputsIsk: null,
+      profitPerDay: null,
+      marginPercent: null,
+      ifSold: { salesIsk: null, inputsIsk: 800_000, profitPerDay: null, marginPercent: null },
+    })
+    const wrapper = mountGrid(profit({ lines: [internal] }))
+
+    const ifSold = wrapper.get('[data-testid="profit-if-sold"]')
+    expect(ifSold.attributes('data-state')).toBe('unknown')
+    expect(ifSold.text()).toContain('unknown')
+    expect(ifSold.text()).not.toContain('0 %')
+  })
+
+  it('opens the what-to-produce ranking from the grid', async () => {
+    const wrapper = mountGrid(profit())
+
+    await wrapper.get('[data-testid="profit-open-ranking"]').trigger('click')
+
+    expect(wrapper.emitted('open-planner')).toHaveLength(1)
   })
 
   it('shows the known total, the taxes per day and the net profit', () => {
