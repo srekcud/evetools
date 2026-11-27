@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '@/utils/planetaryPlanner'
 import { evaluateTemplate } from '@/utils/planetaryTemplates'
 import {
   AQUEOUS_LIQUIDS,
@@ -5,6 +6,7 @@ import {
   PLANNER_ACCOUNT,
   PLANNER_CATALOG,
   RANKING_PRODUCT_B,
+  ROBOTICS,
   WATER,
   withSellPrices,
 } from '../planetaryPlannerFixtures'
@@ -67,6 +69,18 @@ describe('evaluateTemplate with explicit choices and saved settings', () => {
 
     expect([made.planets, made.profitPerDay, made.profitPerWeek, made.profitPerMonth, made.weeklyPurchasesIsk]).toEqual([2, -14_400, -100_800, -432_000, 940_800])
     expect([bought.planets, bought.profitPerDay, bought.profitPerWeek, bought.profitPerMonth, bought.weeklyPurchasesIsk]).toEqual([1, -72_000, -504_000, -2_160_000, 1_344_000])
+  })
+})
+
+describe('evaluateTemplate with a planet mode', () => {
+  it('counts 1 planet for Robotics 72 a day in the whole chain mode and 2 in the per tier mode, which stays the default without a fifth argument', () => {
+    const robotics = makeTemplate('tpl-robotics', 'Robotics line', [{ typeId: ROBOTICS, targetPerDay: 72 }], {}, DEFAULT_SETTINGS)
+
+    const wholeChain = evaluateTemplate(robotics, PLANNER_CATALOG, null, NO_OVERRIDES, 'wholeChain')
+    const perTier = evaluateTemplate(robotics, PLANNER_CATALOG, null, NO_OVERRIDES, 'perTier')
+    const withoutMode = evaluateTemplate(robotics, PLANNER_CATALOG, null, NO_OVERRIDES)
+
+    expect([wholeChain.planets, perTier.planets, withoutMode.planets]).toEqual([1, 2, 2])
   })
 })
 
