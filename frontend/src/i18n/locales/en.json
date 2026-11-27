@@ -966,6 +966,10 @@
       "fillDays": "fill ~{days} days",
       "loadingRoutes": "Loading routes..."
     },
+    "tierFilter": {
+      "label": "Filter by tier",
+      "all": "All"
+    },
     "legend": {
       "piTiers": "PI Tiers",
       "moreThan24h": "> 24h",

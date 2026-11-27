@@ -5,9 +5,11 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import PiSupplyPendingBlocks from '@/components/planetary/PiSupplyPendingBlocks.vue'
 import PiTierBadge from '@/components/planetary/PiTierBadge.vue'
+import PiTierFilter from '@/components/planetary/PiTierFilter.vue'
 import { useCopyFeedback } from '@/composables/useCopyFeedback'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import { usePlanetaryTierFilter } from '@/composables/usePlanetaryTierFilter'
 import { usePlanetaryTiers } from '@/composables/usePlanetaryTiers'
 import { usePlanetaryStore } from '@/stores/planetary'
 import { usePlanetarySupplyStore } from '@/stores/planetarySupply'
@@ -25,6 +27,7 @@ const { copied, failed, copy } = useCopyFeedback()
 const planetaryStore = usePlanetaryStore()
 const supplyStore = usePlanetarySupplyStore()
 const { tierOf, ensureCatalog } = usePlanetaryTiers()
+const { selectedTier, matchesTier } = usePlanetaryTierFilter()
 
 const daysInput = ref<string | number>(DEFAULT_SUPPLY_DAYS)
 
@@ -35,6 +38,8 @@ const isDaysValid = computed(() => rawDays.value !== '' && isValidSupplyDays(day
 const launchpads = computed(() => supplyStore.data?.launchpads ?? [])
 const hasFedLaunchpad = computed(() => launchpads.value.some(launchpad => launchpad.feeds.length > 0))
 const grid = computed(() => buildSupplyGrid(launchpads.value, isDaysValid.value ? days.value : Number.NaN))
+
+const visibleColumns = computed(() => grid.value.columns.filter(column => matchesTier(column.typeId)))
 
 const totalByType = computed(() => new Map(grid.value.totals.map(total => [total.typeId, total.quantity])))
 const typeNameById = computed(() => new Map(grid.value.columns.map(column => [column.typeId, column.typeName])))
@@ -185,13 +190,15 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
           }) }}
         </p>
 
+        <PiTierFilter v-model="selectedTier" test-id="supply-tier-filter" />
+
         <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900">
           <table class="w-full text-sm" data-testid="pi-supply-grid">
             <thead>
               <tr class="border-b border-slate-800 text-left text-xs uppercase tracking-wider text-slate-500">
                 <th class="px-4 py-3 font-medium">{{ t('pi.supply.launchpad') }}</th>
                 <th
-                  v-for="column in grid.columns"
+                  v-for="column in visibleColumns"
                   :key="column.typeId"
                   class="max-w-40 px-3 py-3 text-right font-medium"
                 >
@@ -223,7 +230,7 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
                   <div v-if="characterOf(row.colonyId) !== null" class="truncate text-xs text-cyan-400" :title="characterOf(row.colonyId) ?? ''" data-testid="pi-supply-row-character">{{ characterOf(row.colonyId) }}</div>
                 </td>
                 <td
-                  v-for="column in grid.columns"
+                  v-for="column in visibleColumns"
                   :key="column.typeId"
                   class="px-3 py-2 text-right font-mono-tech text-slate-200"
                   data-testid="pi-supply-cell"
@@ -253,7 +260,7 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
               <tr class="bg-slate-950/60 text-slate-100">
                 <td class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-cyan-400">{{ t('pi.supply.total') }}</td>
                 <td
-                  v-for="column in grid.columns"
+                  v-for="column in visibleColumns"
                   :key="column.typeId"
                   class="px-3 py-3 text-right font-mono-tech font-semibold"
                   data-testid="pi-supply-total-cell"
