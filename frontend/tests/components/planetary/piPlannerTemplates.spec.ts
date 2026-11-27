@@ -179,7 +179,7 @@ describe('PiPlannerTemplates save controls', () => {
       name: 'Coolant mix',
       productions: [{ typeId: RANKING_PRODUCT_B, targetPerDay: 40 }],
       choices: {},
-      settings: { priceSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 },
+      settings: { purchaseSource: 'jita-sell', saleSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 },
     }])
     expect(templateRows(wrapper).map(row => row.attributes('data-template-id'))).toEqual(['tpl-new', 'tpl-mix'])
     expect(cellOfTemplate(wrapper, 'tpl-new', 'template-name').text()).toBe('Coolant mix')

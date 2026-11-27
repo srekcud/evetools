@@ -74,16 +74,16 @@ export const PLANNER_CATALOG: PlannerCatalog = {
     { typeId: BROADCAST_NODE, name: 'Broadcast Node', tier: 'P4', volume: 100 },
   ],
   prices: [
-    { typeId: AQUEOUS_LIQUIDS, sell: 6, buy: 5 },
-    { typeId: BASE_METALS, sell: 7, buy: 6 },
-    { typeId: HEAVY_METALS, sell: 8, buy: 7 },
-    { typeId: WATER, sell: 60, buy: 50 },
-    { typeId: REACTIVE_METALS, sell: 140, buy: 120 },
-    { typeId: TOXIC_METALS, sell: 75, buy: 70 },
-    { typeId: COOLANT, sell: 1000, buy: 900 },
-    { typeId: MECHANICAL_PARTS, sell: 2200, buy: 2000 },
-    { typeId: ROBOTICS, sell: 30000, buy: 28000 },
-    { typeId: BROADCAST_NODE, sell: 900000, buy: 850000 },
+    { typeId: AQUEOUS_LIQUIDS, sell: 6, buy: 5, hub: null, paid: null },
+    { typeId: BASE_METALS, sell: 7, buy: 6, hub: null, paid: null },
+    { typeId: HEAVY_METALS, sell: 8, buy: 7, hub: null, paid: null },
+    { typeId: WATER, sell: 60, buy: 50, hub: null, paid: null },
+    { typeId: REACTIVE_METALS, sell: 140, buy: 120, hub: null, paid: null },
+    { typeId: TOXIC_METALS, sell: 75, buy: 70, hub: null, paid: null },
+    { typeId: COOLANT, sell: 1000, buy: 900, hub: null, paid: null },
+    { typeId: MECHANICAL_PARTS, sell: 2200, buy: 2000, hub: null, paid: null },
+    { typeId: ROBOTICS, sell: 30000, buy: 28000, hub: null, paid: null },
+    { typeId: BROADCAST_NODE, sell: 900000, buy: 850000, hub: null, paid: null },
   ],
   planetTypes: PLANET_TYPES,
   extractionPlanetTypes: EXTRACTION_PLANET_TYPES,
@@ -108,6 +108,15 @@ export function withSellPrices(catalog: PlannerCatalog, sellByTypeId: Record<num
     prices: catalog.prices.map((price: PlannerPrice) => (price.typeId in sellByTypeId ? { ...price, sell: sellByTypeId[price.typeId] as number | null } : price)),
   }
 }
+
+export function withPrices(catalog: PlannerCatalog, changesByTypeId: Record<number, Partial<Omit<PlannerPrice, 'typeId'>>>): PlannerCatalog {
+  return {
+    ...catalog,
+    prices: catalog.prices.map((price: PlannerPrice) => (price.typeId in changesByTypeId ? { ...price, ...changesByTypeId[price.typeId] } : price)),
+  }
+}
+
+export const PLANNER_HUB = { structureId: 1_040_000_000_001, structureName: 'Keepstar Test Hub', hasData: true }
 
 export function withTypeName(catalog: PlannerCatalog, typeId: number, name: string): PlannerCatalog {
   return { ...catalog, types: catalog.types.map(type => (type.typeId === typeId ? { ...type, name } : type)) }
@@ -178,9 +187,9 @@ export const RANKING_CATALOG: PlannerCatalog = {
     { typeId: RANKING_PRODUCT_B, name: 'Ranking Product B', tier: 'P2', volume: 0.01 },
   ],
   prices: [
-    { typeId: RANKING_INPUT_A, sell: 20, buy: 18 },
-    { typeId: RANKING_INPUT_C, sell: 30, buy: 27 },
-    { typeId: RANKING_PRODUCT_B, sell: 1_000, buy: 900 },
+    { typeId: RANKING_INPUT_A, sell: 20, buy: 18, hub: null, paid: null },
+    { typeId: RANKING_INPUT_C, sell: 30, buy: 27, hub: null, paid: null },
+    { typeId: RANKING_PRODUCT_B, sell: 1_000, buy: 900, hub: null, paid: null },
   ],
   planetTypes: [RANKING_PLANET_TYPE],
   extractionPlanetTypes: [],
@@ -207,7 +216,7 @@ export function catalogWithP2Products(count: number): PlannerCatalog {
     ],
     prices: [
       ...RANKING_CATALOG.prices.filter(price => price.typeId === RANKING_INPUT_A || price.typeId === RANKING_INPUT_C),
-      ...generated.map((typeId, position) => ({ typeId, sell: 500 + 37 * position, buy: 450 + 31 * position })),
+      ...generated.map((typeId, position) => ({ typeId, sell: 500 + 37 * position, buy: 450 + 31 * position, hub: null, paid: null })),
     ],
   }
 }

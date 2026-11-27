@@ -377,11 +377,14 @@ describe('PiPlannerTab', () => {
     const wrapper = await mountTab()
     await addProduction(wrapper, ROBOTICS)
 
-    await wrapper.get('[data-source="jita-buy"]').trigger('click')
+    await wrapper.get('[data-testid="purchase-source-jita-buy"]').trigger('click')
+    await wrapper.get('[data-testid="sale-source-jita-buy"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-source="jita-buy"]').attributes('aria-pressed')).toBe('true')
-    expect(wrapper.get('[data-source="jita-sell"]').attributes('aria-pressed')).toBe('false')
+    expect(wrapper.get('[data-testid="purchase-source-jita-buy"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-testid="sale-source-jita-buy"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-testid="purchase-source-jita-sell"]').attributes('aria-pressed')).toBe('false')
+    expect(wrapper.get('[data-testid="sale-source-jita-sell"]').attributes('aria-pressed')).toBe('false')
     expect(summaryText(wrapper, 'summary-unit-cost')).toBe('9.24 K')
     expect(summaryText(wrapper, 'summary-profit')).toBe('1.35 M')
     expect(summaryText(wrapper, 'summary-purchases')).toMatch(/(?<![\d.,])3\.90 M(?![\d.,])/)

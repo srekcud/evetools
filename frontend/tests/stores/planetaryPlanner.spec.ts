@@ -110,9 +110,10 @@ describe('planetaryPlanner store actions', () => {
     store.setChoice(MECHANICAL_PARTS, 'buy')
     expect(store.plan?.summary.unitCost[0]).toBeCloseTo(1640, 6)
 
-    store.setPriceSource('jita-buy')
+    store.setPurchaseSource('jita-buy')
+    store.setSaleSource('jita-buy')
 
-    expect(store.settings.priceSource).toBe('jita-buy')
+    expect(store.settings).toEqual({ purchaseSource: 'jita-buy', saleSource: 'jita-buy', taxPercent: 4, daysBetweenRounds: 4 })
     expect(store.choices).toEqual({ [MECHANICAL_PARTS]: 'buy' })
     expect(store.plan?.summary.unitCost[0]).toBeCloseTo(1396, 6)
   })
@@ -196,7 +197,7 @@ describe('planetaryPlanner store choices and settings', () => {
     expect(refused).toEqual([false, false, false, false])
     expect(kept).toBe(4)
     expect(accepted).toBe(true)
-    expect(store.settings).toEqual({ priceSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 0.5 })
+    expect(store.settings).toEqual({ purchaseSource: 'jita-sell', saleSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 0.5 })
     expect(store.plan?.summary).toEqual(planBefore)
   })
 

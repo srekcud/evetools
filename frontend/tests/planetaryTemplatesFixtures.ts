@@ -5,7 +5,7 @@ import { RANKING_CATALOG, RANKING_INPUT_A, RANKING_INPUT_C, RANKING_PRODUCT_B } 
 export const TEMPLATE_PRODUCT_M = 92_031
 export const VANISHED_PRODUCT = 99_999
 
-export const DEFAULT_TEMPLATE_SETTINGS: PlannerSettings = { priceSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 }
+export const DEFAULT_TEMPLATE_SETTINGS: PlannerSettings = { purchaseSource: 'jita-sell', saleSource: 'jita-sell', taxPercent: 4, daysBetweenRounds: 4 }
 
 export const TEMPLATE_CATALOG: PlannerCatalog = {
   ...RANKING_CATALOG,
@@ -14,7 +14,7 @@ export const TEMPLATE_CATALOG: PlannerCatalog = {
     { outputTypeId: TEMPLATE_PRODUCT_M, outputQuantity: 4, cycleSeconds: 7_200, inputs: [{ typeId: RANKING_INPUT_A, quantity: 30 }, { typeId: RANKING_INPUT_C, quantity: 10 }] },
   ],
   types: [...RANKING_CATALOG.types, { typeId: TEMPLATE_PRODUCT_M, name: 'Ranking Product M', tier: 'P2', volume: 0.05 }],
-  prices: [...RANKING_CATALOG.prices, { typeId: TEMPLATE_PRODUCT_M, sell: 700, buy: 600 }],
+  prices: [...RANKING_CATALOG.prices, { typeId: TEMPLATE_PRODUCT_M, sell: 700, buy: 600, hub: null, paid: null }],
 }
 
 export function makeTemplate(
@@ -40,7 +40,7 @@ export const TEMPLATE_B_AND_M = makeTemplate(
   'B and M mix',
   [{ typeId: RANKING_PRODUCT_B, targetPerDay: 60 }, { typeId: TEMPLATE_PRODUCT_M, targetPerDay: 18 }],
   { [RANKING_PRODUCT_B]: 'produce', [TEMPLATE_PRODUCT_M]: 'buy' },
-  { priceSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
+  { purchaseSource: 'jita-buy', saleSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
   '2026-11-22T18:30:00+00:00',
 )
 
