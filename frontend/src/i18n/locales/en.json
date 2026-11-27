@@ -838,6 +838,8 @@
         "jita": "Jita theoretical",
         "unknown": "unknown",
         "internal": "Internal step, margin counted on the final product",
+        "ifSold": "If sold: {profit}/day, margin {margin}",
+        "openRanking": "See the What to produce ranking",
         "totalKnown": "Known total",
         "taxes": "POCO taxes per day (last {n} days)",
         "net": "Net profit per day",

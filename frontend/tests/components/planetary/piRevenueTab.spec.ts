@@ -55,6 +55,7 @@ const PRODUCTION_PROFIT: PlanetaryProductionProfit = {
       marginPercent: 57.14,
       valuesExtractedAtHubBuy: false,
       jitaIsk: 80_000,
+      ifSold: null,
     },
   ],
   salesIsk: 70_000,
@@ -289,5 +290,13 @@ describe('PiRevenueTab', () => {
 
     expect(wrapper.get('[data-testid="sell-orders-card"]').text()).toContain('Mes ordres de vente PI')
     expect(wrapper.get('[data-testid="sell-orders-empty"]').text()).toBe('Aucun ordre de vente pour les produits PI que tu fabriques.')
+  })
+
+  it('forwards the request to open the what-to-produce ranking', async () => {
+    const wrapper = await mountTab()
+
+    await wrapper.get('[data-testid="profit-open-ranking"]').trigger('click')
+
+    expect(wrapper.emitted('open-planner')).toHaveLength(1)
   })
 })

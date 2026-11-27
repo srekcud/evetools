@@ -30,7 +30,7 @@ final readonly class PlanetaryProductionProfitCalculator
     /**
      * @return array{
      *     hub: array{structureId: int, structureName: string, hasData: bool},
-     *     lines: list<array{typeId: int, typeName: string|null, tier: string, dailyQuantity: float, soldQuantity: float, internal: bool, hubSellPrice: float|null, salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null, valuesExtractedAtHubBuy: bool, jitaIsk: float|null}>,
+     *     lines: list<array{typeId: int, typeName: string|null, tier: string, dailyQuantity: float, soldQuantity: float, internal: bool, hubSellPrice: float|null, salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null, valuesExtractedAtHubBuy: bool, jitaIsk: float|null, ifSold: array{salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null}|null}>,
      *     salesIsk: float,
      *     inputsIsk: float,
      *     profitPerDay: float,
@@ -118,7 +118,7 @@ final readonly class PlanetaryProductionProfitCalculator
 
     /**
      * @param array{tier: string, typeName: string|null, dailyQuantity: float, sellable: float, unitPrice: float|null, jitaIsk: float, inputs: array<int, float>} $item
-     * @return array{typeId: int, typeName: string|null, tier: string, dailyQuantity: float, soldQuantity: float, internal: bool, hubSellPrice: float|null, salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null, valuesExtractedAtHubBuy: bool, jitaIsk: float|null}
+     * @return array{typeId: int, typeName: string|null, tier: string, dailyQuantity: float, soldQuantity: float, internal: bool, hubSellPrice: float|null, salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null, valuesExtractedAtHubBuy: bool, jitaIsk: float|null, ifSold: array{salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null}|null}
      */
     private function lineOf(array $item, int $typeId, ?float $hubSellPrice, PlanetaryProductionCosting $costing): array
     {
@@ -144,6 +144,25 @@ final readonly class PlanetaryProductionProfitCalculator
             'marginPercent' => $profit !== null && $salesIsk > 0.0 ? round($profit / $salesIsk * self::PERCENT, 2) : null,
             'valuesExtractedAtHubBuy' => $unitCost !== null && $unitCost['extracted'],
             'jitaIsk' => $item['unitPrice'] === null ? null : $item['jitaIsk'],
+            'ifSold' => $internal ? $this->marginIfSold($item['dailyQuantity'], $hubSellPrice, $costing->unitCostOf($typeId)) : null,
+        ];
+    }
+
+    /**
+     * @param array{cost: float, extracted: bool}|null $unitCost
+     * @return array{salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null}
+     */
+    private function marginIfSold(float $dailyQuantity, ?float $hubSellPrice, ?array $unitCost): array
+    {
+        $salesIsk = $hubSellPrice === null ? null : round($dailyQuantity * $hubSellPrice, 2);
+        $inputsIsk = $unitCost === null ? null : round($dailyQuantity * $unitCost['cost'], 2);
+        $profit = $salesIsk === null || $inputsIsk === null ? null : round($salesIsk - $inputsIsk, 2);
+
+        return [
+            'salesIsk' => $salesIsk,
+            'inputsIsk' => $inputsIsk,
+            'profitPerDay' => $profit,
+            'marginPercent' => $profit !== null && $salesIsk > 0.0 ? round($profit / $salesIsk * self::PERCENT, 2) : null,
         ];
     }
 

@@ -85,6 +85,13 @@ export interface ExtractorYieldCurve {
   suggestedDays: number | null
 }
 
+export interface ProductionProfitIfSold {
+  salesIsk: number | null
+  inputsIsk: number | null
+  profitPerDay: number | null
+  marginPercent: number | null
+}
+
 export interface ProductionProfitLine {
   typeId: number
   typeName: string | null
@@ -99,6 +106,7 @@ export interface ProductionProfitLine {
   marginPercent: number | null
   valuesExtractedAtHubBuy: boolean
   jitaIsk: number | null
+  ifSold: ProductionProfitIfSold | null
 }
 
 export interface PlanetaryProductionProfit {

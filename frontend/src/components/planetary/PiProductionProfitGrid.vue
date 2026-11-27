@@ -3,12 +3,13 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { formatIskShort } from '@/composables/useIskParser'
-import type { PlanetaryProductionProfit, ProductionProfitLine } from '@/stores/planetary'
+import type { PlanetaryProductionProfit, ProductionProfitIfSold, ProductionProfitLine } from '@/stores/planetary'
 
 const ICON_SIZE = 32
 const UNKNOWN_HATCH = 'bg-[repeating-linear-gradient(45deg,transparent_0_6px,rgba(100,116,139,0.13)_6px_12px)]'
 
 const props = defineProps<{ profit: PlanetaryProductionProfit }>()
+const emit = defineEmits<{ 'open-planner': [] }>()
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -26,6 +27,12 @@ function optionalMoney(value: number | null): string {
 function profitState(line: ProductionProfitLine): 'internal' | 'unknown' | 'known' {
   if (line.internal) return 'internal'
   return line.profitPerDay === null ? 'unknown' : 'known'
+}
+
+function ifSoldText(ifSold: ProductionProfitIfSold): string {
+  const margin = ifSold.marginPercent === null ? t('pi.revenue.profit.unknown') : `${Math.round(ifSold.marginPercent)} %`
+
+  return t('pi.revenue.profit.ifSold', { profit: optionalMoney(ifSold.profitPerDay), margin })
 }
 
 function stateOf(value: number | null): 'unknown' | 'known' {
@@ -78,6 +85,13 @@ function profitTone(value: number | null): string {
                 <span class="truncate">{{ line.typeName ?? line.typeId }}</span>
                 <span class="rounded bg-slate-800 px-1.5 text-xs text-slate-300">{{ line.tier }}</span>
               </span>
+              <span
+                v-if="line.ifSold !== null"
+                class="mt-0.5 block pl-8 text-xs"
+                :class="line.ifSold.profitPerDay === null ? 'text-slate-500' : profitTone(line.ifSold.profitPerDay)"
+                :data-state="stateOf(line.ifSold.profitPerDay)"
+                data-testid="profit-if-sold"
+              >{{ ifSoldText(line.ifSold) }}</span>
             </td>
             <td class="px-3 py-2 text-right font-mono text-slate-300" data-cell="sold">{{ formatIskShort(line.soldQuantity) }}</td>
             <td
@@ -139,6 +153,13 @@ function profitTone(value: number | null): string {
         {{ t('pi.revenue.profit.unknownCount', { n: profit.unknownLineCount }, profit.unknownLineCount) }}
       </p>
       <p v-if="hasExtractedInput" class="text-xs text-slate-400" data-testid="profit-extracted-note">{{ t('pi.revenue.profit.extractedNote') }}</p>
+      <button
+        v-if="profit.lines.length > 0"
+        type="button"
+        class="text-xs text-cyan-300 hover:text-cyan-200 hover:underline"
+        data-testid="profit-open-ranking"
+        @click="emit('open-planner')"
+      >{{ t('pi.revenue.profit.openRanking') }}</button>
     </footer>
   </section>
 </template>

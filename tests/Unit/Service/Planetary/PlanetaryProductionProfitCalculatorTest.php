@@ -141,6 +141,64 @@ final class PlanetaryProductionProfitCalculatorTest extends TestCase
         $this->assertSame([4_200.0, 0], [$report['profitPerDay'], $report['unknownLineCount']]);
     }
 
+    public function testAnInternalStepCarriesTheMarginItWouldHaveIfSoldWithoutChangingTheTotals(): void
+    {
+        $report = $this->report(
+            items: [
+                $this->item(self::P2, 'P2', 100.0, 0.0, 100.0, [[self::MADE_P1, 200.0]]),
+                $this->item(self::MADE_P1, 'P1', 200.0, 200.0, 0.0, [[self::EXTRACTED_P0, 400.0]]),
+                $this->item(self::EXTRACTED_P0, 'P0', 500.0, 400.0, 100.0, []),
+            ],
+            hubSell: [self::P2 => 50.0, self::MADE_P1 => 10.0],
+            hubBuy: [self::EXTRACTED_P0 => 2.0],
+        );
+
+        $ifSold = $this->lineOf($report, self::MADE_P1)['ifSold'];
+
+        $this->assertSame([2_000.0, 800.0, 1_200.0, 60.0], [$ifSold['salesIsk'], $ifSold['inputsIsk'], $ifSold['profitPerDay'], $ifSold['marginPercent']]);
+        $this->assertSame([4_200.0, 0], [$report['profitPerDay'], $report['unknownLineCount']]);
+    }
+
+    public function testAnInternalStepWithoutHubPriceOrWithAnUnknownInputHasAnUnknownMarginIfSoldNeverZero(): void
+    {
+        $withoutPrice = $this->report(
+            items: [
+                $this->item(self::P2, 'P2', 100.0, 0.0, 100.0, [[self::MADE_P1, 200.0]]),
+                $this->item(self::MADE_P1, 'P1', 200.0, 200.0, 0.0, [[self::EXTRACTED_P0, 400.0]]),
+                $this->item(self::EXTRACTED_P0, 'P0', 500.0, 400.0, 100.0, []),
+            ],
+            hubSell: [self::P2 => 50.0],
+            hubBuy: [self::EXTRACTED_P0 => 2.0],
+        );
+        $withoutInput = $this->report(
+            items: [
+                $this->item(self::P2, 'P2', 100.0, 0.0, 100.0, [[self::MADE_P1, 200.0]]),
+                $this->item(self::MADE_P1, 'P1', 200.0, 200.0, 0.0, [[self::BOUGHT_P1, 400.0]]),
+            ],
+            hubSell: [self::P2 => 50.0, self::MADE_P1 => 10.0],
+        );
+
+        $noPrice = $this->lineOf($withoutPrice, self::MADE_P1)['ifSold'];
+        $noInput = $this->lineOf($withoutInput, self::MADE_P1)['ifSold'];
+
+        $this->assertSame([null, 800.0, null, null], [$noPrice['salesIsk'], $noPrice['inputsIsk'], $noPrice['profitPerDay'], $noPrice['marginPercent']]);
+        $this->assertSame([2_000.0, null, null, null], [$noInput['salesIsk'], $noInput['inputsIsk'], $noInput['profitPerDay'], $noInput['marginPercent']]);
+    }
+
+    public function testASoldProductHasNoMarginIfSold(): void
+    {
+        $report = $this->report(
+            items: [
+                $this->item(self::P2, 'P2', 100.0, 0.0, 100.0, [[self::EXTRACTED_P0, 200.0]]),
+                $this->item(self::EXTRACTED_P0, 'P0', 500.0, 200.0, 300.0, []),
+            ],
+            hubSell: [self::P2 => 50.0],
+            hubBuy: [self::EXTRACTED_P0 => 2.0],
+        );
+
+        $this->assertNull($this->lineOf($report, self::P2)['ifSold']);
+    }
+
     public function testAnInternalStepWithAnUnknownInputMakesTheFinalProductUnknownButIsNotCountedItself(): void
     {
         $report = $this->report(

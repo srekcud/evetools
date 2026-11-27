@@ -838,6 +838,8 @@
         "jita": "Théorique Jita",
         "unknown": "inconnu",
         "internal": "Étape interne, marge comptée sur le produit final",
+        "ifSold": "Si vendu : {profit}/jour, marge {margin}",
+        "openRanking": "Voir le classement Quoi produire",
         "totalKnown": "Total connu",
         "taxes": "Taxes POCO par jour ({n} derniers jours)",
         "net": "Bénéfice net par jour",
