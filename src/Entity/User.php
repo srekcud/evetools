@@ -367,6 +367,22 @@ class User implements UserInterface
         return $this;
     }
 
+    /**
+     * @return list<int>
+     */
+    public function getPlanetaryExcludedTypeIds(): array
+    {
+        return [];
+    }
+
+    /**
+     * @param list<int> $typeIds
+     */
+    public function setPlanetaryExcludedTypeIds(array $typeIds): static
+    {
+        return $this;
+    }
+
     // UserInterface implementation
 
     public function getRoles(): array

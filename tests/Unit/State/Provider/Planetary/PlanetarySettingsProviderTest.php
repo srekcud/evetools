@@ -39,6 +39,17 @@ final class PlanetarySettingsProviderTest extends TestCase
         $this->assertSame(3, $resource->coverageWeeks);
         $this->assertSame(self::DEFAULT_STRUCTURE_ID, $resource->hubStructureId);
         $this->assertSame(self::DEFAULT_STRUCTURE_NAME, $resource->hubStructureName);
+        $this->assertSame([], $resource->excludedTypeIds);
+    }
+
+    #[Group('issue-1458')]
+    public function testTheExcludedTypeIdsOfTheUserAreReturnedSortedAndWithoutDuplicates(): void
+    {
+        $user = (new User())->setPlanetaryExcludedTypeIds([9832, 2393, 9832]);
+
+        $resource = $this->provide($user);
+
+        $this->assertSame([2393, 9832], $resource->excludedTypeIds);
     }
 
     public function testTheStoredHomeLocationAndCoverageWeeksAreReturned(): void

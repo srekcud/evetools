@@ -10,6 +10,7 @@ final readonly class PlanetaryStockSettings
         public ?int $homeLocationId,
         public int $hubStructureId,
         public int $coverageWeeks,
+        public array $excludedTypeIds = [],
     ) {
     }
 }

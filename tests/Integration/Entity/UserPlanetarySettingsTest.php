@@ -53,6 +53,7 @@ final class UserPlanetarySettingsTest extends IntegrationTestCase
         $this->assertSame('3', $coverageDefault);
         $this->assertSame([
             ['column_name' => 'planetary_coverage_weeks', 'data_type' => 'smallint', 'is_nullable' => 'NO'],
+            ['column_name' => 'planetary_excluded_type_ids', 'data_type' => 'json', 'is_nullable' => 'NO'],
             ['column_name' => 'planetary_home_location_id', 'data_type' => 'bigint', 'is_nullable' => 'YES'],
             ['column_name' => 'planetary_home_location_name', 'data_type' => 'character varying', 'is_nullable' => 'YES'],
         ], $columns);

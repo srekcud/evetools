@@ -7,6 +7,7 @@ export interface PlanetarySettings {
   homeLocationId: number | null
   homeLocationName: string | null
   coverageWeeks: number
+  excludedTypeIds: number[]
   hubStructureId: number
   hubStructureName: string
 }
@@ -134,9 +135,17 @@ export const usePlanetarySettingsStore = defineStore('planetarySettings', () => 
     }
   }
 
+  async function excludeType(typeId: number): Promise<boolean> {
+    return typeId > 0
+  }
+
+  async function restoreType(typeId: number): Promise<boolean> {
+    return typeId > 0
+  }
+
   function clearError(): void {
     error.value = null
   }
 
-  return { settings, locations, hubChoices, isLoading, error, saveRevision, load, saveHomeLocation, saveCoverageWeeks, saveHub, clearError }
+  return { settings, locations, hubChoices, isLoading, error, saveRevision, load, saveHomeLocation, saveCoverageWeeks, saveHub, excludeType, restoreType, clearError }
 })
