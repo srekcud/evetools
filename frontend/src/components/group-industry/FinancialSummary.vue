@@ -193,19 +193,19 @@ const salesTaxLabel = computed(() => {
             <tbody class="font-mono" style="font-variant-numeric: tabular-nums;">
               <tr v-for="row in forecastRows" :key="row.field">
                 <td class="py-1 font-sans text-slate-500">{{ t(row.labelKey) }}</td>
-                <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-${row.field}`" class="py-1 pl-3 text-right text-slate-300">
+                <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-${row.field}`" class="py-1 pl-3 text-right whitespace-nowrap text-slate-300">
                   <UnknownValue v-if="row.valueOf(market.column) === null" /><template v-else>{{ row.sign }}{{ formatIsk(row.valueOf(market.column)) }}</template>
                 </td>
               </tr>
               <tr class="border-t border-slate-700">
                 <td class="py-2 font-sans font-semibold text-slate-300">{{ t('groupIndustry.financialSummary.forecastProfit') }}</td>
-                <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-profit`" class="py-2 pl-3 text-right text-lg font-bold" :class="forecastProfitClass(market.column.profit)">
+                <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-profit`" class="py-2 pl-3 text-right whitespace-nowrap text-lg font-bold" :class="forecastProfitClass(market.column.profit)">
                   <UnknownValue v-if="market.column.profit === null" /><template v-else>{{ market.column.profit >= 0 ? '+' : '' }}{{ formatIsk(market.column.profit) }}</template>
                 </td>
               </tr>
               <tr>
                 <td class="py-1 font-sans text-slate-500">{{ t('groupIndustry.financialSummary.marginLabel') }}</td>
-                <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-margin`" class="py-1 pl-3 text-right text-sm" :class="forecastProfitClass(market.column.profit)">
+                <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-margin`" class="py-1 pl-3 text-right whitespace-nowrap text-sm" :class="forecastProfitClass(market.column.profit)">
                   <UnknownValue v-if="market.column.marginPercent === null" /><template v-else>{{ market.column.marginPercent >= 0 ? '+' : '' }}{{ market.column.marginPercent.toFixed(1) }}%</template>
                 </td>
               </tr>
