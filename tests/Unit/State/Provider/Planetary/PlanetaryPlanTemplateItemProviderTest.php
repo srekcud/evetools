@@ -39,7 +39,7 @@ final class PlanetaryPlanTemplateItemProviderTest extends TestCase
             ->setName('Broadcast chain')
             ->setProductions([['typeId' => self::BROADCAST_NODE, 'targetPerDay' => 2.5]])
             ->setChoices([self::ROBOTICS => 'buy'])
-            ->setSettings(['priceSource' => 'jita-buy', 'taxPercent' => 10, 'daysBetweenRounds' => 3]);
+            ->setSettings(['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 10, 'daysBetweenRounds' => 3]);
         (new \ReflectionProperty(PlanetaryPlanTemplate::class, 'id'))->setValue($template, Uuid::fromString(self::TEMPLATE_ID));
         (new \ReflectionProperty(PlanetaryPlanTemplate::class, 'createdAt'))->setValue($template, new \DateTimeImmutable('2026-11-21T07:45:00+00:00'));
         $repository = $this->createMock(PlanetaryPlanTemplateRepository::class);
@@ -53,7 +53,7 @@ final class PlanetaryPlanTemplateItemProviderTest extends TestCase
         $this->assertSame('Broadcast chain', $resource->name);
         $this->assertSame([['typeId' => self::BROADCAST_NODE, 'targetPerDay' => 2.5]], $resource->productions);
         $this->assertSame([self::ROBOTICS => 'buy'], $resource->choices);
-        $this->assertSame(['priceSource' => 'jita-buy', 'taxPercent' => 10, 'daysBetweenRounds' => 3], $resource->settings);
+        $this->assertSame(['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 10, 'daysBetweenRounds' => 3], $resource->settings);
         $this->assertSame('2026-11-21T07:45:00+00:00', $resource->createdAt);
     }
 

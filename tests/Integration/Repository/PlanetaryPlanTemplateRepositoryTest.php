@@ -94,7 +94,7 @@ final class PlanetaryPlanTemplateRepositoryTest extends IntegrationTestCase
         $template = $this->persistTemplate($alice, 'Mixed plan', '2026-11-20T09:00:00+00:00')
             ->setProductions([['typeId' => self::COOLANT, 'targetPerDay' => 120], ['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]])
             ->setChoices([self::PLASMOIDS => 'buy', self::ROBOTICS => 'produce'])
-            ->setSettings(['priceSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 0.5]);
+            ->setSettings(['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 0.5]);
         $this->flushAndClear();
         $id = $template->getId();
         $this->assertInstanceOf(Uuid::class, $id);
@@ -104,7 +104,7 @@ final class PlanetaryPlanTemplateRepositoryTest extends IntegrationTestCase
         $this->assertInstanceOf(PlanetaryPlanTemplate::class, $found);
         $this->assertSame([['typeId' => self::COOLANT, 'targetPerDay' => 120], ['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]], $found->getProductions());
         $this->assertSame([self::PLASMOIDS => 'buy', self::ROBOTICS => 'produce'], $found->getChoices());
-        $this->assertSame(['priceSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 0.5], $found->getSettings());
+        $this->assertSame(['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 0.5], $found->getSettings());
         $this->assertSame('2026-11-20T09:00:00+00:00', $found->getCreatedAt()->format('c'));
     }
 
