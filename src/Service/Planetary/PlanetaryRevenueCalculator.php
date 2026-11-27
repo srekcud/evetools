@@ -230,22 +230,21 @@ final readonly class PlanetaryRevenueCalculator
 
     /**
      * @param PlanetaryColony[] $colonies
-     * @param iterable<CachedWalletTransaction> $sales
+     * @param array<int, CachedWalletTransaction> $sales
      * @param array<int, string> $unsyncedStatuses
      * @return list<array{characterId: int, characterName: string, planetId: int, planetName: string|null, solarSystemName: string|null}>
      */
-    private function coloniesWithoutSale(array $colonies, iterable $sales, array $unsyncedStatuses): array
+    private function coloniesWithoutSale(array $colonies, array $sales, array $unsyncedStatuses): array
     {
-        $sellingCharacterIds = [];
-        foreach ($sales as $sale) {
-            $sellingCharacterIds[$sale->getCharacter()->getEveCharacterId()] = true;
+        if ($sales !== []) {
+            return [];
         }
 
         $toFix = [];
         foreach ($colonies as $colony) {
             $character = $colony->getCharacter();
             $eveCharacterId = $character->getEveCharacterId();
-            if (isset($sellingCharacterIds[$eveCharacterId]) || isset($unsyncedStatuses[$eveCharacterId]) || !$this->isProducing($colony)) {
+            if (isset($unsyncedStatuses[$eveCharacterId]) || !$this->isProducing($colony)) {
                 continue;
             }
             $toFix[] = [
