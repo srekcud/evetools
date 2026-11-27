@@ -48,7 +48,8 @@ final readonly class CreatePlanTemplateProcessor implements ProcessorInterface
     private const int MAX_TARGET_PER_DAY = 1_000_000_000;
     private const int MIN_TAX_PERCENT = 0;
     private const int MAX_TAX_PERCENT = 100;
-    private const array PRICE_SOURCES = ['jita-sell', 'jita-buy'];
+    private const array PURCHASE_SOURCES = ['jita-sell', 'jita-buy', 'hub', 'paid', 'best'];
+    private const array SALE_SOURCES = ['jita-sell', 'jita-buy', 'hub'];
     private const array CHOICES = ['produce', 'buy'];
     private const string LIMIT_REACHED_MESSAGE = 'Template limit reached';
 
@@ -76,7 +77,7 @@ final readonly class CreatePlanTemplateProcessor implements ProcessorInterface
         $this->rejectBeyondTemplateLimit($user, $data);
 
         $settings = $data->settings;
-        assert(isset($settings['priceSource'], $settings['taxPercent'], $settings['daysBetweenRounds']));
+        assert(isset($settings['purchaseSource'], $settings['saleSource'], $settings['taxPercent'], $settings['daysBetweenRounds']));
 
         $choices = [];
         foreach ($data->choices as $typeId => $choice) {
@@ -92,7 +93,8 @@ final readonly class CreatePlanTemplateProcessor implements ProcessorInterface
             ->setProductions($productions)
             ->setChoices($choices)
             ->setSettings([
-                'priceSource' => $settings['priceSource'],
+                'purchaseSource' => $settings['purchaseSource'],
+                'saleSource' => $settings['saleSource'],
                 'taxPercent' => $settings['taxPercent'],
                 'daysBetweenRounds' => $settings['daysBetweenRounds'],
             ]);
@@ -210,7 +212,8 @@ final readonly class CreatePlanTemplateProcessor implements ProcessorInterface
     private function settingsConstraints(): array
     {
         return [new Collection(fields: [
-            'priceSource' => [new NotNull(), new Choice(choices: self::PRICE_SOURCES)],
+            'purchaseSource' => [new NotNull(), new Choice(choices: self::PURCHASE_SOURCES)],
+            'saleSource' => [new NotNull(), new Choice(choices: self::SALE_SOURCES)],
             'taxPercent' => [new NotNull(), new Type(['int', 'float']), new GreaterThanOrEqual(self::MIN_TAX_PERCENT), new LessThanOrEqual(self::MAX_TAX_PERCENT)],
             'daysBetweenRounds' => [new NotNull(), new Type(['int', 'float']), new GreaterThanOrEqual(self::MIN_DAYS_BETWEEN_ROUNDS), new LessThanOrEqual(self::MAX_DAYS_BETWEEN_ROUNDS)],
         ])];
