@@ -57,7 +57,7 @@ describe('buildPlanetPlan factory rows', () => {
   it('sizes one row per factory tier from P4 down, with its planet types, its layout and its planet count', () => {
     const result = plan(BROADCAST_144)
 
-    expect(result.rows.map(row => (row.role === 'factory' ? row.tier : row.typeId))).toEqual(['P4', 'P3', 'P2'])
+    expect(result.rows.map(row => (row.role === 'factory' ? row.tier : row.role === 'extraction' ? row.typeId : row.role))).toEqual(['P4', 'P3', 'P2'])
     const [p4, p3, p2] = ['P4', 'P3', 'P2'].map(tier => factoryRow(result, tier))
     expect([p4, p3, p2].map(row => [row.factoriesNeeded, row.status, row.planets])).toEqual([[6, 'ok', 2], [12, 'ok', 1], [48, 'ok', 4]])
     expect([p4, p3, p2].map(row => row.planetTypes)).toEqual([['Barren', 'Temperate'], ['Barren', 'Lava', 'Temperate'], ['Barren', 'Lava', 'Temperate']])
@@ -96,7 +96,7 @@ describe('buildPlanetPlan extraction rows', () => {
   it('keeps one extraction row per raw resource after the factory rows, never merged, with the P1 factories that consume it', () => {
     const result = madeP1Plan()
 
-    expect(result.rows.map(row => (row.role === 'factory' ? row.tier : row.typeId))).toEqual(['P3', 'P2', AQUEOUS_LIQUIDS, BASE_METALS, HEAVY_METALS])
+    expect(result.rows.map(row => (row.role === 'factory' ? row.tier : row.role === 'extraction' ? row.typeId : row.role))).toEqual(['P3', 'P2', AQUEOUS_LIQUIDS, BASE_METALS, HEAVY_METALS])
     expect([AQUEOUS_LIQUIDS, BASE_METALS, HEAVY_METALS].map(typeId => extractionRow(result, typeId).perHour)).toEqual([24_000, 12_000, 12_000])
     expect([AQUEOUS_LIQUIDS, BASE_METALS, HEAVY_METALS].map(typeId => extractionRow(result, typeId).p1Factories)).toEqual([4, 2, 2])
     expect([AQUEOUS_LIQUIDS, BASE_METALS, HEAVY_METALS].map(typeId => extractionRow(result, typeId).planetTypes)).toEqual([['Barren', 'Temperate'], ['Barren', 'Lava', 'Temperate'], []])
