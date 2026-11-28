@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project;
 
+use App\Industry\Application\ProductionStructure;
+use App\Industry\Application\StructureRig;
 use App\Industry\Application\WorkStationRow;
 use App\Industry\Application\WorkTransportLeg;
 use App\Industry\Application\WorkTypeAdvice;
@@ -74,7 +76,34 @@ final class WorkStationPresenter
             'totalCost' => self::rounded($row->totalCost),
             'delta' => self::rounded($row->delta),
             'missingData' => MissingDataPresenter::ofList($row->missingData),
+            'productCategory' => $row->productCategory,
+            'rigs' => array_map(static fn (StructureRig $rig): array => self::rigOf($rig, $structure), $structure->rigs),
+            'noRigForProduct' => null !== $row->productCategory && !self::anyRigTargets($structure, $row->productCategory),
         ];
+    }
+
+    /**
+     * @return array{categories: list<string>, bonusPercent: ?float}
+     */
+    private static function rigOf(StructureRig $rig, ProductionStructure $structure): array
+    {
+        $effectivePercent = $rig->materialBonus->effectivePercentIn($structure->security);
+
+        return [
+            'categories' => $rig->targetedCategories,
+            'bonusPercent' => null === $effectivePercent ? null : round($effectivePercent, self::DISPLAYED_DECIMALS),
+        ];
+    }
+
+    private static function anyRigTargets(ProductionStructure $structure, string $productCategory): bool
+    {
+        foreach ($structure->rigs as $rig) {
+            if ($rig->targets($productCategory)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -280,6 +280,7 @@ final readonly class WorkStationAdvisor
                 self::amountOf($total),
                 null,
                 [] === $structure->unrecognisedRigs ? $total->missingData : [...$total->missingData, MissingData::unrecognisedRig()],
+                $category,
             );
         }
 

@@ -4107,6 +4107,46 @@
         "footnoteWithHub": "Courier Jita to {hub}: {courier} ISK/m³, bridge rate {bridge} ISK/m³. Same calculation as the « Structures » comparison of the Production tab, done once for the whole plan, with the legs between stations. After validation a station can change as long as nothing was bought or launched there.",
         "footnoteUnknownRates": "The transport rates are not read: the legs are priced as unknown.",
         "empty": "No work to place for this project: go to the next step.",
+        "rigs": {
+          "line": "Rigs: {rigs}",
+          "entry": "{categories} −{percent} %",
+          "unknownBonus": "{categories} (bonus unknown)",
+          "none": "No material rig",
+          "noneForProduct": "No rig for {category}",
+          "editLink": "Edit the structure rigs",
+          "categories": {
+            "basic_small_ship": "basic small ships",
+            "basic_medium_ship": "basic medium ships",
+            "basic_large_ship": "basic large ships",
+            "advanced_small_ship": "advanced small ships",
+            "advanced_medium_ship": "advanced medium ships",
+            "advanced_large_ship": "advanced large ships",
+            "capital_ship": "capital ships",
+            "basic_capital_component": "basic capital components",
+            "advanced_component": "advanced components",
+            "structure_component": "structure components",
+            "equipment": "equipment",
+            "ammunition": "ammunition",
+            "drone": "drones",
+            "fighter": "fighters",
+            "structure": "structures",
+            "composite_reaction": "composite reactions",
+            "biochemical_reaction": "biochemical reactions",
+            "hybrid_reaction": "hybrid reactions"
+          }
+        },
+        "missing": {
+          "unrecognised_rig": "A rig of this structure is not recognised",
+          "market_price": "A market price is unknown",
+          "adjusted_price": "An adjusted price is unknown",
+          "structure_price": "A structure price is unknown",
+          "cost_index": "The cost index is unknown",
+          "facility_tax": "The facility tax is not set",
+          "item_volume": "An item volume is unknown",
+          "jump_route": "A jump route is unknown",
+          "courier_hub": "The courier hub is not set",
+          "other": "Some data is unknown"
+        },
         "loadFailed": "The stations could not be compared: {message}"
       },
       "sourcing": {

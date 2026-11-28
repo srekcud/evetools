@@ -4107,6 +4107,46 @@
         "footnoteWithHub": "Courier Jita vers {hub} : {courier} ISK/m³, tarif du pont {bridge} ISK/m³. Même calcul que la comparaison « Structures » de l'onglet Production, fait une fois pour tout le plan, avec les trajets entre stations. Après validation, une station se change tant que rien n'y a été acheté ni lancé.",
         "footnoteUnknownRates": "Les tarifs de transport ne sont pas lus : les trajets sont chiffrés inconnus.",
         "empty": "Aucun travail à placer pour ce projet : passez à l'étape suivante.",
+        "rigs": {
+          "line": "Rigs : {rigs}",
+          "entry": "{categories} −{percent} %",
+          "unknownBonus": "{categories} (bonus inconnu)",
+          "none": "Aucun rig de matériaux",
+          "noneForProduct": "Aucun rig pour {category}",
+          "editLink": "Modifier les rigs de la structure",
+          "categories": {
+            "basic_small_ship": "petits vaisseaux de base",
+            "basic_medium_ship": "vaisseaux moyens de base",
+            "basic_large_ship": "grands vaisseaux de base",
+            "advanced_small_ship": "petits vaisseaux avancés",
+            "advanced_medium_ship": "vaisseaux moyens avancés",
+            "advanced_large_ship": "grands vaisseaux avancés",
+            "capital_ship": "vaisseaux capitaux",
+            "basic_capital_component": "composants capitaux de base",
+            "advanced_component": "composants avancés",
+            "structure_component": "composants de structure",
+            "equipment": "équipements",
+            "ammunition": "munitions",
+            "drone": "drones",
+            "fighter": "chasseurs",
+            "structure": "structures",
+            "composite_reaction": "réactions composites",
+            "biochemical_reaction": "réactions biochimiques",
+            "hybrid_reaction": "réactions hybrides"
+          }
+        },
+        "missing": {
+          "unrecognised_rig": "Un rig de cette structure n'est pas reconnu",
+          "market_price": "Un prix de marché est inconnu",
+          "adjusted_price": "Un prix ajusté est inconnu",
+          "structure_price": "Un prix de structure est inconnu",
+          "cost_index": "L'indice de coût est inconnu",
+          "facility_tax": "La taxe d'installation n'est pas saisie",
+          "item_volume": "Un volume est inconnu",
+          "jump_route": "Un trajet de saut est inconnu",
+          "courier_hub": "Le hub de courrier n'est pas défini",
+          "other": "Certaines données sont inconnues"
+        },
         "loadFailed": "Les stations n'ont pas pu être comparées : {message}"
       },
       "sourcing": {
