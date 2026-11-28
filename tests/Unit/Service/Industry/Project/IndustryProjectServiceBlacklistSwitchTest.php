@@ -302,9 +302,11 @@ final class IndustryProjectServiceBlacklistSwitchTest extends TestCase
         $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findContributedBomItemIds')->willReturnCallback(fn (): array => $this->contributedLineIds);
 
+        $blueprintCatalog = new InMemoryBlueprintCatalog(...$recipes);
+
         return new IndustryProjectService(
             new ProductionPlanning(
-                new InMemoryBlueprintCatalog(...$recipes),
+                $blueprintCatalog,
                 InMemorySystemCostIndices::none(),
                 new InMemoryRigCategories(),
                 new StructureTotalCostComparator(new InMemoryMarketPrices([]), new InMemoryAdjustedPrices([]), InMemorySystemCostIndices::none(), new InMemoryJumpDistances(), new InMemoryItemVolumes()),
@@ -319,6 +321,7 @@ final class IndustryProjectServiceBlacklistSwitchTest extends TestCase
             $this->createStub(IndustryUserSettingsRepository::class),
             $this->createStub(OriginalBlueprintFinder::class),
             InMemoryDecryptors::none(),
+            $blueprintCatalog,
         );
     }
 }

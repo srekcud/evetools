@@ -120,9 +120,11 @@ trait BuildsProjectServiceOnGoldenSde
         $inventionService = $this->createStub(InventionService::class);
         $inventionService->method('getInventionData')->willReturn(null);
 
+        $blueprintCatalog = new SdeBlueprintCatalog($productRepository, $activityRepository, $this->materialRepositoryOnGoldenSde(), $this->blueprintRepositoryOnGoldenSde());
+
         $this->projectService = new IndustryProjectService(
             new ProductionPlanning(
-                new SdeBlueprintCatalog($productRepository, $activityRepository, $this->materialRepositoryOnGoldenSde(), $this->blueprintRepositoryOnGoldenSde()),
+                $blueprintCatalog,
                 InMemorySystemCostIndices::none(),
                 new InMemoryRigCategories(),
             ),
@@ -136,6 +138,7 @@ trait BuildsProjectServiceOnGoldenSde
             $this->createStub(IndustryUserSettingsRepository::class),
             $this->createStub(OriginalBlueprintFinder::class),
             InMemoryDecryptors::none(),
+            $blueprintCatalog,
         );
     }
 

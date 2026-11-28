@@ -19,6 +19,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\UserProductionStructures;
+use App\Industry\Domain\BlueprintCatalog;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -97,6 +98,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             self::getContainer()->get(IndustryUserSettingsRepository::class),
             $this->createStub(OriginalBlueprintFinder::class),
             InMemoryDecryptors::none(),
+            self::getContainer()->get(BlueprintCatalog::class),
         );
     }
 
@@ -343,10 +345,11 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     public static function projectOfSeveralLineCountsProvider(): iterable
     {
         yield 'one run, eleven lines' => [1, 11];
-        yield 'twenty-five runs at a max production limit of one, thirty-five lines' => [25, 35];
+        yield 'twenty-five runs at a max production limit of one, fifty-nine lines' => [25, 59];
     }
 
     #[Group('issue-257')]
+    #[Group('issue-1450')]
     #[DataProvider('projectOfSeveralLineCountsProvider')]
     public function testRebuildReadsTheIntermediateStockAndTheContributedLinesOfTheProjectInTwoQueriesWhateverItsLineCount(int $runs, int $lineCount): void
     {

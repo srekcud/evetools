@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectBomLineMark;
 use App\Entity\IndustryProjectDeclaredBlueprintCopy;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectProduct;
@@ -14,6 +15,7 @@ use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
+use App\Enum\BomLineMarkState;
 use App\Enum\ParticipantRole;
 use App\Exception\InventionProbabilityMissingException;
 use App\Enum\ParticipantStatus;
@@ -738,18 +740,126 @@ final class IndustryProjectServiceTest extends TestCase
     }
 
     #[Group('issue-141')]
-    public function testBuildBomCopyJobsAreNotSplit(): void
+    #[Group('issue-1450')]
+    public function testBuildBomCopyLinesAreSplitAtTheBlueprintCopyMaxRuns(): void
     {
         $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 5_000], maxProductionLimit: 5, hasCopyActivity: true);
 
         $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
-            name: 'Copy No Split',
+            name: 'Copy Split',
             items: [['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 20]],
         ));
 
-        $this->assertSame([20], $this->runsOf($project, self::SABRE, 'copy'));
+        $this->assertSame([5, 5, 5, 5], $this->runsOf($project, self::SABRE, 'copy'));
         $this->assertSame([5, 5, 5, 5], $this->runsOf($project, self::SABRE, 'manufacturing'));
         $this->assertSame([self::TRITANIUM => 98_000], $this->materialQuantities($project));
+    }
+
+    #[Group('issue-1450')]
+    public function testTwentyEightRunsAtABlueprintCopyMaxRunsOfTenAreManufacturedAndCopiedInThreeLinesOfTenNineAndNine(): void
+    {
+        $this->givenRecipe(self::THRASHER, 'Thrasher', [self::PYERITE => 3_100], maxProductionLimit: 10, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::THRASHER, 'Thrasher', 28]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::THRASHER, 'copy', 'blueprint', 9, 9, null],
+                [self::THRASHER, 'copy', 'blueprint', 9, 9, null],
+                [self::THRASHER, 'copy', 'blueprint', 10, 10, null],
+                [self::THRASHER, 'manufacturing', 'final', 9, 9, null],
+                [self::THRASHER, 'manufacturing', 'final', 9, 9, null],
+                [self::THRASHER, 'manufacturing', 'final', 10, 10, null],
+            ],
+            $this->jobLines($project),
+        );
+        $this->assertSame(
+            [[0, 0], [0, 0], [0, 0]],
+            array_map(static fn (IndustryProjectBomLine $copy): array => [$copy->getMeLevel(), $copy->getTeLevel()], $this->jobBomItemsOfActivity($project, 'copy')),
+        );
+    }
+
+    #[Group('issue-1450')]
+    public function testFinalAndIntermediateJobsOfTheSameProductAreCopiedLargestFirstEachCopyKeepingTheParentOfItsFirstJob(): void
+    {
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::COMPONENT => 4]);
+        $this->givenRecipe(self::COMPONENT, 'Component', [self::MEXALLON => 120], maxProductionLimit: 10, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::COMPONENT, 'Component', 8], [self::RIFTER, 'Rifter', 5]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::RIFTER, 'manufacturing', 'final', 5, 5, null],
+                [self::COMPONENT, 'copy', 'blueprint', 8, 8, null],
+                [self::COMPONENT, 'copy', 'blueprint', 10, 10, self::RIFTER],
+                [self::COMPONENT, 'copy', 'blueprint', 10, 10, self::RIFTER],
+                [self::COMPONENT, 'manufacturing', 'component', 10, 10, self::RIFTER],
+                [self::COMPONENT, 'manufacturing', 'component', 10, 10, self::RIFTER],
+                [self::COMPONENT, 'manufacturing', 'final', 8, 8, null],
+            ],
+            $this->jobLines($project),
+        );
+    }
+
+    #[Group('issue-1450')]
+    public function testJobsOfTheSameProductAtDifferentEfficienciesShareACopyWhileTheirRunsFitUnderTheBlueprintCopyMaxRuns(): void
+    {
+        $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 4_200], maxProductionLimit: 10, hasCopyActivity: true);
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Copies of mixed efficiencies',
+            items: [
+                ['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 3],
+                ['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 3],
+                ['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 4, 'teLevel' => 8, 'runs' => 3],
+                ['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
+            ],
+        ));
+
+        $this->assertSame([3, 3, 3, 10], $this->runsOf($project, self::SABRE, 'manufacturing'));
+        $this->assertSame([9, 10], $this->runsOf($project, self::SABRE, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testBlueprintCopyMaxRunsOfOneGivesOneCopyLinePerRun(): void
+    {
+        $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 4_700], maxProductionLimit: 1, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::SABRE, 'Sabre', 3]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([1, 1, 1], $this->runsOf($project, self::SABRE, 'manufacturing'));
+        $this->assertSame([1, 1, 1], $this->runsOf($project, self::SABRE, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testRebuildRefusesToCutACopyLineMarkedBeyondTheBlueprintCopyMaxRunsAndNamesItsType(): void
+    {
+        $this->givenRecipe(self::THRASHER, 'Thrasher', [self::PYERITE => 3_100], maxProductionLimit: 10, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::THRASHER, 'Thrasher', 28]]);
+        $this->service()->buildBom($project, $this->createUser());
+        foreach ($this->jobBomItemsOfActivity($project, 'copy') as $copy) {
+            $project->removeBomItem($copy);
+        }
+        $copyBuiltBeforeTheMaxRuns = (new IndustryProjectBomLine())
+            ->setTypeId(self::THRASHER)
+            ->setTypeName('Thrasher')
+            ->setIsJob(true)
+            ->setJobGroup('blueprint')
+            ->setActivityType('copy')
+            ->setMeLevel(0)
+            ->setTeLevel(0)
+            ->setRuns(28)
+            ->setRequiredQuantity(28);
+        $copyBuiltBeforeTheMaxRuns->setMark(new IndustryProjectBomLineMark(BomLineMarkState::Done, 28, new \DateTimeImmutable('2026-11-27T18:00:00+00:00')));
+        $project->addBomItem($copyBuiltBeforeTheMaxRuns);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('The line "Thrasher" has 28 runs marked, more than the 10 the plan now needs.');
+
+        $this->service()->buildBom($project, $this->createUser(), refuseToDropWorkedLines: true);
     }
 
     #[Group('issue-141')]
@@ -1138,6 +1248,84 @@ final class IndustryProjectServiceTest extends TestCase
         );
     }
 
+    #[Group('issue-1450')]
+    public function testSeventySevenAttemptsAtAT1BlueprintCopyMaxRunsOfTenAreCopiedInEightLinesTheFirstTakingTheRemainder(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L', maxProductionLimit: 10);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 123]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 9, 9, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 9, 9, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 9, 9, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 10, 10, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 10, 10, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 10, 10, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 10, 10, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 10, 10, null],
+            ],
+            array_values(array_filter($this->jobLines($project), static fn (array $line): bool => self::DEPLETED_URANIUM_L === $line[0])),
+        );
+        $materialQuantities = $this->materialQuantities($project);
+        $this->assertSame([77], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([77, 154], [$materialQuantities[self::DATACORE_NUCLEAR_PHYSICS], $materialQuantities[self::DATACORE_MECHANICAL_ENGINEERING]]);
+    }
+
+    #[Group('issue-1450')]
+    public function testAttemptsOfTwoT2ProductsSharingTheirT1BlueprintAreSplitEvenlyAtItsBlueprintCopyMaxRuns(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns(prototypeAmmunitionLFromTheSameT1Blueprint: true);
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenRecipe(self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', [self::MORPHITE => 7], outputPerRun: 100, maxProductionLimit: 40, hasCopyActivity: true);
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L', maxProductionLimit: 10);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 19], [self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', 9]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([12], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([9], $this->runsOf($project, self::PROTOTYPE_AMMUNITION_L, 'invention'));
+        $this->assertSame([7, 7, 7], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testThreeAttemptsAtAT1BlueprintCopyMaxRunsOfOneGiveOneCopyLinePerAttempt(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L', maxProductionLimit: 1);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 4]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([3], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([1, 1, 1], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testT1BlueprintWithoutRecipeRefusesTheBomNamingTheT1BlueprintAndRecordsNoLine(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenT1ProductWithoutRecipe(self::DEPLETED_URANIUM_L);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]]);
+
+        $failure = null;
+        try {
+            $this->service()->buildBom($project, $this->createUser());
+        } catch (\Throwable $throwable) {
+            $failure = $throwable;
+        }
+
+        $this->assertInstanceOf(\UnexpectedValueException::class, $failure);
+        $this->assertMatchesRegularExpression('/(?<!\d)'.self::HAIL_L_T1_BLUEPRINT.'(?!\d)/', $failure->getMessage());
+        $this->assertCount(0, $project->getBomItems());
+    }
+
     #[Group('issue-804')]
     public function testDeclarationOfAProductAbsentFromThePlanIsIgnoredWhileTheOtherDeclarationApplies(): void
     {
@@ -1281,6 +1469,21 @@ final class IndustryProjectServiceTest extends TestCase
         $this->assertSame([59], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
         $this->assertSame(118, $materialQuantities[self::DATACORE_NUCLEAR_PHYSICS]);
         $this->assertArrayNotHasKey(InMemoryDecryptors::ATTAINMENT, $materialQuantities);
+    }
+
+    #[Group('issue-1450')]
+    public function testFiftyNineAttemptsAtAT1BlueprintCopyMaxRunsOfFiftyNineStayOnOneCopyLine(): void
+    {
+        $this->givenInventionOfHailLAndPrototypeAmmunitionLForDecryptors();
+        $this->givenDecryptorsOfTheSde();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L', maxProductionLimit: 59);
+        $project = $this->projectWithInventionDecryptors([[self::HAIL_L, 'Hail L', 200]], []);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([59], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([59], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
     }
 
     #[Group('issue-1205')]
@@ -1453,9 +1656,11 @@ final class IndustryProjectServiceTest extends TestCase
             );
         }
 
+        $blueprintCatalog = new InMemoryBlueprintCatalog(...$recipes);
+
         return new IndustryProjectService(
             new ProductionPlanning(
-                new InMemoryBlueprintCatalog(...$recipes),
+                $blueprintCatalog,
                 $this->costIndices,
                 new InMemoryRigCategories(),
                 new StructureTotalCostComparator(new InMemoryMarketPrices([]), new InMemoryAdjustedPrices([]), InMemorySystemCostIndices::none(), new InMemoryJumpDistances(), new InMemoryItemVolumes()),
@@ -1470,6 +1675,7 @@ final class IndustryProjectServiceTest extends TestCase
             $this->settingsRepository(),
             $this->createStub(OriginalBlueprintFinder::class),
             $this->decryptors,
+            $blueprintCatalog,
         );
     }
 
@@ -1648,6 +1854,8 @@ final class IndustryProjectServiceTest extends TestCase
             self::HAIL_L_T1_BLUEPRINT => self::DEPLETED_URANIUM_L,
             self::PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT => self::PROTOTYPE_T1_AMMUNITION_L,
         ];
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L');
+        $this->givenT1ProductRecipe(self::PROTOTYPE_T1_AMMUNITION_L, 'Prototype T1 Ammunition L');
     }
 
     private function givenInventionOfHailLWithFortyPercentSuccessOverFourRuns(?float $probability = 0.4, bool $prototypeAmmunitionLFromTheSameT1Blueprint = false): void
@@ -1675,6 +1883,17 @@ final class IndustryProjectServiceTest extends TestCase
             default => null,
         });
         $this->t1ProductByBlueprint = [self::HAIL_L_T1_BLUEPRINT => self::DEPLETED_URANIUM_L];
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L');
+    }
+
+    private function givenT1ProductRecipe(int $t1ProductTypeId, string $typeName, int $maxProductionLimit = self::DEFAULT_MAX_PRODUCTION_LIMIT): void
+    {
+        $this->givenRecipe($t1ProductTypeId, $typeName, [self::TRITANIUM => 458, self::PYERITE => 580], outputPerRun: 100, maxProductionLimit: $maxProductionLimit, hasCopyActivity: true);
+    }
+
+    private function givenT1ProductWithoutRecipe(int $t1ProductTypeId): void
+    {
+        unset($this->recipes[$t1ProductTypeId]);
     }
 
     private function givenDecryptorsOfTheSde(): void
@@ -1711,6 +1930,8 @@ final class IndustryProjectServiceTest extends TestCase
             self::HAIL_L_T1_BLUEPRINT => self::DEPLETED_URANIUM_L,
             self::PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT => self::PROTOTYPE_T1_AMMUNITION_L,
         ];
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L');
+        $this->givenT1ProductRecipe(self::PROTOTYPE_T1_AMMUNITION_L, 'Prototype T1 Ammunition L');
     }
 
     private function projectWithInventionDecryptors(array $items, array $decryptorTypeIdByProductTypeId): IndustryProject

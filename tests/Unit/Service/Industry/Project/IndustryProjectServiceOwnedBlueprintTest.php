@@ -146,9 +146,11 @@ final class IndustryProjectServiceOwnedBlueprintTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
 
+        $blueprintCatalog = new InMemoryBlueprintCatalog(...$recipes);
+
         return new IndustryProjectService(
             new ProductionPlanning(
-                new InMemoryBlueprintCatalog(...$recipes),
+                $blueprintCatalog,
                 InMemorySystemCostIndices::none(),
                 new InMemoryRigCategories(),
                 new StructureTotalCostComparator(new InMemoryMarketPrices([]), new InMemoryAdjustedPrices([]), InMemorySystemCostIndices::none(), new InMemoryJumpDistances(), new InMemoryItemVolumes()),
@@ -163,6 +165,7 @@ final class IndustryProjectServiceOwnedBlueprintTest extends TestCase
             $settingsRepository,
             $originalBlueprintFinder,
             InMemoryDecryptors::none(),
+            $blueprintCatalog,
         );
     }
 

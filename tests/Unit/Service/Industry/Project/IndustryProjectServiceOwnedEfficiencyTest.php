@@ -71,6 +71,8 @@ final class IndustryProjectServiceOwnedEfficiencyTest extends TestCase
 
     private const array BASE_QUANTITIES_PER_RUN = [self::SABRE => [self::TRITANIUM => 5_000]];
 
+    private int $maxProductionLimit = self::MAX_PRODUCTION_LIMIT;
+
     public function testOwnedOriginalGivesItsEfficiencyToTheBomAndRemovesTheRunCap(): void
     {
         $project = $this->createSabreProject($this->finderOwning(self::use(9, 18, true)));
@@ -106,6 +108,31 @@ final class IndustryProjectServiceOwnedEfficiencyTest extends TestCase
         self::assertSame([2, 4], [$item->getMeLevel(), $item->getTeLevel()]);
     }
 
+    #[Group('issue-1450')]
+    public function testOwnedOriginalVisibleToTheOwnerLeavesTwentyEightRunsUncappedAndTheProductWithoutCopyLine(): void
+    {
+        $this->maxProductionLimit = 10;
+
+        $project = $this->createSabreProject($this->finderOwning(self::use(10, 20, true)), 28);
+
+        self::assertSame([['manufacturing', 28, 10, 20]], $this->manufacturingLines($project));
+        self::assertSame([], $this->copyLines($project));
+    }
+
+    #[Group('issue-1450')]
+    public function testOwnedCopyVisibleToTheOwnerCapsTwentyEightRunsAndCopiesThemInLinesOfAtMostTheBlueprintCopyMaxRuns(): void
+    {
+        $this->maxProductionLimit = 10;
+
+        $project = $this->createSabreProject($this->finderOwning(self::use(10, 20, false)), 28);
+
+        self::assertSame(
+            [['manufacturing', 10, 10, 20], ['manufacturing', 9, 10, 20], ['manufacturing', 9, 10, 20]],
+            $this->manufacturingLines($project),
+        );
+        self::assertSame([[10, 10, 0, 0], [9, 9, 0, 0], [9, 9, 0, 0]], $this->copyLines($project));
+    }
+
     private static function use(int $materialEfficiency, int $timeEfficiency, bool $original): OwnedBlueprintUse
     {
         return new OwnedBlueprintUse(new BlueprintEfficiency(new MaterialEfficiency($materialEfficiency), new TimeEfficiency($timeEfficiency)), $original);
@@ -121,12 +148,23 @@ final class IndustryProjectServiceOwnedEfficiencyTest extends TestCase
         return $finder;
     }
 
-    private function createSabreProject(OriginalBlueprintFinder $originalBlueprintFinder): IndustryProject
+    private function createSabreProject(OriginalBlueprintFinder $originalBlueprintFinder, int $runs = self::SABRE_RUNS): IndustryProject
     {
         return $this->service($originalBlueprintFinder)->createProject($this->createUser(), new CreateProjectData(
             name: 'Owned efficiency',
-            items: [['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => self::SABRE_RUNS]],
+            items: [['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 2, 'teLevel' => 4, 'runs' => $runs]],
         ));
+    }
+
+    private function copyLines(IndustryProject $project): array
+    {
+        $copyLines = array_values(array_map(
+            static fn (IndustryProjectBomLine $line): array => [$line->getRuns(), $line->getRequiredQuantity(), $line->getMeLevel(), $line->getTeLevel()],
+            array_filter($project->getBomItems()->toArray(), static fn (IndustryProjectBomLine $line): bool => $line->isJob() && $line->getActivityType() === 'copy'),
+        ));
+        rsort($copyLines);
+
+        return $copyLines;
     }
 
     /**
@@ -153,7 +191,7 @@ final class IndustryProjectServiceOwnedEfficiencyTest extends TestCase
                 ActivityKind::Manufacturing,
                 new OutputPerRun(1),
                 $materials,
-                new Runs(self::MAX_PRODUCTION_LIMIT),
+                new Runs($this->maxProductionLimit),
                 self::BASE_TIME_SECONDS,
             );
         }
@@ -161,9 +199,11 @@ final class IndustryProjectServiceOwnedEfficiencyTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
 
+        $blueprintCatalog = new InMemoryBlueprintCatalog(...$recipes);
+
         return new IndustryProjectService(
             new ProductionPlanning(
-                new InMemoryBlueprintCatalog(...$recipes),
+                $blueprintCatalog,
                 InMemorySystemCostIndices::none(),
                 new InMemoryRigCategories(),
                 new StructureTotalCostComparator(new InMemoryMarketPrices([]), new InMemoryAdjustedPrices([]), InMemorySystemCostIndices::none(), new InMemoryJumpDistances(), new InMemoryItemVolumes()),
@@ -178,6 +218,7 @@ final class IndustryProjectServiceOwnedEfficiencyTest extends TestCase
             $settingsRepository,
             $originalBlueprintFinder,
             InMemoryDecryptors::none(),
+            $blueprintCatalog,
         );
     }
 
