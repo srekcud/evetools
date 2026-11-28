@@ -100,6 +100,7 @@ export interface ProductionProfitLine {
   soldQuantity: number
   internal: boolean
   hubSellPrice: number | null
+  salePrice: number | null
   salesIsk: number | null
   inputsIsk: number | null
   profitPerDay: number | null
@@ -119,6 +120,7 @@ export interface PlanetaryProductionProfit {
   taxes: { days: number; perDay: number | null }
   netProfitPerDay: number
   unsyncedWallets: PlanetaryRevenueUnsyncedWallet[]
+  sources: { purchase: string; sale: string; followedTemplateName: string | null }
 }
 
 export interface Pin {

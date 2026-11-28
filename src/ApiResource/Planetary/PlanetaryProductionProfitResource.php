@@ -37,6 +37,9 @@ final class PlanetaryProductionProfitResource
 
     public float $inputsIsk = 0.0;
 
+    /** @var array{purchase: string, sale: string, followedTemplateName: string|null} */
+    public array $sources = ['purchase' => '', 'sale' => '', 'followedTemplateName' => null];
+
     public float $profitPerDay = 0.0;
 
     public int $unknownLineCount = 0;

@@ -10,12 +10,15 @@ use App\Entity\Character;
 use App\Entity\CharacterWalletReading;
 use App\Entity\EveToken;
 use App\Entity\PlanetaryColony;
+use App\Entity\PlanetaryPlanTemplate;
 use App\Entity\User;
 use App\Repository\CachedWalletJournalEntryRepository;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\CharacterWalletReadingRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Repository\PlanetaryPlanTemplateRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
+use App\Service\JitaMarketService;
 use App\Service\Planetary\PlanetaryPaidPriceCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\Planetary\PlanetaryProductionProfitCalculator;
@@ -28,6 +31,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(PlanetaryProductionProfitCalculator::class)]
 #[Group('issue-1400')]
+#[Group('issue-1454')]
 final class PlanetaryProductionProfitCalculatorTest extends TestCase
 {
     private const int EXTRACTED_P0 = 2268;
@@ -61,6 +65,101 @@ final class PlanetaryProductionProfitCalculatorTest extends TestCase
             [$line['soldQuantity'], $line['internal'], $line['hubSellPrice'], $line['salesIsk'], $line['inputsIsk'], $line['profitPerDay'], $line['marginPercent'], $line['valuesExtractedAtHubBuy']],
         );
         $this->assertSame([7_000_000.0, 3_080_000.0, 3_920_000.0, 0], [$report['salesIsk'], $report['inputsIsk'], $report['profitPerDay'], $report['unknownLineCount']]);
+    }
+
+    public function testWithoutAFollowedPlanTheSourcesAreThePaidPriceToBuyAndTheHubToSell(): void
+    {
+        $report = $this->report(
+            items: [$this->item(self::P2, 'P2', 100.0, 0.0, 100.0, [[self::BOUGHT_P1, 200.0]])],
+            purchases: [[self::BOUGHT_P1, 10, 150.0]],
+            hubSell: [self::P2 => 700.0],
+            jitaSell: [self::P2 => 1_000.0],
+        );
+
+        $line = $this->lineOf($report, self::P2);
+
+        $this->assertSame(['purchase' => 'paid', 'sale' => 'hub', 'followedTemplateName' => null], $report['sources']);
+        $this->assertSame([700.0, 700.0], [$line['salePrice'], $line['hubSellPrice']]);
+    }
+
+    public function testTheFollowedPlanSourcesValueTheSalesAtJitaSellAndTheBoughtInputsAtJitaBuy(): void
+    {
+        $report = $this->report(
+            items: [$this->item(self::P2, 'P2', 10_000.0, 0.0, 10_000.0, [[self::BOUGHT_P1, 20_000.0]])],
+            purchases: [[self::BOUGHT_P1, 10, 150.0]],
+            hubSell: [self::P2 => 700.0],
+            jitaSell: [self::P2 => 1_000.0],
+            jitaBuy: [self::BOUGHT_P1 => 100.0],
+            followedSettings: ['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4],
+        );
+
+        $line = $this->lineOf($report, self::P2);
+
+        $this->assertSame(['purchase' => 'jita-buy', 'sale' => 'jita-sell', 'followedTemplateName' => 'Followed plan'], $report['sources']);
+        $this->assertSame([1_000.0, 700.0, 10_000_000.0, 2_000_000.0, 8_000_000.0], [$line['salePrice'], $line['hubSellPrice'], $line['salesIsk'], $line['inputsIsk'], $line['profitPerDay']]);
+        $this->assertSame([10_000_000.0, 2_000_000.0, 8_000_000.0], [$report['salesIsk'], $report['inputsIsk'], $report['profitPerDay']]);
+    }
+
+    public function testTheBestPurchaseSourceTakesTheLowestOfThePaidPriceTheHubAndJitaSell(): void
+    {
+        $report = $this->report(
+            items: [$this->item(self::P2, 'P2', 10_000.0, 0.0, 10_000.0, [[self::BOUGHT_P1, 20_000.0]])],
+            purchases: [[self::BOUGHT_P1, 10, 150.0]],
+            hubSell: [self::P2 => 700.0, self::BOUGHT_P1 => 120.0],
+            jitaSell: [self::BOUGHT_P1 => 130.0],
+            followedSettings: ['purchaseSource' => 'best', 'saleSource' => 'hub', 'taxPercent' => 4, 'daysBetweenRounds' => 4],
+        );
+
+        $line = $this->lineOf($report, self::P2);
+
+        $this->assertSame([7_000_000.0, 2_400_000.0, 4_600_000.0], [$line['salesIsk'], $line['inputsIsk'], $line['profitPerDay']]);
+    }
+
+    public function testAHubPurchaseSourceWithoutAHubPriceMakesTheLineUnknownEvenWithAPaidPrice(): void
+    {
+        $report = $this->report(
+            items: [$this->item(self::P2, 'P2', 100.0, 0.0, 100.0, [[self::BOUGHT_P1, 200.0]])],
+            purchases: [[self::BOUGHT_P1, 10, 150.0]],
+            hubSell: [self::P2 => 700.0],
+            followedSettings: ['purchaseSource' => 'hub', 'saleSource' => 'hub', 'taxPercent' => 4, 'daysBetweenRounds' => 4],
+        );
+
+        $line = $this->lineOf($report, self::P2);
+
+        $this->assertSame([70_000.0, null, null], [$line['salesIsk'], $line['inputsIsk'], $line['profitPerDay']]);
+        $this->assertSame(1, $report['unknownLineCount']);
+    }
+
+    public function testAnUnknownSalePriceOfTheFollowedSourceMakesTheSalesUnknownEvenWithAHubPrice(): void
+    {
+        $report = $this->report(
+            items: [$this->item(self::P2, 'P2', 100.0, 0.0, 100.0, [[self::BOUGHT_P1, 200.0]])],
+            purchases: [[self::BOUGHT_P1, 10, 150.0]],
+            hubSell: [self::P2 => 700.0],
+            followedSettings: ['purchaseSource' => 'paid', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4],
+        );
+
+        $line = $this->lineOf($report, self::P2);
+
+        $this->assertSame([null, 30_000.0, null], [$line['salesIsk'], $line['inputsIsk'], $line['profitPerDay']]);
+    }
+
+    public function testTheExtractedInputsStayAtTheHubBuyPriceWhateverTheFollowedSources(): void
+    {
+        $report = $this->report(
+            items: [
+                $this->item(self::P2, 'P2', 100.0, 0.0, 100.0, [[self::EXTRACTED_P0, 100.0]]),
+                $this->item(self::EXTRACTED_P0, 'P0', 500.0, 100.0, 400.0, []),
+            ],
+            hubBuy: [self::EXTRACTED_P0 => 40.0],
+            jitaSell: [self::P2 => 1_000.0, self::EXTRACTED_P0 => 5.0],
+            jitaBuy: [self::EXTRACTED_P0 => 3.0],
+            followedSettings: ['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4],
+        );
+
+        $line = $this->lineOf($report, self::P2);
+
+        $this->assertSame([100_000.0, 4_000.0, true], [$line['salesIsk'], $line['inputsIsk'], $line['valuesExtractedAtHubBuy']]);
     }
 
     public function testTheExtractedOutputIsNotAProductLine(): void
@@ -361,6 +460,9 @@ final class PlanetaryProductionProfitCalculatorTest extends TestCase
      * @param list<array{int, int, float}> $purchases typeId, quantity, unit price
      * @param array<int, float> $hubSell
      * @param array<int, float> $hubBuy
+     * @param array<int, float> $jitaSell
+     * @param array<int, float> $jitaBuy
+     * @param array{purchaseSource: string, saleSource: string, taxPercent: int|float, daysBetweenRounds: int|float}|null $followedSettings
      * @param list<PlanetaryTaxDay> $taxes
      * @param list<int> $unreadWalletCharacterIds
      * @return array<string, mixed>
@@ -376,6 +478,9 @@ final class PlanetaryProductionProfitCalculatorTest extends TestCase
         bool $hubHasData = true,
         ?\DateTimeImmutable &$taxSince = null,
         array $unreadWalletCharacterIds = [],
+        array $jitaSell = [],
+        array $jitaBuy = [],
+        ?array $followedSettings = null,
     ): array {
         $pilot = (new Character())
             ->setEveCharacterId(2112000001)
@@ -457,12 +562,23 @@ final class PlanetaryProductionProfitCalculatorTest extends TestCase
             },
         );
 
+        $jita = $this->createStub(JitaMarketService::class);
+        $jita->method('getPrices')->willReturnCallback(static fn (array $typeIds): array => array_combine($typeIds, array_map(static fn (int $typeId): ?float => $jitaSell[$typeId] ?? null, $typeIds)));
+        $jita->method('getBuyPrices')->willReturnCallback(static fn (array $typeIds): array => array_combine($typeIds, array_map(static fn (int $typeId): ?float => $jitaBuy[$typeId] ?? null, $typeIds)));
+
+        $templateRepository = $this->createStub(PlanetaryPlanTemplateRepository::class);
+        $templateRepository->method('findFollowedByUser')->willReturn(
+            $followedSettings === null ? [] : [(new PlanetaryPlanTemplate())->setName('Followed plan')->setFollowed(true)->setSettings($followedSettings)],
+        );
+
         return (new PlanetaryProductionProfitCalculator(
             $colonyRepository,
             $productionCalculator,
             $paidPriceCalculator,
             $market,
+            $jita,
             $journalRepository,
+            $templateRepository,
             self::DEFAULT_HUB,
             'Default Hub',
         ))->calculate($user, new \DateTimeImmutable(self::NOW));

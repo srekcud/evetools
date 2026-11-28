@@ -11,7 +11,9 @@ use App\Repository\CachedWalletJournalEntryRepository;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\CharacterWalletReadingRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Repository\PlanetaryPlanTemplateRepository;
 use App\Repository\Sde\PlanetSchematicTypeRepository;
+use App\Service\JitaMarketService;
 use App\Service\Planetary\PlanetaryPaidPriceCalculator;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use App\Service\Planetary\PlanetaryProductionProfitCalculator;
@@ -27,6 +29,7 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 #[CoversClass(PlanetaryProductionProfitProvider::class)]
 #[Group('issue-1400')]
+#[Group('issue-1454')]
 final class PlanetaryProductionProfitProviderTest extends TestCase
 {
     private const int DEFAULT_HUB = 1049588174021;
@@ -37,6 +40,13 @@ final class PlanetaryProductionProfitProviderTest extends TestCase
 
         $this->assertSame([[], 0.0, 0, ['days' => 30, 'perDay' => null]], [$resource->lines, $resource->profitPerDay, $resource->unknownLineCount, $resource->taxes]);
         $this->assertSame(self::DEFAULT_HUB, $resource->hub['structureId']);
+    }
+
+    public function testTheResourceNamesTheSourcesUsedWhichAreThePaidPriceAndTheHubWithoutAFollowedPlan(): void
+    {
+        $resource = $this->provide(new User());
+
+        $this->assertSame(['purchase' => 'paid', 'sale' => 'hub', 'followedTemplateName' => null], $resource->sources);
     }
 
     public function testAnAnonymousVisitorIsRejected(): void
@@ -71,7 +81,9 @@ final class PlanetaryProductionProfitProviderTest extends TestCase
             $productionCalculator,
             $paidPriceCalculator,
             $this->createStub(StructureMarketService::class),
+            $this->createStub(JitaMarketService::class),
             $journalRepository,
+            $this->createStub(PlanetaryPlanTemplateRepository::class),
             self::DEFAULT_HUB,
             'Default Hub',
         );

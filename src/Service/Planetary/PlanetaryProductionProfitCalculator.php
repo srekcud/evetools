@@ -8,6 +8,8 @@ use App\Entity\PlanetaryColony;
 use App\Entity\User;
 use App\Repository\CachedWalletJournalEntryRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Repository\PlanetaryPlanTemplateRepository;
+use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 
 final readonly class PlanetaryProductionProfitCalculator
@@ -21,7 +23,9 @@ final readonly class PlanetaryProductionProfitCalculator
         private PlanetaryProductionCalculator $productionCalculator,
         private PlanetaryPaidPriceCalculator $paidPriceCalculator,
         private StructureMarketService $structureMarketService,
+        private JitaMarketService $jitaMarketService,
         private CachedWalletJournalEntryRepository $journalRepository,
+        private PlanetaryPlanTemplateRepository $templateRepository,
         private int $defaultMarketStructureId,
         private string $defaultMarketStructureName,
     ) {
