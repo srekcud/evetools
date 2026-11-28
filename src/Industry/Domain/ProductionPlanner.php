@@ -185,23 +185,20 @@ final readonly class ProductionPlanner
      */
     private static function splitIntoJobs(Recipe $recipe, int $runs, BlueprintEfficiency $efficiency, PlanRequest $request): array
     {
-        $jobCount = isset($request->blueprintCopyMaxRuns[$recipe->productTypeId])
-            ? (int) ceil($runs / $request->blueprintCopyMaxRuns[$recipe->productTypeId]->value)
-            : 1;
-        $runsPerJob = intdiv($runs, $jobCount);
-        $jobsWithOneMoreRun = $runs % $jobCount;
+        $jobRuns = isset($request->blueprintCopyMaxRuns[$recipe->productTypeId])
+            ? Runs::splitUnderCap(new Runs($runs), $request->blueprintCopyMaxRuns[$recipe->productTypeId])
+            : [new Runs($runs)];
         $materialModifier = $request->materialModifiers->forJob($recipe);
 
         $jobs = [];
-        for ($jobIndex = 0; $jobIndex < $jobCount; ++$jobIndex) {
-            $jobRuns = new Runs($jobIndex < $jobsWithOneMoreRun ? $runsPerJob + 1 : $runsPerJob);
+        foreach ($jobRuns as $runsOfJob) {
             $jobs[] = new Job(
                 productTypeId: $recipe->productTypeId,
                 activity: $recipe->activity,
-                runs: $jobRuns,
+                runs: $runsOfJob,
                 materialEfficiency: $efficiency->materialEfficiency,
                 timeEfficiency: $efficiency->timeEfficiency,
-                materials: self::jobMaterials($recipe, $jobRuns, $efficiency->materialEfficiency, $materialModifier),
+                materials: self::jobMaterials($recipe, $runsOfJob, $efficiency->materialEfficiency, $materialModifier),
             );
         }
 

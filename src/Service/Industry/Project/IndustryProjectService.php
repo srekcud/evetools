@@ -59,6 +59,9 @@ class IndustryProjectService
 {
     public const int MAX_BOM_LINES = 5000;
 
+    private const string COPY_LINE_KEY_FORMAT = '%d:copy:%s';
+    private const string COPY_LINE_INDEX_PATTERN = '\d+';
+
     public function __construct(
         private readonly ProductionPlanning $productionPlanning,
         private readonly UserProductionStructures $userStructures,
@@ -785,26 +788,9 @@ class IndustryProjectService
         return $recipe->maxProductionLimit->value;
     }
 
-    /**
-     * @return list<int>
-     */
-    private static function runsPerCopyOf(int $totalRuns, int $blueprintCopyMaxRuns): array
-    {
-        $copyCount = (int) ceil($totalRuns / $blueprintCopyMaxRuns);
-        $runsPerCopy = intdiv($totalRuns, $copyCount);
-        $copiesWithOneMoreRun = $totalRuns % $copyCount;
-
-        $runs = [];
-        for ($copyIndex = 0; $copyIndex < $copyCount; ++$copyIndex) {
-            $runs[] = $copyIndex < $copiesWithOneMoreRun ? $runsPerCopy + 1 : $runsPerCopy;
-        }
-
-        return $runs;
-    }
-
     private static function copyLineKeyOf(int $productTypeId, int $copyIndex): string
     {
-        return \sprintf('%d:copy:%d', $productTypeId, $copyIndex);
+        return \sprintf(self::COPY_LINE_KEY_FORMAT, $productTypeId, $copyIndex);
     }
 
     private static function t1InventionCopyLineKeyOf(int $t1ProductTypeId, int $copyIndex): string
@@ -818,7 +804,7 @@ class IndustryProjectService
     private static function dropCopyLinesOf(array &$jobAggregation, int $productTypeId): void
     {
         foreach (array_keys($jobAggregation) as $key) {
-            if (1 === preg_match(\sprintf('/^%d:copy:\d+$/', $productTypeId), (string) $key)) {
+            if (1 === preg_match(\sprintf('/^%s$/', \sprintf(self::COPY_LINE_KEY_FORMAT, $productTypeId, self::COPY_LINE_INDEX_PATTERN)), (string) $key)) {
                 unset($jobAggregation[$key]);
             }
         }
@@ -967,12 +953,12 @@ class IndustryProjectService
         }
 
         foreach ($t1Copies as $t1ProductTypeId => ['attempts' => $attempts, 't1BlueprintTypeId' => $t1BlueprintTypeId, 'parentTypeId' => $parentTypeId]) {
-            $copyRuns = self::runsPerCopyOf($attempts, $this->blueprintCopyMaxRunsOf($t1ProductTypeId, $t1BlueprintTypeId));
-            foreach ($copyRuns as $copyIndex => $runs) {
+            $copyRuns = Runs::splitUnderCap(new Runs($attempts), new Runs($this->blueprintCopyMaxRunsOf($t1ProductTypeId, $t1BlueprintTypeId)));
+            foreach ($copyRuns as $copyIndex => $copyRunsOfLine) {
                 $jobAggregation[self::t1InventionCopyLineKeyOf($t1ProductTypeId, $copyIndex)] = [
                     'typeId' => $t1ProductTypeId,
                     'typeName' => $typeNames[$t1ProductTypeId],
-                    'runs' => $runs,
+                    'runs' => $copyRunsOfLine->value,
                     'meLevel' => 0,
                     'teLevel' => 0,
                     'activityType' => 'copy',

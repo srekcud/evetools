@@ -17,4 +17,21 @@ final readonly class Runs
             throw new \InvalidArgumentException(\sprintf('A job has at least %d run, got %d.', self::MINIMUM, $value));
         }
     }
+
+    /**
+     * @return list<self>
+     */
+    public static function splitUnderCap(self $total, self $cap): array
+    {
+        $partCount = (int) ceil($total->value / $cap->value);
+        $runsPerPart = intdiv($total->value, $partCount);
+        $partsWithOneMoreRun = $total->value % $partCount;
+
+        $parts = [];
+        for ($partIndex = 0; $partIndex < $partCount; ++$partIndex) {
+            $parts[] = new self($partIndex < $partsWithOneMoreRun ? $runsPerPart + 1 : $runsPerPart);
+        }
+
+        return $parts;
+    }
 }
