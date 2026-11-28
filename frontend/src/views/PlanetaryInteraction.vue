@@ -37,6 +37,9 @@ import PiStockTab from '@/components/planetary/PiStockTab.vue'
 import PiSupplyTab from '@/components/planetary/PiSupplyTab.vue'
 import PiFollowedPlanBanner from '@/components/planetary/PiFollowedPlanBanner.vue'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
+import { useStructuresStore } from '@/stores/industry/structures'
+import CharacterSyncFailuresAlert from '@/components/industry/CharacterSyncFailuresAlert.vue'
+import type { CharacterSyncFailure } from '@/stores/industry/types'
 
 type PlanetaryTab = 'planner' | 'colonies' | 'stock' | 'supply' | 'revenue' | 'layouts'
 type ColonyGrouping = 'account' | 'character'
@@ -63,6 +66,7 @@ const { t } = useI18n()
 const route = useRoute()
 const planetaryStore = usePlanetaryStore()
 const plannerStore = usePlanetaryPlannerStore()
+const structuresStore = useStructuresStore()
 const coloniesUpdated = useUpdateFlash(() => planetaryStore.colonies)
 const syncStore = useSyncStore()
 const { formatTimeSince } = useFormatters()
@@ -109,6 +113,9 @@ const colonyGrouping = ref<ColonyGrouping>('account')
 const colonySortMode = ref<ColonySortMode>('nextAction')
 const colonyFilter = ref<ColonySelection>('all')
 const now = ref(Date.now())
+const isSkillsSyncing = ref(false)
+const skillsSyncError = ref<string | null>(null)
+const skillsSyncFailures = ref<CharacterSyncFailure[]>([])
 
 const clockTimer = setInterval(() => {
   now.value = Date.now()
@@ -245,6 +252,23 @@ function isOverMaximum(character: PlanetarySlotCharacter): boolean {
   return character.maxColonies !== null && character.coloniesUsed > character.maxColonies
 }
 
+const hasUnknownColonyMaximum = computed(() => slotCharacters.value.some(character => character.maxColonies === null))
+
+async function syncSkills(): Promise<void> {
+  isSkillsSyncing.value = true
+  skillsSyncError.value = null
+  skillsSyncFailures.value = []
+  try {
+    skillsSyncFailures.value = await structuresStore.syncCharacterSkills()
+  } catch (e) {
+    skillsSyncError.value = e instanceof Error ? e.message : t('pi.slots.syncSkillsError')
+    return
+  } finally {
+    isSkillsSyncing.value = false
+  }
+  await planetaryStore.fetchSlots()
+}
+
 // ========== Colony expand/collapse ==========
 
 async function toggleColony(colonyId: string): Promise<void> {
@@ -362,6 +386,33 @@ async function toggleColony(colonyId: string): Promise<void> {
           :expired-colonies="planetaryStore.expiredColonies"
           :expiring-colonies="planetaryStore.expiringColonies"
           :threshold-minutes="statsData?.expiryThresholdMinutes ?? null"
+        />
+
+        <div
+          v-if="hasUnknownColonyMaximum"
+          data-testid="slots-skills-sync"
+          class="bg-amber-500/10 border border-amber-500/20 rounded-xl px-5 py-3 flex items-center justify-between gap-3"
+        >
+          <span class="text-sm text-amber-300">{{ t('pi.slots.syncSkillsHint') }}</span>
+          <button
+            type="button"
+            data-testid="slots-skills-sync-button"
+            :disabled="isSkillsSyncing"
+            class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-white text-xs font-medium transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="syncSkills"
+          >
+            {{ isSkillsSyncing ? t('common.actions.syncing') : t('pi.slots.syncSkills') }}
+          </button>
+        </div>
+
+        <p v-if="skillsSyncError !== null" data-testid="slots-skills-sync-error" class="text-sm text-amber-400">{{ skillsSyncError }}</p>
+
+        <CharacterSyncFailuresAlert
+          v-if="skillsSyncFailures.length > 0"
+          data-testid="slots-skills-sync-failures"
+          :title="t('industry.syncFailures.skillsTitle', skillsSyncFailures.length)"
+          :failures="skillsSyncFailures"
+          @dismiss="skillsSyncFailures = []"
         />
 
         <div class="flex justify-end px-2">

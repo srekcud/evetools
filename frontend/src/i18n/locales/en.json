@@ -519,6 +519,9 @@
       "badge": "{used} / {max} slots",
       "unknownMax": "?",
       "unknownTooltip": "Maximum unknown: the Interplanetary Consolidation skill is not synchronized yet. Run the skills sync in Industry.",
+      "syncSkillsHint": "The colony maximum of some characters is unknown: their Interplanetary Consolidation skill is not synchronized yet.",
+      "syncSkills": "Sync skills",
+      "syncSkillsError": "The skills sync failed.",
       "overTooltip": "More colonies than the maximum allowed by Interplanetary Consolidation (skill lowered or stale data).",
       "characters": "Colony slots by character"
     },
