@@ -74,6 +74,10 @@ function excludeType(typeId: number): void {
             <th class="pb-3 text-right font-medium">{{ t('pi.stock.grid.hub') }}</th>
             <th class="pb-3 text-right font-medium" :title="t('pi.stock.grid.customsOfficeHint')">{{ t('pi.stock.grid.customsOffice') }}</th>
             <th class="pb-3 text-right font-medium">{{ t('pi.stock.grid.corp') }}</th>
+            <th class="pb-3 text-right font-medium" data-testid="stock-header-elsewhere">
+              {{ t('pi.stock.grid.elsewhere') }}
+              <span class="block text-[10px] font-normal normal-case tracking-normal text-amber-400/80">{{ t('pi.stock.grid.notAtHub') }}</span>
+            </th>
             <th class="pb-3 text-right font-medium">{{ t('pi.stock.grid.weeklyConsumption') }}</th>
             <th class="pb-3 text-left font-medium">{{ t('pi.stock.grid.coverage') }}</th>
             <th class="pb-3 text-right font-medium">{{ t('pi.stock.grid.openOrders') }}</th>
@@ -103,6 +107,11 @@ function excludeType(typeId: number): void {
               <UnknownValue v-if="row.corp === null" />
               <template v-else>{{ formatNumber(row.corp, 0) }}</template>
             </td>
+            <td
+              :class="['py-2.5 text-right font-mono-tech', row.elsewhere > 0 ? 'text-amber-300' : 'text-slate-300']"
+              :data-testid="`stock-cell-elsewhere-${row.typeId}`"
+              :data-not-at-hub="row.elsewhere > 0 ? 'true' : undefined"
+            >{{ formatNumber(row.elsewhere, 0) }}</td>
             <td class="py-2.5 text-right font-mono-tech text-slate-300" :data-testid="`stock-cell-weeklyConsumption-${row.typeId}`">
               <UnknownValue v-if="row.weeklyConsumption === null" />
               <template v-else>{{ formatNumber(row.weeklyConsumption, 0) }}</template>

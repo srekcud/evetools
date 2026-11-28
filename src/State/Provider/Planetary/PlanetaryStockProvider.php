@@ -57,6 +57,7 @@ final readonly class PlanetaryStockProvider implements ProviderInterface
                 'hub' => $row->hub,
                 'corp' => $row->corp,
                 'customsOffice' => $row->customsOffice,
+                'elsewhere' => $row->elsewhere,
                 'openOrders' => $row->openOrders,
                 'coverageWeeks' => $row->coverageWeeks,
                 'coverageWithOrdersWeeks' => $row->coverageWithOrdersWeeks,

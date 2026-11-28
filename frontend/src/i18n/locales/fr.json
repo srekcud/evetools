@@ -387,6 +387,8 @@
         "customsOffice": "Customs office",
         "customsOfficeHint": "Stock tenu en customs office, sans lieu connu. Il compte dans la couverture.",
         "corp": "Hangar corpo",
+        "elsewhere": "Ailleurs",
+        "notAtHub": "pas au hub",
         "weeklyConsumption": "Conso / sem.",
         "coverage": "Couverture",
         "weeksValue": "{weeks} sem.",

@@ -6,6 +6,7 @@ namespace App\Service\Planetary\Stock;
 
 use App\Dto\Assets\AssetScope;
 use App\Entity\CachedCharacterBuyOrder;
+use App\Entity\Character;
 use App\Entity\User;
 use App\Repository\AssetBrowseRepository;
 use App\Repository\CachedCharacterBuyOrderRepository;
@@ -62,6 +63,7 @@ final readonly class PlanetaryStockReader
             ),
             $needs['complete'],
             $this->customsOfficeQuantities($user, $typeIds),
+            $this->elsewhereQuantities($user, $settings, $typeIds),
         ));
     }
 
@@ -72,15 +74,12 @@ final readonly class PlanetaryStockReader
      */
     private function quantitiesByRootLocation(User $user, PlanetaryStockSettings $settings, array $typeIds): array
     {
-        $rootLocationIds = array_values(array_unique(array_filter(
-            [$settings->homeLocationId, $settings->hubStructureId],
-            static fn (?int $locationId): bool => null !== $locationId,
-        )));
+        $rootLocationIds = $this->rootLocationIds($settings);
 
         $totals = [];
         foreach ($user->getCharacters() as $character) {
             $quantities = $this->assetBrowseRepository->quantitiesByRootLocation(
-                AssetScope::forCharacter($character->getId()?->toRfc4122() ?? throw new \LogicException('A loaded character is persisted')),
+                $this->scopeOf($character),
                 $rootLocationIds,
                 $typeIds,
             );
@@ -104,7 +103,7 @@ final readonly class PlanetaryStockReader
         $totals = [];
         foreach ($user->getCharacters() as $character) {
             $quantities = $this->assetBrowseRepository->customsOfficeQuantities(
-                AssetScope::forCharacter($character->getId()?->toRfc4122() ?? throw new \LogicException('A loaded character is persisted')),
+                $this->scopeOf($character),
                 $typeIds,
             );
             foreach ($quantities as $typeId => $quantity) {
@@ -113,6 +112,46 @@ final readonly class PlanetaryStockReader
         }
 
         return $totals;
+    }
+
+    /**
+     * @param list<int> $typeIds
+     *
+     * @return array<int, int> typeId => quantity
+     */
+    private function elsewhereQuantities(User $user, PlanetaryStockSettings $settings, array $typeIds): array
+    {
+        $excludedRootLocationIds = $this->rootLocationIds($settings);
+
+        $totals = [];
+        foreach ($user->getCharacters() as $character) {
+            $quantities = $this->assetBrowseRepository->elsewhereQuantities(
+                $this->scopeOf($character),
+                $excludedRootLocationIds,
+                $typeIds,
+            );
+            foreach ($quantities as $typeId => $quantity) {
+                $totals[$typeId] = ($totals[$typeId] ?? 0) + $quantity;
+            }
+        }
+
+        return $totals;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function rootLocationIds(PlanetaryStockSettings $settings): array
+    {
+        return array_values(array_unique(array_filter(
+            [$settings->homeLocationId, $settings->hubStructureId],
+            static fn (?int $locationId): bool => null !== $locationId,
+        )));
+    }
+
+    private function scopeOf(Character $character): AssetScope
+    {
+        return AssetScope::forCharacter($character->getId()?->toRfc4122() ?? throw new \LogicException('A loaded character is persisted'));
     }
 
     private static function intOf(mixed $value): int
