@@ -519,6 +519,9 @@
       "badge": "{used} / {max} emplacements",
       "unknownMax": "?",
       "unknownTooltip": "Maximum inconnu : le skill Interplanetary Consolidation n'est pas encore synchronisé. Lancez la sync des skills dans Industrie.",
+      "syncSkillsHint": "Le maximum de colonies de certains personnages est inconnu : leur skill Interplanetary Consolidation n'est pas encore synchronisé.",
+      "syncSkills": "Synchroniser les skills",
+      "syncSkillsError": "La synchronisation des skills a échoué.",
       "overTooltip": "Plus de colonies que le maximum permis par Interplanetary Consolidation (skill baissé ou données périmées).",
       "characters": "Emplacements de colonie par personnage"
     },
