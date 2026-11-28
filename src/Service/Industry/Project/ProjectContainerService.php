@@ -34,6 +34,8 @@ class ProjectContainerService
     private const string REASON_JOB_CONSUMPTION_UNKNOWN = 'job_consumption_unknown';
     public const string REASON_NO_CONTAINER_NAME = 'no_container_name';
 
+    private const int UNRESOLVED_STATION_KEY = 0;
+
     private const string CORPORATION_ASSETS_STALE_AFTER = 'PT48H';
     private const array CORPORATION_DIVISION_NUMBERS = [1, 2, 3, 4, 5, 6, 7];
 
@@ -81,7 +83,8 @@ class ProjectContainerService
             return $this->buildAllUnknown($materialItems, $unavailabilityReason, $assetsSyncedAt);
         }
 
-        $named = $this->walkNamedContainers($this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner), $containerNames);
+        $visibleAssets = $this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner);
+        $named = $this->walkNamedContainers($visibleAssets, $containerNames);
 
         if ($named === null) {
             return $this->buildAllContainerNotFound(
@@ -103,7 +106,47 @@ class ProjectContainerService
             $startedJobConsumption,
             $assetsSyncedAt,
             $named['missingContainerNames'],
+            $this->stockStationsByType($visibleAssets, $named['rootItemIds'], $corporationId),
         );
+    }
+
+    /**
+     * @param CachedAsset[] $visibleAssets
+     * @param list<int> $rootItemIds
+     *
+     * @return array<int, list<array{locationId: ?int, stationName: ?string, quantity: int}>> by type id
+     */
+    private function stockStationsByType(array $visibleAssets, array $rootItemIds, int $corporationId): array
+    {
+        $stations = new AssetStations($visibleAssets, $this->cachedAssetRepository, $corporationId);
+        $assetsByItemId = [];
+        foreach ($visibleAssets as $asset) {
+            $assetsByItemId[$asset->getItemId()] = $asset;
+        }
+
+        $rootItemIdsByStation = [];
+        $stationsByKey = [];
+        foreach ($rootItemIds as $rootItemId) {
+            $station = $stations->locationOf($assetsByItemId[$rootItemId]);
+            $stationKey = null === $station ? self::UNRESOLVED_STATION_KEY : $station->locationId;
+            $stationsByKey[$stationKey] = $station;
+            $rootItemIdsByStation[$stationKey][] = $rootItemId;
+        }
+
+        $stockByType = [];
+        foreach ($rootItemIdsByStation as $stationKey => $stationRootItemIds) {
+            $station = $stationsByKey[$stationKey];
+            foreach ($this->quantitiesOf($this->contentsOfContainers($visibleAssets, $stationRootItemIds)) as $typeId => $quantity) {
+                $stockByType[$typeId][] = ['locationId' => $station?->locationId, 'stationName' => $station?->name, 'quantity' => $quantity];
+            }
+        }
+
+        foreach ($stockByType as $typeId => $stock) {
+            usort($stock, static fn (array $left, array $right): int => [null === $left['locationId'], $left['stationName'], $left['locationId']] <=> [null === $right['locationId'], $right['stationName'], $right['locationId']]);
+            $stockByType[$typeId] = $stock;
+        }
+
+        return $stockByType;
     }
 
     public function containerScopeOf(IndustryProject $project): ProjectContainerScope
@@ -422,9 +465,10 @@ class ProjectContainerService
      * @param IndustryProjectBomLine[] $materialItems
      * @param array<int, int> $containerQuantities
      * @param list<string> $missingContainerNames
+     * @param array<int, list<array{locationId: ?int, stationName: ?string, quantity: int}>> $stockStationsByType
      * @return ProjectContainerVerificationResource[]
      */
-    private function buildVerificationResults(array $materialItems, array $containerQuantities, StartedJobConsumption $startedJobConsumption, ?\DateTimeImmutable $assetsSyncedAt, array $missingContainerNames): array
+    private function buildVerificationResults(array $materialItems, array $containerQuantities, StartedJobConsumption $startedJobConsumption, ?\DateTimeImmutable $assetsSyncedAt, array $missingContainerNames, array $stockStationsByType): array
     {
         $results = [];
 
@@ -432,7 +476,7 @@ class ProjectContainerService
             $containerQty = isset($containerQuantities[$item->getTypeId()]) ? $containerQuantities[$item->getTypeId()] : 0;
             $consumedQty = $startedJobConsumption->consumedOf($item->getTypeId());
             $status = $this->determineStatus($containerQty, max(0, $item->getRequiredQuantity() - $consumedQty));
-            $results[] = $this->buildResource($item, $containerQty, $consumedQty, $status, $assetsSyncedAt, null, $missingContainerNames);
+            $results[] = $this->buildResource($item, $containerQty, $consumedQty, $status, $assetsSyncedAt, null, $missingContainerNames, $stockStationsByType[$item->getTypeId()] ?? []);
         }
 
         return $results;
@@ -453,6 +497,7 @@ class ProjectContainerService
 
     /**
      * @param list<string> $missingContainerNames
+     * @param list<array{locationId: ?int, stationName: ?string, quantity: int}>|null $stockStations
      */
     private function buildResource(
         IndustryProjectBomLine $item,
@@ -462,6 +507,7 @@ class ProjectContainerService
         ?\DateTimeImmutable $assetsSyncedAt,
         ?string $unknownReason = null,
         array $missingContainerNames = [],
+        ?array $stockStations = null,
     ): ProjectContainerVerificationResource {
         $resource = new ProjectContainerVerificationResource();
         $resource->bomItemId = $item->getId()->toString();
@@ -474,6 +520,7 @@ class ProjectContainerService
         $resource->unknownReason = $unknownReason;
         $resource->assetsSyncedAt = $assetsSyncedAt;
         $resource->missingContainerNames = $missingContainerNames;
+        $resource->stockStations = $stockStations;
 
         return $resource;
     }

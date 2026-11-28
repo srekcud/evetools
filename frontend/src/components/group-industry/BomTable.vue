@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useGroupStationQuantitiesStore } from '@/stores/group-industry/stationQuantities'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import MultibuyBridgeActions from '@/components/appraisal/MultibuyBridgeActions.vue'
@@ -9,15 +10,17 @@ import IskAmount from '@/components/common/IskAmount.vue'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
+import ContainerLineStations from './ContainerLineStations.vue'
 import ContainerLineStatus from './ContainerLineStatus.vue'
 import UnclaimedStockBadge from './UnclaimedStockBadge.vue'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
-import type { BomItem, ContainerVerification, ContainerVerificationStatus } from '@/stores/group-industry/types'
+import type { BomItem, ContainerVerification, ContainerVerificationStatus, TypeStationQuantities } from '@/stores/group-industry/types'
 import { CHART_COLORS } from '@/utils/chartColors'
 
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
+const stationQuantitiesStore = useGroupStationQuantitiesStore()
 const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { formatIsk, formatNumber } = useFormatters()
@@ -38,6 +41,11 @@ const verificationMap = computed(() => {
   }
   return map
 })
+
+function stationQuantitiesOf(typeId: number): TypeStationQuantities | null {
+  if (stationQuantitiesStore.error !== null) return null
+  return stationQuantitiesStore.quantities.find(quantity => quantity.typeId === typeId) ?? null
+}
 
 const multibuyLines = computed(() =>
   materials.value
@@ -169,6 +177,7 @@ function ringStrokeColor(percent: number): string {
                 </span>{{ ' ' }}
                 <!-- Container verification indicator -->
                 <ContainerLineStatus v-if="verificationMap.has(item.id)" :verification="verificationMap.get(item.id)!" />
+                <ContainerLineStations v-if="verificationMap.has(item.id)" :verification="verificationMap.get(item.id)!" :quantities="stationQuantitiesOf(item.typeId)" />
                 <UnclaimedStockBadge :item="item" />
               </td>
 

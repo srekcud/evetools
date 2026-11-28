@@ -55,4 +55,7 @@ class ProjectContainerVerificationResource
 
     /** @var list<string> Declared container names without any visible container */
     public array $missingContainerNames = [];
+
+    /** @var list<array{locationId: ?int, stationName: ?string, quantity: int}>|null Where the quantity is held, station by station; null when it cannot be read */
+    public ?array $stockStations = null;
 }

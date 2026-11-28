@@ -5460,6 +5460,10 @@
         "job_consumption_unknown": "Consommation des jobs lancés incalculable"
       },
       "consumedByStartedJobs": "{quantity} utilisés par les jobs lancés",
+      "stockByStation": "En stock : {stations}",
+      "notAtJobStation": "Pas à la station du job : {stations}",
+      "stationStillNeeds": "{station} manque encore {quantity}",
+      "unknownStation": "station inconnue",
       "assetsSyncedAt": "Assets de la corporation synchronisés le {date}",
       "refreshAssets": "Rafraîchir les assets corpo",
       "refreshingAssets": "Rafraîchissement...",

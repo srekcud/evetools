@@ -5460,6 +5460,10 @@
         "job_consumption_unknown": "Started jobs used materials, their consumption cannot be computed"
       },
       "consumedByStartedJobs": "{quantity} used by started jobs",
+      "stockByStation": "In stock: {stations}",
+      "notAtJobStation": "Not where the job runs: {stations}",
+      "stationStillNeeds": "{station} still needs {quantity}",
+      "unknownStation": "unknown station",
       "assetsSyncedAt": "Corporation assets synced {date}",
       "refreshAssets": "Refresh corp assets",
       "refreshingAssets": "Refreshing...",
