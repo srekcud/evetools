@@ -18,6 +18,7 @@ export function stockRow(typeId: number, typeName: string | null, overrides: Par
     home: 0,
     hub: 0,
     customsOffice: 0,
+    elsewhere: 0,
     corp: 0,
     openOrders: 0,
     coverageWeeks: 0,

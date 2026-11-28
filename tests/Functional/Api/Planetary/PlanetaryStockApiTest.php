@@ -126,9 +126,9 @@ final class PlanetaryStockApiTest extends WebTestCase
         self::assertSame('Bacteria', $bacteria['typeName']);
         self::assertEqualsWithDelta(0.38, $bacteria['volumePerUnit'], 0.000001);
         self::assertEqualsWithDelta(6720.0, $bacteria['weeklyConsumption'], 0.000001);
-        self::assertSame([3000, 500, 0, 400, 16260], [$bacteria['home'], $bacteria['hub'], $bacteria['corp'], $bacteria['openOrders'], $bacteria['toBuy']]);
-        self::assertEqualsWithDelta(0.5208333, $bacteria['coverageWeeks'], 0.0000001);
-        self::assertEqualsWithDelta(0.5803571, $bacteria['coverageWithOrdersWeeks'], 0.0000001);
+        self::assertSame([3000, 500, 0, 400, 12260], [$bacteria['home'], $bacteria['hub'], $bacteria['corp'], $bacteria['openOrders'], $bacteria['toBuy']]);
+        self::assertEqualsWithDelta(1.1160714, $bacteria['coverageWeeks'], 0.0000001);
+        self::assertEqualsWithDelta(1.1755952, $bacteria['coverageWithOrdersWeeks'], 0.0000001);
 
         $metals = $this->rowOf($body, self::REACTIVE_METALS);
         self::assertSame('Reactive Metals', $metals['typeName']);
@@ -207,14 +207,31 @@ final class PlanetaryStockApiTest extends WebTestCase
 
         $bacteria = $this->rowOf($body, self::BACTERIA);
         self::assertArrayHasKey('customsOffice', $bacteria);
-        self::assertSame([1_000, 0, 0, 2_000, 0, 17_160], [$bacteria['home'], $bacteria['hub'], $bacteria['corp'], $bacteria['customsOffice'], $bacteria['openOrders'], $bacteria['toBuy']]);
-        self::assertEqualsWithDelta(0.4464286, $bacteria['coverageWeeks'], 0.0000001);
-        self::assertEqualsWithDelta(0.4464286, $bacteria['coverageWithOrdersWeeks'], 0.0000001);
+        self::assertSame([1_000, 0, 0, 2_000, 0, 13_160], [$bacteria['home'], $bacteria['hub'], $bacteria['corp'], $bacteria['customsOffice'], $bacteria['openOrders'], $bacteria['toBuy']]);
+        self::assertEqualsWithDelta(1.0416667, $bacteria['coverageWeeks'], 0.0000001);
+        self::assertEqualsWithDelta(1.0416667, $bacteria['coverageWithOrdersWeeks'], 0.0000001);
 
         $metals = $this->rowOf($body, self::REACTIVE_METALS);
         self::assertArrayHasKey('customsOffice', $metals);
         self::assertSame([0, 0, 0, 80, 0, 12_520], [$metals['home'], $metals['hub'], $metals['corp'], $metals['customsOffice'], $metals['openOrders'], $metals['toBuy']]);
         self::assertEqualsWithDelta(0.0190476, $metals['coverageWeeks'], 0.0000001);
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereStockIsTheAccountStockOutsideTheHomeHubAndCustomsOfficeAndNeverAnotherUsers(): void
+    {
+        $erin = $this->read($this->erin);
+        $alice = $this->read($this->alice);
+        $carol = $this->read($this->carol);
+
+        self::assertSame(4_000, $this->rowOf($erin, self::BACTERIA)['elsewhere']);
+        self::assertSame(0, $this->rowOf($erin, self::REACTIVE_METALS)['elsewhere']);
+        self::assertSame(4_000, $this->rowOf($alice, self::BACTERIA)['elsewhere']);
+        self::assertSame(0, $this->rowOf($alice, self::REACTIVE_METALS)['elsewhere']);
+        foreach ($carol['rows'] as $row) {
+            self::assertArrayHasKey('elsewhere', $row);
+            self::assertSame(0, $row['elsewhere']);
+        }
     }
 
     #[Group('issue-1390')]
@@ -227,7 +244,7 @@ final class PlanetaryStockApiTest extends WebTestCase
             self::assertArrayHasKey('customsOffice', $row);
             self::assertSame(0, $row['customsOffice']);
         }
-        self::assertSame(16_260, $this->rowOf($body, self::BACTERIA)['toBuy']);
+        self::assertSame(12_260, $this->rowOf($body, self::BACTERIA)['toBuy']);
     }
 
     private function actAs(User $user): void

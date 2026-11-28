@@ -58,7 +58,7 @@ function isUnknown(wrapper: Wrapper, field: string, typeId: number): boolean {
 enableAutoUnmount(afterEach)
 
 describe('PiStockCoverageGrid', () => {
-  it('shows one row per type in the order received and the eleven columns with their figures', async () => {
+  it('shows one row per type in the order received and the twelve columns with their figures', async () => {
     const wrapper = mountGrid(stockOf([PLASMA_ROW, COOLANT_ROW]))
 
     expect(wrapper.findAll('[data-testid^="stock-row-"]').map(row => row.attributes('data-testid'))).toEqual([
@@ -71,6 +71,7 @@ describe('PiStockCoverageGrid', () => {
       en.pi.stock.grid.hub,
       expectedMessage('en', 'pi.stock.grid.customsOffice'),
       en.pi.stock.grid.corp,
+      `${en.pi.stock.grid.elsewhere} ${en.pi.stock.grid.notAtHub}`,
       en.pi.stock.grid.weeklyConsumption,
       en.pi.stock.grid.coverage,
       en.pi.stock.grid.openOrders,
