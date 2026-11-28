@@ -852,6 +852,8 @@
       "realisedNet": "Réalisé",
       "estimateNet": "Estimation",
       "estimateColumn": "Estimation de production",
+      "estimateProfit": "Bénéfice de production sur {n} jours : {profit} (prix : achat {purchase}, vente {sale})",
+      "estimateProfitUnknown": "aucun bénéfice compté pour {n} ligne | aucun bénéfice compté pour {n} lignes",
       "offMarket": "Ventes hors marché (non suivies)",
       "walletUnsynced": "Wallet non synchronisé (inconnu)",
       "profit": {

@@ -113,6 +113,33 @@ const UNDERCUT_ORDER = {
   suggestedPrice: 899.9,
 } as const
 
+describe('PiRevenueTab estimate profit', () => {
+  it('shows the production profit over the period next to the theoretical production: 40,000 a day over 30 days is 1.20M', async () => {
+    const wrapper = await mountTab()
+    const profit = wrapper.get('[data-testid="estimate-profit"]')
+
+    expect(profit.text()).toContain('1.20M')
+    expect(profit.text()).toContain('30')
+    expect(profit.text()).toContain('Paid price')
+  })
+
+  it('follows the period: 40,000 a day over 90 days is 3.60M', async () => {
+    const wrapper = await mountTab({ ...REVENUE, days: 90 })
+
+    expect(wrapper.get('[data-testid="estimate-profit"]').text()).toContain('3.60M')
+  })
+
+  it('states the number of lines without profit instead of counting them as zero', async () => {
+    const wrapper = await mountTab()
+    const store = (await import('@/stores/planetary')).usePlanetaryStore()
+    store.productionProfit = { ...PRODUCTION_PROFIT, unknownLineCount: 2 }
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="estimate-profit"]').text()).toContain('2')
+    expect(wrapper.get('[data-testid="estimate-profit"]').attributes('data-incomplete')).toBe('true')
+  })
+})
+
 describe('PiRevenueTab', () => {
   it('requests the thirty day revenue when it opens and again for another period', async () => {
     const wrapper = await mountTab()

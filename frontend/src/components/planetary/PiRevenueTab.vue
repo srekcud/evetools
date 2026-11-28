@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { formatIskShort } from '@/composables/useIskParser'
 import { usePlanetaryStore } from '@/stores/planetary'
 import { usePlanetaryPlannerStore } from '@/stores/planetaryPlanner'
 import PiRevenuePlanLine from '@/components/planetary/PiRevenuePlanLine.vue'
@@ -32,6 +33,19 @@ const selectedDays = ref<number>(DEFAULT_PERIOD_DAYS)
 const revenue = computed(() => planetaryStore.revenue)
 const now = ref(Date.now())
 const productionProfit = computed(() => planetaryStore.productionProfit)
+
+const estimateProfit = computed(() => {
+  const profit = productionProfit.value
+  if (profit === null) return null
+
+  const total = profit.profitPerDay * period.value.days
+  return {
+    amount: total < 0 ? `-${formatIskShort(-total)}` : formatIskShort(total),
+    purchase: t(`pi.revenue.profit.source.${profit.sources.purchase}`),
+    sale: t(`pi.revenue.profit.source.${profit.sources.sale}`),
+    unknownLineCount: profit.unknownLineCount,
+  }
+})
 
 const labels = computed<PlanetaryRevenueLabels>(() => ({
   tier: tier => t(`pi.revenue.tiers.${tier}`),
@@ -124,6 +138,11 @@ watch(selectedDays, days => planetaryStore.fetchRevenue(days))
         :net="ESTIMATE_NET"
         :period="period"
       />
+
+      <p v-if="estimateProfit !== null" class="text-sm text-slate-300" data-testid="estimate-profit" :data-incomplete="estimateProfit.unknownLineCount > 0">
+        {{ t('pi.revenue.estimateProfit', { n: period.days, profit: estimateProfit.amount, purchase: estimateProfit.purchase, sale: estimateProfit.sale }) }}
+        <span v-if="estimateProfit.unknownLineCount > 0" class="text-amber-300">{{ t('pi.revenue.estimateProfitUnknown', { n: estimateProfit.unknownLineCount }, estimateProfit.unknownLineCount) }}</span>
+      </p>
 
       <ProjectSellOrdersCard
         :sell-orders="revenue.sellOrders"

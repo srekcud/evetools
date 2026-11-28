@@ -852,6 +852,8 @@
       "realisedNet": "Realised",
       "estimateNet": "Estimate",
       "estimateColumn": "Production estimate",
+      "estimateProfit": "Production profit over {n} days: {profit} (prices: buy {purchase}, sell {sale})",
+      "estimateProfitUnknown": "no profit counted for {n} line | no profit counted for {n} lines",
       "offMarket": "Off-market sales (not tracked)",
       "walletUnsynced": "Wallet not synced (unknown)",
       "profit": {
