@@ -30,7 +30,7 @@ function projectNamed(name: string | null): GroupProject {
     status: 'in_progress',
     solo: true,
     myRole: 'owner',
-    items: [{ typeName: 'Rifter', runs: 2 }, { typeName: 'Merlin', runs: 1 }],
+    items: [{ typeId: 587, typeName: 'Rifter', runs: 2 }, { typeId: 603, typeName: 'Merlin', runs: 1 }],
   } as unknown as GroupProject
 }
 
@@ -69,7 +69,7 @@ describe('ContributeModal project name', () => {
   it('shows the display name of an unnamed project, built from its items', async () => {
     const wrapper = await mountModal(null, [tritanium])
 
-    expect(wrapper.text()).toContain('Project: 2x Rifter, 1x Merlin')
+    expect(wrapper.text()).toContain('Project: 2x Rifter +1')
     expect(wrapper.text()).not.toContain('---')
   })
 })
