@@ -106,7 +106,7 @@ describe('PiPlannerTemplates productions and figures', () => {
   })
 
   it('shows a profit of exactly 0 as 0, known and not red', async () => {
-    const untaxed = makeTemplate('tpl-untaxed', 'Untaxed B', [{ typeId: RANKING_PRODUCT_B, targetPerDay: 120 }], {}, { priceSource: 'jita-sell', taxPercent: 0, daysBetweenRounds: 4 })
+    const untaxed = makeTemplate('tpl-untaxed', 'Untaxed B', [{ typeId: RANKING_PRODUCT_B, targetPerDay: 120 }], {}, { purchaseSource: 'jita-sell', saleSource: 'jita-sell', taxPercent: 0, daysBetweenRounds: 4 })
     const { wrapper } = await mountTemplates({ templates: [untaxed], catalog: withSellPrices(TEMPLATE_CATALOG, { [RANKING_PRODUCT_B]: 400 }) })
 
     for (const testId of PROFIT_CELLS) {

@@ -36,8 +36,8 @@ final class PlanetaryPlanTemplateCollectionProviderTest extends TestCase
 
     public function testItListsTheTemplatesOfTheConnectedUserInTheOrderOfTheRepositoryWithEveryStoredField(): void
     {
-        $coolant = $this->template(self::COOLANT_TEMPLATE_ID, 'Coolant line', [['typeId' => self::COOLANT, 'targetPerDay' => 120]], [self::PLASMOIDS => 'buy'], ['priceSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], '2026-11-22T18:30:00+00:00');
-        $robotics = $this->template(self::ROBOTICS_TEMPLATE_ID, 'Robotics', [['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5], ['typeId' => self::COOLANT, 'targetPerDay' => 9]], [], ['priceSource' => 'jita-sell', 'taxPercent' => 0, 'daysBetweenRounds' => 0.5], '2026-11-20T09:00:00+00:00');
+        $coolant = $this->template(self::COOLANT_TEMPLATE_ID, 'Coolant line', [['typeId' => self::COOLANT, 'targetPerDay' => 120]], [self::PLASMOIDS => 'buy'], ['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], '2026-11-22T18:30:00+00:00');
+        $robotics = $this->template(self::ROBOTICS_TEMPLATE_ID, 'Robotics', [['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5], ['typeId' => self::COOLANT, 'targetPerDay' => 9]], [], ['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 0, 'daysBetweenRounds' => 0.5], '2026-11-20T09:00:00+00:00');
         $repository = $this->createMock(PlanetaryPlanTemplateRepository::class);
         $repository->expects($this->once())->method('findByUser')->with($this->user)->willReturn([$coolant, $robotics]);
 
@@ -48,21 +48,21 @@ final class PlanetaryPlanTemplateCollectionProviderTest extends TestCase
         $this->assertSame('Coolant line', $resources[0]->name);
         $this->assertSame([['typeId' => self::COOLANT, 'targetPerDay' => 120]], $resources[0]->productions);
         $this->assertSame([self::PLASMOIDS => 'buy'], $resources[0]->choices);
-        $this->assertSame(['priceSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], $resources[0]->settings);
+        $this->assertSame(['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-buy', 'taxPercent' => 7.5, 'daysBetweenRounds' => 6], $resources[0]->settings);
         $this->assertSame('2026-11-22T18:30:00+00:00', $resources[0]->createdAt);
         $this->assertSame(self::ROBOTICS_TEMPLATE_ID, $resources[1]->id);
         $this->assertSame('Robotics', $resources[1]->name);
         $this->assertSame([['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5], ['typeId' => self::COOLANT, 'targetPerDay' => 9]], $resources[1]->productions);
         $this->assertSame([], $resources[1]->choices);
-        $this->assertSame(['priceSource' => 'jita-sell', 'taxPercent' => 0, 'daysBetweenRounds' => 0.5], $resources[1]->settings);
+        $this->assertSame(['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 0, 'daysBetweenRounds' => 0.5], $resources[1]->settings);
         $this->assertSame('2026-11-20T09:00:00+00:00', $resources[1]->createdAt);
     }
 
     #[Group('issue-1406')]
     public function testItExposesWhichTemplateIsFollowed(): void
     {
-        $coolant = $this->template(self::COOLANT_TEMPLATE_ID, 'Coolant line', [['typeId' => self::COOLANT, 'targetPerDay' => 120]], [], ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4], '2026-11-22T18:30:00+00:00')->setFollowed(true);
-        $robotics = $this->template(self::ROBOTICS_TEMPLATE_ID, 'Robotics', [['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]], [], ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4], '2026-11-20T09:00:00+00:00');
+        $coolant = $this->template(self::COOLANT_TEMPLATE_ID, 'Coolant line', [['typeId' => self::COOLANT, 'targetPerDay' => 120]], [], ['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4], '2026-11-22T18:30:00+00:00')->setFollowed(true);
+        $robotics = $this->template(self::ROBOTICS_TEMPLATE_ID, 'Robotics', [['typeId' => self::ROBOTICS, 'targetPerDay' => 36.5]], [], ['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4], '2026-11-20T09:00:00+00:00');
         $repository = $this->createStub(PlanetaryPlanTemplateRepository::class);
         $repository->method('findByUser')->willReturn([$coolant, $robotics]);
 
@@ -100,7 +100,7 @@ final class PlanetaryPlanTemplateCollectionProviderTest extends TestCase
     /**
      * @param list<array{typeId: int, targetPerDay: int|float}> $productions
      * @param array<int, string> $choices
-     * @param array{priceSource: string, taxPercent: int|float, daysBetweenRounds: int|float} $settings
+     * @param array{purchaseSource: string, saleSource: string, taxPercent: int|float, daysBetweenRounds: int|float} $settings
      */
     private function template(string $id, string $name, array $productions, array $choices, array $settings, string $createdAt): PlanetaryPlanTemplate
     {

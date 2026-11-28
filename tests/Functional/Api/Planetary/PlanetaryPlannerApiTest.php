@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Planetary;
 
+use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\Sde\DgmTypeAttribute;
 use App\Entity\Sde\InvCategory;
@@ -16,11 +17,13 @@ use App\Entity\User;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 #[Group('issue-1402')]
+#[Group('issue-1454')]
 final class PlanetaryPlannerApiTest extends WebTestCase
 {
     private const int PILOT_EVE_CHARACTER_ID = 2_112_940_201;
@@ -45,10 +48,17 @@ final class PlanetaryPlannerApiTest extends WebTestCase
     private const int CPU_LOAD = 49;
     private const int POWER_LOAD = 15;
     private const int HARVESTER_TYPE = 709;
+    private const int DEFAULT_HUB_STRUCTURE_ID = 1_049_588_174_021;
+    private const int PREFERRED_HUB_STRUCTURE_ID = 1_040_000_000_017;
+    private const string PREFERRED_HUB_STRUCTURE_NAME = 'Preferred Test Hub';
+    private const int RIVAL_EVE_CHARACTER_ID = 2_112_940_202;
+    private const int JITA_STATION_ID = 60_003_760;
+    private const string MARKET_POOL = 'structure_market.cache';
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
     private User $pilot;
+    private int $nextTransactionId = 7_112_940_001;
 
     protected function setUp(): void
     {
@@ -56,6 +66,7 @@ final class PlanetaryPlannerApiTest extends WebTestCase
         $this->client->disableReboot();
         self::getContainer()->set('logger', new NullLogger());
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
+        $this->forgetTheHubMarkets();
         $this->pilot = $this->createPilot();
         $this->seedWaterSchematic();
         $this->seedZetatestPlanet();
@@ -76,7 +87,7 @@ final class PlanetaryPlannerApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         $body = json_decode((string) $this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
-        foreach (['id', 'recipes', 'types', 'prices', 'planetTypes', 'extractionPlanetTypes'] as $key) {
+        foreach (['id', 'recipes', 'types', 'prices', 'planetTypes', 'extractionPlanetTypes', 'hub'] as $key) {
             self::assertArrayHasKey($key, $body);
         }
         self::assertSame('planner', $body['id']);
@@ -93,12 +104,17 @@ final class PlanetaryPlannerApiTest extends WebTestCase
             ['typeId' => self::AQUEOUS_LIQUIDS, 'name' => 'Test Aqueous Liquids', 'tier' => 'P0', 'volume' => 0.01],
             $this->lineOf($body['types'], 'typeId', self::AQUEOUS_LIQUIDS),
         );
-        self::assertSame(['typeId' => self::WATER, 'sell' => 12.5, 'buy' => 11.5], $this->lineOf($body['prices'], 'typeId', self::WATER));
+        $water = $this->lineOf($body['prices'], 'typeId', self::WATER);
+        self::assertSame([12.5, 11.5], [$water['sell'], $water['buy']]);
         $unpriced = $this->lineOf($body['prices'], 'typeId', self::AQUEOUS_LIQUIDS);
-        self::assertArrayHasKey('sell', $unpriced);
-        self::assertArrayHasKey('buy', $unpriced);
-        self::assertNull($unpriced['sell']);
-        self::assertNull($unpriced['buy']);
+        foreach (['sell', 'buy', 'hub', 'paid'] as $field) {
+            self::assertArrayHasKey($field, $unpriced);
+            self::assertNull($unpriced[$field], $field);
+        }
+        foreach (['hub', 'paid'] as $field) {
+            self::assertArrayHasKey($field, $water);
+            self::assertNull($water[$field], $field);
+        }
     }
 
     public function testTheSeededPlanetComesBackWithItsCommandCenterLaunchpadAndFacilities(): void
@@ -133,6 +149,118 @@ final class PlanetaryPlannerApiTest extends WebTestCase
         self::assertSame(
             ['typeId' => self::AQUEOUS_LIQUIDS, 'planetTypes' => ['Zetatest']],
             $this->lineOf($body['extractionPlanetTypes'], 'typeId', self::AQUEOUS_LIQUIDS),
+        );
+    }
+
+    public function testThePricesCarryTheHubAndThePaidPriceOfTheConnectedUserAndTheHubIsDescribed(): void
+    {
+        $this->seedHubMarket(self::DEFAULT_HUB_STRUCTURE_ID, [self::WATER => 11.75, self::AQUEOUS_LIQUIDS => 0.9]);
+        $this->persistPurchase($this->pilot->getMainCharacter(), self::AQUEOUS_LIQUIDS, 100, 0.5);
+        $this->persistPurchase($this->pilot->getMainCharacter(), self::AQUEOUS_LIQUIDS, 300, 0.7);
+        $this->em->flush();
+
+        $body = $this->readAs($this->pilot);
+
+        self::assertSame(
+            ['structureId' => self::DEFAULT_HUB_STRUCTURE_ID, 'structureName' => self::getContainer()->getParameter('app.default_market_structure_name'), 'hasData' => true],
+            $body['hub'],
+        );
+        $water = $this->lineOf($body['prices'], 'typeId', self::WATER);
+        self::assertSame([12.5, 11.5, 11.75], [$water['sell'], $water['buy'], $water['hub']]);
+        self::assertArrayHasKey('paid', $water);
+        self::assertNull($water['paid']);
+        $aqueous = $this->lineOf($body['prices'], 'typeId', self::AQUEOUS_LIQUIDS);
+        self::assertSame([0.9, 0.65], [$aqueous['hub'], $aqueous['paid']]);
+    }
+
+    public function testAnAbsentHubCacheIsReportedWithoutDataAndLeavesTheHubPricesNullWhileThePaidPriceStays(): void
+    {
+        $this->persistPurchase($this->pilot->getMainCharacter(), self::AQUEOUS_LIQUIDS, 100, 0.5);
+        $this->em->flush();
+
+        $body = $this->readAs($this->pilot);
+
+        self::assertFalse($body['hub']['hasData']);
+        foreach ([self::WATER, self::AQUEOUS_LIQUIDS] as $typeId) {
+            $line = $this->lineOf($body['prices'], 'typeId', $typeId);
+            self::assertArrayHasKey('hub', $line);
+            self::assertNull($line['hub']);
+        }
+        self::assertSame(0.5, $this->lineOf($body['prices'], 'typeId', self::AQUEOUS_LIQUIDS)['paid']);
+    }
+
+    public function testAnotherUserWithAPreferredHubSeesOnlyTheirOwnPaidPricesAndTheirOwnHubAndTheFirstIsUnchanged(): void
+    {
+        $rival = $this->createPilot(self::RIVAL_EVE_CHARACTER_ID, 'Orsk Rival');
+        $rival->setPreferredMarketStructureId(self::PREFERRED_HUB_STRUCTURE_ID)->setPreferredMarketStructureName(self::PREFERRED_HUB_STRUCTURE_NAME);
+        $this->persistPurchase($this->pilot->getMainCharacter(), self::AQUEOUS_LIQUIDS, 100, 0.5);
+        $this->persistPurchase($rival->getMainCharacter(), self::AQUEOUS_LIQUIDS, 5, 9.0);
+        $this->em->flush();
+
+        $this->seedHubMarket(self::PREFERRED_HUB_STRUCTURE_ID, [self::AQUEOUS_LIQUIDS => 1.5]);
+        $rivalBody = $this->readAs($rival);
+        $this->client->getKernel()->boot();
+        $this->seedHubMarket(self::DEFAULT_HUB_STRUCTURE_ID, [self::AQUEOUS_LIQUIDS => 0.9]);
+        $pilotBody = $this->readAs($this->pilot);
+
+        self::assertSame(['structureId' => self::PREFERRED_HUB_STRUCTURE_ID, 'structureName' => self::PREFERRED_HUB_STRUCTURE_NAME, 'hasData' => true], $rivalBody['hub']);
+        $rivalAqueous = $this->lineOf($rivalBody['prices'], 'typeId', self::AQUEOUS_LIQUIDS);
+        self::assertSame([1.5, 9.0], [$rivalAqueous['hub'], $rivalAqueous['paid']]);
+        self::assertSame(self::DEFAULT_HUB_STRUCTURE_ID, $pilotBody['hub']['structureId']);
+        $pilotAqueous = $this->lineOf($pilotBody['prices'], 'typeId', self::AQUEOUS_LIQUIDS);
+        self::assertSame([0.9, 0.5], [$pilotAqueous['hub'], $pilotAqueous['paid']]);
+    }
+
+    private function readAs(User $user): array
+    {
+        $this->client->getKernel()->boot();
+        $this->client->loginUser($this->em->find(User::class, $user->getId()), 'api');
+        $this->client->request('GET', '/api/planetary/planner', server: ['HTTP_ACCEPT' => 'application/json']);
+
+        self::assertResponseStatusCodeSame(200);
+
+        return json_decode((string) $this->client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+    }
+
+    private function marketPool(): CacheItemPoolInterface
+    {
+        $pool = self::getContainer()->get(self::MARKET_POOL);
+        self::assertInstanceOf(CacheItemPoolInterface::class, $pool);
+
+        return $pool;
+    }
+
+    private function forgetTheHubMarkets(): void
+    {
+        foreach ([self::DEFAULT_HUB_STRUCTURE_ID, self::PREFERRED_HUB_STRUCTURE_ID] as $structureId) {
+            $this->marketPool()->deleteItem('structure_market_'.$structureId);
+            $this->marketPool()->deleteItem('structure_market_'.$structureId.'_meta');
+        }
+    }
+
+    /**
+     * @param array<int, float> $sellPrices
+     */
+    private function seedHubMarket(int $structureId, array $sellPrices): void
+    {
+        $pool = $this->marketPool();
+        $pool->save($pool->getItem('structure_market_'.$structureId)->set(
+            array_map(static fn (float $price): array => ['sell' => $price, 'buy' => null], $sellPrices),
+        ));
+    }
+
+    private function persistPurchase(?Character $character, int $typeId, int $quantity, float $unitPrice): void
+    {
+        $this->em->persist(
+            (new CachedWalletTransaction())
+                ->setCharacter($character)
+                ->setTransactionId($this->nextTransactionId++)
+                ->setIsBuy(true)
+                ->setTypeId($typeId)
+                ->setQuantity($quantity)
+                ->setUnitPrice($unitPrice)
+                ->setDate(new \DateTimeImmutable('-2 days'))
+                ->setLocationId(self::JITA_STATION_ID),
         );
     }
 
@@ -214,11 +342,11 @@ final class PlanetaryPlannerApiTest extends WebTestCase
         self::getContainer()->set(JitaMarketService::class, $jitaMarket);
     }
 
-    private function createPilot(): User
+    private function createPilot(int $eveCharacterId = self::PILOT_EVE_CHARACTER_ID, string $name = 'Ilyra Planner'): User
     {
         $character = (new Character())
-            ->setEveCharacterId(self::PILOT_EVE_CHARACTER_ID)
-            ->setName('Ilyra Planner')
+            ->setEveCharacterId($eveCharacterId)
+            ->setName($name)
             ->setCorporationId(98_900_002)
             ->setCorporationName('Esk Planetary Haulers');
         $user = new User();

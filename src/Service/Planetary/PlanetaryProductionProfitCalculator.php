@@ -8,6 +8,8 @@ use App\Entity\PlanetaryColony;
 use App\Entity\User;
 use App\Repository\CachedWalletJournalEntryRepository;
 use App\Repository\PlanetaryColonyRepository;
+use App\Repository\PlanetaryPlanTemplateRepository;
+use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 
 final readonly class PlanetaryProductionProfitCalculator
@@ -21,7 +23,9 @@ final readonly class PlanetaryProductionProfitCalculator
         private PlanetaryProductionCalculator $productionCalculator,
         private PlanetaryPaidPriceCalculator $paidPriceCalculator,
         private StructureMarketService $structureMarketService,
+        private JitaMarketService $jitaMarketService,
         private CachedWalletJournalEntryRepository $journalRepository,
+        private PlanetaryPlanTemplateRepository $templateRepository,
         private int $defaultMarketStructureId,
         private string $defaultMarketStructureName,
     ) {
@@ -30,9 +34,10 @@ final readonly class PlanetaryProductionProfitCalculator
     /**
      * @return array{
      *     hub: array{structureId: int, structureName: string, hasData: bool},
-     *     lines: list<array{typeId: int, typeName: string|null, tier: string, dailyQuantity: float, soldQuantity: float, internal: bool, hubSellPrice: float|null, salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null, valuesExtractedAtHubBuy: bool, jitaIsk: float|null, ifSold: array{salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null}|null}>,
+     *     lines: list<array{typeId: int, typeName: string|null, tier: string, dailyQuantity: float, soldQuantity: float, internal: bool, hubSellPrice: float|null, salePrice: float|null, salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null, valuesExtractedAtHubBuy: bool, jitaIsk: float|null, ifSold: array{salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null}|null}>,
      *     salesIsk: float,
      *     inputsIsk: float,
+     *     sources: array{purchase: string, sale: string, followedTemplateName: string|null},
      *     profitPerDay: float,
      *     unknownLineCount: int,
      *     taxDays: int,
@@ -46,27 +51,53 @@ final readonly class PlanetaryProductionProfitCalculator
         $items = $this->productionItems($this->colonyRepository->findByUser($user));
         $hubId = $user->getEffectiveMarketStructureId() ?? $this->defaultMarketStructureId;
         $paidReport = $this->paidPriceCalculator->calculate($user, $now);
+        $followed = $this->templateRepository->findFollowedByUser($user)[0] ?? null;
+        $followedSettings = $followed?->getSettings();
+        $purchaseSource = $followedSettings === null ? PlanetaryPriceSources::DEFAULT_PURCHASE : $followedSettings['purchaseSource'];
+        $saleSource = $followedSettings === null ? PlanetaryPriceSources::DEFAULT_SALE : $followedSettings['saleSource'];
 
         $productTypeIds = [];
         $extractedTypeIds = [];
+        $inputTypeIds = [];
         foreach ($items as $typeId => $item) {
             if ($item['tier'] === self::EXTRACTED_TIER) {
                 $extractedTypeIds[] = $typeId;
             } elseif ($item['dailyQuantity'] > 0.0) {
                 $productTypeIds[] = $typeId;
             }
+            foreach (array_keys($item['inputs']) as $inputTypeId) {
+                $inputTypeIds[$inputTypeId] = $inputTypeId;
+            }
+        }
+        $inputTypeIds = array_values($inputTypeIds);
+        $pricedTypeIds = array_values(array_unique([...$productTypeIds, ...$inputTypeIds]));
+
+        $hubSellPrices = $this->structureMarketService->getLowestSellPrices($hubId, $pricedTypeIds);
+        $jitaSellPrices = $this->jitaSellPrices($purchaseSource, $saleSource, $pricedTypeIds);
+        $jitaBuyPrices = $this->jitaBuyPrices($purchaseSource, $saleSource, $pricedTypeIds);
+        $paidPrices = array_column($paidReport['prices'], 'paidPrice', 'typeId');
+
+        $purchasePrices = [];
+        foreach ($inputTypeIds as $inputTypeId) {
+            $purchasePrices[$inputTypeId] = PlanetaryPriceSources::purchase(
+                $purchaseSource,
+                $paidPrices[$inputTypeId] ?? null,
+                $hubSellPrices[$inputTypeId] ?? null,
+                $jitaSellPrices[$inputTypeId] ?? null,
+                $jitaBuyPrices[$inputTypeId] ?? null,
+            );
         }
 
         $costing = new PlanetaryProductionCosting(
             $items,
-            array_column($paidReport['prices'], 'paidPrice', 'typeId'),
+            $purchasePrices,
             $this->structureMarketService->getHighestBuyPrices($hubId, $extractedTypeIds),
         );
-        $hubSellPrices = $this->structureMarketService->getLowestSellPrices($hubId, $productTypeIds);
 
         $lines = [];
         foreach ($productTypeIds as $typeId) {
-            $lines[] = $this->lineOf($items[$typeId], $typeId, $hubSellPrices[$typeId] ?? null, $costing);
+            $salePrice = PlanetaryPriceSources::sale($saleSource, $hubSellPrices[$typeId] ?? null, $jitaSellPrices[$typeId] ?? null, $jitaBuyPrices[$typeId] ?? null);
+            $lines[] = $this->lineOf($items[$typeId], $typeId, $hubSellPrices[$typeId] ?? null, $salePrice, $costing);
         }
         usort($lines, static fn (array $a, array $b): int => [$a['internal'], -($a['salesIsk'] ?? -INF), $a['typeId']] <=> [$b['internal'], -($b['salesIsk'] ?? -INF), $b['typeId']]);
 
@@ -81,6 +112,7 @@ final readonly class PlanetaryProductionProfitCalculator
                 'hasData' => $this->structureMarketService->hasCachedData($hubId),
             ],
             'lines' => $lines,
+            'sources' => ['purchase' => $purchaseSource, 'sale' => $saleSource, 'followedTemplateName' => $followed?->getName()],
             'salesIsk' => round(array_sum(array_column($known, 'salesIsk')), 2),
             'inputsIsk' => round(array_sum(array_column($known, 'inputsIsk')), 2),
             'profitPerDay' => $profitPerDay,
@@ -118,15 +150,15 @@ final readonly class PlanetaryProductionProfitCalculator
 
     /**
      * @param array{tier: string, typeName: string|null, dailyQuantity: float, sellable: float, unitPrice: float|null, jitaIsk: float, inputs: array<int, float>} $item
-     * @return array{typeId: int, typeName: string|null, tier: string, dailyQuantity: float, soldQuantity: float, internal: bool, hubSellPrice: float|null, salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null, valuesExtractedAtHubBuy: bool, jitaIsk: float|null, ifSold: array{salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null}|null}
+     * @return array{typeId: int, typeName: string|null, tier: string, dailyQuantity: float, soldQuantity: float, internal: bool, hubSellPrice: float|null, salePrice: float|null, salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null, valuesExtractedAtHubBuy: bool, jitaIsk: float|null, ifSold: array{salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null}|null}
      */
-    private function lineOf(array $item, int $typeId, ?float $hubSellPrice, PlanetaryProductionCosting $costing): array
+    private function lineOf(array $item, int $typeId, ?float $hubSellPrice, ?float $salePrice, PlanetaryProductionCosting $costing): array
     {
         $sold = $item['sellable'];
         $internal = $sold <= 0.0;
         $unitCost = $internal ? null : $costing->unitCostOf($typeId);
 
-        $salesIsk = $internal ? 0.0 : ($hubSellPrice === null ? null : round($sold * $hubSellPrice, 2));
+        $salesIsk = $internal ? 0.0 : ($salePrice === null ? null : round($sold * $salePrice, 2));
         $inputsIsk = $unitCost === null ? null : round($sold * $unitCost['cost'], 2);
         $profit = $internal || $salesIsk === null || $inputsIsk === null ? null : round($salesIsk - $inputsIsk, 2);
 
@@ -138,13 +170,14 @@ final readonly class PlanetaryProductionProfitCalculator
             'soldQuantity' => $sold,
             'internal' => $internal,
             'hubSellPrice' => $hubSellPrice,
+            'salePrice' => $salePrice,
             'salesIsk' => $salesIsk,
             'inputsIsk' => $inputsIsk,
             'profitPerDay' => $profit,
             'marginPercent' => $profit !== null && $salesIsk > 0.0 ? round($profit / $salesIsk * self::PERCENT, 2) : null,
             'valuesExtractedAtHubBuy' => $unitCost !== null && $unitCost['extracted'],
             'jitaIsk' => $item['unitPrice'] === null ? null : $item['jitaIsk'],
-            'ifSold' => $internal ? $this->marginIfSold($item['dailyQuantity'], $hubSellPrice, $costing->unitCostOf($typeId)) : null,
+            'ifSold' => $internal ? $this->marginIfSold($item['dailyQuantity'], $salePrice, $costing->unitCostOf($typeId)) : null,
         ];
     }
 
@@ -152,9 +185,9 @@ final readonly class PlanetaryProductionProfitCalculator
      * @param array{cost: float, extracted: bool}|null $unitCost
      * @return array{salesIsk: float|null, inputsIsk: float|null, profitPerDay: float|null, marginPercent: float|null}
      */
-    private function marginIfSold(float $dailyQuantity, ?float $hubSellPrice, ?array $unitCost): array
+    private function marginIfSold(float $dailyQuantity, ?float $salePrice, ?array $unitCost): array
     {
-        $salesIsk = $hubSellPrice === null ? null : round($dailyQuantity * $hubSellPrice, 2);
+        $salesIsk = $salePrice === null ? null : round($dailyQuantity * $salePrice, 2);
         $inputsIsk = $unitCost === null ? null : round($dailyQuantity * $unitCost['cost'], 2);
         $profit = $salesIsk === null || $inputsIsk === null ? null : round($salesIsk - $inputsIsk, 2);
 
@@ -164,6 +197,28 @@ final readonly class PlanetaryProductionProfitCalculator
             'profitPerDay' => $profit,
             'marginPercent' => $profit !== null && $salesIsk > 0.0 ? round($profit / $salesIsk * self::PERCENT, 2) : null,
         ];
+    }
+
+    /**
+     * @param list<int> $typeIds
+     * @return array<int, float|null>
+     */
+    private function jitaSellPrices(string $purchaseSource, string $saleSource, array $typeIds): array
+    {
+        $needed = in_array($purchaseSource, [PlanetaryPriceSources::JITA_SELL, PlanetaryPriceSources::BEST], true) || $saleSource === PlanetaryPriceSources::JITA_SELL;
+
+        return $needed ? $this->jitaMarketService->getPrices($typeIds) : [];
+    }
+
+    /**
+     * @param list<int> $typeIds
+     * @return array<int, float|null>
+     */
+    private function jitaBuyPrices(string $purchaseSource, string $saleSource, array $typeIds): array
+    {
+        $needed = $purchaseSource === PlanetaryPriceSources::JITA_BUY || $saleSource === PlanetaryPriceSources::JITA_BUY;
+
+        return $needed ? $this->jitaMarketService->getBuyPrices($typeIds) : [];
     }
 
     private function taxesPerDay(User $user, \DateTimeImmutable $now): ?float

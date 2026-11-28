@@ -14,6 +14,6 @@ class CreatePlanTemplateInput
     /** @var array<int|string, string> */
     public array $choices = [];
 
-    /** @var array{priceSource?: string, taxPercent?: int|float, daysBetweenRounds?: int|float} */
+    /** @var array{purchaseSource?: string, saleSource?: string, taxPercent?: int|float, daysBetweenRounds?: int|float} */
     public array $settings = [];
 }

@@ -215,7 +215,7 @@ final class PlanetaryPlanTemplateFollowApiTest extends WebTestCase
             'name' => 'Fresh coolant line',
             'productions' => [['typeId' => self::COOLANT, 'targetPerDay' => 120]],
             'choices' => [self::WATER => 'buy'],
-            'settings' => ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4],
+            'settings' => ['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4],
         ]);
         self::assertResponseStatusCodeSame(201);
 

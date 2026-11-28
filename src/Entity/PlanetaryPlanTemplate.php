@@ -36,9 +36,9 @@ class PlanetaryPlanTemplate
     #[ORM\Column(type: Types::JSON)]
     private array $choices = [];
 
-    /** @var array{priceSource: string, taxPercent: int|float, daysBetweenRounds: int|float} */
+    /** @var array{purchaseSource?: string, saleSource?: string, priceSource?: string, taxPercent: int|float, daysBetweenRounds: int|float} */
     #[ORM\Column(type: Types::JSON)]
-    private array $settings = ['priceSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4];
+    private array $settings = ['purchaseSource' => 'jita-sell', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4];
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $followed = false;
@@ -108,13 +108,29 @@ class PlanetaryPlanTemplate
         return $this;
     }
 
-    /** @return array{priceSource: string, taxPercent: int|float, daysBetweenRounds: int|float} */
+    /** @return array{purchaseSource: string, saleSource: string, taxPercent: int|float, daysBetweenRounds: int|float} */
     public function getSettings(): array
     {
-        return $this->settings;
+        if (!isset($this->settings['priceSource'])) {
+            assert(isset($this->settings['purchaseSource'], $this->settings['saleSource']));
+
+            return [
+                'purchaseSource' => $this->settings['purchaseSource'],
+                'saleSource' => $this->settings['saleSource'],
+                'taxPercent' => $this->settings['taxPercent'],
+                'daysBetweenRounds' => $this->settings['daysBetweenRounds'],
+            ];
+        }
+
+        return [
+            'purchaseSource' => $this->settings['priceSource'],
+            'saleSource' => $this->settings['priceSource'],
+            'taxPercent' => $this->settings['taxPercent'],
+            'daysBetweenRounds' => $this->settings['daysBetweenRounds'],
+        ];
     }
 
-    /** @param array{priceSource: string, taxPercent: int|float, daysBetweenRounds: int|float} $settings */
+    /** @param array{purchaseSource: string, saleSource: string, taxPercent: int|float, daysBetweenRounds: int|float} $settings */
     public function setSettings(array $settings): static
     {
         $this->settings = $settings;

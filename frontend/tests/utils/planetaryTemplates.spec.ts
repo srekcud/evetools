@@ -76,7 +76,7 @@ describe('evaluateTemplate on a P2 made from two bought P1', () => {
   })
 
   it('uses the price source saved in the template: on Jita buy B costs 360 + 36 and sells at 900, 60,480 a day, with 302,400 of purchases a week', () => {
-    const template = makeTemplate('tpl-buy', 'Jita buy', [{ typeId: RANKING_PRODUCT_B, targetPerDay: 120 }], {}, { ...DEFAULT_SETTINGS, priceSource: 'jita-buy' })
+    const template = makeTemplate('tpl-buy', 'Jita buy', [{ typeId: RANKING_PRODUCT_B, targetPerDay: 120 }], {}, { ...DEFAULT_SETTINGS, purchaseSource: 'jita-buy', saleSource: 'jita-buy' })
 
     const evaluation = evaluateTemplate(template, TEMPLATE_CATALOG, null, NO_OVERRIDES)
 
@@ -145,7 +145,7 @@ describe('loadTemplate', () => {
     expect(loaded).toEqual({
       productions: [{ typeId: RANKING_PRODUCT_B, targetPerDay: 60 }, { typeId: TEMPLATE_PRODUCT_M, targetPerDay: 18 }],
       choices: { [RANKING_PRODUCT_B]: 'produce', [TEMPLATE_PRODUCT_M]: 'buy' },
-      settings: { priceSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
+      settings: { purchaseSource: 'jita-buy', saleSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
     })
 
     loaded.productions[0].targetPerDay = 999
@@ -184,13 +184,13 @@ describe('mergeTemplate', () => {
 
 describe('templateToPayload', () => {
   it('carries the name, the productions, the explicit choices and the settings of the plan', () => {
-    const settings = { priceSource: 'jita-buy' as const, taxPercent: 7.5, daysBetweenRounds: 6 }
+    const settings = { purchaseSource: 'jita-buy' as const, saleSource: 'jita-buy' as const, taxPercent: 7.5, daysBetweenRounds: 6 }
 
     expect(templateToPayload([{ typeId: TEMPLATE_PRODUCT_M, targetPerDay: 18 }], { [RANKING_INPUT_C]: 'buy' }, settings, 'M line')).toEqual({
       name: 'M line',
       productions: [{ typeId: TEMPLATE_PRODUCT_M, targetPerDay: 18 }],
       choices: { [RANKING_INPUT_C]: 'buy' },
-      settings: { priceSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
+      settings: { purchaseSource: 'jita-buy', saleSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
     })
   })
 })

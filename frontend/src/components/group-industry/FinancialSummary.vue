@@ -43,6 +43,10 @@ const forecastRows = [
   { field: 'remaining', labelKey: 'groupIndustry.financialSummary.forecastRemaining', valueOf: (column: ForecastProfitColumn) => column.costLeft, sign: '-' },
 ] as const
 
+function forecastRowSign(sign: string, value: number | null): string {
+  return value === 0 ? '' : sign
+}
+
 function forecastProfitClass(profit: number | null): string {
   if (profit === null) return 'text-slate-500'
   return profit >= 0 ? 'text-emerald-400' : 'text-red-400'
@@ -194,7 +198,7 @@ const salesTaxLabel = computed(() => {
               <tr v-for="row in forecastRows" :key="row.field">
                 <td class="py-1 font-sans text-slate-500">{{ t(row.labelKey) }}</td>
                 <td v-for="market in forecastMarkets" :key="market.key" :data-testid="`forecast-${market.key}-${row.field}`" class="py-1 pl-3 text-right whitespace-nowrap text-slate-300">
-                  <UnknownValue v-if="row.valueOf(market.column) === null" /><template v-else>{{ row.sign }}{{ formatIsk(row.valueOf(market.column)) }}</template>
+                  <UnknownValue v-if="row.valueOf(market.column) === null" /><template v-else>{{ forecastRowSign(row.sign, row.valueOf(market.column)) }}{{ formatIsk(row.valueOf(market.column)) }}</template>
                 </td>
               </tr>
               <tr class="border-t border-slate-700">

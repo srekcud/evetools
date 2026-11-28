@@ -124,7 +124,7 @@ describe('rankProduct on a P2 with two bought P1', () => {
   })
 
   it('follows the price source and the tax of the settings: 396 a unit on the buy prices, 400 without tax on the sell prices', () => {
-    const onBuyPrices = rankB({ settings: { ...DEFAULT_SETTINGS, priceSource: 'jita-buy' } })
+    const onBuyPrices = rankB({ settings: { ...DEFAULT_SETTINGS, purchaseSource: 'jita-buy', saleSource: 'jita-buy' } })
     const withoutTax = rankB({ settings: { ...DEFAULT_SETTINGS, taxPercent: 0 } })
 
     expect(onBuyPrices.price).toBe(900)

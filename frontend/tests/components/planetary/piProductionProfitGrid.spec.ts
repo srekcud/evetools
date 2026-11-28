@@ -14,6 +14,7 @@ function line(overrides: Partial<ProductionProfitLine>): ProductionProfitLine {
     soldQuantity: 10_000,
     internal: false,
     hubSellPrice: 700,
+    salePrice: 700,
     salesIsk: 7_000_000,
     inputsIsk: 3_080_000,
     profitPerDay: 3_920_000,
@@ -36,6 +37,7 @@ function profit(overrides: Partial<PlanetaryProductionProfit> = {}): PlanetaryPr
     taxes: { days: 30, perDay: 100_000 },
     netProfitPerDay: 3_820_000,
     unsyncedWallets: [],
+    sources: { purchase: 'paid', sale: 'hub', followedTemplateName: null },
     ...overrides,
   }
 }
@@ -60,6 +62,31 @@ describe('PiProductionProfitGrid', () => {
     expect(row.get('[data-cell="profit"]').text()).toBe('3.92M')
     expect(row.get('[data-cell="margin"]').text()).toBe('56 %')
     expect(row.get('[data-cell="jita"]').text()).toBe('8.00M')
+  })
+
+  it('shows the unit sale price of the source under the product of a line', () => {
+    const wrapper = mountGrid(profit({ lines: [line({ salePrice: 1_000, hubSellPrice: 700 })] }))
+
+    expect(wrapper.get('[data-testid="profit-line"] [data-cell="sale-price"]').text()).toContain('1.0k')
+  })
+
+  it('names the sources of the followed plan with the plan name above the lines', () => {
+    const wrapper = mountGrid(profit({ sources: { purchase: 'jita-buy', sale: 'jita-sell', followedTemplateName: 'Followed plan' } }))
+    const sources = wrapper.get('[data-testid="profit-sources"]').text()
+
+    expect(sources).toContain('Jita buy')
+    expect(sources).toContain('Jita sell')
+    expect(sources).toContain('Followed plan')
+  })
+
+  it('says the default sources are used when no plan is followed, in French too', () => {
+    const english = mountGrid(profit()).get('[data-testid="profit-sources"]')
+    const french = mountGrid(profit(), 'fr').get('[data-testid="profit-sources"]')
+
+    expect(english.attributes('data-default')).toBe('true')
+    expect(english.text()).toContain('Paid price')
+    expect(english.text()).toContain('Hub')
+    expect(french.text()).toContain('Prix payé')
   })
 
   it('shows an unknown line as unknown and never as zero', () => {

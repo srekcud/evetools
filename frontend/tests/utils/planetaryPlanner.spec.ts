@@ -12,7 +12,7 @@ import {
   produceCost,
   starOf,
   unitCost,
-  unitPrice,
+  purchasePrice,
   type BuildChoice,
   type PlannedProduction,
   type PlannerCatalog,
@@ -168,9 +168,9 @@ describe('planetaryPlanner costs, prices and profit', () => {
   })
 
   it('reads the price of the chosen source and recomputes the costs from it', () => {
-    const buySource: PlannerSettings = { ...DEFAULT_SETTINGS, priceSource: 'jita-buy' }
+    const buySource: PlannerSettings = { ...DEFAULT_SETTINGS, purchaseSource: 'jita-buy', saleSource: 'jita-buy' }
 
-    expect([unitPrice(COOLANT, PLANNER_CATALOG, 'jita-sell'), unitPrice(COOLANT, PLANNER_CATALOG, 'jita-buy'), unitPrice(999_999, PLANNER_CATALOG, 'jita-sell')]).toEqual([1000, 900, null])
+    expect([purchasePrice(COOLANT, PLANNER_CATALOG, 'jita-sell'), purchasePrice(COOLANT, PLANNER_CATALOG, 'jita-buy'), purchasePrice(999_999, PLANNER_CATALOG, 'jita-sell')]).toEqual([1000, 900, null])
     expect(unitCost(COOLANT, PLANNER_CATALOG, NO_CHOICES, buySource)).toBeCloseTo(1396, 6)
   })
 
@@ -193,7 +193,7 @@ describe('planetaryPlanner costs, prices and profit', () => {
     const missingOwnPrice = withSellPrices(PLANNER_CATALOG, { [COOLANT]: null })
     const coolant = buildTree({ typeId: COOLANT, targetPerDay: 120 }, missingInput, NO_CHOICES, DEFAULT_SETTINGS)
 
-    expect(unitPrice(REACTIVE_METALS, missingInput, 'jita-sell')).toBeNull()
+    expect(purchasePrice(REACTIVE_METALS, missingInput, 'jita-sell')).toBeNull()
     expect(unitCost(COOLANT, missingInput, NO_CHOICES, DEFAULT_SETTINGS)).toBeNull()
     expect(produceCost(COOLANT, missingInput, NO_CHOICES, DEFAULT_SETTINGS)).toBeNull()
     expect(unitCost(ROBOTICS, missingInput, NO_CHOICES, DEFAULT_SETTINGS)).toBeNull()
@@ -295,7 +295,7 @@ describe('planetaryPlanner totals across productions with different recipes', ()
 describe('planetaryPlanner Jita buy source', () => {
   it('moves the profit and the star with the price source, not only the unit cost', () => {
     const coolantAt1700 = withSellPrices(PLANNER_CATALOG, { [COOLANT]: 1700 })
-    const buySource: PlannerSettings = { ...DEFAULT_SETTINGS, priceSource: 'jita-buy' }
+    const buySource: PlannerSettings = { ...DEFAULT_SETTINGS, purchaseSource: 'jita-buy', saleSource: 'jita-buy' }
     const sellSide = plan([{ typeId: COOLANT, targetPerDay: 120 }], NO_CHOICES, coolantAt1700)
     const buySide = plan([{ typeId: COOLANT, targetPerDay: 120 }], NO_CHOICES, coolantAt1700, buySource)
     const roboticsOnSell = buildTree({ typeId: ROBOTICS, targetPerDay: 18 }, coolantAt1700, NO_CHOICES, DEFAULT_SETTINGS)

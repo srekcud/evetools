@@ -30,7 +30,7 @@ const SAVED_TEMPLATE: PlanTemplate = makeTemplate(
   'Coolant mix',
   [{ typeId: RANKING_PRODUCT_B, targetPerDay: 120 }, { typeId: TEMPLATE_PRODUCT_M, targetPerDay: 18 }],
   { [RANKING_INPUT_A]: 'buy', [TEMPLATE_PRODUCT_M]: 'produce' },
-  { priceSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
+  { purchaseSource: 'jita-buy', saleSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
   '2026-11-26T09:00:00+00:00',
 )
 
@@ -124,7 +124,8 @@ describe('planetaryPlanner store templates', () => {
     store.addProduction(TEMPLATE_PRODUCT_M, 18)
     store.setChoice(RANKING_INPUT_A, 'buy')
     store.setChoice(TEMPLATE_PRODUCT_M, 'produce')
-    store.setPriceSource('jita-buy')
+    store.setPurchaseSource('jita-buy')
+    store.setSaleSource('jita-buy')
     store.setTaxPercent(7.5)
     store.setDaysBetweenRounds(6)
     const before = planOf(store)
@@ -138,7 +139,7 @@ describe('planetaryPlanner store templates', () => {
       name: 'Coolant mix',
       productions: [{ typeId: RANKING_PRODUCT_B, targetPerDay: 120 }, { typeId: TEMPLATE_PRODUCT_M, targetPerDay: 18 }],
       choices: { [RANKING_INPUT_A]: 'buy', [TEMPLATE_PRODUCT_M]: 'produce' },
-      settings: { priceSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
+      settings: { purchaseSource: 'jita-buy', saleSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
     })
     expect(store.templates.map(template => template.id)).toEqual(['tpl-new', 'tpl-b-line'])
     expect(store.templates[0]).toEqual(SAVED_TEMPLATE)
@@ -220,7 +221,7 @@ describe('planetaryPlanner store templates', () => {
     expect(planOf(store)).toEqual({
       productions: [{ typeId: RANKING_PRODUCT_B, targetPerDay: 60 }, { typeId: TEMPLATE_PRODUCT_M, targetPerDay: 18 }],
       choices: { [RANKING_PRODUCT_B]: 'produce', [TEMPLATE_PRODUCT_M]: 'buy' },
-      settings: { priceSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
+      settings: { purchaseSource: 'jita-buy', saleSource: 'jita-buy', taxPercent: 7.5, daysBetweenRounds: 6 },
       selectedIndex: 0,
       extractionYieldOverrides: { [AQUEOUS_LIKE_RESOURCE]: 4_000 },
     })
