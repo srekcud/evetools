@@ -12,7 +12,7 @@ use App\State\Provider\Planetary\PlanetaryProductionProfitProvider;
 
 #[ApiResource(
     shortName: 'PlanetaryProductionProfit',
-    description: 'Planetary Interaction production profit per day: outputs at the hub, inputs at the paid price, POCO taxes',
+    description: 'Planetary Interaction production profit per day: outputs and inputs at the sources of the followed plan (hub and paid price by default), POCO taxes',
     operations: [
         new Get(
             uriTemplate: '/planetary/production-profit',

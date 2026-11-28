@@ -855,6 +855,16 @@
       "offMarket": "Off-market sales (not tracked)",
       "walletUnsynced": "Wallet not synced (unknown)",
       "profit": {
+        "sources": "Prices: buy {purchase}, sell {sale}",
+        "sourcesPlan": "followed plan: {name}",
+        "sourcesDefault": "no followed plan, default sources",
+        "source": {
+          "jita-sell": "Jita sell",
+          "jita-buy": "Jita buy",
+          "hub": "Hub",
+          "paid": "Paid price",
+          "best": "Best price"
+        },
         "title": "Production profit per day",
         "hub": "Valued at hub {hub}",
         "noHubData": "The market of this hub was never synced: every sale is unknown.",

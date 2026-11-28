@@ -855,6 +855,16 @@
       "offMarket": "Ventes hors marché (non suivies)",
       "walletUnsynced": "Wallet non synchronisé (inconnu)",
       "profit": {
+        "sources": "Prix : achat {purchase}, vente {sale}",
+        "sourcesPlan": "plan suivi : {name}",
+        "sourcesDefault": "aucun plan suivi, sources par défaut",
+        "source": {
+          "jita-sell": "Jita vendeur",
+          "jita-buy": "Jita acheteur",
+          "hub": "Hub",
+          "paid": "Prix payé",
+          "best": "Meilleur prix"
+        },
         "title": "Bénéfice de production par jour",
         "hub": "Valorisé au hub {hub}",
         "noHubData": "Le marché de ce hub n’a jamais été synchronisé : toutes les ventes sont inconnues.",

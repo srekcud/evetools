@@ -36,6 +36,7 @@ final readonly class PlanetaryProductionProfitProvider implements ProviderInterf
         $resource = new PlanetaryProductionProfitResource();
         $resource->hub = $report['hub'];
         $resource->lines = $report['lines'];
+        $resource->sources = $report['sources'];
         $resource->salesIsk = $report['salesIsk'];
         $resource->inputsIsk = $report['inputsIsk'];
         $resource->profitPerDay = $report['profitPerDay'];
