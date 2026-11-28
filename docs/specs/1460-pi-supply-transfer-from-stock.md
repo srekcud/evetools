@@ -24,7 +24,7 @@ Back :
 
 Front, `frontend/src/utils/planetarySupply.ts` (calcul pur, aucun recalcul de ce que le back fournit) :
 6. Les lignes de `SupplyGrid.rows` gagnent `characterId` et `characterName` repris du launchpad (règle 1).
-7. **Besoin d'un personnage** par type = somme des `refill.lines` de ses lignes de grille au statut `known` ; ses lignes `unknown` sont comptées en `excludedCount` du personnage (même règle que le total de la grille). Un personnage sans ligne de grille n'est pas destinataire.
+7. **Besoin d'un personnage** par type = somme des `refill.lines` de ses lignes de grille au statut `known` ; ses lignes `unknown` sont comptées en `excludedCount` du personnage (même règle que le total de la grille). Un personnage sans ligne de grille n'est pas destinataire. Un destinataire dont toutes les lignes sont `unknown` a `lines` vide, son `excludedCount` et un volume total inconnu (jamais 0 m³).
 8. **Transfert depuis le stock** d'un personnage par type = `max(0, besoin − ce qu'il tient lui-même au lieu d'origine)`. Inconnu si ses assets sont `unknown` ou si le lieu d'origine n'est pas réglé. Volume = Σ transfert × `volumePerUnit` du feed ; inconnu si un transfert ou un volume l'est.
 9. **Détenteurs** d'un type : personnages `known` (destinataires ou non) dont le disponible `max(0, tenu − besoin propre)` est positif, triés par disponible décroissant puis nom ; les personnages `unknown` sont listés « inconnu » avec leur raison.
 10. **Manque** d'un type = `max(0, Σ transferts − Σ disponibles)`. Inconnu dès qu'un transfert ou les assets d'un personnage du compte sont inconnus.
@@ -64,7 +64,7 @@ Volume unitaire 0,75 m³ pour X et Y. Alpha : LP1 (X 1 000, Y 500), LP2 (X 200).
 
 - Aucun identifiant reçu du client : personnages = `User::getCharacters()`, lieu d'origine = réglage de l'utilisateur. Un personnage retiré du compte disparaît ; l'appartenance à une corporation n'intervient pas.
 - Assets lus en base (sync à la demande) : `assetsReadAt` affiché, périmé au-delà de 24 h ; aucun déclenchement de sync dans ce lot.
-- Jeton révoqué ou scope assets absent : `unknown`, même si des assets anciens restent en base.
+- Scope assets absent du jeton stocké (ou pas de jeton) : `unknown`, même si des assets anciens restent en base. Une révocation côté CCP n'est pas visible (`EveToken` n'a pas d'indicateur de validité) : la péremption (`stale`) est le seul garde-fou.
 
 ## Tests existants touchés
 

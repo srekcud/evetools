@@ -203,6 +203,33 @@ final class PlanetarySupplyHoldersProviderTest extends TestCase
         self::assertSame([], $this->assetRequests);
     }
 
+    public function testATypeReportedAtZeroByTheAssetsRepositoryIsNotListedAndTheOthersAre(): void
+    {
+        $this->user->setPlanetaryHomeLocation(self::HOME_STATION, self::HOME_STATION_NAME);
+        $hold = $this->character('Hold', $this->tokenWith([self::ASSETS_SCOPE]), '2026-11-28T10:00:00+00:00');
+        $this->assetsByCharacterUuid = [
+            $this->uuidOf($hold) => [self::HOME_STATION => [self::ROBOTICS => 0, self::COOLANT => 55, self::BACTERIA => 0]],
+        ];
+
+        $resource = $this->read([[self::ROBOTICS, self::COOLANT, self::BACTERIA]]);
+
+        self::assertCount(1, $resource->characters);
+        self::assertSame([['typeId' => self::COOLANT, 'quantity' => 55]], $resource->characters[0]['quantities']);
+    }
+
+    public function testCharactersAreSortedByByteOrderOfTheirNameSoAnUppercaseNameComesBeforeAnyLowercaseName(): void
+    {
+        $this->user->setPlanetaryHomeLocation(self::HOME_STATION, self::HOME_STATION_NAME);
+        $this->character('alpha', $this->tokenWith([self::ASSETS_SCOPE]), '2026-11-28T10:00:00+00:00');
+        $this->character('Zulu', $this->tokenWith([self::ASSETS_SCOPE]), '2026-11-28T10:00:00+00:00');
+        $this->character('bravo', $this->tokenWith([self::ASSETS_SCOPE]), '2026-11-28T10:00:00+00:00');
+        $this->character('Hold', $this->tokenWith([self::ASSETS_SCOPE]), '2026-11-28T10:00:00+00:00');
+
+        $resource = $this->read([[self::ROBOTICS]]);
+
+        self::assertSame(['Hold', 'Zulu', 'alpha', 'bravo'], array_column($resource->characters, 'characterName'));
+    }
+
     public function testAnAnonymousVisitorIsRejected(): void
     {
         $this->authenticatedUser = null;

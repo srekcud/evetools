@@ -1,5 +1,5 @@
 import { planStockTransfers } from '@/utils/planetarySupply'
-import { FERTILIZER, feedOf } from '../planetarySupplyFixtures'
+import { FERTILIZER, feedOf, launchpadOf } from '../planetarySupplyFixtures'
 import {
   ALPHA,
   BRAVO,
@@ -13,7 +13,9 @@ import {
   bravoLaunchpad,
   holdersOf,
   knownHolder,
+  mixedVolumeLaunchpad,
   referenceHolders,
+  transferFeed,
   transferLaunchpads,
   unknownHolder,
 } from '../planetarySupplyTransferFixtures'
@@ -178,5 +180,106 @@ describe('planStockTransfers holders and shortfall', () => {
       { typeId: X, typeName: 'Coolant', holders: [unknownStockHolder(HOLD, 'missing_assets_scope')], shortfall: null },
       { typeId: Y, typeName: 'Mechanical Parts', holders: [unknownStockHolder(HOLD, 'missing_assets_scope')], shortfall: null },
     ])
+  })
+})
+
+describe('planStockTransfers ordering', () => {
+  it('sorts the recipients by name whatever the order of the launchpads', () => {
+    const launchpads = [bravoLaunchpad(), alphaFirstLaunchpad(), alphaSecondLaunchpad()]
+
+    const plan = planStockTransfers(launchpads, TRANSFER_DAYS, referenceHolders())
+
+    expect(plan.recipients.map(recipient => [recipient.characterName, recipient.rowKeys])).toEqual([
+      ['Alpha', ALPHA_ROW_KEYS],
+      ['Bravo', BRAVO_ROW_KEYS],
+    ])
+  })
+
+  it('lists the lines and the types by type id even when the launchpad feeds Y before X', () => {
+    const launchpads = [alphaFirstLaunchpad({ feeds: [transferFeed(Y, 125), transferFeed(X, 250)] })]
+    const holders = holdersOf([knownHolder(ALPHA, []), knownHolder(HOLD, [{ typeId: X, quantity: 3000 }, { typeId: Y, quantity: 100 }])])
+
+    const plan = planStockTransfers(launchpads, TRANSFER_DAYS, holders)
+
+    expect(plan.recipients.map(recipient => recipient.lines.map(candidate => candidate.typeId))).toEqual([[X, Y]])
+    expect(plan.types.map(type => type.typeId)).toEqual([X, Y])
+  })
+
+  it('sorts the known holders of equal available quantity by name and then the unknown holders by name', () => {
+    const holders = holdersOf([
+      unknownHolder(BRAVO, 'missing_assets_scope'),
+      knownHolder(HOLD, [{ typeId: X, quantity: 500 }]),
+      unknownHolder(ALPHA, 'assets_never_read'),
+      knownHolder(CARL, [{ typeId: X, quantity: 500 }]),
+    ])
+
+    const plan = planStockTransfers(transferLaunchpads(), TRANSFER_DAYS, holders)
+
+    expect(plan.types[0].holders).toEqual([knownStockHolder(CARL, 500), knownStockHolder(HOLD, 500), unknownStockHolder(ALPHA, 'assets_never_read'), unknownStockHolder(BRAVO, 'missing_assets_scope')])
+  })
+})
+
+describe('planStockTransfers volumes', () => {
+  it('multiplies each transfer by the volume of its own type, 500 Y at 0.5 m3 weighing 250 m3 next to 1 000 X at 0.75 m3', () => {
+    const holders = holdersOf([knownHolder(ALPHA, []), knownHolder(HOLD, [{ typeId: X, quantity: 3000 }, { typeId: Y, quantity: 100 }])])
+
+    const plan = planStockTransfers([mixedVolumeLaunchpad()], TRANSFER_DAYS, holders)
+
+    expect(plan.recipients).toEqual([{
+      ...ALPHA,
+      lines: [line(X, 'Coolant', 1000, 1000, 750), line(Y, 'Mechanical Parts', 500, 500, 250)],
+      totalM3: 1000,
+      excludedCount: 0,
+      rowKeys: ['colony-alpha-1101'],
+    }])
+  })
+
+  it('takes the volume of a type from the known launchpads only, ignoring a launchpad left out for an unknown input volume', () => {
+    const excludedFirst = launchpadOf({
+      ...ALPHA,
+      colonyId: 'colony-alpha-2',
+      planetName: 'Alpha II',
+      pinId: 1_102,
+      feeds: [feedOf(X, { dailyRate: 50, volumePerUnit: 3 }), feedOf(Y, { dailyRate: 50, volumePerUnit: null })],
+    })
+    const holders = holdersOf([knownHolder(ALPHA, []), knownHolder(HOLD, [{ typeId: X, quantity: 3000 }])])
+
+    const plan = planStockTransfers([excludedFirst, mixedVolumeLaunchpad()], TRANSFER_DAYS, holders)
+
+    expect(plan.recipients).toEqual([{
+      ...ALPHA,
+      lines: [line(X, 'Coolant', 1000, 1000, 750), line(Y, 'Mechanical Parts', 500, 500, 250)],
+      totalM3: 1000,
+      excludedCount: 1,
+      rowKeys: ['colony-alpha-2-1102', 'colony-alpha-1101'],
+    }])
+  })
+})
+
+describe('planStockTransfers recipients left without a known launchpad or a known holder entry', () => {
+  it('keeps a recipient whose launchpads are all unknown with no line, its excluded count and an unknown total instead of 0 m3', () => {
+    const launchpads = [alphaFirstLaunchpad({ capacityM3: null }), alphaSecondLaunchpad({ capacityM3: null }), bravoLaunchpad()]
+
+    const plan = planStockTransfers(launchpads, TRANSFER_DAYS, referenceHolders())
+
+    expect(plan.recipients).toEqual([
+      { ...ALPHA, lines: [], totalM3: null, excludedCount: 2, rowKeys: ALPHA_ROW_KEYS },
+      { ...BRAVO, lines: [line(X, 'Coolant', 400, 400, 300)], totalM3: 300, excludedCount: 0, rowKeys: BRAVO_ROW_KEYS },
+    ])
+  })
+
+  it('makes the transfer and the volume of a recipient absent from the holders unknown, and the shortfall of its type unknown', () => {
+    const holders = holdersOf([
+      knownHolder(ALPHA, [{ typeId: X, quantity: 300 }]),
+      knownHolder(HOLD, [{ typeId: X, quantity: 3000 }, { typeId: Y, quantity: 100 }]),
+    ])
+
+    const plan = planStockTransfers(transferLaunchpads(), TRANSFER_DAYS, holders)
+
+    expect(plan.recipients.map(recipient => [recipient.characterName, recipient.lines, recipient.totalM3])).toEqual([
+      ['Alpha', [line(X, 'Coolant', 1200, 900, 675), line(Y, 'Mechanical Parts', 500, 500, 375)], 1050],
+      ['Bravo', [line(X, 'Coolant', 400, null, null)], null],
+    ])
+    expect(plan.types.map(type => [type.typeId, type.shortfall])).toEqual([[X, null], [Y, 400]])
   })
 })

@@ -15,7 +15,7 @@ export const HOME_LOCATION_ID = 60_003_760
 export const HOME_LOCATION_NAME = 'Jita IV - Moon 4 - Caldari Navy Assembly Plant'
 export const ASSETS_READ_AT = '2026-11-28T07:00:00+00:00'
 
-function transferFeed(typeId: number, dailyRate: number) {
+export function transferFeed(typeId: number, dailyRate: number) {
   return feedOf(typeId, { dailyRate, volumePerUnit: TRANSFER_VOLUME_PER_UNIT })
 }
 
@@ -54,6 +54,23 @@ export function bravoLaunchpad(overrides: Partial<SupplyLaunchpad> = {}): Supply
 
 export function transferLaunchpads(): SupplyLaunchpad[] {
   return [alphaFirstLaunchpad(), alphaSecondLaunchpad(), bravoLaunchpad()]
+}
+
+export const MIXED_VOLUME_X_PER_UNIT = 0.75
+export const MIXED_VOLUME_Y_PER_UNIT = 0.5
+
+export function mixedVolumeLaunchpad(overrides: Partial<SupplyLaunchpad> = {}): SupplyLaunchpad {
+  return launchpadOf({
+    ...ALPHA,
+    colonyId: 'colony-alpha',
+    planetName: 'Alpha I',
+    pinId: 1_101,
+    feeds: [
+      feedOf(X, { dailyRate: 250, volumePerUnit: MIXED_VOLUME_X_PER_UNIT }),
+      feedOf(Y, { dailyRate: 125, volumePerUnit: MIXED_VOLUME_Y_PER_UNIT }),
+    ],
+    ...overrides,
+  })
 }
 
 export function knownHolder(
