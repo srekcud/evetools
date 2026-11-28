@@ -67,7 +67,7 @@ final class ProjectWorkStationsApiTest extends WebTestCase
 
     private const array ROW_KEYS = [
         'delta', 'facilityTaxPercent', 'inFavoriteSystem', 'installationCost', 'jumps', 'kind', 'materialBonusPercent', 'materialsCost', 'missingData',
-        'name', 'solarSystemId', 'solarSystemName', 'structureId', 'totalCost', 'transportCost', 'transportLegs',
+        'name', 'noRigForProduct', 'productCategory', 'rigs', 'solarSystemId', 'solarSystemName', 'structureId', 'totalCost', 'transportCost', 'transportLegs',
     ];
 
     private const array LEG_KEYS = ['cost', 'cubicMeters', 'fromStructureId', 'kind', 'toStructureId'];
