@@ -64,6 +64,12 @@ final class PlanetaryStockReaderTest extends TestCase
     /** @var list<array{string|null, list<int>}> */
     private array $customsRequests = [];
 
+    /** @var array<string, array<int, int>> */
+    private array $elsewhereByCharacterUuid = [];
+
+    /** @var list<array{string|null, list<int>, list<int>}> */
+    private array $elsewhereRequests = [];
+
     /** @var list<CachedCharacterBuyOrder> */
     private array $storedOrders = [];
 
@@ -128,6 +134,14 @@ final class PlanetaryStockReaderTest extends TestCase
                 $this->customsRequests[] = [$scope->characterId, $typeIds];
 
                 return array_intersect_key($this->customsByCharacterUuid[$scope->characterId] ?? [], array_flip($typeIds));
+            },
+        );
+
+        $this->assetBrowseRepository->method('elsewhereQuantities')->willReturnCallback(
+            function (AssetScope $scope, array $excludedRootLocationIds, array $typeIds): array {
+                $this->elsewhereRequests[] = [$scope->characterId, $excludedRootLocationIds, $typeIds];
+
+                return array_intersect_key($this->elsewhereByCharacterUuid[$scope->characterId] ?? [], array_flip($typeIds));
             },
         );
 
@@ -300,6 +314,68 @@ final class PlanetaryStockReaderTest extends TestCase
 
         self::assertCount(1, $stock->rows);
         self::assertSame(0, $stock->rows[0]->customsOffice);
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereQuantitiesOfEveryCharacterAreSummedForTheConsumedTypesOnlyAndTheHomeAndHubAreExcluded(): void
+    {
+        $this->inputNeeds = [
+            'weekly' => [
+                $this->weeklyRow(self::ROBOTICS, 'Robotics', 1000.0),
+                $this->weeklyRow(self::COOLANT, 'Coolant', 800.0),
+            ],
+            'complete' => true,
+        ];
+        $this->sdeTypes = [self::ROBOTICS => $this->sdeType(self::ROBOTICS, 0.15), self::COOLANT => $this->sdeType(self::COOLANT, 1.5)];
+        $this->assetsByCharacterUuid = [self::ALMA_UUID => [self::HOME_STATION => [self::ROBOTICS => 300]]];
+        $this->elsewhereByCharacterUuid = [
+            self::ALMA_UUID => [self::ROBOTICS => 700, self::COOLANT => 40, self::BACTERIA => 5_000],
+            self::CORA_UUID => [self::ROBOTICS => 500],
+        ];
+
+        $stock = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3));
+
+        self::assertCount(2, $stock->rows);
+        self::assertSame([1_200, 40], [$stock->rows[1]->elsewhere, $stock->rows[0]->elsewhere]);
+        self::assertSame(
+            ['Robotics', 0.15, 1000.0, 300, 0, 0, 0, 0, 1.5, 1.5, 1_500],
+            $this->valuesOf($stock->rows[1]),
+        );
+        self::assertSame([self::ALMA_UUID, self::CORA_UUID], array_column($this->elsewhereRequests, 0));
+        foreach ($this->elsewhereRequests as [, $excludedRootLocationIds, $typeIds]) {
+            self::assertSame([self::HOME_STATION, self::HUB_STATION], $excludedRootLocationIds);
+            self::assertEqualsCanonicalizing([self::ROBOTICS, self::COOLANT], $typeIds);
+        }
+    }
+
+    #[Group('issue-1451')]
+    public function testOnlyTheHubIsExcludedFromElsewhereWithoutAHomeLocationOrWhenTheHubIsTheHome(): void
+    {
+        $this->inputNeeds = ['weekly' => [$this->weeklyRow(self::ROBOTICS, 'Robotics', 1000.0)], 'complete' => true];
+        $this->sdeTypes = [self::ROBOTICS => $this->sdeType(self::ROBOTICS, 0.15)];
+        $this->elsewhereByCharacterUuid = [self::ALMA_UUID => [self::ROBOTICS => 250]];
+
+        $withoutHome = $this->reader()->read($this->user, new PlanetaryStockSettings(null, self::HUB_STATION, 3));
+        $sameHomeAndHub = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HUB_STATION, self::HUB_STATION, 3));
+
+        self::assertSame(250, $withoutHome->rows[0]->elsewhere);
+        self::assertSame(250, $sameHomeAndHub->rows[0]->elsewhere);
+        foreach ($this->elsewhereRequests as [, $excludedRootLocationIds]) {
+            self::assertSame([self::HUB_STATION], $excludedRootLocationIds);
+        }
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereIsZeroWhenNoCharacterHoldsTheTypeOutsideTheHomeAndHub(): void
+    {
+        $this->inputNeeds = ['weekly' => [$this->weeklyRow(self::BACTERIA, 'Bacteria', 600.0)], 'complete' => true];
+        $this->sdeTypes = [self::BACTERIA => $this->sdeType(self::BACTERIA, 0.5)];
+        $this->elsewhereByCharacterUuid = [self::ALMA_UUID => [self::ROBOTICS => 700]];
+
+        $stock = $this->reader()->read($this->user, new PlanetaryStockSettings(self::HOME_STATION, self::HUB_STATION, 3));
+
+        self::assertCount(1, $stock->rows);
+        self::assertSame(0, $stock->rows[0]->elsewhere);
     }
 
     #[Group('issue-1458')]

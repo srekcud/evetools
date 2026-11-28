@@ -396,6 +396,61 @@ final class AssetBrowseRepositoryTest extends IntegrationTestCase
         self::assertSame([], $this->repository->customsOfficeQuantities($scope, []));
     }
 
+    #[Group('issue-1451')]
+    public function testElsewhereQuantitiesCountEveryRootOutsideTheExcludedLocationsAndLeaveCustomsOfficesOut(): void
+    {
+        $scope = $this->customsOfficeInventory();
+
+        self::assertSame(
+            [self::ROBOTICS_TYPE => 843],
+            $this->repository->elsewhereQuantities($scope, [self::JITA_ID], [self::ROBOTICS_TYPE]),
+        );
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereQuantitiesFollowContainersAndLeaveOutTheContentOfAnExcludedStation(): void
+    {
+        $scope = $this->customsOfficeInventory();
+
+        self::assertSame(
+            [self::BACTERIA_TYPE => 80],
+            $this->repository->elsewhereQuantities($scope, [self::JITA_ID], [self::BACTERIA_TYPE]),
+        );
+        self::assertSame(
+            [self::BACTERIA_TYPE => 45],
+            $this->repository->elsewhereQuantities($scope, [self::JITA_ID, self::NAMED_OTHER_STRUCTURE_ID], [self::BACTERIA_TYPE]),
+        );
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereQuantitiesWithoutAnyExcludedLocationCountEveryNonCustomsRoot(): void
+    {
+        $scope = $this->customsOfficeInventory();
+
+        self::assertSame(
+            [self::ROBOTICS_TYPE => 1_243],
+            $this->repository->elsewhereQuantities($scope, [], [self::ROBOTICS_TYPE]),
+        );
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereQuantitiesIgnoreTypesOutOfTheListAndTypesHeldOnlyInACustomsOffice(): void
+    {
+        $scope = $this->customsOfficeInventory();
+
+        self::assertSame([], $this->repository->elsewhereQuantities($scope, [self::JITA_ID], [self::COOLANT_TYPE, self::TRITANIUM_TYPE]));
+        self::assertSame([], $this->repository->elsewhereQuantities($scope, [self::JITA_ID], []));
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereQuantitiesOfAnotherCharacterAreNotInThePersonalScope(): void
+    {
+        $this->customsOfficeInventory();
+        $otherScope = AssetScope::forCharacter($this->stockOtherCharacterId);
+
+        self::assertSame([], $this->repository->elsewhereQuantities($otherScope, [self::JITA_ID], [self::ROBOTICS_TYPE]));
+    }
+
     private function customsOfficeInventory(): AssetScope
     {
         $pilot = $this->createCharacter(null, 'Ilse Varrow');

@@ -451,6 +451,89 @@ final class PlanetaryStockCalculatorTest extends TestCase
         self::assertNull($row->toBuy);
     }
 
+    #[Group('issue-1451')]
+    public function testElsewhereQuantityIsHeldStockInTheCoverageAndWhatToBuyAndNeverInTheHubColumn(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [new PlanetaryWeeklyNeed(self::ROBOTICS, 'Robotics', 1000.0, 0.15)],
+            [self::HOME_STATION => [self::ROBOTICS => 1500], self::HUB_STATION => [self::ROBOTICS => 500]],
+            elsewhere: [self::ROBOTICS => 400],
+        ));
+
+        $row = $this->rowOf($stock, self::ROBOTICS);
+        self::assertSame(400, $row->elsewhere);
+        self::assertSame(
+            ['weeklyConsumption' => 1000.0, 'home' => 1500, 'hub' => 500, 'corp' => 0, 'openOrders' => 0, 'coverageWeeks' => 2.4, 'coverageWithOrdersWeeks' => 2.4, 'toBuy' => 600],
+            $this->figures($row),
+        );
+        self::assertTrue($stock->complete);
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereQuantityAddsToTheOpenOrdersInTheCoverageWithOrders(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [new PlanetaryWeeklyNeed(self::PLASMOIDS, 'Plasmoids', 1000.0, 0.01)],
+            [self::HOME_STATION => [self::PLASMOIDS => 1500], self::HUB_STATION => [self::PLASMOIDS => 500]],
+            orders: [new PlanetaryBuyOrder(self::PLASMOIDS, self::HUB_STATION, 400)],
+            elsewhere: [self::PLASMOIDS => 400],
+        ));
+
+        self::assertSame(
+            ['weeklyConsumption' => 1000.0, 'home' => 1500, 'hub' => 500, 'corp' => 0, 'openOrders' => 400, 'coverageWeeks' => 2.4, 'coverageWithOrdersWeeks' => 2.8, 'toBuy' => 200],
+            $this->figures($this->rowOf($stock, self::PLASMOIDS)),
+        );
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereStockAloneCanCoverTheTargetAndLeaveNothingToBuy(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [new PlanetaryWeeklyNeed(self::COOLANT, 'Coolant', 1000.0, 1.5)],
+            [],
+            elsewhere: [self::COOLANT => 3000],
+        ));
+
+        self::assertSame(
+            ['weeklyConsumption' => 1000.0, 'home' => 0, 'hub' => 0, 'corp' => 0, 'openOrders' => 0, 'coverageWeeks' => 3.0, 'coverageWithOrdersWeeks' => 3.0, 'toBuy' => 0],
+            $this->figures($this->rowOf($stock, self::COOLANT)),
+        );
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereOfAnotherTypeNeverLeaksIntoARowAndAnAbsentOneIsZero(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [
+                new PlanetaryWeeklyNeed(self::ROBOTICS, 'Robotics', 1000.0, 0.15),
+                new PlanetaryWeeklyNeed(self::WATER, 'Water', 800.0, 0.38),
+            ],
+            [self::HOME_STATION => [self::ROBOTICS => 1500, self::WATER => 100]],
+            elsewhere: [self::ROBOTICS => 400, self::BACTERIA => 9000],
+        ));
+
+        self::assertSame(400, $this->rowOf($stock, self::ROBOTICS)->elsewhere);
+        self::assertSame(0, $this->rowOf($stock, self::WATER)->elsewhere);
+        self::assertSame(100, $this->rowOf($stock, self::WATER)->home);
+    }
+
+    #[Group('issue-1451')]
+    public function testElsewhereStaysShownWithoutAHomeLocationAndTheCoverageStaysUnknown(): void
+    {
+        $stock = $this->calculate($this->readings(
+            [new PlanetaryWeeklyNeed(self::ROBOTICS, 'Robotics', 1000.0, 0.15)],
+            [self::HUB_STATION => [self::ROBOTICS => 500]],
+            home: null,
+            elsewhere: [self::ROBOTICS => 700],
+        ));
+
+        $row = $this->rowOf($stock, self::ROBOTICS);
+        self::assertSame(700, $row->elsewhere);
+        self::assertNull($row->home);
+        self::assertNull($row->coverageWeeks);
+        self::assertNull($row->toBuy);
+    }
+
     private function calculate(PlanetaryStockReadings $readings): PlanetaryStock
     {
         return (new PlanetaryStockCalculator())->calculate($readings);
@@ -462,6 +545,7 @@ final class PlanetaryStockCalculatorTest extends TestCase
      * @param list<PersonalStockContainerContents> $containers
      * @param list<PlanetaryBuyOrder> $orders
      * @param array<int, int> $customsOffice
+     * @param array<int, int> $elsewhere
      */
     private function readings(
         array $weeklyNeeds,
@@ -473,8 +557,9 @@ final class PlanetaryStockCalculatorTest extends TestCase
         array $orders = [],
         bool $needsComplete = true,
         array $customsOffice = [],
+        array $elsewhere = [],
     ): PlanetaryStockReadings {
-        return new PlanetaryStockReadings($weeklyNeeds, $home, $hub, $coverageWeeks, $quantities, $containers, $orders, $needsComplete, $customsOffice);
+        return new PlanetaryStockReadings($weeklyNeeds, $home, $hub, $coverageWeeks, $quantities, $containers, $orders, $needsComplete, $customsOffice, $elsewhere);
     }
 
     /**
