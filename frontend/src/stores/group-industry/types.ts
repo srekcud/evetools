@@ -1387,6 +1387,14 @@ export type WorkStationRow = {
   totalCost: number | null
   delta: number | null
   missingData: ProjectMissingData[]
+  productCategory: string | null
+  rigs: WorkStationRig[]
+  noRigForProduct: boolean
+}
+
+export type WorkStationRig = {
+  categories: string[]
+  bonusPercent: number | null
 }
 
 export type WorkStationType = {

@@ -25,6 +25,7 @@ final readonly class WorkStationRow
         public ?float $totalCost,
         public ?float $delta,
         public array $missingData,
+        public ?string $productCategory = null,
     ) {
     }
 
@@ -42,6 +43,7 @@ final readonly class WorkStationRow
             $this->totalCost,
             $delta,
             $this->missingData,
+            $this->productCategory,
         );
     }
 }

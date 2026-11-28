@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { ACTIVITY_STYLES } from './companionActivityStyles'
 import { selectedStructureId, stationBannerOf, stationsSummary, type StationBanner, type StationPicks, type StationPolicy } from './projectSetup'
-import type { ProjectWorkStations, WorkStationRow, WorkStationType } from '@/stores/group-industry/types'
+import type { ProjectWorkStations, WorkStationRig, WorkStationRow, WorkStationType } from '@/stores/group-industry/types'
 
 const STRUCTURE_SETTINGS_LOCATION = { name: 'settings', params: { section: 'industry' } }
 
@@ -21,7 +21,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:picks': [picks: StationPicks]; 'update:policy': [change: PolicyChange]; next: [] }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const { formatIsk, formatNumber } = useFormatters()
 
 const thresholdFieldId = useId()
@@ -114,6 +114,34 @@ function styleOf(type: WorkStationType) {
 
 function choose(type: WorkStationType, row: WorkStationRow): void {
   emit('update:picks', { ...props.picks, [type.workType]: row.structureId })
+}
+
+function categoryLabel(category: string): string {
+  const key = `groupIndustry.setup.stations.rigs.categories.${category}`
+  return te(key) ? t(key) : category
+}
+
+function rigText(rig: WorkStationRig): string {
+  const categories = rig.categories.map(categoryLabel).join(', ')
+  if (rig.bonusPercent === null) return t('groupIndustry.setup.stations.rigs.unknownBonus', { categories })
+  return t('groupIndustry.setup.stations.rigs.entry', { categories, percent: formatNumber(rig.bonusPercent) })
+}
+
+function rigsText(row: WorkStationRow): string {
+  if (row.rigs.length === 0) return t('groupIndustry.setup.stations.rigs.none')
+  return t('groupIndustry.setup.stations.rigs.line', { rigs: row.rigs.map(rigText).join(' · ') })
+}
+
+function noRigText(row: WorkStationRow): string {
+  return t('groupIndustry.setup.stations.rigs.noneForProduct', { category: row.productCategory === null ? '' : categoryLabel(row.productCategory) })
+}
+
+function missingLabels(row: WorkStationRow): string[] {
+  const labels = row.missingData.map(missing => {
+    const key = `groupIndustry.setup.stations.missing.${missing.reason}`
+    return te(key) ? t(key) : t('groupIndustry.setup.stations.missing.other')
+  })
+  return [...new Set(labels)]
 }
 
 function amountOf(amount: number | null): string {
@@ -278,6 +306,23 @@ const gapLabel = computed(() => {
               <span v-else :data-testid="`station-tax-${type.workType}-${row.structureId}`" class="mt-0.5 block text-xs text-slate-400">
                 {{ t('groupIndustry.setup.stations.taxRate', { percent: `${formatNumber(row.facilityTaxPercent)} %` }) }}
               </span>
+
+              <span :data-testid="`station-rigs-${type.workType}-${row.structureId}`" class="mt-0.5 block text-xs text-slate-400">{{ rigsText(row) }}</span>
+              <span
+                v-if="row.noRigForProduct"
+                :data-testid="`station-no-rig-${type.workType}-${row.structureId}`"
+                class="mt-0.5 block text-xs text-amber-300"
+              >
+                {{ noRigText(row) }}
+                <router-link :to="STRUCTURE_SETTINGS_LOCATION" class="underline hover:text-amber-200" @click.stop>{{ t('groupIndustry.setup.stations.rigs.editLink') }}</router-link>
+              </span>
+              <ul
+                v-if="row.missingData.length > 0"
+                :data-testid="`station-missing-${type.workType}-${row.structureId}`"
+                class="mt-0.5 text-xs text-amber-300"
+              >
+                <li v-for="label in missingLabels(row)" :key="label">{{ label }}</li>
+              </ul>
 
               <dl v-if="type.costsCompared" class="mt-2 space-y-0.5 text-xs">
                 <div class="flex justify-between gap-2">
