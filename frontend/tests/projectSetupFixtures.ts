@@ -44,6 +44,9 @@ export function stationRow(structureId: string, overrides: Partial<WorkStationRo
     totalCost: 1000,
     delta: 0,
     missingData: [],
+    productCategory: null,
+    rigs: [],
+    noRigForProduct: false,
     ...overrides,
   }
 }
