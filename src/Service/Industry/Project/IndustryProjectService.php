@@ -27,6 +27,7 @@ use App\Industry\Application\StructureChoiceStatus;
 use App\Industry\Application\StructureSelectionPolicy;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\BlueprintCatalog;
 use App\Industry\Domain\BlueprintEfficiency;
 use App\Industry\Domain\Decryptor;
 use App\Industry\Domain\Intermediate;
@@ -70,6 +71,7 @@ class IndustryProjectService
         private readonly IndustryUserSettingsRepository $settingsRepository,
         private readonly OriginalBlueprintFinder $originalBlueprintFinder,
         private readonly Decryptors $decryptors,
+        private readonly BlueprintCatalog $blueprintCatalog,
     ) {
     }
 
@@ -716,33 +718,110 @@ class IndustryProjectService
         $copying = IndustryActivityType::Copying->value;
         $copyActivities = $this->activityRepository->findByTypeIdsAndActivityIds(array_values($blueprintTypeIds), [$copying]);
 
-        $copyLines = [];
+        $jobLinesByProduct = [];
         foreach ($jobLines as $jobLine) {
             $productTypeId = $jobLine['typeId'];
             if (!isset($copyActivities[$blueprintTypeIds[$productTypeId] . '-' . $copying]) || isset($ownedOriginalTypeIds[$blueprintTypeIds[$productTypeId]])) {
                 continue;
             }
-            $copyKey = $productTypeId . ':copy';
-            if (isset($copyLines[$copyKey])) {
-                $copyLines[$copyKey]['runs'] += $jobLine['runs'];
-                continue;
+            $jobLinesByProduct[$productTypeId][] = $jobLine;
+        }
+
+        $copyLines = [];
+        foreach ($jobLinesByProduct as $productTypeId => $productJobLines) {
+            $copies = $this->copiesFirstFitDecreasing($productJobLines, $this->blueprintCopyMaxRunsOf($productTypeId, $blueprintTypeIds[$productTypeId]));
+            foreach ($copies as $copyIndex => ['runs' => $copyRuns, 'firstJobLine' => $firstJobLine]) {
+                $copyLines[self::copyLineKeyOf($productTypeId, $copyIndex)] = [
+                    'typeId' => $productTypeId,
+                    'typeName' => $firstJobLine['typeName'],
+                    'runs' => $copyRuns,
+                    'meLevel' => 0,
+                    'teLevel' => 0,
+                    'activityType' => 'copy',
+                    'jobGroup' => 'blueprint',
+                    'parentTypeId' => $firstJobLine['parentTypeId'],
+                    'outputPerRun' => $firstJobLine['outputPerRun'],
+                    ...$this->plannedStructureOf($copyStructureChoice),
+                    'surplusQuantity' => null,
+                ];
             }
-            $copyLines[$copyKey] = [
-                'typeId' => $productTypeId,
-                'typeName' => $jobLine['typeName'],
-                'runs' => $jobLine['runs'],
-                'meLevel' => 0,
-                'teLevel' => 0,
-                'activityType' => 'copy',
-                'jobGroup' => 'blueprint',
-                'parentTypeId' => $jobLine['parentTypeId'],
-                'outputPerRun' => $jobLine['outputPerRun'],
-                ...$this->plannedStructureOf($copyStructureChoice),
-                'surplusQuantity' => null,
-            ];
         }
 
         return $copyLines;
+    }
+
+    /**
+     * @param non-empty-list<JobLine> $productJobLines
+     * @return list<array{runs: int, firstJobLine: JobLine}>
+     */
+    private function copiesFirstFitDecreasing(array $productJobLines, int $blueprintCopyMaxRuns): array
+    {
+        usort($productJobLines, static fn (array $a, array $b): int => $b['runs'] <=> $a['runs']);
+
+        $copies = [];
+        foreach ($productJobLines as $jobLine) {
+            $fittingCopyIndex = null;
+            foreach ($copies as $copyIndex => $copy) {
+                if ($copy['runs'] + $jobLine['runs'] <= $blueprintCopyMaxRuns) {
+                    $fittingCopyIndex = $copyIndex;
+                    break;
+                }
+            }
+            if (null === $fittingCopyIndex) {
+                $copies[] = ['runs' => $jobLine['runs'], 'firstJobLine' => $jobLine];
+                continue;
+            }
+            $copies[$fittingCopyIndex] = ['runs' => $copies[$fittingCopyIndex]['runs'] + $jobLine['runs'], 'firstJobLine' => $copies[$fittingCopyIndex]['firstJobLine']];
+        }
+
+        return $copies;
+    }
+
+    private function blueprintCopyMaxRunsOf(int $productTypeId, int $blueprintTypeId): int
+    {
+        $recipe = $this->blueprintCatalog->recipeFor($productTypeId)
+            ?? throw new \UnexpectedValueException(\sprintf('Blueprint %d has no recipe in the SDE: its blueprint copy max runs is unknown.', $blueprintTypeId));
+
+        return $recipe->maxProductionLimit->value;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private static function runsPerCopyOf(int $totalRuns, int $blueprintCopyMaxRuns): array
+    {
+        $copyCount = (int) ceil($totalRuns / $blueprintCopyMaxRuns);
+        $runsPerCopy = intdiv($totalRuns, $copyCount);
+        $copiesWithOneMoreRun = $totalRuns % $copyCount;
+
+        $runs = [];
+        for ($copyIndex = 0; $copyIndex < $copyCount; ++$copyIndex) {
+            $runs[] = $copyIndex < $copiesWithOneMoreRun ? $runsPerCopy + 1 : $runsPerCopy;
+        }
+
+        return $runs;
+    }
+
+    private static function copyLineKeyOf(int $productTypeId, int $copyIndex): string
+    {
+        return \sprintf('%d:copy:%d', $productTypeId, $copyIndex);
+    }
+
+    private static function t1InventionCopyLineKeyOf(int $t1ProductTypeId, int $copyIndex): string
+    {
+        return \sprintf('%d:copy:invention:%d', $t1ProductTypeId, $copyIndex);
+    }
+
+    /**
+     * @param array<int|string, JobLine> $jobAggregation
+     */
+    private static function dropCopyLinesOf(array &$jobAggregation, int $productTypeId): void
+    {
+        foreach (array_keys($jobAggregation) as $key) {
+            if (1 === preg_match(\sprintf('/^%d:copy:\d+$/', $productTypeId), (string) $key)) {
+                unset($jobAggregation[$key]);
+            }
+        }
     }
 
     /**
@@ -807,13 +886,13 @@ class IndustryProjectService
                 continue;
             }
             if ($excludesInvention) {
-                unset($jobAggregation[$productTypeId . ':copy']);
+                self::dropCopyLinesOf($jobAggregation, $productTypeId);
                 continue;
             }
             $declaredRuns = \array_key_exists($productTypeId, $declaredRunsByProductTypeId) ? $declaredRunsByProductTypeId[$productTypeId] : 0;
             $runsToInvent = $manufacturingRunsByProduct[$productTypeId] - min($declaredRuns, $manufacturingRunsByProduct[$productTypeId]);
             if ($runsToInvent === 0) {
-                unset($jobAggregation[$productTypeId . ':copy']);
+                self::dropCopyLinesOf($jobAggregation, $productTypeId);
                 continue;
             }
             if ($invention['probability'] === null || $invention['probability'] <= 0 || $invention['baseRuns'] <= 0) {
@@ -837,11 +916,12 @@ class IndustryProjectService
 
         $typeNames = $this->sdeTypeNames($inventionTypeIds);
 
+        $t1Copies = [];
         foreach ($inventionsByProduct as $productTypeId => ['recipe' => $invention, 'baseProbability' => $baseProbability, 't1ProductTypeId' => $t1ProductTypeId, 'runsToInvent' => $runsToInvent, 'decryptor' => $decryptor]) {
             $firstManufacturingJob = $firstManufacturingJobByProduct[$productTypeId];
             $attempts = InventionAttempts::needed(new Runs($runsToInvent), $invention['baseRuns'], $baseProbability, $decryptor);
 
-            unset($jobAggregation[$productTypeId . ':copy']);
+            self::dropCopyLinesOf($jobAggregation, $productTypeId);
             $jobAggregation[$productTypeId . ':invention'] = [
                 'typeId' => $productTypeId,
                 'typeName' => $firstManufacturingJob['typeName'],
@@ -857,22 +937,13 @@ class IndustryProjectService
                 'surplusQuantity' => null,
             ];
 
-            $t1CopyKey = $t1ProductTypeId . ':copy:invention';
-            if (isset($jobAggregation[$t1CopyKey])) {
-                $jobAggregation[$t1CopyKey]['runs'] += $attempts;
+            if (isset($t1Copies[$t1ProductTypeId])) {
+                $t1Copies[$t1ProductTypeId]['attempts'] += $attempts;
             } else {
-                $jobAggregation[$t1CopyKey] = [
-                    'typeId' => $t1ProductTypeId,
-                    'typeName' => $typeNames[$t1ProductTypeId],
-                    'runs' => $attempts,
-                    'meLevel' => 0,
-                    'teLevel' => 0,
-                    'activityType' => 'copy',
-                    'jobGroup' => 'blueprint',
+                $t1Copies[$t1ProductTypeId] = [
+                    'attempts' => $attempts,
+                    't1BlueprintTypeId' => $invention['t1BlueprintTypeId'],
                     'parentTypeId' => $firstManufacturingJob['parentTypeId'],
-                    'outputPerRun' => 1,
-                    ...$this->plannedStructureOf($copyStructureChoice),
-                    'surplusQuantity' => null,
                 ];
             }
 
@@ -892,6 +963,25 @@ class IndustryProjectService
                         'quantity' => $quantity,
                     ];
                 }
+            }
+        }
+
+        foreach ($t1Copies as $t1ProductTypeId => ['attempts' => $attempts, 't1BlueprintTypeId' => $t1BlueprintTypeId, 'parentTypeId' => $parentTypeId]) {
+            $copyRuns = self::runsPerCopyOf($attempts, $this->blueprintCopyMaxRunsOf($t1ProductTypeId, $t1BlueprintTypeId));
+            foreach ($copyRuns as $copyIndex => $runs) {
+                $jobAggregation[self::t1InventionCopyLineKeyOf($t1ProductTypeId, $copyIndex)] = [
+                    'typeId' => $t1ProductTypeId,
+                    'typeName' => $typeNames[$t1ProductTypeId],
+                    'runs' => $runs,
+                    'meLevel' => 0,
+                    'teLevel' => 0,
+                    'activityType' => 'copy',
+                    'jobGroup' => 'blueprint',
+                    'parentTypeId' => $parentTypeId,
+                    'outputPerRun' => 1,
+                    ...$this->plannedStructureOf($copyStructureChoice),
+                    'surplusQuantity' => null,
+                ];
             }
         }
     }
