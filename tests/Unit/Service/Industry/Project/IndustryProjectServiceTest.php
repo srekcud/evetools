@@ -92,6 +92,7 @@ final class IndustryProjectServiceTest extends TestCase
     private const int SECOND_TYPE_OF_THE_BLACKLISTED_GROUP = 11400;
     private const int BLACKLISTED_GROUP = 334;
     private const int HAIL_L = 12779;
+    private const int COPIED_PRODUCT_WHOSE_ID_ENDS_WITH_THE_HAIL_L_ID = 9_912_779;
     private const int HAIL_L_T1_BLUEPRINT = 898;
     private const int DEPLETED_URANIUM_L = 197;
     private const int PROTOTYPE_AMMUNITION_L = 990_003;
@@ -835,6 +836,53 @@ final class IndustryProjectServiceTest extends TestCase
     }
 
     #[Group('issue-1450')]
+    public function testJobsWhoseRunsSumExactlyToTheBlueprintCopyMaxRunsShareOneCopyLine(): void
+    {
+        $project = $this->projectOfSabreManufacturedInSeparateLinesOfRuns([6, 4]);
+
+        $this->assertSame([4, 6], $this->runsOf($project, self::SABRE, 'manufacturing'));
+        $this->assertSame([10], $this->runsOf($project, self::SABRE, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testJobsAreCopiedLargestFirstSoSixFiveFiveAndFourFillTwoCopiesOfTen(): void
+    {
+        $project = $this->projectOfSabreManufacturedInSeparateLinesOfRuns([6, 5, 5, 4]);
+
+        $this->assertSame([4, 5, 5, 6], $this->runsOf($project, self::SABRE, 'manufacturing'));
+        $this->assertSame([10, 10], $this->runsOf($project, self::SABRE, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testAJobGoesInTheFirstCopyWhereItFitsSoSixFiveAndFourGiveCopiesOfTenAndFive(): void
+    {
+        $project = $this->projectOfSabreManufacturedInSeparateLinesOfRuns([6, 5, 4]);
+
+        $this->assertSame([4, 5, 6], $this->runsOf($project, self::SABRE, 'manufacturing'));
+        $this->assertSame([5, 10], $this->runsOf($project, self::SABRE, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testCopyLineSharedByAFourRunJobOfARifterAndAThreeRunFinalJobKeepsTheParentOfTheLargerJob(): void
+    {
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::COMPONENT => 4]);
+        $this->givenRecipe(self::COMPONENT, 'Component', [self::MEXALLON => 120], maxProductionLimit: 10, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::RIFTER, 'Rifter', 1], [self::COMPONENT, 'Component', 3]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::RIFTER, 'manufacturing', 'final', 1, 1, null],
+                [self::COMPONENT, 'copy', 'blueprint', 7, 7, self::RIFTER],
+                [self::COMPONENT, 'manufacturing', 'component', 4, 4, self::RIFTER],
+                [self::COMPONENT, 'manufacturing', 'final', 3, 3, null],
+            ],
+            $this->jobLines($project),
+        );
+    }
+
+    #[Group('issue-1450')]
     public function testRebuildRefusesToCutACopyLineMarkedBeyondTheBlueprintCopyMaxRunsAndNamesItsType(): void
     {
         $this->givenRecipe(self::THRASHER, 'Thrasher', [self::PYERITE => 3_100], maxProductionLimit: 10, hasCopyActivity: true);
@@ -1293,6 +1341,126 @@ final class IndustryProjectServiceTest extends TestCase
     }
 
     #[Group('issue-1450')]
+    public function testT1CopyLinesOfAnInventedComponentKeepTheParentOfItsInvention(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::HAIL_L => 400]);
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 100, maxProductionLimit: 40);
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L', maxProductionLimit: 2);
+        $project = $this->projectWithItems([[self::RIFTER, 'Rifter', 1]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 1, 1, self::RIFTER],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 2, 2, self::RIFTER],
+                [self::RIFTER, 'manufacturing', 'final', 1, 1, null],
+                [self::HAIL_L, 'invention', 'blueprint', 3, 3, self::RIFTER],
+                [self::HAIL_L, 'manufacturing', 'component', 4, 400, self::RIFTER],
+            ],
+            $this->jobLines($project),
+        );
+    }
+
+    #[Group('issue-1450')]
+    public function testT1CopyLinesSharedByTwoInventedComponentsOfDifferentParentsKeepTheParentOfTheFirstInventionOfThePlan(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns(prototypeAmmunitionLFromTheSameT1Blueprint: true);
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::HAIL_L => 400]);
+        $this->givenRecipe(self::THRASHER, 'Thrasher', [self::PROTOTYPE_AMMUNITION_L => 200]);
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 100, maxProductionLimit: 40);
+        $this->givenRecipe(self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', [self::MORPHITE => 7], outputPerRun: 100, maxProductionLimit: 40);
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L', maxProductionLimit: 2);
+        $project = $this->projectWithItems([[self::RIFTER, 'Rifter', 1], [self::THRASHER, 'Thrasher', 1]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([3], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([2], $this->runsOf($project, self::PROTOTYPE_AMMUNITION_L, 'invention'));
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 1, 1, self::THRASHER],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 2, 2, self::THRASHER],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 2, 2, self::THRASHER],
+            ],
+            array_values(array_filter($this->jobLines($project), static fn (array $line): bool => self::DEPLETED_URANIUM_L === $line[0])),
+        );
+    }
+
+    #[Group('issue-1450')]
+    public function testInventionOfAProductDropsItsCopyLinesWithoutTouchingThoseOfAProductWhoseIdEndsWithTheSameDigits(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40, hasCopyActivity: true);
+        $this->givenRecipe(self::COPIED_PRODUCT_WHOSE_ID_ENDS_WITH_THE_HAIL_L_ID, 'Long Id Product', [self::TRITANIUM => 11], maxProductionLimit: 10, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15], [self::COPIED_PRODUCT_WHOSE_ID_ENDS_WITH_THE_HAIL_L_ID, 'Long Id Product', 6]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([], $this->runsOf($project, self::HAIL_L, 'copy'));
+        $this->assertSame([6], $this->runsOf($project, self::COPIED_PRODUCT_WHOSE_ID_ENDS_WITH_THE_HAIL_L_ID, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testInventionOfAProductDropsItsCopyLineOfIndexTenAndAbove(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 1, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 11]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], $this->runsOf($project, self::HAIL_L, 'manufacturing'));
+        $this->assertSame([], $this->runsOf($project, self::HAIL_L, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testTwentyEightRunsOfACopiedProductAtABlueprintCopyMaxRunsOfTenHaveNoCopyLineWhileTheInventionIsExcluded(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 10, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 28]])->setExcludesInvention(true);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([9, 9, 10], $this->runsOf($project, self::HAIL_L, 'manufacturing'));
+        $this->assertSame([], $this->runsOf($project, self::HAIL_L, 'copy'));
+        $this->assertSame([], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testTwentyEightRunsOfACopiedProductAtABlueprintCopyMaxRunsOfTenHaveNoCopyLineWhileDeclaredBlueprintCopiesCoverEveryRun(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 10, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 28]]);
+        $project->replaceDeclaredBlueprintCopies([new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 28)]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([9, 9, 10], $this->runsOf($project, self::HAIL_L, 'manufacturing'));
+        $this->assertSame([], $this->runsOf($project, self::HAIL_L, 'copy'));
+        $this->assertSame([], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
+    }
+
+    #[Group('issue-1450')]
+    public function testAProductBothManufacturedAndUsedAsT1BlueprintOfAnInventionKeepsItsManufacturingCopyAndItsInventionCopyOnSeparateLines(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenT1ProductRecipe(self::DEPLETED_URANIUM_L, 'Depleted Uranium L', maxProductionLimit: 10);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 4], [self::DEPLETED_URANIUM_L, 'Depleted Uranium L', 5]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([3], $this->runsOf($project, self::HAIL_L, 'invention'));
+        $this->assertSame([5], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'manufacturing'));
+        $this->assertSame([3, 5], $this->runsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
+    }
+
+    #[Group('issue-1450')]
     public function testThreeAttemptsAtAT1BlueprintCopyMaxRunsOfOneGiveOneCopyLinePerAttempt(): void
     {
         $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
@@ -1628,6 +1796,18 @@ final class IndustryProjectServiceTest extends TestCase
         $this->expectException(InventionProbabilityMissingException::class);
 
         $this->service()->buildBom($project, $this->createUser());
+    }
+
+    private function projectOfSabreManufacturedInSeparateLinesOfRuns(array $runsOfEachLine): IndustryProject
+    {
+        $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 4_200], maxProductionLimit: 10, hasCopyActivity: true);
+
+        $items = [];
+        foreach ($runsOfEachLine as $lineIndex => $runs) {
+            $items[] = ['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 2 * $lineIndex, 'teLevel' => 4 * $lineIndex, 'runs' => $runs];
+        }
+
+        return $this->service()->createProject($this->createUser(), new CreateProjectData(name: 'Copies of separate lines', items: $items));
     }
 
     private function copyLineOf(IndustryProject $project): IndustryProjectBomLine
