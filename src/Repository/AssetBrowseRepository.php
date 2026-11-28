@@ -15,6 +15,7 @@ class AssetBrowseRepository
     private const int MAX_CONTAINER_DEPTH = 5;
 
     private const string UNRESOLVED_LOCATION_TYPE = 'other';
+    private const string CUSTOMS_OFFICE_CONDITION = 'root_location_type = :locationType AND (root_location_name LIKE :structurePrefix OR root_location_name LIKE :locationPrefix)';
 
     private const string SEARCH_ESCAPE = '!';
     private const string ACCENTED_LETTERS = 'àáâãäåçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ';
@@ -268,24 +269,87 @@ class AssetBrowseRepository
         [$values, $types] = $this->bindings($scope);
         $values['typeIds'] = $typeIds;
         $types['typeIds'] = ArrayParameterType::INTEGER;
-        $values['locationType'] = self::UNRESOLVED_LOCATION_TYPE;
-        $values['structurePrefix'] = EveConstants::UNRESOLVED_STRUCTURE_NAME_PREFIX . '%';
-        $values['locationPrefix'] = EveConstants::UNRESOLVED_LOCATION_NAME_PREFIX . '%';
+        $values = $this->withCustomsOfficeBindings($values);
+        $customsOffice = self::CUSTOMS_OFFICE_CONDITION;
 
         $rows = $this->connection->fetchAllAssociative(
-            $this->treeCte($scope) . <<<'SQL'
+            $this->treeCte($scope) . <<<SQL
 
             SELECT type_id, SUM(quantity) AS quantity
             FROM tree
             WHERE type_id IN (:typeIds)
-              AND root_location_type = :locationType
-              AND (root_location_name LIKE :structurePrefix OR root_location_name LIKE :locationPrefix)
+              AND {$customsOffice}
             GROUP BY type_id
             SQL,
             $values,
             $types,
         );
 
+        return $this->quantitiesByType($rows);
+    }
+
+    /**
+     * @param list<int> $excludedRootLocationIds
+     * @param list<int> $typeIds
+     *
+     * @return array<int, int> typeId => quantity
+     */
+    public function elsewhereQuantities(AssetScope $scope, array $excludedRootLocationIds, array $typeIds): array
+    {
+        if ([] === $typeIds) {
+            return [];
+        }
+
+        [$values, $types] = $this->bindings($scope);
+        $values['typeIds'] = $typeIds;
+        $types['typeIds'] = ArrayParameterType::INTEGER;
+        $values = $this->withCustomsOfficeBindings($values);
+        $customsOffice = self::CUSTOMS_OFFICE_CONDITION;
+        $outsideExcludedLocations = '';
+        if ([] !== $excludedRootLocationIds) {
+            $values['excludedRootLocationIds'] = $excludedRootLocationIds;
+            $types['excludedRootLocationIds'] = ArrayParameterType::INTEGER;
+            $outsideExcludedLocations = 'AND root_location_id NOT IN (:excludedRootLocationIds)';
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            $this->treeCte($scope) . <<<SQL
+
+            SELECT type_id, SUM(quantity) AS quantity
+            FROM tree
+            WHERE type_id IN (:typeIds)
+              {$outsideExcludedLocations}
+              AND ({$customsOffice}) IS NOT TRUE
+            GROUP BY type_id
+            SQL,
+            $values,
+            $types,
+        );
+
+        return $this->quantitiesByType($rows);
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     *
+     * @return array<string, mixed>
+     */
+    private function withCustomsOfficeBindings(array $values): array
+    {
+        $values['locationType'] = self::UNRESOLVED_LOCATION_TYPE;
+        $values['structurePrefix'] = EveConstants::UNRESOLVED_STRUCTURE_NAME_PREFIX . '%';
+        $values['locationPrefix'] = EveConstants::UNRESOLVED_LOCATION_NAME_PREFIX . '%';
+
+        return $values;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     *
+     * @return array<int, int> typeId => quantity
+     */
+    private function quantitiesByType(array $rows): array
+    {
         $quantities = [];
         foreach ($rows as $row) {
             $quantities[(int) $row['type_id']] = (int) $row['quantity'];

@@ -11,6 +11,7 @@ export interface PlanetaryStockRow {
   home: number | null
   hub: number
   customsOffice: number
+  elsewhere: number
   corp: number | null
   openOrders: number
   coverageWeeks: number | null

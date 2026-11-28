@@ -387,6 +387,8 @@
         "customsOffice": "Customs office",
         "customsOfficeHint": "Stock held in a customs office, with no known location. It counts in the coverage.",
         "corp": "Corp hangar",
+        "elsewhere": "Elsewhere",
+        "notAtHub": "not at the hub",
         "weeklyConsumption": "Use / week",
         "coverage": "Coverage",
         "weeksValue": "{weeks} wk",
