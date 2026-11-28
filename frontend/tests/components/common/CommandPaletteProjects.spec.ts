@@ -82,7 +82,7 @@ describe('CommandPalette projects', () => {
       expect(groupOptionTexts('Projects')).toEqual(['4x Hulk'])
     })
 
-    it('labels an unnamed project with several items by its item count', async () => {
+    it('labels an unnamed project with several types by its first type and the count of the others', async () => {
       stubPaletteApi({
         projects: [groupIndustryProject('g3', null, 'draft', [
           groupProjectItem(11567, 'Avatar', 2),
@@ -91,9 +91,9 @@ describe('CommandPalette projects', () => {
       })
       await mountOpenPalette()
 
-      await typeQueryAndWaitForTypes('items')
+      await typeQueryAndWaitForTypes('avatar')
 
-      expect(groupOptionTexts('Projects')).toEqual(['2 items'])
+      expect(groupOptionTexts('Projects')).toEqual(['2x Avatar +1'])
     })
   })
 
