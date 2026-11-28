@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Api\Planetary;
 
 use App\Entity\CachedWalletJournalEntry;
 use App\Entity\Character;
+use App\Entity\PlanetaryPlanTemplate;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
@@ -56,6 +57,26 @@ final class PlanetaryProductionProfitApiTest extends WebTestCase
         self::assertEqualsWithDelta(3_000.0, $alice['taxes']['perDay'], 0.0001);
         self::assertSame([30, []], [$alice['taxes']['days'], $alice['lines']]);
         self::assertSame(['days' => 30, 'perDay' => null], $bob['taxes']);
+    }
+
+    #[Group('issue-1454')]
+    public function testTheSourcesAreTheOnesOfTheFollowedPlanOfTheUserOnlyAndTheDefaultOtherwise(): void
+    {
+        $this->em->persist(
+            (new PlanetaryPlanTemplate())
+                ->setUser($this->alice)
+                ->setName('Alice followed plan')
+                ->setProductions([['typeId' => 2_389, 'targetPerDay' => 10]])
+                ->setSettings(['purchaseSource' => 'jita-buy', 'saleSource' => 'jita-sell', 'taxPercent' => 4, 'daysBetweenRounds' => 4])
+                ->setFollowed(true),
+        );
+        $this->em->flush();
+
+        $alice = $this->getProductionProfit($this->alice);
+        $bob = $this->getProductionProfit($this->bob);
+
+        self::assertSame(['purchase' => 'jita-buy', 'sale' => 'jita-sell', 'followedTemplateName' => 'Alice followed plan'], $alice['sources']);
+        self::assertSame(['purchase' => 'paid', 'sale' => 'hub', 'followedTemplateName' => null], $bob['sources']);
     }
 
     /**

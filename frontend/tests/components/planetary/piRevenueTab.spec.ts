@@ -49,6 +49,7 @@ const PRODUCTION_PROFIT: PlanetaryProductionProfit = {
       soldQuantity: 100,
       internal: false,
       hubSellPrice: 700,
+      salePrice: 700,
       salesIsk: 70_000,
       inputsIsk: 30_000,
       profitPerDay: 40_000,
@@ -65,6 +66,7 @@ const PRODUCTION_PROFIT: PlanetaryProductionProfit = {
   taxes: { days: 30, perDay: null },
   netProfitPerDay: 40_000,
   unsyncedWallets: [],
+  sources: { purchase: 'paid', sale: 'hub', followedTemplateName: null },
 }
 
 const REVENUE_ENDPOINT = '/planetary/revenue'
