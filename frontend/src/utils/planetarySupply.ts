@@ -252,6 +252,12 @@ export function planStockTransfers(
     needByCharacter.set(row.characterId, needs)
   })
 
+  function volumeOf(typeId: number): number {
+    const volumePerUnit = volumeByType.get(typeId)
+    if (volumePerUnit === undefined) throw new Error(`Missing volume for type ${typeId} on a known launchpad`)
+    return volumePerUnit
+  }
+
   function transferOf(characterId: number, need: number, typeId: number): number | null {
     const holder = holderById.get(characterId)
     if (!homeIsSet || holder === undefined || holder.status === 'unknown') return null
@@ -264,20 +270,19 @@ export function planStockTransfers(
         .sort(([first], [second]) => first - second)
         .map(([typeId, need]) => {
           const transfer = transferOf(characterId, need, typeId)
-          const volumePerUnit = volumeByType.get(typeId)
           return {
             typeId,
             typeName: typeNameById.get(typeId) ?? null,
             need,
             transfer,
-            volumeM3: transfer === null || volumePerUnit === undefined ? null : transfer * volumePerUnit,
+            volumeM3: transfer === null ? null : transfer * volumeOf(typeId),
           }
         })
       return {
         characterId,
         characterName: rows[0].characterName,
         lines,
-        totalM3: sumOrNull(lines.map(line => line.volumeM3)),
+        totalM3: lines.length === 0 ? null : sumOrNull(lines.map(line => line.volumeM3)),
         excludedCount: rows.filter(row => row.refill.status === 'unknown').length,
         rowKeys: rows.map(row => row.key),
       }
