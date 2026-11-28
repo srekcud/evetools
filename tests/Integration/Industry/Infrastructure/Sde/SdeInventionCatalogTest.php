@@ -47,6 +47,7 @@ final class SdeInventionCatalogTest extends IntegrationTestCase
     private const int SYNTHETIC_T1_BLUEPRINT = 990_000_102;
     private const int SYNTHETIC_T2_PRODUCT = 990_000_103;
     private const int SYNTHETIC_T2_BLUEPRINT = 990_000_104;
+    private const int SYNTHETIC_RELIC = 990_000_105;
     private const int SYNTHETIC_MATERIAL = 990_000_110;
 
     private Connection $connection;
@@ -120,20 +121,23 @@ final class SdeInventionCatalogTest extends IntegrationTestCase
         $this->assertNull($this->catalog()->inventionOf(self::TRITANIUM));
     }
 
-    /**
-     * A T1 product that cannot be named must not be guessed (CLAUDE.md, no plausible default on business data).
-     */
-    public function testT1BlueprintWhichManufacturesNothingIsAnExplicitError(): void
+    public function testInventionFromARelicHasNoT1ProductAndNoCopyJob(): void
     {
         $this->insertBlueprint(self::SYNTHETIC_T2_BLUEPRINT, self::ACTIVITY_MANUFACTURING, self::SYNTHETIC_T2_PRODUCT, 1, [self::SYNTHETIC_MATERIAL => 1]);
-        $this->insertActivity(self::SYNTHETIC_T1_BLUEPRINT, self::ACTIVITY_INVENTION, [self::DATACORE_ELECTRONIC_ENGINEERING => 2]);
-        $this->insertActivityProduct(self::SYNTHETIC_T1_BLUEPRINT, self::ACTIVITY_INVENTION, self::SYNTHETIC_T2_BLUEPRINT, 1, 0.3);
-        $catalog = $this->catalog();
+        $this->insertActivity(self::SYNTHETIC_RELIC, self::ACTIVITY_INVENTION, [self::DATACORE_ELECTRONIC_ENGINEERING => 2]);
+        $this->insertActivityProduct(self::SYNTHETIC_RELIC, self::ACTIVITY_INVENTION, self::SYNTHETIC_T2_BLUEPRINT, 20, 0.3);
 
-        $this->expectException(\UnexpectedValueException::class);
-        $this->expectExceptionMessageMatches('/'.self::SYNTHETIC_T1_BLUEPRINT.'/');
+        $invention = $this->catalog()->inventionOf(self::SYNTHETIC_T2_PRODUCT);
 
-        $catalog->inventionOf(self::SYNTHETIC_T2_PRODUCT);
+        $this->assertNotNull($invention);
+        $this->assertNull($invention->t1ProductTypeId);
+        $this->assertSame(self::SYNTHETIC_RELIC, $invention->t1BlueprintTypeId);
+        $this->assertSame(0.3, $invention->baseProbability);
+        $this->assertSame(20, $invention->baseRuns->value);
+        $this->assertSame([
+            self::DATACORE_ELECTRONIC_ENGINEERING => 2,
+            self::SYNTHETIC_RELIC => 1,
+        ], $this->datacoreQuantitiesPerAttempt($invention));
     }
 
     private function catalog(): SdeInventionCatalog

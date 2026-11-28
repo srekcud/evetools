@@ -13,7 +13,6 @@ use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Exception\InventionProbabilityMissingException;
-use App\Exception\InventionT1ProductMissingException;
 use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\Decryptors;
 use App\Industry\Application\FavoriteSystems;
@@ -887,7 +886,7 @@ class IndustryProjectService
             $t1ProductTypeId = $this->t1ProductTypeIdOf($invention['t1BlueprintTypeId']);
             $decryptor = $this->decryptorChosenFor($productTypeId, $decryptorTypeIdByProductTypeId);
             $inventionsByProduct[$productTypeId] = ['recipe' => $invention, 'baseProbability' => $invention['probability'], 't1ProductTypeId' => $t1ProductTypeId, 'runsToInvent' => $runsToInvent, 'decryptor' => $decryptor];
-            $inventionTypeIds[] = $t1ProductTypeId;
+            $inventionTypeIds[] = $t1ProductTypeId ?? $invention['t1BlueprintTypeId'];
             if (null !== $decryptor) {
                 $inventionTypeIds[] = $decryptor->typeId;
             }
@@ -923,17 +922,22 @@ class IndustryProjectService
                 'surplusQuantity' => null,
             ];
 
-            if (isset($t1Copies[$t1ProductTypeId])) {
-                $t1Copies[$t1ProductTypeId]['attempts'] += $attempts;
-            } else {
-                $t1Copies[$t1ProductTypeId] = [
-                    'attempts' => $attempts,
-                    't1BlueprintTypeId' => $invention['t1BlueprintTypeId'],
-                    'parentTypeId' => $firstManufacturingJob['parentTypeId'],
-                ];
+            if (null !== $t1ProductTypeId) {
+                if (isset($t1Copies[$t1ProductTypeId])) {
+                    $t1Copies[$t1ProductTypeId]['attempts'] += $attempts;
+                } else {
+                    $t1Copies[$t1ProductTypeId] = [
+                        'attempts' => $attempts,
+                        't1BlueprintTypeId' => $invention['t1BlueprintTypeId'],
+                        'parentTypeId' => $firstManufacturingJob['parentTypeId'],
+                    ];
+                }
             }
 
             $consumed = [];
+            if (null === $t1ProductTypeId) {
+                $consumed[] = ['typeId' => $invention['t1BlueprintTypeId'], 'quantity' => $attempts];
+            }
             foreach ($invention['materials'] as $datacore) {
                 $consumed[] = ['typeId' => $datacore['typeId'], 'quantity' => $datacore['quantity'] * $attempts];
             }
@@ -1039,15 +1043,12 @@ class IndustryProjectService
         return $ownerId->toRfc4122();
     }
 
-    private function t1ProductTypeIdOf(int $t1BlueprintTypeId): int
+    private function t1ProductTypeIdOf(int $t1BlueprintTypeId): ?int
     {
         $manufacturing = IndustryActivityType::Manufacturing->value;
         $products = $this->activityProductRepository->findProductsForBlueprints([$t1BlueprintTypeId], [$manufacturing]);
         $product = $products[$t1BlueprintTypeId . '-' . $manufacturing] ?? null;
-        if ($product === null) {
-            throw new InventionT1ProductMissingException($t1BlueprintTypeId);
-        }
 
-        return $product->getProductTypeId();
+        return $product?->getProductTypeId();
     }
 }

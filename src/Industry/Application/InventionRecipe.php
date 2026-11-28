@@ -13,13 +13,14 @@ use App\Industry\Domain\Runs;
 final readonly class InventionRecipe
 {
     /**
+     * @param ?int                 $t1ProductTypeId null for a relic, which manufactures nothing and is consumed instead of copied (#1473)
      * @param ?float               $baseProbability null when the SDE has none (#74)
      * @param Runs                 $baseRuns        runs of the invented BPC, before the decryptor
-     * @param list<RecipeMaterial> $datacores       consumed by each attempt
+     * @param list<RecipeMaterial> $datacores       consumed by each attempt, the relic included
      */
     public function __construct(
         public int $t1BlueprintTypeId,
-        public int $t1ProductTypeId,
+        public ?int $t1ProductTypeId,
         public ?float $baseProbability,
         public Runs $baseRuns,
         public array $datacores,

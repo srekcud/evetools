@@ -190,13 +190,16 @@ final readonly class ProductionCostCalculator
             $selector,
             $request,
         );
-        $copyInstallCost = $this->installCostOutsidePlan(
-            ActivityKind::Copying,
-            EstimatedItemValue::of(new Runs(self::COPY_RUNS_PER_ATTEMPT), $this->eivMaterials(self::recipeOf($inventionRecipe->t1ProductTypeId, $recipes))),
-            $selector,
-            $request,
-        );
-        $attemptCost = InventionAttempt::cost($datacoresCost, $decryptorCost, $inventionInstallCost)->plus($copyInstallCost->total);
+        $copyInstallCost = null === $inventionRecipe->t1ProductTypeId
+            ? null
+            : $this->installCostOutsidePlan(
+                ActivityKind::Copying,
+                EstimatedItemValue::of(new Runs(self::COPY_RUNS_PER_ATTEMPT), $this->eivMaterials(self::recipeOf($inventionRecipe->t1ProductTypeId, $recipes))),
+                $selector,
+                $request,
+            );
+        $inventionAttemptCost = InventionAttempt::cost($datacoresCost, $decryptorCost, $inventionInstallCost);
+        $attemptCost = null === $copyInstallCost ? $inventionAttemptCost : $inventionAttemptCost->plus($copyInstallCost->total);
 
         $chance = null === $inventionRecipe->baseProbability ? null : $settings->chanceOf($inventionRecipe->baseProbability);
         $unknownChanceReason = null === $inventionRecipe->baseProbability || $settings->skillsAreKnown()

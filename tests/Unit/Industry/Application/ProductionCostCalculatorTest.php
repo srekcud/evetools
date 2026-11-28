@@ -104,6 +104,8 @@ final class ProductionCostCalculatorTest extends TestCase
     private const int SECOND_DATACORE = 20418;
     private const float HOBGOBLIN_II_BASE_PROBABILITY = 0.34;
     private const int PROCESS_DECRYPTOR = 34205;
+    private const int INTACT_HULL_SECTION = 990_000_201;
+    private const float INTACT_HULL_SECTION_PRICE = 35000.0;
 
     private const int ISOGEN_PER_HOBGOBLIN_II_RUN = 7;
 
@@ -378,6 +380,65 @@ final class ProductionCostCalculatorTest extends TestCase
         $this->assertSame(10, $productionCost->producedQuantity->value);
         $this->assertKnownCost(1634335.31, $productionCost->totalCost);
         $this->assertEqualsWithDelta(163433.531205, $productionCost->costPerUnit->amount()->amount, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-1473')]
+    public function testInventionFromARelicHasNoCopyInstallCostAndBuysTheRelicWithItsDatacoresInEachAttempt(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(
+            self::HOBGOBLIN_II_BASE_PROBABILITY,
+            inventionRecipe: self::relicInventionRecipe(),
+            additionalMarketPrices: [self::INTACT_HULL_SECTION => self::INTACT_HULL_SECTION_PRICE],
+        )->costOf(self::hobgoblinIIRequest());
+
+        $invention = $productionCost->invention;
+        $this->assertNotNull($invention);
+        $this->assertNull($invention->recipe->t1ProductTypeId);
+        $this->assertNull($invention->copyInstallCost);
+        $this->assertKnownCost(315000.0, $invention->datacoresCost);
+        $this->assertKnownCost(0.0, $invention->decryptorCost);
+        $this->assertKnownCost(176.3, $invention->inventionInstallCost->total);
+        $this->assertKnownCost(315176.3, $invention->attemptCost);
+        $this->assertNotNull($invention->expectedAttempts);
+        $this->assertEqualsWithDelta(2.152080344, $invention->expectedAttempts, self::FLOAT_TOLERANCE);
+        $this->assertKnownCost(678284.72, $invention->total);
+        $this->assertKnownCost(1709634.72, $productionCost->totalCost);
+    }
+
+    #[Group('issue-1473')]
+    public function testInventionFromARelicWithAProcessDecryptorAddsTheDecryptorToTheRelicAndDatacoresOfTheAttempt(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(
+            self::HOBGOBLIN_II_BASE_PROBABILITY,
+            inventionRecipe: self::relicInventionRecipe(),
+            additionalMarketPrices: [self::INTACT_HULL_SECTION => self::INTACT_HULL_SECTION_PRICE],
+        )->costOf(self::hobgoblinIIRequest(self::processDecryptor()));
+
+        $invention = $productionCost->invention;
+        $this->assertNotNull($invention);
+        $this->assertNull($invention->copyInstallCost);
+        $this->assertKnownCost(315000.0, $invention->datacoresCost);
+        $this->assertKnownCost(50000.0, $invention->decryptorCost);
+        $this->assertKnownCost(365176.3, $invention->attemptCost);
+    }
+
+    #[Group('issue-1473')]
+    public function testInventionFromARelicWithoutMarketPriceForTheRelicHasAnUnknownCostNeverZero(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(
+            self::HOBGOBLIN_II_BASE_PROBABILITY,
+            inventionRecipe: self::relicInventionRecipe(),
+        )->costOf(self::hobgoblinIIRequest());
+
+        $invention = $productionCost->invention;
+        $this->assertNotNull($invention);
+        $this->assertNull($invention->copyInstallCost);
+        $this->assertFalse($invention->datacoresCost->isKnown());
+        $this->assertEquals([MissingData::marketPrice(self::INTACT_HULL_SECTION)], $invention->datacoresCost->missingData);
+        $this->assertFalse($invention->attemptCost->isKnown());
+        $this->assertFalse($invention->total->isKnown());
+        $this->assertFalse($productionCost->totalCost->isKnown());
+        $this->assertKnownCost(960400.0, $productionCost->materialCost);
     }
 
     public function testMissingInventionProbabilityMakesTheT2CostUnknown(): void
@@ -1090,11 +1151,11 @@ final class ProductionCostCalculatorTest extends TestCase
      * (Hobgoblin I: 2 500 Tritanium per run), 10 runs per invented BPC, 2 + 2 datacores per attempt.
      * Favorite manufacturing system indices: manufacturing 0.04, invention 0.06, copying 0.03. No rig targets any group.
      */
-    private static function hobgoblinIICalculator(?float $baseProbability, ?BlueprintCatalog $catalog = null): ProductionCostCalculator
+    private static function hobgoblinIICalculator(?float $baseProbability, ?BlueprintCatalog $catalog = null, ?InventionRecipe $inventionRecipe = null, array $additionalMarketPrices = []): ProductionCostCalculator
     {
         return new ProductionCostCalculator(
             $catalog ?? self::hobgoblinCatalog(),
-            new InMemoryInventionCatalog([self::HOBGOBLIN_II => self::hobgoblinIIInventionRecipe($baseProbability)]),
+            new InMemoryInventionCatalog([self::HOBGOBLIN_II => $inventionRecipe ?? self::hobgoblinIIInventionRecipe($baseProbability)]),
             new InMemoryMarketPrices([
                 self::TRITANIUM => 4.0,
                 self::MORPHITE => 9000.0,
@@ -1102,7 +1163,7 @@ final class ProductionCostCalculatorTest extends TestCase
                 self::SECOND_DATACORE => 60000.0,
                 self::PROCESS_DECRYPTOR => 50000.0,
                 self::ISOGEN => 120.0,
-            ]),
+            ] + $additionalMarketPrices),
             new InMemoryAdjustedPrices([self::TRITANIUM => 3.0, self::MORPHITE => 8000.0, self::ISOGEN => 95.0]),
             new InMemorySystemCostIndices([
                 self::FAVORITE_MANUFACTURING_SYSTEM_ID => [
@@ -1118,6 +1179,21 @@ final class ProductionCostCalculatorTest extends TestCase
                 ],
             ]),
             new InMemoryRigCategories(),
+        );
+    }
+
+    private static function relicInventionRecipe(): InventionRecipe
+    {
+        return new InventionRecipe(
+            t1BlueprintTypeId: self::INTACT_HULL_SECTION,
+            t1ProductTypeId: null,
+            baseProbability: self::HOBGOBLIN_II_BASE_PROBABILITY,
+            baseRuns: new Runs(10),
+            datacores: [
+                new RecipeMaterial(self::FIRST_DATACORE, new Quantity(2)),
+                new RecipeMaterial(self::SECOND_DATACORE, new Quantity(2)),
+                new RecipeMaterial(self::INTACT_HULL_SECTION, new Quantity(1)),
+            ],
         );
     }
 
