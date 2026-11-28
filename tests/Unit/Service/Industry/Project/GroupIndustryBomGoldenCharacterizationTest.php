@@ -22,7 +22,6 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Enum\IndustryActivityType;
 use App\Exception\InventionProbabilityMissingException;
-use App\Exception\InventionT1ProductMissingException;
 use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\CostMode;
 use App\Industry\Application\FavoriteSystems;
@@ -114,6 +113,10 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private const int PROTOTYPE_AMMUNITION_L = 990_003;
     private const int SELF_REPAIRING_HULL = 990_004;
     private const int HULL_REPAIR_NANITE = 990_005;
+    private const int TACTICAL_DESTROYER = 990_006;
+    private const int INTACT_HULL_SECTION = 990_007;
+    private const int STRATEGIC_CRUISER_SUBSYSTEM = 990_008;
+    private const int MALFUNCTIONING_HULL_SECTION = 990_009;
     private const float PROTOTYPE_AMMUNITION_L_BASE_PROBABILITY = 0.4;
     private const int PROTOTYPE_AMMUNITION_L_INVENTED_BPC_RUNS = 5;
     private const int SYNTHETIC_MAX_PRODUCTION_LIMIT = 300;
@@ -165,8 +168,6 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private array $typeIdsWithoutSdeName = [];
 
     private array $otherInventions = [];
-
-    private bool $t1BlueprintWithoutManufacturingProduct = false;
 
     private array $ownerStructures = [];
 
@@ -875,16 +876,83 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame([[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 3], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 4]], $this->datacoreLines($project));
     }
 
-    #[Group('issue-105')]
-    public function testT1BlueprintWithoutManufacturingProductThrowsNamingTheT1BlueprintAndPersistsNoProject(): void
+    #[Group('issue-1473')]
+    public function testInventionFromARelicHasNoCopyLineAndConsumesOneRelicPerAttempt(): void
     {
-        $this->t1BlueprintWithoutManufacturingProduct = true;
+        $this->addTacticalDestroyerInventedFromARelic();
+        $project = $this->projectOf([[self::TACTICAL_DESTROYER, 20, 0, 0]]);
 
-        [$failure, $persisted] = $this->inventionFailure($this->service);
+        $this->service->buildBom($project, $this->owner);
 
-        self::assertInstanceOf(InventionT1ProductMissingException::class, $failure);
-        self::assertMatchesRegularExpression('/\b'.self::DEPLETED_URANIUM_L_BLUEPRINT.'\b/', $failure->getMessage());
-        self::assertSame([], $persisted);
+        self::assertSame(
+            [[self::TACTICAL_DESTROYER, 'invention', 'blueprint', 4, 0, 0, 4, null]],
+            array_values(array_filter($this->jobs($project), static fn (array $job): bool => in_array($job[1], ['invention', 'copy'], true))),
+        );
+        self::assertSame([], $this->jobsOfTypeAndActivity($project, self::INTACT_HULL_SECTION, 'copy'));
+        self::assertSame([], $this->jobsOfTypeAndActivity($project, self::TACTICAL_DESTROYER, 'copy'));
+        self::assertSame(
+            [[self::INTACT_HULL_SECTION, 'Intact Hull Section', 4]],
+            array_map(
+                static fn (IndustryProjectBomLine $bomItem): array => [$bomItem->getTypeId(), $bomItem->getTypeName(), $bomItem->getRequiredQuantity()],
+                $this->materialBomItemsOf($project, self::INTACT_HULL_SECTION),
+            ),
+        );
+        self::assertSame(
+            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 8], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 12]],
+            $this->datacoreLines($project),
+        );
+    }
+
+    #[Group('issue-1473')]
+    public function testCreatingAProjectOfAProductInventedFromARelicPersistsTheProjectWithItsInventionLine(): void
+    {
+        $this->addTacticalDestroyerInventedFromARelic();
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void {
+            $persisted[] = $entity;
+        });
+        $this->entityManager->expects(self::once())->method('flush');
+
+        $project = $this->service->createProject($this->owner, new CreateProjectData(
+            name: 'Tactical destroyer run',
+            items: [['typeId' => self::TACTICAL_DESTROYER, 'typeName' => 'Tactical Destroyer', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 20]],
+        ));
+
+        self::assertSame([$project], $persisted);
+        self::assertSame([4], $this->runsOf($project, self::TACTICAL_DESTROYER, 'invention'));
+        self::assertSame([], $this->jobsOfTypeAndActivity($project, self::INTACT_HULL_SECTION, 'copy'));
+    }
+
+    #[Group('issue-1473')]
+    public function testTwoProductsInventedFromTwoDifferentRelicsGetOneRelicMaterialEachSizedOnTheirOwnAttempts(): void
+    {
+        $this->addTacticalDestroyerInventedFromARelic();
+        $this->addManufacturingRecipe(self::STRATEGIC_CRUISER_SUBSYSTEM, 'Strategic Cruiser Subsystem', 1, [(string) self::MORPHITE => 9]);
+        $this->sde['typeNames'][(string) self::MALFUNCTIONING_HULL_SECTION] = 'Malfunctioning Hull Section';
+        $this->otherInventions[self::STRATEGIC_CRUISER_SUBSYSTEM] = [
+            't1BlueprintTypeId' => self::MALFUNCTIONING_HULL_SECTION,
+            't2BlueprintTypeId' => self::STRATEGIC_CRUISER_SUBSYSTEM + self::BLUEPRINT_TYPE_ID_OFFSET,
+            'probability' => 0.21,
+            'baseRuns' => 10,
+            'materials' => [['typeId' => self::DATACORE_NUCLEAR_PHYSICS, 'typeName' => 'Datacore - Nuclear Physics', 'quantity' => 5]],
+        ];
+        $project = $this->projectOf([[self::TACTICAL_DESTROYER, 20, 0, 0], [self::STRATEGIC_CRUISER_SUBSYSTEM, 10, 0, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame([4], $this->runsOf($project, self::TACTICAL_DESTROYER, 'invention'));
+        self::assertSame([5], $this->runsOf($project, self::STRATEGIC_CRUISER_SUBSYSTEM, 'invention'));
+        self::assertSame(
+            [self::INTACT_HULL_SECTION => 4, self::MALFUNCTIONING_HULL_SECTION => 5],
+            array_intersect_key($this->materials($project), [self::INTACT_HULL_SECTION => true, self::MALFUNCTIONING_HULL_SECTION => true]),
+        );
+        self::assertSame(
+            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 33]],
+            array_map(
+                static fn (IndustryProjectBomLine $bomItem): array => [$bomItem->getTypeId(), $bomItem->getTypeName(), $bomItem->getRequiredQuantity()],
+                $this->materialBomItemsOf($project, self::DATACORE_NUCLEAR_PHYSICS),
+            ),
+        );
     }
 
     #[Group('issue-105')]
@@ -2582,7 +2650,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
                 $products = [];
                 foreach ($blueprintTypeIds as $blueprintTypeId) {
                     if ($blueprintTypeId === self::DEPLETED_URANIUM_L_BLUEPRINT) {
-                        if (!$this->t1BlueprintWithoutManufacturingProduct && in_array(IndustryActivityType::Manufacturing->value, $activityIds, true)) {
+                        if (in_array(IndustryActivityType::Manufacturing->value, $activityIds, true)) {
                             $products[$blueprintTypeId.'-'.IndustryActivityType::Manufacturing->value] = self::activityProduct($blueprintTypeId, IndustryActivityType::Manufacturing->value, self::DEPLETED_URANIUM_L, 1);
                         }
                         continue;
@@ -2742,6 +2810,22 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             'materials' => $materials,
         ];
         $this->sde['typeNames'][(string) $productTypeId] = $typeName;
+    }
+
+    private function addTacticalDestroyerInventedFromARelic(): void
+    {
+        $this->addManufacturingRecipe(self::TACTICAL_DESTROYER, 'Tactical Destroyer', 1, [(string) self::MORPHITE => 6]);
+        $this->sde['typeNames'][(string) self::INTACT_HULL_SECTION] = 'Intact Hull Section';
+        $this->otherInventions[self::TACTICAL_DESTROYER] = [
+            't1BlueprintTypeId' => self::INTACT_HULL_SECTION,
+            't2BlueprintTypeId' => self::TACTICAL_DESTROYER + self::BLUEPRINT_TYPE_ID_OFFSET,
+            'probability' => 0.26,
+            'baseRuns' => 20,
+            'materials' => [
+                ['typeId' => self::DATACORE_NUCLEAR_PHYSICS, 'typeName' => 'Datacore - Nuclear Physics', 'quantity' => 2],
+                ['typeId' => self::DATACORE_MECHANICAL_ENGINEERING, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 3],
+            ],
+        ];
     }
 
     private function inventionFailure(IndustryProjectService $service): array

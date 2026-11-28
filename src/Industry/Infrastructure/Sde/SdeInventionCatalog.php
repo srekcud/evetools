@@ -16,6 +16,7 @@ final readonly class SdeInventionCatalog implements InventionCatalog
 {
     private const int ACTIVITY_MANUFACTURING = 1;
     private const int ACTIVITY_INVENTION = 8;
+    private const int RELICS_CONSUMED_PER_ATTEMPT = 1;
 
     public function __construct(
         private IndustryActivityProductRepository $activityProductRepository,
@@ -37,18 +38,18 @@ final readonly class SdeInventionCatalog implements InventionCatalog
 
         $t1BlueprintTypeId = $invention->getTypeId();
         $t1Manufacturing = $this->activityProductRepository->findOneBy(['typeId' => $t1BlueprintTypeId, 'activityId' => self::ACTIVITY_MANUFACTURING]);
-        if (null === $t1Manufacturing) {
-            throw new \UnexpectedValueException(\sprintf('Blueprint %d is invented from but manufactures nothing in sde_industry_activity_products: its T1 product is unknown.', $t1BlueprintTypeId));
-        }
 
         $datacores = [];
         foreach ($this->activityMaterialRepository->findByBlueprintAndActivity($t1BlueprintTypeId, self::ACTIVITY_INVENTION) as $datacore) {
             $datacores[] = new RecipeMaterial($datacore->getMaterialTypeId(), new Quantity($datacore->getQuantity()));
         }
+        if (null === $t1Manufacturing) {
+            $datacores[] = new RecipeMaterial($t1BlueprintTypeId, new Quantity(self::RELICS_CONSUMED_PER_ATTEMPT));
+        }
 
         return new InventionRecipe(
             $t1BlueprintTypeId,
-            $t1Manufacturing->getProductTypeId(),
+            $t1Manufacturing?->getProductTypeId(),
             $invention->getProbability(),
             new Runs($invention->getQuantity()),
             $datacores,

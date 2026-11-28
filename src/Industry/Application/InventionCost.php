@@ -15,7 +15,7 @@ use App\Industry\Domain\InventionOutcome;
 final readonly class InventionCost
 {
     /**
-     * @param Cost   $attemptCost      datacores + decryptor + invention install + install of the 1-run T1 copy
+     * @param Cost   $attemptCost      datacores + decryptor + invention install + install of the 1-run T1 copy (none for a relic)
      * @param ?float $expectedAttempts null when the SDE has no invention probability
      */
     public function __construct(
@@ -25,7 +25,7 @@ final readonly class InventionCost
         public Cost $datacoresCost,
         public Cost $decryptorCost,
         public InstallCost $inventionInstallCost,
-        public InstallCost $copyInstallCost,
+        public ?InstallCost $copyInstallCost,
         public Cost $attemptCost,
         public ?float $expectedAttempts,
         public Cost $total,
