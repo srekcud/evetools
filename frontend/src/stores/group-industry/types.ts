@@ -488,6 +488,13 @@ export type ContainerVerification = {
   unknownReason: ContainerCheckUnknownReason | null
   assetsSyncedAt: string | null
   missingContainerNames: string[]
+  stockStations?: ContainerStockStation[] | null
+}
+
+export type ContainerStockStation = {
+  locationId: number | null
+  stationName: string | null
+  quantity: number
 }
 
 export type CorporationAssetsRefresh = {
