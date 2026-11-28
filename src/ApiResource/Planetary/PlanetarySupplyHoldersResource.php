@@ -32,6 +32,6 @@ final class PlanetarySupplyHoldersResource
 
     public ?string $homeLocationName = null;
 
-    /** @var list<array<string, mixed>> */
+    /** @var list<array{characterId: int, characterName: string, status: string, unknownReason: string|null, assetsReadAt: string|null, stale: bool, quantities: list<array{typeId: int, quantity: int}>}> */
     public array $characters = [];
 }

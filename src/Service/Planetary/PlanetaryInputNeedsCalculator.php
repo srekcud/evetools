@@ -382,6 +382,8 @@ class PlanetaryInputNeedsCalculator
 
         return [
             'colonyId' => $colony->getId()?->toRfc4122(),
+            'characterId' => $colony->getCharacter()->getEveCharacterId(),
+            'characterName' => $colony->getCharacter()->getName(),
             'planetId' => $colony->getPlanetId(),
             'planetName' => $colony->getPlanetName(),
             'pinId' => $pin->getPinId(),

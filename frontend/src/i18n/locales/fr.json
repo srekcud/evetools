@@ -1047,6 +1047,28 @@
       "errors": {
         "load": "Les besoins en entrées n'ont pas pu être chargés."
       },
+      "transfer": {
+        "title": "Du stock au personnage",
+        "help": "Ce que chaque personnage doit recevoir du stock pour remplir ses launchpads, et qui le détient au lieu d'origine. Aucun détenteur n'est affecté : pioche dans la liste.",
+        "loading": "Lecture des détenteurs du stock...",
+        "homeUnset": "Le lieu d'origine n'est pas réglé : les transferts et les manques ne peuvent pas être calculés.",
+        "need": "Besoin",
+        "quantity": "Du stock",
+        "holders": "Détenteurs",
+        "noHolder": "personne n'en détient",
+        "copy": "Copier en multibuy",
+        "details": "Par planète et launchpad",
+        "excluded": "{count} launchpad exclu du besoin de ce personnage, sa capacité ou le volume d'une entrée est inconnu. | {count} launchpads exclus du besoin de ce personnage, leur capacité ou le volume d'une entrée est inconnu.",
+        "assetsUnknown": "{name} : assets inconnus ({reason}), son stock n'est pas compté.",
+        "assetsStale": "{name} : assets lus le {date}, les quantités peuvent être périmées.",
+        "reasons": {
+          "missing_assets_scope": "scope assets absent ou jeton révoqué",
+          "assets_never_read": "assets jamais lus"
+        },
+        "errors": {
+          "load": "Les détenteurs du stock n'ont pas pu être chargés."
+        }
+      },
       "pickup": {
         "title": "À ramasser sur tes colonies",
         "help": "Pour chaque type des totaux du plein, ce que tes autres colonies tiennent déjà en sortie en attente : ramasse-le là-bas avant d'acheter le reste.",

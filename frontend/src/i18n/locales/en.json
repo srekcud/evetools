@@ -1047,6 +1047,28 @@
       "errors": {
         "load": "The input needs could not be loaded."
       },
+      "transfer": {
+        "title": "From stock to character",
+        "help": "What each character must receive from the stock to refill their launchpads, and who holds it at the home location. No holder is assigned: pick from the list.",
+        "loading": "Reading the stock holders...",
+        "homeUnset": "The home location is not set: the transfers and the shortfalls cannot be computed.",
+        "need": "Need",
+        "quantity": "From stock",
+        "holders": "Holders",
+        "noHolder": "nobody holds any",
+        "copy": "Copy as multibuy",
+        "details": "By planet and launchpad",
+        "excluded": "{count} launchpad left out of this character's need, its capacity or an input volume is unknown. | {count} launchpads left out of this character's need, their capacity or an input volume is unknown.",
+        "assetsUnknown": "{name}: assets unknown ({reason}), their stock is not counted.",
+        "assetsStale": "{name}: assets read on {date}, the quantities may be out of date.",
+        "reasons": {
+          "missing_assets_scope": "assets scope missing or token revoked",
+          "assets_never_read": "assets never read"
+        },
+        "errors": {
+          "load": "The stock holders could not be loaded."
+        }
+      },
       "pickup": {
         "title": "To pick up on your colonies",
         "help": "For each type in the refill totals, what your other colonies already hold as pending output: pick it up there before buying the rest.",

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import PiSupplyPendingBlocks from '@/components/planetary/PiSupplyPendingBlocks.vue'
+import PiSupplyStockTransfer from '@/components/planetary/PiSupplyStockTransfer.vue'
 import PiTierBadge from '@/components/planetary/PiTierBadge.vue'
 import PiTierFilter from '@/components/planetary/PiTierFilter.vue'
 import { useCopyFeedback } from '@/composables/useCopyFeedback'
@@ -189,6 +190,8 @@ watch(() => planetaryStore.lastSyncAt, () => supplyStore.fetchInputNeeds())
             days: formatNumber(days),
           }) }}
         </p>
+
+        <PiSupplyStockTransfer :launchpads="launchpads" :days="days" :rows="grid.rows" @open-stock="emit('open-stock')" />
 
         <PiTierFilter v-model="selectedTier" test-id="supply-tier-filter" />
 

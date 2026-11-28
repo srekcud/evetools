@@ -194,10 +194,124 @@ export function buildSupplyGrid(launchpads: readonly SupplyLaunchpad[], days: nu
   }
 }
 
+function compareByName(first: { characterName: string }, second: { characterName: string }): number {
+  return first.characterName.localeCompare(second.characterName)
+}
+
+function heldQuantity(holder: SupplyHolderCharacter, typeId: number): number {
+  const entry = holder.quantities.find(quantity => quantity.typeId === typeId)
+  return entry === undefined ? 0 : entry.quantity
+}
+
+function quantityIn(quantities: ReadonlyMap<number, number> | undefined, typeId: number): number {
+  const quantity = quantities?.get(typeId)
+  return quantity === undefined ? 0 : quantity
+}
+
+function sumOrNull(values: readonly (number | null)[]): number | null {
+  let sum = 0
+  for (const value of values) {
+    if (value === null) return null
+    sum += value
+  }
+  return sum
+}
+
 export function planStockTransfers(
-  _launchpads: readonly SupplyLaunchpad[],
-  _days: number,
-  _holders: SupplyHolders,
+  launchpads: readonly SupplyLaunchpad[],
+  days: number,
+  holders: SupplyHolders,
 ): StockTransferPlan {
-  return { recipients: [], types: [] }
+  const grid = buildSupplyGrid(launchpads, days)
+  if (grid.rows.length === 0) return { recipients: [], types: [] }
+
+  const knownKeys = new Set(grid.rows.filter(row => row.refill.status === 'known').map(row => row.key))
+  const volumeByType = new Map<number, number>()
+  launchpads
+    .filter(launchpad => knownKeys.has(`${launchpad.colonyId}-${launchpad.pinId}`))
+    .forEach(launchpad => launchpad.feeds.forEach(feed => {
+      if (feed.volumePerUnit !== null && !volumeByType.has(feed.typeId)) volumeByType.set(feed.typeId, feed.volumePerUnit)
+    }))
+
+  const holderById = new Map(holders.characters.map(character => [character.characterId, character]))
+  const typeNameById = new Map(grid.columns.map(column => [column.typeId, column.typeName]))
+  const homeIsSet = holders.homeLocationId !== null
+
+  const needByCharacter = new Map<number, Map<number, number>>()
+
+  function needOf(characterId: number, typeId: number): number {
+    return quantityIn(needByCharacter.get(characterId), typeId)
+  }
+
+  const rowsByCharacter = new Map<number, typeof grid.rows>()
+  grid.rows.forEach(row => {
+    rowsByCharacter.set(row.characterId, [...(rowsByCharacter.get(row.characterId) ?? []), row])
+    if (row.refill.status === 'unknown') return
+    const needs = needByCharacter.get(row.characterId) ?? new Map<number, number>()
+    row.refill.lines.forEach(line => needs.set(line.typeId, quantityIn(needs, line.typeId) + line.quantity))
+    needByCharacter.set(row.characterId, needs)
+  })
+
+  function transferOf(characterId: number, need: number, typeId: number): number | null {
+    const holder = holderById.get(characterId)
+    if (!homeIsSet || holder === undefined || holder.status === 'unknown') return null
+    return Math.max(0, need - heldQuantity(holder, typeId))
+  }
+
+  const recipients: StockTransferRecipient[] = [...rowsByCharacter.entries()]
+    .map(([characterId, rows]) => {
+      const lines: StockTransferLine[] = [...(needByCharacter.get(characterId) ?? new Map<number, number>()).entries()]
+        .sort(([first], [second]) => first - second)
+        .map(([typeId, need]) => {
+          const transfer = transferOf(characterId, need, typeId)
+          const volumePerUnit = volumeByType.get(typeId)
+          return {
+            typeId,
+            typeName: typeNameById.get(typeId) ?? null,
+            need,
+            transfer,
+            volumeM3: transfer === null || volumePerUnit === undefined ? null : transfer * volumePerUnit,
+          }
+        })
+      return {
+        characterId,
+        characterName: rows[0].characterName,
+        lines,
+        totalM3: sumOrNull(lines.map(line => line.volumeM3)),
+        excludedCount: rows.filter(row => row.refill.status === 'unknown').length,
+        rowKeys: rows.map(row => row.key),
+      }
+    })
+    .sort(compareByName)
+
+  const anyUnknownCharacter = holders.characters.some(character => character.status === 'unknown')
+
+  const types: StockTransferType[] = grid.columns.map(column => {
+    const known: (StockHolder & { available: number })[] = []
+    const unknown: StockHolder[] = []
+    if (homeIsSet) {
+      holders.characters.forEach(character => {
+        const identity = { characterId: character.characterId, characterName: character.characterName }
+        if (character.status === 'unknown') {
+          unknown.push({ ...identity, available: null, unknownReason: character.unknownReason })
+          return
+        }
+        const available = Math.max(0, heldQuantity(character, column.typeId) - needOf(character.characterId, column.typeId))
+        if (available > 0) known.push({ ...identity, available, unknownReason: null })
+      })
+    }
+    known.sort((first, second) => second.available - first.available || compareByName(first, second))
+    unknown.sort(compareByName)
+
+    const transfers = recipients.flatMap(recipient => recipient.lines.filter(line => line.typeId === column.typeId).map(line => line.transfer))
+    const totalTransfer = sumOrNull(transfers)
+    const totalAvailable = known.reduce((sum, holder) => sum + holder.available, 0)
+    const shortfall = !homeIsSet || anyUnknownCharacter || totalTransfer === null
+      ? null
+      : Math.max(0, totalTransfer - totalAvailable)
+
+    return { typeId: column.typeId, typeName: column.typeName, holders: [...known, ...unknown], shortfall }
+  })
+
+  return { recipients, types }
 }
