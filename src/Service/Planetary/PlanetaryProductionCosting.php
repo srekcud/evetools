@@ -20,12 +20,12 @@ final class PlanetaryProductionCosting
 
     /**
      * @param array<int, array{tier: string, dailyQuantity: float, inputs: array<int, float>}> $items
-     * @param array<int, float|null> $paidPrices
+     * @param array<int, float|null> $purchasePrices
      * @param array<int, float|null> $hubBuyPrices
      */
     public function __construct(
         private readonly array $items,
-        private readonly array $paidPrices,
+        private readonly array $purchasePrices,
         private readonly array $hubBuyPrices,
     ) {
         foreach ($items as $item) {
@@ -86,11 +86,11 @@ final class PlanetaryProductionCosting
             $extracted = $ownCost['extracted'];
         }
         if ($bought > self::QUANTITY_PRECISION) {
-            $paid = $this->paidPrices[$typeId] ?? null;
-            if ($paid === null) {
+            $purchasePrice = $this->purchasePrices[$typeId] ?? null;
+            if ($purchasePrice === null) {
                 return null;
             }
-            $total += $bought * $paid;
+            $total += $bought * $purchasePrice;
         }
 
         return ['cost' => $total / $consumed, 'extracted' => $extracted];

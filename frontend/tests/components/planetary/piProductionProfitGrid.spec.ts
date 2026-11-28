@@ -64,10 +64,10 @@ describe('PiProductionProfitGrid', () => {
     expect(row.get('[data-cell="jita"]').text()).toBe('8.00M')
   })
 
-  it('shows the unit sale price of the source under the sales of a line', () => {
+  it('shows the unit sale price of the source under the product of a line', () => {
     const wrapper = mountGrid(profit({ lines: [line({ salePrice: 1_000, hubSellPrice: 700 })] }))
 
-    expect(wrapper.get('[data-testid="profit-line"] [data-cell="sale-price"]').text()).toContain('1.00k')
+    expect(wrapper.get('[data-testid="profit-line"] [data-cell="sale-price"]').text()).toContain('1.0k')
   })
 
   it('names the sources of the followed plan with the plan name above the lines', () => {

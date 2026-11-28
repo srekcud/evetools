@@ -14,6 +14,15 @@ const emit = defineEmits<{ 'open-planner': [] }>()
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
 
+const sourcesText = computed(() => {
+  const purchase = t(`pi.revenue.profit.source.${props.profit.sources.purchase}`)
+  const sale = t(`pi.revenue.profit.source.${props.profit.sources.sale}`)
+  const followedName = props.profit.sources.followedTemplateName
+  const origin = followedName === null ? t('pi.revenue.profit.sourcesDefault') : t('pi.revenue.profit.sourcesPlan', { name: followedName })
+
+  return `${t('pi.revenue.profit.sources', { purchase, sale })} (${origin})`
+})
+
 const hasExtractedInput = computed(() => props.profit.lines.some(line => line.valuesExtractedAtHubBuy))
 
 function money(value: number): string {
@@ -52,6 +61,8 @@ function profitTone(value: number | null): string {
       <p class="text-xs text-slate-400" data-testid="profit-hub">{{ t('pi.revenue.profit.hub', { hub: profit.hub.structureName }) }}</p>
     </header>
 
+    <p class="border-b border-slate-700/60 px-4 py-2 text-xs text-slate-400" data-testid="profit-sources" :data-default="profit.sources.followedTemplateName === null">{{ sourcesText }}</p>
+
     <p v-if="!profit.hub.hasData" class="border-b border-slate-700/60 px-4 py-2 text-xs text-amber-300" data-testid="profit-no-hub-data">
       {{ t('pi.revenue.profit.noHubData') }}
     </p>
@@ -85,6 +96,7 @@ function profitTone(value: number | null): string {
                 <span class="truncate">{{ line.typeName ?? line.typeId }}</span>
                 <span class="rounded bg-slate-800 px-1.5 text-xs text-slate-300">{{ line.tier }}</span>
               </span>
+              <span v-if="line.salePrice !== null" class="mt-0.5 block pl-8 text-xs text-slate-500" data-cell="sale-price">{{ formatIskShort(line.salePrice) }}</span>
               <span
                 v-if="line.ifSold !== null"
                 class="mt-0.5 block pl-8 text-xs"
