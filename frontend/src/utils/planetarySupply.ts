@@ -13,6 +13,8 @@ export interface SupplyFeed {
 
 export interface SupplyLaunchpad {
   colonyId: string | null
+  characterId: number
+  characterName: string
   planetId: number
   planetName: string | null
   pinId: number
@@ -39,10 +41,64 @@ export interface LaunchpadRefill {
 
 export interface SupplyGrid {
   columns: { typeId: number; typeName: string | null }[]
-  rows: { key: string; colonyId: string | null; planetName: string | null; launchpadTypeName: string | null; consumedTypeIds: number[]; refill: LaunchpadRefill }[]
+  rows: { key: string; colonyId: string | null; characterId: number; characterName: string; planetName: string | null; launchpadTypeName: string | null; consumedTypeIds: number[]; refill: LaunchpadRefill }[]
   totals: { typeId: number; quantity: number }[]
   totalM3: number
   excludedCount: number
+}
+
+export type SupplyHolderUnknownReason = 'missing_assets_scope' | 'assets_never_read'
+
+export interface SupplyHolderCharacter {
+  characterId: number
+  characterName: string
+  status: 'known' | 'unknown'
+  unknownReason: SupplyHolderUnknownReason | null
+  assetsReadAt: string | null
+  stale: boolean
+  quantities: { typeId: number; quantity: number }[]
+}
+
+export interface SupplyHolders {
+  homeLocationId: number | null
+  homeLocationName: string | null
+  characters: SupplyHolderCharacter[]
+}
+
+export interface StockTransferLine {
+  typeId: number
+  typeName: string | null
+  need: number
+  transfer: number | null
+  volumeM3: number | null
+}
+
+export interface StockTransferRecipient {
+  characterId: number
+  characterName: string
+  lines: StockTransferLine[]
+  totalM3: number | null
+  excludedCount: number
+  rowKeys: string[]
+}
+
+export interface StockHolder {
+  characterId: number
+  characterName: string
+  available: number | null
+  unknownReason: SupplyHolderUnknownReason | null
+}
+
+export interface StockTransferType {
+  typeId: number
+  typeName: string | null
+  holders: StockHolder[]
+  shortfall: number | null
+}
+
+export interface StockTransferPlan {
+  recipients: StockTransferRecipient[]
+  types: StockTransferType[]
 }
 
 const UNKNOWN_REFILL: LaunchpadRefill = {
@@ -99,6 +155,8 @@ export function buildSupplyGrid(launchpads: readonly SupplyLaunchpad[], days: nu
   const rows = fed.map(launchpad => ({
     key: `${launchpad.colonyId}-${launchpad.pinId}`,
     colonyId: launchpad.colonyId,
+    characterId: launchpad.characterId,
+    characterName: launchpad.characterName,
     planetName: launchpad.planetName,
     launchpadTypeName: launchpad.typeName,
     consumedTypeIds: launchpad.feeds.map(feed => feed.typeId),
@@ -134,4 +192,12 @@ export function buildSupplyGrid(launchpads: readonly SupplyLaunchpad[], days: nu
     totalM3,
     excludedCount: rows.filter(row => row.refill.status === 'unknown').length,
   }
+}
+
+export function planStockTransfers(
+  _launchpads: readonly SupplyLaunchpad[],
+  _days: number,
+  _holders: SupplyHolders,
+): StockTransferPlan {
+  return { recipients: [], types: [] }
 }

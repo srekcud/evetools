@@ -402,6 +402,36 @@ final class PlanetaryInputNeedsCalculatorTest extends TestCase
         $this->assertQuantity(0.38, $feed, 'volumePerUnit');
     }
 
+    #[Group('issue-1460')]
+    public function testEachLaunchpadRowCarriesTheEveCharacterIdAndTheNameOfTheCharacterOfItsColony(): void
+    {
+        $this->defineSchematic(65, [self::BACTERIA => 40], self::OXYGEN, 1, 3600);
+        $alpha = $this->colony(
+            self::PLANET_ALPHA,
+            $this->launchpadPin(self::LAUNCHPAD_A, null),
+            $this->factoryPin(self::FACTORY, 65),
+        );
+        $this->route($alpha, self::LAUNCHPAD_A, self::FACTORY, self::BACTERIA, 1800.0);
+        $bravo = $this->colony(
+            self::PLANET_BETA,
+            $this->launchpadPin(self::LAUNCHPAD_B, null),
+            $this->factoryPin(self::FACTORY_UPSTREAM, 65),
+        );
+        $bravo->setCharacter((new Character())->setEveCharacterId(91_112_002)->setName('Odin Kask'));
+        $this->route($bravo, self::LAUNCHPAD_B, self::FACTORY_UPSTREAM, self::BACTERIA, 900.0);
+
+        $result = $this->calculator->calculate([$alpha, $bravo]);
+
+        $firstLaunchpad = $this->launchpadOf($result, self::LAUNCHPAD_A);
+        $secondLaunchpad = $this->launchpadOf($result, self::LAUNCHPAD_B);
+        foreach ([$firstLaunchpad, $secondLaunchpad] as $launchpad) {
+            self::assertArrayHasKey('characterId', $launchpad);
+            self::assertArrayHasKey('characterName', $launchpad);
+        }
+        self::assertSame([91_112_001, 'Mira Voss'], [$firstLaunchpad['characterId'], $firstLaunchpad['characterName']]);
+        self::assertSame([91_112_002, 'Odin Kask'], [$secondLaunchpad['characterId'], $secondLaunchpad['characterName']]);
+    }
+
     public function testLaunchpadWithoutRouteIsListedEvenOnAColonyWithoutFactory(): void
     {
         $colony = $this->colony(self::PLANET_ALPHA, $this->launchpadPin(self::LAUNCHPAD_A, null));

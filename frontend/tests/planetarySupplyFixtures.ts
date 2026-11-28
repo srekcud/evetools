@@ -36,6 +36,8 @@ export function feedOf(typeId: number, overrides: Partial<SupplyFeed> = {}): Sup
 export function launchpadOf(overrides: Partial<SupplyLaunchpad> = {}): SupplyLaunchpad {
   return {
     colonyId: 'colony-jita',
+    characterId: 2_119_000_001,
+    characterName: 'Jita Pilot',
     planetId: 40009077,
     planetName: 'Jita IV',
     pinId: 1_001,
